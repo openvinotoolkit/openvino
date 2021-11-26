@@ -3,7 +3,8 @@
 //
 
 #include <node_context.hpp>
-#include <openvino/opsets/opset8.hpp>
+
+#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace frontend {

@@ -4,33 +4,31 @@
 //
 //*****************************************************************************
 
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <node_context.hpp>
+
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
 // helper func - get pad_begin and pad_end
-static void get_paddings(const NodeContext& node,
-                         ngraph::Shape& pad_begin,
-                         ngraph::Shape& pad_end,
-                         ngraph::op::PadType& auto_pad) {
+static void get_paddings(const NodeContext& node, ov::Shape& pad_begin, ov::Shape& pad_end, ov::op::PadType& auto_pad) {
     if (node.has_attribute<std::string>("padding_algorithm")) {
         auto pad_algo = node.get_attribute<std::string>("padding_algorithm");
         if (pad_algo == "SAME") {
-            auto_pad = ngraph::op::PadType::SAME_UPPER;
+            auto_pad = ov::op::PadType::SAME_UPPER;
         } else if (pad_algo == "VALID") {
-            auto_pad = ngraph::op::PadType::VALID;
+            auto_pad = ov::op::PadType::VALID;
         } else if (pad_algo == "EXPLICIT") {
-            auto_pad = ngraph::op::PadType::EXPLICIT;
+            auto_pad = ov::op::PadType::EXPLICIT;
         } else {
             throw std::runtime_error("Unsupported pooling padding_algorithm " + pad_algo);
         }
     } else {
         // adaptive_maxpool with no such attr.
-        auto_pad = ngraph::op::PadType::EXPLICIT;
+        auto_pad = ov::op::PadType::EXPLICIT;
     }
 
     /*If pool padding size is a tuple or list, it could be in three forms:
@@ -69,7 +67,7 @@ NamedOutputs pool2d(const NodeContext& node) {
     auto kernel_shape = node.get_attribute<std::vector<int32_t>>("ksize");
 
     auto rounding_type =
-        node.get_attribute<bool>("ceil_mode", false) ? ngraph::op::RoundingType::CEIL : ngraph::op::RoundingType::FLOOR;
+        node.get_attribute<bool>("ceil_mode", false) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
 
     if (pooling_type.empty()) {
         pooling_type = "max";
@@ -83,20 +81,20 @@ NamedOutputs pool2d(const NodeContext& node) {
     int32_t input_rank = input_shape.rank().get_length();
     PDPD_ASSERT(input_rank >= 2, "input tensor rank must be greater than 2");
 
-    auto auto_pad = ngraph::op::PadType::EXPLICIT;
-    ngraph::Shape pad_begin, pad_end;
+    auto auto_pad = ov::op::PadType::EXPLICIT;
+    ov::Shape pad_begin, pad_end;
     get_paddings(node, pad_begin, pad_end, auto_pad);
 
     if (global_pooling || (adaptive && std::any_of(kernel_shape.begin(), kernel_shape.end(), [](int32_t i) {
                                return i == 1;
                            }))) {
         if (pooling_type == "max") {
-            auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, {2}, {input_rank - 2, input_rank - 1});
-            return node.default_single_output_mapping({std::make_shared<ngraph::opset6::ReduceMax>(data, axes, true)},
+            auto axes = ov::opset6::Constant::create(ov::element::i64, {2}, {input_rank - 2, input_rank - 1});
+            return node.default_single_output_mapping({std::make_shared<ov::opset6::ReduceMax>(data, axes, true)},
                                                       {"Out"});
         } else {
-            auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, {2}, {input_rank - 2, input_rank - 1});
-            return node.default_single_output_mapping({std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true)},
+            auto axes = ov::opset6::Constant::create(ov::element::i64, {2}, {input_rank - 2, input_rank - 1});
+            return node.default_single_output_mapping({std::make_shared<ov::opset6::ReduceMean>(data, axes, true)},
                                                       {"Out"});
         }
     } else if (adaptive) {
@@ -111,20 +109,20 @@ NamedOutputs pool2d(const NodeContext& node) {
             pool_size[1] = kernel_shape[1];
         }
 
-        const Output<ngraph::Node> output_shape =
-            ngraph::opset6::Constant::create(ngraph::element::i64, {pool_size.size()}, pool_size);
+        const Output<ov::Node> output_shape =
+            ov::opset6::Constant::create(ov::element::i64, {pool_size.size()}, pool_size);
 
         if (pooling_type == "max") {
             std::vector<Output<Node>> pool_outputs;
             pool_outputs =
-                std::make_shared<ngraph::opset8::AdaptiveMaxPool>(data, output_shape, ngraph::element::i32)->outputs();
+                std::make_shared<ov::opset8::AdaptiveMaxPool>(data, output_shape, ov::element::i32)->outputs();
             NamedOutputs outputs;
             outputs["Out"] = {pool_outputs[0]};
             outputs["Mask"] = {pool_outputs[1]};
             return outputs;
         } else {
             return node.default_single_output_mapping(
-                {std::make_shared<ngraph::opset8::AdaptiveAvgPool>(data, output_shape)},
+                {std::make_shared<ov::opset8::AdaptiveAvgPool>(data, output_shape)},
                 {"Out"});
         }
     } else {
@@ -158,25 +156,25 @@ NamedOutputs pool2d(const NodeContext& node) {
 
         if (pooling_type == "max") {
             return node.default_single_output_mapping(
-                {std::make_shared<ngraph::opset6::MaxPool>(data,
-                                                           ngraph::Strides(strides.begin(), strides.end()),
-                                                           pad_begin,
-                                                           pad_end,
-                                                           ngraph::Shape{kernel_h, kernel_w},
-                                                           rounding_type,
-                                                           auto_pad)},
+                {std::make_shared<ov::opset6::MaxPool>(data,
+                                                       ov::Strides(strides.begin(), strides.end()),
+                                                       pad_begin,
+                                                       pad_end,
+                                                       ov::Shape{kernel_h, kernel_w},
+                                                       rounding_type,
+                                                       auto_pad)},
                 {"Out"});
         } else {
             bool exclude_pad = node.get_attribute<bool>("exclusive", false);
             return node.default_single_output_mapping(
-                {std::make_shared<ngraph::opset6::AvgPool>(data,
-                                                           ngraph::Strides(strides.begin(), strides.end()),
-                                                           pad_begin,
-                                                           pad_end,
-                                                           ngraph::Shape{kernel_h, kernel_w},
-                                                           exclude_pad,
-                                                           rounding_type,
-                                                           auto_pad)},
+                {std::make_shared<ov::opset6::AvgPool>(data,
+                                                       ov::Strides(strides.begin(), strides.end()),
+                                                       pad_begin,
+                                                       pad_end,
+                                                       ov::Shape{kernel_h, kernel_w},
+                                                       exclude_pad,
+                                                       rounding_type,
+                                                       auto_pad)},
                 {"Out"});
         }
     }

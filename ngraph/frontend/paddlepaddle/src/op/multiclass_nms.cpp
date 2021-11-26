@@ -1,16 +1,16 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <ngraph/opsets/opset8.hpp>
 #include <node_context.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
+
+#include "openvino/opsets/opset8.hpp"
+#include "paddlepaddle_frontend/utility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
 NamedOutputs multiclass_nms(const NodeContext& node) {
-    using namespace ngraph;
     using namespace opset8;
     using namespace element;
 

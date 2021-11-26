@@ -3,9 +3,9 @@
 //
 
 #include <node_context.hpp>
-#include <openvino/opsets/opset6.hpp>
 
 #include "conv2d_utils.hpp"
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {

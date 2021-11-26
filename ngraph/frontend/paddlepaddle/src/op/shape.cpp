@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -11,7 +12,7 @@ namespace pdpd {
 namespace op {
 NamedOutputs shape(const NodeContext& node) {
     auto data = node.get_ng_input("Input");
-    auto shape_node = std::make_shared<ngraph::opset6::ShapeOf>(data, element::i32);
+    auto shape_node = std::make_shared<ov::opset6::ShapeOf>(data, element::i32);
     return node.default_single_output_mapping({shape_node}, {"Out"});
 }
 

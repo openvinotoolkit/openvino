@@ -5,7 +5,8 @@
 #pragma once
 
 #include <manager.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
+
+#include "paddlepaddle_frontend/utility.hpp"
 
 namespace ov {
 namespace frontend {
