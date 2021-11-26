@@ -212,6 +212,52 @@ def test_infer_queue(device):
     assert all(job["latency"] > 0 for job in jobs_done)
 
 
+def test_infer_queue_fail_on_cpp_func(device):
+    jobs = 6
+    num_request = 4
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
+    infer_queue = AsyncInferQueue(exec_net, num_request)
+
+    def callback(request, _):
+        request.get_tensor("Unknown")
+
+    img = read_image()
+    infer_queue.set_callback(callback)
+    assert infer_queue.is_ready
+
+    with pytest.raises(RuntimeError) as e:
+        for _ in range(jobs):
+            infer_queue.start_async({"data": img})
+        infer_queue.wait_all()
+
+    assert "Port for tensor name Unknown was not found" in str(e.value)
+
+
+def test_infer_queue_fail_on_py_func(device):
+    jobs = 1
+    num_request = 1
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
+    infer_queue = AsyncInferQueue(exec_net, num_request)
+
+    def callback(request, _):
+        request = request + 21
+
+    img = read_image()
+    infer_queue.set_callback(callback)
+    assert infer_queue.is_ready
+
+    with pytest.raises(TypeError) as e:
+        for _ in range(jobs):
+            infer_queue.start_async({"data": img})
+        infer_queue.wait_all()
+
+    assert "unsupported operand type(s) for +" in str(e.value)
+
+
 @pytest.mark.parametrize("data_type",
                          [np.float32,
                           np.int32,
