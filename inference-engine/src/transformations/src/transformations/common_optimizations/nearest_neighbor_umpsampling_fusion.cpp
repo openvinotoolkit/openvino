@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/matcher.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
@@ -245,7 +246,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
     auto reshape_2 = pattern::wrap_type<opset8::Reshape>({mul, concat_2});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
+        const auto &pattern_to_output = m.get_pattern_value_map();
 
         const auto reshape_2_node = std::dynamic_pointer_cast<opset8::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
         const auto mul_node = std::dynamic_pointer_cast<opset8::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
