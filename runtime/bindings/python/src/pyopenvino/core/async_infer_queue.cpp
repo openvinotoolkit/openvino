@@ -40,7 +40,8 @@ public:
         _cv.wait(lock, [this] {
             return !(_idle_handles.empty());
         });
-
+        if (_errors.size() > 0)
+            throw _errors.front();
         return !(_idle_handles.empty());
     }
 
@@ -51,7 +52,8 @@ public:
         _cv.wait(lock, [this] {
             return !(_idle_handles.empty());
         });
-
+        if (_errors.size() > 0)
+            throw _errors.front();
         return _idle_handles.front();
     }
 
@@ -63,6 +65,8 @@ public:
         _cv.wait(lock, [this] {
             return _idle_handles.size() == _requests.size();
         });
+        if (_errors.size() > 0)
+            throw _errors.front();
     }
 
     void set_default_callbacks() {
@@ -90,7 +94,12 @@ public:
                 }
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                f_callback(_requests[handle], _user_ids[handle]);
+                try {
+                    f_callback(_requests[handle], _user_ids[handle]);
+                } catch (py::error_already_set py_error) {
+                    assert(PyErr_Occurred());
+                    _errors.push(py_error);
+                }
                 // Add idle handle to queue
                 _idle_handles.push(handle);
                 // Notify locks in getIdleRequestId() or waitAll() functions
@@ -104,6 +113,7 @@ public:
     std::vector<py::object> _user_ids;  // user ID can be any Python object
     std::mutex _mutex;
     std::condition_variable _cv;
+    std::queue<py::error_already_set> _errors;
 };
 
 void regclass_AsyncInferQueue(py::module m) {

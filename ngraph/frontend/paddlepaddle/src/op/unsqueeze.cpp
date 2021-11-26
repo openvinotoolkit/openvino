@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -16,12 +17,12 @@ NamedOutputs unsqueeze(const NodeContext& node) {
         axesNode = node.get_ng_input("AxesTensor");
     } else if (node.has_ng_input("AxesTensorList")) {
         auto inputs = node.get_ng_inputs("AxesTensorList");
-        axesNode = std::make_shared<ngraph::opset6::Concat>(inputs, 0);
+        axesNode = std::make_shared<ov::opset6::Concat>(inputs, 0);
     } else {
         auto axes = node.get_attribute<std::vector<int32_t>>("axes");
-        axesNode = ngraph::opset6::Constant::create(ngraph::element::i32, {axes.size()}, axes);
+        axesNode = ov::opset6::Constant::create(ov::element::i32, {axes.size()}, axes);
     }
-    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Unsqueeze>(data, axesNode)}, {"Out"});
+    return node.default_single_output_mapping({std::make_shared<ov::opset6::Unsqueeze>(data, axesNode)}, {"Out"});
 }
 }  // namespace op
 }  // namespace pdpd

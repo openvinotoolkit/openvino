@@ -19,7 +19,7 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
-#include "openvino/pp.hpp"
+#include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
 
 namespace ov {
