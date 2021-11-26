@@ -805,7 +805,7 @@ std::tuple<int, int, int, int> MKLDNNROIPoolingNode::ROIPoolingExecutor::getBord
     hend = std::min(std::max(hend + roi_start_h, 0), ih);
     wstart = std::min(std::max(wstart + roi_start_w, 0), iw);
     wend = std::min(std::max(wend + roi_start_w, 0), iw);
-    return { hstart, hend, wstart, wend };
+    return std::make_tuple(hstart, hend, wstart, wend);
 }
 
 std::pair<float, float> MKLDNNROIPoolingNode::ROIPoolingExecutor::getXYForBilinearMode(
@@ -830,7 +830,7 @@ std::pair<float, float> MKLDNNROIPoolingNode::ROIPoolingExecutor::getXYForBiline
         in_x = 0.5 * (roi_start_w + roi_end_w) * (iw - 1);
     }
 
-    return { in_x, in_y };
+    return std::make_pair(in_x, in_y);
 }
 
 template <typename T>
