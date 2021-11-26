@@ -42,4 +42,4 @@ class KaldiExtractor(Loader):
 
     def load(self, graph: Graph):
         update_extractors_with_extensions(kaldi_type_extractors)
-        extract_node_attrs(graph, lambda node: kaldi_extractor(node, kaldi_type_extractors))
+        extract_node_attrs(graph, lambda node: kaldi_extractor(node))
