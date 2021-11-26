@@ -52,18 +52,21 @@ def compress_model_weights(model: NXModel):
         compress_weights(model_dict['model'])
 
 
-def get_nodes_by_type(model: NXModel, types: list):
+# TODO: set recursively = True to enable subgraphs quantization
+def get_nodes_by_type(model: NXModel, types: list, recursively: bool = False):
     """ Returns all nodes with type from types collection
     :param model: NXModel model
     :param types: list of required types
+    :param recursively: whether return all nodes from the model
+    and each subgraph or only from the external model
     :return list of nodes filtered by 'types' collection
     """
     return [node for model_dict in model.models
-            for node in ge.get_nodes_by_type(model_dict['model'], types)]
+            for node in ge.get_nodes_by_type(model_dict['model'], types, recursively)]
 
 
 def get_node_by_name(model: NXModel, name: str) -> Node:
-    """ Returns node by name
+    """ Returns node by name found in the graph and each subgraph
     :param model: NXModel model
     :param name: name of the node
     :return node from model (of type Node or None if there's no such node)
@@ -77,13 +80,16 @@ def get_node_by_name(model: NXModel, name: str) -> Node:
     return names[0] if names else None
 
 
-def get_all_operation_nodes(model: NXModel):
+# TODO: set recursively = True to enable subgraphs quantization
+def get_all_operation_nodes(model: NXModel, recursively: bool = False):
     """ Returns sequence of all nodes in all graphs
     :param model: NXModel model
+    :param recursively: whether return all nodes from the model
+    and each subgraph or only from the external model
     :return list of all nodes
     """
     return [node for model_dict in model.models
-            for node in ge.get_all_operation_nodes(model_dict['model'])]
+            for node in ge.get_all_operation_nodes(model_dict['model'], recursively)]
 
 
 def build_model_for_node(nx_model, input_name, input_shape, node, remove_bias=False,

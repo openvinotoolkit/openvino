@@ -192,7 +192,7 @@ program_node& program::get_node(primitive_id const& id) {
     try {
         return *nodes_map.at(id);
     } catch (...) {
-        throw std::runtime_error("Program doesn't contain primtive node: " + id);
+        throw std::runtime_error("Program doesn't contain primitive node: " + id);
     }
 }
 
@@ -200,7 +200,7 @@ program_node const& program::get_node(primitive_id const& id) const {
     try {
         return *nodes_map.at(id);
     } catch (...) {
-        throw std::runtime_error("Program doesn't contain primtive node: " + id);
+        throw std::runtime_error("Program doesn't contain primitive node: " + id);
     }
 }
 
@@ -1122,46 +1122,56 @@ void program::dump_program(const char* stage,
     dump_graph_optimized(graph, *this);
 }
 
+data_types program::get_inference_precision(const program_node& node) const {
+    if (node.is_input()) {
+        return node.get_output_layout().data_type;
+    }
+    std::vector<data_types> input_dts;
+    for (auto& dep : node.get_dependencies()) {
+        input_dts.push_back(dep->get_output_layout().data_type);
+    }
+    data_types output_dt = node.get_output_layout().data_type;
+
+    assert(!input_dts.empty());
+    if (node.is_type<reorder>()) {
+        // If reorder has different input/output types - pick the max one as runtime precision
+        return data_type_traits::max_type(input_dts[0], output_dt);
+    } else if (node.is_type<quantize>()) {
+        if (data_type_traits::is_quantized(output_dt))
+            return output_dt;
+        return data_type_traits::max_type(input_dts[0], output_dt);
+    } else if (node.is_type<eltwise>()) {
+        auto max_dt = input_dts[0];
+        for (size_t i = 1; i < input_dts.size(); i++) {
+            max_dt = data_type_traits::max_type(max_dt, input_dts[i]);
+        }
+        return max_dt;
+    } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
+        if (input_dts.size() < 2) {
+            throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() + " during stage info collection. Expected >= 2 inputs");
+        }
+        if (data_type_traits::is_quantized(input_dts[0]) && data_type_traits::is_quantized(input_dts[1])) {
+            return input_dts[0];
+        } else {
+            return data_type_traits::max_type(input_dts[0], input_dts[1]);
+        }
+    }
+
+    return input_dts[0];
+}
+
+std::string program::get_implementation_info(const primitive_id& id) const {
+    try {
+        const auto& node = get_node(id);
+        auto impl = node.get_selected_impl();
+        return impl ? (impl->get_kernel_name() + "__" + dt_to_str(get_inference_precision(node))) : "undef";
+    } catch (...) { }
+
+    return "undef";
+}
+
 program::primitives_info program::get_current_stage_info() const {
     primitives_info info;
-
-    auto get_inference_precision = [](program_node& node) -> data_types {
-        if (node.is_input()) {
-            return node.get_output_layout().data_type;
-        }
-        std::vector<data_types> input_dts;
-        for (auto& dep : node.get_dependencies()) {
-            input_dts.push_back(dep->get_output_layout().data_type);
-        }
-        data_types output_dt = node.get_output_layout().data_type;
-
-        assert(!input_dts.empty());
-        if (node.is_type<reorder>()) {
-            // If reorder has different input/output types - pick the max one as runtime precision
-            return data_type_traits::max_type(input_dts[0], output_dt);
-        } else if (node.is_type<quantize>()) {
-            if (data_type_traits::is_quantized(output_dt))
-                return output_dt;
-            return data_type_traits::max_type(input_dts[0], output_dt);
-        } else if (node.is_type<eltwise>()) {
-            auto max_dt = input_dts[0];
-            for (size_t i = 1; i < input_dts.size(); i++) {
-                max_dt = data_type_traits::max_type(max_dt, input_dts[i]);
-            }
-            return max_dt;
-        } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
-            if (input_dts.size() < 2) {
-                throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() + " during stage info collection. Expected >= 2 inputs");
-            }
-            if (data_type_traits::is_quantized(input_dts[0]) && data_type_traits::is_quantized(input_dts[1])) {
-                return input_dts[0];
-            } else {
-                return data_type_traits::max_type(input_dts[0], input_dts[1]);
-            }
-        }
-
-        return input_dts[0];
-    };
 
     // Get info for actually executed graph nodes
     int exec_id = 0;
@@ -1191,7 +1201,7 @@ program::primitives_info program::get_current_stage_info() const {
                           fused,
                           p->get_output_layout(),
                           fmt_to_str(p->get_output_layout().format),
-                          p->selected_impl ? p->selected_impl->get_kernel_name() : "",
+                          get_implementation_info(p->id()),
                           get_inference_precision(*p),
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);

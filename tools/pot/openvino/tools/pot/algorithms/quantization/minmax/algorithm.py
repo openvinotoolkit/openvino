@@ -93,15 +93,15 @@ class MinMaxQuantization(Algorithm):
         for fq in fq_nodes:
             fq_input = fqut.get_fake_quantize_input(fq)
             fq_input_value = fqut.get_fake_quantize_input_value(fq)
-            layer_config = fake_quantize_config[fq.name]
+            layer_config = fake_quantize_config[fq.fullname]
             is_weights = fq_input.type == 'Const' or fq_input_value is not None
             ts_args = {}
             if is_weights is True and for_weights is True:
                 node = fqut.get_fake_quantize_first_output(fq)
                 if node.type in [op['type'] for op in TRANSPOSED_OPERATIONS]:
                     ts_args.update({'transpose': True})
-                statistics_layout[fq.name] = get_tensor_statistics(layer_config['range_estimator'],
-                                                                   for_weights=True, **ts_args)
+                statistics_layout[fq.fullname] = get_tensor_statistics(layer_config['range_estimator'],
+                                                                       for_weights=True, **ts_args)
             elif is_weights is False and for_weights is False:
                 fq_input_key = nu.get_quantized_input_key(fq)
                 ts_args['inplace_statistics'] = inplace_statistics
@@ -124,39 +124,39 @@ class MinMaxQuantization(Algorithm):
             fq_input = fqut.get_fake_quantize_input(fq)
             fq_input_value = fqut.get_fake_quantize_input_value(fq)
             stat_config_keys = {}
-            if fq.name not in fake_quantize_config:
+            if fq.fullname not in fake_quantize_config:
                 continue
-            for stat_type in fake_quantize_config[fq.name]['range_estimator']:
-                stat_config_keys[stat_type] = get_stat_name_by_config(fake_quantize_config[fq.name]['range_estimator'],
-                                                                      stat_type)
+            for stat_type in fake_quantize_config[fq.fullname]['range_estimator']:
+                stat_config_keys[stat_type] = get_stat_name_by_config(
+                    fake_quantize_config[fq.fullname]['range_estimator'], stat_type)
             if fq_input.type != 'Const' and fq_input_value is None:
                 fq_input_key = nu.get_quantized_input_key(fq)
                 max_values = inputs_stats[fq_input_key][stat_config_keys['max']]
                 min_values = inputs_stats[fq_input_key][stat_config_keys['min']]
 
                 min_aggregator, max_aggregator = \
-                    get_aggregator(fake_quantize_config[fq.name]['range_estimator'])
+                    get_aggregator(fake_quantize_config[fq.fullname]['range_estimator'])
                 batch_inputs_stats[fq_input_key] = {'max': max_aggregator(max_values),
                                                     'min': min_aggregator(min_values)}
             else:
                 node_output = fqut.get_fake_quantize_first_output(fq)
-                batch_weights_stats[node_output.name] = {}
+                batch_weights_stats[node_output.fullname] = {}
                 for stat_type in ['min', 'max']:
                     if stat_type in stat_config_keys:
-                        batch_weights_stats[node_output.name][stat_type] = weights_stats[node_output.name][
+                        batch_weights_stats[node_output.fullname][stat_type] = weights_stats[node_output.fullname][
                             stat_config_keys[stat_type]]
 
         for fq_ in fake_quantizations:
             # get first input because this is FakeQuantize node input
             _node_input = fqut.get_fake_quantize_input(fq_)
-            if fq_.name not in fake_quantize_config:
+            if fq_.fullname not in fake_quantize_config:
                 continue
-            if fake_quantize_config[fq_.name]['mode'] == 'symmetric':
+            if fake_quantize_config[fq_.fullname]['mode'] == 'symmetric':
                 min_level_, max_level_ = fqut.symmetric_range(_node_input, fq_, batch_weights_stats,
                                                               batch_inputs_stats, fake_quantize_config)
             else:
-                if 'unified_zeropoint' in fake_quantize_config[fq_.name].keys():
-                    unify_zp = fake_quantize_config[fq_.name]['unified_zeropoint']
+                if 'unified_zeropoint' in fake_quantize_config[fq_.fullname].keys():
+                    unify_zp = fake_quantize_config[fq_.fullname]['unified_zeropoint']
                 else:
                     unify_zp = False
                 min_level_, max_level_ = fqut.asymmetric_range(_node_input, fq_, batch_weights_stats,
@@ -170,13 +170,13 @@ class MinMaxQuantization(Algorithm):
                     return stat_value
                 return stat_value
 
-            range_estimator_config = fake_quantize_config[fq_.name]['range_estimator']
+            range_estimator_config = fake_quantize_config[fq_.fullname]['range_estimator']
             min_level_ = clip_stat(min_level_, 'min', range_estimator_config) \
                 if 'min' in range_estimator_config else min_level_
             max_level_ = clip_stat(max_level_, 'max', range_estimator_config) \
                 if 'max' in range_estimator_config else max_level_
 
-            if fq_.name in fake_quantize_config['fqs_to_rescale']:
+            if fq_.fullname in fake_quantize_config['fqs_to_rescale']:
                 weights_node = nu.get_node_input(fq_, 0)
                 weights = nu.get_node_value(weights_node)
                 conv_node = nu.get_node_output(fq_, 0)[0]
