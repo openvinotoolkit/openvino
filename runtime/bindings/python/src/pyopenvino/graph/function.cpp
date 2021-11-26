@@ -589,7 +589,7 @@ void regclass_graph_Function(py::module m) {
         "add_outputs",
         [](ov::Function& self, py::handle& outputs) {
             int i = 0;
-            std::vector<ov::Output<ov::Node>> new_outputs;
+            std::vector<ov::Output<const ov::Node>> new_outputs;
             py::list _outputs;
             if (!py::isinstance<py::list>(outputs)) {
                 if (py::isinstance<py::str>(outputs)) {
