@@ -9,6 +9,7 @@ from extensions.ops.sparse_reshape import SparseReshape
 from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.middle.passes.infer import partial_infer
+from mo.utils.error import Error
 from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
     shaped_parameter, build_graph, empty_data
 
@@ -52,42 +53,42 @@ class TestSparseReshape(unittest.TestCase):
         self.assertTrue(strict_compare_tensors(actual_output_shape, ref_out_shape))
         self.assertTrue(strict_compare_tensors(output_indices, ref_out_indices))
 
-    def test_static_shape_1(self):
+    def test_sparse_shape_1(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
                                             input_actual_shape=[4, 5],
                                             new_shape=[5, -1, 2],
                                             ref_out_shape=[5, 2, 2])
 
-    def test_static_shape_2(self):
+    def test_sparse_shape_2(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
                                             input_actual_shape=[dyn, 5, 6],
                                             new_shape=[5, -1],
                                             ref_out_shape=[5, dyn])
 
-    def test_static_shape_3(self):
+    def test_sparse_shape_3(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
                                             input_actual_shape=[5, 3, 8],
                                             new_shape=[4, dyn],
                                             ref_out_shape=[4, 30])
 
-    def test_static_shape_4(self):
+    def test_sparse_shape_4(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
                                             input_actual_shape=[1, 30],
                                             new_shape=[1, dyn],
                                             ref_out_shape=[1, 30])
 
-    def test_static_shape_5(self):
+    def test_sparse_shape_5(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
                                             input_actual_shape=[dyn, 30],
                                             new_shape=[1, dyn],
                                             ref_out_shape=[1, dyn])
 
-    def test_static_shape_6(self):
+    def test_sparse_shape_6(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         sparse_shape = [11, 2]
         input_indices_value = np.arange(0, np.prod(sparse_shape)).reshape(sparse_shape)
@@ -97,3 +98,20 @@ class TestSparseReshape(unittest.TestCase):
                                             ref_out_shape=[1, 30],
                                             input_indices=input_indices_value,
                                             ref_out_indices=input_indices_value)
+
+    def test_sparse_shape_7(self):
+        # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
+        sparse_shape = [11, 2]
+        self.build_and_test_shape_inference(input_indices_sparse_shape=sparse_shape,
+                                            input_actual_shape=[1, 30],
+                                            new_shape=[1, 15, 2],
+                                            ref_out_shape=[1, 15, 2])
+    # negative test with uncompatible shapes
+    def test_sparse_shape_8(self):
+        # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
+        sparse_shape = [11, 2]
+        with self.assertRaisesRegex(Error, 'Stopped shape/value propagation'):
+            self.build_and_test_shape_inference(input_indices_sparse_shape=sparse_shape,
+                                                input_actual_shape=[1, 30],
+                                                new_shape=[1, 64, 2],
+                                                ref_out_shape=[1, 15, 2])

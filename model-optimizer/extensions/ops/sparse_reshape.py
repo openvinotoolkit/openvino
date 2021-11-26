@@ -10,7 +10,7 @@ from mo.ops.op import Op
 
 class SparseReshape(Op):
     """
-    SparseReshape operation reshapes a sparse tensor in COO format (https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO))
+    SparseReshape operation reshapes a sparse tensor in Coordinate list (COO) format
     It recomputes indices for a new dense shape.
     """
     op = 'SparseReshape'
@@ -45,7 +45,7 @@ class SparseReshape(Op):
         assert len(np.argwhere(new_shape < -1)) == 0, \
             "Only non-negative or -1 values are allowed"
 
-        output_shape = np.ma.masked_array(new_shape, mask=new_shape == -1)
+        output_shape = np.ma.masked_array(new_shape, mask=new_shape == -1, fill_value=dynamic_dimension_value)
         assert not is_fully_defined(input_shape) or not is_fully_defined(output_shape) or \
                np.prod(input_shape) == np.prod(output_shape), \
             "Number of elements in input {} and output {} of dynamic reshape node {} mismatch" \
