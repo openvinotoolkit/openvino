@@ -49,6 +49,7 @@ class FastBiasCorrection(Algorithm):
          :param model: model to apply algo
          :return with corrected biases for layers with bias
          """
+        mu.nx_type_infer(model)
         activations_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
         nodes_with_bias = mu.get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
         self.find_channel_axis(model)
