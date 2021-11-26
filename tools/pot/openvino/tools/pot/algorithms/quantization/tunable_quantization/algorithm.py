@@ -72,7 +72,7 @@ class TunableQuantization(MinMaxQuantization):
         for fq in get_nodes_by_type(model, ['FakeQuantize']):
             node_input = get_node_input(fq, 0)
             op_type = 'weights' if node_input.type == 'Const' else 'activations'
-            fq_node_config = fq_configuration[fq.name][op_type]
+            fq_node_config = fq_configuration[fq.fullname][op_type]
             for child_name, child_config in fq_node_config:
                 if child_name not in nodes_config:
                     nodes_config[child_name] = {'weights': [], 'activations': []}

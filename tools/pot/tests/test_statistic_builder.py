@@ -101,7 +101,7 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     algo.register_statistics(model, collector)
     statistic_graph_builder = StatisticGraphBuilder()
     act_stats_layout, stat_aliases = merge_stats_by_algo_names([algorithm.name], collector._layout_by_algo)
-    model_with_nodes, nodes_names = statistic_graph_builder.insert_statistic(model, act_stats_layout, stat_aliases)
+    model_with_nodes, nodes_names, _ = statistic_graph_builder.insert_statistic(model, act_stats_layout, stat_aliases)
     ir_name = f'{model_name}_stat_{type_max}_{type_min}' if type_min is not None \
         else f'{model_name}_stat_mean'
     check_model(tmp_path, model_with_nodes, ir_name, model_framework)

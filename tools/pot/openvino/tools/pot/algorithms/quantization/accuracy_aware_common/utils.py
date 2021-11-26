@@ -338,3 +338,14 @@ def process_per_sample_metrics(metrics_per_sample, metrics_config,
             processed_metrics_per_sample[name] = [values[i] for i in indices]
 
     return processed_metrics_per_sample
+
+
+def prepare_nodes_for_logger(nodes_names):
+    postprocessed_nodes_names = []
+    for name in nodes_names:
+        subgraphs = name.split('|')
+        if len(subgraphs) > 1:
+            postprocessed_nodes_names.append(str(subgraphs))
+        else:
+            postprocessed_nodes_names.append(subgraphs[0])
+    return postprocessed_nodes_names

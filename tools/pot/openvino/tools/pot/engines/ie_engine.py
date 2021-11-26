@@ -9,7 +9,8 @@ import copy
 import numpy as np
 from openvino.inference_engine import IECore, StatusCode   # pylint: disable=E0611
 
-from .utils import append_stats, process_accumulated_stats
+from .utils import append_stats, process_accumulated_stats, \
+    restore_original_node_names, align_stat_names_with_results
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -90,11 +91,19 @@ class IEEngine(Engine):
 
         stat_names_aliases = None
         if stats_layout:
-            model_with_stat_op, nodes_name = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_name, output_to_node_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
             self._add_outputs(nodes_name)
+
+            model_output_names = self._model.outputs.keys()
+            align_stat_names_with_results(model_output_names,
+                                          nodes_name,
+                                          output_to_node_names,
+                                          stats_layout,
+                                          stat_aliases)
+
             # Creating statistics layout with IE-like names
             stats_layout, stat_names_aliases = self._convert_stats_names(stats_layout)
 
@@ -108,6 +117,9 @@ class IEEngine(Engine):
         accumulated_stats = \
             process_accumulated_stats(accumulated_stats=self._accumulated_layer_stats,
                                       stat_names_aliases=stat_names_aliases)
+
+        if stats_layout:
+            restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
 
         # Calculate metrics of required type. Reset collected statistics
         metrics = None
