@@ -17,10 +17,6 @@ struct GNAFlags {
     bool sw_fp32 = false;
     bool performance_counting = false;
     bool input_low_precision = false;
-#ifdef  GNA_DEBUG
-    bool compact_mode = false;
-#else
     bool compact_mode = true;
-#endif
 };
 }  // namespace GNAPluginNS
