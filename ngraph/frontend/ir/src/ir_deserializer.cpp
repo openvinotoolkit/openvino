@@ -733,7 +733,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
             if (auto attr = attrs_factory.create_by_type_info(type_info)) {
                 RTInfoDeserializer attribute_visitor(item);
                 if (attr->visit_attributes(attribute_visitor)) {
-                    rt_info[type_info] = std::shared_ptr<Variant>(attr);
+                    rt_info[type_info] = attr;
                 } else {
                     IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
                 }

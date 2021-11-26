@@ -10,7 +10,8 @@
 namespace {
 
 ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
-    std::unordered_map<std::string, std::vector<std::shared_ptr<ngraph::Variant>>> attrs;
+    std::unordered_map<std::string, std::vector<ov::Any>> attrs;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& node : nodes) {
         for (const auto& item : node->get_rt_info()) {
             if (item.second->is_copyable() && item.first != "opset") {
@@ -24,10 +25,14 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
         auto attr = *item.second.begin();
         if (item.second.size() == 1) {
             merged_attrs[item.first] = attr;
-        } else if (auto merge_attr = attr->merge(nodes)) {
-            merged_attrs[item.first] = merge_attr;
+        } else {
+            auto merge_attr = attr->merge(nodes);
+            if (!merge_attr.empty()) {
+                merged_attrs[item.first] = merge_attr;
+            }
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return merged_attrs;
 }
@@ -56,9 +61,11 @@ void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_p
     attrs.clear();
 
     for (const auto& item : from->get_rt_info()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (item.second->is_copyable() && item.first != "opset") {
             attrs[item.first] = item.second;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     if (opset) {

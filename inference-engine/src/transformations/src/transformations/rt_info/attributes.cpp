@@ -18,8 +18,13 @@ ov::pass::Attributes::Attributes() {
     register_factory<ov::preprocess::TensorInfoMemoryType>();
 }
 
-ov::Variant* ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {
-    return m_factory_registry.create(type_info);
+std::shared_ptr<ov::Variant> ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {
+    auto it_type = m_factory_registry.find(type_info);
+    if (it_type != m_factory_registry.end()) {
+        return it_type->second();
+    } else {
+        return {};
+    }
 }
 
 ov::pass::Attributes::~Attributes() = default;

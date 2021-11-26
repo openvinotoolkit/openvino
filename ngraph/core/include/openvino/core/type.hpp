@@ -87,7 +87,6 @@ typename std::enable_if<
 is_type(Value value) {
     return value->get_type_info().is_castable(Type::type_info);
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename Type, typename Value>
 typename std::enable_if<
@@ -98,6 +97,7 @@ typename std::enable_if<
 is_type(Value value) {
     return value->get_type_info().is_castable(Type::get_type_info_static());
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
 template <typename Type, typename Value>
@@ -107,14 +107,25 @@ as_type(Value value) {
     return ov::is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
 }
 
+namespace util {
+template <typename T>
+struct AsTypePtr;
 /// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
 /// Type, nullptr otherwise
-template <typename Type, typename Value>
-typename std::enable_if<
-    std::is_convertible<decltype(std::static_pointer_cast<Type>(std::declval<Value>())), std::shared_ptr<Type>>::value,
-    std::shared_ptr<Type>>::type
-as_type_ptr(Value value) {
-    return ov::is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
+template <typename In>
+struct AsTypePtr<std::shared_ptr<In>> {
+    template <typename Type>
+    static std::shared_ptr<Type> call(const std::shared_ptr<In>& value) {
+        return ov::is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
+    }
+};
+}  // namespace util
+
+/// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
+/// Type, nullptr otherwise
+template <typename T, typename U>
+auto as_type_ptr(const U& value) -> decltype(::ov::util::AsTypePtr<U>::template call<T>(value)) {
+    return ::ov::util::AsTypePtr<U>::template call<T>(value);
 }
 }  // namespace ov
 

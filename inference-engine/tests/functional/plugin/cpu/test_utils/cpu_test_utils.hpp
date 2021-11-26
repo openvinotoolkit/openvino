@@ -116,7 +116,7 @@ namespace CPUTestUtils {
 
 class CPUTestsBase {
 public:
-    typedef std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUInfo;
+    typedef std::map<std::string, ov::Any> CPUInfo;
 
 public:
     static std::string getTestCaseName(CPUSpecificParams params);

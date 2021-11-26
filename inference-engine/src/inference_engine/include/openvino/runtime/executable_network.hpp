@@ -148,7 +148,7 @@ public:
      * @param name config key, can be found in ie_plugin_config.hpp
      * @return Configuration parameter value
      */
-    Parameter get_config(const std::string& name) const;
+    Any get_config(const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for an executable network.
@@ -159,7 +159,7 @@ public:
      * @param name metric name to request
      * @return Metric parameter value
      */
-    Parameter get_metric(const std::string& name) const;
+    Any get_metric(const std::string& name) const;
 
     /**
      * @brief Returns pointer to plugin-specific shared context

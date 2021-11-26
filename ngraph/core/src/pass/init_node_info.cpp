@@ -41,7 +41,8 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
             // Skip initialization if attribute has been already set
             if (rtInfo.count(attr->get_type_info()))
                 continue;
-            if (auto init_attr = attr->init(node)) {
+            auto init_attr = attr->init(node);
+            if (!init_attr.empty()) {
                 rtInfo[attr->get_type_info()] = init_attr;
             }
         }

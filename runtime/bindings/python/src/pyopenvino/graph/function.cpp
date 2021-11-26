@@ -20,7 +20,7 @@ namespace py = pybind11;
 
 static const char* CAPSULE_NAME = "openvino_function";
 
-using PyRTMap = std::map<std::string, std::shared_ptr<ov::Variant>>;
+using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
@@ -478,11 +478,11 @@ void regclass_graph_Function(py::module m) {
                     ----------
                     value : Output
                         Output containing Node
-                    
+
                     Returns
                     ----------
                     get_result_index : int
-                        Index for value referencing it. 
+                        Index for value referencing it.
                  )");
     function.def("get_result_index",
                  (int64_t(ov::Function::*)(const ov::Output<const ov::Node>&) const) & ov::Function::get_result_index,
@@ -496,7 +496,7 @@ void regclass_graph_Function(py::module m) {
                     ----------
                     value : Output
                         Output containing Node
-                    
+
                     Returns
                     ----------
                     get_result_index : int
@@ -542,7 +542,7 @@ void regclass_graph_Function(py::module m) {
     function.def("is_dynamic",
                  &ov::Function::is_dynamic,
                  R"(
-                    Returns true if any of the op's defined in the function 
+                    Returns true if any of the op's defined in the function
                     contains partial shape.
 
                     Returns
@@ -627,7 +627,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("parameter"),
                  R"(
                     Replace the `parameter_index`th parameter of the function with `parameter`.
-    
+
                     All users of the `parameter_index`th parameter are redirected to `parameter`, and the
                     `parameter_index`th entry in the function parameter list is replaced with `parameter`.
 

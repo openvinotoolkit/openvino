@@ -29,7 +29,7 @@ using testing::SetArgReferee;
 //  1. void Export(const std::string& modelFileName)
 //  2. void Export(std::ostream& networkModel)
 //  4. CNNNetwork GetExecGraphInfo()
-//  5. void SetConfig(const std::map<std::string, Parameter>& config)
+//  5. void SetConfig(const std::map<std::string, Any>& config)
 //  6. Parameter GetConfig(const std::string& name) const
 //  7. Parameter GetMetric(const std::string& name) const
 //  8. RemoteContext::Ptr GetContext()

@@ -47,8 +47,7 @@ protected:
             IE_THROW() << "No parameter " << handle_Key << " found";
         }
 
-        Tmp handle = itrHandle->second;
-        return static_cast<Result>(handle);
+        return static_cast<Result>(itrHandle->second.as<Tmp>());
     }
 
     /**
@@ -62,8 +61,7 @@ protected:
             IE_THROW() << "No parameter " << handle_Key << " found";
         }
 
-        Result handle = itrHandle->second;
-        return handle;
+        return itrHandle->second.as<Result>();
     }
 
     /**

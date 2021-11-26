@@ -121,7 +121,7 @@ bool LoadNetworkCacheTestBase::importExportSupported(InferenceEngine::Core& ie) 
     auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
                         METRIC_KEY(IMPORT_EXPORT_SUPPORT));
     bool supported = (it != supportedMetricKeys.end()) &&
-                     ie.GetMetric(targetDevice, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+                     ie.GetMetric(targetDevice, METRIC_KEY(IMPORT_EXPORT_SUPPORT)).as<bool>();
     return supported;
 }
 

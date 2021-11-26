@@ -32,7 +32,7 @@ std::ostream& operator<<(std::ostream& stream, const std::vector<T>& v) {
  * @param reference on IE Parameter
  * @return void
  */
-void printParameterValue(const ov::runtime::Parameter& value) {
+void printAnyValue(const ov::Any& value) {
     if (value.empty()) {
         std::cout << "EMPTY VALUE" << std::endl;
     } else if (value.is<bool>()) {
@@ -83,7 +83,14 @@ void printParameterValue(const ov::runtime::Parameter& value) {
         std::cout << " }";
         std::cout << std::endl;
     } else {
-        std::cout << "UNSUPPORTED TYPE" << std::endl;
+        std::stringstream strm;
+        value.print(strm);
+        auto str = strm.str();
+        if (str.empty()) {
+            std::cout << "UNSUPPORTED TYPE" << std::endl;
+        } else {
+            std::cout << str << std::endl;
+        }
     }
 }
 
@@ -117,7 +124,7 @@ int main(int argc, char* argv[]) {
             for (auto&& metricName : supportedMetrics) {
                 if (metricName != METRIC_KEY(SUPPORTED_METRICS) && metricName != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
                     std::cout << "\t\t" << metricName << " : " << std::flush;
-                    printParameterValue(core.get_metric(device, metricName));
+                    printAnyValue(core.get_metric(device, metricName));
                 }
             }
 
@@ -129,7 +136,7 @@ int main(int argc, char* argv[]) {
                     core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 for (auto&& configKey : supportedConfigKeys) {
                     std::cout << "\t\t" << configKey << " : " << std::flush;
-                    printParameterValue(core.get_config(device, configKey));
+                    printAnyValue(core.get_config(device, configKey));
                 }
             }
 

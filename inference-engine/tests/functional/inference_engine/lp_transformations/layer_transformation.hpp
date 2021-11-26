@@ -139,7 +139,7 @@ public:
 
     template <class Attribute>
     static bool checkIfOutputAttributesAreTheSame(const NodeVector& nodes) {
-        Variant* first = nullptr;
+        void* first = nullptr;
         for (auto node : nodes) {
             for (auto output : node->outputs()) {
                 auto& rt = output.get_rt_info();
@@ -150,11 +150,13 @@ public:
                 }
 
                 auto value = it->second;
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 if (first == nullptr) {
                     first = value.get();
                 } else if (value.get() != first) {
                     return false;
                 }
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
         }
         return true;
