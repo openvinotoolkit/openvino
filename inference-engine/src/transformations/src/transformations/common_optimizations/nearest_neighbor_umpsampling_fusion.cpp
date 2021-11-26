@@ -247,7 +247,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
     auto concat_1 = pattern::wrap_type<opset8::Concat>();
     auto concat_2 = pattern::wrap_type<opset8::Concat>();
     auto reshape_1 = pattern::wrap_type<opset8::Reshape>({input, concat_1});
-    auto mul_const = pattern::wrap_type<opset8::Constant>();
+    auto mul_const = pattern::wrap_type<opset8::Constant>(pattern::has_static_shape());
     auto mul = pattern::wrap_type<opset8::Multiply>({reshape_1, mul_const});
     auto reshape_2 = pattern::wrap_type<opset8::Reshape>({mul, concat_2});
 
@@ -256,10 +256,9 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
 
         const auto reshape_2_node = std::dynamic_pointer_cast<opset8::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
         const auto mul_node = std::dynamic_pointer_cast<opset8::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
+        if (!reshape_2_node || !mul_node) return false;
 
-        if (!reshape_2_node || !mul_node || mul_node->get_input_partial_shape(1).is_dynamic()) return false;
-
-        const auto mul_const_node = std::dynamic_pointer_cast<opset8::Constant>(mul_node->input_value(1).get_node_shared_ptr());
+        const auto mul_const_node = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(mul_const).get_node_shared_ptr());
         if (!mul_const_node) return false;
 
         const auto reshape_1_node = std::dynamic_pointer_cast<opset8::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
