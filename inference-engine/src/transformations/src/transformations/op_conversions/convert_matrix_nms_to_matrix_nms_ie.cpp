@@ -18,13 +18,18 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatrixNmsToMatrixNmsIE, "ConvertMatrixNmsToMatrixNmsIE", 0);
 
-ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE() {
+ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMatrixNmsToMatrixNmsIE);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset8::MatrixNms>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto nms = std::dynamic_pointer_cast<ngraph::opset8::MatrixNms>(m.get_match_root());
-        if (!nms) {
+        if (!nms || transformation_callback(nms)) {
+            return false;
+        }
+
+        // if input shape is dynamic force the output shape must be dynamic too
+        if (nms->get_input_partial_shape(0).is_dynamic() || nms->get_input_partial_shape(1).is_dynamic()) {
             return false;
         }
 
@@ -32,7 +37,7 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE() {
         // vector of new nGraph operations
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
-        attrs.output_type = element::i32;
+        attrs.output_type = force_i32_output_type ? element::i32 : nms->get_output_type();
         auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
                 new_args.at(0),
                 new_args.at(1),

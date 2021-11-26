@@ -15,16 +15,22 @@
 namespace ov {
 class Node;
 class AttributeVisitor;
+class Any;
 using VariantTypeInfo = DiscreteTypeInfo;
 
 class OPENVINO_API Variant {
 public:
+    static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ::ov::DiscreteTypeInfo type_info{"Variant", 0};
+        return type_info;
+    }
     virtual ~Variant();
-    virtual const VariantTypeInfo& get_type_info() const = 0;
-
+    virtual const VariantTypeInfo& get_type_info() const {
+        return get_type_info_static();
+    }
     virtual bool is_copyable() const;
-    virtual std::shared_ptr<ov::Variant> init(const std::shared_ptr<Node>& node);
-    virtual std::shared_ptr<ov::Variant> merge(const ov::NodeVector& nodes);
+    virtual Any init(const std::shared_ptr<Node>& node);
+    virtual Any merge(const ov::NodeVector& nodes);
     virtual std::string to_string() {
         return "";
     }
@@ -38,6 +44,7 @@ public:
 template <typename VT>
 class VariantImpl : public Variant {
 public:
+    OPENVINO_RTTI(typeid(VT).name(), "0");
     using value_type = VT;
 
     VariantImpl() = default;
@@ -103,7 +110,5 @@ inline std::shared_ptr<Variant> make_variant(const wchar_t (&s)[N]) {
     return std::dynamic_pointer_cast<VariantImpl<std::wstring>>(std::make_shared<VariantWrapper<std::wstring>>(s));
 }
 #endif
-
-using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 using VariantVector = std::vector<std::shared_ptr<Variant>>;
 }  // namespace ov
