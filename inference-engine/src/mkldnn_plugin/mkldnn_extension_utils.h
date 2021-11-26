@@ -45,7 +45,7 @@ public:
      */
 
     static std::shared_ptr<DnnlBlockedMemoryDesc> makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
-    static size_t getMemSizeForDnnlDesc(const mkldnn::memory::desc& originalDesc);
+    static size_t getMemSizeForDnnlDesc(const mkldnn::memory::desc& desc);
 };
 
 }  // namespace MKLDNNPlugin
