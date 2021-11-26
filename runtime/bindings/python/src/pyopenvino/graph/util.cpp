@@ -36,25 +36,4 @@ void regmodule_graph_util(py::module m) {
                         they are the same returns Constant operation
                         from the resulting bound, otherwise Null.
                 )");
-    mod.def(
-        "get_tensor_name",
-        [](const std::shared_ptr<ov::op::v0::Result> result) {
-            const auto prev_node_output = result->input_value(0);
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            return prev_node_output.get_tensor().get_name();
-            NGRAPH_SUPPRESS_DEPRECATED_END
-        },
-        py::arg("result"),
-        R"(
-                Returns the name of a tensor associated with a given Result object (Function output).
-                Parameters
-                ----------
-                result : Result
-                    result node
-                Returns
-                ----------
-                get_tensor_name : string
-                    Returns the tensor name if it's set.
-                    Otherwise returns an empty string.
-            )");
 }
