@@ -23,7 +23,7 @@ using namespace ngraph;
 
 // In the transformation, a constant for Multiply must have the following shape:
 //      [1, 1, S_1, 1, S_2, ..., 1, S_i, ..., 1, S_{r - 2}, 1], (1)
-// where r is number of spatial axes, and each S_i is a scale for the axis i.
+// where (r - 2) is number of spatial axes, and each S_i is a scale for the axis i.
 // This function returns the vector with elements
 //      [S_1, S_2, ..., S_i, ..., S_{r - 2}],
 // when the shape, 's', has the form (1), and the empty vector otherwise.
