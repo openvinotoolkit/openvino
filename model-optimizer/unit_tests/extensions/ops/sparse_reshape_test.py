@@ -84,11 +84,39 @@ class TestSparseReshape(unittest.TestCase):
     def test_sparse_shape_5(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
+                                            input_actual_shape=[1, 30],
+                                            new_shape=[3, dyn, dyn],
+                                            ref_out_shape=[3, dyn, dyn])
+
+    def test_sparse_shape_6(self):
+        # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
+        self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
+                                            input_actual_shape=[1, 30],
+                                            new_shape=[dyn, 3, dyn],
+                                            ref_out_shape=[dyn, 3, dyn])
+
+    def test_sparse_shape_7(self):
+        # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
+        self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
+                                            input_actual_shape=[dyn, 30],
+                                            new_shape=[dyn, dyn, 33],
+                                            ref_out_shape=[dyn, dyn, 33])
+
+    def test_sparse_shape_8(self):
+        # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
+        self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
+                                            input_actual_shape=[dyn, 30],
+                                            new_shape=[dyn, 3, -1],
+                                            ref_out_shape=[dyn, 3, dyn])
+
+    def test_sparse_shape_9(self):
+        # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
+        self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
                                             input_actual_shape=[dyn, 30],
                                             new_shape=[1, dyn],
                                             ref_out_shape=[1, dyn])
 
-    def test_sparse_shape_6(self):
+    def test_sparse_shape_10(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         sparse_shape = [11, 2]
         input_indices_value = np.arange(0, np.prod(sparse_shape)).reshape(sparse_shape)
@@ -99,15 +127,16 @@ class TestSparseReshape(unittest.TestCase):
                                             input_indices=input_indices_value,
                                             ref_out_indices=input_indices_value)
 
-    def test_sparse_shape_7(self):
+    def test_sparse_shape_11(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         sparse_shape = [11, 2]
         self.build_and_test_shape_inference(input_indices_sparse_shape=sparse_shape,
                                             input_actual_shape=[1, 30],
                                             new_shape=[1, 15, 2],
                                             ref_out_shape=[1, 15, 2])
+
     # negative test with uncompatible shapes
-    def test_sparse_shape_8(self):
+    def test_sparse_shape_12(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         sparse_shape = [11, 2]
         with self.assertRaisesRegex(Error, 'Stopped shape/value propagation'):
