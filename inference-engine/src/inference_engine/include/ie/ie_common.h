@@ -403,7 +403,7 @@ struct ThrowNow final {
 #    define IE_LOCATION ""
 #endif  // NDEBUG
 
-// WARNING: DO NOT USE THIS MACRO! Use openvino/pp.hpp macro library
+// WARNING: DO NOT USE THIS MACRO! Use openvino/util/pp.hpp macro library
 #define IE_PP_EXPAND(X)             X
 #define IE_PP_NARG(...)             IE_PP_EXPAND(IE_PP_NARG_(__VA_ARGS__, IE_PP_RSEQ_N()))
 #define IE_PP_NARG_(...)            IE_PP_EXPAND(IE_PP_ARG_N(__VA_ARGS__))
