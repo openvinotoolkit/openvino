@@ -106,7 +106,7 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
                 app_inputs_info[i].element_type = user_precision_map[app_inputs_info[i].name]
             elif app_inputs_info[i].is_image:
                 app_inputs_info[i].element_type = Type.u8
-                pre_post_processor.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(Type.u8)))
+                pre_post_processor.input(i).tensor().set_element_type(Type.u8)
             else:
                 app_inputs_info[i].element_type = inputs[i].get_element_type()
     function = pre_post_processor.build()
