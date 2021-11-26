@@ -120,6 +120,9 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
         _capacity = newCapacity;
     }
+    size_t capacity() {
+        return _capcacity;
+    }
 
 protected:
     std::queue<T>   _queue;
