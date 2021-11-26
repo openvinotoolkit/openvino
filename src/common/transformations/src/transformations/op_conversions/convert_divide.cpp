@@ -40,7 +40,7 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
         ngraph::copy_runtime_info(div, pow.get_node_shared_ptr());
     }
 
-    auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
+    auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow, div->get_autob());
 
     mul->set_friendly_name(div->get_friendly_name());
     ngraph::copy_runtime_info(div, mul);
