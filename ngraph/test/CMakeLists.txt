@@ -94,6 +94,7 @@ set(SRC
     opset1.cpp
     ov_default_allocator_test.cpp
     ov_tensor_test.cpp
+    any.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
@@ -491,12 +492,9 @@ set(MULTI_TEST_SRC
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
     backend/interpolate.in.cpp
-    backend/matrix_nms.in.cpp
-    backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/node_name.in.cpp
-    backend/non_max_suppression.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
     backend/unhandled_op.in.cpp
