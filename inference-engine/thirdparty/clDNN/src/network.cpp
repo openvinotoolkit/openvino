@@ -368,7 +368,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
-        auto& cand = candidates.top();
+        auto cand = candidates.top();
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
         if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
@@ -464,6 +464,10 @@ std::shared_ptr<primitive_inst> cldnn::network::find_in_internal_networks(const 
 std::string network::get_primitive_info(const primitive_id& id) const {
     const auto& node = _program->get_node(id);
     return node.type()->to_string(node);
+}
+
+std::string network::get_implementation_info(const primitive_id& id) const {
+    return _program->get_implementation_info(id);
 }
 
 memory::ptr network::get_output_memory(const primitive_id& output_id) {
@@ -618,7 +622,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Execute " << inst->id() << std::endl;
+            GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
+                           << inst->output_memory().get_allocation_type() << std::endl;
         }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed
@@ -822,6 +827,10 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << node.id() << ": constant]" << std::endl;
+        }
         _memory_pool->release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }

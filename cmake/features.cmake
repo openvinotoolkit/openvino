@@ -14,6 +14,17 @@ ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependenc
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
+if (NOT ENABLE_CLDNN OR ANDROID OR
+    (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and android builds for now, so we'll
+    # build GPU plugin without oneDNN
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
+else()
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "ENABLE_ONEDNN_FOR_GPU_DEFAULT" OFF)
+
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
 ie_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
@@ -62,6 +73,15 @@ if (NOT THREADING STREQUAL "TBB" AND
     message(FATAL_ERROR "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is ${THREADING_DEFAULT}")
 endif()
 
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
+    (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))
+    set(ENABLE_TBBBIND_2_5_DEFAULT ON)
+else()
+    set(ENABLE_TBBBIND_2_5_DEFAULT OFF)
+endif()
+
+ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ON "ENABLE_TBBBIND_2_5_DEFAULT" OFF)
+
 if (ENABLE_GNA)
     if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
         set (DEFAULT_GNA_LIB GNA1)
@@ -86,6 +106,8 @@ endif()
 
 ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
 
+ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
+
 ie_option (ENABLE_MULTI "Enables Multi Device Plugin" ON)
 
 ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
@@ -98,7 +120,7 @@ ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine"
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_MYRIAD" OFF)
 
-ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_TESTS" OFF)
+ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_GAPI_PREPROCESSING;ENABLE_TESTS" OFF)
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
 

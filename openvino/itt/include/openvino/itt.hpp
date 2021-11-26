@@ -9,7 +9,7 @@
 
 #pragma once
 #include <openvino/function_name.hpp>
-#include <openvino/pp.hpp>
+#include <openvino/util/pp.hpp>
 #include <string>
 #include <utility>
 

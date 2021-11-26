@@ -39,19 +39,19 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
     switch (strides.size()) {
         case 3: {
             stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[2], strides[1], strides[0]));
-            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pads_begin[2], -pads_begin[1], -pads_begin[0]));
+            padding = cldnn::tensor({0, 0, TensorValue(pads_begin[2]), TensorValue(pads_begin[1]), TensorValue(pads_begin[0])}, 0);
             dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[2], dilations[1], dilations[0]));
             break;
         }
         case 2: {
             stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[1], strides[0], 1));
-            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pads_begin[1], -pads_begin[0], 0));
+            padding = cldnn::tensor({0, 0, TensorValue(pads_begin[1]), TensorValue(pads_begin[0])}, 0);
             dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[1], dilations[0], 1));
             break;
         }
         case 1: {
             stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[0], 1, 1));
-            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pads_begin[0], 0, 0));
+            padding = cldnn::tensor({0, 0, TensorValue(pads_begin[0]), 0}, 0);
             dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[0], 1, 1));
             break;
         }

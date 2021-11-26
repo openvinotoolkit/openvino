@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ir_ngraph_frontend")
+set(TARGET_NAME "ir_ov_frontend")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
@@ -27,7 +27,7 @@ add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PU
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                     ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                        $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -38,12 +38,12 @@ target_include_directories(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "FrontEnd to load and convert IR file format")
-endif()
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "FrontEnd to load and convert OpenVINO IR file format")
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_common::static
         ngraph::builder inference_engine_transformations
         inference_engine pugixml::static inference_engine_plugin_api)
 

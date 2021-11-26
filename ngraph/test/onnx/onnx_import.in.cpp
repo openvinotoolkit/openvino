@@ -3675,6 +3675,155 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_inbounds) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
+
+    test_case.add_input<float>(data);
+
+    test_case.add_expected_output<float>(Shape{2, 4}, data);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_inf) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data{std::numeric_limits<float>::infinity(),
+                                  -std::numeric_limits<float>::infinity(),
+                                  static_cast<float>(std::numeric_limits<double>::max()),
+                                  std::numeric_limits<float>::min(),
+                                  std::numeric_limits<float>::max(),
+                                  std::numeric_limits<float>::lowest(),
+                                  0,
+                                  -1};
+
+    const std::vector<float> expected_output{std::numeric_limits<float>::max(),
+                                             std::numeric_limits<float>::lowest(),
+                                             std::numeric_limits<float>::max(),
+                                             std::numeric_limits<float>::min(),
+                                             std::numeric_limits<float>::max(),
+                                             std::numeric_limits<float>::lowest(),
+                                             0,
+                                             -1};
+
+    test_case.add_input<float>(data);
+
+    test_case.add_expected_output<float>(Shape{2, 4}, expected_output);
+    test_case.run_with_tolerance_as_fp(0);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_set_max.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
+    const std::vector<float> max_val{2.01};
+    const std::vector<float> output{-1.6, -0.1, 2.01, 0., -10., 1.99, 2.01, 2.01};
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(max_val);
+
+    test_case.add_expected_output<float>(Shape{2, 4}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_no_max) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_no_max.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
+    const std::vector<float> min_val{-1.59};
+    const std::vector<float> output{-1.59, -0.1, 10., 0., -1.59, 1.99, 2.015, 3.};
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(min_val);
+
+    test_case.add_expected_output<float>(Shape{2, 4}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_int64) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max_int64.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<int64_t> data{INT64_MAX, INT64_MIN, INT32_MAX, INT32_MIN, 0, -1, 1, 0};
+
+    test_case.add_input<int64_t>(data);
+
+    test_case.add_expected_output<int64_t>(Shape{2, 4}, data);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max_int64) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_set_max_int64.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<int64_t> data{INT64_MAX, INT64_MIN, INT32_MAX, INT32_MIN, 0, -1, 1, 0};
+    const std::vector<int64_t> max_val{INT32_MAX};
+    const std::vector<int64_t> output{INT32_MAX, INT64_MIN, INT32_MAX, INT32_MIN, 0, -1, 1, 0};
+
+    test_case.add_input<int64_t>(data);
+    test_case.add_input<int64_t>(max_val);
+
+    test_case.add_expected_output<int64_t>(Shape{2, 4}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_no_max_initializers) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_no_max_initializers.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
+    const std::vector<float> output{-1.59, -0.1, 10., 0., -1.59, 1.99, 2.015, 3.};
+
+    test_case.add_input<float>(data);
+
+    test_case.add_expected_output<float>(Shape{2, 4}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_set_max) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_set_max.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
+    const std::vector<float> min_val{-1.59};
+    const std::vector<float> max_val{2.01};
+    const std::vector<float> output{-1.59, -0.1, 2.01, 0., -1.59, 1.99, 2.01, 2.01};
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(min_val);
+    test_case.add_input<float>(max_val);
+
+    test_case.add_expected_output<float>(Shape{2, 4}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_set_max_initializers) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_set_max_initializers.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
+    const std::vector<float> output{-1.59, -0.1, 2.01, 0., -1.59, 1.99, 2.01, 2.01};
+
+    test_case.add_input<float>(data);
+
+    test_case.add_expected_output<float>(Shape{2, 4}, output);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_mvn_v6) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mvn_v6.onnx"));
 
@@ -4269,4 +4418,127 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_normal_like) {
     test_case.add_input<float>(Shape{2, 2}, {0, 0, 0, 0});
     test_case.add_expected_output<float>(Shape{2, 2}, {13.459274, 41.75028, -19.311913, 131.79282});
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_2in) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_2in.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, -2., -2.2, -0.19999999, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_3in_offsets_none) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_3in_offset_none.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, -2., -2.2, -0.19999999, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_per_sample_weights) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_4in_per_sample_weights.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});            // indices
+    test_case.add_input<float>(Shape{3, 2}, {0.5, 0.5, 0.5, 0.5, 0.5, 0.5});  // per_sample_weights
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-1.05, -1.2, -1., -1.1, -0.09999999, 0.4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_two_none) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_4in_two_none.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, -2., -2.2, -0.19999999, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_3in) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_offset_3in.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});  // indices
+    test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});     // offsets
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, 0, 0, -0.2, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_4in) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_offset_4in.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});        // indices
+    test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});           // offsets
+    test_case.add_input<float>(Shape{4}, {0.5, 0.5, 0.5, 0.5});  // per_sample_weights
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-1.05, -1.2, 0., 0., -0.09999999, 0.4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_many_node_outputs) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_many_outputs.onnx"));
+
+    // 4 outputs in onnx Node (1 connected and 3 not connected)
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->get_results().size(), 1);
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});  // indices
+    test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});     // offsets
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, 0, 0, -0.2, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_embedding_mode) {
+    try {
+        const auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_embedding_mode.onnx"));
+        FAIL() << "Expected exception was not thrown.";
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "Unsupported mode, only `0` (sum) is supported as ATen embedding_bag `mode` attribute. Got: 1"));
+    } catch (...) {
+        FAIL() << "Other exception than expected was thrown.";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_operator) {
+    try {
+        const auto function =
+            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_operator.onnx"));
+        FAIL() << "Expected exception was not thrown.";
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "Only `embedding_bag` is supported as ATen `operator` attribute. Got: test_unsupported_operator"));
+    } catch (...) {
+        FAIL() << "Other exception than expected was thrown.";
+    }
 }

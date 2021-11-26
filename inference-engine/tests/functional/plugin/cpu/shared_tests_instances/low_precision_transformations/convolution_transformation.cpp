@@ -54,15 +54,15 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         "U8"
     },
     {
-        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
-        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
         "FP32"
     },
     {
-        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         false,
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } },
         false,
@@ -72,7 +72,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         false,
-        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        { 14ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
         "FP32"
@@ -155,4 +155,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformatio
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(incorrectWeightsParams)),
     ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
+
+namespace convolution3D {
+const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params = {
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        "Convolution",
+        "U8"
+    },
+};
+
+const std::vector<ngraph::Shape> shapes = {
+    { 1, 3, 16 },
+    { 4, 3, 16 }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
+     ::testing::Combine(
+             ::testing::ValuesIn(netPrecisions),
+             ::testing::ValuesIn(shapes),
+             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+             ::testing::ValuesIn(trasformationParamValues),
+             ::testing::ValuesIn(params)),
+             ConvolutionTransformation::getTestCaseName);
+}  // namespace convolution3D
 }  // namespace

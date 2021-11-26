@@ -2,7 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.13)
+if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
+    # 'target_link_libraries' does not work correctly when called from
+    # different directly where 'add_library' is called: CMake generates
+    # incorrect OpenVINOConfig.cmake in this case
+    cmake_minimum_required(VERSION 3.17)
+else()
+    cmake_minimum_required(VERSION 3.13)
+endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
@@ -30,6 +37,7 @@ message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
+message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
 
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
@@ -87,10 +95,8 @@ add_subdirectory(openvino)
 add_subdirectory(ngraph)
 add_subdirectory(inference-engine)
 add_subdirectory(runtime)
+add_subdirectory(samples)
 include(cmake/extra_modules.cmake)
-if(ENABLE_SAMPLES)
-    add_subdirectory(samples)
-endif()
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 add_subdirectory(tools)

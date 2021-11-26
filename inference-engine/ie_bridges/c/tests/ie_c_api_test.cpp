@@ -1873,6 +1873,8 @@ TEST(ie_blob_make_memory_nv12, NV12BlobInvalidAfterDeallocateUVPlane) {
     ie_blob_free(&blob_nv12);
 }
 
+#ifdef ENABLE_GAPI_PREPROCESSING
+
 TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1943,6 +1945,8 @@ TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
     ie_core_free(&core);
     free(img_data);
 }
+
+#endif // ENABLE_GAPI_PREPROCESSING
 
 TEST(ie_blob_make_memory_i420, makeI420Blob) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
@@ -2176,6 +2180,8 @@ TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateVPlane) {
     ie_blob_free(&blob_i420);
 }
 
+#ifdef ENABLE_GAPI_PREPROCESSING
+
 TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -2246,8 +2252,4 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
     free(img_data);
 }
 
-int main(int argc, char *argv[]){
-    ::testing::InitGoogleTest(&argc, argv);
-
-    return RUN_ALL_TESTS();
-}
+#endif // ENABLE_GAPI_PREPROCESSING
