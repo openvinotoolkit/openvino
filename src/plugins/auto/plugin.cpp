@@ -552,8 +552,7 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
 
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
-        if (kvp.first.find("AUTO_") == 0) {
-        } else if (kvp.first == PluginConfigParams::KEY_PERF_COUNT) {
+        if (kvp.first == PluginConfigParams::KEY_PERF_COUNT) {
             if (kvp.second == PluginConfigParams::YES) {
                 context.needPerfCounters = true;
                 filterConfig.insert({kvp.first, kvp.second});
@@ -592,6 +591,7 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             PerfHintsConfig::CheckConfigAndValue(kvp);
         } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
+        } else if (kvp.first.find("AUTO_") == 0) {
         }
         _config[kvp.first] = kvp.second;
     }
