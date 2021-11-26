@@ -143,7 +143,10 @@ void MultiDeviceExecutableNetwork::IncreaseWorkers(AutoLoadContext& loadcontext,
     auto& idleWorkerRequests = _idleWorkerRequests[devicename];
     //_inferPipelineTasksDeviceSpecific[devicename] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
-    idleWorkerRequests.set_capacity(idleWorkerRequests.capacity() + 1);
+    {
+        std::lock_guard<std::mutex> lock(_idleWorkerMutex);
+        idleWorkerRequests.set_capacity(idleWorkerRequests.capacity() + 1);
+    }
     auto* workerRequestPtr =  new WorkerInferRequest;
     auto& workerRequest = *workerRequestPtr;
     workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
