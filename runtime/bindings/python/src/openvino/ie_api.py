@@ -4,7 +4,6 @@
 import numpy as np
 import copy
 from typing import Any, List, Union
-from collections import OrderedDict
 
 from openvino.pyopenvino import Function
 from openvino.pyopenvino import Core as CoreBase
@@ -52,7 +51,7 @@ class InferRequest(InferRequestBase):
 
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
-        return OrderedDict((output, copy.deepcopy(tensor.data)) for output, tensor in res)
+        return {output : copy.deepcopy(tensor.data) for output, tensor in res}
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for InferRequest."""
@@ -73,7 +72,7 @@ class ExecutableNetwork(ExecutableNetworkBase):
         res = super().infer_new_request(inputs)
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
-        return OrderedDict((output, copy.deepcopy(tensor.data)) for output, tensor in res)
+        return {output : copy.deepcopy(tensor.data) for output, tensor in res}
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
