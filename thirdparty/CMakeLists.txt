@@ -99,7 +99,6 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONT
         endforeach()
     else()
         add_subdirectory(protobuf EXCLUDE_FROM_ALL)
-        ov_install_static_protobuf()
     endif()
 
     # forward variables used in the other places

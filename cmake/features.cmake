@@ -168,6 +168,12 @@ ie_dependent_option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of un
 ie_option(OPENVINO_DEBUG_ENABLE "Enable output for OPENVINO_DEBUG statements" OFF)
 ie_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
 
+if(NOT BUILD_SHARED_LIBS AND NGRAPH_TF_FRONTEND_ENABLE)
+    set(FORCE_FRONTENDS_USE_PROTOBUF ON)
+else()
+    set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
+endif()
+
 # WA for ngraph python build on Windows debug
 list(REMOVE_ITEM IE_OPTIONS NGRAPH_UNIT_TEST_ENABLE NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
 

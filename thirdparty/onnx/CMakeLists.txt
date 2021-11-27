@@ -8,7 +8,6 @@
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
-set(BUILD_SHARED_LIBS OFF)
 
 if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
     set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
@@ -30,7 +29,12 @@ endif()
 
 # build targets
 
-add_subdirectory(onnx EXCLUDE_FROM_ALL)
+function(ov_onnx_build_static)
+    set(BUILD_SHARED_LIBS OFF)
+    add_subdirectory(onnx EXCLUDE_FROM_ALL)
+endfunction()
+
+ov_onnx_build_static()
 
 target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
@@ -43,10 +47,12 @@ ov_install_static_lib(onnx ngraph)
 ov_install_static_lib(onnx_proto ngraph)
 
 # WA for ONNX: protobuf must be in the same export set of ONNX targets
-if(ONNX_USE_LITE_PROTO)
-    install(TARGETS ${Protobuf_LITE_LIBRARIES} EXPORT ONNXTargets
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph)
-else()
-    install(TARGETS ${Protobuf_LIBRARIES} EXPORT ONNXTargets
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph)
+if(NOT BUILD_SHARED_LIBS)
+    if(ONNX_USE_LITE_PROTO)
+        install(TARGETS ${Protobuf_LITE_LIBRARIES} EXPORT ONNXTargets
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph)
+    else()
+        install(TARGETS ${Protobuf_LIBRARIES} EXPORT ONNXTargets
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph)
+    endif()
 endif()
