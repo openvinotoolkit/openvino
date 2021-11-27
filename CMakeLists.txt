@@ -161,13 +161,8 @@ if(BUILD_SHARED_LIBS)
             COMPONENT core)
 
     # for InferenceEngineUnitTest
-    if(WIN32)
-        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
-                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-    else()
-        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
-                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
-    endif()
+    install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
+            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 # ----------------- OpenVINO runtime library --------------------------------
