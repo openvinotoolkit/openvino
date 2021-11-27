@@ -3,14 +3,15 @@
 //
 
 #include <node_context.hpp>
-#include <openvino/opsets/opset6.hpp>
+
+#include "openvino/opsets/opset6.hpp"
 namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
 NamedOutputs assign_value(const NodeContext& node) {
     std::vector<int32_t> shape = node.get_attribute<std::vector<int32_t>>("shape");
-    auto dtype = node.get_attribute<ngraph::element::Type>("dtype");
+    auto dtype = node.get_attribute<ov::element::Type>("dtype");
     std::shared_ptr<Node> const_node;
 
     switch (dtype) {

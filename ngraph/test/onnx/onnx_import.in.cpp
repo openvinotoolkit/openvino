@@ -4419,3 +4419,126 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_normal_like) {
     test_case.add_expected_output<float>(Shape{2, 2}, {13.459274, 41.75028, -19.311913, 131.79282});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_2in) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_2in.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, -2., -2.2, -0.19999999, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_3in_offsets_none) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_3in_offset_none.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, -2., -2.2, -0.19999999, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_per_sample_weights) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_4in_per_sample_weights.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});            // indices
+    test_case.add_input<float>(Shape{3, 2}, {0.5, 0.5, 0.5, 0.5, 0.5, 0.5});  // per_sample_weights
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-1.05, -1.2, -1., -1.1, -0.09999999, 0.4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_two_none) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_4in_two_none.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, -2., -2.2, -0.19999999, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_3in) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_offset_3in.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});  // indices
+    test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});     // offsets
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, 0, 0, -0.2, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_4in) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_offset_4in.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});        // indices
+    test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});           // offsets
+    test_case.add_input<float>(Shape{4}, {0.5, 0.5, 0.5, 0.5});  // per_sample_weights
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-1.05, -1.2, 0., 0., -0.09999999, 0.4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_many_node_outputs) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_many_outputs.onnx"));
+
+    // 4 outputs in onnx Node (1 connected and 3 not connected)
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->get_results().size(), 1);
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});  // indices
+    test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});     // offsets
+
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, 0, 0, -0.2, 0.8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_embedding_mode) {
+    try {
+        const auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_embedding_mode.onnx"));
+        FAIL() << "Expected exception was not thrown.";
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "Unsupported mode, only `0` (sum) is supported as ATen embedding_bag `mode` attribute. Got: 1"));
+    } catch (...) {
+        FAIL() << "Other exception than expected was thrown.";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_operator) {
+    try {
+        const auto function =
+            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_operator.onnx"));
+        FAIL() << "Expected exception was not thrown.";
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "Only `embedding_bag` is supported as ATen `operator` attribute. Got: test_unsupported_operator"));
+    } catch (...) {
+        FAIL() << "Other exception than expected was thrown.";
+    }
+}

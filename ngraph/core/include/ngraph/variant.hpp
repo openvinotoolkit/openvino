@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 
+#include "openvino/core/any.hpp"  // used for ov::RTMap
 #include "openvino/core/variant.hpp"
 
 namespace ov {

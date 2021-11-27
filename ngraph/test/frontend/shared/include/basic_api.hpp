@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 
 using BasicTestParam = std::tuple<std::string,   // FrontEnd name
                                   std::string,   // Base path to models

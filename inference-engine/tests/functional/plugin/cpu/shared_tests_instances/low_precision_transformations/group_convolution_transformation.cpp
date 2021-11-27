@@ -11,22 +11,23 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f32
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
 const std::vector<bool> addPrecisionPreserved = { true, false };
 
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+    {{ 1, 6, 24, 24 }, { 1, 24, 18, 18 }},
+    {{ 1, 6, 24 }, { 1, 24, 18 }}
+};
+
 const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> params = {
     // group convolution, tensor quantization
     {
-        { 1, 6, 24, 24 },
-        { 1, 24, 18, 18 },
         3ul,
         -1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
@@ -36,8 +37,6 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // group convolution, tensor quantization
     {
-        { 1, 6, 24, 24 },
-        { 1, 24, 18, 18 },
         3ul,
         0,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
@@ -47,8 +46,6 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // group convolution, tensor quantization
     {
-        { 1, 6, 24, 24 },
-        { 1, 24, 18, 18 },
         3ul,
         1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
@@ -58,8 +55,6 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // group convolution, per-channel quantization
     {
-        { 1, 6, 24, 24 },
-        { 1, 24, 18, 18 },
         3ul,
         -1,
         {
@@ -73,11 +68,28 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         "",
         ""
-    },
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+     ::testing::Combine(
+         ::testing::ValuesIn(netPrecisions),
+         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::ValuesIn(trasformationParamValues),
+         ::testing::ValuesIn(inputShapes),
+         ::testing::ValuesIn(params),
+         ::testing::ValuesIn(addPrecisionPreserved)),
+         GroupConvolutionTransformation::getTestCaseName);
+
+namespace depthwise {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+    {{ 1, 6, 24, 24 }, { 1, 6, 18, 18 }},
+    {{ 1, 6, 24 }, { 1, 6, 18 }},
+};
+
+const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> params = {
     // depth-wise convolution, tensor quantization
     {
-        { 1, 6, 24, 24 },
-        { 1, 6, 18, 18 },
         6ul,
         -1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
@@ -87,8 +99,6 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // depth-wise convolution, per-channel quantization
     {
-        { 1, 6, 24, 24 },
-        { 1, 6, 18, 18 },
         6ul,
         -1,
         {
@@ -105,8 +115,6 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // depth-wise convolution, per-channel quantization
     {
-        ngraph::Shape{ 1, 6, 24, 24 },
-        ngraph::Shape{ 1, 6, 18, 18 },
         6ul,
         -1,
         {
@@ -128,7 +136,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),
     GroupConvolutionTransformation::getTestCaseName);
+} // namespace depthwise
+
 }  // namespace

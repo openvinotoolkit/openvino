@@ -385,7 +385,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
         if (t == element::Type{}) {
             t = ctxt.target_element_type();
         }
-        if (t == node.get_node()->get_element_type()) {
+        if (t == node.get_element_type()) {
             return std::make_tuple(node, false);
         }
         OPENVINO_ASSERT(

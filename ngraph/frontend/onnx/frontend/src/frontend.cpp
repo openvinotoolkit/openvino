@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <frontend_manager/frontend_exceptions.hpp>
-#include <frontend_manager/frontend_manager.hpp>
+#include <common/frontend_exceptions.hpp>
 #include <fstream>
 #include <input_model.hpp>
+#include <manager.hpp>
 #include <onnx_frontend/frontend.hpp>
 #include <onnx_import/onnx.hpp>
 #include <sstream>

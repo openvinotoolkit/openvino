@@ -13,7 +13,7 @@ namespace op {
 NamedOutputs gelu(const NodeContext& node) {
     const auto data = node.get_ng_input("X");
     const auto approximate = node.get_attribute<bool>("approximate", false);
-    const auto mode = approximate ? ngraph::op::GeluApproximationMode::TANH : ngraph::op::GeluApproximationMode::ERF;
+    const auto mode = approximate ? ov::op::GeluApproximationMode::TANH : ov::op::GeluApproximationMode::ERF;
 
     return node.default_single_output_mapping({std::make_shared<default_opset::Gelu>(data, mode)}, {"Out"});
 }

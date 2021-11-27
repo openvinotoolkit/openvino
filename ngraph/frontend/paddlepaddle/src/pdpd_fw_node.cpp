@@ -6,7 +6,6 @@
 
 namespace ov {
 namespace frontend {
-NGRAPH_RTTI_DEFINITION(PDPDFrameworkNode, "PDPDFrameworkNode", 1);
 
 void PDPDFrameworkNode::validate_and_infer_types() {
     FrameworkNode::validate_and_infer_types();

@@ -162,7 +162,7 @@ jobs:
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ls -alR $(REPO_DIR)/inference-engine/temp/
+  - script: ls -alR $(BUILD_DIR)/temp/
     displayName: 'List temp SDKs'
 
   - script: ccache --zero-stats --max-size=1T --show-config
@@ -207,7 +207,7 @@ jobs:
       set -e
       mkdir $(INSTALL_DIR)/opencv/
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
-      cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
+      cp -R $(BUILD_DIR)/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
@@ -312,10 +312,6 @@ jobs:
         $(REPO_DIR)/tests/samples_tests
       workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
 
-  - script: ninja
-    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'Build Samples Tests'
-
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Install Samples Tests'
@@ -323,9 +319,8 @@ jobs:
   - script: |  
       python3 -m pip install -r $(INSTALL_DIR)/tests/smoke_tests/requirements.txt 
     workingDirectory: $(INSTALL_DIR)
-    displayName: 'Install  dependencies for samples smoke tests'
+    displayName: 'Install dependencies for samples smoke tests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin

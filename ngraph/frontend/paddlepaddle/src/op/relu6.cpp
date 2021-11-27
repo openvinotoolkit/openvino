@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
+
+#include "openvino/opsets/opset6.hpp"
+#include "paddlepaddle_frontend/utility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -13,7 +14,7 @@ namespace op {
 NamedOutputs relu6(const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto threshold = node.get_attribute<float>("threshold", 6.0f);
-    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Clamp>(data, 0.0, threshold)}, {"Out"});
+    return node.default_single_output_mapping({std::make_shared<ov::opset6::Clamp>(data, 0.0, threshold)}, {"Out"});
 }
 
 }  // namespace op

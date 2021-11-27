@@ -34,6 +34,7 @@ public:
     std::string dump_layers;        // Dump intermediate buffers of specified layers only, separated by space
     std::string dry_run_path;       // Dry run and serialize execution graph into the specified path
     int dump_layers_dst_only;       // Dump only output of layers
+    int base_batch_for_memory_estimation; // Base batch size to be used in memory estimation
     static const debug_configuration *get_instance();
 };
 

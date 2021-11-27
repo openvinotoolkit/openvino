@@ -99,6 +99,7 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
     auto tensor_proto_var =
         decoder->get_attribute("value", ::ov::VariantWrapper<::tensorflow::TensorProto>::get_type_info_static());
     FRONT_END_GENERAL_CHECK(tensor_proto_var != nullptr);
+
     auto tensor_proto =
         std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::TensorProto>>(tensor_proto_var)->get();
 

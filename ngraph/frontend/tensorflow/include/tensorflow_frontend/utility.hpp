@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "frontend_manager/frontend_exceptions.hpp"
+#include "common/frontend_exceptions.hpp"
 
 #ifdef tensorflow_ov_frontend_EXPORTS
 #    define TF_API OPENVINO_CORE_EXPORTS

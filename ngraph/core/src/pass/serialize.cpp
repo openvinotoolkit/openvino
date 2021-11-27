@@ -885,6 +885,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             bool has_attrs = false;
             for (const auto& item : attributes) {
                 auto attribute_node = rt_node.append_child("attribute");
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 attribute_node.append_attribute("name").set_value(item.second->get_type_info().name);
                 attribute_node.append_attribute("version").set_value(
                     item.second->get_type_info().get_version().c_str());
@@ -894,6 +895,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 } else {
                     has_attrs = true;
                 }
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
             if (!has_attrs) {
                 node.remove_child(rt_node);

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
-namespace default_opset = ngraph::opset8;
+namespace default_opset = ov::opset8;
 
 }  // namespace op
 }  // namespace pdpd

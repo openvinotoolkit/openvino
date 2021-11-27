@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -17,10 +18,9 @@ NamedOutputs dropout(const NodeContext& node) {
         (dropout_implementation == "downgrade_in_infer" || dropout_implementation == "upscale_in_train"),
         "Unsupported dropout mode!");
     if (dropout_implementation == "downgrade_in_infer") {
-        auto dropout_prob = ngraph::opset6::Constant::create(ngraph::element::f32,
-                                                             {1},
-                                                             {1 - node.get_attribute<float>("dropout_prob")});
-        return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Multiply>(data, dropout_prob)},
+        auto dropout_prob =
+            ov::opset6::Constant::create(ov::element::f32, {1}, {1 - node.get_attribute<float>("dropout_prob")});
+        return node.default_single_output_mapping({std::make_shared<ov::opset6::Multiply>(data, dropout_prob)},
                                                   {"Out"});
     } else {
         return node.default_single_output_mapping(data.get_node_shared_ptr(), {"Out"});

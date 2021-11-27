@@ -105,34 +105,6 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     return {deviceName_, config_};
 }
 
-ie::Parameter copyParameterValue(const ie::Parameter& value) {
-    if (value.is<bool>()) {
-        return {value.as<bool>()};
-    } else if (value.is<int>()) {
-        return {value.as<int>()};
-    } else if (value.is<unsigned int>()) {
-        return {value.as<unsigned int>()};
-    } else if (value.is<float>()) {
-        return {value.as<float>()};
-    } else if (value.is<std::string>()) {
-        return {value.as<std::string>()};
-    } else if (value.is<std::vector<std::string>>()) {
-        return {value.as<std::vector<std::string>>()};
-    } else if (value.is<std::vector<int>>()) {
-        return {value.as<std::vector<int>>()};
-    } else if (value.is<std::vector<float>>()) {
-        return {value.as<std::vector<float>>()};
-    } else if (value.is<std::vector<unsigned int>>()) {
-        return {value.as<std::vector<unsigned int>>()};
-    } else if (value.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
-        return {value.as<std::tuple<unsigned int, unsigned int, unsigned int>>()};
-    } else if (value.is<std::tuple<unsigned int, unsigned int>>()) {
-        return {value.as<std::tuple<unsigned int, unsigned int>>()};
-    }
-
-    return std::move(value);
-}
-
 template <typename F>
 void allowNotImplemented(F&& f) {
     try {
@@ -230,7 +202,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     bool DeviceSupportsImportExport(const ov::runtime::InferencePlugin& plugin) const {
         std::vector<std::string> supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-        bool supported = (it != supportedMetricKeys.end()) && plugin.get_metric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {});
+        bool supported =
+            (it != supportedMetricKeys.end()) && plugin.get_metric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
         return supported;
     }
 
@@ -668,7 +641,9 @@ public:
         return res;
     }
 
-    ie::Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
+    ie::Parameter GetMetric(const std::string& deviceName,
+                            const std::string& name,
+                            const ie::ParamMap& options = {}) const override {
         // HETERO case
         {
             if (deviceName.find("HETERO:") == 0) {
@@ -697,20 +672,16 @@ public:
         }
 
         auto parsed = parseDeviceNameIntoConfig(deviceName);
+        for (auto o : options) {
+            parsed._config.insert(o);
+        }
 
-        // we need to return a copy of Parameter object which is created on Core side,
-        // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
-        // TODO: remove this WA after *-31417 is resolved
-        return copyParameterValue(GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config));
+        return GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
     }
 
     ie::Parameter GetConfig(const std::string& deviceName, const std::string& name) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName);
-
-        // we need to return a copy of Parameter object which is created on Core side,
-        // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
-        // TODO: remove this WA after *-31417 is resolved
-        return copyParameterValue(GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config));
+        return GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
     }
 
     /**
@@ -1377,16 +1348,11 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 
     auto parsed = ov::runtime::parseDeviceNameIntoConfig(deviceName);
-
-    // we need to return a copy of Parameter object which is created on Core side,
-    // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
-    // TODO: remove this WA after *-31417 is resolved
-    return ov::runtime::copyParameterValue(
-        _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config));
+    return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
 }
 
-Parameter Core::GetMetric(const std::string& deviceName, const std::string& name) const {
-    return _impl->GetMetric(deviceName, name);
+Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
+    return _impl->GetMetric(deviceName, name, options);
 }
 
 std::vector<std::string> Core::GetAvailableDevices() const {
@@ -1589,7 +1555,7 @@ void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
     });
 }
 
-Parameter Core::get_config(const std::string& deviceName, const std::string& name) const {
+Any Core::get_config(const std::string& deviceName, const std::string& name) const {
     OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
                     "You can only get_config of the HETERO itself (without devices). "
                     "get_config is also possible for the individual devices before creating the HETERO on top.");
@@ -1602,15 +1568,11 @@ Parameter Core::get_config(const std::string& deviceName, const std::string& nam
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName);
-
-        // we need to return a copy of Parameter object which is created on Core side,
-        // not in ie plugin side, which can be unloaded from Core in a parallel thread
-        // TODO: remove this WA after *-31417 is resolved
-        return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config));
+        return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
     });
 }
 
-Parameter Core::get_metric(const std::string& deviceName, const std::string& name) const {
+Any Core::get_metric(const std::string& deviceName, const std::string& name) const {
     OV_CORE_CALL_STATEMENT(return _impl->GetMetric(deviceName, name););
 }
 

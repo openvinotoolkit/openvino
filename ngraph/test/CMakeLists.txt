@@ -94,6 +94,7 @@ set(SRC
     opset1.cpp
     ov_default_allocator_test.cpp
     ov_tensor_test.cpp
+    any.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
@@ -485,23 +486,17 @@ set(MULTI_TEST_SRC
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
-    backend/concat.in.cpp
     backend/dyn_reshape.in.cpp
     backend/dynamic.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
     backend/interpolate.in.cpp
-    backend/matrix_nms.in.cpp
-    backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/node_name.in.cpp
-    backend/non_max_suppression.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
-    backend/tile.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
@@ -593,7 +588,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         Threads::Threads
                                         openvino::conditional_compilation
                                         openvino::util
-                                        frontend_manager)
+                                        frontend_common)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled

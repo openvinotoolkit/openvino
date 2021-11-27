@@ -63,6 +63,7 @@ OP_CONVERTER(scale);
 OP_CONVERTER(shape);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
+OP_CONVERTER(softplus);
 OP_CONVERTER(sigmoid);
 OP_CONVERTER(split);
 OP_CONVERTER(squeeze);
@@ -136,6 +137,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"shape", op::shape},
             {"slice", op::slice},
             {"softmax", op::softmax},
+            {"softplus", op::softplus},
             {"sigmoid", op::sigmoid},
             {"split", op::split},
             {"squeeze2", op::squeeze},

@@ -3,7 +3,7 @@
 //
 
 #include <frontend/shared/include/utils.hpp>
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 
 #include "gtest/gtest.h"
 #include "paddle_utils.hpp"

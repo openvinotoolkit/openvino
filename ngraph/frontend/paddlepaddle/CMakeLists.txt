@@ -56,7 +56,7 @@ add_dependencies(${TARGET_NAME} ${TARGET_NAME}_proto)
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                     ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                        $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -76,8 +76,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
-                                     PRIVATE ngraph::builder inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_common::static
+                                     PRIVATE inference_engine_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})

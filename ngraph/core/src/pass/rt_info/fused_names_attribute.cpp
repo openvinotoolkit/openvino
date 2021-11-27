@@ -63,7 +63,7 @@ std::vector<std::string> ngraph::getFusedNamesVector(const std::shared_ptr<ngrap
 
 template class ov::VariantImpl<FusedNames>;
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<FusedNames>::merge(const ngraph::NodeVector& nodes) {
+Any VariantWrapper<FusedNames>::merge(const ngraph::NodeVector& nodes) {
     FusedNames mergedNames;
     for (auto& node : nodes) {
         const auto& rtInfo = node->get_rt_info();
@@ -79,7 +79,7 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<FusedNames>::merge(const ngraph:
     return std::make_shared<VariantWrapper<FusedNames>>(mergedNames);
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<FusedNames>::init(const std::shared_ptr<ngraph::Node>& node) {
+Any VariantWrapper<FusedNames>::init(const std::shared_ptr<ngraph::Node>& node) {
     return std::make_shared<VariantWrapper<FusedNames>>(FusedNames(node->get_friendly_name()));
 }
 

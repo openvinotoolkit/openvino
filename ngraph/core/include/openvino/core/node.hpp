@@ -77,7 +77,7 @@ class SharedRTInfo;
 
 /// EvaluationContext stores and manages a context (additional parameters, values and
 /// environment) for evaluating ov::Function.
-using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
+using EvaluationContext = ov::RTMap;
 
 OPENVINO_API
 std::string node_validation_failure_loc_string(const Node* node);
@@ -405,7 +405,7 @@ public:
     /// True if this and node have one output with same element type and shape
     bool has_same_type(std::shared_ptr<const Node> node) const;
 
-    using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+    using RTMap = std::map<std::string, Any>;
 
     RTMap& get_rt_info() {
         return m_rt_info;

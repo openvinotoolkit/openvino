@@ -38,7 +38,11 @@ ie::ParamMap RemoteTensor::get_params() const {
     type_check(*this);
     auto remote_impl = static_cast<ie::RemoteBlob*>(_impl.get());
     try {
-        return remote_impl->getParams();
+        ParamMap paramMap;
+        for (auto&& param : remote_impl->getParams()) {
+            paramMap.emplace(param.first, Any{_so, param.second});
+        }
+        return paramMap;
     } catch (const std::exception& ex) {
         throw ov::Exception(ex.what());
     } catch (...) {
