@@ -265,6 +265,7 @@ jobs:
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'CPU UT'
     continueOnError: false
 
