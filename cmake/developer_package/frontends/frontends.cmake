@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "runtime/include/openvino/frontend")
+set(FRONTEND_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
 set(FRONTEND_NAME_SUFFIX "_ov_frontend")
 
 set(FRONTEND_NAMES "" CACHE INTERNAL "")
