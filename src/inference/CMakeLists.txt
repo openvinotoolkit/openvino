@@ -353,7 +353,7 @@ install(EXPORT OpenVINOTargets
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
+set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -388,7 +388,7 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-              "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
+              "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake"
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
