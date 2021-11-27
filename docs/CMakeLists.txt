@@ -70,7 +70,7 @@ function(build_docs)
     set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
     set(NGRAPH_DIR "${OpenVINO_SOURCE_DIR}/ngraph")
-    set(NGRAPH_PY_DIR "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/src/compatibility/ngraph/")
+    set(NGRAPH_PY_DIR "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/compatibility/ngraph/")
     set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
 
     # Preprocessing scripts
@@ -222,10 +222,10 @@ function(build_docs)
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg"
-        "${OpenVINO_SOURCE_DIR}/runtime/*.md"
-        "${OpenVINO_SOURCE_DIR}/runtime/*.png"
-        "${OpenVINO_SOURCE_DIR}/runtime/*.gif"
-        "${OpenVINO_SOURCE_DIR}/runtime/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/src/*.md"
+        "${OpenVINO_SOURCE_DIR}/src/*.png"
+        "${OpenVINO_SOURCE_DIR}/src/*.gif"
+        "${OpenVINO_SOURCE_DIR}/src/*.jpg"
         "${OpenVINO_SOURCE_DIR}/samples/*.md"
         "${OpenVINO_SOURCE_DIR}/samples/*.png"
         "${OpenVINO_SOURCE_DIR}/samples/*.gif"
