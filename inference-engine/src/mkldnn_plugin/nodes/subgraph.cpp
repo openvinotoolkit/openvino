@@ -432,9 +432,9 @@ void MKLDNNSnippetNode::define_schedule() {
         sch_offsets_in.resize(offsets_in.size(), 0);
         sch_offsets_out.resize(offsets_out.size(), 0);
         sch_dims.resize(maxTileRank, 1);
-        sch_dims[0] = dims_out[max_rank_out_desc_idx].back();
+        sch_dims[maxTileRank-1] = dims_out[max_rank_out_desc_idx].back();
         if (tileRank > 1) {
-            sch_dims[1] = dims_out[max_rank_out_desc_idx][tensorRank - 2];
+            sch_dims[maxTileRank - tileRank] = dims_out[max_rank_out_desc_idx][tensorRank - 2];
             dims_out[max_rank_out_desc_idx][tensorRank - 2] = 1;
 
             // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts

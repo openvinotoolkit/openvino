@@ -9,7 +9,7 @@
 
 #include "jit_emitter.hpp"
 using namespace Xbyak;
-using namespace MKLDNNPlugin;
+namespace MKLDNNPlugin {
 
 #define SNIPPETS_MAX_SNIPPETS_DIMS 7
 #define SNIPPETS_MAX_HARNESS_DIMS 5
@@ -31,9 +31,9 @@ class KernelEmitter : public jit_emitter {
 public:
     KernelEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
     // region
-    const std::shared_ptr<ngraph::Node>& n)
+    const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
-        const auto kernel = ngraph::as_type_ptr<ngraph::snippets::op::Kernel>(n);
+        const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
         code = kernel->region;
         if (!kernel->compile_params)
             IE_THROW() << "KernelEmitter invoked without compile_params";
@@ -59,12 +59,12 @@ private:
         const size_t num_outputs = in[2];
         const size_t num_params = num_inputs + num_outputs;
         int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-        Xbyak::Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param1 };
-        Xbyak::Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param2 };
+        Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param1 };
+        Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param2 };
         #ifdef _WIN32
-        Xbyak::Reg64 reg_tmp_64 { Xbyak::Operand::RDI };
+        Reg64 reg_tmp_64 { Operand::RDI };
         #else
-        Xbyak::Reg64 reg_tmp_64 { Xbyak::Operand::RCX };
+        Xbyak::Reg64 reg_tmp_64 { Operand::RCX };
         #endif
 
         if (tile_rank != 2)
@@ -72,9 +72,13 @@ private:
 
         h->preamble();
 
-        std::vector<Xbyak::Reg64> regs(num_params);
+        std::vector<Reg64> regs(num_params);
 
         const int64_t harness_num_dims = _jep.output_dims.size() - 1;
+        if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS)
+            IE_THROW() << "Codegen Kernel supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
+                            " dims, got " << harness_num_dims << std::endl;
+
         auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
             for (int j = 0; j < harness_num_dims; j++) {
                 if (_jep.output_dims[j] != 1 && offsets[j] != 0) {
@@ -85,7 +89,7 @@ private:
             }
         };
         for (auto i = 0; i < num_params; i++) {
-            regs[i] = Xbyak::Reg64(reg64_tmp_start + i);
+            regs[i] = Reg64(reg64_tmp_start + i);
             if (i < num_inputs)
                 h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
             else
@@ -94,8 +98,8 @@ private:
         }
 
         // external amount
-        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + num_params);
-        h->mov(amount, _jep.scheduler_dims[tile_rank-1]);
+        Reg64 amount = Reg64(reg64_tmp_start + num_params);
+        h->mov(amount, _jep.scheduler_dims[0]);
 
         for (auto& c : code) {
             c.first->emit_code(c.second.first, c.second.second, pool, gpr);
@@ -110,13 +114,13 @@ private:
 class TileEmitter : public jit_emitter {
 public:
     TileEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
-    const std::shared_ptr<ngraph::Node>& n)
+    const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
-        const auto kernel = ngraph::as_type_ptr<ngraph::snippets::op::Tile>(n);
-        code = kernel->region;
-        if (!kernel->compile_params)
-            IE_THROW() << "KernelEmitter invoked without compile_params";
-        _jep = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
+        const auto tile = ov::as_type_ptr<ngraph::snippets::op::Tile>(n);
+        code = tile->region;
+        if (!tile->compile_params)
+            IE_THROW() << "TileEmitter invoked without compile_params";
+        _jep = *reinterpret_cast<const jit_snippets_compile_args*>(tile->compile_params);
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -137,21 +141,21 @@ private:
         const size_t num_params = in[1];
         const size_t dim = in[2]; // number of tile dimension
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + num_params); // amount
-        std::array<Xbyak::Label, 2> for_body;
+        Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
+        std::array<Label, 2> for_body;
         // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
         // todo: Do we need explicitly check that code contains ScalarEmitter?
         std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
-        std::vector<Xbyak::Reg64> regs(num_params);
+        std::vector<Reg64> regs(num_params);
         for (auto i = 0; dim > 0 && i < num_params; i++)
-            regs[i] = Xbyak::Reg64(reg64_tmp_start + i);
+            regs[i] = Reg64(reg64_tmp_start + i);
 
         // internal full tile should to have new full work amount after every iteration of external tile
         if (dim == 0 && inc != 1)
-            h->mov(amount, _jep.scheduler_dims[dim]);
+            h->mov(amount, _jep.scheduler_dims[1]);
 
         h->cmp(amount, inc);
-        h->jl(for_body[1], Xbyak::CodeGenerator::T_NEAR);
+        h->jl(for_body[1], CodeGenerator::T_NEAR);
 
         h->L(for_body[0]); {
             h->push(amount);
@@ -169,7 +173,7 @@ private:
 
             h->sub(amount, inc);
             h->cmp(amount, inc);
-            h->jge(for_body[0], Xbyak::CodeGenerator::T_NEAR);
+            h->jge(for_body[0], CodeGenerator::T_NEAR);
         }
 
         h->L(for_body[1]);
@@ -215,7 +219,7 @@ private:
 
 class NopEmitter : public jit_emitter {
 public:
-    NopEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    NopEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
     }
 
@@ -232,7 +236,7 @@ private:
 
 class FakeBroadcastEmitter : public jit_emitter {
 public:
-    FakeBroadcastEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    FakeBroadcastEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         if (n->get_input_shape(0).empty())
             use_broadcast = true;
@@ -264,12 +268,12 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                    Xbyak::Xmm, isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+                                    Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
         Vmm vmm_src0 = Vmm(in[0]);
         Vmm vmm_dst  = Vmm(out[0]);
 
         if (use_broadcast) {
-            h->uni_vbroadcastss(vmm_dst, Xbyak::Xmm(in[0]));
+            h->uni_vbroadcastss(vmm_dst, Xmm(in[0]));
         } else {
             h->uni_vmovups(vmm_dst, vmm_src0);
         }
@@ -281,11 +285,11 @@ private:
 
 class ScalarEmitter : public jit_emitter {
 public:
-    ScalarEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    ScalarEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         auto out_shape = n->output(0).get_tensor().get_shape();
-        if (out_shape == ngraph::Shape() || ngraph::shape_size(out_shape) == 1) {
-            value = mkldnn::impl::cpu::x64::float2int(ngraph::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
+        if (out_shape == ov::Shape() || ov::shape_size(out_shape) == 1) {
+            value = mkldnn::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
         }
 
         push_arg_entry_of("scalar", value, true);
@@ -318,7 +322,7 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                    Xbyak::Xmm, isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+                                    Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
         Vmm vmm_dst  = Vmm(out[0]);
         h->uni_vbroadcastss(vmm_dst, table_val("scalar"));
     }
@@ -338,21 +342,21 @@ private:
 /// Blocked parameter to tell if input is actually blocked. Broadcast means broadcast by W in other cases no need to substitute load.
 class MemoryEmitter : public jit_emitter  {
 public:
-    MemoryEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    MemoryEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n), ea(getEA(n)) {
     }
 
     size_t get_inputs_num() const override {return 1;}
 
 protected:
-    static auto getEA(const std::shared_ptr<ngraph::Node>& n) -> size_t {
+    static auto getEA(const std::shared_ptr<ov::Node>& n) -> size_t {
         auto& rt = n->get_rt_info();
         size_t ea = 0;
         auto it = rt.find("effectiveAddress");
         if (it != rt.end()) {
-            ea = ngraph::as_type_ptr<ngraph::VariantWrapper<int64_t>>(it->second)->get();
+            ea = ov::as_type_ptr<ov::VariantWrapper<int64_t>>(it->second)->get();
         } else {
-            throw ngraph::ngraph_error("effective address for Load generation cannot be determined");
+            throw ov::Exception("effective address for Load generation cannot be determined");
         }
         return ea;
     }
@@ -362,7 +366,7 @@ protected:
 
 class StoreEmitter : public MemoryEmitter  {
 public:
-    StoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    StoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
 
@@ -389,8 +393,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                    Xbyak::Xmm, isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-        Xbyak::Reg64 out_reg(ea);
+                                    Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        Reg64 out_reg(ea);
         Vmm vmm_src0 = Vmm(in[0]);
         h->uni_vmovups(h->ptr[out_reg], vmm_src0);
         h->add(out_reg, mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
@@ -399,7 +403,7 @@ private:
 
 class ScalarStoreEmitter : public MemoryEmitter {
 public:
-    ScalarStoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    ScalarStoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
 
@@ -426,9 +430,9 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                        Xbyak::Xmm, isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-        Xbyak::Reg64 out_reg(ea);
-        Xbyak::Xmm vmm_src0 = Xbyak::Xmm(in[0]);
+                                        Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        Reg64 out_reg(ea);
+        Xmm vmm_src0 = Xmm(in[0]);
         h->movss(h->ptr[out_reg], vmm_src0);
         h->add(out_reg, sizeof(float));
     }
@@ -436,7 +440,7 @@ private:
 
 class LoadEmitter : public MemoryEmitter {
 public:
-    LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     // result of canonizing broadcast by C. Fixe it=)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
     }
@@ -464,8 +468,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                            Xbyak::Xmm, isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-        Xbyak::Reg64 in_reg(ea);
+                                            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        Reg64 in_reg(ea);
         Vmm vmm_src0 = Vmm(out[0]);
         h->uni_vmovups(vmm_src0, h->ptr[in_reg]);
 
@@ -480,7 +484,7 @@ private:
 
 class BroadcastLoadEmitter : public MemoryEmitter {
 public:
-    BroadcastLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    BroadcastLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
     size_t get_inputs_num() const override {return 0;}
@@ -506,8 +510,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                            Xbyak::Xmm, isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-        Xbyak::Reg64 in_reg(ea);
+                                            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        Reg64 in_reg(ea);
         Vmm vmm_src0 = Vmm(out[0]);
 
         // In doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for `BroadcastLoad`,
@@ -518,7 +522,7 @@ private:
 
 class ScalarLoadEmitter : public MemoryEmitter {
 public:
-    ScalarLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
+    ScalarLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
     }
     size_t get_inputs_num() const override {return 0;}
@@ -544,9 +548,9 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                            Xbyak::Xmm, isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-        Xbyak::Reg64 in_reg(ea);
-        Xbyak::Xmm vmm_src0 = Xbyak::Xmm(out[0]);
+                                            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        Reg64 in_reg(ea);
+        Xmm vmm_src0 = Xmm(out[0]);
         h->movss(vmm_src0, h->ptr[in_reg]);
 
         // Doesn't work if the same pointer comes with multiple load operations
@@ -558,3 +562,5 @@ private:
 private:
     bool shouldPostIncrement;
 };
+
+} // namespace MKLDNNPlugin
