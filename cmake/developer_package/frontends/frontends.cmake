@@ -86,7 +86,7 @@ endfunction()
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND PROTOBUF_LITE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -153,10 +153,14 @@ macro(ov_add_frontend)
             "-DGetAPIVersion=GetAPIVersion${OV_FRONTEND_NAME}")
     endif()
 
-    ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                        INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
-                        ADDITIONAL_INCLUDE_DIRECTORIES
-                            $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
+    if(OV_FRONTEND_SKIP_NCC_STYLE)
+        # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
+    else()
+        ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                            INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                            ADDITIONAL_INCLUDE_DIRECTORIES
+                                $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
 
     target_include_directories(${TARGET_NAME}
             PUBLIC
