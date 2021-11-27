@@ -38,6 +38,25 @@ if(ENABLE_PYTHON)
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_tool/openvino/tools/benchmark
                                                    ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
     )
+
+    # install BA tool for tests
+    install(FILES benchmark_tool/README.md
+                  benchmark_tool/requirements.txt
+            DESTINATION tools/benchmark_tool
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+
+    install(PROGRAMS benchmark_tool/benchmark_app.py
+            DESTINATION tools/benchmark_tool
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+
+    # install openvino/tools/benchmark as a python package
+    install(DIRECTORY benchmark_tool/openvino/tools/benchmark
+            DESTINATION python/${PYTHON_VERSION}/openvino/tools
+            USE_SOURCE_PERMISSIONS
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endif()
 
 # build and install openvino-dev wheel
