@@ -272,7 +272,7 @@ bool OperatorsBridge::_is_operator_registered(const std::string& name,
     }
 }
 
-static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+static constexpr char* const MICROSOFT_DOMAIN = "com.microsoft";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
