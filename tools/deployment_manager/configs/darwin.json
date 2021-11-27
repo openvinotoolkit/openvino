@@ -20,7 +20,7 @@
         "runtime/lib/intel64/libinference_engine_transformations.dylib",
         "runtime/lib/intel64/libinference_engine_preproc.so",
         "runtime/lib/intel64/libinference_engine_c_api.dylib",
-        "runtime/lib/intel64/libHeteroPlugin.so",
+        "runtime/lib/intel64/libhetero_plugin.so",
         "runtime/lib/intel64/libMultiDevicePlugin.so",
         "runtime/lib/intel64/libngraph.dylib",
         "runtime/lib/intel64/libfrontend_common.dylib",
