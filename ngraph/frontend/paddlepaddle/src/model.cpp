@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "paddlepaddle_frontend/model.hpp"
+
 #include <fstream>
-#include <openvino/opsets/opset7.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
-#include <paddlepaddle_frontend/model.hpp>
-#include <paddlepaddle_frontend/place.hpp>
 #include <queue>
 
 #include "decoder.hpp"
 #include "framework.pb.h"
 #include "node_context.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "paddlepaddle_frontend/exceptions.hpp"
+#include "paddlepaddle_frontend/place.hpp"
 #include "pdpd_utils.hpp"
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -34,10 +35,10 @@ public:
     void overrideAllOutputs(const std::vector<Place::Ptr>& outputs);
     void overrideAllInputs(const std::vector<Place::Ptr>& inputs);
     void extractSubgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
-    void setDefaultShape(Place::Ptr place, const ngraph::Shape&);
-    void setPartialShape(Place::Ptr place, const ngraph::PartialShape&);
-    ngraph::PartialShape getPartialShape(Place::Ptr place) const;
-    void setElementType(Place::Ptr place, const ngraph::element::Type&);
+    void setDefaultShape(Place::Ptr place, const ov::Shape&);
+    void setPartialShape(Place::Ptr place, const ov::PartialShape&);
+    ov::PartialShape getPartialShape(Place::Ptr place) const;
+    void setElementType(Place::Ptr place, const ov::element::Type&);
     void setTensorValue(Place::Ptr place, const void* value);
 
     std::vector<std::shared_ptr<OpPlacePDPD>> get_op_places() const;
@@ -374,19 +375,19 @@ void InputModelPDPD::InputModelPDPDImpl::extractSubgraph(const std::vector<Place
     overrideAllOutputs(outputs);
 }
 
-void InputModelPDPD::InputModelPDPDImpl::setDefaultShape(Place::Ptr place, const ngraph::Shape& shape) {
+void InputModelPDPD::InputModelPDPDImpl::setDefaultShape(Place::Ptr place, const ov::Shape& shape) {
     FRONT_END_NOT_IMPLEMENTED("setDefaultShape");
 }
 
-void InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place, const ngraph::PartialShape& p_shape) {
+void InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place, const ov::PartialShape& p_shape) {
     castToTensorPlace(place)->set_partial_shape(p_shape);
 }
 
-ngraph::PartialShape InputModelPDPD::InputModelPDPDImpl::getPartialShape(Place::Ptr place) const {
+ov::PartialShape InputModelPDPD::InputModelPDPDImpl::getPartialShape(Place::Ptr place) const {
     return castToTensorPlace(place)->get_partial_shape();
 }
 
-void InputModelPDPD::InputModelPDPDImpl::setElementType(Place::Ptr place, const ngraph::element::Type& type) {
+void InputModelPDPD::InputModelPDPDImpl::setElementType(Place::Ptr place, const ov::element::Type& type) {
     castToTensorPlace(place)->set_element_type(type);
 }
 
@@ -446,15 +447,15 @@ void InputModelPDPD::extract_subgraph(const std::vector<Place::Ptr>& inputs, con
     _impl->extractSubgraph(inputs, outputs);
 }
 
-void InputModelPDPD::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& p_shape) {
+void InputModelPDPD::set_partial_shape(Place::Ptr place, const ov::PartialShape& p_shape) {
     _impl->setPartialShape(place, p_shape);
 }
 
-ngraph::PartialShape InputModelPDPD::get_partial_shape(Place::Ptr place) const {
+ov::PartialShape InputModelPDPD::get_partial_shape(Place::Ptr place) const {
     return _impl->getPartialShape(place);
 }
 
-void InputModelPDPD::set_element_type(Place::Ptr place, const ngraph::element::Type& type) {
+void InputModelPDPD::set_element_type(Place::Ptr place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
 }
 

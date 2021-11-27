@@ -45,6 +45,31 @@ public:
         float post_threshold = 0.0f;
         // specifies whether boxes are normalized or not
         bool normalized = true;
+
+        Attributes() {}
+
+        Attributes(op::v8::MatrixNms::SortResultType sort_result_type,
+                   bool sort_result_across_batch,
+                   ov::element::Type output_type,
+                   float score_threshold,
+                   int nms_top_k,
+                   int keep_top_k,
+                   int background_class,
+                   op::v8::MatrixNms::DecayFunction decay_function,
+                   float gaussian_sigma,
+                   float post_threshold,
+                   bool normalized)
+            : sort_result_type(sort_result_type),
+              sort_result_across_batch(sort_result_across_batch),
+              output_type(output_type),
+              score_threshold(score_threshold),
+              nms_top_k(nms_top_k),
+              keep_top_k(keep_top_k),
+              background_class(background_class),
+              decay_function(decay_function),
+              gaussian_sigma(gaussian_sigma),
+              post_threshold(post_threshold),
+              normalized(normalized) {}
     };
 
     MatrixNms();

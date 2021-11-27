@@ -12,10 +12,10 @@ namespace pdpd {
 namespace op {
 using namespace default_opset;
 
-static std::shared_ptr<ngraph::Node> calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
-                                                                            const std::vector<float>& scale,
-                                                                            Output<ngraph::Node>& scales,
-                                                                            const int space_dim) {
+static std::shared_ptr<ov::Node> calculate_output_shape_based_on_scales(const Output<ov::Node>& data,
+                                                                        const std::vector<float>& scale,
+                                                                        Output<ov::Node>& scales,
+                                                                        const int space_dim) {
     const size_t scale_size = static_cast<size_t>(space_dim + 2);
     FRONT_END_GENERAL_CHECK(scale.size() > 0 && scale.size() <= scale_size);
 
@@ -25,25 +25,25 @@ static std::shared_ptr<ngraph::Node> calculate_output_shape_based_on_scales(cons
 
     const auto shape_of_data = std::make_shared<Convert>(std::make_shared<ShapeOf>(data), scales.get_element_type());
     const auto multiply = std::make_shared<Multiply>(shape_of_data, scales);
-    const auto output_shape = std::make_shared<Convert>(multiply, ngraph::element::i64);
+    const auto output_shape = std::make_shared<Convert>(multiply, ov::element::i64);
 
     return output_shape;
 }
 
-static std::shared_ptr<ngraph::Node> calculate_scales_based_on_sizes(const Output<ngraph::Node>& data,
-                                                                     const Output<ngraph::Node>& sizes) {
+static std::shared_ptr<ov::Node> calculate_scales_based_on_sizes(const Output<ov::Node>& data,
+                                                                 const Output<ov::Node>& sizes) {
     const float epsilon = 1.0e-5;
-    const auto shape_of_data = std::make_shared<Convert>(std::make_shared<ShapeOf>(data), ngraph::element::f32);
-    const auto converted_sizes = std::make_shared<Convert>(sizes, ngraph::element::f32);
+    const auto shape_of_data = std::make_shared<Convert>(std::make_shared<ShapeOf>(data), ov::element::f32);
+    const auto converted_sizes = std::make_shared<Convert>(sizes, ov::element::f32);
     const auto divide = std::make_shared<Divide>(converted_sizes, shape_of_data);
-    const auto eps_node = std::make_shared<Constant>(ngraph::element::f32, Shape{}, epsilon);
+    const auto eps_node = std::make_shared<Constant>(ov::element::f32, Shape{}, epsilon);
     const auto scales = std::make_shared<Add>(divide, eps_node);
 
     return scales;
 }
 
-static std::shared_ptr<ngraph::Node> extract_out_sizes(const Output<ngraph::Node>& data,
-                                                       const std::vector<int64_t>& out_sizes) {
+static std::shared_ptr<ov::Node> extract_out_sizes(const Output<ov::Node>& data,
+                                                   const std::vector<int64_t>& out_sizes) {
     const auto shape_of_x = std::make_shared<ShapeOf>(data);
     const auto shape_begin = Constant::create(element::i64, {1}, {0});
     const int end_idx = static_cast<int>(out_sizes.size());
