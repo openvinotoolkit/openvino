@@ -106,7 +106,6 @@ protected:
     // It was decided to move m_shape and m_partial_shape synchronization point there and
     // to keep methods signature backward compatible.
     mutable std::mutex m_mutex;
-    mutable std::atomic_bool m_shape_changed;
     mutable Shape m_shape;
     // TODO: end
 
@@ -116,6 +115,7 @@ protected:
 
     std::unordered_set<std::string> m_names;
     std::map<std::string, Any> m_rt_info;
+    mutable std::atomic_bool m_shape_changed;
 };
 
 OPENVINO_API

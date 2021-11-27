@@ -4,7 +4,7 @@
 
 add_definitions(-DIN_NGRAPH_LIBRARY)
 
-set(NGRAPH_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/core/include)
+set(NGRAPH_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)

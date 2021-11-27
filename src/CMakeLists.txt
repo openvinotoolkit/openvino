@@ -5,18 +5,21 @@
 if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wall)
-    ie_add_compiler_flags(-Wmissing-declarations)
-endif()
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_custom_target(ov_runtime_libraries ALL)
 
-add_subdirectory(common)
-add_subdirectory(core)
-add_subdirectory(inference)
+# TODO: Fix Wall for core and frontends
 add_subdirectory(frontends)
+add_subdirectory(core)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wall)
+    ie_add_compiler_flags(-Wmissing-declarations)
+endif()
+
+add_subdirectory(common)
+add_subdirectory(inference)
 # Core tests depend on frontends
 add_subdirectory(core/tests)
 

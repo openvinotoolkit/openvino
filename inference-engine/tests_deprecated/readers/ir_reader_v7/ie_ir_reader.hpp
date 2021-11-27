@@ -9,7 +9,7 @@
 #include <ie_common.h>
 #include <ie_iextension.h>
 
-#include <ie_reader.hpp>
+#include <legacy/ie_reader.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -25,7 +25,7 @@ namespace InferenceEngine {
 /**
  * @brief This class is the main interface to build and parse a network from a given IR
  */
-class IRReader: public IReader {
+class IRReader : public IReader {
 public:
     /**
      * @brief Checks that reader supports format of the model
@@ -49,7 +49,9 @@ public:
      *
      * @return CNNNetwork
      */
-    CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const override;
+    CNNNetwork read(std::istream& model,
+                    const Blob::CPtr& weights,
+                    const std::vector<IExtensionPtr>& exts) const override;
 
     std::vector<std::string> getDataFileExtensions() const override {
         return {"bin"};
