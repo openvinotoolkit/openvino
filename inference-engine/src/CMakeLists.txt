@@ -39,10 +39,6 @@ if(ENABLE_MULTI)
     add_subdirectory(multi_device)
 endif()
 
-add_subdirectory(inference_engine)
-
-add_subdirectory(legacy_api)
-
 add_subdirectory(readers)
 
 add_subdirectory(preprocessing)
@@ -64,16 +60,4 @@ if(NGRAPH_IR_FRONTEND_ENABLE)
     endif()
     # use this one once CVS-69781 is fixed
     # add_dependencies(inference_engine ir_ov_frontend)
-endif()
-
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_dependencies(inference_engine onnx_ov_frontend)
-endif()
-
-if(NGRAPH_PDPD_FRONTEND_ENABLE)
-    add_dependencies(inference_engine paddlepaddle_ov_frontend)
-endif()
-
-if(NGRAPH_TF_FRONTEND_ENABLE)
-    add_dependencies(inference_engine tensorflow_ov_frontend)
 endif()

@@ -30,7 +30,7 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/ie_core.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
 
 # TODO: WA for OneHot pass usage in reshape
-set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
+set(LEGACY_SRC_ROOT "${OpenVINO_SOURCE_DIR}/src/common/inference_engine_legacy_api/src")
 set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
@@ -108,7 +108,7 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
-    $<BUILD_INTERFACE:${IE_MAIN_SOURCE_DIR}/src/plugin_api>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dev_api>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
 
@@ -119,8 +119,8 @@ target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvi
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
-file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
-                                 "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.h")
+file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
+                                 "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
 
 add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
