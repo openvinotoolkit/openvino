@@ -153,6 +153,10 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO : CVS-69533
         R"(.*ConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
         R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
+        // Issue: 71968
+        R"(.*LSTMSequenceCommonZeroClip.*PURE.*CONST.*hidden_size=10.*sigmoid.sigmoid.sigmoid.*reverse.*FP32_targetDevice=CPU.*)",
+        // Issue: 72151
+        R"(.*smoke_ROIAlignLayoutTest.*bf16.*)",
     };
 
 #define FIX_62820 0
