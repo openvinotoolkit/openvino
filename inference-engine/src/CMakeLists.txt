@@ -13,8 +13,6 @@ add_subdirectory(low_precision_transformations)
 
 add_subdirectory(offline_transformations)
 
-add_subdirectory(snippets)
-
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
 endif()
@@ -39,25 +37,8 @@ if(ENABLE_MULTI)
     add_subdirectory(multi_device)
 endif()
 
-add_subdirectory(readers)
-
-add_subdirectory(preprocessing)
-
 # add a custom target to build all Inference Engine Core libraries
 
 add_custom_target(ie_libraries ALL
-                  DEPENDS inference_engine_transformations inference_engine_legacy
-                          inference_engine inference_engine_preproc
-                          inference_engine_lp_transformations inference_engine_snippets)
-
-if(ENABLE_IR_V7_READER)
-    add_dependencies(ie_libraries inference_engine_ir_v7_reader)
-endif()
-
-if(NGRAPH_IR_FRONTEND_ENABLE)
-    if(BUILD_SHARED_LIBS)
-        add_dependencies(ie_libraries ir_ov_frontend)
-    endif()
-    # use this one once CVS-69781 is fixed
-    # add_dependencies(inference_engine ir_ov_frontend)
-endif()
+                  DEPENDS inference_engine_transformations
+                          inference_engine_lp_transformations)

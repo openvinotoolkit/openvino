@@ -11,6 +11,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
+add_custom_target(ov_runtime_libraries ALL)
+
 add_subdirectory(common)
 add_subdirectory(core)
 add_subdirectory(inference)
@@ -20,6 +22,13 @@ add_subdirectory(core/tests)
 
 add_subdirectory(bindings)
 
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    if(BUILD_SHARED_LIBS)
+        add_dependencies(ov_runtime_libraries ir_ov_frontend)
+    endif()
+    # use this one once CVS-69781 is fixed
+    # add_dependencies(inference_engine ir_ov_frontend)
+endif()
 if(NGRAPH_ONNX_FRONTEND_ENABLE)
     add_dependencies(inference_engine onnx_ov_frontend)
 endif()
