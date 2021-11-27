@@ -7,6 +7,6 @@
 
 using namespace ONNXTestsDefinitions;
 
-INSTANTIATE_TEST_SUITE_P(ONNXQuantizedModels, QuantizedModelsTests,
+INSTANTIATE_TEST_SUITE_P(smoke_ONNXQuantizedModels, QuantizedModelsTests,
                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
                         QuantizedModelsTests::getTestCaseName);
