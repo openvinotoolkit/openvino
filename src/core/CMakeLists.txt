@@ -4,6 +4,8 @@
 
 add_definitions(-DIN_NGRAPH_LIBRARY)
 
+set(NGRAPH_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/core/include)
+
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
 endif()
@@ -134,14 +136,14 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
             PATTERN "*.h")
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
-    ${ngraph_BINARY_DIR}/ngraphConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     INSTALL_DESTINATION cmake)
 
-write_basic_package_version_file(${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
     VERSION ${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}
     COMPATIBILITY SameMajorVersion)
 
-install(FILES ${ngraph_BINARY_DIR}/ngraphConfig.cmake
-              ${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION "runtime/cmake"
         COMPONENT ngraph_dev)

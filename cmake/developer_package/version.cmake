@@ -49,7 +49,7 @@ macro(ie_parse_ci_build_number)
             message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
         endif()
 
-        set(ov_version_hpp "${OpenVINO_SOURCE_DIR}/ngraph/core/include/openvino/core/version.hpp")
+        set(ov_version_hpp "${OpenVINO_SOURCE_DIR}/src/core/include/openvino/core/version.hpp")
         if(NOT EXISTS ${ov_version_hpp})
             message(FATAL_ERROR "File openvino/core/version.hpp with OPENVINO_VERSION definitions is not found")
         endif()

@@ -69,9 +69,9 @@ function(build_docs)
     set(PYTHON_API_OUT "${DOCS_BUILD_DIR}/python_api/ie_api.pyx")
     set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
-    set(NGRAPH_DIR "${OpenVINO_SOURCE_DIR}/ngraph")
+    set(CORE_DIR "${OpenVINO_SOURCE_DIR}/src/core")
+    set(FRONTENDS_DIR "${OpenVINO_SOURCE_DIR}/src/frontends")
     set(NGRAPH_PY_DIR "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/compatibility/ngraph/")
-    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")

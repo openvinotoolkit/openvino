@@ -27,7 +27,7 @@ file (GLOB LIBRARY_SRC
 
 # Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/ie_core.cpp
-                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
 
 # TODO: WA for OneHot pass usage in reshape
 set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
@@ -351,7 +351,7 @@ install(EXPORT OpenVINOTargets
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
-set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
+set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 

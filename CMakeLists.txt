@@ -91,7 +91,6 @@ ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 include(cmake/test_model_zoo.cmake)
 
 add_subdirectory(thirdparty)
-add_subdirectory(ngraph)
 add_subdirectory(inference-engine)
 add_subdirectory(src)
 add_subdirectory(samples)
