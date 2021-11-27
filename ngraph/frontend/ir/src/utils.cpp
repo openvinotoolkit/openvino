@@ -51,12 +51,13 @@ PartialShape strToPartialShape(const std::string& value) {
     if (value.find("...") != std::string::npos) {
         return PartialShape::dynamic();
     }
-    PartialShape res;
-    std::stringstream ss;
+    std::string value_tmp;
     if (value[0] == '[' && value[value.size() - 1] == ']')
-        ss = std::stringstream(value.substr(1, value.size() - 2));
+        value_tmp = value.substr(1, value.size() - 2);
     else
-        ss = std::stringstream(value);
+        value_tmp = value;
+    PartialShape res;
+    std::stringstream ss(value_tmp);
     std::string field;
     while (getline(ss, field, ',')) {
         if (field.empty())
