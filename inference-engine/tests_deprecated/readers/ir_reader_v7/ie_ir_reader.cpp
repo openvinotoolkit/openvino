@@ -5,7 +5,7 @@
 #include <xml_parse_utils.h>
 
 #include "openvino/runtime/common.hpp"
-#include <ie_ir_version.hpp>
+#include <legacy/ie_ir_version.hpp>
 #include <ie_ir_reader.hpp>
 #include <memory>
 #include <string>

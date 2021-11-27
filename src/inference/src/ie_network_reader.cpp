@@ -20,7 +20,7 @@
 #include "ie_input_info.hpp"
 #include "manager.hpp"
 #ifdef ENABLE_IR_V7_READER
-#    include "ie_ir_version.hpp"
+#    include "legacy/ie_ir_version.hpp"
 #endif
 #include "ie_itt.hpp"
 #include "legacy/ie_reader.hpp"
