@@ -3,7 +3,7 @@
 
 import numpy as np
 import openvino.opset8 as ov
-from openvino.impl import Shape, Type
+from openvino.runtime.impl import Shape, Type
 
 
 def test_swish_props_with_beta():

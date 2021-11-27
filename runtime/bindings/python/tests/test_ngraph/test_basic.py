@@ -7,13 +7,13 @@ import numpy as np
 import pytest
 
 import openvino.opset8 as ops
-import openvino as ov
+import openvino.runtime as ov
 
 from openvino.pyopenvino import VariantInt, VariantString
 
-from openvino.exceptions import UserInputError
-from openvino.impl import Function, PartialShape, Shape, Type, layout_helpers
-from openvino.impl.op import Parameter
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 

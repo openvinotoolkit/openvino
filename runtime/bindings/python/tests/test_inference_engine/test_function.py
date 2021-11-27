@@ -4,12 +4,12 @@
 import numpy as np
 import pytest
 
-import openvino.opset8 as ops
+import openvino.runtime.opset8 as ops
 
-from openvino import Function, Tensor
-from openvino.descriptor import Tensor as DescriptorTensor
+from openvino.runtime import Function, Tensor
+from openvino.runtime.descriptor import Tensor as DescriptorTensor
 
-from openvino.impl import PartialShape, Shape
+from openvino.runtime.impl import PartialShape, Shape
 
 
 def test_function_add_outputs_tensor_name():

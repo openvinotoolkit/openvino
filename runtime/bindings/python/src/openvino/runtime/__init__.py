@@ -30,14 +30,14 @@ from openvino.pyopenvino import ProfilingInfo
 from openvino.pyopenvino import get_version
 
 # Import opsets
-from openvino import opset1
-from openvino import opset2
-from openvino import opset3
-from openvino import opset4
-from openvino import opset5
-from openvino import opset6
-from openvino import opset7
-from openvino import opset8
+from openvino.runtime import opset1
+from openvino.runtime import opset2
+from openvino.runtime import opset3
+from openvino.runtime import opset4
+from openvino.runtime import opset5
+from openvino.runtime import opset6
+from openvino.runtime import opset7
+from openvino.runtime import opset8
 
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file

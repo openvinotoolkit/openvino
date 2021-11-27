@@ -2,7 +2,7 @@ import openvino.opset8 as ov
 import numpy as np
 import pytest
 
-from openvino.utils.types import get_element_type
+from openvino.runtime.utils.types import get_element_type
 from tests import xfail_issue_58033
 from tests.runtime import get_runtime
 
