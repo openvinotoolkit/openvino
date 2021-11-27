@@ -76,6 +76,8 @@ function(ov_generate_frontends_hpp)
     set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ov_frontends_hpp})
 endfunction()
 
+unset(protobuf_lite_installed CACHE)
+unset(protobuf_installed CACHE)
 
 #
 # ov_add_frontend(NAME <IR|ONNX|...>
@@ -184,8 +186,16 @@ macro(ov_add_frontend)
 
     if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
+            if(NOT protobuf_lite_installed)
+                ov_install_static_lib(${Protobuf_LITE_LIBRARIES} ngraph)
+                set(protobuf_lite_installed ON CACHE INTERNAL "" FORCE)
+            endif()
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
         else()
+            if(NOT protobuf_installed)
+                ov_install_static_lib(${Protobuf_LIBRARIES} ngraph)
+                set(protobuf_installed ON CACHE INTERNAL "" FORCE)
+            endif()
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
         endif()
     endif()

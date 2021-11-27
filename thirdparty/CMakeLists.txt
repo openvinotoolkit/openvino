@@ -98,7 +98,7 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONT
             set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL TRUE)
         endforeach()
     else()
-        add_subdirectory(protobuf)
+        add_subdirectory(protobuf EXCLUDE_FROM_ALL)
     endif()
 
     # forward variables used in the other places
