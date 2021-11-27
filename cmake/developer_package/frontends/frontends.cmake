@@ -7,8 +7,8 @@ set(FRONTEND_NAME_SUFFIX "_ov_frontend")
 
 set(FRONTEND_NAMES "" CACHE INTERNAL "")
 
-if(NOT TARGET ov_plugins)
-    add_custom_target(ov_plugins)
+if(NOT TARGET ov_frontends)
+    add_custom_target(ov_frontends)
 endif()
 
 #
@@ -138,7 +138,7 @@ macro(ov_add_frontend)
     endforeach()
 
     # Disable all warnings for generated code
-    set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE COMPILE_OPTIONS -w)
+    set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
 
     # Create library
     add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
@@ -198,12 +198,17 @@ macro(ov_add_frontend)
             endif()
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
         endif()
+
+        # prptobuf generated code emits -Wsuggest-override error
+        if(SUGGEST_OVERRIDE_SUPPORTED)
+            target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
+        endif()
     endif()
 
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                             EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
 
-    add_dependencies(ov_plugins ${TARGET_NAME})
+    add_dependencies(ov_frontends ${TARGET_NAME})
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
         if(BUILD_SHARED_LIBS)
