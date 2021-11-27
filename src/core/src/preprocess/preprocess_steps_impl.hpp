@@ -172,7 +172,7 @@ public:
 
         std::vector<Dimension> old_dims(network_shape.rank().get_length());
         std::vector<Dimension> dims(network_shape.rank().get_length());
-        for (size_t i = 0; i < network_shape.rank().get_length(); i++) {
+        for (int64_t i = 0; i < network_shape.rank().get_length(); i++) {
             dims[i] = network_shape[i];
         }
         for (const auto& convert : m_layout_converts) {

@@ -50,6 +50,10 @@
  * If MatcherPass register more than one node make sure that this nodes are registered in
  * topological order. */
 
+#if defined __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 namespace ov {
 namespace pass {
 namespace {
@@ -60,6 +64,9 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace
 }  // namespace pass
 }  // namespace ov
+#if defined __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
 bool ov::pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
     // Initialize execution queue with nodes in topological order

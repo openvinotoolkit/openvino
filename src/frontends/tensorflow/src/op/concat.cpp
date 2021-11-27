@@ -35,7 +35,7 @@ OutputVector translate_concat_op(const NodeContext& node) {
     int64_t concat_axis = tf_concat_axis_vec[0];
 
     OutputVector ng_args;
-    for (int i = concat_idx_start; i < concat_idx_stop; i++) {
+    for (size_t i = concat_idx_start; i < concat_idx_stop; i++) {
         Output<Node> ng_arg = node.get_input(i);
         ng_args.push_back(ng_arg);
     }

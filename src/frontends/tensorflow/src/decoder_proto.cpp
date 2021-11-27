@@ -52,7 +52,7 @@ shared_ptr<Variant> DecoderTFProto::get_attribute(const string& name, const Vari
     } else if (is_type<vector<int64_t>>(type_info)) {
         vector<int64_t> longs;
         longs.reserve(attrs[0].list().i_size());
-        for (size_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
+        for (int64_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
             longs.push_back(attrs[0].list().i(idx));
         }
         return create_variant<vector<int64_t>>(longs);
@@ -61,7 +61,7 @@ shared_ptr<Variant> DecoderTFProto::get_attribute(const string& name, const Vari
     } else if (is_type<vector<int32_t>>(type_info)) {
         vector<int32_t> ints;
         ints.reserve(attrs[0].list().i_size());
-        for (size_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
+        for (int64_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
             ints.push_back(static_cast<int32_t>(attrs[0].list().i(idx)));
         }
         return create_variant<vector<int32_t>>(ints);
@@ -70,7 +70,7 @@ shared_ptr<Variant> DecoderTFProto::get_attribute(const string& name, const Vari
     } else if (is_type<vector<float>>(type_info)) {
         vector<float> floats;
         floats.reserve(attrs[0].list().i_size());
-        for (size_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
+        for (int64_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
             floats.push_back(attrs[0].list().f(idx));
         }
         return create_variant<vector<float>>(floats);

@@ -41,10 +41,6 @@ void set_out_name(const std::string& out_name, const Output<Node>& output);
 
 void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node);
 
-static bool vec_str_cmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
-    return a == b;
-}
-
 template <typename T>
 void make_padding(const std::string& tf_padding_type,
                   const ov::Shape& ng_image_shape,

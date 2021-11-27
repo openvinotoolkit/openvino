@@ -65,7 +65,7 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
                                      vector<float>({}))
             ->outputs();
     } else {
-        for (int i = 0; i < box_ind.size(); i++) {
+        for (size_t i = 0; i < box_ind.size(); i++) {
             int y1, x1, y2, x2;
             y1 = boxes.at(0 + i * 4) * (image_height - 1.);
             x1 = boxes.at(1 + i * 4) * (image_width - 1.);

@@ -217,7 +217,7 @@ void op::v8::Slice::validate_and_infer_types() {
         } else {
             // Otherwise `axes` values are also unknown,
             // then all of the output dims can be 0, so have lower bound = 0.
-            for (size_t i = 0; i < data_static_rank; ++i) {
+            for (int64_t i = 0; i < data_static_rank; ++i) {
                 output_shape[i] = Dimension(0, data_shape[i].get_max_length());
             }
         }

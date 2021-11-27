@@ -2,9 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+remove_definitions(-DIN_NGRAPH_LIBRARY)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
+endif()
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-sign-compare)
 endif()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")

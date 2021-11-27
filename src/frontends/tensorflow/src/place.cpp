@@ -43,7 +43,8 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& OpPlac
 }
 
 std::shared_ptr<InPortPlaceTF> OpPlaceTF::get_input_port_tf(const std::string& inputName, int inputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
+    FRONT_END_GENERAL_CHECK(static_cast<size_t>(inputPortIndex) <= m_input_ports.at(inputName).size(),
+                            "inputPortIndex is out of bounds.");
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 

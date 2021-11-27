@@ -25,6 +25,10 @@
 
 using namespace std;
 
+#if defined __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 namespace ov {
 namespace pass {
 namespace {
@@ -35,6 +39,9 @@ PerfCounters& perf_counters() {
 }  // namespace
 }  // namespace pass
 }  // namespace ov
+#if defined __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
 ov::pass::Manager::Manager()
     : m_pass_config(std::make_shared<PassConfig>()),

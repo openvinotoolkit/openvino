@@ -76,7 +76,7 @@ static void scatter_update(const char* input_data,
     if (!num_axis_jumps)
         num_axis_jumps = updates_ndim - data_ndim;
 
-    auto updates_axis_dim = axis + num_axis_jumps + num_unary_moves;
+    uint64_t updates_axis_dim = axis + num_axis_jumps + num_unary_moves;
 
     if (updates_axis_dim >= updates_ndim)
         updates_axis_dim = updates_ndim - 1;

@@ -459,11 +459,11 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
     if (const auto value_info = find_graph_value_info(*graph, current_name))
         *value_info->mutable_name() = new_name;
 
-    for (size_t i = 0; i < graph->node().size(); ++i) {
+    for (int64_t i = 0; i < graph->node().size(); ++i) {
         const auto node = graph->mutable_node(i);
 
         bool output_found = false;
-        for (size_t j = 0; j < node->output().size(); ++j)
+        for (int64_t j = 0; j < node->output().size(); ++j)
             if (node->output(j) == current_name) {
                 *node->mutable_output(j) = new_name;
                 output_found = true;
@@ -472,7 +472,7 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
         if (output_found)
             continue;
 
-        for (size_t j = 0; j < node->input().size(); ++j)
+        for (int64_t j = 0; j < node->input().size(); ++j)
             if (node->input(j) == current_name)
                 *node->mutable_input(j) = new_name;
     }
@@ -492,7 +492,7 @@ void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
 
     m_pimpl->m_is_mapper_updated = false;
 
-    for (size_t i = 0; i < graph->node().size(); ++i) {
+    for (int64_t i = 0; i < graph->node().size(); ++i) {
         const auto node = graph->mutable_node(i);
         if (node->has_name() && node->name() == name)
             node->clear_name();
@@ -516,7 +516,7 @@ void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& nod
 
     const auto set_dim_param = [&shape_dim_index, &dim_name](ValueInfoProto* tensor) {
         const auto shape = tensor->mutable_type()->mutable_tensor_type()->mutable_shape();
-        auto shape_dim_size = shape->dim_size();
+        size_t shape_dim_size = shape->dim_size();
 
         for (; shape_dim_size <= shape_dim_index; ++shape_dim_size)
             add_dim_to_onnx_shape(Dimension::dynamic(), *shape);

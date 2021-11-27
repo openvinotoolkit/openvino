@@ -32,7 +32,7 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
     if (tf_data_format == "NCHW") {
         auto channel_dim = ng_input_shape[1];
         std::vector<int64_t> target_shape(ng_input_shape.size());
-        for (int64_t i = 0; i < ng_input_shape.size(); i++) {
+        for (size_t i = 0; i < ng_input_shape.size(); i++) {
             if (i == 1) {
                 target_shape[i] = channel_dim;
             } else {

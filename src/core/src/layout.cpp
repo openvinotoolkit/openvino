@@ -139,7 +139,7 @@ Layout::Layout(const std::string& layout_str) {
     auto dynamic_start = layout.find(ELLIPSIS);
     bool backward = false;
     int64_t index = -1;
-    for (auto i = 0; i < layout.length(); i++) {
+    for (size_t i = 0; i < layout.length(); i++) {
         index++;
         auto c = std::toupper(layout[i]);
         if (c == '?') {

@@ -4,6 +4,11 @@
 
 set(TARGET_NAME "tensorflow_ov_frontend")
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-sign-compare)
+endif()
+
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)

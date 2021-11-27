@@ -234,8 +234,8 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
 
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
                                                  const ov::frontend::InputModel& input_model)
-    : m_input_model(input_model),
-      m_graph_iterator(graph_iterator) {
+    : m_graph_iterator(graph_iterator),
+      m_input_model(input_model) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadPlaces();
 }
