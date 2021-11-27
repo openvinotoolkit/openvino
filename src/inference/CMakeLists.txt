@@ -30,7 +30,7 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/ie_core.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
 
 # TODO: WA for OneHot pass usage in reshape
-set(LEGACY_SRC_ROOT "${OpenVINO_SOURCE_DIR}/src/common/inference_engine_legacy_api/src")
+set(LEGACY_SRC_ROOT "${OpenVINO_SOURCE_DIR}/src/common/legacy/src")
 set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
