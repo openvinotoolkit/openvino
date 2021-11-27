@@ -90,6 +90,66 @@ ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 # add target with processed tests model zoo
 include(cmake/test_model_zoo.cmake)
 
+if(ENABLE_TBBBIND_2_5)
+    # try to find prebuilt version of tbbbind_2_5
+    find_package(TBBBIND_2_5 QUIET)
+    if(TBBBIND_2_5_FOUND)
+        message(STATUS "Static tbbbind_2_5 package is found")
+        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
+            INTERFACE_COMPILE_DEFINITIONS TBBBIND_2_5_AVAILABLE)
+        if(NOT BUILD_SHARED_LIBS)
+            set(install_tbbbind ON)
+        endif()
+    endif()
+endif()
+
+add_library(ov_runtime $<TARGET_OBJECTS:inference_engine_obj>)
+add_library(openvino::runtime ALIAS ov_runtime)
+set_target_properties(ov_runtime PROPERTIES EXPORT_NAME runtime)
+
+ie_add_vs_version_file(NAME ov_runtime FILEDESCRIPTION "OpenVINO runtime library")
+target_include_directories(ov_runtime PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>>)
+
+
+if(WIN32)
+    set_target_properties(ov_runtime PROPERTIES COMPILE_PDB_NAME ov_runtime)
+endif()
+
+target_compile_definitions(ov_runtime PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+
+target_link_libraries(ov_runtime PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
+                                             frontend_common::static inference_engine_transformations
+                                     PUBLIC ngraph)
+if (TBBBIND_2_5_FOUND)
+    target_link_libraries(ov_runtime PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
+endif()
+set_ie_threading_interface_for(ov_runtime)
+ie_mark_target_as_cc(ov_runtime)
+
+# LTO
+set_target_properties(ov_runtime PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+export(TARGETS ov_runtime NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+ie_register_plugins(MAIN_TARGET ov_runtime
+                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
+
+if(BUILD_SHARED_LIBS)
+    install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
+            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            COMPONENT core)
+
+    # for InferenceEngineUnitTest
+    if(WIN32)
+        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
+                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    else()
+        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
+                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+    endif()
+endif()
+
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
 add_subdirectory(ngraph)
@@ -101,6 +161,9 @@ add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
+ie_register_plugins(MAIN_TARGET ov_runtime
+                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
+
 
 #
 # CPack

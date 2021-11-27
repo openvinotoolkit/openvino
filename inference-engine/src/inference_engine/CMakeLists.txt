@@ -4,19 +4,6 @@
 
 set (TARGET_NAME "inference_engine")
 
-if(ENABLE_TBBBIND_2_5)
-    # try to find prebuilt version of tbbbind_2_5
-    find_package(TBBBIND_2_5 QUIET)
-    if(TBBBIND_2_5_FOUND)
-        message(STATUS "Static tbbbind_2_5 package is found")
-        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
-            INTERFACE_COMPILE_DEFINITIONS TBBBIND_2_5_AVAILABLE)
-        if(NOT BUILD_SHARED_LIBS)
-            set(install_tbbbind ON)
-        endif()
-    endif()
-endif()
-
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
@@ -127,6 +114,8 @@ add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api
 # Create object library
 
 add_library(${TARGET_NAME}_obj OBJECT
+            ${IE_STATIC_DEPENDENT_FILES}
+            ${LEGACY_LIBRARY_SHARED_SRCS}
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
@@ -161,13 +150,8 @@ endif()
 
 # Create library file from object library
 
-add_library(${TARGET_NAME}
-            ${IE_STATIC_DEPENDENT_FILES}
-            ${LEGACY_LIBRARY_SHARED_SRCS}
-            ${vs_version_file}
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
-
-add_library(openvino::runtime ALIAS ${TARGET_NAME})
+add_library(${TARGET_NAME} INTERFACE)
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
@@ -175,34 +159,11 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Core Runtime library")
-
 set_ie_threading_interface_for(${TARGET_NAME})
-if (TBBBIND_2_5_FOUND)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
-endif()
-
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
-                                             frontend_common::static inference_engine_transformations
-                                     PUBLIC ngraph)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-            $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
-    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
-
-if(WIN32)
-    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
-endif()
-
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
-
-ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+            $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
 
 # Static library used for unit tests which are always built
 
@@ -236,13 +197,8 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES
 
 # LTO
 
-set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
+set_target_properties(${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-# Export for build tree
-
-export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # Export for developer package
 
@@ -315,41 +271,11 @@ ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
 
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION runtime/include
-                             # TODO: remove later once samples are updated
-                             runtime/include/ie)
-
-if(BUILD_SHARED_LIBS)
-    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-            DESTINATION ${IE_CPACK_RUNTIME_PATH}
-            COMPONENT core)
-
-    # for InferenceEngineUnitTest
-    if(WIN32)
-        install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-    else()
-        install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 
 ov_install_static_lib(${TARGET_NAME}_plugin_api core)
 
 # Install cmake scripts
-
-install(EXPORT OpenVINOTargets
-        FILE OpenVINOTargets.cmake
-        NAMESPACE openvino::
-        DESTINATION runtime/cmake
-        COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
