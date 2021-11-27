@@ -5,7 +5,7 @@ from typing import Any, Callable, List, Union
 
 import numpy as np
 
-import openvino.opset8 as ov
+import openvino.runtime.opset8 as ov
 from openvino.runtime.utils.types import NumericData
 from tests.runtime import get_runtime
 from string import ascii_uppercase

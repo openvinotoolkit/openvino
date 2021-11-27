@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime as ov
-import openvino.opset8 as ops
+import openvino.runtime.opset8 as ops
 from openvino.runtime.impl import Function, Output, Type
 from openvino.runtime.utils.decorators import custom_preprocess_function
 from openvino.runtime import Core

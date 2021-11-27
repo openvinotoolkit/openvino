@@ -6,7 +6,7 @@ import json
 import numpy as np
 import pytest
 
-import openvino.opset8 as ops
+import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
 from openvino.pyopenvino import VariantInt, VariantString

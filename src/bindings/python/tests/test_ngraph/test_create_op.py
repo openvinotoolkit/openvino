@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 from openvino.runtime import PartialShape, Dimension
 
-import openvino.opset8 as ov
-import openvino.opset1 as ov_opset1
-import openvino.opset5 as ov_opset5
+import openvino.runtime.opset8 as ov
+import openvino.runtime.opset1 as ov_opset1
+import openvino.runtime.opset5 as ov_opset5
 from openvino.runtime.impl import Type
 
 np_types = [np.float32, np.int32]
