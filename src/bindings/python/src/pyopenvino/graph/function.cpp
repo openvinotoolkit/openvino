@@ -133,7 +133,7 @@ void regclass_graph_Function(py::module m) {
         }),
         py::arg("results"),
         py::arg("parameters"),
-        py::arg("name") = ""),
+        py::arg("name") = "",
         R"(
             Create user-defined Function which is a representation of a model
 
@@ -147,7 +147,7 @@ void regclass_graph_Function(py::module m) {
 
             name : str
                 String to set as function's friendly name.
-        )";
+        )");
 
     function.def(py::init([](const ov::OutputVector& results,
                              const std::vector<std::shared_ptr<ov::Node>>& nodes,
@@ -160,8 +160,8 @@ void regclass_graph_Function(py::module m) {
                  py::arg("results"),
                  py::arg("sinks"),
                  py::arg("parameters"),
-                 py::arg("name") = ""),
-        R"(
+                 py::arg("name") = "",
+                 R"(
             Create user-defined Function which is a representation of a model
 
             Parameters
@@ -177,7 +177,7 @@ void regclass_graph_Function(py::module m) {
 
             name : str
                 String to set as function's friendly name.
-            )";
+            )");
     function.def(py::init([](const ov::ResultVector& results,
                              const std::vector<std::shared_ptr<ov::Node>>& nodes,
                              const ov::ParameterVector& parameters,
@@ -191,8 +191,8 @@ void regclass_graph_Function(py::module m) {
                  py::arg("sinks"),
                  py::arg("parameters"),
                  py::arg("variables"),
-                 py::arg("name") = ""),
-        R"(
+                 py::arg("name") = "",
+                 R"(
             Create user-defined Function which is a representation of a model
 
             Parameters
@@ -211,7 +211,7 @@ void regclass_graph_Function(py::module m) {
 
             name : str
                 String to set as function's friendly name.
-            )";
+            )");
 
     function.def(py::init([](const ov::OutputVector& results,
                              const std::vector<std::shared_ptr<ov::Node>>& nodes,
@@ -226,8 +226,8 @@ void regclass_graph_Function(py::module m) {
                  py::arg("sinks"),
                  py::arg("parameters"),
                  py::arg("variables"),
-                 py::arg("name") = ""),
-        R"(
+                 py::arg("name") = "",
+                 R"(
             Create user-defined Function which is a representation of a model
 
             Parameters
@@ -246,7 +246,7 @@ void regclass_graph_Function(py::module m) {
 
             name : str
                 String to set as function's friendly name.
-        )";
+        )");
 
     function.def(py::init([](const ov::ResultVector& results,
                              const ov::ParameterVector& parameters,
@@ -258,8 +258,8 @@ void regclass_graph_Function(py::module m) {
                  py::arg("results"),
                  py::arg("parameters"),
                  py::arg("variables"),
-                 py::arg("name") = ""),
-        R"(
+                 py::arg("name") = "",
+                 R"(
             Create user-defined Function which is a representation of a model
 
             Parameters
@@ -275,7 +275,7 @@ void regclass_graph_Function(py::module m) {
 
             name : str
                 String to set as function's friendly name.
-        )";
+        )");
 
     function.def(py::init([](const ov::OutputVector& results,
                              const ov::ParameterVector& parameters,
@@ -287,8 +287,8 @@ void regclass_graph_Function(py::module m) {
                  py::arg("results"),
                  py::arg("parameters"),
                  py::arg("variables"),
-                 py::arg("name") = ""),
-        R"(
+                 py::arg("name") = "",
+                 R"(
             Create user-defined Function which is a representation of a model
 
             Parameters
@@ -304,7 +304,7 @@ void regclass_graph_Function(py::module m) {
 
             name : str
                 String to set as function's friendly name.
-        )";
+        )");
 
     function.def("validate_nodes_and_infer_types", &ov::Function::validate_nodes_and_infer_types);
 
@@ -589,6 +589,7 @@ void regclass_graph_Function(py::module m) {
         "add_outputs",
         [](ov::Function& self, py::handle& outputs) {
             int i = 0;
+            std::vector<ov::Output<ov::Node>> new_outputs;
             py::list _outputs;
             if (!py::isinstance<py::list>(outputs)) {
                 if (py::isinstance<py::str>(outputs)) {
@@ -605,19 +606,22 @@ void regclass_graph_Function(py::module m) {
             }
 
             for (py::handle output : _outputs) {
+                ov::Output<ov::Node> out;
                 if (py::isinstance<py::str>(_outputs[i])) {
-                    self.add_output(output.cast<std::string>());
+                    out = self.add_output(output.cast<std::string>());
                 } else if (py::isinstance<py::tuple>(output)) {
                     py::tuple output_tuple = output.cast<py::tuple>();
-                    self.add_output(output_tuple[0].cast<std::string>(), output_tuple[1].cast<int>());
+                    out = self.add_output(output_tuple[0].cast<std::string>(), output_tuple[1].cast<int>());
                 } else if (py::isinstance<ov::Output<ov::Node>>(_outputs[i])) {
-                    self.add_output(output.cast<ov::Output<ov::Node>>());
+                    out = self.add_output(output.cast<ov::Output<ov::Node>>());
                 } else {
                     throw py::type_error("Incorrect type of a value to add as output at index " + std::to_string(i) +
                                          ".");
                 }
+                new_outputs.emplace_back(out);
                 i++;
             }
+            return new_outputs;
         },
         py::arg("outputs"));
 

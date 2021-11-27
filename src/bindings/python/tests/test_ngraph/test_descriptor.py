@@ -1,7 +1,7 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime.descriptor import Tensor
+from openvino.descriptor import Tensor
 from openvino.runtime.impl import Type, PartialShape
 
 

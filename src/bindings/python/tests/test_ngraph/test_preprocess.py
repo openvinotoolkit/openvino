@@ -10,7 +10,7 @@ from openvino.runtime.impl import Function, Output, Type
 from openvino.runtime.utils.decorators import custom_preprocess_function
 from openvino.runtime import Core
 from tests.runtime import get_runtime
-from openvino.runtime.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
+from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 
 
 def test_ngraph_preprocess_mean():

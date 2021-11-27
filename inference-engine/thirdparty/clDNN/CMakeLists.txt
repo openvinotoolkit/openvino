@@ -12,9 +12,6 @@ project("${CLDNN__PROJ_NAME}")
 # ====================================== HELPER CONSTANT VARIABLES =====================================
 # ======================================================================================================
 # ======================================================================================================
-if (ENABLE_ONEDNN_FOR_GPU)
-    set(ONEDNN_LIBRARY onednn_gpu_tgt)
-endif()
 
 if(ENABLE_GPU_DEBUG_CAPS)
   add_definitions(-DGPU_DEBUG_CONFIG=1)

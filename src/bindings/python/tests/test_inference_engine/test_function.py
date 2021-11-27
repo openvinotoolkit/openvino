@@ -7,7 +7,7 @@ import pytest
 import openvino.runtime.opset8 as ops
 
 from openvino.runtime import Function, Tensor
-from openvino.runtime.descriptor import Tensor as DescriptorTensor
+from openvino.descriptor import Tensor as DescriptorTensor
 
 from openvino.runtime.impl import PartialShape, Shape
 
@@ -21,10 +21,13 @@ def test_function_add_outputs_tensor_name():
     relu2 = ops.relu(relu1, name="relu2")
     function = Function(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
-    function.add_outputs("relu_t1")
+    new_outs = function.add_outputs("relu_t1")
     assert len(function.get_results()) == 2
     assert isinstance(function.outputs[1].get_tensor(), DescriptorTensor)
     assert "relu_t1" in function.outputs[1].get_tensor().names
+    assert len(new_outs) == 1
+    assert new_outs[0].get_node() == function.outputs[1].get_node()
+    assert new_outs[0].get_index() == function.outputs[1].get_index()
 
 
 def test_function_add_outputs_op_name():
@@ -35,8 +38,11 @@ def test_function_add_outputs_op_name():
     relu2 = ops.relu(relu1, name="relu2")
     function = Function(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
-    function.add_outputs(("relu1", 0))
+    new_outs = function.add_outputs(("relu1", 0))
     assert len(function.get_results()) == 2
+    assert len(new_outs) == 1
+    assert new_outs[0].get_node() == function.outputs[1].get_node()
+    assert new_outs[0].get_index() == function.outputs[1].get_index()
 
 
 def test_function_add_output_port():
@@ -47,8 +53,11 @@ def test_function_add_output_port():
     relu2 = ops.relu(relu1, name="relu2")
     function = Function(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
-    function.add_outputs(relu1.output(0))
+    new_outs = function.add_outputs(relu1.output(0))
     assert len(function.get_results()) == 2
+    assert len(new_outs) == 1
+    assert new_outs[0].get_node() == function.outputs[1].get_node()
+    assert new_outs[0].get_index() == function.outputs[1].get_index()
 
 
 def test_function_add_output_incorrect_tensor_name():
@@ -102,8 +111,13 @@ def test_add_outputs_several_tensors():
     relu3 = ops.relu(relu2, name="relu3")
     function = Function(relu3, [param], "TestFunction")
     assert len(function.get_results()) == 1
-    function.add_outputs(["relu_t1", "relu_t2"])
+    new_outs = function.add_outputs(["relu_t1", "relu_t2"])
     assert len(function.get_results()) == 3
+    assert len(new_outs) == 2
+    assert new_outs[0].get_node() == function.outputs[1].get_node()
+    assert new_outs[0].get_index() == function.outputs[1].get_index()
+    assert new_outs[1].get_node() == function.outputs[2].get_node()
+    assert new_outs[1].get_index() == function.outputs[2].get_index()
 
 
 def test_add_outputs_several_ports():
@@ -116,8 +130,13 @@ def test_add_outputs_several_ports():
     relu3 = ops.relu(relu2, name="relu3")
     function = Function(relu3, [param], "TestFunction")
     assert len(function.get_results()) == 1
-    function.add_outputs([("relu1", 0), ("relu2", 0)])
+    new_outs = function.add_outputs([("relu1", 0), ("relu2", 0)])
     assert len(function.get_results()) == 3
+    assert len(new_outs) == 2
+    assert new_outs[0].get_node() == function.outputs[1].get_node()
+    assert new_outs[0].get_index() == function.outputs[1].get_index()
+    assert new_outs[1].get_node() == function.outputs[2].get_node()
+    assert new_outs[1].get_index() == function.outputs[2].get_index()
 
 
 def test_add_outputs_incorrect_value():
