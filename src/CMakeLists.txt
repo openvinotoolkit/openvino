@@ -9,9 +9,11 @@ add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_custom_target(ov_runtime_libraries ALL)
 
-# TODO: Fix Wall for core and frontends
+# TODO: Fix Wall for core, frontends and tests
 add_subdirectory(frontends)
 add_subdirectory(core)
+# TODO: remove ngraph/ngraph.hpp usage
+add_subdirectory(core/tests)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wall)
@@ -20,8 +22,6 @@ endif()
 
 add_subdirectory(common)
 add_subdirectory(inference)
-# Core tests depend on frontends
-add_subdirectory(core/tests)
 
 add_subdirectory(bindings)
 

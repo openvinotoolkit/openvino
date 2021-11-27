@@ -16,7 +16,7 @@
 
 #define SELECTIVE_BUILD
 
-#include "../core/src/itt.hpp"
+#include "../src/itt.hpp"
 
 using namespace std;
 

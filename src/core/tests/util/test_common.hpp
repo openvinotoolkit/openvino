@@ -8,11 +8,13 @@
 
 #include <memory>
 #include <openvino/core/function.hpp>
-#include <shared_node_info.hpp>
 #include <string>
 #include <utility>
 
 namespace ov {
+
+class SharedRTInfo;
+
 namespace test {
 
 class TestsCommon : virtual public ::testing::Test {
