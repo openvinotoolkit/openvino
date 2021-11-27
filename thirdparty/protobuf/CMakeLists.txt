@@ -87,4 +87,5 @@ endif()
 
 set(protobuf_VERSION ${protobuf_VERSION} PARENT_SCOPE)
 set(Protobuf_LITE_LIBRARIES libprotobuf-lite PARENT_SCOPE)
+set(Protobuf_LIBRARIES libprotobuf PARENT_SCOPE)
 set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)

@@ -30,3 +30,5 @@ link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx ${Protobuf_LITE_LIBR
 
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+ov_install_static_lib(${TARGET_NAME} ngraph)

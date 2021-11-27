@@ -69,6 +69,9 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
 
 #ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 
+// TODO: added a ticket
+#ifndef OPENVINO_STATIC_LIBRARY
+
 TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(
         IR_SERIALIZATION_MODELS_PATH "custom_op.onnx");
@@ -90,7 +93,9 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     ASSERT_TRUE(success) << message;
 }
 
-#endif
+#endif // OPENVINO_STATIC_LIBRARY
+
+#endif // NGRAPH_ONNX_FRONTEND_ENABLE
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(
