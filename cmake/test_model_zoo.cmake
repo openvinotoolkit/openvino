@@ -5,7 +5,7 @@
 set_property(GLOBAL PROPERTY JOB_POOLS four_jobs=4)
 
 function(ov_model_convert SRC DST OUT)
-    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/ngraph/test/models/onnx/onnx_prototxt_converter.py)
+    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/core/tests/models/onnx/onnx_prototxt_converter.py)
 
     file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
@@ -62,8 +62,8 @@ function(ov_model_convert SRC DST OUT)
     set(${OUT} ${files} PARENT_SCOPE)
 endfunction()
 
-ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/ngraph/test"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ngraph"
+ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/core"
                   onnx_out_files)
 
 set(rel_path "inference-engine/tests/functional/plugin/shared/models")
@@ -117,7 +117,7 @@ if(ENABLE_TESTS)
             list(APPEND args --use-feature=2020-resolver)
         endif()
 
-        set(reqs "${OpenVINO_SOURCE_DIR}/ngraph/test/requirements_test_onnx.txt")
+        set(reqs "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt")
         add_custom_target(test_pip_prerequsites ALL
                           "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
                           COMMENT "Install requirements_test.txt"

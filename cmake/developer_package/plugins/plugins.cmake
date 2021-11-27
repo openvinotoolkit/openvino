@@ -311,7 +311,7 @@ function(ie_generate_plugins_hpp)
         ie_target_link_plugins(inference_engine_s)
     endif()
 
-    set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/inference-engine/src/inference_engine/ie_plugins.hpp")
+    set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/ie_plugins.hpp")
     set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
 
     add_custom_command(OUTPUT "${ie_plugins_hpp}"

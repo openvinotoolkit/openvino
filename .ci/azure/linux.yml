@@ -117,9 +117,9 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # For running PaddlePaddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddlepaddle/requirements_dev.txt
       # For running ONNX frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt

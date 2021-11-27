@@ -21,7 +21,8 @@
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include "../../../ngraph/core/include/openvino/core/interval.hpp"
+// FIXME: Please remove relative path
+#include "../../../src/core/include/openvino/core/interval.hpp"
 
 using namespace InferenceEngine;
 

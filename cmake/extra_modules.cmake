@@ -6,7 +6,7 @@ function(ie_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
 
-    set(all_dev_targets gflags ie_libraries)
+    set(all_dev_targets gflags ov_runtime_libraries)
     foreach(component IN LISTS openvino_export_components)
         # export all targets with prefix and use them during extra modules build
         export(TARGETS ${${component}} NAMESPACE IE::
@@ -102,7 +102,7 @@ openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interp
 ie_generate_dev_package_config()
 
 # extra modules must be registered after inference_engine library
-# and all other IE common libraries (ie_libraries) are creared
+# and all other IE common libraries (ov_runtime_libraries) are creared
 # because 'register_extra_modules' creates fake InferenceEngineDeveloperPackageConfig.cmake
 # with all imported developer targets
 register_extra_modules()
