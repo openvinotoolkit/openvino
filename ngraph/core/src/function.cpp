@@ -868,22 +868,21 @@ void ov::Function::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape
     }
 }
 
-void ov::Function::add_output(const std::string& tensor_name) {
+ov::Output<ov::Node> ov::Function::add_output(const std::string& tensor_name) {
     for (const auto& op : get_ops()) {
         if (ov::op::util::is_output(op))
             continue;
         for (const auto& output : op->outputs()) {
             const auto& names = output.get_tensor().get_names();
             if (names.find(tensor_name) != names.end()) {
-                add_output(output);
-                return;
+                return add_output(output);
             }
         }
     }
     throw ov::Exception("Tensor name " + tensor_name + " was not found.");
 }
 
-void ov::Function::add_output(const std::string& op_name, size_t output_idx) {
+ov::Output<ov::Node> ov::Function::add_output(const std::string& op_name, size_t output_idx) {
     for (const auto& op : get_ops()) {
         if (op->get_friendly_name() == op_name) {
             OPENVINO_ASSERT(output_idx < op->get_output_size(),
@@ -894,23 +893,23 @@ void ov::Function::add_output(const std::string& op_name, size_t output_idx) {
                             " has only ",
                             std::to_string(op->get_output_size()),
                             " outputs.");
-            add_output(op->output(output_idx));
-            return;
+            return add_output(op->output(output_idx));
         }
     }
     throw ov::Exception("Port " + std::to_string(output_idx) + " for operation with name " + op_name +
                         " was not found.");
 }
 
-void ov::Function::add_output(const ov::Output<ov::Node>& port) {
+ov::Output<ov::Node> ov::Function::add_output(const ov::Output<ov::Node>& port) {
     if (ov::op::util::is_output(port.get_node()))
-        return;
+        return port;
     for (const auto& input : port.get_target_inputs()) {
         // Do not add result if port is already connected with result
         if (ov::op::util::is_output(input.get_node())) {
-            return;
+            return input.get_node()->output(0);
         }
     }
     auto result = std::make_shared<ov::op::v0::Result>(port);
     add_results({result});
+    return result->output(0);
 }
