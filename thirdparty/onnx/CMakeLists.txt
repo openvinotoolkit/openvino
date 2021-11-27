@@ -39,8 +39,8 @@ ov_disable_all_warnings(onnx onnx_proto)
 
 # install
 
-ov_install_static_lib(onnx_proto ngraph)
 ov_install_static_lib(onnx ngraph)
+ov_install_static_lib(onnx_proto ngraph)
 
 # WA for ONNX: protobuf must be in the same export set of ONNX targets
 if(ONNX_USE_LITE_PROTO)
