@@ -30,6 +30,8 @@ bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ngraph::ele
 bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nms4(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_maxpool(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
@@ -253,6 +255,8 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset3::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms3},
         {opset4::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms4},
         {opset5::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms5},
+        {opset8::MatrixNms::get_type_info_static(), fuse_type_to_matrix_nms},
+        {opset8::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
         {opset6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
         {opset4::TopK::get_type_info_static(), fuse_type_to_topk},
         {opset8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
@@ -383,6 +387,34 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         std::make_shared<ngraph::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms, element::TypeVector{}, output_types);
     replace_node(node, relaxed_op);
     return true;
+}
+
+bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    auto nms = ov::as_type_ptr<opset8::MatrixNms>(node);
+    if (!nms) {
+        return false;
+    }
+
+    if ((idx == 1 || idx == 2) && (to == element::i32 || to == element::i64)) {
+        nms->set_output_type(to);
+        return true;
+    }
+
+    return false;
+}
+
+bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    auto nms = ov::as_type_ptr<opset8::MulticlassNms>(node);
+    if (!nms) {
+        return false;
+    }
+
+    if ((idx == 1 || idx == 2) && (to == element::i32 || to == element::i64)) {
+        nms->set_output_type(to);
+        return true;
+    }
+
+    return false;
 }
 
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
