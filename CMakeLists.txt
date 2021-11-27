@@ -36,6 +36,7 @@ message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
+message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
 
