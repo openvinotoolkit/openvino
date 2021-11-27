@@ -51,7 +51,7 @@ ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FO
 
 # this option should not be a part of InferenceEngineDeveloperPackage
 # since wheels can be built only together with main OV build
-cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" ON
+cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" OFF
     "PYTHONINTERP_FOUND;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR" OFF)
 
 #
