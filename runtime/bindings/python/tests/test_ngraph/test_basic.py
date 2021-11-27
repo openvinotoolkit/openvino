@@ -397,12 +397,18 @@ def test_node_input_values():
     )
 
 def test_node_input_tensor():
-    data1 = np.array([1, 2, 3])
+    data1 = np.array([[1, 2, 3], [1, 2, 3]])
     data2 = np.array([3, 2, 1])
 
     node = ops.add(data1, data2)
 
-    assert(isinstance(node.get_input_tensor(0), descriptor.Tensor))
+    inputTensor1 = node.get_input_tensor(0)
+    inputTensor2 = node.get_input_tensor(1)
+
+    assert(isinstance(inputTensor1, descriptor.Tensor))
+    assert(isinstance(inputTensor2, descriptor.Tensor))
+    assert np.equal(inputTensor1.get_shape(), data1.shape).all()
+    assert np.equal(inputTensor2.get_shape(), data2.shape).all()
 
 def test_node_evaluate():
     data1 = np.array([3, 2, 3])

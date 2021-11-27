@@ -9,7 +9,6 @@
 #include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "openvino/core/node.hpp"
 #include "openvino/core/variant.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
@@ -121,7 +120,7 @@ void regclass_graph_Node(py::module m) {
                 Parameters
                 ----------
                 output_tensors : List[op.Tensor]
-                    Tensors for the outputs to compute. One for each result
+                    Tensors for the outputs to compute. One for each result.
                 input_tensors : List[op.Tensor]
                     Tensors for the inputs. One for each inputs.
                 Returns
@@ -133,7 +132,7 @@ void regclass_graph_Node(py::module m) {
              py::arg("i"),
              py::return_value_policy::reference_internal,
              R"(
-                Returns the tensor for the node input with index i
+                Returns the tensor for the node's input with index i
 
                 Parameters
                 ----------
@@ -158,13 +157,12 @@ void regclass_graph_Node(py::module m) {
     node.def("input_values",
              &ov::Node::input_values,
              R"(
-                 Returns list of inputs to the node, in order
+                 Returns list of node's inputs, in order.
 
                  Returns
                  ----------
                  inputs : List[Input]
                     List of node's inputs
-
              )");
     node.def("input_value",
              &ov::Node::input_value,
