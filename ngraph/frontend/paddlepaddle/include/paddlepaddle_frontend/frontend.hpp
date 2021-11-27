@@ -18,12 +18,12 @@ public:
     FrontEndPDPD() = default;
 
     /// \brief Completely convert the remaining, not converted part of a function.
-    /// \param partiallyConverted partially converted nGraph function
-    /// \return fully converted nGraph function
+    /// \param partiallyConverted partially converted OV function
+    /// \return fully converted OV function
     std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
 
     /// \brief Completely convert the remaining, not converted part of a function.
-    /// \param partiallyConverted partially converted nGraph function
+    /// \param partiallyConverted partially converted OV function
     void convert(std::shared_ptr<Function> partiallyConverted) const override;
 
     /// \brief Convert only those parts of the model that can be converted leaving others
@@ -31,14 +31,14 @@ public:
     /// function or another form of convert function should be called to finalize the
     /// conversion process.
     /// \param model Input model
-    /// \return partially converted nGraph function
+    /// \return partially converted OV function
     std::shared_ptr<Function> convert_partially(InputModel::Ptr model) const override;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
-    /// Each decoding node is an nGraph node representing a single FW operation node with
+    /// Each decoding node is an OV node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
-    /// \return nGraph function after decoding
+    /// \return OV function after decoding
     std::shared_ptr<Function> decode(InputModel::Ptr model) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients

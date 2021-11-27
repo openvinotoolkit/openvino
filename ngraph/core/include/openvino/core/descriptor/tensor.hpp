@@ -11,6 +11,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
@@ -114,7 +115,7 @@ protected:
     std::string m_name;
 
     std::unordered_set<std::string> m_names;
-    std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
+    std::map<std::string, Any> m_rt_info;
 };
 
 OPENVINO_API

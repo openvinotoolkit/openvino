@@ -77,7 +77,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
 target_link_libraries(${TARGET_NAME} PRIVATE frontend_common::static
-                                     PRIVATE ngraph::builder inference_engine_transformations)
+                                     PRIVATE inference_engine_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})

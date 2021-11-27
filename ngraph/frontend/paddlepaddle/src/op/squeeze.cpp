@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -18,10 +19,10 @@ NamedOutputs squeeze(const NodeContext& node) {
 
     std::shared_ptr<Node> out;
     if (!axes.empty()) {
-        auto axesNode = ngraph::opset6::Constant::create(ngraph::element::i32, {axes.size()}, axes);
-        out = std::make_shared<ngraph::opset6::Squeeze>(data, axesNode);
+        auto axesNode = ov::opset6::Constant::create(ov::element::i32, {axes.size()}, axes);
+        out = std::make_shared<ov::opset6::Squeeze>(data, axesNode);
     } else {
-        out = std::make_shared<ngraph::opset6::Squeeze>(data);
+        out = std::make_shared<ov::opset6::Squeeze>(data);
     }
     return node.default_single_output_mapping(out, {"Out"});
 }

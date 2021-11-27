@@ -830,11 +830,14 @@ TEST(function, add_output_tensor_name) {
 
     EXPECT_EQ(f->get_results().size(), 1);
 
-    EXPECT_NO_THROW(f->add_output("relu_t1"));
+    ov::Output<ov::Node> out1, out2;
+    EXPECT_NO_THROW(out1 = f->add_output("relu_t1"));
     EXPECT_EQ(f->get_results().size(), 2);
-    EXPECT_NO_THROW(f->add_output("relu_t1"));
+    EXPECT_NO_THROW(out2 = f->add_output("relu_t1"));
     EXPECT_EQ(f->get_results().size(), 2);
     EXPECT_EQ(f->get_results()[1]->input_value(0).get_node(), relu1.get());
+    EXPECT_EQ(out1, out2);
+    EXPECT_EQ(out1.get_node(), f->get_results()[1].get());
 }
 
 TEST(function, add_output_op_name) {
@@ -880,7 +883,9 @@ TEST(function, add_output_port) {
 
     EXPECT_EQ(f->get_results().size(), 1);
 
-    EXPECT_NO_THROW(f->add_output(relu1->output(0)));
+    ov::Output<ov::Node> out;
+    EXPECT_NO_THROW(out = f->add_output(relu1->output(0)));
+    EXPECT_EQ(out.get_node(), f->get_results()[1].get());
     EXPECT_EQ(f->get_results().size(), 2);
     EXPECT_EQ(f->get_results()[1]->input_value(0).get_node(), relu1.get());
 }
@@ -966,8 +971,10 @@ TEST(function, add_output_port_to_result) {
 
     EXPECT_EQ(f->get_results().size(), 1);
 
-    EXPECT_NO_THROW(f->add_output(result->output(0)));
+    ov::Output<ov::Node> out;
+    EXPECT_NO_THROW(out = f->add_output(result->output(0)));
     EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(out, result->output(0));
 }
 
 namespace {

@@ -57,8 +57,8 @@ void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(
     }
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::init(const std::shared_ptr<ngraph::Node>& node) {
-    return nullptr;
+ov::Any VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::init(const std::shared_ptr<ngraph::Node>& node) {
+    return {};
 }
 
 std::string VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::to_string() {

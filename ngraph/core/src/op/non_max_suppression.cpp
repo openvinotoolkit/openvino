@@ -177,7 +177,7 @@ int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const {
 
 namespace ov {
 template <>
-EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>&
+NGRAPH_API EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>&
 EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::get() {
     static auto enum_names = EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>(
         "op::v1::NonMaxSuppression::BoxEncodingType",
@@ -365,7 +365,7 @@ int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const {
 
 namespace ov {
 template <>
-EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>&
+NGRAPH_API EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>&
 EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::get() {
     static auto enum_names = EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>(
         "op::v3::NonMaxSuppression::BoxEncodingType",
@@ -825,7 +825,7 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v5::NonMaxSuppression::B
 
 namespace ov {
 template <>
-EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>&
+NGRAPH_API EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>&
 EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::get() {
     static auto enum_names = EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>(
         "op::v5::NonMaxSuppression::BoxEncodingType",

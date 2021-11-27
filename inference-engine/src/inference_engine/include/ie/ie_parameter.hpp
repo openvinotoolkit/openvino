@@ -24,17 +24,10 @@
 
 namespace InferenceEngine {
 
-using ov::runtime::Parameter;
+/**
+ * @brief Alias for type that can store any value
+ */
+using Parameter = ov::Any;
 using ov::runtime::ParamMap;
 
 }  // namespace InferenceEngine
-
-namespace ov {
-namespace runtime {
-
-#ifdef __ANDROID__
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
-#endif
-
-}  // namespace runtime
-}  // namespace ov

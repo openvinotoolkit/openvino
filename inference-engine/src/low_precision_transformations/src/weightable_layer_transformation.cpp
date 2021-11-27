@@ -96,7 +96,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             }
 
             const auto rankVal = rank.get_length();
-            if ((rankVal != 4) && (rankVal != 5)) {
+            if ((rankVal < 3) || (rankVal > 5)) {
                 return false;
             }
         }

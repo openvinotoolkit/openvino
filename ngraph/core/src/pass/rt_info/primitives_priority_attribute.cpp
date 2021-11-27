@@ -27,7 +27,7 @@ std::string ov::getPrimitivesPriority(const std::shared_ptr<ngraph::Node>& node)
     return ov::as_type_ptr<PrimitivesPriority>(attr)->get();
 }
 
-std::shared_ptr<ngraph::Variant> PrimitivesPriority::merge(const ngraph::NodeVector& nodes) {
+Any PrimitivesPriority::merge(const ngraph::NodeVector& nodes) {
     auto isConvolutionBased = [](const std::shared_ptr<Node>& node) -> bool {
         if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
             std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
@@ -59,7 +59,7 @@ std::shared_ptr<ngraph::Variant> PrimitivesPriority::merge(const ngraph::NodeVec
     return std::make_shared<PrimitivesPriority>(final_primitives_priority);
 }
 
-std::shared_ptr<ngraph::Variant> PrimitivesPriority::init(const std::shared_ptr<ngraph::Node>& node) {
+Any PrimitivesPriority::init(const std::shared_ptr<ngraph::Node>& node) {
     throw ngraph_error(std::string(get_type_info()) + " has no default initialization.");
 }
 

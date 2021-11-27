@@ -155,13 +155,15 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
     return ss.str();
 }
 
-static std::string get_attribute_values(const std::map<std::string, std::shared_ptr<Variant>>& attributes,
+static std::string get_attribute_values(const std::map<std::string, ov::Any>& attributes,
                                         const std::string& delimiter = ", ") {
     stringstream ss;
     bool first = true;
     for (const auto& item : attributes) {
         ss << (first ? " " : delimiter) << item.first;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto attributeValue = item.second == nullptr ? "[EMPTY]" : item.second->to_string();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!attributeValue.empty())
             ss << "{" << attributeValue << "}";
 

@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include "openvino/runtime/common.hpp"
 #include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 

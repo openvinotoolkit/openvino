@@ -9,7 +9,7 @@ namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
-ngraph::op::PadType get_auto_pad(const NodeContext& node);
+ov::op::PadType get_auto_pad(const NodeContext& node);
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node);
 std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, int32_t groups);
 
@@ -32,25 +32,23 @@ NamedOutputs conv2d_base(const NodeContext& node) {
     if (groups > 1) {
         const auto reshaped_filters = get_reshaped_filter(filters, groups);
 
-        return node.default_single_output_mapping(
-            {std::make_shared<T1>(data,
-                                  reshaped_filters,
-                                  ngraph::Strides(strides.begin(), strides.end()),
-                                  pads_begin,
-                                  pads_end,
-                                  ngraph::Strides(dilations.begin(), dilations.end()),
-                                  auto_pad_type)},
-            {"Output"});
+        return node.default_single_output_mapping({std::make_shared<T1>(data,
+                                                                        reshaped_filters,
+                                                                        ov::Strides(strides.begin(), strides.end()),
+                                                                        pads_begin,
+                                                                        pads_end,
+                                                                        ov::Strides(dilations.begin(), dilations.end()),
+                                                                        auto_pad_type)},
+                                                  {"Output"});
     } else {
-        return node.default_single_output_mapping(
-            {std::make_shared<T2>(data,
-                                  filters,
-                                  ngraph::Strides(strides.begin(), strides.end()),
-                                  pads_begin,
-                                  pads_end,
-                                  ngraph::Strides(dilations.begin(), dilations.end()),
-                                  auto_pad_type)},
-            {"Output"});
+        return node.default_single_output_mapping({std::make_shared<T2>(data,
+                                                                        filters,
+                                                                        ov::Strides(strides.begin(), strides.end()),
+                                                                        pads_begin,
+                                                                        pads_end,
+                                                                        ov::Strides(dilations.begin(), dilations.end()),
+                                                                        auto_pad_type)},
+                                                  {"Output"});
     }
 }
 

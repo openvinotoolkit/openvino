@@ -5,18 +5,19 @@
 #include "ngraph/variant.hpp"
 
 #include "ngraph/node.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 
 using namespace ngraph;
 
 Variant::~Variant() = default;
 
-std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node) {
-    return nullptr;
+ov::Any Variant::init(const std::shared_ptr<ngraph::Node>& node) {
+    return {};
 }
 
-std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes) {
-    return nullptr;
+ov::Any Variant::merge(const ngraph::NodeVector& nodes) {
+    return {};
 }
 
 bool Variant::is_copyable() const {

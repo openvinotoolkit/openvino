@@ -5,6 +5,7 @@
 #pragma once
 
 #include "common/frontend_exceptions.hpp"
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -38,6 +39,7 @@ bool endsWith(const std::basic_string<T>& str, const std::basic_string<T>& suffi
     return false;
 }
 
+std::shared_ptr<Node> reorder_axes(const Output<Node>& value, std::vector<size_t> axes_order);
 }  // namespace pdpd
 }  // namespace frontend
 }  // namespace ov
