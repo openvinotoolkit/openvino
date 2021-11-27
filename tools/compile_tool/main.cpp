@@ -288,10 +288,12 @@ int main(int argc, char* argv[]) {
     TimeDiff loadNetworkTimeElapsed {0};
 
     try {
-        std::cout << "OpenVINO: " << std::endl;
-        std::cout << "        Build ............... " << ov::get_openvino_version()->buildNumber << std::endl;
-        std::cout << "        Description ......... " << ov::get_openvino_version()->description << std::endl;
-        std::cout << std::endl;
+        const auto& version = ov::get_openvino_version();
+        std::cout << version.description << " version ......... ";
+        std::cout << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << std::endl;
+
+        std::cout << "Build ........... ";
+        std::cout << version.buildNumber << std::endl;
 
         if (!parseCommandLine(&argc, &argv)) {
             return EXIT_SUCCESS;

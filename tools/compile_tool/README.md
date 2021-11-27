@@ -21,9 +21,8 @@ Running the application with the `-h` option yields the following usage message:
 
 ```sh
 ./compile_tool -h
-OpenVINO:
-        Build ............... custom_changed_compile_tool_d16a68a62dae2a5eba4934c19117892c73c9da98
-        Description ......... OpenVINO Runtime
+OpenVINO Runtime version ......... 2022.1.0
+Build ........... custom_changed_compile_tool_183a1adfcd7a001974fe1c5cfa21ec859b70ca2c
 
 compile_tool [OPTIONS]
 
