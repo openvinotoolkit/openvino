@@ -735,10 +735,10 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
                 if (attr->visit_attributes(attribute_visitor)) {
                     rt_info[type_info] = attr;
                 } else {
-                    IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
+                    IE_THROW() << "VisitAttributes is not supported for: " << attribute_name << " attribute";
                 }
             } else {
-                IE_THROW() << "Attribute: " << item.name() << " is not recognized";
+                IE_THROW() << "Attribute: " << attribute_name << " is not recognized";
             }
         }
     };

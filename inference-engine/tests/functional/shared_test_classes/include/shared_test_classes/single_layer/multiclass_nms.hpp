@@ -7,20 +7,19 @@
 #include <string>
 #include <tuple>
 
-#include "ngraph_functions/builders.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
-using InputShapeParams = std::tuple<size_t,   // Number of batches
-                                    size_t,   // Number of boxes
-                                    size_t>;  // Number of classes
-
-using InputPrecisions = std::tuple<InferenceEngine::Precision,   // boxes and scores precisions
-                                   InferenceEngine::Precision,   // max_output_boxes_per_class
-                                                                 // precision
-                                   InferenceEngine::Precision>;  // iou_threshold, score_threshold,
-                                                                 // soft_nms_sigma precisions
+using InputPrecisions = std::tuple<ElementType,   // boxes and scores precisions
+                                   ElementType,   // max_output_boxes_per_class
+                                                  // precision
+                                   ElementType>;  // iou_threshold, score_threshold,
+                                                  // soft_nms_sigma precisions
 
 using InputfloatVar = std::tuple<float,   // iouThreshold
                                  float,   // scoreThreshold
@@ -29,7 +28,7 @@ using InputfloatVar = std::tuple<float,   // iouThreshold
 using InputboolVar = std::tuple<bool,   // nmsEta
                                 bool>;  // normalized
 
-using MulticlassNmsParams = std::tuple<InputShapeParams,                           // Params using to create 1st and 2nd inputs
+using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                    // Params using to create 1st and 2nd inputs
                                        InputPrecisions,                            // Input precisions
                                        int32_t,                                    // Max output boxes per class
                                        InputfloatVar,                              // iouThreshold, scoreThreshold, nmsEta
@@ -40,20 +39,21 @@ using MulticlassNmsParams = std::tuple<InputShapeParams,                        
                                        InputboolVar,                               // Sort result across batch, normalized
                                        std::string>;
 
-class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
+class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>,
+                               virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj);
-    void GenerateInputs() override;
-    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-                 const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
 
 protected:
     void SetUp() override;
 
 private:
-    size_t numBatches, numBoxes, numClasses;
-    size_t maxOutputBoxesPerClass;
-    size_t maxOutputBoxesPerBatch;
+    void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
+    ngraph::op::v8::MulticlassNms::Attributes m_attrs;
+    bool m_outStaticShape;
 };
-
-}  // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov

@@ -903,6 +903,37 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
     return os;
 }
 
+std::ostream& operator<<(std::ostream & os, ngraph::op::util::NmsBase::SortResultType type) {
+    switch (type) {
+        case op::util::NmsBase::SortResultType::CLASSID:
+            os << "CLASSID";
+            break;
+        case op::util::NmsBase::SortResultType::SCORE:
+            os << "SCORE";
+            break;
+        case op::util::NmsBase::SortResultType::NONE:
+            os << "NONE";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::DecayFunction type) {
+    switch (type) {
+        case op::v8::MatrixNms::DecayFunction::GAUSSIAN:
+            os << "GAUSSIAN";
+            break;
+        case op::v8::MatrixNms::DecayFunction::LINEAR:
+            os << "LINEAR";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
 void resize_function(std::shared_ptr<ov::Function> function,
                      const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputs = function->inputs();
