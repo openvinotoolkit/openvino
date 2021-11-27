@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src)
+set(INCLUDES $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src)
 
 set(LINK_LIBRARIES
     gmock

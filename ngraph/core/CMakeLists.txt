@@ -27,7 +27,7 @@ set(MIXED_SRC ${IE_SHARED_SRCS}
 
 set_property(SOURCE ${MIXED_SRC}
     APPEND PROPERTY INCLUDE_DIRECTORIES
-        $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
+        $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src
         $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 

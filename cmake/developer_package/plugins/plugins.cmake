@@ -85,7 +85,7 @@ function(ie_add_plugin)
         if(TARGET IE::inference_engine_plugin_api)
             target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine IE::inference_engine_plugin_api)
         else()
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
+            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine inference_engine_plugin_api)
         endif()
 
         if(WIN32)
