@@ -96,7 +96,7 @@ void regclass_graph_Node(py::module m) {
                 Parameters
                 ----------
                 output_tensors : List[op.Tensor]
-                    Tensors for the outputs to compute. One for each result
+                    Tensors for the outputs to compute. One for each result.
                 input_tensors : List[op.Tensor]
                     Tensors for the inputs. One for each inputs.
                 evaluation_context: PyRTMap
