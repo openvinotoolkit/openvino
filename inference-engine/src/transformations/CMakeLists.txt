@@ -17,39 +17,34 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
 
-add_library(${TARGET_NAME} ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-ie_faster_build(${TARGET_NAME}
+ie_faster_build(${TARGET_NAME}_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Transformations library")
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder)
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph
-                                     PRIVATE ngraph_reference openvino::itt ngraph::builder)
+target_include_directories(${TARGET_NAME}_obj PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+                                              PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+ie_mark_target_as_cc(${TARGET_NAME}_obj)
 
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+add_library(${TARGET_NAME} INTERFACE)
 
-ie_mark_target_as_cc(${TARGET_NAME})
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
+
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
 # LTO
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 
 openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
-
-# install
-
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)

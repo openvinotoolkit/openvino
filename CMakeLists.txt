@@ -103,13 +103,24 @@ if(ENABLE_TBBBIND_2_5)
     endif()
 endif()
 
-add_library(ov_runtime $<TARGET_OBJECTS:inference_engine_obj>)
+add_library(ov_runtime $<TARGET_OBJECTS:inference_engine_obj>
+                       $<TARGET_OBJECTS:inference_engine_transformations_obj>
+                       $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>
+                       $<TARGET_OBJECTS:frontend_common_obj>
+                       $<TARGET_OBJECTS:ngraph_obj>)
 add_library(openvino::runtime ALIAS ov_runtime)
 set_target_properties(ov_runtime PROPERTIES EXPORT_NAME runtime)
 
 ie_add_vs_version_file(NAME ov_runtime FILEDESCRIPTION "OpenVINO runtime library")
-target_include_directories(ov_runtime PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>>)
+target_include_directories(ov_runtime PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>>
+                                             $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>>
+                                             $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>>
+                                             $<BUILD_INTERFACE:$<TARGET_PROPERTY:frontend_common,INTERFACE_INCLUDE_DIRECTORIES>>
+                                             $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(ov_runtime PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
 
 if(WIN32)
     set_target_properties(ov_runtime PROPERTIES COMPILE_PDB_NAME ov_runtime)
@@ -117,9 +128,14 @@ endif()
 
 target_compile_definitions(ov_runtime PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
-target_link_libraries(ov_runtime PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
-                                             frontend_common::static inference_engine_transformations
-                                     PUBLIC ngraph)
+target_link_libraries(ov_runtime PRIVATE pugixml::static
+                                         ngraph_reference
+                                         ngraph::builder
+                                         ov_shape_inference
+                                         openvino::itt 
+                                         openvino::util
+                                         ${CMAKE_DL_LIBS}
+                                         Threads::Threads)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(ov_runtime PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
