@@ -207,7 +207,10 @@ macro(ov_add_frontend)
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
         if(BUILD_SHARED_LIBS)
-            install(TARGETS ${TARGET_NAME}
+            if(OV_FRONTEND_LINKABLE_FRONTEND)
+                set(export_set EXPORT OpenVINOTargets)
+            endif()
+            install(TARGETS ${TARGET_NAME} ${export_set}
                     RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
                     ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
                     LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
@@ -224,7 +227,7 @@ macro(ov_add_frontend)
 
             set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
             export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-                APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+                   APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
         endif()
     else()
         # skipped frontend has to be installed in static libraries case
