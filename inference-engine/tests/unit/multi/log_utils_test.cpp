@@ -9,7 +9,7 @@
 #include <future>
 using ::testing::_;
 using namespace MockMultiDevice;
-#ifdef WIN32
+#if (defined(_WIN32) || defined(_WIN64))
 #include <winbase.h>
 #elif defined(__linux__)
 #include <stdlib.h>

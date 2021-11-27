@@ -14,7 +14,7 @@ namespace TimeUtils {
 
 bool localtimeSafe(const time_t* time, struct tm* result) {
     if (time && result) {
-#ifdef WIN32
+#if (defined(_WIN32) || defined(_WIN64))
         localtime_s(result, time);
 #else
         localtime_r(time, result);

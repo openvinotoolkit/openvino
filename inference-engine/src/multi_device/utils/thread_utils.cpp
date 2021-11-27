@@ -39,7 +39,7 @@ void saveThreadInfo(const std::string& threadName, const std::string& saveFile) 
            << " threadId=" << getThreadId() << " threadName=" << threadName << std::endl;
 }
 
-#ifdef WIN32
+#if (defined(_WIN32) || defined(_WIN64))
 DWORD getThreadId() {
     return GetCurrentThreadId();
 }
