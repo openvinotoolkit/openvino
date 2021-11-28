@@ -1,3 +1,4 @@
+
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -20,3 +21,25 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     VERBATIM)
 
 add_custom_target(openvino_dev_wheel ALL DEPENDS ${openvino_wheel_path})
+
+# outbound requirements.txt files for openvino-dev package
+set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
+set(EXTRAS_LIST _ caffe caffe2 kaldi mxnet onnx pytorch tensorflow tensorflow2)
+
+foreach(EXTRAS ${EXTRAS_LIST})
+    if(${EXTRAS} STREQUAL "_")
+        set(REQUIREMENTS_OUT "requirements.txt")
+        set(EXTRAS "")
+    else()
+        set(REQUIREMENTS_OUT "requirements_${EXTRAS}.txt")
+        set(EXTRAS "[${EXTRAS}]")
+    endif()
+    configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
+
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
+        DESTINATION tools
+        COMPONENT openvino_dev_req_files
+        EXCLUDE_FROM_ALL)
+endforeach()
+
+ie_cpack_add_component(openvino_dev_req_files)
