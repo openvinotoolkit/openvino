@@ -11,12 +11,12 @@ using namespace LayerTestDefinitions;
 
 namespace {
     TEST_P(PriorBoxLayerTest, Serialize) {
-        serialize();
+        Serialize();
     }
 
-    const std::vector<ov::test::ElementType> netPrecisions = {
-        ov::test::ElementType::i32,
-        ov::test::ElementType::u16
+    const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::U16
     };
     const std::vector<std::vector<float>> min_sizes = {
         {16.f, 32.f}
@@ -70,13 +70,8 @@ namespace {
         true, false
     };
 
-    const std::vector<ov::test::InputShape> inputShapes = {
-        {{128, 128}, {{128, 128}}}
-    };
-
-    const std::vector<ov::test::InputShape> imageShapes = {
-        {{50, 50}, {{50, 50}}}
-    };
+    const std::vector<size_t> inputShape = {128, 128};
+    const std::vector<size_t> imageShape = {50, 50};
 
     const auto layerSpecificParams = ::testing::Combine(
             ::testing::ValuesIn(min_sizes),
@@ -97,12 +92,12 @@ namespace {
                             ::testing::Combine(
                                 layerSpecificParams,
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(ov::test::ElementType::undefined),
-                                ::testing::Values(ov::test::ElementType::undefined),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::ValuesIn(inputShapes),
-                                ::testing::ValuesIn(imageShapes),
+                                ::testing::Values(inputShape),
+                                ::testing::Values(imageShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             PriorBoxLayerTest::getTestCaseName);
 } // namespace

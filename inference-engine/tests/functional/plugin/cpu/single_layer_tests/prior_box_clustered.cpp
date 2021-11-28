@@ -210,7 +210,7 @@ const std::vector<ov::test::InputShape> imageShapes = {
         {{{50, 100}, {50, 100}}, {{50, 50}, {100, 100}}}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered, PriorBoxClusteredLayerCPUTest,
     ::testing::Combine(
         layerSpeficParams,
         ::testing::ValuesIn(netPrecisions),

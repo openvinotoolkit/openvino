@@ -189,7 +189,7 @@ const std::vector<bool> scale_all_sizes = { false, true};
 const std::vector<ov::test::InputShape> inputShape = {
     {{300, 300}, {{300, 300}}},
     {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{300, 300}, {150, 150}}},
-    {{{200, 300}, {200, 300}}, {{300, 300}, {150, 150}}}
+    {{{150, 300}, {150, 300}}, {{300, 300}, {150, 150}}}
 };
 
 const std::vector<ov::test::InputShape> imageShape = {
@@ -212,7 +212,7 @@ const auto layerSpecificParams = ::testing::Combine(
     ::testing::ValuesIn(variances),
     ::testing::ValuesIn(scale_all_sizes));
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic, PriorBoxLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBox, PriorBoxLayerCPUTest,
     ::testing::Combine(
         layerSpecificParams,
         ::testing::ValuesIn(netPrecisions),

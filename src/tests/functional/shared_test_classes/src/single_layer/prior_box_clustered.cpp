@@ -5,13 +5,11 @@
 #include "shared_test_classes/single_layer/prior_box_clustered.hpp"
 
 namespace LayerTestsDefinitions {
-using namespace ov::test;
-
 std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
-    ov::test::ElementType netPrecision;
-    ov::test::ElementType inPrc, outPrc;
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    ov::test::InputShape inputShapes, imageShapes;
+    InferenceEngine::SizeVector inputShapes, imageShapes;
     std::string targetDevice;
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams,
@@ -36,11 +34,11 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
     std::ostringstream result;
     const char separator = '_';
 
-    result << "IS="      << inputShapes << separator;
-    result << "imageS="  << imageShapes << separator;
-    result << "netPRC="  << netPrecision << separator;
-    result << "inPRC="   << inPrc << separator;
-    result << "outPRC="  << outPrc << separator;
+    result << "IS="      << CommonTestUtils::vec2str(inputShapes) << separator;
+    result << "imageS="  << CommonTestUtils::vec2str(imageShapes) << separator;
+    result << "netPRC="  << netPrecision.name()   << separator;
+    result << "inPRC="   << inPrc.name() << separator;
+    result << "outPRC="  << outPrc.name() << separator;
     result << "inL="     << inLayout << separator;
     result << "outL="    << outLayout << separator;
     result << "widths="  << CommonTestUtils::vec2str(widths)  << separator;
@@ -61,16 +59,9 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
 
 void PriorBoxClusteredLayerTest::SetUp() {
     priorBoxClusteredSpecificParams specParams;
-
-    InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
-    InferenceEngine::Layout outLayout = InferenceEngine::Layout::ANY;
-    ov::test::ElementType inPrc = ov::test::ElementType::undefined;
-    ov::test::ElementType outPrc = ov::test::ElementType::undefined;
     std::tie(specParams, netPrecision,
         inPrc, outPrc, inLayout, outLayout,
         inputShapes, imageShapes, targetDevice) = GetParam();
-
-    init_input_shapes({ inputShapes, imageShapes });
 
     std::tie(widths,
         heights,
@@ -81,7 +72,8 @@ void PriorBoxClusteredLayerTest::SetUp() {
         offset,
         variances) = specParams;
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, { inputShapes.first, imageShapes.first });
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, { inputShapes, imageShapes });
 
     ngraph::op::PriorBoxClusteredAttrs attributes;
     attributes.widths = widths;

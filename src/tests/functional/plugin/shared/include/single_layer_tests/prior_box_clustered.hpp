@@ -9,8 +9,7 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(PriorBoxClusteredLayerTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    run();
+    Run();
 };
 
 }  // namespace LayerTestsDefinitions
