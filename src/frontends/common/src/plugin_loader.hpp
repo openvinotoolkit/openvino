@@ -7,10 +7,8 @@
 #include <manager.hpp>
 
 #ifdef _WIN32
-static const char FileSeparator[] = "\\";
 static const char PathSeparator[] = ";";
 #else
-static const char FileSeparator[] = "/";
 static const char PathSeparator[] = ":";
 #endif  // _WIN32
 
@@ -42,6 +40,7 @@ private:
 
 struct PluginData {
     PluginData(PluginHandle&& h, FrontEndPluginInfo&& info) : m_lib_handle(std::move(h)), m_plugin_info(info) {}
+    PluginData(PluginData&& pd) : m_lib_handle(std::move(pd.m_lib_handle)), m_plugin_info(pd.m_plugin_info) {}
 
     PluginHandle m_lib_handle;  // Shall be destroyed when plugin is not needed anymore to free memory
     FrontEndPluginInfo m_plugin_info;
