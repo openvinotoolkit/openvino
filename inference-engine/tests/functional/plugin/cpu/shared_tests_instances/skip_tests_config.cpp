@@ -155,6 +155,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
         // Issue: 71968
         R"(.*LSTMSequenceCommonZeroClip.*PURE.*CONST.*hidden_size=10.*sigmoid.sigmoid.sigmoid.*reverse.*FP32_targetDevice=CPU.*)",
+        // Issue: 72005
+        // there are some inconsistency between cpu plugin and ng ref
+        // for ctcMergeRepeated is true when legal randomized inputs value.
+        // Failure happened on win and macos for current seeds.
+        R"(.*CTCLossLayerTest.*CMR=1.*)",
+        R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
         // Issue: 72151
         R"(.*smoke_ROIAlignLayoutTest.*bf16.*)",
     };
