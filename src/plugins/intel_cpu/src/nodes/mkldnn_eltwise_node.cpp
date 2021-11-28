@@ -1530,8 +1530,10 @@ void MKLDNNEltwiseNode::prepareParams() {
     std::transform(jep.oc_offsets.begin(), jep.oc_offsets.end(), jep.oc_offsets.begin(),
                    [](size_t& offset) { return offset * sizeof(float);});
 
+
+    EltwiseData thisOp{getAlgorithm(), getMKLDNNAlgorithm(), getAlpha(), getBeta(), getGamma()};
     if (canUseOptimizedImpl) {
-        std::vector<EltwiseData> eltwise_data{{getAlgorithm(), getMKLDNNAlgorithm(), getAlpha(), getBeta(), getGamma()}};
+        std::vector<EltwiseData> eltwise_data{thisOp};
         std::vector<Type> ops_list{getType()};
         mkldnn::post_ops post_ops;
         for (const auto& node : fusedWith) {
@@ -1543,11 +1545,16 @@ void MKLDNNEltwiseNode::prepareParams() {
                 }
             } else if (node->getType() == FakeQuantize) {
                 node->appendPostOps(post_ops, {});
+            } else {
+                IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
             }
         }
-        execPtr = std::make_shared<EltwiseJitExecutor>(jep, eltwise_data, ops_list, post_ops, schedulerWorkAmount, batchDimIdx);
+        execPtr = std::make_shared<EltwiseJitExecutor>(jep, eltwise_data, ops_list, post_ops, schedulerWorkAmount, batchDimIdx, inputNum);
     } else {
-        execPtr = std::make_shared<EltwiseRefExecutor>(jep, fullWorkAmount, batchDimIdx);
+        if (!fusedWith.empty()) {
+            IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' use reference impl, but unexpectedly fused with other ops";
+        }
+        execPtr = std::make_shared<EltwiseRefExecutor>(jep, thisOp, fullWorkAmount, batchDimIdx, inputNum);
     }
 }
 
@@ -1599,129 +1606,11 @@ void MKLDNNEltwiseNode::offset_in_calc(VectorDims& offset, VectorDims& dims_in, 
     }
 }
 
-void MKLDNNEltwiseNode::executeOptimized6D(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
-                                           const VectorDims &dims_out) const {
-    parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4],
-        [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            auto args = jit_eltwise_call_args_indexes();
-            args.indexes[0] = i0;
-            args.indexes[1] = i1;
-            args.indexes[2] = i2;
-            args.indexes[3] = i3;
-            args.indexes[4] = i4;
-
-            (*pKernel)(&args_ptrs, &args);
-        });
-}
-
-void MKLDNNEltwiseNode::executeOptimizedGeneric(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
-                                                const VectorDims &dims_out, const size_t schedulerWorkAmount) const {
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
-        splitter(schedulerWorkAmount, nthr, ithr, start, end);
-
-        std::vector<size_t> counters(dims_out.size() - 1, 0);
-        auto args = jit_eltwise_call_args_indexes();
-        for (size_t iwork = start; iwork < end; ++iwork) {
-            size_t tmp = iwork;
-            for (ptrdiff_t j = dims_out.size() - 2; j >= 0; j--) {
-                counters[j] = tmp % dims_out[j];
-                tmp /= dims_out[j];
-            }
-
-            for (size_t j = 0; j < counters.size(); j++)
-                args.indexes[j] = counters[j];
-
-            (*pKernel)(&args_ptrs, &args);
-        }
-    });
-}
-
-void MKLDNNEltwiseNode::executeReference(const jit_eltwise_params &jep, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out,
-                                         const size_t fullWorkAmount) const {
-    std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
-    if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-        ref_eltwise_injector = std::make_shared<ref_eltwise_scalar_fwd_t>(static_cast<mkldnn_alg_kind_t>(getMKLDNNAlgorithm()), alpha, beta, 1.f);
-    }
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
-        splitter(fullWorkAmount, nthr, ithr, start, end);
-
-        std::vector<size_t> counters(dims_out.size(), 0);
-
-        for (size_t iwork = start; iwork < end; ++iwork) {
-            size_t tmp = iwork;
-            for (ptrdiff_t j = dims_out.size() - 1; j >= 0; j--) {
-                counters[j] = tmp % dims_out[j];
-                tmp /= dims_out[j];
-            }
-
-            size_t index_in[MAX_ELTWISE_INPUTS] = {0};
-            for (int i = 0; i < inputNum; i++) {
-                index_in[i] = 0;
-                for (int j = 0; j < counters.size(); j++) {
-                    index_in[i] += counters[j] * jep.src_offsets[i][j];
-                }
-                index_in[i] /= sizeof(float);
-            }
-
-            size_t index_out = 0;
-            for (int j = 0; j < counters.size(); j++) {
-                index_out += counters[j] * jep.dst_offsets[j];
-            }
-            index_out /= sizeof(float);
-
-            std::vector<float> src_f(inputNum);
-            for (int i = 0; i < inputNum; i++) {
-                src_f[i] = (reinterpret_cast<const float*>(args_ptrs.src_ptr[i]) + index_in[i])[0];
-            }
-            float* dst_ptr_f = reinterpret_cast<float*>(args_ptrs.dst_ptr) + index_out;
-
-            switch (getAlgorithm()) {
-                case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseAbs:
-                case EltwiseSqrt: case EltwiseSoftRelu: case EltwiseExp: case EltwiseClamp:
-                case EltwiseSwish: case EltwiseHswish: case EltwiseMish: case EltwiseHsigmoid: case EltwiseRoundHalfToEven: case EltwiseRoundHalfAwayFromZero:
-                    *dst_ptr_f = ref_eltwise_injector->compute_scalar(src_f[0]); break;
-                case EltwiseAdd:               *dst_ptr_f = src_f[0] + src_f[1]; break;
-                case EltwiseMulAdd:            *dst_ptr_f = src_f[0] * src_f[1] + src_f[2]; break;
-                case EltwiseSubtract:          *dst_ptr_f = src_f[0] - src_f[1]; break;
-                case EltwiseMultiply:          *dst_ptr_f = src_f[0] * src_f[1]; break;
-                case EltwiseDivide:            *dst_ptr_f = src_f[0] / src_f[1]; break;
-                case EltwiseFloorMod:          *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1]; break;
-                case EltwiseMod:               *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1]; break;
-                case EltwiseMaximum:           *dst_ptr_f = std::max(src_f[0], src_f[1]); break;
-                case EltwiseMinimum:           *dst_ptr_f = std::min(src_f[0], src_f[1]); break;
-                case EltwiseSquaredDifference: *dst_ptr_f = powf((src_f[0] - src_f[1]), 2.f); break;
-                case EltwisePowerDynamic:      *dst_ptr_f = powf(src_f[0], src_f[1]); break;
-                case EltwiseEqual:             *dst_ptr_f = src_f[0] == src_f[1]; break;
-                case EltwiseNotEqual:          *dst_ptr_f = src_f[0] != src_f[1]; break;
-                case EltwiseGreater:           *dst_ptr_f = src_f[0] > src_f[1]; break;
-                case EltwiseGreaterEqual:      *dst_ptr_f = src_f[0] >= src_f[1]; break;
-                case EltwiseLess:              *dst_ptr_f = src_f[0] < src_f[1]; break;
-                case EltwiseLessEqual:         *dst_ptr_f = src_f[0] <= src_f[1]; break;
-                case EltwiseLogicalAnd:        *dst_ptr_f = src_f[0] && src_f[1]; break;
-                case EltwiseLogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
-                case EltwiseLogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
-                case EltwiseLogicalNot:        *dst_ptr_f = !src_f[0]; break;
-                case EltwisePowerStatic:       *dst_ptr_f = powf(beta * src_f[0] + gamma, alpha); break;
-                case EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
-                case EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
-                default: IE_THROW() << "Unsupported operation type for Eltwise node with name `" << getName() << "`";
-            }
-        }
-    });
-}
-
-void MKLDNNEltwiseNode::executeDynamicImpl(mkldnn::stream strm) {
-    execute(strm);
-}
-
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         const auto &jep = execPtr->getJep();
-        const auto &batchDimIdx = execPtr->batchDimIdx;
+        const auto &batchDimIdx = execPtr->_batchDimIdx;
         VectorDims dims_out = jep.dims;
         for (int i = 0; i < memPtrs.size() - 1; i++)
             args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->GetData()) + start_offset_in[i];
@@ -1734,10 +1623,14 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
             dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
         }
 
-        execPtr->exec(*this, args_ptrs, dims_out);
+        execPtr->exec(args_ptrs, dims_out);
     } else {
         IE_THROW() << "Can't execute eltwise node. Primitive didn't created";
     }
+}
+
+void MKLDNNEltwiseNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 bool MKLDNNEltwiseNode::created() const {
@@ -1969,9 +1862,10 @@ MKLDNNEltwiseNode::EltwiseJitExecutor::EltwiseJitExecutor(const jit_eltwise_para
                                                           const std::vector<EltwiseData>& eltwise_data,
                                                           const std::vector<Type>& ops_list,
                                                           const mkldnn::post_ops& post_ops,
-                                                          const size_t schedWA,
-                                                          const size_t batch)
-: schedulerWorkAmount(schedWA), EltwiseExecutor(batch) {
+                                                          size_t schedWA,
+                                                          size_t batch,
+                                                          size_t inputNum)
+: schedulerWorkAmount(schedWA), EltwiseExecutor(batch, inputNum) {
     if (mayiuse(x64::avx512_common)) {
         pKernel.reset(new jit_uni_eltwise_generic<x64::avx512_common>(_jep, eltwise_data, ops_list, post_ops));
     } else if (mayiuse(x64::avx2)) {
@@ -1986,19 +1880,121 @@ MKLDNNEltwiseNode::EltwiseJitExecutor::EltwiseJitExecutor(const jit_eltwise_para
         pKernel->create_ker();
 }
 
-void MKLDNNEltwiseNode::EltwiseJitExecutor::exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) {
+void MKLDNNEltwiseNode::EltwiseJitExecutor::exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) {
     if (!pKernel)
         IE_THROW() << "Can't execute, kernel for eltwise node is not compiled";
 
     if (pKernel->jep_.input_size == MKLDNNEltwiseNode::optimalTensorRank) {
-        node.executeOptimized6D(pKernel, args_ptrs, dims_out);
+        // execute Optimized 6D
+        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4],
+                       [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
+                           auto args = jit_eltwise_call_args_indexes();
+                           args.indexes[0] = i0;
+                           args.indexes[1] = i1;
+                           args.indexes[2] = i2;
+                           args.indexes[3] = i3;
+                           args.indexes[4] = i4;
+
+                           (*pKernel)(&args_ptrs, &args);
+                       });
     } else {
-        node.executeOptimizedGeneric(pKernel, args_ptrs, dims_out, schedulerWorkAmount);
+        // execute Optimized Generic
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(schedulerWorkAmount, nthr, ithr, start, end);
+
+            std::vector<size_t> counters(dims_out.size() - 1, 0);
+            auto args = jit_eltwise_call_args_indexes();
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                size_t tmp = iwork;
+                for (ptrdiff_t j = dims_out.size() - 2; j >= 0; j--) {
+                    counters[j] = tmp % dims_out[j];
+                    tmp /= dims_out[j];
+                }
+
+                for (size_t j = 0; j < counters.size(); j++)
+                    args.indexes[j] = counters[j];
+
+                (*pKernel)(&args_ptrs, &args);
+            }
+        });
     }
 }
 
-void MKLDNNEltwiseNode::EltwiseRefExecutor::exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) {
-    node.executeReference(jep, args_ptrs, dims_out, fullWorkAmount);
+void MKLDNNEltwiseNode::EltwiseRefExecutor::exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) {
+    std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
+    if (_opData.mkldnnAlgorithm != mkldnn::algorithm::undef) {
+        ref_eltwise_injector = std::make_shared<ref_eltwise_scalar_fwd_t>(
+                static_cast<mkldnn_alg_kind_t>(_opData.mkldnnAlgorithm), _opData.alpha, _opData.beta, 1.f);
+    }
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(_fullWorkAmount, nthr, ithr, start, end);
+
+        std::vector<size_t> counters(dims_out.size(), 0);
+
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            size_t tmp = iwork;
+            for (ptrdiff_t j = dims_out.size() - 1; j >= 0; j--) {
+                counters[j] = tmp % dims_out[j];
+                tmp /= dims_out[j];
+            }
+
+            size_t index_in[MAX_ELTWISE_INPUTS] = {0};
+            for (int i = 0; i < _inputNum; i++) {
+                index_in[i] = 0;
+                for (int j = 0; j < counters.size(); j++) {
+                    index_in[i] += counters[j] * _jep.src_offsets[i][j];
+                }
+                index_in[i] /= sizeof(float);
+            }
+
+            size_t index_out = 0;
+            for (int j = 0; j < counters.size(); j++) {
+                index_out += counters[j] * _jep.dst_offsets[j];
+            }
+            index_out /= sizeof(float);
+
+            std::vector<float> src_f(_inputNum);
+            for (int i = 0; i < _inputNum; i++) {
+                src_f[i] = (reinterpret_cast<const float*>(args_ptrs.src_ptr[i]) + index_in[i])[0];
+            }
+            float* dst_ptr_f = reinterpret_cast<float*>(args_ptrs.dst_ptr) + index_out;
+
+            switch (_opData.algo) {
+                case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseAbs:
+                case EltwiseSqrt: case EltwiseSoftRelu: case EltwiseExp: case EltwiseClamp:
+                case EltwiseSwish: case EltwiseHswish: case EltwiseMish: case EltwiseHsigmoid: case EltwiseRoundHalfToEven: case EltwiseRoundHalfAwayFromZero:
+                    *dst_ptr_f = ref_eltwise_injector->compute_scalar(src_f[0]); break;
+                case EltwiseAdd:               *dst_ptr_f = src_f[0] + src_f[1]; break;
+                case EltwiseMulAdd:            *dst_ptr_f = src_f[0] * src_f[1] + src_f[2]; break;
+                case EltwiseSubtract:          *dst_ptr_f = src_f[0] - src_f[1]; break;
+                case EltwiseMultiply:          *dst_ptr_f = src_f[0] * src_f[1]; break;
+                case EltwiseDivide:            *dst_ptr_f = src_f[0] / src_f[1]; break;
+                case EltwiseFloorMod:          *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1]; break;
+                case EltwiseMod:               *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1]; break;
+                case EltwiseMaximum:           *dst_ptr_f = std::max(src_f[0], src_f[1]); break;
+                case EltwiseMinimum:           *dst_ptr_f = std::min(src_f[0], src_f[1]); break;
+                case EltwiseSquaredDifference: *dst_ptr_f = powf((src_f[0] - src_f[1]), 2.f); break;
+                case EltwisePowerDynamic:      *dst_ptr_f = powf(src_f[0], src_f[1]); break;
+                case EltwiseEqual:             *dst_ptr_f = src_f[0] == src_f[1]; break;
+                case EltwiseNotEqual:          *dst_ptr_f = src_f[0] != src_f[1]; break;
+                case EltwiseGreater:           *dst_ptr_f = src_f[0] > src_f[1]; break;
+                case EltwiseGreaterEqual:      *dst_ptr_f = src_f[0] >= src_f[1]; break;
+                case EltwiseLess:              *dst_ptr_f = src_f[0] < src_f[1]; break;
+                case EltwiseLessEqual:         *dst_ptr_f = src_f[0] <= src_f[1]; break;
+                case EltwiseLogicalAnd:        *dst_ptr_f = src_f[0] && src_f[1]; break;
+                case EltwiseLogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
+                case EltwiseLogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
+                case EltwiseLogicalNot:        *dst_ptr_f = !src_f[0]; break;
+                case EltwisePowerStatic:       *dst_ptr_f = powf(_opData.beta * src_f[0] + _opData.gamma, _opData.alpha); break;
+                case EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
+                case EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
+                default: IE_THROW() << "Unsupported operation type for Eltwise executor";
+            }
+        }
+    });
 }
 
 const jit_eltwise_params& MKLDNNEltwiseNode::EltwiseJitExecutor::getJep() const {

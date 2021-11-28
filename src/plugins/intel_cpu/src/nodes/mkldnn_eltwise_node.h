@@ -117,12 +117,13 @@ public:
 
 private:
     struct EltwiseExecutor {
-        EltwiseExecutor(size_t batch) : batchDimIdx(batch) {}
-        virtual void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
+        EltwiseExecutor(size_t batch, size_t inputNum) : _batchDimIdx(batch), _inputNum(inputNum) {}
+        virtual void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
         virtual const jit_eltwise_params& getJep() const = 0;
         virtual ~EltwiseExecutor() = default;
 
-        size_t batchDimIdx = 0;
+        size_t _batchDimIdx = 0;
+        size_t _inputNum = 0;
     };
     using executorPtr = std::shared_ptr<EltwiseExecutor>;
     executorPtr execPtr = nullptr;
@@ -132,10 +133,11 @@ private:
                            const std::vector<EltwiseData>& eltwise_data,
                            const std::vector<Type>& ops_list,
                            const mkldnn::post_ops& post_ops,
-                           const size_t schedWA,
-                           const size_t batch);
+                           size_t schedWA,
+                           size_t batch,
+                           size_t inputNum);
 
-        void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
+        void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
         const jit_eltwise_params& getJep() const override;
 
         std::unique_ptr<jit_uni_eltwise_kernel> pKernel;
@@ -143,13 +145,18 @@ private:
     };
 
     struct EltwiseRefExecutor : public EltwiseExecutor {
-        EltwiseRefExecutor(const jit_eltwise_params &_jep, const size_t fullWA, const size_t batch) : jep(_jep), fullWorkAmount(fullWA),
-                                                                                                       EltwiseExecutor(batch) {}
-        void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
-        const jit_eltwise_params& getJep() const override { return jep; }
+        EltwiseRefExecutor(jit_eltwise_params jep,
+                           MKLDNNEltwiseNode::EltwiseData opData,
+                           size_t fullWA,
+                           size_t batch,
+                           size_t inputNum)
+        : _jep(std::move(jep)), _opData(std::move(opData)), _fullWorkAmount(fullWA), EltwiseExecutor(batch, inputNum) {}
+        void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
+        const jit_eltwise_params& getJep() const override { return _jep; }
 
-        jit_eltwise_params jep;
-        size_t fullWorkAmount = 0;
+        const jit_eltwise_params _jep;
+        const size_t _fullWorkAmount = 0;
+        const MKLDNNEltwiseNode::EltwiseData _opData;
     };
 
     BroadcastingPolicy broadcastingPolicy;
@@ -182,13 +189,6 @@ private:
     static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
 
     static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
-
-    void executeOptimized6D(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
-                            const VectorDims &dims_out) const;
-    void executeOptimizedGeneric(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
-                                 const VectorDims &dims_out, const size_t schedulerWorkAmount) const;
-    void executeReference(const jit_eltwise_params &jep, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out,
-                          const size_t fullWorkAmount) const;
 
     void offset_out_calc(VectorDims& offset, VectorDims& dims);
     void offset_in_calc(VectorDims& offset, VectorDims& dims_in, VectorDims& dims_out);
