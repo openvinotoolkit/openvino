@@ -183,8 +183,14 @@ def get_image_tensors(image_paths, info, batch_sizes):
                 try:
                     images[b] = image
                 except ValueError:
-                    raise Exception(f"Image shape {image.shape} is not compatible with input shape {shape}. "
-                                    f"Try to provide layout for input '{info.name}'.")
+                    #raise Exception(f"Image shape {image.shape} is not compatible with input shape {shape}. "
+                                    #f"Try to provide layout for input '{info.name}'.")
+                    # backward compatibility
+                    # will be removed
+                    logger.warning(f"Image shape {image.shape} is not compatible with input shape {shape}. "
+                                   f"Input '{info.name}' will be filled with random values!")
+                    return fill_tensors_with_random(info)
+
             image_index += 1
         processed_frames += current_batch_size
         if not process_with_original_shapes:
