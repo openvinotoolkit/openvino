@@ -11,22 +11,21 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<ov::test::ElementType> netPrecisions = {
-    ov::test::ElementType::f32,
-    ov::test::ElementType::f16
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16
 };
 
-const std::vector<ov::test::ElementType> indPrecisions = {
-    ov::test::ElementType::i64,
-    ov::test::ElementType::i32
+const std::vector<InferenceEngine::Precision> indPrecisions = {
+    InferenceEngine::Precision::I64,
+    InferenceEngine::Precision::I32
 };
 
-const std::vector<ov::test::InputShape> input_shapes = {
-    {{5, 6}, {{5, 6}}},
-    {{10, 35}, {{10, 35}}},
-    {{5, 4, 16}, {{5, 4, 16}}},
+const std::vector<std::vector<size_t>> emb_table_shape = {
+    {5, 6},
+    {10, 35},
+    {5, 4, 16}
 };
-
 const std::vector<std::vector<size_t>> indices = {
     {0, 1, 2, 2, 3},
     {4, 4, 3, 1, 2}
@@ -41,7 +40,7 @@ const std::vector<bool> with_weights = {false, true};
 const std::vector<bool> with_default_index = {false, true};
 
 const auto embSegmentsSumArgSet = ::testing::Combine(
-    ::testing::ValuesIn(input_shapes), ::testing::ValuesIn(indices),
+    ::testing::ValuesIn(emb_table_shape), ::testing::ValuesIn(indices),
     ::testing::ValuesIn(segment_ids), ::testing::ValuesIn(num_segments),
     ::testing::ValuesIn(default_index), ::testing::ValuesIn(with_weights),
     ::testing::ValuesIn(with_default_index));
