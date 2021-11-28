@@ -63,8 +63,8 @@ private:
 }  // namespace v0
 
 namespace v8 {
-/// \brief GatherND operation
-///
+/// \brief Layer which performs non-max suppression to
+/// generate detection output using location and confidence predictions
 class OPENVINO_API DetectionOutput : public op::util::DetectionOutputBase {
 public:
     struct Attributes : op::util::DetectionOutputBase::AttributesBase {};

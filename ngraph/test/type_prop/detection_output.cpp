@@ -854,6 +854,7 @@ TEST(type_prop_layers, detection_outputv8_num_classes_no_deduction) {
 
 TEST(type_prop_layers, detection_outputv8_dynamic2) {
     // In this case a number of prior boxes is deduced using additional input
+    // and after that a number of classes is deduced using the second input shape
     op::v8::DetectionOutput::Attributes attrs;
 
     // initialize attributes affecting shape inference
