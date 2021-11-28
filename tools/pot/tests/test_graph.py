@@ -25,7 +25,8 @@ TEST_MODELS = [
     ('densenet121_example', 'pytorch', 'ANY'),
     ('multiple_out_ports_net', 'tf', 'ANY'),
     ('lstm_example', 'pytorch', 'GNA'),
-    ('multiple_outputs_net_example', 'dldt', 'GNA')
+    ('multiple_outputs_net_example', 'dldt', 'GNA'),
+    # ('tensor_iterator_example', 'tf', 'ANY'),
 ]
 
 CASCADE_MAP = Dict({

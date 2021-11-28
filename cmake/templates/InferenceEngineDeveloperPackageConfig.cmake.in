@@ -45,7 +45,7 @@ find_dependency(InferenceEngine
                 NO_DEFAULT_PATH)
 
 find_dependency(ngraph
-                PATHS "${CMAKE_CURRENT_LIST_DIR}/ngraph"
+                PATHS "${CMAKE_CURRENT_LIST_DIR}/src/core"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
