@@ -30,7 +30,7 @@ ie_coverage_genhtml(INFO_FILE "inference_engine_legacy"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "ov_hetero_plugin"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/hetero_plugin/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/hetero/*")
 ie_coverage_genhtml(INFO_FILE "ov_hetero_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
