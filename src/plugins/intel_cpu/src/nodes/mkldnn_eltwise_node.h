@@ -117,46 +117,71 @@ public:
 
 private:
     struct EltwiseExecutor {
-        EltwiseExecutor(size_t batch, size_t inputNum) : _batchDimIdx(batch), _inputNum(inputNum) {}
+        EltwiseExecutor() = default;
         virtual void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
-        virtual const jit_eltwise_params& getJep() const = 0;
+        virtual size_t getBatchDimIdx() const = 0;
+        virtual const VectorDims& getOutDims() const = 0;
         virtual ~EltwiseExecutor() = default;
 
-        size_t _batchDimIdx = 0;
-        size_t _inputNum = 0;
+    protected:
+        void offset_out_calc(VectorDims& offset, const VectorDims& dims) {
+            int k = 1;
+            for (int i = offset.size() - 1; i >= 0; i--) {
+                offset[i] = k;
+                k *= dims[i];
+            }
+        }
+
+        void offset_in_calc(VectorDims& offset, const VectorDims& dims_in, const VectorDims& dims_out) {
+            int k = 1;
+            for (int i = offset.size() - 1; i >= 0; i--) {
+                offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
+                k *= dims_in[i];
+            }
+        }
     };
     using executorPtr = std::shared_ptr<EltwiseExecutor>;
     executorPtr execPtr = nullptr;
 
     struct EltwiseJitExecutor : public EltwiseExecutor {
-        EltwiseJitExecutor(const jit_eltwise_params &_jep,
-                           const std::vector<EltwiseData>& eltwise_data,
+        EltwiseJitExecutor(const std::vector<EltwiseData>& eltwise_data,
                            const std::vector<Type>& ops_list,
+                           const VectorDims& outBlkDims,
+                           const VectorDims& outOrder,
+                           std::vector<VectorDims> dims_in,
+                           const std::vector<InferenceEngine::Precision>& inpPrc,
+                           InferenceEngine::Precision& outPrc,
                            const mkldnn::post_ops& post_ops,
-                           size_t schedWA,
-                           size_t batch,
-                           size_t inputNum);
+                           bool useDynBatch);
 
         void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
-        const jit_eltwise_params& getJep() const override;
+        const VectorDims& getOutDims() const override;
+        size_t getBatchDimIdx() const override {
+            return _batchDimIdx;
+        }
 
-        std::unique_ptr<jit_uni_eltwise_kernel> pKernel;
-        size_t schedulerWorkAmount = 0;
+        std::unique_ptr<jit_uni_eltwise_kernel> _pKernel;
+        size_t _schedulerWorkAmount = 0;
+        size_t _batchDimIdx = 0;
     };
 
     struct EltwiseRefExecutor : public EltwiseExecutor {
-        EltwiseRefExecutor(jit_eltwise_params jep,
-                           MKLDNNEltwiseNode::EltwiseData opData,
-                           size_t fullWA,
-                           size_t batch,
-                           size_t inputNum)
-        : _jep(std::move(jep)), _opData(std::move(opData)), _fullWorkAmount(fullWA), EltwiseExecutor(batch, inputNum) {}
+        EltwiseRefExecutor(EltwiseData opData,
+                           const VectorDims& outBlkDims,
+                           std::vector<VectorDims> dims_in);
         void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
-        const jit_eltwise_params& getJep() const override { return _jep; }
+        const VectorDims& getOutDims() const override;
+        size_t getBatchDimIdx() const override {
+            return _batchDimIdx;
+        }
 
-        const jit_eltwise_params _jep;
-        const size_t _fullWorkAmount = 0;
         const MKLDNNEltwiseNode::EltwiseData _opData;
+        VectorDims _dims;
+        VectorDims _src_offsets[MAX_ELTWISE_INPUTS];
+        VectorDims _dst_offsets;
+        size_t _fullWorkAmount = 0;
+        size_t _inputNum = 0;
+        size_t _batchDimIdx = 0;
     };
 
     BroadcastingPolicy broadcastingPolicy;
@@ -189,9 +214,6 @@ private:
     static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
 
     static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
-
-    void offset_out_calc(VectorDims& offset, VectorDims& dims);
-    void offset_in_calc(VectorDims& offset, VectorDims& dims_in, VectorDims& dims_out);
 
     size_t getOpInputsNum() const;
 };
