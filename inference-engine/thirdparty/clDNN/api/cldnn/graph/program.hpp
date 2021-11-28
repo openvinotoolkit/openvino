@@ -206,6 +206,8 @@ public:
                       std::function<bool(program_node const&)> const& filter = nullptr) const;
 
     const primitives_info& get_primitives_info() const;
+    data_types get_inference_precision(const program_node& node) const;
+    std::string get_implementation_info(const primitive_id& id) const;
     const graph_optimizer_info& get_optimizer_passes_info() const;
     void save_pass_info(std::string pass_name);
 

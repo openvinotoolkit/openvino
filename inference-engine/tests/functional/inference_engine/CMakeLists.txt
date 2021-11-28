@@ -127,7 +127,7 @@ function(ie_headers_compilation_with_custom_flags)
             "${OpenVINO_SOURCE_DIR}/inference-engine/src/plugin_api/")
     else()
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/ngraph/core/include"
+            "${OpenVINO_SOURCE_DIR}/src/core/include"
             "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie"
             "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/")
     endif()
