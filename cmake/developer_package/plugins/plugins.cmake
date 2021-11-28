@@ -75,8 +75,6 @@ function(ie_add_plugin)
                 target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
                     IE_CREATE_EXTENSION=CreateExtensionShared${IE_PLUGIN_DEVICE_NAME})
             endif()
-            # install static plugins
-            ov_install_static_lib(${IE_PLUGIN_NAME} core)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
@@ -137,13 +135,17 @@ function(ie_add_plugin)
         endif()
 
         # install rules
-        if(NOT IE_PLUGIN_SKIP_INSTALL)
+        if(NOT IE_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
             ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
 
-            install(TARGETS ${IE_PLUGIN_NAME}
-                    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
-                    COMPONENT ${install_component})
+            if(BUILD_SHARED_LIBS)
+                install(TARGETS ${IE_PLUGIN_NAME}
+                        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                        COMPONENT ${install_component})
+            else()
+                ov_install_static_lib(${IE_PLUGIN_NAME} ${install_component})
+            endif()
         endif()
     endif()
 
@@ -244,12 +246,18 @@ macro(ie_register_plugins_dynamic)
                       VERBATIM)
 endmacro()
 
+#
+# ie_register_plugins()
+#
 macro(ie_register_plugins)
     if(BUILD_SHARED_LIBS)
         ie_register_plugins_dynamic(${ARGN})
     endif()
 endmacro()
 
+#
+# ie_target_link_plugins(<TARGET_NAME>)
+#
 function(ie_target_link_plugins TARGET_NAME)
     if(BUILD_SHARED_LIBS)
         return()
@@ -332,8 +340,8 @@ function(ie_generate_plugins_hpp)
 
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for inference_engine
-    add_custom_target(ie_generate_hpp DEPENDS ${ie_plugins_hpp})
-    add_dependencies(inference_engine ie_generate_hpp)
+    add_custom_target(_ie_plugins_hpp DEPENDS ${ie_plugins_hpp})
+    add_dependencies(inference_engine _ie_plugins_hpp)
 
     # add dependency for object files
     get_target_property(sources inference_engine SOURCES)

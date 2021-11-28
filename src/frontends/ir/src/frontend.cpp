@@ -236,11 +236,11 @@ std::string FrontEndIR::get_name() const {
 }  // namespace frontend
 }  // namespace ov
 
-extern "C" IR_API ov::frontend::FrontEndVersion GetAPIVersion() {
+IR_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" IR_API void* GetFrontEndData() {
+IR_C_API void* GetFrontEndData() {
     frontend::FrontEndPluginInfo* res = new frontend::FrontEndPluginInfo();
     res->m_name = "ir";
     res->m_creator = []() {

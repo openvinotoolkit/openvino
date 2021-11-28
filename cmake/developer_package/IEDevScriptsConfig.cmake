@@ -228,6 +228,7 @@ include(api_validator/api_validator)
 
 include(vs_version/vs_version)
 include(plugins/plugins)
+include(frontends/frontends)
 include(add_ie_target)
 include(CMakePackageConfigHelpers)
 

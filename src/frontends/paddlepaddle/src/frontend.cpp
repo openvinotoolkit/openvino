@@ -329,11 +329,11 @@ std::string FrontEndPDPD::get_name() const {
 }  // namespace frontend
 }  // namespace ov
 
-extern "C" PDPD_API FrontEndVersion GetAPIVersion() {
+PDPD_C_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" PDPD_API void* GetFrontEndData() {
+PDPD_C_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {

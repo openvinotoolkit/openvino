@@ -71,7 +71,7 @@ void Model::enable_opset_domain(const std::string& domain) {
     if (m_opset.find(domain) == std::end(m_opset)) {
         OperatorSet opset{OperatorsBridge::get_operator_set(domain)};
         if (opset.empty()) {
-            NGRAPH_WARN << "Couldn't enable domain: " << domain << " since it hasn't any registered operators.";
+            NGRAPH_WARN << "Couldn't enable domain: " << domain << " since it does not have any registered operators.";
 
             return;
         }

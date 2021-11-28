@@ -6,12 +6,18 @@
 
 #include <manager.hpp>
 
-// Defined if we are building the plugin DLL (instead of using it)
-#ifdef paddlepaddle_ov_frontend_EXPORTS
-#    define PDPD_API OPENVINO_CORE_EXPORTS
+#ifdef OPENVINO_STATIC_LIBRARY
+#    define PDPD_API
+#    define PDPD_C_API
 #else
-#    define PDPD_API OPENVINO_CORE_IMPORTS
-#endif  // paddlepaddle_ov_frontend_EXPORTS
+#    ifdef paddlepaddle_ov_frontend_EXPORTS
+#        define PDPD_API   OPENVINO_CORE_EXPORTS
+#        define PDPD_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
+#    else
+#        define PDPD_API   OPENVINO_CORE_IMPORTS
+#        define PDPD_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
+#    endif  // paddlepaddle_ov_frontend_EXPORTS
+#endif      // OPENVINO_STATIC_LIBRARY
 
 #define PDPD_ASSERT(ex, msg)               \
     {                                      \
