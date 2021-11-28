@@ -29,12 +29,16 @@ using ::testing::Property;
 using ::testing::Eq;
 using ::testing::ReturnRef;
 using ::testing::AtLeast;
+using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
 #define IE_SET_METRIC(key, name,  ...)                                                            \
     typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
         __VA_ARGS__;
+
+#define RETURN_MOCK_VALUE(value) \
+    InvokeWithoutArgs([value](){return value;})
 
 using PriorityParams = std::tuple<unsigned int, std::string>; //{priority, deviceUniquName}
 
@@ -85,13 +89,13 @@ public:
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuxCability, {"INT8"});
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(cpuCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(gpuCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(myriadCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(vpuxCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
        ON_CALL(*plugin, SelectDevice).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                    const std::string& netPrecision, unsigned int Priority) {
                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, Priority);

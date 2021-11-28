@@ -32,12 +32,16 @@ using ::testing::Eq;
 using ::testing::AnyNumber;
 using ::testing::ReturnRef;
 using ::testing::AtLeast;
+using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
 #define IE_SET_METRIC(key, name,  ...)                                                            \
     typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
         __VA_ARGS__;
+
+#define RETURN_MOCK_VALUE(value) \
+    InvokeWithoutArgs([value](){return value;})
 
 const char cpuFullDeviceName[] = "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz";
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
@@ -85,7 +89,7 @@ public:
 
        IE_SET_METRIC(SUPPORTED_METRICS, metrics, {METRIC_KEY(SUPPORTED_CONFIG_KEYS), METRIC_KEY(FULL_DEVICE_NAME)});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _))
-           .WillByDefault(Return(metrics));
+           .WillByDefault(RETURN_MOCK_VALUE(metrics));
 
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
                    StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(cpuFullDeviceName));
@@ -98,11 +102,11 @@ public:
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, otherConfigKeys, {CONFIG_KEY(DEVICE_ID)});
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, cpuConfigKeys, {});
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
-                   StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(cpuConfigKeys));
+                   StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuConfigKeys));
        ON_CALL(*core, GetMetric(Not(StrEq(CommonTestUtils::DEVICE_CPU)),
-                   StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(otherConfigKeys));
+                   StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(RETURN_MOCK_VALUE(otherConfigKeys));
        ON_CALL(*core, GetConfig(_, StrEq(CONFIG_KEY(DEVICE_ID))))
-           .WillByDefault(Return("01"));
+           .WillByDefault(InvokeWithoutArgs([](){return "01";}));
 
        ON_CALL(*plugin, ParseMetaDevices).WillByDefault([this](const std::string& priorityDevices,
                    const std::map<std::string, std::string>& config) {

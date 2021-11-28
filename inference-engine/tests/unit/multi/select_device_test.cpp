@@ -29,12 +29,16 @@ using ::testing::Property;
 using ::testing::Eq;
 using ::testing::ReturnRef;
 using ::testing::AtLeast;
+using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
 #define IE_SET_METRIC(key, name,  ...)                                                            \
     typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
         __VA_ARGS__;
+
+#define RETURN_MOCK_VALUE(value) \
+    InvokeWithoutArgs([value](){return value;})
 
 using ConfigParams = std::tuple<
         std::string,                        // netPrecision
@@ -164,18 +168,20 @@ public:
        plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
        // replace core with mock Icore
        plugin->SetCore(core);
+
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, cpuCability, {"FP32", "FP16", "INT8", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuxCability, {"INT8"});
+
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(cpuCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(gpuCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(myriadCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(vpuxCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
        ON_CALL(*plugin, SelectDevice).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                    const std::string& netPrecision, unsigned int priority) {
                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, priority);
