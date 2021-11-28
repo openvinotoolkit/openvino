@@ -19,24 +19,26 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
 /inference-engine/ie_bridges/python @openvinotoolkit/openvino-ie-python-api-maintainers
-/inference-engine/src/transformations/  @GlebKazantaev @ilyachur
-/inference-engine/src/legacy_api/  @openvinotoolkit/openvino-ngraph-maintainers
-/inference-engine/src/readers/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/common/transformations/  @GlebKazantaev @ilyachur
+/src/common/legacy/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/common/  @openvinotoolkit/openvino-ie-maintainers
+/inference-engine/tests_deprecated/readers/  @openvinotoolkit/openvino-ngraph-maintainers
 
 # IE CPU:
 /inference-engine/src/mkldnn_plugin/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/inference-engine/src/low_precision_transformations/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+/src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
 /inference-engine/thirdparty/mkl-dnn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
 
 # IE GPU:
 /inference-engine/src/cldnn_engine/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
-/inference-engine/src/inference_engine/include/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
-/inference-engine/src/inference_engine/include/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/inference/include/ie/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/inference/include/ie/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/inference/include/openvino/runtime/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /inference-engine/thirdparty/clDNN/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
 # IE VPU:
 /inference-engine/src/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
-/inference-engine/src/inference_engine/include/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
+/src/inference/include/ie/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /inference-engine/thirdparty/movidius/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /inference-engine/tests_deprecated/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /inference-engine/tests_deprecated/functional/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
@@ -48,11 +50,11 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 
 # IE GNA:
 /inference-engine/src/gna_plugin/  @openvinotoolkit/openvino-ie-gna-maintainers
-/inference-engine/src/inference_engine/include/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
+/src/inference/include/ie/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
 # IE MULTI:
 /inference-engine/src/multi_device/  @openvinotoolkit/openvino-ie-multi-maintainers
-/inference-engine/src/inference_engine/include/multi-device/  @openvinotoolkit/openvino-ie-multi-maintainers
+/src/inference/include/ie/multi-device/  @openvinotoolkit/openvino-ie-multi-maintainers
 
 # IE Tests:
 /inference-engine/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
@@ -64,7 +66,8 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
 
 # nGraph:
-/ngraph/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/core/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/frontends/  @openvinotoolkit/openvino-ngraph-maintainers
 
 # POT Tools
 /tools/pot/  @openvinotoolkit/openvino-pot-maintainers
