@@ -8,7 +8,7 @@ set(VPU_DEPENDENCIES
 if (ENABLE_CLDNN)
     list(APPEND VPU_DEPENDENCIES clDNNPlugin)
     if(ENABLE_HETERO)
-        list(APPEND VPU_DEPENDENCIES hetero_plugin)
+        list(APPEND VPU_DEPENDENCIES ov_hetero_plugin)
     endif()
 endif()
 

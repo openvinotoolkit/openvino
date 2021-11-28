@@ -21,7 +21,7 @@ addIeTargetTest(
 )
 
 if(ENABLE_HETERO)
-    add_dependencies(${TARGET_NAME} hetero_plugin)
+    add_dependencies(${TARGET_NAME} ov_hetero_plugin)
 endif()
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)

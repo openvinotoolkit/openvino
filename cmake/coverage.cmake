@@ -29,9 +29,9 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_legacy"
 ie_coverage_genhtml(INFO_FILE "inference_engine_legacy"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "hetero_plugin"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/hetero_plugin/*")
-ie_coverage_genhtml(INFO_FILE "hetero_plugin"
+ie_coverage_extract(INPUT "openvino" OUTPUT "ov_hetero_plugin"
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/hetero_plugin/*")
+ie_coverage_genhtml(INFO_FILE "ov_hetero_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "multi_device"

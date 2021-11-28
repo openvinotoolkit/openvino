@@ -20,7 +20,7 @@
         "runtime/bin/intel64/Release/inference_engine_transformations.dll",
         "runtime/bin/intel64/Release/inference_engine_preproc.dll",
         "runtime/bin/intel64/Release/inference_engine_c_api.dll",
-        "runtime/bin/intel64/Release/hetero_plugin.dll",
+        "runtime/bin/intel64/Release/ov_hetero_plugin.dll",
         "runtime/bin/intel64/Release/MultiDevicePlugin.dll",
         "runtime/bin/intel64/Release/ngraph.dll",
         "runtime/bin/intel64/Release/frontend_common.dll",
