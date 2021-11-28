@@ -3,5 +3,5 @@
 #
 
 if(ENABLE_HETERO)
-    add_subdirectory(hetero_plugin)
+    add_subdirectory(hetero)
 endif()
