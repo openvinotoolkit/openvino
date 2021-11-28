@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include <ie_parallel.hpp>
 #include <mkldnn_types.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -122,52 +123,44 @@ void MKLDNNPriorBoxClusteredNode::execute(mkldnn::stream strm) {
     const auto& out_shape = getChildEdgeAt(0)->getMemory().GetShape().getStaticDims();
 
     size_t var_size = variances.size();
-    for (int64_t h = 0; h < layer_height; ++h) {
-        for (int64_t w = 0; w < layer_width; ++w) {
-            float center_x = (w + offset) * step_w;
-            float center_y = (h + offset) * step_h;
+    parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
+        float center_x = (w + offset) * step_w;
+        float center_y = (h + offset) * step_h;
 
-            for (size_t s = 0; s < number_of_priors; ++s) {
-                float box_width = widths[s];
-                float box_height = heights[s];
+        for (size_t s = 0; s < number_of_priors; ++s) {
+            float box_width = widths[s];
+            float box_height = heights[s];
 
-                float xmin = (center_x - box_width / 2.0f) / img_width;
-                float ymin = (center_y - box_height / 2.0f) / img_height;
-                float xmax = (center_x + box_width / 2.0f) / img_width;
-                float ymax = (center_y + box_height / 2.0f) / img_height;
+            float xmin = (center_x - box_width / 2.0f) / img_width;
+            float ymin = (center_y - box_height / 2.0f) / img_height;
+            float xmax = (center_x + box_width / 2.0f) / img_width;
+            float ymax = (center_y + box_height / 2.0f) / img_height;
 
-                if (clip) {
-                    xmin = (std::min)((std::max)(xmin, 0.0f), 1.0f);
-                    ymin = (std::min)((std::max)(ymin, 0.0f), 1.0f);
-                    xmax = (std::min)((std::max)(xmax, 0.0f), 1.0f);
-                    ymax = (std::min)((std::max)(ymax, 0.0f), 1.0f);
-                }
+            if (clip) {
+                xmin = (std::min)((std::max)(xmin, 0.0f), 1.0f);
+                ymin = (std::min)((std::max)(ymin, 0.0f), 1.0f);
+                xmax = (std::min)((std::max)(xmax, 0.0f), 1.0f);
+                ymax = (std::min)((std::max)(ymax, 0.0f), 1.0f);
+            }
 
-                auto get_idx = [&](uint64_t cnt) -> uint64_t {
-                    return h * layer_width * number_of_priors * cnt + w * number_of_priors * cnt + s * cnt;
-                };
+            const uint64_t idx = h * layer_width * number_of_priors * 4 + w * number_of_priors * 4 + s * 4;
+            dst_data[idx + 0] = xmin;
+            dst_data[idx + 1] = ymin;
+            dst_data[idx + 2] = xmax;
+            dst_data[idx + 3] = ymax;
 
-                uint64_t idx = get_idx(4);
-                dst_data[idx + 0] = xmin;
-                dst_data[idx + 1] = ymin;
-                dst_data[idx + 2] = xmax;
-                dst_data[idx + 3] = ymax;
-
-                idx = get_idx(4);
-
-                // At this point we have either:
-                // 1. A single variance value (to be repeated 4 times for each prior)
-                // 2. 4 variance values
-                if (var_size == 1) {
-                    for (size_t j = 0; j < 4; j++)
-                        dst_data[idx + j + out_shape[1]] = variances[0];
-                } else {
-                    for (size_t j = 0; j < var_size; j++)
-                        dst_data[idx + j + out_shape[1]] = variances[j];
-                }
+            // At this point we have either:
+            // 1. A single variance value (to be repeated 4 times for each prior)
+            // 2. 4 variance values
+            if (var_size == 1) {
+                for (size_t j = 0; j < 4; j++)
+                    dst_data[idx + j + out_shape[1]] = variances[0];
+            } else {
+                for (size_t j = 0; j < var_size; j++)
+                    dst_data[idx + j + out_shape[1]] = variances[j];
             }
         }
-    }
+    });
 }
 
 bool MKLDNNPriorBoxClusteredNode::created() const {
