@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from math import ceil
 from typing import Union
-from openvino import Core, get_version, AsyncInferQueue
+from openvino.runtime import Core, get_version, AsyncInferQueue
 
 from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger

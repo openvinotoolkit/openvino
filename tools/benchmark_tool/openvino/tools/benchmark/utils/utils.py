@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
-from openvino import Core, Function, PartialShape, Dimension, Layout
-from openvino.impl import Type
+from openvino.runtime import Core, Function, PartialShape, Dimension, Layout
+from openvino.runtime.impl import Type
 from openvino.preprocess import PrePostProcessor
 from openvino.offline_transformations_pybind import serialize
 

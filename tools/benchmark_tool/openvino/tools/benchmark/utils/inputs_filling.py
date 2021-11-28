@@ -8,7 +8,7 @@ import numpy as np
 from collections import defaultdict
 from pathlib import Path
 
-from openvino import Tensor, PartialShape
+from openvino.runtime import Tensor, PartialShape
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
