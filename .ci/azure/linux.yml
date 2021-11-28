@@ -265,7 +265,6 @@ jobs:
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'CPU UT'
     continueOnError: false
 
@@ -295,6 +294,7 @@ jobs:
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'CPU FuncTests'
     continueOnError: false
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
