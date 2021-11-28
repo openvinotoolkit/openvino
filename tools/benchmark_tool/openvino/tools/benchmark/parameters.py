@@ -119,7 +119,9 @@ def parse_args():
     args.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report latencies for each shape in -data_shape sequence.', )
     args.add_argument('-legacy_mode', '--legacy_mode', type=str2bool, required=False, default=False, nargs='?', const=True,
-                      help='Optional. Enable legacy scenario with inputs filling only once before measurements.', )
+                      help='Optional. Enable legacy scenario with inputs filling only once before measurements. Default for static models.', )
+    args.add_argument('-full_mode', '--full_mode', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help='Optional. Include inputs filling into loop measurement. Default for dynamic models.', )
     args.add_argument('-report_type', '--report_type', type=str, required=False,
                       choices=['no_counters', 'average_counters', 'detailed_counters'],
                       help="Optional. Enable collecting statistics report. \"no_counters\" report contains "

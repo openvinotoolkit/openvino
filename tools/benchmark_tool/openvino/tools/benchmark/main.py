@@ -60,8 +60,14 @@ def run(args):
         # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
         next_step(step_id=2)
 
+        benchmark_mode = None
+        if args.legacy_mode:
+            benchmark_mode = 'legacy'
+        if args.full_mode:
+            benchmark_mode = 'full'
+
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
-                              args.number_iterations, args.time, args.api_type, args.legacy_mode)
+                              args.number_iterations, args.time, args.api_type, benchmark_mode)
 
         ## CPU (MKLDNN) extensions
         if CPU_DEVICE_NAME in device_name and args.path_to_extension:
@@ -318,6 +324,12 @@ def run(args):
             elif info.is_dynamic:
                 static_mode = False
 
+        if benchmark.benchmark_mode == None:
+            if static_mode:
+                benchmark.benchmark_mode = 'legacy'
+            else:
+                benchmark.benchmark_mode = 'full'
+
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
         if is_flag_set_in_command_line('hint'):
@@ -378,7 +390,7 @@ def run(args):
                                           ('topology', topology_name),
                                           ('target device', device_name),
                                           ('API', args.api_type),
-                                          ('Legacy mode', str(benchmark.legacy_mode)),
+                                          ('Benchmark mode', benchmark.benchmark_mode),
                                           ('precision', "UNSPECIFIED"),
                                           ('batch size', str(batch_size)),
                                           ('number of iterations', str(benchmark.niter)),
@@ -394,7 +406,7 @@ def run(args):
 
         # ------------------------------------ 10. Measuring performance -----------------------------------------------
 
-        output_string = (benchmark, device_number_streams)
+        output_string = process_help_inference_string(benchmark, device_number_streams)
 
         next_step(additional_info=output_string)
         progress_bar_total_count = 10000
@@ -410,10 +422,12 @@ def run(args):
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        if benchmark.legacy_mode:
-            logger.info("Legacy mode is enabled, inputs filling only once before measurements.")
 
-        fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.infer(requests, data_queue, batch_size, args.latency_percentile, progress_bar)
+        pcseq = args.pcseq
+        if static_mode or len(benchmark.latency_groups) == 1:
+            pcseq = False
+
+        fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.infer(requests, data_queue, batch_size, args.latency_percentile, progress_bar, pcseq)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
@@ -464,7 +478,7 @@ def run(args):
                                           [
                                               ("max latency", f'{max_latency_ms:.2f}'),
                                           ])
-                if args.pcseq and len(benchmark.latency_groups) > 1:
+                if pcseq:
                     for group in benchmark.latency_groups:
                         statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -501,7 +515,7 @@ def run(args):
             print(f'MIN:        {min_latency_ms:.2f} ms')
             print(f'MAX:        {max_latency_ms:.2f} ms')
 
-            if args.pcseq and len(benchmark.latency_groups) > 1:
+            if pcseq:
                 print("Latency for each data shape group: ")
                 for group in benchmark.latency_groups:
                     print(f"{str(group)}")
