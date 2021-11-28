@@ -165,13 +165,14 @@ void MKLDNNPriorBoxNode::execute(mkldnn::stream strm) {
     float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     float step_ = step;
+    auto min_size_ = min_size;
     if (!scale_all_sizes) {
         // mxnet-like PriorBox
         if (step_ == -1)
             step_ = 1.f * IH / H;
         else
             step_ *= IH;
-        for (auto& size : min_size)
+        for (auto& size : min_size_)
             size *= IH;
     }
 
@@ -267,17 +268,17 @@ void MKLDNNPriorBoxNode::execute(mkldnn::stream strm) {
                 }
             }
 
-            for (size_t ms_idx = 0; ms_idx < min_size.size(); ms_idx++) {
-                box_width = min_size[ms_idx] * 0.5f;
-                box_height = min_size[ms_idx] * 0.5f;
+            for (size_t ms_idx = 0; ms_idx < min_size_.size(); ms_idx++) {
+                box_width = min_size_[ms_idx] * 0.5f;
+                box_height = min_size_[ms_idx] * 0.5f;
                 calculate_data(center_x, center_y, box_width, box_height, false);
 
                 if (max_size.size() > ms_idx) {
-                    box_width = box_height = std::sqrt(min_size[ms_idx] * max_size[ms_idx]) * 0.5f;
+                    box_width = box_height = std::sqrt(min_size_[ms_idx] * max_size[ms_idx]) * 0.5f;
                     calculate_data(center_x, center_y, box_width, box_height, false);
                 }
 
-                if (scale_all_sizes || (!scale_all_sizes && (ms_idx == min_size.size() - 1))) {
+                if (scale_all_sizes || (!scale_all_sizes && (ms_idx == min_size_.size() - 1))) {
                     size_t s_idx = scale_all_sizes ? ms_idx : 0;
                     for (float ar : aspect_ratio) {
                         if (std::fabs(ar - 1.0f) < 1e-6) {
@@ -285,8 +286,8 @@ void MKLDNNPriorBoxNode::execute(mkldnn::stream strm) {
                         }
 
                         ar = std::sqrt(ar);
-                        box_width = min_size[s_idx] * 0.5f * ar;
-                        box_height = min_size[s_idx] * 0.5f / ar;
+                        box_width = min_size_[s_idx] * 0.5f * ar;
+                        box_height = min_size_[s_idx] * 0.5f / ar;
                         calculate_data(center_x, center_y, box_width, box_height, false);
                     }
                 }
