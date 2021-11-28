@@ -109,7 +109,7 @@ def test_ctc_greedy_decoder(dtype):
                              (np.float64, np.int64, "i64", "i32", False, False),
                              (np.float64, np.int64, "i32", "i64", False, False),
                              (np.float64, np.int64, "i64", "i64", False, False)
-                         ],)
+                         ], )
 def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index):
     input0_shape = [8, 20, 128]
     input1_shape = [8]
@@ -1090,41 +1090,6 @@ def test_prior_box_clustered(int_dtype, fp_dtype):
     assert node.get_type_name() == "PriorBoxClustered"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [2, 4332]
-
-
-@pytest.mark.parametrize(
-    "int_dtype, fp_dtype",
-    [
-        (np.int8, np.float32),
-        (np.int16, np.float32),
-        (np.int32, np.float32),
-        (np.int64, np.float32),
-        (np.uint8, np.float32),
-        (np.uint16, np.float32),
-        (np.uint32, np.float32),
-        (np.uint64, np.float32),
-        (np.int32, np.float16),
-        (np.int32, np.float64),
-    ],
-)
-def test_detection_output(int_dtype, fp_dtype):
-    attributes = {
-        "num_classes": int_dtype(85),
-        "keep_top_k": np.array([64], dtype=int_dtype),
-        "nms_threshold": fp_dtype(0.645),
-    }
-
-    box_logits = ov.parameter([4, 8], fp_dtype, "box_logits")
-    class_preds = ov.parameter([4, 170], fp_dtype, "class_preds")
-    proposals = ov.parameter([4, 2, 10], fp_dtype, "proposals")
-    aux_class_preds = ov.parameter([4, 4], fp_dtype, "aux_class_preds")
-    aux_box_preds = ov.parameter([4, 8], fp_dtype, "aux_box_preds")
-
-    node = ov.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
-
-    assert node.get_type_name() == "DetectionOutput"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == [1, 1, 256, 7]
 
 
 @pytest.mark.parametrize(
