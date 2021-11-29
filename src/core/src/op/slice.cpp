@@ -361,13 +361,13 @@ bool op::v8::Slice::evaluate(ov::runtime::TensorVector& outputs, const ov::runti
     // Static Tensor data shape is needed to clamp and normalize `start` values
     const auto& data_shape = inputs[0].get_shape();
 
-    // We need calculate static output shape based on HostTensor inputs
+    // Need to calculate static output shape based on Tensor inputs
     PartialShape output_shape = calculate_output_shape(starts, stops, steps, axes, data_shape);
     OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice evaluation.");
     const auto output_static_shape = output_shape.to_shape();
 
     if (outputs.size() >= 0) {
-        outputs[0] = outputs[0]
+        outputs[0] = outputs[0] && outputs[0].get_size() == shape_size(output_static_shape)
                          ? ov::runtime::Tensor(inputs[0].get_element_type(), output_static_shape, outputs[0].data())
                          : ov::runtime::Tensor(inputs[0].get_element_type(), output_static_shape);
     } else {
