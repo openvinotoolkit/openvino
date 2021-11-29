@@ -941,7 +941,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                 expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
             }
         // TODO: add this case when corresponding fsv32 optimizations inside cldnn will be implemented
-        } else if (input_layout.data_type == data_types::f32 && i8_u8_output && !is_thirst_conv && is_2d && false) {
+        } else if (input_layout.data_type == data_types::f32 && i8_u8_output && !is_first_conv && is_2d && false) {
             if (input_layout.size.batch[0] % 16 == 0) {
                 expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
             } else {
