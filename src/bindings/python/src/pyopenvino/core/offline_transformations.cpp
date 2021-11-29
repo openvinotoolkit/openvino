@@ -18,6 +18,18 @@
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 
+#include <openvino/pass/serialize.hpp>
+
+using Version = ov::pass::Serialize::Version;
+
+inline Version convert_to_version(const std::string& version)
+{
+    if (version == "UNSPECIFIED") return Version::UNSPECIFIED;
+    if (version == "IR_V10") return Version::IR_V10;
+    if (version == "IR_V11") return Version::IR_V11;
+    throw ov::Exception("Invoked with wrong version argument: '" + version + "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
+}
+
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
@@ -95,15 +107,63 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("function"));
 
+        // py::enum_<Version>(m_offline_transformations, "Version")
+        //     .value("0", Version::UNSPECIFIED)   
+        //     .value("ir_10", Version::IR_V10)
+        //     .value("11", Version::IR_V11)
+        //     .export_values();
+
     // todo: remove as serialize as part of passManager api will be merged
     m_offline_transformations.def(
         "serialize",
-        [](std::shared_ptr<ov::Function> function, const std::string& path_to_xml, const std::string& path_to_bin) {
+        [](std::shared_ptr<ov::Function> function, const std::string& path_to_xml, const std::string& path_to_bin, const std::string& version) {
             ov::pass::Manager manager;
-            manager.register_pass<ov::pass::Serialize>(path_to_xml, path_to_bin);
+            manager.register_pass<ov::pass::Serialize>(path_to_xml, path_to_bin, convert_to_version(version));
             manager.run_passes(function);
         },
         py::arg("function"),
         py::arg("model_path"),
-        py::arg("weights_path"));
+        py::arg("weights_path"),
+        py::arg("version") = "UNSPECIFIED",
+        R"(
+    Serialize given function into IR. The generated .xml and .bin files will be save
+    into provided paths.
+    Parameters
+    ----------
+    function : ov.Function
+        function which will be converted to IR representation
+    xml_path : str
+        path where .xml file will be saved
+    bin_path : str
+        path where .bin file will be saved
+    version : str
+        sets the version of the IR which will be generated.
+        Supported versions are:
+                        - "UNSPECIFIED" (default) : Use the latest or function version
+                        - "IR_V10" : v10 IR
+                        - "IR_V11" : v11 IR
+
+    Examples:
+    ----------
+    1. Default IR version:
+        shape = [2, 2]
+        parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+        parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+        parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+        model = (parameter_a + parameter_b) * parameter_c
+        func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+        # IR generated with default version 
+        serialize(func, model_path="./serialized.xml", weights_path="./serialized.bin")
+
+    2. IR version 11:
+        shape = [2, 2]
+        parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+        parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+        parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+        model = (parameter_a + parameter_b) * parameter_c
+        func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+        # IR generated with default version 
+        serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")    
+    // )");
 }
+
