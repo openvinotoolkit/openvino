@@ -352,6 +352,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
+            bool need_validate_nodes_and_infer_types = false;
             auto& parameters = function->get_parameters();
             for (size_t i = 0; i < parameters.size(); ++i) {
                 const auto& parameter = parameters[i];
@@ -361,10 +362,17 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (it_type != rtInfo.end()) {
                     const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapElementType>(it_type->second);
                     OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapElementType");
-                    const auto type = old_api_map_attr->get();
-                    pre_input.tensor().set_element_type(type);
+                    const auto old_api_map_type = old_api_map_attr->get();
+                    const auto param_type = parameter->get_element_type();
 
-                    OPENVINO_ASSERT(!type.is_dynamic(), "Old API map does not support dynamic type");
+                    if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
+                        parameter->set_element_type(old_api_map_type);
+                        need_validate_nodes_and_infer_types = true;
+                    } else {
+                        pre_input.tensor().set_element_type(old_api_map_type);
+                    }
+
+                    OPENVINO_ASSERT(!old_api_map_type.is_dynamic(), "Old API map does not support dynamic type");
                     rtInfo.erase(it_type);
                 }
                 const auto it_order = rtInfo.find(old_api_map_key_order);
@@ -394,6 +402,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 // remove old api once we applied it
                 rtInfo.erase(it);
             }
+
+            if (need_validate_nodes_and_infer_types)
+                function->validate_nodes_and_infer_types();
 
             // Set version to 10
             rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
