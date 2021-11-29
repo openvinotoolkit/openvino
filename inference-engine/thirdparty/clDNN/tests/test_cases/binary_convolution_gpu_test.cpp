@@ -190,7 +190,7 @@ TEST_P(binary_convolution_test, conv) {
     TestParams p = GetParam();
 
     cldnn::tensor stride = cldnn::tensor{cldnn::batch(1), cldnn::feature(1), cldnn::spatial(p.sw, p.sh)};
-    cldnn::tensor pad = cldnn::tensor{cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-p.pw, -p.ph)};
+    cldnn::tensor pad = cldnn::tensor{cldnn::batch(0), cldnn::feature(0), cldnn::spatial(p.pw, p.ph)};
     cldnn::tensor dilation = {1,1,1,1};
 
     cldnn::tensor is_size{ cldnn::batch(p.b),

@@ -140,6 +140,14 @@ void remove_redundant_reorders::run(program& p) {
             !r_dep_node.is_output() &&
             r_dep_node.get_fused_activations_funcs().empty();
 
+        // for chains like
+        // fp32 -> reorder -> u8 -> reorder -> fp32
+        // we can't fuse two reorder primitives as first one must do cast to u8 data type which changes the values
+        if (!data_type_traits::is_floating_point(r_dep_node.get_output_layout().data_type) &&
+            data_type_traits::is_floating_point(r_dep_node.input().get_output_layout().data_type)) {
+            continue;
+        }
+
         bool remove_current =
             r_dep_node.get_users().size() == 1 &&
             !r_dep_node.is_output() &&
@@ -358,23 +366,26 @@ void remove_redundant_reorders::run(program& p) {
         p.remove_if_dangling(node);
     }
 
-    // Remove reorder for Convolution bfyx -> fs_b_yx_fsv32 (+ onednn: bfyx -> b_fs_yx_fsv32)
+    // Remove reorder for cldnn convolution bfyx -> fs_b_yx_fsv32.
+    //                for onednn convolution bfyx-> b_fs_yx_fsv32 (only shallow-depth input)
     auto try_fuse_reorder_bfyx_to_fsv32 = [&](reorder_node* node) -> bool {
         if (node->get_users().size() != 1)
             return false;
 
         auto& usr = node->get_users().front();
         auto& dep = node->get_dependency(0);
+        auto  dep_layout = dep.get_output_layout();
 
         if (!(usr->is_type<convolution>()) ||
-            node->get_output_layout().data_type != dep.get_output_layout().data_type ||
-            dep.get_output_layout().format != format::bfyx)
+            node->get_output_layout().data_type != dep_layout.data_type ||
+            dep_layout.format != format::bfyx)
             return false;
         if (usr->as<convolution>().get_preferred_impl_type() != impl_types::onednn &&
             usr->get_output_layout().format != format::fs_b_yx_fsv32)
             return false;
         if (usr->as<convolution>().get_preferred_impl_type() == impl_types::onednn &&
-            usr->get_output_layout().format != format::b_fs_yx_fsv32)
+            (usr->get_output_layout().format != format::b_fs_yx_fsv32 ||
+            !lo.needs_onednn_bfyx_to_blocked(dep_layout.format, usr->get_output_layout().format, dep_layout, usr->as<convolution>())))
             return false;
 
         if (dep.is_type<input_layout>())
@@ -528,6 +539,11 @@ void remove_redundant_reorders::run(program& p) {
         if (n->is_in_data_flow() && n->is_type<reorder>()) {
             auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_dependency(0).get_output_layout().format);
             n->set_preferred_impl_type(preferred_impl);
+        }
+
+        // Validate fused layout when onednn is enable
+        if (n->get_preferred_impl_type() == impl_types::onednn && !lo.are_layouts_suitable_for_onednn(*n)) {
+            throw std::runtime_error("Onednn doesnot support padded input or output");
         }
     }
 }

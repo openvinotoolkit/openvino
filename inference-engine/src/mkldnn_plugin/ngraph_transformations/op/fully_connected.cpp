@@ -9,7 +9,7 @@ MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>&
                                                      const ngraph::Rank& output_rank,
                                                      const ngraph::element::Type output_type)
     : Op({A, B}), m_output_rank(output_rank), m_output_type(output_type) {
-    constructor_validate_and_infer_types();
+    validate_and_infer_types();
 }
 
 MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
@@ -18,7 +18,7 @@ MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>&
                                                      const ngraph::Rank& output_rank,
                                                      const ngraph::element::Type output_type)
     : Op({A, B, C}), m_output_rank(output_rank), m_output_type(output_type) {
-    constructor_validate_and_infer_types();
+    validate_and_infer_types();
 }
 
 std::shared_ptr<ngraph::Node> MKLDNNPlugin::FullyConnectedNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
@@ -39,13 +39,6 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
         "Number of inputs is incorrect. Current value is: ",
         input_size,
         ", expected: 2 or 3.");
-
-    const auto output_size = get_output_size();
-    NODE_VALIDATION_CHECK(this,
-        output_size == 1,
-        "Number of outputs is incorrect. Current value is: ",
-        output_size,
-        ", expected: 1.");
 
     // Weights shape: [O, I1, ..., Im];
     // O - output channels dimensions, Ik - input channels dimensions
@@ -101,10 +94,7 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
 }
 
 bool MKLDNNPlugin::FullyConnectedNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
-    if (m_output_rank.is_static()) {
-        std::int64_t value = m_output_rank.get_length();
-        visitor.on_attribute("out-rank", value);
-    }
+    visitor.on_attribute("out-rank", m_output_rank);
     visitor.on_attribute("out-type", m_output_type);
     return true;
 }

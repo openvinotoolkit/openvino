@@ -46,8 +46,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(smoke_DetectionOutput5In).*)",
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
-            // INT8 StridedSlice not supported
-            R"(.*(LPT/StridedSliceTransformation).*)",
             // TODO: Issue: 48106
             R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
             // TODO: Issue: 54194
@@ -74,23 +72,27 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
             R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
             R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
-            R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
-            // TODO: Issue 66516
-            R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            R"(.*EltwiseLayerTest.*OpType=FloorMod.*NetType=i64.*)",
+            // Issue connected with OV2.0
+            R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue 67910
             R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
-            // TODO: CVS-68525
+            // TODO: 68525
             R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
             R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
             R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
             R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
+            // TODO: Issue: 67486
+            R"(.*(SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
             R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
-            // TODO: Issue 66685
-            R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
             // TODO: Issue 69187
             R"(smoke_PrePostProcess.*cvt_color_nv12.*)",
+            // TODO: Issue 71215
+            R"(smoke_PrePostProcess.*cvt_color_i420.*)",
+            // Unsupported
+            R"(smoke_Behavior/InferRequestSetBlobByType.setInputBlobsByType/BlobType=Batched_Device=GPU_Config=().*)",
     };
 }

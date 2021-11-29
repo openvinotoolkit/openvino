@@ -8,7 +8,7 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestPooling(CommonTFLayerTest):
-    def create_pooling_net(self, kernel_size, strides, pads, in_shape, out_shape, method, ir_version):
+    def create_pooling_net(self, kernel_size, strides, pads, in_shape, out_shape, method, ir_version, use_new_frontend):
         """
             Tensorflow net                 IR net
 
@@ -66,14 +66,15 @@ class TestPooling(CommonTFLayerTest):
 
         ref_net = None
 
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': in_shape, 'kind': 'data'},
                 'pooling': {'kernel': kernel_size, 'pads_begin': pads_begin, 'pads_end': pads_end,
                             'strides': strides, 'kind': 'op', 'type': None},
                 'pooling_data': {'shape': out_shape, 'kind': 'data'},
-                'result': {'kind': 'op', 'type': 'Result'}
+                'result': {'kind': 'op', 'type': 'Result'},
+                'pooling_indicies_data': {'kind': 'data', 'shape': out_shape}
             }
 
             if method == 'avg':
@@ -81,12 +82,17 @@ class TestPooling(CommonTFLayerTest):
             elif method == 'max':
                 nodes_attributes['pooling']['type'] = 'MaxPool'
 
+            edges = [('input', 'input_data'),
+                     ('input_data', 'pooling'),
+                     ('pooling', 'pooling_data', {'out': 0}),
+                     ('pooling_data', 'result')]
+
+            if method == 'max':
+                edges.append(('pooling', 'pooling_indicies_data', {'out': 1}))
+
             ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'pooling'),
-                                   ('pooling', 'pooling_data'),
-                                   ('pooling_data', 'result')
-                                   ])
+                                  edges=edges,
+                                  nodes_with_edges_only=True)
 
         return tf_net, ref_net
 
@@ -150,9 +156,9 @@ class TestPooling(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_pool_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_pooling_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_pool_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_pooling_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_5D = []
     for method in ['max', 'avg']:
@@ -223,8 +229,8 @@ class TestPooling(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_pool_5D(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_pool_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
-        self._test(*self.create_pooling_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+        self._test(*self.create_pooling_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

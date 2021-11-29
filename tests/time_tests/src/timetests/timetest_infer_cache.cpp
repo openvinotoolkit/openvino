@@ -3,6 +3,7 @@
 //
 
 #include <inference_engine.hpp>
+#include <ie_plugin_config.hpp>
 #include <iostream>
 
 #include "common_utils.h"
@@ -31,7 +32,8 @@ int runPipeline(const std::string &model, const std::string &device) {
       }
       {
         SCOPED_TIMER(load_network);
-        ie.SetConfig({{"CACHE_DIR", "models_cache"}});
+        // enables cache
+        ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
         exeNetwork = ie.LoadNetwork(model, device);
       }
       {

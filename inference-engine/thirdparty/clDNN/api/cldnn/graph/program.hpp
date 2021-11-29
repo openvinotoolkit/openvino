@@ -206,6 +206,8 @@ public:
                       std::function<bool(program_node const&)> const& filter = nullptr) const;
 
     const primitives_info& get_primitives_info() const;
+    data_types get_inference_precision(const program_node& node) const;
+    std::string get_implementation_info(const primitive_id& id) const;
     const graph_optimizer_info& get_optimizer_passes_info() const;
     void save_pass_info(std::string pass_name);
 
@@ -232,6 +234,8 @@ public:
 
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
+
+    std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
 private:
     uint32_t prog_id = 0;

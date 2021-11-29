@@ -18,6 +18,7 @@ target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/pl
 
 target_link_libraries(${TARGET_NAME} PUBLIC
         funcTestUtils
+        inference_engine_legacy
         ieTestHelpers
         )
 
