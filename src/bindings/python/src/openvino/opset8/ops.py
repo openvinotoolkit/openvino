@@ -405,7 +405,6 @@ def if_op(
                                              attributes)
 
 
-
 @nameable_op
 def slice(
         data: NodeInput,
