@@ -26,6 +26,9 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/enum_mask.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 class Node;
@@ -340,6 +343,85 @@ std::vector<T> host_tensor_2_vector(ngraph::HostTensorPtr tensor) {
     }
     default:
         NGRAPH_UNREACHABLE("unsupported element type");
+    }
+}
+
+template <typename T>
+std::vector<T> tensor_2_vector(const ov::runtime::Tensor& tensor) {
+    OPENVINO_ASSERT(tensor.data() != nullptr, "Invalid Tensor received, can't read the data from a null pointer.");
+
+    switch (tensor.get_element_type()) {
+    case ov::element::Type_t::boolean: {
+        using ET = ov::element_type_traits<ov::element::Type_t::boolean>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::boolean));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ov::element::Type_t::bf16: {
+        using ET = ov::element_type_traits<ov::element::Type_t::bf16>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::bf16));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ov::element::Type_t::f16: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::f16>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::f16));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ov::element::Type_t::f32: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::f32>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::f32));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ov::element::Type_t::f64: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::f64>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::f64));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ov::element::Type_t::i8: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::i8>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::i8));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ov::element::Type_t::i16: {
+        using ET = ov::element_type_traits<ov::element::Type_t::i16>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::i16));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ov::element::Type_t::i32: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::i32>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::i32));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ov::element::Type_t::i64: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::i64>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::i64));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ngraph::element::Type_t::u1: {
+        OPENVINO_ASSERT(false, "u1 element type conversion is unsupported");
+        break;
+    }
+    case ngraph::element::Type_t::u8: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::u8>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::u8));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ngraph::element::Type_t::u16: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::u16>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::u16));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ngraph::element::Type_t::u32: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::u32>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::u32));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    case ngraph::element::Type_t::u64: {
+        using ET = typename ov::element_type_traits<ov::element::Type_t::u64>::value_type;
+        ET* p = static_cast<ET*>(tensor.data(ov::element::Type_t::u64));
+        return std::vector<T>(p, p + tensor.get_size());
+    }
+    default:
+        OPENVINO_UNREACHABLE("unsupported element type");
     }
 }
 
