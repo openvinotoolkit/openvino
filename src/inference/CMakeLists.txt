@@ -167,8 +167,6 @@ add_library(${TARGET_NAME}
             ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-add_library(openvino::runtime ALIAS ${TARGET_NAME})
-
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
@@ -315,7 +313,6 @@ ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
 
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
