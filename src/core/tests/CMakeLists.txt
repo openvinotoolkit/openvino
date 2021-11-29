@@ -226,6 +226,7 @@ set(SRC
     type_prop/reduce_min.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/region_yolo.cpp
     type_prop/relu.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
@@ -495,7 +496,6 @@ set(MULTI_TEST_SRC
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/node_name.in.cpp
-    backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
