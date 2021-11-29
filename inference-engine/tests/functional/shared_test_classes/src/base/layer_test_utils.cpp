@@ -95,6 +95,8 @@ void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
 }
 
 void LayerTestsCommon::QueryNetwork() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
     cnnNetwork = InferenceEngine::CNNNetwork(function);
 
     auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, targetDevice);
