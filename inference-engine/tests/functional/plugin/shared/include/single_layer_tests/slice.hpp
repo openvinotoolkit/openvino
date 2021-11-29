@@ -7,7 +7,7 @@
 #include "shared_test_classes/single_layer/slice.hpp"
 
 namespace LayerTestsDefinitions {
-TEST_P(SliceLayerTest, CompareWithRefs) {
-    Run();
+TEST_P(Slice8LayerTest, CompareWithRefs) {
+    run();
 }
 }  // namespace LayerTestsDefinitions

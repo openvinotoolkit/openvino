@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
 #include <vector>
@@ -13,9 +12,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNStridedSliceNode : public MKLDNNNode {
 public:
-    MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -25,9 +24,8 @@ public:
         return false;
     }
 
-    void prepareParams() override;
-
 protected:
+    void prepareParams() override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
@@ -38,6 +36,7 @@ private:
         std::vector<int> begin;
         std::vector<int> end;
         std::vector<int> stride;
+        std::vector<int> axes;
 
         std::vector<int> beginMask;
         std::vector<int> endMask;
@@ -48,6 +47,7 @@ private:
         VectorDims beginDims;
         VectorDims endDims;
         VectorDims strideDims;
+        VectorDims axesDims;
 
         bool equalDims = false;
         size_t dataSize = 1lu;
@@ -84,12 +84,17 @@ private:
     using executorPtr = std::shared_ptr<StridedSliceExecutor>;
     executorPtr execPtr = nullptr;
 
+    bool isStridedSliceOp = true;
     bool isStrideSpecified = false;
+    bool isAxesSpecified = false;
 
     static constexpr size_t DATA_ID = 0;
     static constexpr size_t BEGIN_ID = 1;
     static constexpr size_t END_ID = 2;
     static constexpr size_t STRIDE_ID = 3;
+    static constexpr size_t AXES_ID = 4;
+
+    bool isConstantInput[AXES_ID + 1] = {false};
 };
 
 }  // namespace MKLDNNPlugin

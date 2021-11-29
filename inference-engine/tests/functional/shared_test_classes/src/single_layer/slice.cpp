@@ -11,51 +11,50 @@ using namespace ngraph;
 
 namespace LayerTestsDefinitions {
 
-std::string SliceLayerTest::getTestCaseName(const testing::TestParamInfo<SliceParams> &obj) {
-    SliceSpecificParams params;
-    InferenceEngine::Precision netPrc;
-    InferenceEngine::Precision inPrc, outPrc;
+std::string Slice8LayerTest::getTestCaseName(const testing::TestParamInfo<Slice8Params> &obj) {
+    std::vector<ov::test::InputShape> shapes;
+    Slice8SpecificParams params;
+    ov::element::Type_t netPrecision, inPrecision, outPrecision;
     InferenceEngine::Layout inLayout, outLayout;
     std::string targetName;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(params, netPrc, inPrc, outPrc, inLayout, outLayout, targetName, additionalConfig) = obj.param;
+    std::tie(params, netPrecision, inPrecision, outPrecision, inLayout, outLayout, targetName, additionalConfig) = obj.param;
     std::ostringstream result;
-    result << "inShape=" << CommonTestUtils::vec2str(params.inputShape) << "_";
-    result << "netPRC=" << netPrc.name() << "_";
-    result << "start=" << CommonTestUtils::vec2str(params.start) << "_";
-    result << "stop=" << CommonTestUtils::vec2str(params.stop) << "_";
-    result << "step=" << CommonTestUtils::vec2str(params.step) << "_";
-    result << "axes=" << CommonTestUtils::vec2str(params.axes) << "_";
-    result << "trgDev=" << targetName;
+    result << "IS=(";
+    for (const auto& shape : params.shapes) {
+        result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+    }
+    result << ")_TS=(";
+    for (const auto& shape : params.shapes) {
+        for (const auto& item : shape.second) {
+            result << CommonTestUtils::vec2str(item) << "_";
+        }
+    }
+    result << "start="   << CommonTestUtils::vec2str(params.start) << "_";
+    result << "stop="    << CommonTestUtils::vec2str(params.stop) << "_";
+    result << "step="    << CommonTestUtils::vec2str(params.step) << "_";
+    result << "axes="    << CommonTestUtils::vec2str(params.axes) << "_";
+    result << "netPRC="  << netPrecision << "_";
+    result << "trgDev="  << targetName;
     return result.str();
 }
 
-void SliceLayerTest::SetUp() {
-    SliceSpecificParams sliceParams;
-    InferenceEngine::Precision netPrecision;
+void Slice8LayerTest::SetUp() {
+    Slice8SpecificParams sliceParams;
+    ov::test::ElementType netPrecision, inPrecision, outPrecision;
+    InferenceEngine::Layout inLayout, outLayout;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(sliceParams, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice, additionalConfig) = this->GetParam();
+    std::tie(sliceParams, netPrecision, inPrecision, outPrecision, inLayout, outLayout, targetDevice, additionalConfig) = this->GetParam();
+
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
+    init_input_shapes(sliceParams.shapes);
+    auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+    auto sliceOp = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-    element::Type_t et = element::i32;
-
-    const auto data = std::make_shared<opset8::Parameter>(ngPrc, Shape(sliceParams.inputShape));
-    const auto start = std::make_shared<opset8::Constant>(et, Shape{sliceParams.start.size()}, sliceParams.start);
-    const auto stop = std::make_shared<opset8::Constant>(et, Shape{sliceParams.stop.size()}, sliceParams.stop);
-    const auto step = std::make_shared<opset8::Constant>(et, Shape{sliceParams.step.size()}, sliceParams.step);
-
-    Output<Node> slice;
-    if (sliceParams.axes.empty()) {
-        slice = std::make_shared<opset8::Slice>(data, start, stop, step);
-    } else {
-        const auto axes = std::make_shared<opset8::Constant>(et, Shape{sliceParams.axes.size()}, sliceParams.axes);
-        slice = std::make_shared<opset8::Slice>(data, start, stop, step, axes);
-    }
-
-    ResultVector results{std::make_shared<opset8::Result>(slice)};
-    function = std::make_shared<Function>(results, ov::ParameterVector{data}, "Slice");
+    ov::ResultVector results;
+    for (int i = 0; i < sliceOp->get_output_size(); i++)
+         results.push_back(std::make_shared<ov::op::v0::Result>(sliceOp->output(i)));
+    function = std::make_shared<ngraph::Function>(results, params, "Slice-8");
 }
 
 }  // namespace LayerTestsDefinitions

@@ -81,6 +81,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "ConvolutionBackpropData", Deconvolution },
         { "GroupConvolutionBackpropData", Deconvolution },
         { "StridedSlice", StridedSlice },
+        { "Slice", StridedSlice },
         { "Tile", Tile },
         { "ROIAlign", ROIAlign },
         { "ROIPooling", ROIPooling },
