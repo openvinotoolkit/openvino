@@ -48,7 +48,7 @@
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
-#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
+#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
