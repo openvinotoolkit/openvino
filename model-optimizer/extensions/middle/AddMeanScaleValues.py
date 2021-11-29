@@ -58,8 +58,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
             # Parameter(uint8) -> Mean/Scale -> Convert(float) which is incorrect.
             # To fix this mean and scale preprocessing node is inserted after Convert(float) node.
             out_node = input_node.out_port(0).get_destination().node
-            if out_node.soft_get('type') == "Convert" and (out_node.soft_get('dst_type') == np.float32 or
-                                                           out_node.soft_get('dst_type') == np.float16):
+            if out_node.soft_get('type') == "Convert" and (out_node.soft_get('dst_type') in [np.float32, np.float16]):
                 if len(input_node.out_port(0).get_destinations()) == 1:
                     input_node = out_node
 
