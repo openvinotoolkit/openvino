@@ -146,7 +146,7 @@ public:
             // test null device
             testConfigs.push_back(ConfigParams{netPrecision, {}, {}, true});
         }
-        delete result;
+        delete []result;
         return testConfigs;
     }
 

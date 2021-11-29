@@ -45,7 +45,7 @@ using namespace MockMultiDevice;
 
 const char cpuFullDeviceName[] = "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz";
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
-const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
+// const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
 const char myriadFullDeviceName[] = "Intel Movidius Myriad X VPU";
 const char vpuxFullDeviceName[] = "";
 using ConfigParams = std::tuple<
