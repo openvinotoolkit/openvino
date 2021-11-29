@@ -367,7 +367,9 @@ bool op::v8::Slice::evaluate(ov::runtime::TensorVector& outputs, const ov::runti
     const auto output_static_shape = output_shape.to_shape();
 
     if (outputs.size() >= 0) {
-        outputs[0] = ov::runtime::Tensor(inputs[0].get_element_type(), output_static_shape);
+        outputs[0] = outputs[0]
+                         ? ov::runtime::Tensor(inputs[0].get_element_type(), output_static_shape, outputs[0].data())
+                         : ov::runtime::Tensor(inputs[0].get_element_type(), output_static_shape);
     } else {
         outputs.emplace_back(ov::runtime::Tensor(inputs[0].get_element_type(), output_static_shape));
     }
