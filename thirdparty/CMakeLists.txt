@@ -90,24 +90,26 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONT
         endif()
         find_package(Protobuf 3.9.0 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
+        set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(SYSTEM_PROTOC protobuf::protoc)
         set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 
-        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LITE_LIBRARIES})
+        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
             set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL TRUE)
         endforeach()
     else()
-        add_subdirectory(protobuf)
+        add_subdirectory(protobuf EXCLUDE_FROM_ALL)
     endif()
 
     # forward variables used in the other places
     set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
     set(PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE} PARENT_SCOPE)
+    set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_LITE_LIBRARIES ${Protobuf_LITE_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
 
     # set public / interface compile options
-    foreach(target IN LISTS Protobuf_LITE_LIBRARIES)
+    foreach(target IN LISTS Protobuf_LITE_LIBRARIES Protobuf_LIBRARIES)
         set(link_type PUBLIC)
         if(NGRAPH_USE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
@@ -154,6 +156,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
                 "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
+                "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}"
                 "-DDNNL_CPU_RUNTIME=NONE"
                 "-DDNNL_GPU_RUNTIME=OCL"
                 "-DDNNL_LIBRARY_NAME=onednn_gpu"

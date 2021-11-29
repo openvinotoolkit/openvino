@@ -107,6 +107,7 @@ bool ResampleKernelBase::Validate(const Params& p, const optional_params& o) con
     const auto& input = params.inputs[0];
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
+        params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP &&
         params.resampleType != ResampleType::BILINEAR_INTERP)
         return false;
 

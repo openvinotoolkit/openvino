@@ -117,9 +117,9 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # For running PaddlePaddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddlepaddle/requirements_dev.txt
       # For running ONNX frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt
@@ -312,10 +312,6 @@ jobs:
         $(REPO_DIR)/tests/samples_tests
       workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
 
-  - script: ninja
-    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'Build Samples Tests'
-
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Install Samples Tests'
@@ -323,9 +319,8 @@ jobs:
   - script: |  
       python3 -m pip install -r $(INSTALL_DIR)/tests/smoke_tests/requirements.txt 
     workingDirectory: $(INSTALL_DIR)
-    displayName: 'Install  dependencies for samples smoke tests'
+    displayName: 'Install dependencies for samples smoke tests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
