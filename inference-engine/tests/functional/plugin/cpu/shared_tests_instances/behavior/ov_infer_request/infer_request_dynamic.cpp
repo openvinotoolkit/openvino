@@ -19,8 +19,9 @@ const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
 };
 
 const std::vector<std::map<std::string, std::string>> AutoConfigs = {
-    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}},
-    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU + std::string(",") + CommonTestUtils::DEVICE_GPU}}
+    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}}
+    //will move it to GPU, not able to run on mac os
+    //{{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU + std::string(",") + CommonTestUtils::DEVICE_GPU}}
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {

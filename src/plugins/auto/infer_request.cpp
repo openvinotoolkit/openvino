@@ -17,16 +17,14 @@ using namespace InferenceEngine;
 MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                                  const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with)
-        : IInferRequestInternal(inputs, outputs),
-        _requestToShareBlobsWith(request_to_share_blobs_with) {
+        : IInferRequestInternal(inputs, outputs) {
     CreateInferRequest(request_to_share_blobs_with);
 }
 
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
                                                  const SoIInferRequestInternal & request_to_share_blobs_with)
-        : IInferRequestInternal(networkInputs, networkOutputs),
-        _requestToShareBlobsWith(request_to_share_blobs_with) {
+        : IInferRequestInternal(networkInputs, networkOutputs) {
     CreateInferRequest(request_to_share_blobs_with);
 }
 
@@ -59,31 +57,6 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         _outputs[it.first] = make_blob_with_precision(desc);
         _outputs[it.first]->allocate();
     }
-}
-
-void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) {
-    if ((_requestToShareBlobsWith)) {
-        _requestToShareBlobsWith->SetBlob(name, blob);
-        InputInfo::Ptr foundInput;
-        DataPtr foundOutput;
-        const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
-        if (isInput)
-            _inputs[name] = _requestToShareBlobsWith->GetBlob(name);
-        else
-            _outputs[name] = _requestToShareBlobsWith->GetBlob(name);
-    } else {
-        IInferRequestInternal::SetBlob(name, blob);
-    }
-}
-
-InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
-    if (isInput)
-        return _inputs[name];
-    else
-        return _outputs[name];
 }
 
 void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {

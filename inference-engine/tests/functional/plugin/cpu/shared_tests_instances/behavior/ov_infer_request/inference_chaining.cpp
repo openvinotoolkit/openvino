@@ -18,8 +18,9 @@ const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
 };
 
 const std::vector<std::map<std::string, std::string>> AutoConfigs = {
-    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}},
-    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU + std::string(",") + CommonTestUtils::DEVICE_GPU}}
+    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}}
+    //move to GPU
+    //{{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU + std::string(",") + CommonTestUtils::DEVICE_GPU}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferenceChaining,

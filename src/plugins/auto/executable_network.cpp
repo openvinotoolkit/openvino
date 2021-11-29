@@ -140,7 +140,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
 
 void MultiDeviceExecutableNetwork::IncreaseWorkers(AutoLoadContext& loadcontext, InferenceEngine::SoIInferRequestInternal& request_to_share) {
     auto devicename = loadcontext.deviceInfo.deviceName;
-     auto& executableNetwork =  loadcontext.executableNetwork;
+    auto& executableNetwork =  loadcontext.executableNetwork;
     auto& idleWorkerRequests = _idleWorkerRequests[devicename];
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     {
@@ -519,7 +519,9 @@ std::shared_ptr<InferenceEngine::ICore> MultiDeviceExecutableNetwork::GetCore() 
 InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    _numRequestMutex.lock();
     auto num = _numRequestsCreated++;
+    _numRequestMutex.unlock();
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
 
@@ -557,7 +559,9 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 
 InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
+    _numRequestMutex.lock();
     auto num = _numRequestsCreated++;
+    _numRequestMutex.unlock();
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
 
