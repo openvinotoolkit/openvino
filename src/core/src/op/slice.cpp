@@ -343,42 +343,6 @@ bool op::v8::Slice::has_evaluate() const {
     return true;
 }
 
-// bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-//     NGRAPH_OP_SCOPE(v8_Slice_evaluate);
-
-//     OPENVINO_ASSERT(inputs.size() >= 4, "Slice evaluate needs at least 4 inputs.");
-//     std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
-//     std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
-//     std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);
-
-//     std::vector<int64_t> axes(starts.size());
-//     if (inputs.size() < 5) {
-//         std::iota(axes.begin(), axes.end(), 0);
-//     } else {
-//         axes = host_tensor_2_vector<int64_t>(inputs[4]);
-//     }
-
-//     // Static HostTensor data shape is needed to clamp and normalize `start` values
-//     const auto& data_shape = inputs[0]->get_partial_shape();
-//     OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
-//     // We need calculate static output shape based on HostTensor inputs
-//     PartialShape output_shape = calculate_output_shape(starts, stops, steps, axes, data_shape);
-//     OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice evaluation.");
-
-//     outputs[0]->set_shape(output_shape.to_shape());
-//     outputs[0]->set_element_type(inputs[0]->get_element_type());
-
-//     ngraph::runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
-//                                       data_shape.to_shape(),
-//                                       outputs[0]->get_data_ptr<char>(),
-//                                       output_shape.to_shape(),
-//                                       inputs[0]->get_element_type().size(),
-//                                       starts,
-//                                       steps,
-//                                       axes);
-//     return true;
-// }
-
 bool op::v8::Slice::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v8_Slice_evaluate);
 
@@ -394,18 +358,19 @@ bool op::v8::Slice::evaluate(ov::runtime::TensorVector& outputs, const ov::runti
         axes = tensor_2_vector<int64_t>(inputs[4]);
     }
 
-    // Static HostTensor data shape is needed to clamp and normalize `start` values
+    // Static Tensor data shape is needed to clamp and normalize `start` values
     const auto& data_shape = inputs[0].get_shape();
-    // OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
+
     // We need calculate static output shape based on HostTensor inputs
     PartialShape output_shape = calculate_output_shape(starts, stops, steps, axes, data_shape);
     OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice evaluation.");
-
     const auto output_static_shape = output_shape.to_shape();
-    outputs[0].set_shape(output_static_shape);
 
-    //  ‘class ov::runtime::Tensor’} has no member named ‘set_element_type’
-    // outputs[0].set_element_type(inputs[0].get_element_type());
+    if (outputs.size() >= 0) {
+        outputs[0] = ov::runtime::Tensor(inputs[0].get_element_type(), output_static_shape);
+    } else {
+        outputs.emplace_back(ov::runtime::Tensor(inputs[0].get_element_type(), output_static_shape));
+    }
 
     ngraph::runtime::reference::slice(static_cast<char*>(inputs[0].data()),
                                       data_shape,
