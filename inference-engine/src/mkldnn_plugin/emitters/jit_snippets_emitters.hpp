@@ -433,7 +433,7 @@ private:
                                         Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
         Reg64 out_reg(ea);
         Xmm vmm_src0 = Xmm(in[0]);
-        h->movss(h->ptr[out_reg], vmm_src0);
+        h->uni_vmovss(h->ptr[out_reg], vmm_src0);
         h->add(out_reg, sizeof(float));
     }
 };
@@ -551,7 +551,7 @@ private:
                                             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
         Reg64 in_reg(ea);
         Xmm vmm_src0 = Xmm(out[0]);
-        h->movss(vmm_src0, h->ptr[in_reg]);
+        h->uni_vmovss(vmm_src0, h->ptr[in_reg]);
 
         // Doesn't work if the same pointer comes with multiple load operations
         if (shouldPostIncrement) {

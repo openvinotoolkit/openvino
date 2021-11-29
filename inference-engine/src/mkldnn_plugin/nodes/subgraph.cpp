@@ -224,22 +224,15 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
         interpret();
         return;
     }
-    std::vector<const uint8_t *> inputs(inputShapes.size(), nullptr);
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        auto & parents = getParentEdgesAtPort(i);
-        auto &mem = parents[0]->getMemory();
-        inputs[i] = reinterpret_cast<const uint8_t*>(mem.GetPtr());
-    }
+    jit_snippets_const_args const_args;
+    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+        const_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetPtr());
 
-    std::vector<uint8_t *> outputs(outputShapes.size(), nullptr);
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        auto & child = getChildEdgesAtPort(i);
-        auto &mem = child[0]->getMemory();
-        outputs[i] = reinterpret_cast<uint8_t*>(mem.GetPtr());
-    }
+    for (size_t i = 0; i < dstMemPtrs.size(); i++)
+        const_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetPtr());
 
     if (tensorRank == rank6D && canUseOptimizedImpl) {
-        schedule_6d(outputs, inputs);
+        schedule_6d(const_args);
         return;
     } else {
          IE_THROW() << "The node can't be scheduled as a 6d tensor";
@@ -523,14 +516,17 @@ void MKLDNNSnippetNode::generate() {
         auto b = offsets_out[i].begin();
         std::copy(b, b + harness_num_dims, &jep.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
     }
+    if (srcMemPtrs.empty() || dstMemPtrs.empty()) {
+        for (auto i = 0; i < inputShapes.size(); i++)
+            srcMemPtrs.push_back(getParentEdgeAt(i)->getMemoryPtr());
+        for (auto i = 0; i < outputShapes.size(); i++)
+            dstMemPtrs.push_back(getChildEdgeAt(i)->getMemoryPtr());
+    }
     schedule = snippet->generate(output_shapes, input_shapes, reinterpret_cast<void*>(&jep));
 }
 
-void MKLDNNSnippetNode::schedule_6d(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
-    auto dom = dims_out[max_rank_out_desc_idx];
-    jit_snippets_const_args const_args;
-    std::copy(inputs.begin(), inputs.end(), const_args.src_ptrs);
-    std::copy(outputs.begin(), outputs.end(), const_args.dst_ptrs);
+void MKLDNNSnippetNode::schedule_6d(const jit_snippets_const_args& const_args) const {
+    const auto& dom = dims_out[max_rank_out_desc_idx];
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {

@@ -51,7 +51,7 @@ private:
     void generate();
 
     // Evaluates generated snippet using parallel backend
-    void schedule_6d(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const;
+    void schedule_6d(const jit_snippets_const_args& const_args) const;
 
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
@@ -76,6 +76,9 @@ private:
     size_t fullWorkAmount = 0;
     size_t schedulerWorkAmount = 0;
     const size_t maxTileRank = 2;
+
+    std::vector<MKLDNNMemoryPtr> srcMemPtrs = {};
+    std::vector<MKLDNNMemoryPtr> dstMemPtrs = {};
 
     std::vector<std::vector<int64_t>> dims_in = {};
     std::vector<std::vector<int64_t>> offsets_in = {};
