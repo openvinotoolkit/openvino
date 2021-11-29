@@ -99,13 +99,13 @@ Input I420 image tensor shall have `NHWC (also known as NYXC)` layout and can be
             <dim>1</dim>
             <dim>240</dim>
             <dim>320</dim>
-            <dim>2</dim>
+            <dim>1</dim>
         </port>
         <port id="2">  <!-- V plane -->
           <dim>1</dim>
           <dim>240</dim>
           <dim>320</dim>
-          <dim>2</dim>
+          <dim>1</dim>
         </port>
     </input>
     <output>

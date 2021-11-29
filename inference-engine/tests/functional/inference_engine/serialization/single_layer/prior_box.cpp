@@ -66,6 +66,10 @@ namespace {
         true, false
     };
 
+    const std::vector<bool> min_max_aspect_ratios_order = {
+        true, false
+    };
+
     const std::vector<size_t> inputShape = {128, 128};
     const std::vector<size_t> imageShape = {50, 50};
 
@@ -81,7 +85,8 @@ namespace {
             ::testing::ValuesIn(steps),
             ::testing::ValuesIn(offsets),
             ::testing::ValuesIn(variances),
-            ::testing::ValuesIn(scale_all_sizes));
+            ::testing::ValuesIn(scale_all_sizes),
+            ::testing::ValuesIn(min_max_aspect_ratios_order));
 
     INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic, PriorBoxLayerTest,
                             ::testing::Combine(
