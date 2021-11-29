@@ -308,10 +308,6 @@ void remove_redundant_reorders::run(program& p) {
 
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
-            const bool ignore_conditions = input.is_type<depth_to_space>() || input.is_type<region_yolo>();
-
-            if (!ignore_conditions && node.is_output())
-                continue;
 
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 continue;
@@ -319,7 +315,7 @@ void remove_redundant_reorders::run(program& p) {
             if (!node.get_fused_activations_funcs().empty())
                 continue;
 
-            if (!ignore_conditions && (input.get_users().size() != 1 || node.get_users().empty()))
+            if (input.get_users().size() != 1)
                 continue;
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
