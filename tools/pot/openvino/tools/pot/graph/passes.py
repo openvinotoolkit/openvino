@@ -17,7 +17,7 @@ from extensions.ops.Cast import Cast
 from extensions.ops.fakequantize import FakeQuantize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph, Node, rename_node
 from mo.graph.port import Port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
@@ -131,6 +131,8 @@ class InsertFakeQuantize(BackReplacementPattern):
 
         if m_op.type in ['Convolution', 'ConvolutionBackpropData', 'MatMul']:
             insert_fake_quantize(graph, m_op, [0, 1], ['fq_input', 'fq_weights'])
+        elif m_op.type == 'LSTMCell':
+            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4])
         elif self.quantize_only_input(m_op):
             insert_fake_quantize(graph, m_op, [0])
         else:
@@ -345,7 +347,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
                         _skip_multibranch_ascent_ops[name] = skip_ascent_map[name]
                     else:
                         _skip_multibranch_ascent_ops[name] = _is_node_skippable(
-                            ge.get_node_by_name(graph, name), skip_ascent_map)
+                            ge.get_node_by_name(graph, name, recursively=False), skip_ascent_map)
                 skip_ascent_map.update(_skip_multibranch_ascent_ops)
                 return any(_skip_multibranch_ascent_ops.values())
 
@@ -411,7 +413,7 @@ class FakeQuantizeOptimization(BackReplacementPattern):
 
 class RemoveFakeQuantize:
     def find_and_remove_node(self, graph, node_name, force=False):
-        node = ge.get_node_by_name(graph, node_name)
+        node = ge.get_node_by_name(graph, node_name, recursively=False)
         if not node:
             return [], []
 
@@ -508,9 +510,11 @@ class RemoveFakeQuantize:
     @staticmethod
     def undo_renaming(graph, fq_node):
         if 'orig_fq_name' in fq_node:
-            node = ge.get_node_by_name(graph, '{fq_name}/pre_fq_input'.format(fq_name=fq_node.name))
-            node.name = node['orig_node_name']
-            fq_node.name = fq_node['orig_fq_name']
+            node = ge.get_node_by_name(graph,
+                                       '{fq_name}/pre_fq_input'.format(fq_name=fq_node.fullname),
+                                       recursively=False)
+            rename_node(node, node['orig_node_name'])
+            rename_node(fq_node, fq_node['orig_fq_name'])
 
     @property
     def quantize_agnostic_operations(self):
@@ -660,11 +664,11 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
             fq_node['orig_fq_name'] = copy(fq_node.name)
-            fq_node.name = copy(new_fq_name)
+            rename_node(fq_node, new_fq_name)
 
             if 'orig_node_name' not in input_node:
                 input_node['orig_node_name'] = copy(input_node.name)
-                input_node.name = '{original_name}/pre_fq_input'.format(original_name=input_node.name)
+                rename_node(input_node, f'{input_node.name}/pre_fq_input')
 
         pattern = get_fq_result_pattern()
         apply_pattern(
