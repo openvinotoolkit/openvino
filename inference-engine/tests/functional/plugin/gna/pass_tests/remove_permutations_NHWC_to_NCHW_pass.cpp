@@ -36,9 +36,65 @@ typedef std::tuple<
 
 namespace LayerTestsDefinitions {
 
-std::vector<size_t> GetKernelShape(size_t height, size_t width, size_t kernel_size) {
-    return (height == 1 ? std::vector<size_t>{1, kernel_size} :
-           (width == 1 ? std::vector<size_t>{kernel_size, 1} : std::vector<size_t>{kernel_size, kernel_size}));
+std::vector<size_t> GetKernelShape(std::vector<size_t> input_shape, size_t kernel_size, bool output_1d = false) {
+    if (input_shape.size() == 3) {
+        return output_1d ? std::vector<size_t>{input_shape.back()} : std::vector<size_t>{kernel_size};
+    }
+
+    if (output_1d) {
+        return std::vector<size_t>{input_shape[1], input_shape[2]};
+    }
+
+    return (input_shape[1] == 1 ? std::vector<size_t>{1, kernel_size} :
+           (input_shape[2] == 1 ? std::vector<size_t>{kernel_size, 1} : std::vector<size_t>{kernel_size, kernel_size}));
+}
+
+std::shared_ptr<ngraph::Node> CreateTranspose(std::shared_ptr<ngraph::Node> input, size_t shape_size,
+                                                     bool before_conv) {
+    std::vector<int32_t> permute_order;
+    if (before_conv) {
+        permute_order = shape_size == 4 ? std::vector<int32_t>{ 0, 3, 1, 2 } : std::vector<int32_t>{ 0, 2, 1 };
+    } else {
+        permute_order = shape_size == 4 ? std::vector<int32_t>{ 0, 2, 3, 1 } : std::vector<int32_t>{ 0, 2, 1 };
+    }
+    return std::make_shared<ngraph::opset1::Transpose>(input,
+        ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ shape_size }, permute_order));
+}
+
+ngraph::Shape GetLayerTransposedOutputShape(std::shared_ptr<ngraph::Node> layer) {
+    auto out_shape = layer->get_output_shape(0);
+    auto perm = out_shape.size() == 4 ? std::vector<size_t>{0, 2, 3, 1} : std::vector<size_t>{0, 2, 1};
+    std::vector<size_t> nhwc_out_shape;
+    std::transform(std::begin(perm), std::end(perm), std::back_inserter(nhwc_out_shape),
+        [out_shape](int i) { return out_shape[i]; });
+    return nhwc_out_shape;
+}
+
+std::shared_ptr<ngraph::Node> CreateConvolution(std::shared_ptr<ngraph::Node> input,
+                                                const ov::element::Type& ngPrc,
+                                                const std::vector<size_t> &input_shape,
+                                                bool output1D = false,
+                                                bool withPool = false,
+                                                bool withActivation = false) {
+    const size_t num_out_channels = 12;
+    auto kernel_shape = GetKernelShape(input_shape, 8, output1D);
+    size_t filter_total_size = num_out_channels * input_shape.back() *
+        std::accumulate(std::begin(kernel_shape), std::end(kernel_shape), 1, std::multiplies<size_t>());
+    const std::vector<float> filter_weights = CommonTestUtils::generate_float_numbers(filter_total_size, -0.01f, 0.01f);
+    const auto shape_size = input_shape.size();
+    auto conv = ngraph::builder::makeConvolution(input, ngPrc, kernel_shape, std::vector<size_t>(shape_size - 2, 1),
+        std::vector<ptrdiff_t>(shape_size - 2, 0l), std::vector<ptrdiff_t>(shape_size - 2, 0l),
+        std::vector<size_t>(shape_size - 2, 1), ngraph::op::PadType::VALID, num_out_channels, false, filter_weights);
+
+    if (!withPool) {
+        return conv;
+    }
+
+    auto pool_kernal_shape = GetKernelShape(GetLayerTransposedOutputShape(conv), 2, false);
+    auto pool = ngraph::builder::makePooling(conv, pool_kernal_shape, std::vector<size_t>(shape_size - 2, 0),
+        std::vector<size_t>(shape_size - 2, 0), pool_kernal_shape, ngraph::op::RoundingType::FLOOR,
+        ngraph::op::PadType::VALID, false, ngraph::helpers::PoolingTypes::MAX);
+   return withActivation ? std::make_shared<ngraph::opset3::Relu>(pool) : pool;
 }
 
 class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<removePermutationsAddParamPassParams>,
@@ -80,25 +136,19 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
             std::tie(netPrecision, targetDevice, configuration, inputShape, output1D) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+            size_t shape_size = inputShape.size();
+            ASSERT_GT(shape_size, 2);
+            ASSERT_LT(shape_size, 5);
             size_t in_total_dims_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
             auto params = ngraph::builder::makeParams(ngPrc, { {1, in_total_dims_size} });
 
-            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, inputShape);
+            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
+                ngraph::Shape{ shape_size }, inputShape);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
-            auto permute1 = std::make_shared<ngraph::opset1::Transpose>(reshape1,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
-            size_t num_out_channels = 12;
-            auto kernel_shape = output1D ? ngraph::Shape{inputShape[1], inputShape[2]} :
-                GetKernelShape(inputShape[1], inputShape[2], 8);
-            std::vector<float> filter_weights = CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[3] *
-                                                                                        kernel_shape[0] * kernel_shape[1],
-                                                                                        -0.2f, 0.2f);
-            auto conv = ngraph::builder::makeConvolution(permute1, ngPrc, kernel_shape, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
-                ngraph::op::PadType::VALID, num_out_channels, false, filter_weights);
-
-            auto permute2 = std::make_shared<ngraph::opset1::Transpose>(conv,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
+            auto permute1 = CreateTranspose(reshape1, shape_size, true);
+            auto conv = CreateConvolution(permute1, ngPrc, inputShape, output1D);
+            auto permute2 = CreateTranspose(conv, shape_size, false);
 
             auto conv_out_size = std::accumulate(std::begin(conv->get_output_shape(0)), std::end(conv->get_output_shape(0)),
                 size_t(1), std::multiplies<size_t>());
@@ -111,7 +161,7 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
         }
 };
 
-class RemovePermutationsNHWCToNCHWPass4DOutputTest : public testing::WithParamInterface<removePermutationsPassParams>,
+class RemovePermutationsNHWCToNCHWPassNoReshapesTest : public testing::WithParamInterface<removePermutationsPassParams>,
     public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<removePermutationsPassParams> obj) {
@@ -138,19 +188,18 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+        size_t shape_size = inputShape.size();
+        ASSERT_GT(shape_size, 2);
+        ASSERT_LT(shape_size, 5);
+
         auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
-        auto permute1 = std::make_shared<ngraph::opset1::Transpose>(params[0],
-                             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
-
-        auto kernel_shape = GetKernelShape(inputShape[1], inputShape[2], 8);
-        auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, kernel_shape, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, 12);
-
-        auto permute2 = std::make_shared<ngraph::opset1::Transpose>(conv1,
-                             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
+        auto permute1 = CreateTranspose(params[0], shape_size, true);
+        auto conv = CreateConvolution(permute1, ngPrc, inputShape);
+        auto permute2 = CreateTranspose(conv, shape_size, false);
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(permute2) };
 
-        function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPass4DOutput");
+        function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPassNoReshapes");
     }
 };
 
@@ -209,39 +258,24 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
             std::tie(netPrecision, targetDevice, configuration, inputShape, withActivation) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+            size_t shape_size = inputShape.size();
+            ASSERT_GT(shape_size, 2);
+            ASSERT_LT(shape_size, 5);
+
             size_t in_total_dims_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
             auto params = ngraph::builder::makeParams(ngPrc, { {1, in_total_dims_size} });
 
-            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, inputShape);
+            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ shape_size }, inputShape);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
-            auto permute1 = std::make_shared<ngraph::opset1::Transpose>(reshape1,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
-            size_t num_out_channels = 12;
-            auto kernel_shape = GetKernelShape(inputShape[1], inputShape[2], 8);
-            std::vector<float> filter_weights = CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[3] *
-                                                                                        kernel_shape[0] * kernel_shape[1],
-                                                                                        -0.2f, 0.2f);
-            auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, kernel_shape, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
-                ngraph::op::PadType::VALID, num_out_channels, false, filter_weights);
-            auto pool_kernal_shape = (inputShape[1] == 1 ? std::vector<size_t>{1, 2} : std::vector<size_t>{2, 1});
-            auto pool = ngraph::builder::makePooling(conv1, pool_kernal_shape, {0, 0}, {0, 0}, pool_kernal_shape, ngraph::op::RoundingType::FLOOR,
-                                                     ngraph::op::PadType::VALID, false, ngraph::helpers::PoolingTypes::MAX);
+            auto permute1 = CreateTranspose(reshape1, shape_size, true);
+            auto conv = CreateConvolution(permute1, ngPrc, inputShape, false, true, true);
+            auto permute2 = CreateTranspose(conv, shape_size, false);
 
-            size_t out_width = ((inputShape[2] - kernel_shape[1]) + 1) / pool_kernal_shape[1];
-            size_t out_height = ((inputShape[1] - kernel_shape[0]) + 1) / pool_kernal_shape[0];
-
-            auto pool_output = pool;
-            if (withActivation) {
-                auto relu2 = std::make_shared<ngraph::opset3::Relu>(pool);
-                pool_output = relu2;
-            }
-
-            auto permute2 = std::make_shared<ngraph::opset1::Transpose>(pool_output,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
-
-            std::vector<size_t> outFormShapes = { 1, out_width * out_height * num_out_channels };
-            auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+            auto conv_out_size = std::accumulate(std::begin(conv->get_output_shape(0)), std::end(conv->get_output_shape(0)),
+                size_t(1), std::multiplies<size_t>());
+            auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
+                ngraph::Shape{ 2 }, ngraph::Shape{ 1, conv_out_size });
             auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(permute2, pattern2, false);
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
@@ -299,39 +333,25 @@ class RemovePermutationsWithTwoConvTest : public testing::WithParamInterface<rem
             std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+            size_t shape_size = inputShape.size();
+            ASSERT_GT(shape_size, 2);
+            ASSERT_LT(shape_size, 5);
+
             size_t in_total_dims_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
             auto params = ngraph::builder::makeParams(ngPrc, { {1, in_total_dims_size} });
 
-            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, inputShape);
+            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ shape_size }, inputShape);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
-            auto permute1 = std::make_shared<ngraph::opset1::Transpose>(reshape1,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
-            size_t num_out_channels = 12;
-            size_t kernel_size = 8;
-            auto kernel_shape1 = GetKernelShape(inputShape[1], inputShape[2], kernel_size);
-            std::vector<float> filter_weights_1 = CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[3] *
-                                                                                          kernel_shape1[0] * kernel_shape1[1],
-                                                                                          0.0f, 0.5f);
-            auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, kernel_shape1, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
-                ngraph::op::PadType::VALID, num_out_channels, false, filter_weights_1);
-            size_t out_width = conv1->get_output_shape(0).at(3);
-            size_t out_height = conv1->get_output_shape(0).at(2);
+            auto permute1 = CreateTranspose(reshape1, shape_size, true);
+            auto conv1 = CreateConvolution(permute1, ngPrc, inputShape);
+            auto conv2 = CreateConvolution(conv1, ngPrc, GetLayerTransposedOutputShape(conv1));
+            auto permute2 = CreateTranspose(conv2, shape_size, false);
 
-            std::vector<size_t> kernel_shape2 = (out_height == 1 ? std::vector<size_t>{1, kernel_size} : std::vector<size_t>{kernel_size, 1});
-            std::vector<float> filter_weights_2 = CommonTestUtils::generate_float_numbers(num_out_channels * num_out_channels *
-                                                                                          kernel_size,
-                                                                                          -0.2f, 0.2f);
-            auto conv2 = ngraph::builder::makeConvolution(conv1, ngPrc, kernel_shape2, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
-                ngraph::op::PadType::VALID, num_out_channels, false, filter_weights_2);
-            out_width = conv2->get_output_shape(0).at(3);
-            out_height = conv2->get_output_shape(0).at(2);
-
-            auto permute2 = std::make_shared<ngraph::opset1::Transpose>(conv2,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
-
-            std::vector<size_t> outFormShapes = { 1, out_width * out_height * num_out_channels };
-            auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+            auto conv_out_size = std::accumulate(std::begin(conv2->get_output_shape(0)), std::end(conv2->get_output_shape(0)),
+                size_t(1), std::multiplies<size_t>());
+            auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
+                ngraph::Shape{ 2 }, ngraph::Shape{ 1, conv_out_size });
             auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(permute2, pattern2, false);
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
@@ -390,46 +410,35 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+            size_t shape_size = inputShape.size();
+            ASSERT_GT(shape_size, 2);
+            ASSERT_LT(shape_size, 5);
+
             size_t in_total_dims_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
             auto params = ngraph::builder::makeParams(ngPrc, { {1, 2 * in_total_dims_size} });
             auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
-            auto in_width = inputShape[2];
-            auto in_height = inputShape[1];
-            auto in_channels = inputShape[3];
 
-            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, inputShape);
+            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
+                ngraph::Shape{ shape_size }, inputShape);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(split->output(0), pattern1, false);
-            auto permute1 = std::make_shared<ngraph::opset1::Transpose>(reshape1,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
-            size_t num_out_channels = 12;
-            auto kernel_shape = GetKernelShape(inputShape[1], inputShape[2], 8);
-            std::vector<float> filter_weights_1 = CommonTestUtils::generate_float_numbers(num_out_channels * in_channels *
-                                                                                          kernel_shape[0] * kernel_shape[1],
-                                                                                          -0.2f, 0.2f);
-            auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, kernel_shape, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
-                ngraph::op::PadType::VALID, num_out_channels, false, filter_weights_1);
+            auto permute1 = CreateTranspose(reshape1, shape_size, true);
+            auto conv1 = CreateConvolution(permute1, ngPrc, inputShape);
 
-            auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, inputShape);
+            auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
+                ngraph::Shape{ shape_size }, inputShape);
             auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(split->output(1), pattern2, false);
-            auto permute2 = std::make_shared<ngraph::opset1::Transpose>(reshape2,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
-            std::vector<float> filter_weights_2 = CommonTestUtils::generate_float_numbers(num_out_channels * in_channels *
-                                                                                          kernel_shape[0] * kernel_shape[1],
-                                                                                          -0.2f, 0.2f);
-            auto conv2 = ngraph::builder::makeConvolution(permute2, ngPrc, kernel_shape, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
-                ngraph::op::PadType::VALID, num_out_channels, false, filter_weights_2);
+            auto permute2 = CreateTranspose(reshape2, shape_size, true);
+            auto conv2 = CreateConvolution(permute2, ngPrc, inputShape);
 
             auto add = std::make_shared<ngraph::opset1::Add>(conv1, conv2);
+            auto permute3 = CreateTranspose(add, add->get_output_shape(0).size(), false);
 
-            auto permute3 = std::make_shared<ngraph::opset1::Transpose>(add,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
-
-            size_t out_width = ((in_width - kernel_shape[1]) + 1);
-            size_t out_height = ((in_height - kernel_shape[0]) + 1);
-            std::vector<size_t> outFormShapes = { 1, out_width * out_height * num_out_channels };
-            auto pattern3 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+            auto conv_out_size = std::accumulate(std::begin(add->get_output_shape(0)), std::end(add->get_output_shape(0)),
+                size_t(1), std::multiplies<size_t>());
+            auto pattern3 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
+                ngraph::Shape{ 2 }, ngraph::Shape{ 1, conv_out_size });
             auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(permute3, pattern3, false);
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape3) };
@@ -441,7 +450,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
         Run();
     };
 
-    TEST_P(RemovePermutationsNHWCToNCHWPass4DOutputTest, CompareWithRefImpl) {
+    TEST_P(RemovePermutationsNHWCToNCHWPassNoReshapesTest, CompareWithRefImpl) {
         Run();
     };
 
@@ -487,7 +496,14 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
         {1, 32, 1, 2},
         {1, 32, 1, 8},
         {1, 32, 1, 9},
-        {1, 16, 8, 1}
+        {1, 16, 8, 1},
+        {1, 168, 1},
+        {1, 168, 2},
+        {1, 168, 4},
+        {1, 32, 1},
+        {1, 32, 2},
+        {1, 32, 8},
+        {1, 32, 9}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPassTest,
@@ -499,13 +515,13 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             ::testing::ValuesIn(std::vector<bool>{false, true})), // with 1d output of convolution
         RemovePermutationsNHWCToNCHWPassTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPass4DOutputTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPassNoReshapesTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
             ::testing::ValuesIn(inputShapes)),
-        RemovePermutationsNHWCToNCHWPass4DOutputTest::getTestCaseName);
+        RemovePermutationsNHWCToNCHWPassNoReshapesTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsWithPoolAndActTest,
         ::testing::Combine(
