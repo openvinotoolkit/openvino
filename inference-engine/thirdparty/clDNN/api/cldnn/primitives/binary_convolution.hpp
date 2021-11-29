@@ -23,8 +23,7 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the binary_convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal binary_convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -38,7 +37,7 @@ struct binary_convolution : public primitive_base<binary_convolution> {
                        const primitive_id& input,
                        const std::vector<primitive_id>& weights,
                        tensor stride = {1, 1, 1, 1},
-                       tensor input_offset = {0, 0, 0, 0},
+                       tensor pad = {0, 0, 0, 0},
                        tensor dilation = {1, 1, 1, 1},
                        tensor output_size = {0, 0, 0, 0},
                        int groups = 1,
@@ -47,7 +46,7 @@ struct binary_convolution : public primitive_base<binary_convolution> {
                        const primitive_id& ext_prim_id = "",
                        const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type {calc_precision}),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           output_size(output_size),
@@ -55,8 +54,8 @@ struct binary_convolution : public primitive_base<binary_convolution> {
           pad_value(pad_value),
           weights(weights) {}
 
-    /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the binary_convolution window should start calculations.
-    tensor input_offset;
+    /// @brief Defines logical pad value added to input tensor
+    tensor pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     tensor stride;
     /// @brief Defines gaps in the input - dilation rate k=1 is normal binary_convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.

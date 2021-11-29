@@ -4,6 +4,8 @@
 
 #include <cmath>
 
+#include <ngraph/opsets/opset1.hpp>
+#include <ie_ngraph_utils.hpp>
 #include <ngraph/op/topk.hpp>
 #include "ie_parallel.hpp"
 #include "mkldnn_topk_node.h"
@@ -18,10 +20,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNTopKNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto topKOp = ngraph::as_type_ptr<const ngraph::op::v1::TopK>(op);
         if (!topKOp) {
             errorMessage = "Node is not an instance of the TopK from the operations set v1 or v3";
@@ -52,36 +50,9 @@ MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mk
     }
     auto topK1Op = ngraph::as_type_ptr<ngraph::op::v1::TopK>(op);
 
-    VectorDims dstDims = topK1Op->get_output_shape(TOPK_VALUE);
-    src_dims = topK1Op->get_input_shape(TOPK_DATA);
-
     axis = topK1Op->get_axis();
-
-    if (topK1Op->get_mode() == ngraph::op::TopKMode::MAX)
-        mode_max = true;
-    else
-        mode_max = false;
-
-    if (topK1Op->get_sort_type() == ngraph::op::TopKSortType::SORT_VALUES)
-        sort_value = true;
-    else
-        sort_value = false;
-
-    int j;
-    for (j = src_dims.size() - 1; j >= 0; j--) {
-        if (src_dims[j] != 1) break;
-    }
-    if (static_cast<size_t>(j) == axis) is_last_dim = true;
-
-    for (size_t i = 0; i < axis; i++) {
-        axis_step *= src_dims[i];
-    }
-    axis_dim = src_dims[axis];
-    for (size_t i = (axis + 1); i < src_dims.size(); i++) {
-        axis_stride *= src_dims[i];
-    }
-    dim = static_cast<int>(src_dims[axis]);
-    before_num = count(src_dims, 0, axis);
+    mode_max = topK1Op->get_mode() == ngraph::op::TopKMode::MAX;
+    sort_value = topK1Op->get_sort_type() == ngraph::op::TopKSortType::SORT_VALUES;
 }
 
 void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
@@ -134,10 +105,22 @@ void MKLDNNTopKNode::execute(mkldnn::stream strm) {
         IE_THROW() << errorMsg;
     }
 
-    if (src_dims[axis] < static_cast<size_t>(src_k))
-        src_k = src_dims[axis];
-
     const VectorDims& in_dims = getParentEdgeAt(TOPK_DATA)->getMemory().getStaticDims();
+
+    if (in_dims[axis] < static_cast<size_t>(src_k))
+        src_k = in_dims[axis];
+
+    bool is_last_dim = false;
+    for (int j = in_dims.size() - 1; j >= 0; j--) {
+        if (in_dims[j] != 1) {
+            if (static_cast<size_t>(j) == axis)
+                is_last_dim = true;
+            break;
+        }
+    }
+
+    dim = static_cast<int>(in_dims[axis]);
+    before_num = count(in_dims, 0, axis);
 
     if (src_k == 1) {
         if (is_last_dim) {
@@ -168,6 +151,49 @@ void MKLDNNTopKNode::execute(mkldnn::stream strm) {
 
 bool MKLDNNTopKNode::created() const {
     return getType() == TopK;
+}
+
+bool MKLDNNTopKNode::needPrepareParams() const {
+    return false;
+}
+
+void MKLDNNTopKNode::executeDynamicImpl(mkldnn::stream strm) {
+    return execute(strm);
+}
+
+void MKLDNNTopKNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
+}
+
+bool MKLDNNTopKNode::needShapeInfer() const {
+    const int kValue = reinterpret_cast<int*>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    return inputShapesModified() || kValue != src_k;
+}
+
+std::vector<VectorDims> MKLDNNTopKNode::shapeInfer() const {
+    if (dynamic_cast<ngraph::opset1::Constant*>(opToShapeInfer->get_input_node_ptr(1))) {
+        return MKLDNNNode::shapeInfer();
+    }
+
+    opToShapeInfer->get_input_tensor(0).set_partial_shape(getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().toPartialShape());
+
+    const auto& kMemory = getParentEdgesAtPort(1)[0]->getMemory();
+    const auto ngPrecision = InferenceEngine::details::convertPrecision(kMemory.getDesc().getPrecision());
+    const auto kConst = ngraph::opset1::Constant::create(ngPrecision, VectorDims{}, kMemory.GetPtr());
+
+    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs({ opToShapeInfer->input_value(0), kConst });
+    localShapeInferOp->validate_and_infer_types();
+
+    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    for (size_t i = 0; i < newOutputShapes.size(); ++i) {
+        const auto& pShape = localShapeInferOp->get_output_partial_shape(i);
+        if (pShape.is_dynamic())
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
+        newOutputShapes[i] = pShape.get_shape();
+    }
+    return newOutputShapes;
 }
 
 template <class Compare1, template <typename> class Compare2>
