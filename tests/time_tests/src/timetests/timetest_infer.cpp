@@ -67,21 +67,6 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
             SCOPED_TIMER(load_network);
             exeNetwork = ie.LoadNetwork(model, device);
         }
-       }
-
-      {
-          SCOPED_TIMER(first_inference);
-          inferRequest = exeNetwork.CreateInferRequest();
-
-          {
-            SCOPED_TIMER(fill_inputs);
-            const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-            batchSize = batchSize != 0 ? batchSize : 1;
-            fillBlobs(inferRequest, inputsInfo, batchSize);
-          }
-
-          inferRequest.Infer();
-      }
     }
 
     {
