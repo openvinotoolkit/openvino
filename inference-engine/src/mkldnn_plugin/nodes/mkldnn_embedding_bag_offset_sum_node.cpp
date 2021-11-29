@@ -13,10 +13,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNEmbeddingBagOffsetSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto embBagOffsetSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagOffsetsSum>(op);
         if (!embBagOffsetSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagOffsetsSum operation from opset v3.";
@@ -35,14 +31,11 @@ MKLDNNEmbeddingBagOffsetSumNode::MKLDNNEmbeddingBagOffsetSumNode(const std::shar
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (op->get_input_shape(INDICES_IDX).size() != 1)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid shape.";
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
+        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
 
-    if (op->get_input_shape(OFFSETS_IDX).size() != 1)
-        IE_THROW() << "'" << _layerName << "' layer's offsets data has invalid shape.";
-
-    _indicesLen = op->get_input_shape(INDICES_IDX)[0];
-    _offsetsLen = op->get_input_shape(OFFSETS_IDX)[0];
+    if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul)
+        IE_THROW() << "'" << _layerName << "' layer's offsets data has invalid rank.";
 }
 
 void MKLDNNEmbeddingBagOffsetSumNode::initSupportedPrimitiveDescriptors() {
@@ -75,6 +68,20 @@ void MKLDNNEmbeddingBagOffsetSumNode::initSupportedPrimitiveDescriptors() {
         inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+}
+
+void MKLDNNEmbeddingBagOffsetSumNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNEmbeddingBagOffsetSumNode::prepareParams() {
+    _indicesLen = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
+    _offsetsLen = getParentEdgesAtPort(OFFSETS_IDX)[0]->getMemory().getStaticDims()[0];
+    MKLDNNEmbeddingBagSumNode::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
 }
 
 void MKLDNNEmbeddingBagOffsetSumNode::initFromInputs() {
