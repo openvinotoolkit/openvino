@@ -106,6 +106,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceMulticlassNmsTest.*esiType=i64.*evoType=i64.*)",
         // CVS-64096
         R"(.*ReferenceNonMaxSuppressionTest.*esiType=i32.*evoType=i32.*)",
+        // CVS-63981
+        R"(.*ReferenceRegionYoloLayerTest.*iType=bf16.*region_yolo_v2_caffe.*)",
     };
 
 #ifdef _WIN32

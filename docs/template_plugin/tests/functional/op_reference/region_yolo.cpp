@@ -72,7 +72,8 @@ public:
     template<typename T>
     inline static std::vector<T> read_binary_file(const std::string& filename) {
         std::string path = TEST_FILES + filename;
-        std::vector<T> file_content;
+        std::vector<float> file_content;
+        std::vector<T> type_converted_data;
         std::ifstream inputs_fs{path, std::ios::in | std::ios::binary};
         if (!inputs_fs) {
             throw std::runtime_error("Failed to open the file: " + path);
@@ -81,13 +82,16 @@ public:
         inputs_fs.seekg(0, std::ios::end);
         auto size = inputs_fs.tellg();
         inputs_fs.seekg(0, std::ios::beg);
-        if (size % sizeof(T) != 0) {
+        if (size % sizeof(float) != 0) {
             throw std::runtime_error("Error reading binary file content: Input file size (in bytes) "
                                     "is not a multiple of requested data type size.");
         }
-        file_content.resize(size / sizeof(T));
+        file_content.resize(size / sizeof(float));
+        type_converted_data.resize(size / sizeof(float));
         inputs_fs.read(reinterpret_cast<char*>(file_content.data()), size);
-        return file_content;
+
+        std::transform(file_content.begin(), file_content.end(), type_converted_data.begin(), [](float x) { return (T)x;});
+        return type_converted_data;
     }
 };
 
@@ -141,6 +145,20 @@ std::vector<RegionYoloParams> generateRegionYoloParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RegionYoloParams> regionYoloParams {
+        RegionYoloParams(5, 4, 20, true, 1, 3,
+                        1, 125, 13, 13,
+                        std::vector<int64_t>{0, 1, 2},
+                        IN_ET,
+                        RegionYoloParams::read_binary_file<T>("/region_in_yolov2_caffe.data"),
+                        RegionYoloParams::read_binary_file<T>("/region_out_yolov2_caffe.data"),
+                        "region_yolo_v2_caffe"),
+        RegionYoloParams(9, 4, 20, false, 1, 3,
+                        1, 75, 32, 32,
+                        std::vector<int64_t>{0, 1, 2},
+                        IN_ET,
+                        RegionYoloParams::read_binary_file<T>("/region_in_yolov3_mxnet.data"),
+                        RegionYoloParams::read_binary_file<T>("/region_out_yolov3_mxnet.data"),
+                        "region_yolo_v3_mxnet"),
         RegionYoloParams(1, 4, 1, false, 1, 3,
                         1, 8, 2, 2,
                         std::vector<int64_t>{0},
@@ -155,33 +173,12 @@ std::vector<RegionYoloParams> generateRegionYoloParams() {
     return regionYoloParams;
 }
 
-std::vector<RegionYoloParams> generateRegionYoloParamsFromFile() {
-    std::vector<RegionYoloParams> regionYoloParams {
-        RegionYoloParams(5, 4, 20, true, 1, 3,
-                        1, 125, 13, 13,
-                        std::vector<int64_t>{0, 1, 2},
-                        element::Type_t::f32,
-                        RegionYoloParams::read_binary_file<float>("/region_in_yolov2_caffe.data"),
-                        RegionYoloParams::read_binary_file<float>("/region_out_yolov2_caffe.data"),
-                        "region_yolo_v2_caffe"),
-        RegionYoloParams(9, 4, 20, false, 1, 3,
-                        1, 75, 32, 32,
-                        std::vector<int64_t>{0, 1, 2},
-                        element::Type_t::f32,
-                        RegionYoloParams::read_binary_file<float>("/region_in_yolov3_mxnet.data"),
-                        RegionYoloParams::read_binary_file<float>("/region_out_yolov3_mxnet.data"),
-                        "region_yolo_v3_mxnet"),
-    };
-    return regionYoloParams;
-}
-
 std::vector<RegionYoloParams> generateRegionYoloCombinedParams() {
     const std::vector<std::vector<RegionYoloParams>> regionYoloTypeParams {
         generateRegionYoloParams<element::Type_t::f64>(),
         generateRegionYoloParams<element::Type_t::f32>(),
         generateRegionYoloParams<element::Type_t::f16>(),
-        generateRegionYoloParams<element::Type_t::bf16>(),
-        generateRegionYoloParamsFromFile()
+        generateRegionYoloParams<element::Type_t::bf16>()
         };
     std::vector<RegionYoloParams> combinedParams;
 
