@@ -215,7 +215,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
                 if (event.get() != NULL) {
                     auto profiling_intervals = event->get_profiling_info();
                     for (auto const& profiling_interval : profiling_intervals) {
-                        if (profiling_interval.name == "executing") {
+                        if (profiling_interval.stage == instrumentation::profiling_stage::executing) {
                             kernel_run_time = std::min(profiling_interval.value->value(), kernel_run_time);
                             num_of_runs++;
                             break;

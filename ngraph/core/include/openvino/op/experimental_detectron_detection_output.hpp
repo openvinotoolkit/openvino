@@ -19,7 +19,8 @@ namespace v6 {
 /// information on location and score predictions.
 class OPENVINO_API ExperimentalDetectronDetectionOutput : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ExperimentalDetectronDetectionOutput", "opset6", op::Op, 6);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {
@@ -68,6 +69,10 @@ public:
 
 private:
     Attributes m_attrs;
+    template <class T>
+    friend void shape_infer(const ExperimentalDetectronDetectionOutput* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

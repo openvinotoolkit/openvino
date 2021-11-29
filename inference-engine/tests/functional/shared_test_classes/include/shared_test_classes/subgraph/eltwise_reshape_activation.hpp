@@ -18,7 +18,7 @@ using EltwiseReshapeActivationParams = typename std::tuple<
 >;
 
 class EltwiseReshapeActivation : public testing::WithParamInterface<EltwiseReshapeActivationParams>,
-                                 public LayerTestsUtils::LayerTestsCommon {
+                                 virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ParamType>& obj);
 

@@ -134,7 +134,7 @@ void ov::AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::sha
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }
 
-const ov::AttributeVisitor::node_id_t ov::AttributeVisitor::invalid_node_id = "";
+constexpr char ov::AttributeVisitor::invalid_node_id[];
 
 void ov::AttributeVisitor::register_node(const std::shared_ptr<ngraph::Node>& node, node_id_t id) {
     if (id == invalid_node_id) {

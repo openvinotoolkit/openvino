@@ -207,11 +207,8 @@ extern template class VariantImpl<ngraph::Mask::Ptr>;
 template<>
 class VariantWrapper<ngraph::Mask::Ptr> : public VariantImpl<ngraph::Mask::Ptr> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::Mask", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<Mask::Ptr>");
+    BWDCMP_RTTI_DECLARATION;
 
     static std::shared_ptr<VariantWrapper<ngraph::Mask::Ptr>> create(const value_type & value) {
         return std::make_shared<VariantWrapper<ngraph::Mask::Ptr>>(value);

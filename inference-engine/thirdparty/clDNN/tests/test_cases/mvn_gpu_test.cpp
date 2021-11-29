@@ -12,6 +12,8 @@
 
 #include <iostream>
 
+#include <cldnn/runtime/debug_configuration.hpp>
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -638,8 +640,8 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
 };
 
 TEST_P(mvn_random_test, random) {
-    auto& eng = tests::get_test_engine();
-    this->execute(GetParam(), eng);
+    auto& engine = tests::get_test_engine();
+    this->execute(GetParam(), engine);
 }
 
 struct mvn_test_case_generator : std::vector<mvn_basic_test_params> {
@@ -712,3 +714,186 @@ INSTANTIATE_TEST_SUITE_P(extended,
                         testing::ValuesIn(mvn_test_case_generator()
                                               .extended_tests(format::b_fs_yx_fsv16, data_types::i8)
                                               .extended_tests(format::b_fs_yx_fsv16, data_types::u8)));
+
+struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
+    template <typename T>
+    void fill_data(cldnn::memory::ptr mem, const tests::VVVVVF<T>& data) {
+        auto size = mem->get_layout().size;
+        cldnn::mem_lock<T> ptr(mem, get_test_stream());
+        for (size_t bi = 0; bi < static_cast<size_t>(size.batch[0]); ++bi) {
+            for (size_t fi = 0; fi < static_cast<size_t>(size.feature[0]); ++fi) {
+                for (size_t zi = 0; zi < static_cast<size_t>(size.spatial[2]); ++zi) {
+                    for (size_t yi = 0; yi < static_cast<size_t>(size.spatial[1]); ++yi) {
+                        auto tensor_addr = tensor(batch(bi), feature(fi), spatial(0, yi, zi, 0));
+                        auto offset = mem->get_layout().get_linear_offset(tensor_addr);
+                        for (size_t xi = 0; xi < static_cast<size_t>(size.spatial[0]); ++xi) {
+                            ptr[offset + xi] = data[bi][fi][xi][yi][zi];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    template <typename T>
+    void fill_random_data(cldnn::memory::ptr mem, int min, int max, int k = 8) {
+        auto size = mem->get_layout().size;
+        auto input_data = tests::generate_random_5d<T>(size.batch[0],
+                                                       size.feature[0],
+                                                       size.spatial[0],
+                                                       size.spatial[1],
+                                                       size.spatial[2],
+                                                       min,
+                                                       max,
+                                                       k);
+        fill_data(mem, input_data);
+    }
+
+    size_t get_x_pitch(layout& layout) {
+        auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
+        auto tensor_x1 = tensor(batch(0), feature(0), spatial(1, 0, 0, 0));
+        auto x0 = layout.get_linear_offset(tensor_x0);
+        auto x1 = layout.get_linear_offset(tensor_x1);
+        return (x1 - x0);
+    }
+
+    template <typename T>
+    bool compare_outputs(const cldnn::memory::ptr out_ref, const cldnn::memory::ptr out_opt) {
+        auto output_lay = out_ref->get_layout();
+        auto opt_output_lay = out_opt->get_layout();
+
+        size_t b = output_lay.size.batch[0];
+        size_t f = output_lay.size.feature[0];
+        size_t x = output_lay.size.spatial[0];
+        size_t y = output_lay.size.spatial[1];
+        cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
+        cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
+
+        auto ref_x_pitch = get_x_pitch(output_lay);
+        auto opt_x_pitch = get_x_pitch(opt_output_lay);
+
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(0, yi, 0, 0));
+                    auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
+                    auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
+                        auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
+                        EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    void execute(const mvn_basic_test_params& params) {
+        auto& size = params.input_size;
+        auto& output_pad = params.output_pad;
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({params.input_type, format::bfyx, params.input_size});
+        switch (params.input_type) {
+            case data_types::f32:
+                fill_random_data<float>(input, -127, 127);
+                break;
+            case data_types::f16:
+                fill_random_data<FLOAT16>(input, -127, 127, 1);
+                break;
+            case data_types::i8:
+                fill_random_data<int8_t>(input, -127, 127, 1);
+                break;
+            case data_types::u8:
+                fill_random_data<uint8_t>(input, 0, 255, 1);
+                break;
+            default:
+                break;
+        }
+
+        topology topo;
+        topo.add(input_layout("input", input->get_layout()));
+        auto prim = mvn("mvn", "input", params.normalize_variance, 1e-10f, false, params.across_channels);
+        prim.output_padding = output_pad;
+        topo.add(prim);
+        auto build_opts = build_options();
+        build_opts.set_option(build_option::outputs({"mvn"}));
+        build_opts.set_option(build_option::force_implementations({ {"mvn", {format::type::bfyx, "mvn_gpu_bfyx_opt"}} }));
+
+        network net(engine, topo, build_opts);
+        net.set_input_data("input", input);
+
+        auto outputs = net.execute();
+        auto output = outputs.at("mvn").get_memory();
+
+        topology topo_opt;
+        topo_opt.add(input_layout("input", input->get_layout()));
+        topo_opt.add(reorder("input_to_target_layout", "input", {params.input_type, params.input_format, size}));
+        auto prim_opt = mvn("mvn_opt", "input_to_target_layout", params.normalize_variance, 1e-10f, false, params.across_channels);
+        prim_opt.output_padding = output_pad;
+        topo_opt.add(prim_opt);
+        auto build_opts_opt = build_options();
+        build_opts_opt.set_option(build_option::outputs({"mvn_opt", "input_to_target_layout"}));
+        build_opts_opt.set_option(build_option::force_implementations({ {"mvn_opt", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}} }));
+
+        network net_opt(engine, topo_opt, build_opts_opt);
+        net_opt.set_input_data("input", input);
+
+        auto outputs_opt = net_opt.execute();
+        auto output_opt = outputs_opt.at("mvn_opt").get_memory();
+
+        auto output_dtype = output->get_layout().data_type;
+        auto output_opt_dtype = output_opt->get_layout().data_type;
+        if (output_dtype == output_opt_dtype) {
+            if(output_dtype == data_types::f32) {
+                compare_outputs<float>(output, output_opt);
+            } else if (output_dtype == data_types::f16) {
+                compare_outputs<FLOAT16>(output, output_opt);
+            } else if (output_dtype == data_types::i8) {
+                compare_outputs<int8_t>(output, output_opt);
+            } else if (output_dtype == data_types::u8) {
+                compare_outputs<uint8_t>(output, output_opt);
+            } else {
+                FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
+            }
+        } else {
+            FAIL() << "Outputs have diffent data types: "
+                << static_cast<size_t>(output_dtype) << ", "
+                << static_cast<size_t>(output_opt_dtype);
+        }
+    }
+};
+
+TEST_P(mvn_random_test_bsv32, random) {
+    this->execute(GetParam());
+}
+
+struct mvn_test_case_generator_bsv32 : std::vector<mvn_basic_test_params> {
+    mvn_test_case_generator_bsv32& add(mvn_basic_test_params params) {
+        push_back(params);
+        return *this;
+    }
+
+    mvn_test_case_generator_bsv32& bsv32_tests(format::type fmt, data_types in_dt) {
+        push_back(mvn_basic_test_params{fmt, in_dt, {32, 32, 10, 10}, true, false, false, padding()});
+        push_back(mvn_basic_test_params{fmt, in_dt, {32, 32, 10, 10}, false, false, false, padding()});
+        return *this;
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv32,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .bsv32_tests(format::bs_fs_yx_bsv32_fsv32, data_types::i8)));
+
+
+INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv16,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .bsv32_tests(format::bs_fs_yx_bsv32_fsv16, data_types::f16)));
+
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16,
+                        mvn_random_test_bsv32,
+                        testing::ValuesIn(mvn_test_case_generator_bsv32()
+                                              .bsv32_tests(format::b_fs_yx_fsv16, data_types::i8)));

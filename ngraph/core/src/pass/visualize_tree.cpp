@@ -102,8 +102,6 @@ using namespace std;
  * dealt with, but have not had time to implement them yet. --amprocte
  */
 
-const int ngraph::pass::VisualizeTree::max_jump_distance = 20;
-
 class HeightMap {
 public:
     HeightMap() {}
@@ -171,8 +169,6 @@ static std::string get_attribute_values(const std::map<std::string, std::shared_
     }
     return ss.str();
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree", 0);
 
 bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f) {
     unordered_map<Node*, HeightMap> height_maps;

@@ -19,7 +19,8 @@ namespace v3 {
 ///       The values point to input elements at [0,0,0], [0,1,1] and [2,1,2]
 class OPENVINO_API NonZero : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonZero", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a NonZero operation.
     NonZero() = default;
     /// \brief Constructs a NonZero operation.
@@ -56,7 +57,9 @@ public:
     // Overload collision with method on Node
     using Node::set_output_type;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:

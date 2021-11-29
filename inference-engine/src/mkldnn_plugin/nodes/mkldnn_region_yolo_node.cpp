@@ -13,7 +13,7 @@
 #include "common/cpu_convert.h"
 #include <cpu/x64/jit_generator.hpp>
 #include <emitters/jit_bf16_emitters.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 
 using namespace MKLDNNPlugin;
@@ -261,6 +261,7 @@ MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& 
     num = regionYolo->get_num_regions();
     do_softmax = regionYolo->get_do_softmax();
     mask = regionYolo->get_mask();
+    block_size = 1;
 }
 
 void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {

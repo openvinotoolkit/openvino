@@ -6,19 +6,22 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "common/frontend_exceptions.hpp"
 #include "frontend_manager.hpp"
-#include "frontend_manager/frontend_exceptions.hpp"
-#include "frontend_manager/frontend_manager.hpp"
+#include "manager.hpp"
 #include "pyngraph/function.hpp"
 
 namespace py = pybind11;
 
 void regclass_pyngraph_Place(py::module m) {
-    py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> place(m, "Place", py::dynamic_attr());
+    py::class_<ov::frontend::Place, std::shared_ptr<ov::frontend::Place>> place(m,
+                                                                                "Place",
+                                                                                py::dynamic_attr(),
+                                                                                py::module_local());
     place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
 
     place.def("is_input",
-              &ngraph::frontend::Place::is_input,
+              &ov::frontend::Place::is_input,
               R"(
                 Returns true if this place is input for a model.
 
@@ -29,7 +32,7 @@ void regclass_pyngraph_Place(py::module m) {
              )");
 
     place.def("is_output",
-              &ngraph::frontend::Place::is_output,
+              &ov::frontend::Place::is_output,
               R"(
                 Returns true if this place is output for a model.
 
@@ -40,7 +43,7 @@ void regclass_pyngraph_Place(py::module m) {
              )");
 
     place.def("get_names",
-              &ngraph::frontend::Place::get_names,
+              &ov::frontend::Place::get_names,
               R"(
                 All associated names (synonyms) that identify this place in the graph in a framework specific way.
 
@@ -52,7 +55,7 @@ void regclass_pyngraph_Place(py::module m) {
              )");
 
     place.def("is_equal",
-              &ngraph::frontend::Place::is_equal,
+              &ov::frontend::Place::is_equal,
               py::arg("other"),
               R"(
                 Returns true if another place is the same as this place.
@@ -69,7 +72,7 @@ void regclass_pyngraph_Place(py::module m) {
              )");
 
     place.def("is_equal_data",
-              &ngraph::frontend::Place::is_equal_data,
+              &ov::frontend::Place::is_equal_data,
               py::arg("other"),
               R"(
                 Returns true if another place points to the same data.
@@ -89,13 +92,23 @@ void regclass_pyngraph_Place(py::module m) {
 
     place.def(
         "get_consuming_operations",
-        [](const ngraph::frontend::Place& self, py::object outputPortIndex) {
-            if (outputPortIndex == py::none()) {
-                return self.get_consuming_operations();
+        [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
+            if (outputName == py::none()) {
+                if (outputPortIndex == py::none()) {
+                    return self.get_consuming_operations();
+                } else {
+                    return self.get_consuming_operations(py::cast<int>(outputPortIndex));
+                }
             } else {
-                return self.get_consuming_operations(py::cast<int>(outputPortIndex));
+                if (outputPortIndex == py::none()) {
+                    return self.get_consuming_operations(py::cast<std::string>(outputName));
+                } else {
+                    return self.get_consuming_operations(py::cast<std::string>(outputName),
+                                                         py::cast<int>(outputPortIndex));
+                }
             }
         },
+        py::arg("outputName") = py::none(),
         py::arg("outputPortIndex") = py::none(),
         R"(
                 Returns references to all operation nodes that consume data from this place for specified output port.
@@ -103,6 +116,8 @@ void regclass_pyngraph_Place(py::module m) {
 
                 Parameters
                 ----------
+                outputName : str
+                    Name of output port group. May not be set if node has one output port group.
                 outputPortIndex : int
                     If place is an operational node it specifies which output port should be considered
                     May not be set if node has only one output port.
@@ -115,13 +130,22 @@ void regclass_pyngraph_Place(py::module m) {
 
     place.def(
         "get_target_tensor",
-        [](const ngraph::frontend::Place& self, py::object outputPortIndex) {
-            if (outputPortIndex == py::none()) {
-                return self.get_target_tensor();
+        [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
+            if (outputName == py::none()) {
+                if (outputPortIndex == py::none()) {
+                    return self.get_target_tensor();
+                } else {
+                    return self.get_target_tensor(py::cast<int>(outputPortIndex));
+                }
             } else {
-                return self.get_target_tensor(py::cast<int>(outputPortIndex));
+                if (outputPortIndex == py::none()) {
+                    return self.get_target_tensor(py::cast<std::string>(outputName));
+                } else {
+                    return self.get_target_tensor(py::cast<std::string>(outputName), py::cast<int>(outputPortIndex));
+                }
             }
         },
+        py::arg("outputName") = py::none(),
         py::arg("outputPortIndex") = py::none(),
         R"(
                 Returns a tensor place that gets data from this place; applicable for operations,
@@ -129,6 +153,8 @@ void regclass_pyngraph_Place(py::module m) {
 
                 Parameters
                 ----------
+                outputName : str
+                    Name of output port group. May not be set if node has one output port group.
                 outputPortIndex : int
                     Output port index if the current place is an operation node and has multiple output ports.
                     May not be set if place has only one output port.
@@ -141,19 +167,31 @@ void regclass_pyngraph_Place(py::module m) {
 
     place.def(
         "get_producing_operation",
-        [](const ngraph::frontend::Place& self, py::object inputPortIndex) {
-            if (inputPortIndex == py::none()) {
-                return self.get_producing_operation();
+        [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
+            if (inputName == py::none()) {
+                if (inputPortIndex == py::none()) {
+                    return self.get_producing_operation();
+                } else {
+                    return self.get_producing_operation(py::cast<int>(inputPortIndex));
+                }
             } else {
-                return self.get_producing_operation(py::cast<int>(inputPortIndex));
+                if (inputPortIndex == py::none()) {
+                    return self.get_producing_operation(py::cast<std::string>(inputName));
+                } else {
+                    return self.get_producing_operation(py::cast<std::string>(inputName),
+                                                        py::cast<int>(inputPortIndex));
+                }
             }
         },
+        py::arg("inputName") = py::none(),
         py::arg("inputPortIndex") = py::none(),
         R"(
                 Get an operation node place that immediately produces data for this place.
 
                 Parameters
                 ----------
+                inputName : str
+                    Name of port group. May not be set if node has one input port group.
                 inputPortIndex : int
                     If a given place is itself an operation node, this specifies a port index.
                     May not be set if place has only one input port.
@@ -165,7 +203,7 @@ void regclass_pyngraph_Place(py::module m) {
              )");
 
     place.def("get_producing_port",
-              &ngraph::frontend::Place::get_producing_port,
+              &ov::frontend::Place::get_producing_port,
               R"(
                 Returns a port that produces data for this place.
 
@@ -177,7 +215,7 @@ void regclass_pyngraph_Place(py::module m) {
 
     place.def(
         "get_input_port",
-        [](const ngraph::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
+        [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
             if (inputName == py::none()) {
                 if (inputPortIndex == py::none()) {
                     return self.get_input_port();
@@ -213,7 +251,7 @@ void regclass_pyngraph_Place(py::module m) {
 
     place.def(
         "get_output_port",
-        [](const ngraph::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
+        [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
             if (outputName == py::none()) {
                 if (outputPortIndex == py::none()) {
                     return self.get_output_port();
@@ -248,7 +286,7 @@ void regclass_pyngraph_Place(py::module m) {
              )");
 
     place.def("get_consuming_ports",
-              &ngraph::frontend::Place::get_consuming_ports,
+              &ov::frontend::Place::get_consuming_ports,
               R"(
                 Returns all input ports that consume data flows through this place.
 
@@ -260,13 +298,22 @@ void regclass_pyngraph_Place(py::module m) {
 
     place.def(
         "get_source_tensor",
-        [](const ngraph::frontend::Place& self, py::object inputPortIndex) {
-            if (inputPortIndex == py::none()) {
-                return self.get_source_tensor();
+        [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
+            if (inputName == py::none()) {
+                if (inputPortIndex == py::none()) {
+                    return self.get_source_tensor();
+                } else {
+                    return self.get_source_tensor(py::cast<int>(inputPortIndex));
+                }
             } else {
-                return self.get_source_tensor(py::cast<int>(inputPortIndex));
+                if (inputPortIndex == py::none()) {
+                    return self.get_source_tensor(py::cast<std::string>(inputName));
+                } else {
+                    return self.get_source_tensor(py::cast<std::string>(inputName), py::cast<int>(inputPortIndex));
+                }
             }
         },
+        py::arg("inputName") = py::none(),
         py::arg("inputPortIndex") = py::none(),
         R"(
                 Returns a tensor place that supplies data for this place; applicable for operations,
@@ -274,6 +321,8 @@ void regclass_pyngraph_Place(py::module m) {
 
                 Parameters
                 ----------
+                inputName : str
+                    Name of port group. May not be set if node has one input port group.
                 inputPortIndex : int
                     Input port index for operational node. May not be specified if place has only one input port.
 

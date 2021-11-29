@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::MatMul, "MatMul", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::MatMul);
 
 op::MatMul::MatMul(const Output<Node>& A, const Output<Node>& B, const bool& transpose_a, const bool& transpose_b)
     : Op(OutputVector{A, B}),
@@ -38,6 +38,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
 }
 
 namespace matmul {
+namespace {
 ov::PartialShape validate_matmul_output_shape(const ov::PartialShape& arg0_shape,
                                               const ov::PartialShape& arg1_shape,
                                               bool transpose_a,
@@ -222,6 +223,7 @@ bool evaluate_matmul(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

@@ -98,7 +98,7 @@ private:
 }  // namespace
 
 void regclass_pyngraph_NodeFactory(py::module m) {
-    py::class_<NodeFactory> node_factory(m, "NodeFactory");
+    py::class_<NodeFactory> node_factory(m, "NodeFactory", py::module_local());
     node_factory.doc() = "NodeFactory creates nGraph nodes";
 
     node_factory.def(py::init());

@@ -14,8 +14,9 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> autoconfigs = {
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_GPU}},
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+                std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
@@ -58,7 +59,7 @@ std::vector<InferenceEngine::Precision> prcs = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(prcs),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                  ::testing::Values(std::map<std::string, std::string>{})),
                          InferRequestIOBBlobSetPrecisionTest::getTestCaseName);
 

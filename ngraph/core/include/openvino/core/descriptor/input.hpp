@@ -13,12 +13,18 @@
 
 namespace ov {
 class Node;
+namespace op {
+namespace v0 {
+class Result;
+}  // namespace v0
+}  // namespace op
 namespace descriptor {
 class Output;
 
 // Describes a tensor that is an input to an op, directly or indirectly via a tuple
 class OPENVINO_API Input {
     friend class ov::Node;
+    friend class ov::op::v0::Result;
 
 public:
     /// \param node The node that owns this input

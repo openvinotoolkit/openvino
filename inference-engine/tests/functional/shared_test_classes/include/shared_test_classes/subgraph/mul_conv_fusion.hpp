@@ -25,7 +25,7 @@ typedef std::tuple<
 
 class MulConvFusion
         : public testing::WithParamInterface<MulConvFusionParams>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MulConvFusionParams> &obj);
 

@@ -57,6 +57,9 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_para
         return false;
     }
 
+    if (!IsSIMDSizeSupported(p.engineInfo, 8))
+        return false;
+
     const auto& params = static_cast<const fully_connected_params&>(p);
     const auto& optParams = static_cast<const fully_connected_optional_params&>(o);
 

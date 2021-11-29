@@ -4,17 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/ctc_loss.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 
@@ -68,14 +62,14 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const CTCLossParams& params) {
-        const auto A = std::make_shared<op::Parameter>(params.logits.type, params.logits.shape);        // logits
-        const auto B = std::make_shared<op::Parameter>(params.logitsLen.type, params.logitsLen.shape);  // logitsLen
-        const auto C = std::make_shared<op::Parameter>(params.labels.type, params.labels.shape);        // labels
-        const auto D = std::make_shared<op::Parameter>(params.labelsLen.type, params.labelsLen.shape);  // labelsLen
-        const auto E = std::make_shared<op::Parameter>(params.blankIdx.type, params.blankIdx.shape);    // blankIdx
+        const auto A = std::make_shared<op::v0::Parameter>(params.logits.type, params.logits.shape);        // logits
+        const auto B = std::make_shared<op::v0::Parameter>(params.logitsLen.type, params.logitsLen.shape);  // logitsLen
+        const auto C = std::make_shared<op::v0::Parameter>(params.labels.type, params.labels.shape);        // labels
+        const auto D = std::make_shared<op::v0::Parameter>(params.labelsLen.type, params.labelsLen.shape);  // labelsLen
+        const auto E = std::make_shared<op::v0::Parameter>(params.blankIdx.type, params.blankIdx.shape);    // blankIdx
 
         const auto ctcLoss = std::make_shared<op::v4::CTCLoss>(A, B, C, D, E, params.preprocessCollapseRepeated, params.ctcMergeRepeated, params.unique);
-        return std::make_shared<Function>(NodeVector {ctcLoss}, ParameterVector {A, B, C, D, E});
+        return std::make_shared<ov::Function>(NodeVector {ctcLoss}, ParameterVector {A, B, C, D, E});
     }
 };
 

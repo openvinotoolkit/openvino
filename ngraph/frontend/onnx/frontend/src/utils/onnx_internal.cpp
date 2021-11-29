@@ -15,6 +15,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace detail {
+namespace {
 void remove_dangling_parameters(std::shared_ptr<Function>& function) {
     const auto parameters = function->get_parameters();
     for (auto parameter : parameters) {
@@ -50,6 +51,14 @@ void remove_dangling_results(std::shared_ptr<Function>& function) {
     }
 }
 
+void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path) {
+    transform::expand_onnx_functions(model_proto);
+    transform::fixup_legacy_operators(model_proto);
+    transform::update_external_data_paths(model_proto, model_path);
+}
+
+}  // namespace
+
 void convert_decoded_function(std::shared_ptr<Function> function) {
     for (const auto& node : function->get_ordered_ops()) {
         if (auto raw_node = std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node)) {
@@ -69,12 +78,6 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
     }
     detail::remove_dangling_parameters(function);
     detail::remove_dangling_results(function);
-}
-
-void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path) {
-    transform::expand_onnx_functions(model_proto);
-    transform::fixup_legacy_operators(model_proto);
-    transform::update_external_data_paths(model_proto, model_path);
 }
 
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,

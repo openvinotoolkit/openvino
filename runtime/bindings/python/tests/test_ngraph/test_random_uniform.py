@@ -1,15 +1,15 @@
-import ngraph as ng
+import openvino.opset8 as ov
 import numpy as np
 from tests.runtime import get_runtime
 
 
 def test_random_uniform():
     runtime = get_runtime()
-    input_tensor = ng.constant(np.array([2, 4, 3], dtype=np.int32))
-    min_val = ng.constant(np.array([-2.7], dtype=np.float32))
-    max_val = ng.constant(np.array([3.5], dtype=np.float32))
+    input_tensor = ov.constant(np.array([2, 4, 3], dtype=np.int32))
+    min_val = ov.constant(np.array([-2.7], dtype=np.float32))
+    max_val = ov.constant(np.array([3.5], dtype=np.float32))
 
-    random_uniform_node = ng.random_uniform(input_tensor, min_val, max_val,
+    random_uniform_node = ov.random_uniform(input_tensor, min_val, max_val,
                                             output_type="f32", global_seed=7461,
                                             op_seed=1546)
     computation = runtime.computation(random_uniform_node)

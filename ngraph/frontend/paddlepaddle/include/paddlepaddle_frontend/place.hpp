@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 
 namespace paddle {
@@ -17,7 +17,7 @@ class VarDesc;
 }  // namespace framework
 }  // namespace paddle
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class TensorPlacePDPD;
 class OpPlacePDPD;
@@ -196,4 +196,4 @@ private:
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

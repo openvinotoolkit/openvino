@@ -230,6 +230,8 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
+
     ConcatTransformationTestValues testValues = std::get<2>(GetParam());
     const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
     if (testValues.axis == 1) {
@@ -864,6 +866,94 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {}
         },
     },
+    // U8: concat with subtract convert
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                  { 0 },
+                  element::f32,
+                  {},
+                  false,
+                  1ul,
+                  ngraph::element::i8,
+                  true,
+                  {},
+                  {}
+                },
+                { 0.01f }
+            },
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, { 0 }, { 0.01f } }
+        }
+    },
+    // U8: concat multi channels with subtract convert
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                    { 128 },
+                    element::f32,
+                    {},
+                    false,
+                    1ul,
+                    ngraph::element::u8,
+                    true,
+                    {},
+                    {}
+                },
+                { 0.01f }
+            },
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f}, ngraph::element::u8,
+                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}}, { 0.01f } }
+        }
+    },
     // U8: concat multi channels with subtract
     // Features:
     //  1. fakeQuantize1 defines precision
@@ -965,7 +1055,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {element::f32}, {}, { 0.01f } },
         }
     },
-    // unexpected quantization levels, concat
+    // INT4+INT8 quantization levels, concat
     {
         LayerTransformation::createParamsU8I8(),
         false,
@@ -988,16 +1078,16 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::f32,
             {},
         },
-        false,
+        true,
         false,
     },
-    // unexpected quantization levels, concat multi channels
+    // INT4+INT8 quantization levels, concat multi channels
     {
         LayerTransformation::createParamsU8I8(),
         true,
         1,
         {
-            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {1.5f} },
             {},
             {},
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
@@ -1005,16 +1095,16 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {}
         },
         {
-            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f}, ngraph::element::u8},
             {},
             {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8},
             {},
             {},
-            ngraph::element::f32,
-            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, {{ 0.1f, 0.1f, 0.1f, 0.01f, 0.01f, 0.01f }} }
         },
-        false,
+        true,
         false
     }
 };

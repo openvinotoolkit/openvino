@@ -14,12 +14,10 @@
 #include "exceptions.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/provenance.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
-#include "utils/provenance_tag.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -46,42 +44,6 @@ static std::string to_string(
 static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_proto) {
     std::string domain = get_node_domain(node_proto);
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
-}
-
-void add_provenance_tag_to_initializer(const Tensor& tensor, std::shared_ptr<default_opset::Constant> node) {
-    if (!ngraph::get_provenance_enabled()) {
-        return;
-    }
-
-    const std::string tag = detail::build_input_provenance_tag(tensor.get_name(), tensor.get_shape());
-
-    node->add_provenance_tag(tag);
-}
-
-void add_provenance_tag_to_input(const ValueInfo& input, std::shared_ptr<ngraph::Node> node) {
-    if (!ngraph::get_provenance_enabled()) {
-        return;
-    }
-
-    const std::string tag = detail::build_input_provenance_tag(input.get_name(), input.get_shape());
-
-    node->add_provenance_tag(tag);
-}
-
-void add_provenance_tags(const Node& onnx_node, const OutputVector& ng_node_vector) {
-    if (!ngraph::get_provenance_enabled()) {
-        return;
-    }
-
-    const auto tag = detail::build_op_provenance_tag(onnx_node);
-    const auto ng_inputs = onnx_node.get_ng_inputs();
-
-    ngraph::traverse_nodes(
-        as_node_vector(ng_node_vector),
-        [&tag](std::shared_ptr<ngraph::Node> ng_node) {
-            ng_node->add_provenance_tag(tag);
-        },
-        as_node_vector(ng_inputs));
 }
 }  // namespace detail
 
@@ -116,7 +78,6 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);
-            detail::add_provenance_tag_to_initializer(tensor, ng_constant);
             m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
         }
     }
@@ -130,7 +91,6 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
 
         ValueInfo value_info{input};
         auto ng_node = value_info.get_ng_node(m_parameters, initializers);
-        detail::add_provenance_tag_to_input(value_info, ng_node);
         m_cache->emplace_node(input.name(), std::move(ng_node));
     }
 
@@ -290,7 +250,6 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
         std::rethrow_exception(std::current_exception());
     }
     set_friendly_names(onnx_node, ng_node_vector);
-    detail::add_provenance_tags(onnx_node, ng_node_vector);
 
     for (std::size_t i{0}; i < onnx_node.get_outputs_size(); ++i) {
         auto ng_node = ng_node_vector.at(i);
@@ -301,6 +260,22 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
 }
 
 void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const {
+    if (onnx_node.op_type() == "Identity") {
+        // we eliminate Identity op (since it's a no-op) and therefore
+        // we must preserve its input name, unless Identity is connected
+        // to a graph's output - in that case Identity's input gets
+        // a new name
+        const auto& graph_outputs = m_model->get_graph().output();
+        const auto& name = onnx_node.output(0);
+        bool is_identity_on_output = std::find_if(graph_outputs.begin(),
+                                                  graph_outputs.end(),
+                                                  [&name](const ONNX_NAMESPACE::ValueInfoProto& output) -> bool {
+                                                      return output.name() == name;
+                                                  }) != graph_outputs.end();
+        if (!is_identity_on_output) {
+            return;
+        }
+    }
     for (size_t i = 0; i < ng_node_vector.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
         // Other optional outputs should have name set to an empty string.

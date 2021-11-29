@@ -42,7 +42,7 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ngraph
             return;
         }
 
-        const auto resultConstant = ngraph::pass::low_precision::foldConvert(convert->get_input_node_shared_ptr(0), convert->output(0).get_element_type());
+        const auto resultConstant = ngraph::pass::low_precision::foldConvert(convert->input_value(0), convert->get_output_element_type(0));
         assert(ov::is_type<opset1::Constant>(resultConstant));
 
         replace_node(convert, resultConstant);

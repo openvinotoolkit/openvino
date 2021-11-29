@@ -12,7 +12,7 @@
 
 namespace ngraph {
 namespace onnx_import {
-namespace detail {
+namespace {
 std::shared_ptr<ngraph::Node> onnx_logsoftmax(const Output<ngraph::Node> data, const int64_t axis) {
     const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
     const auto result = std::make_shared<default_opset::LogSoftmax>(coerced_data, 1);
@@ -51,12 +51,12 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
 
     return {result};
 }
-}  // namespace detail
+}  // namespace
 
 namespace op {
 namespace set_1 {
 OutputVector log_softmax(const Node& node) {
-    return detail::log_softmax(node, 1);
+    return ngraph::onnx_import::log_softmax(node, 1);
 }
 }  // namespace set_1
 

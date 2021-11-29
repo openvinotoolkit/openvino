@@ -46,12 +46,6 @@ if(ENABLE_PYTHON)
     ie_cpack_add_component(python_tools_${PYTHON_VERSION})
     ie_cpack_add_component(python_tools)
 
-    # install cross_check_tool tool
-    install(DIRECTORY cross_check_tool
-            DESTINATION tools
-            USE_SOURCE_PERMISSIONS
-            COMPONENT python_tools)
-
     # install benchmark_app tool
     install(FILES benchmark_tool/README.md
                   benchmark_tool/requirements.txt
@@ -69,4 +63,9 @@ if(ENABLE_PYTHON)
             COMPONENT python_tools_${PYTHON_VERSION})
 
     ie_cpack(python_tools python_tools_${PYTHON_VERSION})
+
+    if(ENABLE_WHEEL)
+        add_subdirectory(openvino_dev)
+    endif()
+
 endif()

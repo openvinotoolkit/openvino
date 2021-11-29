@@ -24,9 +24,9 @@ using namespace InferenceEngine::details;
 
 namespace InferenceEngine {
 
-bool isForFakeQuantize(const CNNLayer& layer) {
-    for (const DataPtr data : layer.outData) {
-        for (const auto it : getInputTo(data)) {
+inline bool isForFakeQuantize(const CNNLayer& layer) {
+    for (const DataPtr & data : layer.outData) {
+        for (const auto & it : getInputTo(data)) {
             const CNNLayerPtr childLayer = it.second;
             if (childLayer->type == "FakeQuantize" || childLayer->type == "Quantize") {
                 return true;

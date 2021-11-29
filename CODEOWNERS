@@ -14,7 +14,7 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /tests/  @openvinotoolkit/openvino-tests-maintainers
 
 # OpenVINO Scripts
-/scripts/ @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-scripts-maintainers
+/scripts/  @openvinotoolkit/openvino-scripts-maintainers
 
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
@@ -66,12 +66,15 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # nGraph:
 /ngraph/  @openvinotoolkit/openvino-ngraph-maintainers
 
+# POT Tools
+/tools/pot/  @openvinotoolkit/openvino-pot-maintainers
+
 # Tools
 /tools/  @openvinotoolkit/openvino-tools-maintainers
 
 # Documentation
 /docs/  @openvinotoolkit/openvino-docs-maintainers
-/docs/template_plugin/ @openvinotoolkit/openvino-ie-template-maintainers
+/docs/template_plugin/  @openvinotoolkit/openvino-ie-template-maintainers
 *.md  @openvinotoolkit/openvino-docs-maintainers
 
 # Control 3d party dependencies

@@ -14,7 +14,8 @@ namespace v4 {
 ///
 class OPENVINO_API SoftPlus : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("SoftPlus", "opset4", op::Op, 4);
+    BWDCMP_RTTI_DECLARATION;
 
     SoftPlus() = default;
     /// \brief Constructs an SoftPlus operation.
@@ -26,7 +27,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v4

@@ -12,6 +12,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace add {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -50,11 +51,12 @@ bool evaluate_add(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace add
 
 // ------------------------------- v1 ------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(ov::op::v1::Add, "Add", 1, util::BinaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Add);
 
 op::v1::Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

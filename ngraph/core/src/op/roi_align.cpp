@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::ROIAlign, "ROIAlign", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::ROIAlign);
 
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
@@ -162,7 +162,7 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v3::ROIAlign::PoolingMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v3::ROIAlign::PoolingMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>::get() {
@@ -174,11 +174,12 @@ NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::o
 
 }  // namespace ov
 
-std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
+std::ostream& ov::operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
     return s << as_string(type);
 }
 
 namespace roi_alinop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& feature_maps,
               const HostTensorPtr& rois,
@@ -264,6 +265,7 @@ bool evaluate_roi_align(const HostTensorVector& args,
 
     return rc;
 }
+}  // namespace
 }  // namespace roi_alinop
 
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

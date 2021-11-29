@@ -92,7 +92,7 @@ def progress_bar(function: callable):
             assert arg in kwargs, msg.format(arg, 'is missing')
             assert kwargs[arg] is not None, msg.format(arg, 'should not be None')
 
-        if kwargs['graph'].graph['cmd_params'].progress:
+        if 'progress' in kwargs['graph'].graph['cmd_params'] and kwargs['graph'].graph['cmd_params'].progress:
             bar_len = 20
             total_replacers_count = kwargs['num_transforms']
 

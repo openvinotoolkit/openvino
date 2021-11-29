@@ -351,7 +351,13 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetD
     if (autoTuneParam.tiled) {
         dispatchData.lws[0] = autoTuneParam.tiled_simd;
     } else {
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+        auto in_layout = params.inputs[0].GetLayout();
+        auto out_layout = params.output.GetLayout();
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                         { Tensor::DataChannelName::Y },
+                                                                         { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
     dispatchData.gemmStyle = { 0, 0, 0, 0, 0, 0 };

@@ -20,7 +20,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API BlockedLoad : public Load {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("BlockedLoad", "SnippetsOpset", ngraph::snippets::op::Load);
 
     BlockedLoad(const Output<Node>& x);
     BlockedLoad() = default;

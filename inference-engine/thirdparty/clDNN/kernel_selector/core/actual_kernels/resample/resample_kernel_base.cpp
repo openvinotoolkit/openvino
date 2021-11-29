@@ -49,18 +49,35 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
 
 ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_selector::resample_params &arg) const {
     DispatchData dispatchData;
+    auto in_layout = arg.inputs[0].GetLayout();
+    auto out_layout = arg.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
+
     const auto& out = arg.output;
 
-    if (arg.resampleType == ResampleType::NEAREST_NEIGHBOR)
+    if (arg.resampleType == ResampleType::NEAREST_NEIGHBOR) {
         dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
-    else if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX)
+        dims_by_gws = {{ Tensor::DataChannelName::X },
+                       { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
+                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+    } else if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) {
         dispatchData.gws = { Align(out.X().v, 32), out.Y().v, out.Batch().v };
-    else if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP)
+        dims_by_gws = {{ Tensor::DataChannelName::X },
+                       { Tensor::DataChannelName::Y },
+                       { Tensor::DataChannelName::BATCH }};
+    } else if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
         dispatchData.gws = { out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v * out.Z().v };
-    else
+        dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
+                       { Tensor::DataChannelName::FEATURE },
+                       { Tensor::DataChannelName::Z, Tensor::DataChannelName::BATCH }};
+    } else {
         dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
+        dims_by_gws = {{ Tensor::DataChannelName::X },
+                       { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
+                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+    }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
 
     if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) {
         dispatchData.lws[0] = 32;
@@ -234,23 +251,11 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
 
 Datatype ResampleKernelBase::GetAccumulatorType(const resample_params& params) const {
     auto in_dt = params.inputs[0].GetDType();
-    auto out_dt = params.output.GetDType();
 
     if (params.resampleType == ResampleType::NEAREST_NEIGHBOR)
         return in_dt;
 
-    auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
-        if (candidate != Datatype::F32 || candidate != Datatype::F16)
-            return current;
-
-        return BytesPerElement(candidate) < BytesPerElement(current) ? candidate : current;
-    };
-
-    Datatype fp_type = Datatype::F32;
-    fp_type = smaller_fp_type(fp_type, in_dt);
-    fp_type = smaller_fp_type(fp_type, out_dt);
-
-    return fp_type;
+    return Datatype::F32;
 }
 
 }  // namespace kernel_selector

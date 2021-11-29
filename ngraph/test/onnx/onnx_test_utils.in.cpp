@@ -7,14 +7,14 @@
 
 #include "default_opset.hpp"
 #include "editor.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
@@ -31,7 +31,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission) {
     using DataType = TypeParam;
     const element::Type ng_type = element::from<DataType>();
 
-    onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_3d.onnx")};
+    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_3d.onnx")};
 
     editor.set_input_types({{"A", ng_type}, {"B", ng_type}, {"C", ng_type}});
 
@@ -48,7 +48,8 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission) {
     using DataType = TypeParam;
     const element::Type ng_type = element::from<DataType>();
 
-    onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.onnx")};
+    ov::onnx_editor::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.onnx")};
 
     editor.set_input_types({{"input", ng_type}});
 

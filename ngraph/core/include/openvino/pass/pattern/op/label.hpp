@@ -22,8 +22,8 @@ namespace op {
 /// more than one inputs are given, an Or pattern of the inputs serves as the input.
 class OPENVINO_API Label : public Pattern {
 public:
-    static constexpr NodeTypeInfo type_info{"patternLabel", 0};
-    const NodeTypeInfo& get_type_info() const override;
+    OPENVINO_RTTI("patternLabel");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief creates a Label node containing a sub-pattern described by \sa type and
     ///        \sa shape.
     ///

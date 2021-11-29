@@ -23,7 +23,7 @@ typedef std::tuple<
 > multiInputParams;
 
 class CodegenGelu : public testing::WithParamInterface<LayerTestsDefinitions::multiInputParams>,
-public LayerTestsUtils::LayerTestsCommon {
+virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::multiInputParams> obj);
 

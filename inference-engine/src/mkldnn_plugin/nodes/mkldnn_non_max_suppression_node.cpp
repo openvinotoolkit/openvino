@@ -20,18 +20,11 @@ using namespace InferenceEngine;
 
 bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->is_dynamic()) {
-            errorMessage = "Doesn't support op with dynamic input shapes";
-            return false;
-        }
-
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         using NonMaxSuppressionV5 = ngraph::op::v5::NonMaxSuppression;
-        if (!one_of(op->get_type_info(), NonMaxSuppressionV5::type_info, ngraph::op::internal::NonMaxSuppressionIEInternal::type_info)) {
+        if (!one_of(op->get_type_info(), NonMaxSuppressionV5::get_type_info_static(),
+                    ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
             errorMessage = "Only NonMaxSuppression v5 and NonMaxSuppressionIEInternal are supported";
-            return false;
-        }
-        if (op->get_input_size() > 2 && !dynamic_cast<ngraph::op::v0::Constant *>(op->get_input_node_ptr(2))) {
-            errorMessage = "Doesn't support NonMaxSuppression with undefined max_output_boxes_per_class";
             return false;
         }
 
@@ -66,6 +59,7 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
         if (const auto nms5 = std::dynamic_pointer_cast<const ngraph::op::v5::NonMaxSuppression>(op)) {
             boxEncodingType = static_cast<boxEncoding>(nms5->get_box_encoding());
             sort_result_descending = nms5->get_sort_result_descending();
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? boxEncoding::CENTER : boxEncoding::CORNER;
             sort_result_descending = nmsIe->m_sort_result_descending;
@@ -74,27 +68,15 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
             IE_THROW() << errorPrefix << " doesn't support NMS: " << typeInfo.name << " v" << typeInfo.version;
         }
 
-        const auto &boxes_dims = getInputShapeAtPort(NMS_BOXES).getStaticDims();
-        num_batches = boxes_dims[0];
-        num_boxes = boxes_dims[1];
+        const auto &boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
         if (boxes_dims.size() != 3)
             IE_THROW() << errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
         if (boxes_dims[2] != 4)
             IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
 
-        const auto &scores_dims = getInputShapeAtPort(NMS_SCORES).getStaticDims();
-        num_classes = scores_dims[1];
+        const auto &scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
         if (scores_dims.size() != 3)
             IE_THROW() << errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
-
-        if (num_batches != scores_dims[0])
-            IE_THROW() << errorPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
-        if (num_boxes != scores_dims[2])
-            IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
-
-        numFiltBox.resize(num_batches);
-        for (auto & i : numFiltBox)
-            i.resize(num_classes);
 
         const Shape valid_outputs_shape = getOutputShapeAtPort(NMS_VALIDOUTPUTS);
         if (valid_outputs_shape.getRank() != 1)
@@ -146,6 +128,36 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
 }
 
+void MKLDNNNonMaxSuppressionNode::prepareParams() {
+    const auto& boxes_dims = isDynamicNode() ? getParentEdgesAtPort(NMS_BOXES)[0]->getMemory().getStaticDims() :
+                                               getInputShapeAtPort(NMS_BOXES).getStaticDims();
+    const auto& scores_dims = isDynamicNode() ? getParentEdgesAtPort(NMS_SCORES)[0]->getMemory().getStaticDims() :
+                                                getInputShapeAtPort(NMS_SCORES).getStaticDims();
+
+    num_batches = boxes_dims[0];
+    num_boxes = boxes_dims[1];
+    num_classes = scores_dims[1];
+    if (num_batches != scores_dims[0])
+        IE_THROW() << errorPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
+    if (num_boxes != scores_dims[2])
+        IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
+
+    numFiltBox.resize(num_batches);
+    for (auto & i : numFiltBox)
+        i.resize(num_classes);
+}
+
+void MKLDNNNonMaxSuppressionNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
@@ -154,9 +166,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
         max_output_boxes_per_class = reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0];
     }
 
-    if (!isDynamicNode()) {
-        max_output_boxes_per_class = std::min(max_output_boxes_per_class, num_boxes);
-    }
+    max_output_boxes_per_class = std::min(max_output_boxes_per_class, num_boxes);
 
     if (max_output_boxes_per_class == 0)
         return;
@@ -215,6 +225,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
     const size_t validOutputs = std::min(filtBoxes.size(), maxNumberOfBoxes);
 
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (isDynamicNode()) {
         VectorDims newDims{validOutputs, 3};
         indicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims(newDims));
@@ -239,6 +250,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
         selectedScoresPtr += selectedIndicesStride;
     }
 
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (!isDynamicNode()) {
         std::fill(selectedIndicesPtr, selectedIndicesPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1);
         std::fill(selectedScoresPtr, selectedScoresPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1.f);

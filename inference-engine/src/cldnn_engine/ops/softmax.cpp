@@ -35,7 +35,7 @@ static cldnn::softmax::dimension_t GetSoftmaxAxis(int64_t axis, size_t rank) {
     return cldnn::softmax::normalize_fyx;
 }
 
-void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::Softmax>& op) {
+static void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::Softmax>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -47,7 +47,7 @@ void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::Softmax>&
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5::LogSoftmax>& op) {
+static void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5::LogSoftmax>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

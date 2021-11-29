@@ -15,6 +15,15 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Sigmoid.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Relu.*netPRC=FP32.*",
+        // Not supported dynamic shapes without upper bound
+        ".*InferDynamicNetworkWithGetTensor2times.function.*",
+        ".*InferFullyDynamicNetworkWithGetTensor.function.*",
+        ".*InferDynamicNetworkWithGetTensor.function.*",
+        ".*InferDynamicNetworkWithoutSetShape.function.*",
+        ".*InferFullyDynamicNetworkWithSetTensor/function.*",
+        ".*InferDynamicNetworkWithSetTensor2times.*",
+        ".*InferRequestDynamicTests.GetSameTensor2times.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
@@ -33,24 +42,27 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ProposalLayerTest.*",
         // TODO: Issue 51804
         ".*InferRequestPreprocessConversionTest.*oPRC=U8.*",
-        // TODO: Issue: 56556
-        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
         // TODO: Issue 54163
         R"(.*ActivationLayerTest.*SoftPlus.*)",
         // TODO: Issue 54722
-        R"(.*IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
+        R"(.*TS=\(\(16\.16\.96\)_\(96\)_\).*eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
         // TODO: Issue 57108
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
         R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
-        // TODO: Issue 58162
-        R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)",
-        // TODO: Issue 58621
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
-        // CVS-58963: Not implemented yet
-        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // Not implemented yet:
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         // TODO: CVS-65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        // Not expected behavior
+        R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
+        R"(.*CoreThreadingTestsWithIterations.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+        R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
+        // TODO: Issue: CVS-69640
+        R"(.*EltwiseLayerTest.*OpType=Prod.*)",
+        R"(.*EltwiseLayerTest.*OpType=SqDiff.*PARAMETER.*SCALAR.*)",
+        R"(.*EltwiseLayerTest.*TS=\(\(16\.16\.96\)_\(96\)_\).*OpType=SqDiff.*)",
+        R"(.*EltwiseLayerTest.*TS=\(\(52\.1\.52\.3\.2\)_\(2\)_\).*OpType=SqDiff.*)",
     };
 }

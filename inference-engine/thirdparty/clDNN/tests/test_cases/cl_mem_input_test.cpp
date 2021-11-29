@@ -3,14 +3,12 @@
 //
 
 #include "test_utils.h"
+#include "opencl_helper_instance.hpp"
 
 #include <cldnn/primitives/input_layout.hpp>
 #include <cldnn/primitives/activation.hpp>
 #include <cldnn/primitives/data.hpp>
 #include <cldnn/runtime/device_query.hpp>
-
-
-#include <ocl/ocl_wrapper.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -20,15 +18,6 @@ typedef std::chrono::nanoseconds ns;
 typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
 typedef std::chrono::duration<float> fsec;
 
-
-void checkStatus(int status, const char *message) {
-    if (status != 0) {
-        std::string str_message(message + std::string(": "));
-        std::string str_number(std::to_string(status));
-
-        throw std::runtime_error(str_message + str_number);
-    }
-}
 
 std::vector<unsigned char> createSampleData(int width, int height) {
     int data_size = width * (height + height / 2);
@@ -79,55 +68,6 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
 
     return img;
 }
-
-struct OpenCL {
-    cl::Context _context;
-    cl::Device _device;
-    cl::CommandQueue _queue;
-
-    OpenCL() {
-        // get Intel iGPU OCL device, create context and queue
-        {
-            static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
-            const uint32_t device_type = CL_DEVICE_TYPE_GPU;  // only gpu devices
-            const uint32_t device_vendor = 0x8086;  // Intel vendor
-
-            cl_uint n = 0;
-            cl_int err = clGetPlatformIDs(0, NULL, &n);
-            checkStatus(err, "clGetPlatformIDs");
-
-            // Get platform list
-            std::vector<cl_platform_id> platform_ids(n);
-            err = clGetPlatformIDs(n, platform_ids.data(), NULL);
-            checkStatus(err, "clGetPlatformIDs");
-
-            for (auto& id : platform_ids) {
-                cl::Platform platform = cl::Platform(id);
-
-                auto vendor_id = platform.getInfo<CL_PLATFORM_VENDOR>();
-                if (vendor_id != INTEL_PLATFORM_VENDOR)
-                    continue;
-
-                std::vector<cl::Device> devices;
-                platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-                for (auto& d : devices) {
-                    if (d.getInfo<CL_DEVICE_TYPE>() == device_type ||
-                        d.getInfo<CL_DEVICE_VENDOR_ID>() == device_vendor) {
-                        _device = d;
-                        _context = cl::Context(_device);
-                        goto greateQueue;
-                    }
-                }
-            }
-            greateQueue:
-            cl_command_queue_properties props = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
-            _queue = cl::CommandQueue(_context, _device, props);
-        }
-    }
-    void releaseOclImage(std::shared_ptr<cl_mem> image) {
-        checkStatus(clReleaseMemObject(*image), "clReleaseMemObject");
-    }
-};
 
 TEST(cl_mem_check, check_2_inputs) {
     auto ocl_instance = std::make_shared<OpenCL>();
@@ -303,4 +243,80 @@ TEST(cl_mem_check, check_input) {
         EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(img), "clReleaseMemObject");
+}
+
+TEST(cl_mem_check, check_write_access_type) {
+    device_query query(engine_types::ocl, runtime_types::ocl);
+    auto devices = query.get_available_devices();
+    cldnn::device::ptr device = devices.begin()->second;
+    for (auto& dev : devices) {
+        if (dev.second->get_info().dev_type == device_type::discrete_gpu)
+            device = dev.second;
+    }
+
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto stream = engine->create_stream();
+
+    size_t values_count = 100;
+    size_t values_bytes_count = values_count * sizeof(float);
+    std::vector<float> src_buffer(values_count);
+    std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
+
+    cldnn::layout linear_layout = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
+    auto cldnn_mem_src = engine->allocate_memory(linear_layout, cldnn::allocation_type::cl_mem);
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::write> lock(cldnn_mem_src, *stream);
+        std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
+    }
+
+    std::vector<float> dst_buffer(values_count);
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::read> lock(cldnn_mem_src, *stream);
+        std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
+    }
+
+    bool are_equal = std::equal(src_buffer.begin(), src_buffer.begin() + values_count, dst_buffer.begin());
+    ASSERT_TRUE(are_equal);
+}
+
+TEST(cl_mem_check, check_read_access_type) {
+    device_query query(engine_types::ocl, runtime_types::ocl);
+    auto devices = query.get_available_devices();
+    cldnn::device::ptr device = devices.begin()->second;
+    for (auto& dev : devices) {
+        if (dev.second->get_info().dev_type == device_type::discrete_gpu)
+            device = dev.second;
+    }
+    if (device->get_info().dev_type == device_type::integrated_gpu) {
+        GTEST_SKIP();
+    }
+
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto stream = engine->create_stream();
+
+    size_t values_count = 100;
+    size_t values_bytes_count = values_count * sizeof(float);
+    std::vector<float> src_buffer(values_count);
+    std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
+
+    cldnn::layout linear_layout = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
+    auto cldnn_mem_src = engine->allocate_memory(linear_layout, cldnn::allocation_type::cl_mem);
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::write> lock(cldnn_mem_src, *stream);
+        std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
+    }
+
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::read> lock(cldnn_mem_src, *stream);
+        std::copy(src_buffer.rbegin(), src_buffer.rend(), lock.data());
+    }
+
+    std::vector<float> dst_buffer(values_count);
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::read> lock(cldnn_mem_src, *stream);
+        std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
+    }
+
+    bool are_equal = std::equal(src_buffer.begin(), src_buffer.begin() + values_count, dst_buffer.begin());
+    ASSERT_TRUE(are_equal);
 }

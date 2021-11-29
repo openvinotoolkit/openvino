@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
@@ -191,16 +192,119 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     this->register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifySecondInputOfReshape, "SimplifySecondInputOfReshape", 0);
+
+ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
+    MATCHER_SCOPE(SimplifySecondInputOfReshape);
+    const auto input = pattern::any_input();
+    auto has_static_1d_shape = [](const Output<Node>& output) {
+        return pattern::has_static_shape()(output) && pattern::rank_equals(1)(output);
+    };
+    const auto concat = pattern::wrap_type<opset8::Concat>(has_static_1d_shape);
+    const auto reshape_pattern = pattern::wrap_type<opset8::Reshape>({ input, concat });
+
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        const auto reshape = as_type_ptr<opset8::Reshape>(node);
+        if (!reshape || reshape->get_special_zero() == false) {
+            return false;
+        }
+
+        const auto concat = as_type_ptr<opset8::Concat>(reshape->get_input_node_shared_ptr(1));
+        if (!concat)
+            return false;
+
+        const auto concat_axis = concat->get_axis();
+        OPENVINO_ASSERT(concat_axis == 0, "axis is not valid for matched Concat with 1D output");
+
+        auto data = m.get_pattern_value_map().at(input);
+        if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr()) ||
+            ngraph::op::is_unary_elementwise_arithmetic(data.get_node_shared_ptr())) {
+            data = data.get_node_shared_ptr()->input_value(0);
+        }
+
+        auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
+            auto shape_of = gather->get_input_node_shared_ptr(0);
+            if ((!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) ||
+                (shape_of->get_output_target_inputs(0).size() > 1)) {
+                return false;
+            }
+            return shape_of->input_value(0) == data;
+        };
+
+        const auto concat_inputs = concat->input_values();
+        OutputVector new_concat_inputs = concat_inputs;
+        std::int64_t gather_dims_expected_location = 0;
+        bool gather_folded = false;
+
+        // We need this check to avoid sequences shapeOf -> gather -> concat
+        // that change the arrangement of dimensions in the reshape pattern
+        for (auto& input : new_concat_inputs) {
+            if (const auto gather = as_type_ptr<op::util::GatherBase>(input.get_node_shared_ptr())) {
+                auto indices_constant = as_type_ptr<opset8::Constant>(gather->get_input_node_shared_ptr(1));
+                if (!indices_constant || !check_shape_of_gather(gather)) {
+                    continue;
+                }
+
+                bool gather_can_be_fused = true;
+                const auto indices = indices_constant->cast_vector<std::int64_t>();
+                for (size_t i = 0; i < indices.size(); ++i) {
+                    if (indices[i] != gather_dims_expected_location) {
+                        gather_can_be_fused = false;
+                    }
+                    gather_dims_expected_location++;
+                }
+
+                if (gather_can_be_fused) {
+                    const size_t num_of_unchanged_dimensions = indices.size();
+                    const auto subgraph_et = gather->get_input_element_type(0);
+                    input = opset8::Constant::create(subgraph_et, Shape{ num_of_unchanged_dimensions }, { 0 });
+                    gather_folded = true;
+                }
+            } else {
+                const auto concat_input_shape = input.get_shape();
+                OPENVINO_ASSERT(concat_input_shape.size() == 1, "concat input rank is not valid for matched Concat with 1D output");
+                gather_dims_expected_location += concat_input_shape[0];
+            }
+        }
+
+        if (!gather_folded) {
+            return false;
+        }
+
+        const auto new_concat = op::util::make_try_fold<opset8::Concat>(new_concat_inputs, concat_axis);
+        new_concat->set_friendly_name(concat->get_friendly_name());
+        copy_runtime_info(concat, new_concat);
+
+        const auto new_reshape = reshape->clone_with_new_inputs({ reshape->input_value(0), new_concat });
+        new_reshape->set_friendly_name(reshape->get_friendly_name());
+
+        copy_runtime_info(reshape, new_reshape);
+        replace_node(reshape, new_reshape);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSubGraph", 0);
 
 bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::EliminateGatherUnsqueeze>();
     manager.register_pass<ngraph::pass::SharedShapeOf>();
     manager.register_pass<ngraph::pass::GroupedGatherElimination>();
+    // GatherNopElimination depends on shape, so it requires shape propagation
+    // if previous transformations has resolved some dynamic shapes.
+    manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::GatherNopElimination>();
     manager.register_pass<ngraph::pass::SimplifyGatherShapeOf>();
+    manager.register_pass<ngraph::pass::SimplifySecondInputOfReshape>();
+    // TODO: potentially this Validate is not needed but it requires additional validation
+    manager.register_pass<ngraph::pass::Validate>();
     manager.run_passes(f);
     return false;
 }

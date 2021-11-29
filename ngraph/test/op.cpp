@@ -34,20 +34,6 @@ TEST(op, is_parameter) {
     EXPECT_FALSE(op::is_parameter(t0));
 }
 
-TEST(op, provenance_tag) {
-    auto node = make_shared<op::Parameter>(element::f32, Shape{1});
-    auto tag1 = "parameter node";
-    auto tag2 = "f32 node";
-    node->add_provenance_tag(tag1);
-    node->add_provenance_tag(tag2);
-
-    node->remove_provenance_tag(tag1);
-
-    auto tags = node->get_provenance_tags();
-    ASSERT_TRUE(tags.find(tag1) == tags.end());
-    ASSERT_TRUE(tags.find(tag2) != tags.end());
-}
-
 TEST(op, opset_multi_thread) {
     auto doTest = [&](std::function<const ngraph::OpSet&()> fun) {
         std::atomic<const ngraph::OpSet*> opset{nullptr};
@@ -87,14 +73,10 @@ namespace ov {
 template <>
 class VariantWrapper<Ship> : public VariantImpl<Ship> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::Ship", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<Ship>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-constexpr VariantTypeInfo VariantWrapper<Ship>::type_info;
 }  // namespace ov
 
 TEST(op, variant) {

@@ -17,7 +17,8 @@ namespace v5 {
 class OPENVINO_API Round : public Op {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Round", "opset5", op::Op, 5);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a round operation.
     Round() = default;
@@ -33,7 +34,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
     RoundMode get_mode() const {
@@ -54,10 +57,8 @@ class OPENVINO_API AttributeAdapter<op::v5::Round::RoundMode>
 public:
     AttributeAdapter(op::v5::Round::RoundMode& value) : EnumAttributeAdapterBase<op::v5::Round::RoundMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Round::RoundMode>", 5};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Round::RoundMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

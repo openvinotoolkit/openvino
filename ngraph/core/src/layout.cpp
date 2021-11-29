@@ -10,7 +10,7 @@
 #include "ngraph/except.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ov;
+namespace ov {
 
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -67,6 +67,11 @@ Layout Layout::scalar() {
 // 2. can define order and meaning for dimensions "NCHW"
 // 3. partial layout specialization "NC?"
 Layout::Layout(const std::string& layout_str) {
+    if (layout_str.empty()) {
+        m_dynamic = true;
+        m_left_size = m_right_size = 0;
+        return;
+    }
     auto layout = ngraph::trim(layout_str);
     OPENVINO_ASSERT(layout.length() > 0, "Cannot parse ov::Layout from an empty string");
     if (layout == SCALAR) {
@@ -233,26 +238,113 @@ std::string Layout::to_string() const {
     return res.str();
 }
 
-#define DEFINE_NAMED_DIMENSION(NAME, name)            \
-    bool layout::has_##name(const Layout& layout) {   \
-        return layout.has_name(NAME);                 \
-    }                                                 \
-                                                      \
-    std::int64_t layout::name(const Layout& layout) { \
-        return layout.get_index_by_name(NAME);        \
+namespace layout {
+
+Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
+    {  // Validate dims
+        std::vector<bool> used(dims.size(), false);
+        for (size_t i = 0; i < dims.size(); i++) {
+            auto dim = dims[i];
+            OPENVINO_ASSERT(dim < dims.size(), "Convert layout: dimension ", dim, " is out of bounds");
+            OPENVINO_ASSERT(!used[dim],
+                            "Convert layout: dimension ",
+                            dim,
+                            " is used more than once in convert arguments");
+            used[dim] = true;
+        }
     }
+    if (src_layout.empty()) {
+        return src_layout;  // Can return immediately
+    }
+    // No way to calculate layout from [N...C] with permutation {0, 3, 1, 2}
+    OPENVINO_ASSERT(!src_layout.m_dynamic,
+                    "Layout conversion by indexes is not supported for dynamic layout: ",
+                    src_layout.to_string());
+    Layout res;
+    res.m_dynamic = false;
+    res.m_left_size = src_layout.m_left_size;
+    for (size_t i = 0; i < dims.size(); i++) {
+        auto it = src_layout.m_index_map.find(static_cast<int64_t>(dims[i]));
+        if (it == src_layout.m_index_map.end()) {
+            continue;
+        }
+        res.m_index_map[static_cast<int64_t>(i)] = it->second;
+        res.m_names[it->second] = static_cast<int64_t>(i);
+    }
+    return res;
+}
 
-DEFINE_NAMED_DIMENSION(BATCH, batch)
+std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank, const Layout& dst) {
+    // Basic implementation so far, can support partially-specified layouts later (shape rank will be needed for dynamic
+    // layouts)
+    if (src_layout == dst) {
+        return {};  // No permutation is needed
+    }
+    if (src_layout.empty() || dst.empty()) {
+        return {};
+    }
+    OPENVINO_ASSERT(!src_layout.m_dynamic && !dst.m_dynamic, "Conversion is not supported for dynamic layouts");
+    OPENVINO_ASSERT(src_layout.m_left_size == src_layout.m_left_size,
+                    "Conversion is not supported for layouts with different sizes");
+    std::vector<int64_t> res(src_layout.m_left_size);
+    for (int64_t i = 0; i < src_layout.m_left_size; i++) {
+        auto it = src_layout.m_index_map.find(i);
+        OPENVINO_ASSERT(it != src_layout.m_index_map.end(),
+                        "Conversion is not supported for partially specified source layout: ",
+                        src_layout.to_string());
+        auto name = it->second;
+        OPENVINO_ASSERT(dst.has_name(name),
+                        "Source dimension name '",
+                        name,
+                        "' is not found in destination layout: ",
+                        dst.to_string());
+        res[dst.get_index_by_name(name)] = i;
+    }
+    return res;
+}
 
-DEFINE_NAMED_DIMENSION(CHANNELS, channels)
+// Helper functions
+bool has_batch(const Layout& layout) {
+    return layout.has_name(BATCH);
+}
 
-DEFINE_NAMED_DIMENSION(DEPTH, depth)
+std::int64_t batch_idx(const Layout& layout) {
+    return layout.get_index_by_name(BATCH);
+}
 
-DEFINE_NAMED_DIMENSION(HEIGHT, height)
+bool has_depth(const Layout& layout) {
+    return layout.has_name(DEPTH);
+}
 
-DEFINE_NAMED_DIMENSION(WIDTH, width)
+std::int64_t depth_idx(const Layout& layout) {
+    return layout.get_index_by_name(DEPTH);
+}
 
-constexpr DiscreteTypeInfo AttributeAdapter<ov::Layout>::type_info;
+bool has_channels(const Layout& layout) {
+    return layout.has_name(CHANNELS);
+}
+
+std::int64_t channels_idx(const Layout& layout) {
+    return layout.get_index_by_name(CHANNELS);
+}
+
+bool has_height(const Layout& layout) {
+    return layout.has_name(HEIGHT);
+}
+
+std::int64_t height_idx(const Layout& layout) {
+    return layout.get_index_by_name(HEIGHT);
+}
+
+bool has_width(const Layout& layout) {
+    return layout.has_name(WIDTH);
+}
+
+std::int64_t width_idx(const Layout& layout) {
+    return layout.get_index_by_name(WIDTH);
+}
+
+}  // namespace layout
 
 const std::string& AttributeAdapter<ov::Layout>::get() {
     m_dump = m_ref.to_string();
@@ -263,4 +355,11 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
     m_ref = Layout(value);
 }
 
-constexpr VariantTypeInfo VariantWrapper<ov::Layout>::type_info;
+bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
+    std::string layout_str = m_value.to_string();
+    visitor.on_attribute("layout", layout_str);
+    m_value = Layout(layout_str);
+    return true;
+}
+
+}  // namespace ov

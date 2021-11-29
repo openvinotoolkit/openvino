@@ -48,7 +48,7 @@ public:
             nonZero->set_friendly_name(s_FriendlyName);
 
             actual = std::make_shared<ngraph::Function>(ngraph::NodeVector{nonZero}, ngraph::ParameterVector{input});
-            const auto transformation = vpu::Transformations{{ngraph::opset3::NonZero::type_info, vpu::dynamicToStaticShapeNonZero}};
+            const auto transformation = vpu::Transformations{{ngraph::opset3::NonZero::get_type_info_static(), vpu::dynamicToStaticShapeNonZero}};
             vpu::DynamicToStaticShape(transformation).run_on_function(actual);
         }
 

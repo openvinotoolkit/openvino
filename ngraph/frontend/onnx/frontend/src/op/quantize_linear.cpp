@@ -88,9 +88,13 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
     input_low =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_low, zero_point));
+    if (auto constant = get_constant_from_source(input_low))
+        input_low = constant;
     input_high =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_high, zero_point));
+    if (auto constant = get_constant_from_source(input_high))
+        input_high = constant;
 
     return std::make_tuple(input_low, input_high);
 }
@@ -134,7 +138,7 @@ OutputVector quantize_linear(const Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-namespace detail {
+namespace {
 OutputVector quantize_linear(Output<ngraph::Node> x,
                              Output<ngraph::Node> y_scale,
                              Output<ngraph::Node> y_zero_point,
@@ -185,7 +189,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
-}  // namespace detail
+}  // namespace
 
 OutputVector quantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
@@ -199,7 +203,7 @@ OutputVector quantize_linear(const Node& node) {
     auto scale = inputs[1];
     auto zero_point = op::detail::get_zero_point(inputs);
 
-    return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
+    return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
 }  // namespace set_13
 

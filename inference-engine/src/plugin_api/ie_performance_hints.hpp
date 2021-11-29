@@ -72,7 +72,7 @@ struct PerfHintsConfig {
      * @return configuration value
      */
     static std::string CheckPerformanceHintValue(const std::string& val) {
-        if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT)
+        if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT || val == "")
             return val;
         else
             IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
@@ -88,7 +88,7 @@ struct PerfHintsConfig {
         int val_i = -1;
         try {
             val_i = std::stoi(val);
-            if (val_i > 0)
+            if (val_i >= 0)
                 return val_i;
             else
                 throw std::logic_error("wrong val");

@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Unsqueeze);
 
 op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
@@ -75,6 +75,7 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
 }
 
 namespace unsqueeze {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
@@ -88,8 +89,8 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
     auto data_shape = arg0->get_shape();
     int64_t data_rank = static_cast<int64_t>(data_shape.size());
     auto axes_shape = arg1->get_shape();
-    NGRAPH_CHECK(axes_shape.size() == 1, "Axes to add must be a vector.");
-    NGRAPH_CHECK(axes_shape[0] > 0, "Axes cannot be empty.");
+    NGRAPH_CHECK(axes_shape.size() == 1 || axes_shape.empty(),
+                 "Axes to add must be a scalar or 1D tensor with 1 element");
 
     auto out_shape = data_shape;
     int64_t out_rank = data_rank + static_cast<int64_t>(shape_size(axes_shape));
@@ -122,6 +123,7 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
     }
     return rc;
 }
+}  // namespace
 }  // namespace unsqueeze
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

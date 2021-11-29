@@ -11,13 +11,14 @@
 
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                  \
-    static const ::ov::DiscreteTypeInfo& get_type_info_static() {                  \
-        static const ::ov::DiscreteTypeInfo type_info{TYPE_NAME, 0, VERSION_NAME}; \
-        return type_info;                                                          \
-    }                                                                              \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override {                 \
-        return get_type_info_static();                                             \
+#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)            \
+    static const ::ov::DiscreteTypeInfo& get_type_info_static() {            \
+        static ::ov::DiscreteTypeInfo type_info{TYPE_NAME, 0, VERSION_NAME}; \
+        type_info.hash();                                                    \
+        return type_info;                                                    \
+    }                                                                        \
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {           \
+        return get_type_info_static();                                       \
     }
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
@@ -25,10 +26,11 @@
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS, OLD_VERSION) \
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {                                    \
-        static const ::ov::DiscreteTypeInfo type_info{TYPE_NAME,                                     \
-                                                      OLD_VERSION,                                   \
-                                                      VERSION_NAME,                                  \
-                                                      &PARENT_CLASS::get_type_info_static()};        \
+        static ::ov::DiscreteTypeInfo type_info{TYPE_NAME,                                           \
+                                                OLD_VERSION,                                         \
+                                                VERSION_NAME,                                        \
+                                                &PARENT_CLASS::get_type_info_static()};              \
+        type_info.hash();                                                                            \
         return type_info;                                                                            \
     }                                                                                                \
     const ::ov::DiscreteTypeInfo& get_type_info() const override {                                   \
@@ -96,10 +98,15 @@
                                                              _OPENVINO_RTTI_WITH_TYPE)(__VA_ARGS__))
 
 /// Note: Please don't use this macros for new operations
-#define BWDCMP_RTTI_DECLARATION                                                                    \
-    OPENVINO_DEPRECATED("This member was deprecate. Please use ::get_type_info_static() instead.") \
-    static const ov::DiscreteTypeInfo type_info
-#define BWDCMP_RTTI_DEFINITION(CLASS)                                            \
-    OPENVINO_SUPPRESS_DEPRECATED_START                                           \
-    const ov::DiscreteTypeInfo CLASS::type_info = CLASS::get_type_info_static(); \
-    OPENVINO_SUPPRESS_DEPRECATED_END
+#ifdef OPENVINO_STATIC_LIBRARY
+#    define BWDCMP_RTTI_DECLARATION
+#    define BWDCMP_RTTI_DEFINITION(CLASS)
+#else
+#    define BWDCMP_RTTI_DECLARATION                                                                     \
+        OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.") \
+        static const ov::DiscreteTypeInfo type_info
+#    define BWDCMP_RTTI_DEFINITION(CLASS)                                            \
+        OPENVINO_SUPPRESS_DEPRECATED_START                                           \
+        const ov::DiscreteTypeInfo CLASS::type_info = CLASS::get_type_info_static(); \
+        OPENVINO_SUPPRESS_DEPRECATED_END
+#endif

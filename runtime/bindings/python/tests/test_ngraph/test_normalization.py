@@ -3,7 +3,7 @@
 
 import numpy as np
 
-import ngraph as ng
+import openvino.opset8 as ov
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -13,7 +13,7 @@ def test_lrn():
     input_image = np.arange(int(np.prod(input_image_shape))).reshape(input_image_shape).astype("f")
     axes = np.array([1], dtype=np.int64)
     runtime = get_runtime()
-    model = ng.lrn(ng.constant(input_image), ng.constant(axes), alpha=1.0, beta=2.0, bias=1.0, size=3)
+    model = ov.lrn(ov.constant(input_image), ov.constant(axes), alpha=1.0, beta=2.0, bias=1.0, size=3)
     computation = runtime.computation(model)
     result = computation()
     assert np.allclose(
@@ -28,7 +28,7 @@ def test_lrn():
     )
 
     # Test LRN default parameter values
-    model = ng.lrn(ng.constant(input_image), ng.constant(axes))
+    model = ov.lrn(ov.constant(input_image), ov.constant(axes))
     computation = runtime.computation(model)
     result = computation()
     assert np.allclose(
@@ -83,7 +83,7 @@ def test_lrn_factory():
         ],
         dtype=np.float32,
     )
-    result = run_op_node([x], ng.lrn, axis, alpha, beta, bias, nsize)
+    result = run_op_node([x], ov.lrn, axis, alpha, beta, bias, nsize)
 
     assert np.allclose(result, excepted)
 
@@ -97,7 +97,7 @@ def test_batch_norm_inference():
     epsilon = 9.99e-06
     excepted = np.array([[2.0, 6.0, 12.0], [-2.0, -6.0, -12.0]], dtype=np.float32)
 
-    result = run_op_node([data, gamma, beta, mean, variance], ng.batch_norm_inference, epsilon)
+    result = run_op_node([data, gamma, beta, mean, variance], ov.batch_norm_inference, epsilon)
 
     assert np.allclose(result, excepted)
 
@@ -114,7 +114,7 @@ def test_mvn_no_variance():
                          -4, -3, -2, -1, 0, 1, 2, 3, 4,
                          -4, -3, -2, -1, 0, 1, 2, 3, 4], dtype=np.float32).reshape([1, 3, 3, 3])
 
-    result = run_op_node([data], ng.mvn, axes, normalize_variance, epsilon, eps_mode)
+    result = run_op_node([data], ov.mvn, axes, normalize_variance, epsilon, eps_mode)
 
     assert np.allclose(result, excepted)
 
@@ -137,6 +137,6 @@ def test_mvn():
                          -0.38729835, 0., 0.38729835,
                          0.7745967, 1.161895, 1.5491934], dtype=np.float32).reshape([1, 3, 3, 3])
 
-    result = run_op_node([data], ng.mvn, axes, normalize_variance, epsilon, eps_mode)
+    result = run_op_node([data], ov.mvn, axes, normalize_variance, epsilon, eps_mode)
 
     assert np.allclose(result, excepted)

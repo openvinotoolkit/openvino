@@ -10,7 +10,6 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -22,7 +21,8 @@ namespace v0 {
 /// \brief Class for constants.
 class OPENVINO_API Constant : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Constant", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     Constant() = default;
 
@@ -178,10 +178,14 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Don't constant fold a constant; it would make a copy
     bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override {
@@ -363,7 +367,7 @@ public:
 
     template <element::Type_t ET>
     const typename element_type_traits<ET>::value_type* get_data_ptr() const {
-        NGRAPH_CHECK(ET == get_element_type(), "get_data_ptr() called for incorrect element type.");
+        OPENVINO_ASSERT(ET == get_element_type(), "get_data_ptr() called for incorrect element type.");
         return static_cast<const typename element_type_traits<ET>::value_type*>(get_data_ptr());
     }
 
@@ -529,7 +533,7 @@ private:
 
     template <element::Type_t ET>
     typename element_type_traits<ET>::value_type* get_data_ptr_nc() {
-        NGRAPH_CHECK(ET == get_element_type(), "get_data_ptr_nc() called for incorrect element type.");
+        OPENVINO_ASSERT(ET == get_element_type(), "get_data_ptr_nc() called for incorrect element type.");
         return static_cast<typename element_type_traits<ET>::value_type*>(get_data_ptr_nc());
     }
 
@@ -667,21 +671,21 @@ private:
 #    pragma GCC diagnostic pop
 #endif
     }
-    template <ngraph::element::Type_t Type,
+    template <ov::element::Type_t Type,
               typename ValueT,
-              typename std::enable_if<Type == ngraph::element::Type_t::u4, bool>::type = true>
-    static ngraph::fundamental_type_for<Type> value_in_range(const ValueT& value) {
-        const auto result = ngraph::fundamental_type_for<Type>(value);
-        NGRAPH_CHECK(0 <= result && result <= 15, "assigned value out of range u4 values");
+              typename std::enable_if<Type == ov::element::Type_t::u4, bool>::type = true>
+    static ov::fundamental_type_for<Type> value_in_range(const ValueT& value) {
+        const auto result = ov::fundamental_type_for<Type>(value);
+        OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
         return result;
     }
 
-    template <ngraph::element::Type_t Type,
+    template <ov::element::Type_t Type,
               typename ValueT,
-              typename std::enable_if<Type == ngraph::element::Type_t::i4, bool>::type = true>
-    static ngraph::fundamental_type_for<Type> value_in_range(const ValueT& value) {
-        const auto result = ngraph::fundamental_type_for<Type>(value);
-        NGRAPH_CHECK(-8 <= result && result <= 7, "assigned value out of range i4 values");
+              typename std::enable_if<Type == ov::element::Type_t::i4, bool>::type = true>
+    static ov::fundamental_type_for<Type> value_in_range(const ValueT& value) {
+        const auto result = ov::fundamental_type_for<Type>(value);
+        OPENVINO_ASSERT(-8 <= result && result <= 7, "assigned value out of range i4 values");
         return result;
     }
 

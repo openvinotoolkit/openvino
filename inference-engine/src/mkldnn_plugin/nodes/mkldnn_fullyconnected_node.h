@@ -44,7 +44,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
+    AttrPtr initPrimitiveAttr();
 
 private:
     void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
@@ -54,7 +54,7 @@ private:
     InferenceEngine::SizeVector biasesDims;
 
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights, bool initAsBinary);
 
     bool withBiases = false;
 

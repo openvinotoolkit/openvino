@@ -12,7 +12,8 @@ namespace op {
 namespace util {
 class OPENVINO_API ReadValueBase : public Op, public VariableExtension {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ReadValueBase", "util");
+    BWDCMP_RTTI_DECLARATION;
 
     ReadValueBase() = default;
 

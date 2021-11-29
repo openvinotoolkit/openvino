@@ -16,7 +16,8 @@ namespace v0 {
 ///
 class OPENVINO_API MVN : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("MVN", "opset2");
+    BWDCMP_RTTI_DECLARATION;
 
     MVN() = default;
     /// \brief Constructs an MVN operation.
@@ -88,7 +89,8 @@ namespace v6 {
 ///
 class OPENVINO_API MVN : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("MVN", "opset6", op::Op, 6);
+    BWDCMP_RTTI_DECLARATION;
 
     MVN() = default;
     /// \brief Constructs an MVN operation.
@@ -135,10 +137,8 @@ class OPENVINO_API AttributeAdapter<op::MVNEpsMode> : public EnumAttributeAdapte
 public:
     AttributeAdapter(op::MVNEpsMode& value) : EnumAttributeAdapterBase<op::MVNEpsMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MVNEpsMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::MVNEpsMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

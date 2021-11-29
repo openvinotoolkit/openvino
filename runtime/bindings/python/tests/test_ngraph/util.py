@@ -5,8 +5,8 @@ from typing import Any, Callable, List, Union
 
 import numpy as np
 
-import ngraph as ng
-from ngraph.utils.types import NumericData
+import openvino.opset8 as ov
+from openvino.utils.types import NumericData
 from tests.runtime import get_runtime
 from string import ascii_uppercase
 
@@ -37,9 +37,9 @@ def run_op_node(input_data, op_fun, *args):
     for idx, data in enumerate(input_data):
         node = None
         if np.isscalar(data):
-            node = ng.parameter([], name=ascii_uppercase[idx], dtype=_get_numpy_dtype(data))
+            node = ov.parameter([], name=ascii_uppercase[idx], dtype=_get_numpy_dtype(data))
         else:
-            node = ng.parameter(data.shape, name=ascii_uppercase[idx], dtype=data.dtype)
+            node = ov.parameter(data.shape, name=ascii_uppercase[idx], dtype=data.dtype)
         op_fun_args.append(node)
         comp_args.append(node)
         comp_inputs.append(data)

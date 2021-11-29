@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
@@ -128,4 +128,3 @@ KERNEL(convolution_bfyx_1x1)(
 #undef CONCAT_TOKEN
 #undef CONCAT_TOKEN_HANDLER1
 #undef MULTIPLY_BLOCKS_16x16
-#undef MAKE_VECTOR_TYPE

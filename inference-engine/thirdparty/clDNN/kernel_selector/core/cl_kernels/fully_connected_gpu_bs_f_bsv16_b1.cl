@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Just-in-time macro definitions:
@@ -486,7 +486,6 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
 
 #undef CONCAT_TOKEN_HANDLER1
 #undef CONCAT_TOKEN
-#undef MAKE_VECTOR_TYPE
 #undef CVT_UNIT
 #undef CHUNK_UNITS_TYPE
 #undef AS_CHUNK

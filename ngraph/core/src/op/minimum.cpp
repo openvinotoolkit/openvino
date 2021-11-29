@@ -18,6 +18,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace minimumop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -53,11 +54,12 @@ bool evaluate_minimum(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace minimumop
 
 // ------------------------------ v1 -------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::Minimum, "Minimum", 1, op::util::BinaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v1::Minimum);
 
 op::v1::Minimum::Minimum(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

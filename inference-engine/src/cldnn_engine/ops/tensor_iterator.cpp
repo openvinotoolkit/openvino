@@ -55,7 +55,7 @@ static void UpdateBackedge(std::vector<cldnn::loop::backedge_mapping>& back_edge
     }
 }
 
-void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &op) {
+static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &op) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 
     // get body topology from ngraph function

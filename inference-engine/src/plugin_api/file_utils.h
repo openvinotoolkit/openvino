@@ -14,10 +14,17 @@
 #include <cstring>
 
 #include "ie_api.h"
-#include "details/ie_so_pointer.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace FileUtils {
+
+/**
+ * @brief Enables only `char` or `wchar_t` template specializations
+ * @tparam C A char type
+ */
+template <typename C>
+using enableIfSupportedChar =
+    typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
 
 /**
  * @brief Interface function to get absolute path of file
@@ -52,7 +59,7 @@ INFERENCE_ENGINE_API_CPP(bool) directoryExists(const std::string& path);
  */
 INFERENCE_ENGINE_API(long long) fileSize(const char *fileName);
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief      Returns file size for file with UNICODE path name
@@ -66,7 +73,7 @@ inline long long fileSize(const wchar_t* fileName) {
     return fileSize(::ov::util::wstring_to_string(fileName).c_str());
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief Function to get the size of a file. The function supports UNICODE path
@@ -74,7 +81,7 @@ inline long long fileSize(const wchar_t* fileName) {
  * @param f - string name of the file
  * @return size of the file
  */
-template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+template <typename C, typename = enableIfSupportedChar<C>>
 inline long long fileSize(const std::basic_string<C> &f) {
     return fileSize(f.c_str());
 }
@@ -85,7 +92,7 @@ inline long long fileSize(const std::basic_string<C> &f) {
  * @param fileName - given filename
  * @return true is exists
  */
-template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+template <typename C, typename = enableIfSupportedChar<C>>
 inline bool fileExist(const C * fileName) {
     return fileSize(fileName) >= 0;
 }
@@ -96,7 +103,7 @@ inline bool fileExist(const C * fileName) {
  * @param fileName - string with a given filename
  * @return true is exists
  */
-template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+template <typename C, typename = enableIfSupportedChar<C>>
 inline bool fileExist(const std::basic_string<C> &fileName) {
     return fileExist(fileName.c_str());
 }
@@ -109,7 +116,7 @@ inline bool fileExist(const std::basic_string<C> &fileName) {
  * @return string with combination of the path and the filename divided by file separator
  */
 
-template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+template <typename C, typename = enableIfSupportedChar<C>>
 inline std::basic_string<C> makePath(const std::basic_string<C> &folder, const std::basic_string<C> &file) {
     if (folder.empty())
         return file;
@@ -122,7 +129,7 @@ inline std::basic_string<C> makePath(const std::basic_string<C> &folder, const s
  * @param filename - string with the name of the file which extension should be extracted
  * @return string with extracted file extension
  */
-template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+template <typename C, typename = enableIfSupportedChar<C>>
 inline std::basic_string<C> fileExt(const std::basic_string<C> &filename) {
     auto pos = filename.rfind(ov::util::FileTraits<C>::dot_symbol);
     if (pos == std::string::npos)
@@ -130,7 +137,7 @@ inline std::basic_string<C> fileExt(const std::basic_string<C> &filename) {
     return filename.substr(pos + 1);
 }
 
-template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+template <typename C, typename = enableIfSupportedChar<C>>
 inline std::basic_string<C> makePluginLibraryName(const std::basic_string<C> &path, const std::basic_string<C> &input) {
     std::basic_string<C> separator(1, ov::util::FileTraits<C>::file_separator);
     if (path.empty())
@@ -150,7 +157,7 @@ namespace InferenceEngine {
  */
 INFERENCE_ENGINE_API_CPP(std::string) getIELibraryPath();
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
  * @brief   Returns a unicode path to Inference Engine library
@@ -169,6 +176,6 @@ inline ::ov::util::FilePath getInferenceEngineLibraryPath() {
     return getIELibraryPath();
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 }  // namespace InferenceEngine

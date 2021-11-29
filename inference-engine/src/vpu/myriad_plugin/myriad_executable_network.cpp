@@ -18,6 +18,10 @@
 #include <vpu/configuration/options/log_level.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
+#include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+#include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include "../../../ngraph/core/include/openvino/core/interval.hpp"
 
 using namespace InferenceEngine;
 
@@ -72,8 +76,40 @@ ExecutableNetwork::ExecutableNetwork(
         _config.get<LogLevelOption>(),
         consoleOutput());
 
+    ie::CNNNetwork copyNetwork = network;
+    if (copyNetwork.getFunction() && copyNetwork.getFunction()->is_dynamic()) {
+        copyNetwork = InferenceEngine::details::cloneNetwork(network);
+        auto function = copyNetwork.getFunction();
+        for (const auto& input : function->get_parameters()) {
+            if (input->get_partial_shape().is_dynamic()) {
+                auto inputShape = input->get_partial_shape();
+                const auto inDataParam = std::make_shared<ngraph::opset3::Parameter>(
+                    input->get_output_element_type(0), inputShape.get_max_shape());
+                const auto inDataShapeParam = std::make_shared<ngraph::opset3::Parameter>(
+                    ngraph::element::i32, ov::Shape{inputShape.get_max_shape().size()});
+                inDataShapeParam->set_friendly_name(input->get_friendly_name()+"_real_shape");
+                inDataParam->set_friendly_name(input->get_friendly_name());
+                inDataParam->get_output_tensor(0).set_names(input->get_output_tensor(0).get_names());
+                const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
+                    inDataParam, inDataShapeParam, ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE);
+                function->replace_node(input, dsr);
+                function->remove_parameter(input);
+                function->add_parameters({inDataShapeParam, inDataParam});
+            }
+        }
+        copyNetwork = ie::CNNNetwork(function);
+        for (const auto& inputInf : network.getInputsInfo()) {
+            auto& copyInput = copyNetwork.getInputsInfo()[inputInf.first];
+            copyInput->setPrecision(inputInf.second->getPrecision());
+            copyInput->setLayout(inputInf.second->getLayout());
+            copyInput->getPreProcess() = inputInf.second->getPreProcess();
+        }
+        for (const auto& outputInf : network.getOutputsInfo()) {
+            *copyNetwork.getOutputsInfo()[outputInf.first].get() = *outputInf.second.get();
+        }
+    }
     auto compiledGraph = compileNetwork(
-        network,
+        copyNetwork,
         _config,
         compilerLog,
         _core);

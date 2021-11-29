@@ -13,43 +13,74 @@ using namespace InferenceEngine;
 namespace SubgraphTestsDefinitions {
 // Subgraph:
 /*
- *          Parameter    Constant
+ *          Parameter    Constant[FP32/BF16]
  *                  \    /
  *                   \  /
- *               Transpose
- *  Constant      /
- *        \      /
+ *               Transpose[FP32/BF16]
+ *  Constant[FP32] /
+ *        \      X  No Reorder
  *         \    /
- *        Concat (inPlace)
+ *        Concat (inPlace)[FP32/BF16]
  *           |
+ *      Convolution [FP32/BF16]
  *           |
- *        Result
+ *        Result[FP32/BF16]
  */
 
-class ConcatConstantInPlaceTest : virtual public LayerTestsUtils::LayerTestsCommon {
+class ConcatConstantInPlaceTest : public testing::WithParamInterface<InferenceEngine::Precision>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
+    static std::string getTestCaseName(testing::TestParamInfo<InferenceEngine::Precision> obj) {
+        std::ostringstream result;
+        result << "ConcatConstantInPlaceTest" << obj.param.name();
+        return result.str();
+    }
+
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        inPrc = outPrc = Precision::FP32;
-        const std::vector<size_t> inputShape = {1, 384, 196};
-        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShape, inputShape});
+        if (Precision::BF16 == (inPrc = outPrc = this->GetParam()))
+            configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
+        else
+            configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
 
-        auto transposeOrder = ngraph::opset8::Constant::create(ngraph::element::i32, {3}, {0, 2, 1});
+        const std::vector<size_t> inputShape = {1, 3, 3, 11};
+        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
+
+        auto transposeOrder = ngraph::opset8::Constant::create(ngraph::element::i32, {4}, {0, 3, 2, 1});
         auto transpose = std::make_shared<ngraph::opset8::Transpose>(inputParams[0], transposeOrder);
 
-        auto concatConstantInput = ngraph::opset8::Constant::create(ngraph::element::f32, {1, 1, 384}, {10.0f});
+        auto concatConstantInput = ngraph::opset8::Constant::create(ngraph::element::f32, {1, 1, 3, 3}, {10.0f});
         auto concat = ngraph::builder::makeConcat({concatConstantInput, transpose}, 1);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(concat)};
+        // convolution
+        std::vector<float> weightValuesFP32(12);
+        ngraph::Shape convFilterShape = { 1, 12, 1, 1 };
+//        weightValuesFP32.resize(12);
+        FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
+        auto weightsNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape, weightValuesFP32);
+        std::shared_ptr<ngraph::Node> conv = std::make_shared<ngraph::opset1::Convolution>(
+            concat, weightsNode, ngraph::Strides({ 1, 1 }), ngraph::CoordinateDiff({ 0, 0 }),
+            ngraph::CoordinateDiff({ 0, 0 }), ngraph::Strides({ 1, 1 }), ngraph::op::PadType::EXPLICIT);
+            conv->set_friendly_name("CONV");
+
+        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(conv)};
         function = std::make_shared<ngraph::Function>(results, inputParams, "ConcatConstantInPlace");
     }
 };
 
 namespace {
-    TEST_F(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
+    TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         Run();
+        if (this->GetParam() == Precision::BF16)
+            CheckNodeOfTypeCount(executableNetwork, "Reorder", 4);
+        else
+            CheckNodeOfTypeCount(executableNetwork, "Reorder", 3);
     }
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU, ConcatConstantInPlaceTest,
+    testing::Values(Precision::FP32, Precision::BF16),
+    ConcatConstantInPlaceTest::getTestCaseName);
+
 } // namespace
 } // namespace SubgraphTestsDefinitions

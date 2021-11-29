@@ -6,7 +6,5 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::ScalarLoad, "ScalarLoad", 0);
-
 snippets::op::ScalarLoad::ScalarLoad(const Output<Node>& x) : Load(x) {
 }

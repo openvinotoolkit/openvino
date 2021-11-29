@@ -6,6 +6,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
 #include "cldnn_itt.h"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -92,7 +93,8 @@ bool Program::CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops,
     return true;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly)
+Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
+    bool createTopologyOnly, bool partialBuild)
     : m_config(config)
     , m_engine(engine)
     , m_curBatch(-1)
@@ -127,10 +129,10 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
             blobMemCache.clear();
 
             ChangeInputBatch(1U << static_cast<unsigned>(b));
-            m_programs.insert(m_programs.begin(), BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly));
+            m_programs.insert(m_programs.begin(), BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
         }
     } else {
-        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly));
+        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
     }
 }
 
@@ -174,7 +176,7 @@ void Program::CleanupBuild() {
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                       InferenceEngine::InputsDataMap networkInputs,
                                                       InferenceEngine::OutputsDataMap networkOutputs,
-                                                      bool createTopologyOnly) {
+                                                      bool createTopologyOnly, bool partialBuild) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::BuildProgram");
     cldnn::build_options options;
 
@@ -184,7 +186,9 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
 
     options.set_option(cldnn::build_option::optimize_data(true));
     options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
-
+    if (partialBuild) {
+        options.set_option(cldnn::build_option::partial_build_program(true));
+    }
     PrepareBuild(networkInputs, networkOutputs);
     for (const auto& op : ops) {
         CreateSingleLayerPrimitive(*m_topology, op);
@@ -231,6 +235,12 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateSingleLayerPrimitive");
     InitProfileInfo(op->get_friendly_name(), op->get_type_name());
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
+                       << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
+    }
+
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
     while (op_type_info != nullptr) {
@@ -251,8 +261,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
 
     if (!is_created) {
         IE_THROW() << "Operation: " << op->get_friendly_name()
-                           << " of type " << op->get_type_name()
-                           << "(op::v" << op->get_type_info().version << ") is not supported";
+                   << " of type " << op->get_type_name()
+                   << "(op::v" << op->get_type_info().version << ") is not supported";
     }
 }
 
@@ -325,28 +335,24 @@ void Program::InitProfileInfo(const std::string& layerName,
 
 // TODO: Does it make sense to add such method to ngraph core?
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
-    std::list<std::shared_ptr<ngraph::Node>> nodes_to_process = { node };
-    while (!nodes_to_process.empty()) {
-        auto current_node = nodes_to_process.front();
-        nodes_to_process.pop_front();
-
-        for (size_t i = 0; i < current_node->get_input_size(); i++) {
-            auto input_node = current_node->get_input_node_shared_ptr(i);
-
-            // If input is constant, then drop if from the processing list
-            if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input_node) != nullptr)
-                continue;
-
-            // If the node doesn't have any parents and it's not a constant, then we deal with dynamic path
-            if (input_node->get_input_size() == 0) {
+    std::set<std::shared_ptr<ngraph::Node>> nodes_processed = {};
+    std::function<bool(const std::shared_ptr<ngraph::Node>&)> is_const_node = [&nodes_processed, &is_const_node](const std::shared_ptr<ngraph::Node>& node) {
+        if (nodes_processed.count(node)) return true;
+        nodes_processed.insert(node);
+        // If input is constant, then drop if from the processing list
+        if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(node) != nullptr)
+            return true;
+        // If the node doesn't have any parents and it's not a constant, then we deal with dynamic path
+        if (node->get_input_size() == 0)
+            return false;
+        for (size_t i = 0; i < node->get_input_size(); i++) {
+            auto input_node = node->get_input_node_shared_ptr(i);
+            if (!is_const_node(input_node))
                 return false;
-            }
-
-            nodes_to_process.insert(nodes_to_process.end(), input_node);
         }
-    }
-
-    return true;
+        return true;
+    };
+    return is_const_node(node);
 }
 
 }  // namespace CLDNNPlugin

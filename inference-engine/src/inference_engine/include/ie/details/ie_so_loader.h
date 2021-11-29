@@ -17,17 +17,18 @@ namespace InferenceEngine {
 namespace details {
 
 /**
+ * @deprecated This is internal stuff. Use Inference Engine Plugin API
  * @brief This class provides an OS shared module abstraction
  */
-class INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
-    class Impl;
-    std::shared_ptr<Impl> _impl;
+class INFERENCE_ENGINE_DEPRECATED("This is internal stuff. Use Inference Engine Plugin API")
+    INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
+    std::shared_ptr<void> _so;
 
 public:
     /**
      * @brief Constructs from existing object
      */
-    SharedObjectLoader(const std::shared_ptr<void>& impl);
+    SharedObjectLoader(const std::shared_ptr<void>& so);
 
     /**
      * @brief Default constructor

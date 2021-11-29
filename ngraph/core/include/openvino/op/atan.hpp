@@ -15,7 +15,8 @@ namespace v0 {
 ///
 class OPENVINO_API Atan : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Atan", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an arctan operation.
     Atan() = default;
 
@@ -32,7 +33,9 @@ public:
     bool visit_attributes(AttributeVisitor&) override {
         return true;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v0

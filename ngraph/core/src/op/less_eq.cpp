@@ -13,7 +13,7 @@ using namespace ngraph;
 
 // ---------------------------------- v1 ---------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::LessEqual, "LessEqual", 1, op::util::BinaryElementwiseComparison);
+BWDCMP_RTTI_DEFINITION(op::v1::LessEqual);
 
 op::v1::LessEqual::LessEqual(const Output<Node>& arg0,
                              const Output<Node>& arg1,
@@ -29,6 +29,7 @@ shared_ptr<Node> op::v1::LessEqual::clone_with_new_inputs(const OutputVector& ne
 }
 
 namespace less_equalop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -63,6 +64,7 @@ bool evaluate_less_equal(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace less_equalop
 
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

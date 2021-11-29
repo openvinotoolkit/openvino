@@ -13,7 +13,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::DeformableConvolutionBase, "DeformableConvolutionBase", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::util::DeformableConvolutionBase);
 
 ov::op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
                                                                    const Strides& strides,

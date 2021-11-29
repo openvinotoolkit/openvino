@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::ScatterUpdate, "ScatterUpdate", 3, util::ScatterBase);
+BWDCMP_RTTI_DEFINITION(op::v3::ScatterUpdate);
 
 op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -29,11 +29,13 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
 }
 
 namespace scatter_update {
+namespace {
 template <element::Type_t ET>
 std::vector<int64_t> get_indices(const HostTensorPtr& in) {
     auto data_ptr = in->get_data_ptr<ET>();
     return std::vector<int64_t>(data_ptr, data_ptr + in->get_element_count());
 }
+}  // namespace
 }  // namespace scatter_update
 
 #define GET_INDICES(a, ...)                                                                   \
@@ -74,15 +76,15 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
         return false;
     }
 
-    runtime::reference::scatter_update(data->get_data_ptr<char>(),
-                                       indices_casted_vector.data(),
-                                       updates->get_data_ptr<char>(),
-                                       axis_val,
-                                       out->get_data_ptr<char>(),
-                                       elem_size,
-                                       data->get_shape(),
-                                       indices->get_shape(),
-                                       updates->get_shape());
+    ngraph::runtime::reference::scatter_update(data->get_data_ptr<char>(),
+                                               indices_casted_vector.data(),
+                                               updates->get_data_ptr<char>(),
+                                               axis_val,
+                                               out->get_data_ptr<char>(),
+                                               elem_size,
+                                               data->get_shape(),
+                                               indices->get_shape(),
+                                               updates->get_shape());
 
     return true;
 }

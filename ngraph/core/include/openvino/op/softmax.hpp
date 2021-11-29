@@ -11,7 +11,8 @@ namespace op {
 namespace v1 {
 class OPENVINO_API Softmax : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Softmax", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.
@@ -35,7 +36,9 @@ public:
     void set_axis(const size_t axis) {
         m_axis = axis;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

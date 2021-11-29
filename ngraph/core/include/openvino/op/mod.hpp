@@ -13,10 +13,11 @@ namespace v1 {
 /// multi-directional broadcast rules.
 class OPENVINO_API Mod : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a Mod node.
-    Mod() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Mod() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
     ///
     /// \param A - Dividend tensor
     /// \param B - Divisor tensor

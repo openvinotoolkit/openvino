@@ -23,7 +23,6 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include "legacy/convert_function_to_cnn_network.hpp"
 #include "legacy/graph_tools.hpp"
@@ -37,6 +36,8 @@
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+namespace {
 
 std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
     std::map<CNNLayer*, bool> result;
@@ -86,6 +87,8 @@ std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
     return result;
 }
 
+} // namespace
+
 CNNNetworkImpl::CNNNetworkImpl() {}
 
 CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & cnnnetwork) {
@@ -99,8 +102,6 @@ CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & cnnnetwork) {
 
     ::ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
-    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
     manager.register_pass<::ngraph::pass::CommonOptimizations>();
     manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();

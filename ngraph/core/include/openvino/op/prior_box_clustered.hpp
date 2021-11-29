@@ -14,7 +14,8 @@ namespace v0 {
 /// normalized to input image size
 class OPENVINO_API PriorBoxClustered : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("PriorBoxClustered", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     struct Attributes {
         // widths         Desired widths of prior boxes
         // heights        Desired heights of prior boxes
@@ -48,7 +49,9 @@ public:
         return m_attrs;
     }
     bool visit_attributes(AttributeVisitor& visitor) override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

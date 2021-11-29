@@ -130,9 +130,11 @@ bool runtime::HostTensor::get_is_allocated() const {
 }
 
 void runtime::HostTensor::set_element_type(const element::Type& element_type) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(get_element_type().is_dynamic() || get_element_type() == element_type,
                  "Can not change a static element type");
     m_descriptor->set_element_type(element_type);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void runtime::HostTensor::set_shape(const Shape& shape) {
@@ -141,7 +143,9 @@ void runtime::HostTensor::set_shape(const Shape& shape) {
                  shape,
                  " must be compatible with the partial shape: ",
                  get_partial_shape());
+    OPENVINO_SUPPRESS_DEPRECATED_START
     m_descriptor->set_partial_shape(shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void runtime::HostTensor::set_unary(const HostTensorPtr& arg) {

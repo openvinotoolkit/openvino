@@ -13,6 +13,7 @@ class LstmNonLinearity(Op):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': __class__.op,
+            'use_dropout': False,
             'type': None,  # type is None because this operation should not appear in IR
             'infer': None,
             'in_ports_count': 1,

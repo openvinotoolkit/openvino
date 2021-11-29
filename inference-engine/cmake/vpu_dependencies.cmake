@@ -6,19 +6,18 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "54a732b5fb17a0124652bc5113fa628c718a5af40621bca309471cb5ffd9271b"
-    "5750b2831c77ef54b8e243d3840c5ed1c9509681d55aee7e369d558cef628735")
+    "e65fcc1c6b0f3e9d814e53022c212ec0a2b83197a9df38badb298fb85ccf3acf"
+    "b11368fec2036d96fb703d2a40b171184fefe89f27e74a988ef1ca34260a2bc5")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1717)
+set(FIRMWARE_PACKAGE_VERSION 1875)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
 # CMake variables to override default firmware files
-#
 list(LENGTH VPU_SUPPORTED_FIRMWARES num_firmwares)
 math(EXPR num_firmwares "${num_firmwares} - 1")
 foreach(idx RANGE 0 ${num_firmwares})
@@ -110,8 +109,6 @@ if(ANDROID)
 
     set(LIBUSB_INCLUDE_DIR "${LIBUSB}/include")
     set(LIBUSB_LIBRARY "${LIBUSB}/libs/${ANDROID_ABI}/libusb1.0.so")
-
-    log_rpath_from_dir(LIBUSB "${LIBUSB}/libs/${ANDROID_ABI}")
 endif()
 
 #

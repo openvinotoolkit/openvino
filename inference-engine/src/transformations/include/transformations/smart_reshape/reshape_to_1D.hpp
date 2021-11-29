@@ -7,14 +7,12 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ReshapeTo1D;
+class NGRAPH_API ReshapeTo1D;
 
 }  // namespace pass
 }  // namespace ngraph

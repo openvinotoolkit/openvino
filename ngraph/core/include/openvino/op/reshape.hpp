@@ -16,7 +16,8 @@ namespace v1 {
 ///
 class OPENVINO_API Reshape : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Reshape", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
     Reshape() = default;
     /// \brief Constructs a dynamic reshape operation. This operation does not perform
     ///        transpose.
@@ -45,10 +46,14 @@ public:
     void set_special_zero(bool special_zero) {
         m_special_zero = special_zero;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
 protected:

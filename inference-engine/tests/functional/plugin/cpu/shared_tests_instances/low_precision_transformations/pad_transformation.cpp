@@ -77,7 +77,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, PadTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
@@ -140,7 +140,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, PadTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
@@ -184,7 +184,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, PadTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

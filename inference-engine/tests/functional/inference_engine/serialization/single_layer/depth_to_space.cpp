@@ -30,7 +30,7 @@ const std::vector<std::vector<size_t>> inputShapesBS2 = {
     {2, 16, 5, 4},    {1, 8, 1, 1, 1}, {1, 8, 2, 2, 2}, {1, 8, 3, 3, 3},
     {2, 32, 3, 3, 3}, {2, 16, 5, 4, 6}};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_DepthToSpaceSerialization, DepthToSpaceLayerTest,
     ::testing::Combine(::testing::ValuesIn(inputShapesBS2),
                        ::testing::ValuesIn(inputPrecisions),

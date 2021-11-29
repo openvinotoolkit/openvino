@@ -40,7 +40,7 @@ static cldnn::gather_elements::gather_elements_axis GetGatherAxis(int axis, unsi
     return cldnn::gather_elements::gather_elements_axis::along_f;  // shouldn't get here
 }
 
-void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op::v6::GatherElements>& op) {
+static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op::v6::GatherElements>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

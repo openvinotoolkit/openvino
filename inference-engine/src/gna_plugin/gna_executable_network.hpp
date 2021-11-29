@@ -13,6 +13,7 @@
 #include <gna/gna_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+#include <ie_icore.hpp>
 
 namespace GNAPluginNS {
 
@@ -58,11 +59,12 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         return std::make_shared<GNAInferRequest>(plg, networkInputs, networkOutputs);
     }
 
-    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
-        IE_SUPPRESS_DEPRECATED_START
-        return plg->QueryState();
-        IE_SUPPRESS_DEPRECATED_END
+    InferenceEngine::IInferRequestInternal::Ptr
+        CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                               const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
+        if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+            return nullptr;
+        return std::make_shared<GNAInferRequest>(plg, inputs, outputs);
     }
 
     void Export(const std::string &modelFileName) override {

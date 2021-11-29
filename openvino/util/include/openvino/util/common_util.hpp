@@ -37,6 +37,8 @@ std::string to_lower(const std::string& s);
 
 std::string to_upper(const std::string& s);
 
+size_t hash_combine(const std::vector<size_t>& list);
+
 /**
  * @brief trim from start (in place)
  * @param s - string to trim

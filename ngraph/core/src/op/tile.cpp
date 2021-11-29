@@ -9,13 +9,15 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/tile.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Tile, "Tile", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Tile);
 
 op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
@@ -92,12 +94,12 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
         output->set_shape(output_shape);
     }
 
-    runtime::reference::tile(data->get_data_ptr<const char>(),
-                             output->get_data_ptr<char>(),
-                             data->get_shape(),
-                             output_shape,
-                             data->get_element_type().size(),
-                             repeats_val);
+    ngraph::runtime::reference::tile(data->get_data_ptr<const char>(),
+                                     output->get_data_ptr<char>(),
+                                     data->get_shape(),
+                                     output_shape,
+                                     data->get_element_type().size(),
+                                     repeats_val);
 
     return true;
 }

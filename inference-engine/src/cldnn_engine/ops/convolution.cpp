@@ -39,19 +39,19 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
     switch (strides.size()) {
         case 3: {
             stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[2], strides[1], strides[0]));
-            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pads_begin[2], -pads_begin[1], -pads_begin[0]));
+            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pads_begin[2], pads_begin[1], pads_begin[0]));
             dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[2], dilations[1], dilations[0]));
             break;
         }
         case 2: {
             stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[1], strides[0], 1));
-            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pads_begin[1], -pads_begin[0], 0));
+            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pads_begin[1], pads_begin[0], 0));
             dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[1], dilations[0], 1));
             break;
         }
         case 1: {
             stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[0], 1, 1));
-            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pads_begin[0], 0, 0));
+            padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pads_begin[0], 0, 0));
             dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[0], 1, 1));
             break;
         }
@@ -61,7 +61,7 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
     return {stride, padding, dilation, groups};
 }
 
-void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolution>& op) {
+static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -91,7 +91,7 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convolution>& op) {
+static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -120,7 +120,7 @@ void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convo
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData>& op) {
+static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData>& op) {
     // 3rd input is an optional output shape
     p.ValidateInputs(op, {2, 3});
     auto inputs = p.GetInputPrimitiveIDs(op);
@@ -176,7 +176,7 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData>& op) {
+static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -233,7 +233,7 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op) {
+static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op) {
     p.ValidateInputs(op, {3});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -303,7 +303,7 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op:
     }
 }
 
-void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op) {
+static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

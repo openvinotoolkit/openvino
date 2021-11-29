@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
@@ -29,7 +29,8 @@ namespace v1 {
 // clang-format on
 class OPENVINO_API Select : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Select", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a selection operation.
     Select() : m_auto_broadcast(AutoBroadcastSpec(AutoBroadcastType::NUMPY)) {}
 
@@ -59,7 +60,9 @@ public:
     const AutoBroadcastSpec& get_autob() const override {
         return m_auto_broadcast;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

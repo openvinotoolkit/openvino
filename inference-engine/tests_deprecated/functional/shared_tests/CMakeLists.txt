@@ -18,7 +18,12 @@ file(GLOB SHARED_TESTS_SRC
         )
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
-add_dependencies(${TARGET_NAME} inference_engine_preproc MultiDevicePlugin mock_engine)
+
+add_dependencies(${TARGET_NAME} inference_engine_preproc mock_engine)
+
+if(ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
@@ -51,7 +56,9 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC ${SHARED_LIBRARIES})
 
-add_dependencies(${TARGET_NAME} HeteroPlugin)
+if(ENABLE_HETERO)
+    add_dependencies(${TARGET_NAME} HeteroPlugin)
+endif()
 
 # developer package
 

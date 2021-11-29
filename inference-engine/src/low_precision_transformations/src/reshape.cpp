@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
@@ -23,19 +24,37 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
 
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Reshape>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto input = pattern::any_input();
+    auto mul_const_m = pattern::wrap_type<opset1::Constant>();
+    auto mul_m = pattern::wrap_type<opset1::Multiply>({ input, mul_const_m });
+    auto reshape_pattern_const = pattern::wrap_type<opset1::Constant>();
+    auto reshape_pattern_nonconst = pattern::any_input();
+    auto reshape_pattern = std::make_shared<pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
+    auto matcher = pattern::wrap_type<opset1::Reshape>({ mul_m, reshape_pattern });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
+
+        // we can propagate only per-tensor dq through reshape with non-const reshape_pattern
+        const auto& pattern_map = m.get_pattern_value_map();
+        if (pattern_map.count(reshape_pattern_nonconst)) {
+            const auto mul_const = as_type_ptr<opset1::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
+            if (!mul_const || ngraph::shape_size(mul_const->get_shape()) != 1) {
+                return false;
+            }
+        }
+
         return transform(*context, m);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ReshapeTransformation");
     this->register_matcher(m, callback);
 }
+
+namespace {
 
 void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
     // Reshape dequantization operation Constant.
@@ -63,7 +82,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
             }
         }
 
-        const auto reshapeOutputPShape = reshape->output(0).get_partial_shape();
+        const auto reshapeOutputPShape = reshape->get_output_partial_shape(0);
         const auto reshapeOutputRank = reshapeOutputPShape.rank();
         assert(reshapeOutputRank.is_static());
         assert(reshapeOutputRank.get_length() >= 2);
@@ -124,6 +143,8 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
     }
 }
 
+} // namespace
+
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     std::shared_ptr<opset1::Reshape> reshape = ov::as_type_ptr<opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
@@ -144,7 +165,7 @@ bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const
     return true;
 }
 
-size_t getLastNotBroadcastedDimension(const Shape& shape) {
+inline size_t getLastNotBroadcastedDimension(const Shape& shape) {
     for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
         if (shape[i] != 1ul) {
             return i;
@@ -153,7 +174,7 @@ size_t getLastNotBroadcastedDimension(const Shape& shape) {
     return 0;
 }
 
-size_t getFirstChangedDimension(const PartialShape& shape1, const PartialShape& shape2) {
+inline size_t getFirstChangedDimension(const PartialShape& shape1, const PartialShape& shape2) {
     const size_t minSize = std::min(shape1.rank().get_length(), shape2.rank().get_length());
     size_t i = 0;
     for (; i < minSize; ++i) {

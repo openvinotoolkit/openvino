@@ -58,10 +58,13 @@ public:
             auto reshape_after = std::make_shared<ngraph::opset6::Reshape>(permute, shape_reshape_after, false);
             f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape_after }, ngraph::ParameterVector{ input0 });
 
+            auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
             ngraph::pass::Manager manager;
             auto pass_config = manager.get_pass_config();
+            manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             manager.register_pass<ngraph::pass::ShuffleChannelsFusion>(values.check_reshape_values);
+            manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
             manager.run_passes(f);
             ASSERT_NO_THROW(check_rt_info(f));
         }
@@ -98,8 +101,9 @@ protected:
 };
 
 TEST_P(ShuffleChannelsFusion, CompareFunctions) {
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 const std::vector<ShuffleChannelsFusionTestValues> testValues = {

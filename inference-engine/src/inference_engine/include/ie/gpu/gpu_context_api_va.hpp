@@ -123,11 +123,17 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height,
  * @param core Inference Engine Core object
  * @param deviceName A device name to create a remote context for
  * @param device A `VADisplay` to create remote context from
+ * @param target_tile_id Desired tile id within given context for multi-tile system. Default value (-1) means that root
+ * device should be used
  * @return A remote context wrapping `VADisplay`
  */
-static inline VAContext::Ptr make_shared_context(Core& core, std::string deviceName, VADisplay device) {
+static inline VAContext::Ptr make_shared_context(Core& core,
+                                                 std::string deviceName,
+                                                 VADisplay device,
+                                                 int target_tile_id = -1) {
     ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
-                              {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}};
+                              {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
+                              {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
     return std::dynamic_pointer_cast<VAContext>(core.CreateContext(deviceName, contextParams));
 }
 

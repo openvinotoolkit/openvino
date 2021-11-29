@@ -3,12 +3,12 @@
 //
 
 #include <frontend/shared/include/utils.hpp>
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 
 #include "gtest/gtest.h"
 #include "paddle_utils.hpp"
 
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 const std::string model_file = std::string(TEST_PADDLE_MODELS_DIRNAME) + "place_test_model/place_test_model.pdmodel";
 

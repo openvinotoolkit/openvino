@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Proposal, "Proposal", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Proposal);
 
 op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
@@ -128,7 +128,7 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-OPENVINO_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::Proposal);
 
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,

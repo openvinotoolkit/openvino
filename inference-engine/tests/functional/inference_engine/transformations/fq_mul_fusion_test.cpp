@@ -82,15 +82,19 @@ public:
 };
 
 TEST_P(FQMulFusion, ExpectFusion) {
-  ngraph::pass::Manager manager;
-  manager.register_pass<ngraph::pass::InitNodeInfo>();
-  manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
 
-  manager.run_passes(m_function);
-  ASSERT_NO_THROW(check_rt_info(m_function));
+    manager.run_passes(m_function);
+    ASSERT_NO_THROW(check_rt_info(m_function));
 
-  const auto res = compare_functions(m_function, m_expected_function);
-  ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(m_function, m_expected_function);
+    ASSERT_TRUE(res.valid) << res.message;
 };
 
 namespace {
@@ -178,7 +182,7 @@ INSTANTIATE_TEST_SUITE_P(FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 3})));
 
-INSTANTIATE_TEST_CASE_P(FQInOUt_ones__multiplier_3D, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQInOUt_ones__multiplier_3D, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 128, 512}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{1}),

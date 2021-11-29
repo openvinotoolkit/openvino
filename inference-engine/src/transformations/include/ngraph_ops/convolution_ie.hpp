@@ -18,8 +18,8 @@ namespace op {
 
 class TRANSFORMATIONS_API ConvolutionIE : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ConvolutionIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("ConvolutionIE", "util");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a batched convolution operation.
     ConvolutionIE() = default;
     /// \brief Constructs a batched convolution operation.

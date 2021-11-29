@@ -177,12 +177,264 @@ def bilinear_upsample_scales():
         pdpd_result = pdpd_interpolate(data, None, 2, mode='bilinear', align_corners=test['align_corners'],
                                        align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
 
+# trilinear
+def resize_upsample_trilinear():
+    data = np.array([[[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ],[
+        [13, 14, 15, 16],
+        [9, 10, 11, 12],
+        [5, 6, 7, 8],
+        [1, 2, 3, 4],
+    ]]]], dtype=np.float32)
+
+    test_case = [{'name': 'trilinear_upsample_false_1', 'align_corners': False, 'align_mode': 1},
+                 {'name': 'trilinear_upsample_false_0', 'align_corners': False, 'align_mode': 0},
+                 {'name': 'trilinear_upsample_true_0', 'align_corners': True, 'align_mode': 0}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data, [4, 64, 64], None, mode='TRILINEAR', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCDHW', name=test['name'])
+
+
+def resize_downsample_trilinear():
+    data = np.array([[[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ],[
+        [13, 14, 15, 16],
+        [9, 10, 11, 12],
+        [5, 6, 7, 8],
+        [1, 2, 3, 4]
+    ]]]], dtype=np.float32)
+    data_28 = data.reshape([1, 1, 2, 2, 8])
+    test_case = [{'name': 'trilinear_downsample_false_1', 'align_corners': False, 'align_mode': 1},
+                 {'name': 'trilinear_downsample_false_0', 'align_corners': False, 'align_mode': 0},
+                 {'name': 'trilinear_downsample_true_0', 'align_corners': True, 'align_mode': 0}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data_28, [2, 2, 4], None, mode='TRILINEAR', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCDHW', name=test['name'])
+
+def trilinear_upsample_tensor_size():
+    data = np.array([[[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ]]]], dtype=np.float32)
+    sizes = np.array([2, 8, 8], dtype="int32")
+
+    test_case = [{'name': 'trilinear_upsample_tensor_size', 'align_corners': False, 'align_mode': 1}]
+
+    for test in test_case:
+        main_program = pdpd.static.Program()
+        startup_program = pdpd.static.Program()
+        with pdpd.static.program_guard(main_program, startup_program):
+            node_x = pdpd.static.data(name='x', shape=data.shape, dtype='float32')
+            node_sizes = pdpd.static.data(name='sizes', shape=sizes.shape, dtype='int32')
+            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
+                                 mode='TRILINEAR', align_corners=test['align_corners'], align_mode=test['align_mode'],
+                                 data_format='NCDHW', name=test['name'])
+            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+            cpu = pdpd.static.cpu_places(1)
+            exe = pdpd.static.Executor(cpu[0])
+            exe.run(startup_program)
+            outs = exe.run(
+                feed={'x': data, 'sizes': sizes},
+                fetch_list=out,
+                program=main_program)
+            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+
+def trilinear_upsample_scales():
+    data = np.array([[[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ]]]], dtype=np.float32)
+
+    test_case = [{'name': 'trilinear_upsample_scales', 'align_corners': False, 'align_mode': 1, "scales": 2},
+                 {'name': 'trilinear_upsample_scales2', 'align_corners': False, 'align_mode': 1, "scales": [1, 2, 2]}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data, None, 3, mode='TRILINEAR', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCDHW', name=test['name'])
+
+
+# bicubic
+def resize_upsample_bicubic():
+    data = np.array([[[
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+    ]]], dtype=np.float32)
+
+    test_case = [{'name': 'bicubic_upsample_false_1', 'align_corners': False, 'align_mode': 1},
+                 {'name': 'bicubic_upsample_false_0', 'align_corners': False, 'align_mode': 0},
+                 {'name': 'bicubic_upsample_true_0', 'align_corners': True, 'align_mode': 0}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data, [6, 6], None, mode='bicubic', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
+
+
+def resize_downsample_bicubic():
+    data = np.array([[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ]]], dtype=np.float32)
+    data_28 = data.reshape([1, 1, 2, 8])
+    test_case = [{'name': 'bicubic_downsample_false_1', 'align_corners': False, 'align_mode': 1},
+                 {'name': 'bicubic_downsample_false_0', 'align_corners': False, 'align_mode': 0},
+                 {'name': 'bicubic_downsample_true_0', 'align_corners': True, 'align_mode': 0}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data_28, [2, 4], None, mode='bicubic', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
+
+def bicubic_upsample_tensor_size():
+    data = np.array([[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ]]], dtype=np.float32)
+    sizes = np.array([8, 8], dtype="int32")
+
+    test_case = [{'name': 'bicubic_upsample_tensor_size', 'align_corners': False, 'align_mode': 1}]
+
+    for test in test_case:
+        main_program = pdpd.static.Program()
+        startup_program = pdpd.static.Program()
+        with pdpd.static.program_guard(main_program, startup_program):
+            node_x = pdpd.static.data(name='x', shape=data.shape, dtype='float32')
+            node_sizes = pdpd.static.data(name='sizes', shape=sizes.shape, dtype='int32')
+            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
+                                 mode='bicubic', align_corners=test['align_corners'], align_mode=test['align_mode'],
+                                 data_format='NCHW', name=test['name'])
+            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+            cpu = pdpd.static.cpu_places(1)
+            exe = pdpd.static.Executor(cpu[0])
+            exe.run(startup_program)
+            outs = exe.run(
+                feed={'x': data, 'sizes': sizes},
+                fetch_list=out,
+                program=main_program)
+            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+
+def bicubic_upsample_scales():
+    data = np.array([[[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ]]], dtype=np.float32)
+
+    test_case = [{'name': 'bicubic_upsample_scales', 'align_corners': False, 'align_mode': 1, "scales": 2},
+                 {'name': 'bicubic_upsample_scales2', 'align_corners': False, 'align_mode': 1, "scales": [2, 2]}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data, None, 2, mode='bicubic', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCHW', name=test['name'])
+
+# linear
+def resize_upsample_linear():
+    data = np.array([[
+        [1, 2, 3]
+    ]], dtype=np.float32)
+
+    test_case = [{'name': 'linear_upsample_false_1', 'align_corners': False, 'align_mode': 1},
+                 {'name': 'linear_upsample_false_0', 'align_corners': False, 'align_mode': 0},
+                 {'name': 'linear_upsample_true_0', 'align_corners': True, 'align_mode': 0}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data, [6,], None, mode='linear', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCW', name=test['name'])
+
+
+def resize_downsample_linear():
+    data = np.array([[
+        [1, 2, 3, 4],
+        [5, 6, 7, 8]
+    ]], dtype=np.float32)
+    data_28 = data.reshape([1, 1, 8])
+    test_case = [{'name': 'linear_downsample_false_1', 'align_corners': False, 'align_mode': 1},
+                 {'name': 'linear_downsample_false_0', 'align_corners': False, 'align_mode': 0},
+                 {'name': 'linear_downsample_true_0', 'align_corners': True, 'align_mode': 0}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data_28, [4,], None, mode='linear', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCW', name=test['name'])
+
+def linear_upsample_tensor_size():
+    data = np.array([[
+        [1, 2, 3, 4]
+    ]], dtype=np.float32)
+    sizes = np.array([8,], dtype="int32")
+
+    test_case = [{'name': 'linear_upsample_tensor_size', 'align_corners': False, 'align_mode': 1}]
+
+    for test in test_case:
+        main_program = pdpd.static.Program()
+        startup_program = pdpd.static.Program()
+        with pdpd.static.program_guard(main_program, startup_program):
+            node_x = pdpd.static.data(name='x', shape=data.shape, dtype='float32')
+            node_sizes = pdpd.static.data(name='sizes', shape=sizes.shape, dtype='int32')
+            interp = interpolate(node_x, size=node_sizes, scale_factor=None,
+                                 mode='linear', align_corners=test['align_corners'], align_mode=test['align_mode'],
+                                 data_format='NCW', name=test['name'])
+            out = pdpd.static.nn.batch_norm(interp, use_global_stats=True, epsilon=0)
+            cpu = pdpd.static.cpu_places(1)
+            exe = pdpd.static.Executor(cpu[0])
+            exe.run(startup_program)
+            outs = exe.run(
+                feed={'x': data, 'sizes': sizes},
+                fetch_list=out,
+                program=main_program)
+            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+
+def linear_upsample_scales():
+    data = np.array([[
+        [1, 2, 3, 4]
+    ]], dtype=np.float32)
+
+    test_case = [{'name': 'linear_upsample_scales', 'align_corners': False, 'align_mode': 1, "scales": 2},
+                 {'name': 'linear_upsample_scales2', 'align_corners': False, 'align_mode': 1, "scales": [2, 2]}]
+
+    for test in test_case:
+        pdpd_result = pdpd_interpolate(data, None, 2, mode='linear', align_corners=test['align_corners'],
+                                       align_mode=test['align_mode'], data_format='NCW', name=test['name'])
 
 if __name__ == "__main__":
+    # bilinear
     resize_downsample_bilinear()
     resize_upsample_bilinear()
+    bilinear_upsample_tensor_size()
+    bilinear_upsample_scales()
+    # nearest
     resize_downsample_nearest()
     resize_upsample_nearest()
     nearest_upsample_tensor_size()
-    bilinear_upsample_tensor_size()
-    bilinear_upsample_scales()
+    # trilinear
+    resize_downsample_trilinear()
+    resize_upsample_trilinear()
+    trilinear_upsample_tensor_size()
+    trilinear_upsample_scales()
+    # bicubic
+    resize_downsample_bicubic()
+    resize_upsample_bicubic()
+    bicubic_upsample_tensor_size()
+    bicubic_upsample_scales()    
+    # linear
+    resize_downsample_linear()
+    resize_upsample_linear()
+    linear_upsample_tensor_size()
+    linear_upsample_scales()

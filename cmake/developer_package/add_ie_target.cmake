@@ -19,9 +19,10 @@ addIeTarget(
         ${SDL_INCLUDES}
         /some/specific/path
    LINK_LIBRARIES
-        ie::important_plugin
+        link_dependencies
    DEPENDENCIES
         dependencies
+        ie::important_plugin
    OBJECT_FILES
         object libraries
 )

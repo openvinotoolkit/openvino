@@ -61,23 +61,23 @@ using isas_set = typelist<
     //as the search for supported ISA is performed until first match
     scalar_tag>;
 #ifdef HAVE_AVX512
-    bool is_present(avx512_tag) { return with_cpu_x86_avx512f(); }
+    inline bool is_present(avx512_tag) { return with_cpu_x86_avx512f(); }
 #endif  // HAVE_AVX512
 
 #ifdef HAVE_AVX2
-    bool is_present(avx2_tag) { return with_cpu_x86_avx2(); }
+    inline bool is_present(avx2_tag) { return with_cpu_x86_avx2(); }
 #endif  // HAVE_AVX2
 
 #ifdef HAVE_SSE
-    bool is_present(sse42_tag) { return with_cpu_x86_sse42(); }
+    inline bool is_present(sse42_tag) { return with_cpu_x86_sse42(); }
 #endif  // HAVE_SSE
 
 #ifdef HAVE_NEON
-    bool is_present(neon_tag) { return true; }
+    inline bool is_present(neon_tag) { return true; }
 #endif  // HAVE_NEON
 
 //scalar version of kernels is always available
-bool is_present(scalar_tag) { return true; }
+inline bool is_present(scalar_tag) { return true; }
 
 struct is_isa_present {
     template< typename isa_tag_t>

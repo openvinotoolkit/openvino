@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::RNNSequenceIE, "RNNSequenceIE", 4);
+BWDCMP_RTTI_DEFINITION(op::RNNSequenceIE);
 
 op::RNNSequenceIE::RNNSequenceIE(const Output<Node>& X,
                                  const Output<Node>& H_t,

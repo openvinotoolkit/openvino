@@ -11,7 +11,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -23,6 +22,8 @@
 #include <ngraph_ops/convolution_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
+
+#include <ngraph/pass/manager.hpp>
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -38,7 +39,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param1, param2});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.run_passes(f);
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -67,7 +70,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param1, param2});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.run_passes(f);
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -163,13 +168,13 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.run_passes(f);
     }
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<ngraph::pass::ConvertPriorBox>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();

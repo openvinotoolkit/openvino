@@ -19,7 +19,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-namespace einsum_details {
+namespace {
 /// \brief      Compute einsum_path for a given Einsum node meaning that the
 /// (pseudo-)optimal order of operands contraction in terms of performance and
 /// memory consumption
@@ -531,7 +531,7 @@ HostTensorPtr build_multi_identity(const HostTensorPtr& input_ptr,
         PartialShape output_shape = multi_identity->get_partial_shape();
         PartialShape::broadcast_merge_into(output_shape,
                                            identity->get_partial_shape(),
-                                           ngraph::op::AutoBroadcastSpec::NUMPY);
+                                           ngraph::op::AutoBroadcastType::NUMPY);
         HostTensorPtr mul_output =
             std::shared_ptr<HostTensor>(new HostTensor(identity->get_element_type(), output_shape.get_shape()));
         ngraph::runtime::reference::multiply<T>(multi_identity->get_data_ptr<T>(),
@@ -539,7 +539,7 @@ HostTensorPtr build_multi_identity(const HostTensorPtr& input_ptr,
                                                 mul_output->get_data_ptr<T>(),
                                                 multi_identity->get_shape(),
                                                 identity->get_shape(),
-                                                ngraph::op::AutoBroadcastSpec::NUMPY);
+                                                ngraph::op::AutoBroadcastType::NUMPY);
         multi_identity = mul_output;
     }
     return multi_identity;
@@ -599,7 +599,7 @@ void extract_diagonal(HostTensorVector& inputs, std::vector<std::string>& input_
                                             mul_output->get_data_ptr<T>(),
                                             input_ptr->get_shape(),
                                             multi_identity->get_shape(),
-                                            ngraph::op::AutoBroadcastSpec::NUMPY);
+                                            ngraph::op::AutoBroadcastType::NUMPY);
 
     HostTensorPtr result = std::shared_ptr<HostTensor>(new HostTensor(input_ptr->get_element_type(), result_shape));
     ngraph::runtime::reference::sum<T>(mul_output->get_data_ptr<T>(),
@@ -798,7 +798,7 @@ void contract_two_inputs(HostTensorVector& inputs,
         PartialShape output_shape = unsqueeze_output1->get_partial_shape();
         PartialShape::broadcast_merge_into(output_shape,
                                            unsqueeze_output2->get_partial_shape(),
-                                           ngraph::op::AutoBroadcastSpec::NUMPY);
+                                           ngraph::op::AutoBroadcastType::NUMPY);
         HostTensorPtr mul_output = std::shared_ptr<HostTensor>(
             new HostTensor(unsqueeze_output1->get_element_type(), output_shape.get_shape()));
         ngraph::runtime::reference::multiply<T>(unsqueeze_output1->get_data_ptr<T>(),
@@ -806,7 +806,7 @@ void contract_two_inputs(HostTensorVector& inputs,
                                                 mul_output->get_data_ptr<T>(),
                                                 unsqueeze_output1->get_shape(),
                                                 unsqueeze_output2->get_shape(),
-                                                ngraph::op::AutoBroadcastSpec::NUMPY);
+                                                ngraph::op::AutoBroadcastType::NUMPY);
 
         // update input operand and input subscript for Einsum operation
         update_operands(inputs, input_subscripts, input_ind1, input_ind2, mul_output, resultant_subscript);
@@ -880,7 +880,7 @@ void contract_two_inputs(HostTensorVector& inputs,
     // broadcast both inputs to have common sub-shape broadcasted that is needed
     // in case of ellipsis among the common labels
     // ngraph::runtime::reference::broadcast()
-    PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, ngraph::op::AutoBroadcastSpec::NUMPY);
+    PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, ngraph::op::AutoBroadcastType::NUMPY);
     Shape common_sub_shape = common_sub_shape1.get_shape();
     broadcast_input<T>(inputs,
                        input_ind1,
@@ -983,7 +983,7 @@ void einsum_impl(const HostTensorVector& inputs, const HostTensorVector& outputs
     outputs[0]->write(int_inputs[0]->get_data_ptr(), buf_size);
 }
 
-}  // namespace einsum_details
+}  // namespace
 
 void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, const std::string& equation) {
     NGRAPH_CHECK(inputs.size() > 0, "Einsum must accept at least one input.");
@@ -992,9 +992,9 @@ void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, con
         NGRAPH_CHECK(inputs[input_ind]->get_element_type() == input_type, "Input types must be the same.");
     }
     if (input_type == element::Type_t::f32) {
-        einsum_details::einsum_impl<float>(inputs, outputs, equation);
+        einsum_impl<float>(inputs, outputs, equation);
     } else if (input_type == element::Type_t::i32) {
-        einsum_details::einsum_impl<int>(inputs, outputs, equation);
+        einsum_impl<int>(inputs, outputs, equation);
     } else {
         NGRAPH_CHECK(false, "Unsupported input type for Einsum operation.");
     }

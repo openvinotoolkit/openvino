@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -24,6 +24,11 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+
 private:
     int axis = 0;
     int batchDims = 0;
@@ -37,12 +42,14 @@ private:
     size_t dstBatchStride = 1;
     size_t dataSize = 1;
     size_t len = 1;
+    int dataSrcRank = 1;
+    bool isAxisInputConst = false;
 
-    static const size_t GATHER_DATA = 0;
-    static const size_t GATHER_INDEXES = 1;
-    static const size_t GATHER_AXIS = 2;
+    static constexpr size_t GATHER_DATA = 0;
+    static constexpr size_t GATHER_INDEXES = 1;
+    static constexpr size_t GATHER_AXIS = 2;
 
-    std::string errorPrefix_;
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

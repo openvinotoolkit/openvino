@@ -1,0 +1,44 @@
+/* This configuration file is the fastest way to get started with the accuracy aware
+quantization algorithm. It contains only mandatory options with commonly used
+values. All other options can be considered as an advanced mode and requires
+deep knowledge of the quantization process. An overall description of all possible
+parameters can be found in the accuracy_aware_quantization_spec.json */
+
+{
+    /* Model parameters */
+
+    "model": {
+        "model_name": "model_name", // Model name
+        "model": "<MODEL_PATH>", // Path to model (.xml format)
+        "weights": "<PATH_TO_WEIGHTS>" // Path to weights (.bin format)
+    },
+
+    /* Parameters of the engine used for model inference */
+
+    "engine": {
+        "config": "<CONFIG_PATH>" // Path to Accuracy Checker config
+    },
+
+    /* Optimization hyperparameters */
+
+    "compression": {
+        "target_device": "ANY", // Target device, the specificity of which will be taken
+                                // into account during optimization
+        "algorithms": [
+            {
+                "name": "AccuracyAwareQuantization", // Optimization algorithm name
+                "params": {
+                    "preset": "performance", // Preset [performance, mixed, accuracy] which control the quantization
+                                             // mode (symmetric, mixed (weights symmetric and activations asymmetric)
+                                             // and fully asymmetric respectively)
+
+                    "stat_subset_size": 300, // Size of subset to calculate activations statistics that can be used
+                                             // for quantization parameters calculation
+
+                    "maximal_drop": 0.01, // Maximum accuracy drop which has to be achieved after the quantization
+                    "tune_hyperparams": false // Whether to search the best quantization parameters for model
+                }
+            }
+        ]
+    }
+}

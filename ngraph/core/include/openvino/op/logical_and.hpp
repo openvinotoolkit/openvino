@@ -15,7 +15,8 @@ namespace v1 {
 ///
 class OPENVINO_API LogicalAnd : public util::BinaryElementwiseLogical {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("LogicalAnd", "opset1", util::BinaryElementwiseLogical, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a logical-and operation.
     LogicalAnd() = default;
 
@@ -35,7 +36,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

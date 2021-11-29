@@ -95,6 +95,21 @@ std::vector<int> getAvailableNUMANodes() {
     return {-1};
 }
 #    endif
+int getNumberOfLogicalCPUCores(bool) {
+    return parallel_get_max_threads();
+}
+#else
+int getNumberOfLogicalCPUCores(bool bigCoresOnly) {
+    int logical_cores = parallel_get_max_threads();
+#    if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+    auto core_types = custom::info::core_types();
+    if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
+        logical_cores = custom::info::default_concurrency(
+            custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(-1));
+    }
+#    endif
+    return logical_cores;
+}
 #endif
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -23,6 +24,8 @@ using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
 using Nearest_mode = op::v4::Interpolate::NearestMode;
 using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 // All examples are from ONNX Resize-11 documentation
 // (see https://github.com/onnx/onnx/blob/master/docs/Operators.md).

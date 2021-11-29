@@ -5,22 +5,19 @@
 /**
  * @brief A header file that provides VariableState
  *
- * @file variable_state.hpp
+ * @file openvino/runtime/variable_state.hpp
  */
 
 #pragma once
 
-#include <ie_api.h>
-#include <ie_blob.h>
-
 #include <memory>
 #include <string>
 
-#include "common.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace InferenceEngine {
 class IVariableStateInternal;
-class Blob;
 }  // namespace InferenceEngine
 
 namespace ov {
@@ -31,7 +28,7 @@ class InferRequest;
 /**
  * @brief VariableState class
  */
-class INFERENCE_ENGINE_API_CLASS(VariableState) {
+class OPENVINO_RUNTIME_API VariableState {
     std::shared_ptr<void> _so;
     std::shared_ptr<ie::IVariableStateInternal> _impl;
 
@@ -68,13 +65,13 @@ public:
      * @brief Returns the value of the variable state.
      * @return A blob representing a state
      */
-    std::shared_ptr<const ie::Blob> get_state() const;
+    Tensor get_state() const;
 
     /**
      * @brief Sets the new state for the next inference.
      * @param state The current state to set
      */
-    void set_state(const std::shared_ptr<ie::Blob>& state);
+    void set_state(const Tensor& state);
 };
 }  // namespace runtime
 }  // namespace ov

@@ -4,12 +4,35 @@
 
 add_definitions(-DIN_NGRAPH_LIBRARY)
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wmissing-declarations)
+endif()
+
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 add_subdirectory(builder)
 add_subdirectory(reference)
+add_subdirectory(shape_inference)
+
+# WA for Tensor implementation via ie::Blob::Ptr
+set(IE_SHARED_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/blob_factory.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_blob_common.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_layouts.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/system_allocator.cpp")
+set(MIXED_SRC ${IE_SHARED_SRCS}
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
+
+set_property(SOURCE ${MIXED_SRC}
+    APPEND PROPERTY INCLUDE_DIRECTORIES
+        $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src
+        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+
+set_source_files_properties(${MIXED_SRC}
+    PROPERTIES COMPILE_DEFINITIONS IMPLEMENT_INFERENCE_ENGINE_API)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -17,29 +40,22 @@ add_subdirectory(reference)
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
-
 # Create static or shared library depending on BUILD_SHARED_LIBS
-add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${IE_SHARED_SRCS})
 
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(ngraph
-        UNITY
-        PCH PRIVATE "src/precomp.hpp"
-    )
-endif()
+ie_faster_build(ngraph
+    UNITY
+    PCH PRIVATE "src/precomp.hpp")
 
-if(COMMAND ie_add_api_validator_post_build_step)
-    ie_add_api_validator_post_build_step(TARGET ngraph)
-endif()
+ie_add_api_validator_post_build_step(TARGET ngraph)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ngraph
-                           FILEDESCRIPTION "nGraph library")
-endif()
+ie_add_vs_version_file(NAME ngraph
+                       FILEDESCRIPTION "nGraph library")
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util)
+addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
+
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference)
 
 ie_mark_target_as_cc(ngraph)
 
@@ -49,11 +65,11 @@ ov_ncc_naming_style(FOR_TARGET ngraph
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
 if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
+    target_compile_definitions(ngraph PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # ngraph is linked against ngraph_builders, ngraph_reference static libraries
+    # ngraph is linked against ngraph_builders, ngraph_reference, ov_shape_inference static libraries
     # which include ngraph headers with dllimport attribute. Linker complains about it
     # but no way to fix this: linking with no attribute defaults to dllexport and we have
     # multiple defitions for ngraph symbols.
@@ -61,18 +77,30 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # The possible way is to use object libraries for ngraph_builders, ngraph_reference
     # but it's not convinient since these libraries are exported from build tree
     # and it's better to use them as static libraries in 3rd party projects
-    set_target_properties(ngraph PROPERTIES LINK_FLAGS "/IGNORE:4217,4286")
+    if(BUILD_SHARED_LIBS)
+        set(link_type PRIVATE)
+    else()
+        set(link_type PUBLIC)
+    endif()
+
+    target_link_options(ngraph ${link_type} "/IGNORE:4217,4286")
 endif()
 
+# some sources are located in ngraph, while headers are in inference_engine_transformations
+file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_reshape/*.cpp)
+file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
+                            ${smart_reshape_srcs} ${rt_info_srcs}
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
-                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-                                          ${CMAKE_CURRENT_BINARY_DIR}/include)
+                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
@@ -103,12 +131,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         COMPONENT ngraph_dev
         FILES_MATCHING
             PATTERN "*.hpp"
-            PATTERN "*.h"
-            PATTERN "*version.in.hpp" EXCLUDE)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
-        DESTINATION "runtime/include/ngraph"
-        COMPONENT ngraph_dev)
+            PATTERN "*.h")
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${ngraph_BINARY_DIR}/ngraphConfig.cmake

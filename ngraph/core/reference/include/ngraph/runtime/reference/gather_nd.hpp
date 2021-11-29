@@ -56,11 +56,6 @@ void gather_nd(const T* const params,
     const Shape batch_shape(begin(params_shape), next(begin(params_shape), batch_dims));
     const auto batch_size = shape_size(batch_shape);
 
-    if (batch_dims && batch_size != out_shape.front()) {
-        throw std::domain_error{"out_shape should have on first dim multiplication of batch number of first"
-                                "dimensions of shape "};
-    }
-
     if (!std::equal(begin(params_shape), next(begin(params_shape), batch_dims), begin(indices_shape))) {
         throw std::domain_error{"dimensions in params and indices have to be equal on batch dimensions"};
     }

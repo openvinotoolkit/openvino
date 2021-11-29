@@ -83,7 +83,7 @@ template<typename fromType, typename toType>
 std::vector<toType> castVector(const std::vector<fromType> &vec) {
     std::vector<toType> resVec;
     resVec.reserve(vec.size());
-    for (auto &el : vec) {
+    for (const auto &el : vec) {
         resVec.push_back(static_cast<toType>(el));
     }
     return resVec;

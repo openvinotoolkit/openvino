@@ -14,11 +14,12 @@
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "cpu/x64/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
 #include <ngraph/opsets/opset1.hpp>
+#include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -848,7 +849,7 @@ private:
 
         // offset = 4
         for (size_t d = 0; d < simd_w; ++d) {
-            dd(float2int(jcp_.ic * jcp_.kw * jcp_.kh));
+            dd(x64::float2int(jcp_.ic * jcp_.kw * jcp_.kh));
         }
 
         // offset = 5
@@ -1127,16 +1128,19 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            if (eltwiseNode->isSpecialConvolutionAddFusing())
+            if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
-            else
-                eltwiseNode->appendPostOps(ops);
+            } else {
+                // TODO [DS]: change to shape from memory
+                constexpr int align = 16;
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
+            }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
             continue;
         }
 

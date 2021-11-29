@@ -14,7 +14,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v1::BinaryConvolution, "BinaryConvolution", 1);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::BinaryConvolution);
 
 ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
                                                  const Output<Node>& kernel,
@@ -126,7 +126,7 @@ EnumNames<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>);
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::op::v1::BinaryConvolution::BinaryConvolutionMode& type) {

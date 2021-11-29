@@ -29,6 +29,8 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
@@ -38,6 +40,7 @@ public:
     InferenceEngine::gpu::ClContext::Ptr m_context;
     Config m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
+    InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
 };
 
 };  // namespace CLDNNPlugin

@@ -16,8 +16,8 @@
 using namespace ngraph;
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
-OPENVINO_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5, util::RNNCellBase);
+BWDCMP_RTTI_DEFINITION(op::v0::LSTMSequence);
+BWDCMP_RTTI_DEFINITION(op::v5::LSTMSequence);
 
 op::v0::LSTMSequence::LSTMSequence()
     : Op(),
@@ -537,6 +537,23 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
                               Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
                               Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
                           "Parameter num_directions not matched in LSTMSequence.");
+
+    auto check_direction_valid = [](const ov::PartialShape& pshape, size_t index) -> bool {
+        if (pshape[index].is_static())
+            return static_cast<direction>(pshape[index].get_length()) == direction::FORWARD ||
+                   static_cast<direction>(pshape[index].get_length()) == direction::REVERSE ||
+                   static_cast<direction>(pshape[index].get_length()) == direction::BIDIRECTIONAL;
+        return true;
+    };
+
+    NODE_VALIDATION_CHECK(this,
+                          check_direction_valid(ht_pshape, 1),
+                          "Parameter direction must be Forward or Reverse or Bidirectional.");
+
+    NODE_VALIDATION_CHECK(this,
+                          m_direction == direction::FORWARD || m_direction == direction::REVERSE ||
+                              m_direction == direction::BIDIRECTIONAL,
+                          "Parameter direction must be Forward or Reverse or Bidirectional.");
 
     // Validate hidden_size value for W, R, B inputs
     if (merged_hidden_size.is_static()) {

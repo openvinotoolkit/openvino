@@ -1,14 +1,21 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 jobs:
 - job: OpenVINO_ONNX_CI
   strategy:
     matrix:
       Release:
         BUILD_TYPE: 'Release'
-        PROTOBUF_LITE: 'ON'
         TOX_COMMAND: 'tox && tox -e zoo_models'
       Debug:
         BUILD_TYPE: 'Debug'
-        PROTOBUF_LITE: 'ON'
         TOX_COMMAND: 'tox'
     maxParallel: 2
 
@@ -77,10 +84,10 @@ jobs:
     condition: ne(variables['BUILD_TYPE'], 'Debug')
 
   - script: sudo docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
-    displayName: 'Docker build $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'
+    displayName: 'Docker build $(BUILD_TYPE)'
 
   - script: sudo fallocate -l 64G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
 
   - script: sudo docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR)/models_data/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "$(TOX_COMMAND)"
-    displayName: 'Docker run $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'
+    displayName: 'Docker run $(BUILD_TYPE)'

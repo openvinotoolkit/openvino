@@ -9,9 +9,9 @@
 #include <algorithm>
 #include <functional>
 
-#include "ngraph/op/constant.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/any.hpp"
 #include "openvino/pass/pattern/op/any_of.hpp"
 #include "openvino/pass/pattern/op/any_output.hpp"

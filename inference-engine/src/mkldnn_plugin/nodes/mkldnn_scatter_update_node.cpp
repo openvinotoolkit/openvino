@@ -245,7 +245,7 @@ int64_t MKLDNNScatterUpdateNode::getIndicesValue(uint8_t *indices, size_t offset
 // shapeND: n     c     d     h    w
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
-std::vector<size_t> getBlockND(const SizeVector& shape) {
+static std::vector<size_t> getBlockND(const SizeVector& shape) {
     size_t shapeRank = shape.size();
     std::vector<size_t> blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {

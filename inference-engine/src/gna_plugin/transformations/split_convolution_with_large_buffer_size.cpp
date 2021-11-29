@@ -42,7 +42,7 @@ static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
     return true;
 }
 
-std::shared_ptr<ngraph::Node> getConvForMatcher() {
+static std::shared_ptr<ngraph::Node> getConvForMatcher() {
     return ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ ngraph::pattern::any_input(),
     ngraph::pattern::any_input() }, [](const ngraph::Output<ngraph::Node>& convolution) {
             return shouldSplitCnn(convolution);

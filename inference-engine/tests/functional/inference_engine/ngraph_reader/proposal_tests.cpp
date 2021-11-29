@@ -399,7 +399,8 @@ TEST_F(NGraphReaderTests, ReadExtensionProposalNetwork) {
 
     auto func = ie.ReadNetwork(model_v10, weights).getFunction();
     for (auto op : func->get_ordered_ops()) {
-        if (op->get_friendly_name() == "proposal" && op->get_type_info() == ngraph::opset6::Proposal::type_info) {
+        if (op->get_friendly_name() == "proposal" &&
+            op->get_type_info() == ngraph::opset6::Proposal::get_type_info_static()) {
             return;
         }
     }

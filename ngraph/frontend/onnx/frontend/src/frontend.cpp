@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <frontend_manager/frontend_exceptions.hpp>
-#include <frontend_manager/frontend_manager.hpp>
+#include <common/frontend_exceptions.hpp>
 #include <fstream>
 #include <input_model.hpp>
+#include <manager.hpp>
 #include <onnx_frontend/frontend.hpp>
 #include <onnx_import/onnx.hpp>
 #include <sstream>
@@ -13,8 +13,8 @@
 
 #include "onnx_common/onnx_model_validator.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 using VariantString = VariantWrapper<std::string>;
 using VariantWString = VariantWrapper<std::wstring>;
@@ -26,7 +26,7 @@ extern "C" ONNX_FRONTEND_API FrontEndVersion GetAPIVersion() {
 
 extern "C" ONNX_FRONTEND_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
-    res->m_name = "onnx_experimental";
+    res->m_name = "onnx";
     res->m_creator = []() {
         return std::make_shared<FrontEndONNX>();
     };
@@ -41,7 +41,7 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
         const auto path = ov::as_type_ptr<VariantString>(variants[0])->get();
         return std::make_shared<InputModelONNX>(path);
     }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (ov::is_type<VariantWString>(variants[0])) {
         const auto path = ov::as_type_ptr<VariantWString>(variants[0])->get();
         return std::make_shared<InputModelONNX>(path);
@@ -53,7 +53,7 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
             const auto path = ov::as_type_ptr<VariantString>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
         }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         if (variants.size() > 1 && ov::is_type<VariantWString>(variants[1])) {
             const auto path = ov::as_type_ptr<VariantWString>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
@@ -71,7 +71,7 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) c
 }
 
 void FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const {
-    onnx_import::detail::convert_decoded_function(partially_converted);
+    ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
 std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) const {
@@ -115,7 +115,7 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         const auto path = ov::as_type_ptr<VariantString>(variants[0])->get();
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (ov::is_type<VariantWString>(variants[0])) {
         const auto path = ov::as_type_ptr<VariantWString>(variants[0])->get();
         model_stream.open(path, std::ios::in | std::ifstream::binary);
@@ -123,14 +123,14 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
 #endif
     if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
-        const bool is_valid_model = onnx_common::is_valid_model(model_stream);
+        const bool is_valid_model = ngraph::onnx_common::is_valid_model(model_stream);
         model_stream.close();
         return is_valid_model;
     }
     if (ov::is_type<VariantIstreamPtr>(variants[0])) {
         const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
         StreamRewinder rwd{*stream};
-        return onnx_common::is_valid_model(*stream);
+        return ngraph::onnx_common::is_valid_model(*stream);
     }
     return false;
 }

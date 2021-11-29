@@ -14,7 +14,7 @@ namespace v8 {
 ///
 class OPENVINO_API AdaptiveMaxPool : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("AdaptiveMaxPool", "opset8");
 
     AdaptiveMaxPool() = default;
 
@@ -31,7 +31,7 @@ public:
     ///
     AdaptiveMaxPool(const Output<Node>& data,
                     const Output<Node>& output_shape,
-                    const ngraph::element::Type& index_element_type = ngraph::element::i64);
+                    const ov::element::Type& index_element_type = ov::element::i64);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -43,7 +43,7 @@ public:
     }
 
 protected:
-    ngraph::element::Type m_index_element_type = ngraph::element::i64;
+    ov::element::Type m_index_element_type = ov::element::i64;
 };
 }  // namespace v8
 }  // namespace op

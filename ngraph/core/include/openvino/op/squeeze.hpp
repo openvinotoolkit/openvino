@@ -11,7 +11,8 @@ namespace op {
 namespace v0 {
 class OPENVINO_API Squeeze : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Squeeze", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     Squeeze();
     Squeeze(const Output<Node>& data, const Output<Node>& axes);
@@ -19,10 +20,14 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

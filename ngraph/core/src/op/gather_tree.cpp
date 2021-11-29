@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::GatherTree, "GatherTree", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::GatherTree);
 
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,

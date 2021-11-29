@@ -12,7 +12,8 @@ namespace v1 {
 /// \brief Elementwise logical negation operation.
 class OPENVINO_API LogicalNot : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("LogicalNot", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a logical negation operation.
     LogicalNot() = default;
     /// \brief Constructs a logical negation operation.
@@ -24,7 +25,9 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

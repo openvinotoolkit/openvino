@@ -67,7 +67,6 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
         const auto new_ru = ru->clone_with_new_inputs({data,
                                                        folded_const1 ? folded_const1 : new_mul_add1,
                                                        folded_const2 ? folded_const2 : new_mul_add2});
-        new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
 
         if (pattern_map.count(convert_pattern)) {
             const auto& convert = pattern_map.at(convert_pattern);
@@ -78,9 +77,11 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
                 return false;
             const auto new_ru_conv = cvt->clone_with_new_inputs({new_ru});
             copy_runtime_info({ru, cvt, mul_add.get_node_shared_ptr()}, {new_mul_add1, new_mul_add2, new_ru, new_ru_conv});
+            new_ru_conv->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::replace_node(m.get_match_root(), new_ru_conv);
         } else {
             copy_runtime_info({ru, mul_add.get_node_shared_ptr()}, {new_mul_add1, new_mul_add2, new_ru});
+            new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::replace_node(m.get_match_root(), new_ru);
         }
 

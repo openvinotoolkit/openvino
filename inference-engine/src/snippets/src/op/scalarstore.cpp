@@ -6,7 +6,5 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::ScalarStore, "ScalarStore", 0);
-
 snippets::op::ScalarStore::ScalarStore(const Output<Node>& x) : Store(x) {
 }

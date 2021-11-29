@@ -9,7 +9,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::EmbeddingBagOffsetsBase, "EmbeddingBagOffsetsBase", 3);
+BWDCMP_RTTI_DEFINITION(ov::op::util::EmbeddingBagOffsetsBase);
 
 ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                                                                const Output<Node>& indices,

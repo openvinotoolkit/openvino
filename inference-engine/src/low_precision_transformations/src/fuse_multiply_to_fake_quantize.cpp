@@ -46,9 +46,12 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     }
 
     const auto multiplyConstant = multiply->get_input_node_shared_ptr(1);
+    if (!ov::is_type<opset1::Constant>(multiplyConstant)) {
+        return false;
+    }
 
-    auto outputLowConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(3), deqPrecision);
-    auto outputHighConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(4), deqPrecision);
+    auto outputLowConst_f32 = foldConvert(fakeQuantize->input_value(3), deqPrecision);
+    auto outputHighConst_f32 = foldConvert(fakeQuantize->input_value(4), deqPrecision);
 
     const auto value = multiplyConstant->get_output_element_type(0) == element::f32 ?
         multiplyConstant :
@@ -56,9 +59,6 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 
     outputLowConst_f32 = fold<opset1::Multiply>(outputLowConst_f32, value);
     outputHighConst_f32 = fold<opset1::Multiply>(outputHighConst_f32, value);
-
-    const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
-    const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
@@ -69,7 +69,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
-            fakeQuantizeParent->output(parentIndex),
+            fakeQuantize->input_value(0),
             inputLow,
             inputHigh,
             outputLowConst_f32,

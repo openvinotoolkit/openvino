@@ -28,14 +28,21 @@ bool SpaceToBatchKernelBase::Validate(const Params& p, const optional_params& o)
 
 CommonDispatchData SpaceToBatchKernelBase::SetDefault(const space_to_batch_params& params, const optional_params&) const {
     const auto& out = params.output;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     CommonDispatchData dispatchData;
     if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 && out.Feature().v % 16 == 0) {
         dispatchData.gws = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
-        dispatchData.lws = {1, 16, 1};
+        dispatchData.lws = { 1, 16, 1 };
     } else {
         dispatchData.gws = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+        dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                       { Tensor::DataChannelName::FEATURE },
+                       { Tensor::DataChannelName::X, Tensor::DataChannelName::Y,
+                         Tensor::DataChannelName::Z, Tensor::DataChannelName::W }};
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
     return dispatchData;

@@ -3,8 +3,8 @@
 
 import numpy as np
 
-import ngraph as ng
-from ngraph.impl import Dimension, Function, PartialShape, Shape
+import openvino.opset8 as ov
+from openvino.impl import Dimension, Function, PartialShape, Shape
 
 
 def test_dimension():
@@ -224,8 +224,8 @@ def test_partial_shape_equals():
 
 def test_repr_dynamic_shape():
     shape = PartialShape([-1, 2])
-    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
-    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     model = parameter_a + parameter_b
     function = Function(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
@@ -238,12 +238,12 @@ def test_repr_dynamic_shape():
 
 def test_discrete_type_info():
     data_shape = [6, 12, 10, 24]
-    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     k = np.int32(3)
     axis = np.int32(1)
-    n1 = ng.topk(data_parameter, k, axis, "max", "value")
-    n2 = ng.topk(data_parameter, k, axis, "max", "value")
-    n3 = ng.sin(0.2)
+    n1 = ov.topk(data_parameter, k, axis, "max", "value")
+    n2 = ov.topk(data_parameter, k, axis, "max", "value")
+    n3 = ov.sin(0.2)
 
     assert n1.type_info.name == "TopK"
     assert n3.type_info.name == "Sin"

@@ -249,6 +249,25 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
         serialize_node_attributes(graph, item, [sub_schema], element, edges, unsupported)
 
 
+def serialize_runtime_info(node, parent_element: Element):
+    if 'rt_info' not in node:
+        return
+    rt_info = SubElement(parent_element, 'rt_info')
+
+    for (name, version), info_elem in node.rt_info.info.items():
+        attribute = SubElement(rt_info, 'attribute')
+        attribute.set('name', name)
+        attribute.set('version', str(version))
+        params = info_elem.serialize(node)
+        if len(params) == 0:
+            rt_info.remove(attribute)
+            continue
+        for key, value in params.items():
+            attribute.set(key, value)
+    if len(rt_info.attrib) == 0 and len(list(rt_info)) == 0:
+        parent_element.remove(rt_info)
+
+
 def serialize_node_attributes(
         graph: Graph,  # the current network graph
         node,  # dictionary-like object that should be serialized
@@ -272,6 +291,8 @@ def serialize_node_attributes(
                                      refer_to_faq_msg(3)).format(node.id)) from e
                 elif s == '@consts':
                     xml_consts(graph, node, parent_element)
+                elif s == '@runtime_info':
+                    serialize_runtime_info(node, parent_element)
                 else:
                     log.warning('Unknown xml schema tag: {}'.format(s))
             else:
@@ -364,12 +385,16 @@ def add_quantization_info_section(net: Element, meta_info: dict):
 
 
 def add_meta_data(net: Element, meta_info: dict):
-    meta = SubElement(net, 'meta_data')
-    SubElement(meta, 'MO_version').set('value', get_version())
-    parameters = SubElement(meta, 'cli_parameters')
-    [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
-     key not in ('unset', 'quantization_parameters')]
-    SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
+    if meta_info == {}:
+        log.warning('`meta_info` is not provided, IR will not contain appropriate section.')
+    else:
+        meta = SubElement(net, 'meta_data')
+        SubElement(meta, 'MO_version').set('value', get_version())
+        parameters = SubElement(meta, 'cli_parameters')
+        [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
+         key not in ('unset', 'quantization_parameters')]
+        if 'unset' in meta_info:
+            SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
 
 
 def serialize_network(graph, net_element, unsupported):

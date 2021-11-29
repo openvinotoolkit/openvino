@@ -34,8 +34,8 @@ struct condition_impl : typed_primitive_impl<condition> {
         else
             memory_to_copy = execute_branch(instance.get_net_false(), instance.result_id(), instance.input_memory_ptr());
         // just copy memory
-        mem_lock<float> inp_ptr{memory_to_copy, instance.get_network().get_stream()};
-        mem_lock<float> out_ptr{instance.output_memory_ptr(), instance.get_network().get_stream()};
+        mem_lock<float, mem_lock_type::read> inp_ptr{memory_to_copy, instance.get_network().get_stream()};
+        mem_lock<float, mem_lock_type::write> out_ptr{instance.output_memory_ptr(), instance.get_network().get_stream()};
         std::copy(inp_ptr.begin(), inp_ptr.end(), out_ptr.begin());
         ev->set();
         return ev;
@@ -71,11 +71,11 @@ private:
     Returns boolean flag, which says what branch should be executed.
     */
     bool choose_branch_to_exec(condition_inst& instance) const {
-        mem_lock<float> lock_compare_data{instance.compare_memory_ptr(), instance.get_network().get_stream()};
+        mem_lock<float, mem_lock_type::read> lock_compare_data{instance.compare_memory_ptr(), instance.get_network().get_stream()};
         auto compare_layout = instance.compare_memory().get_layout();
         auto compare_ptr = lock_compare_data.begin();
 
-        mem_lock<float> lock_input{instance.input_memory_ptr(), instance.get_network().get_stream()};
+        mem_lock<float, mem_lock_type::read> lock_input{instance.input_memory_ptr(), instance.get_network().get_stream()};
         auto input_layout = instance.input_memory().get_layout();
         auto input_ptr = lock_input.begin();
 

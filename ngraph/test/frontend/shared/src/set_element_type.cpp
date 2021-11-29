@@ -7,7 +7,7 @@
 #include "utils.hpp"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 std::string FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInfo<SetTypeFEParam>& obj) {
     std::string res = obj.param.m_frontEndName + "_" + obj.param.m_modelName;

@@ -57,7 +57,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const void* model, size_t size, Respons
     xmlDoc = std::make_shared<pugi::xml_document>();
     pugi::xml_parse_result res = xmlDoc->load_buffer(model, size);
     if (res.status != pugi::status_ok) {
-        return DescriptionBuffer(resp) << res.description() << "at offset " << res.offset;
+        return DescriptionBuffer(resp) << res.description() << " at offset " << res.offset;
     }
     StatusCode ret = ReadNetwork();
     if (ret != OK) {
@@ -71,7 +71,7 @@ namespace {
 void readAllFile(const std::string& string_file_name, void* buffer, size_t maxSize) {
     std::ifstream inputFile;
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring file_name = ov::util::string_to_wstring(string_file_name.c_str());
 #else
     std::string file_name = string_file_name;

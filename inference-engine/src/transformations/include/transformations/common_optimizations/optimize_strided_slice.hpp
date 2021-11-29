@@ -68,8 +68,11 @@ public:
  */
 class ngraph::pass::StridedSliceOptimization: public ngraph::pass::FunctionPass {
 public:
+    StridedSliceOptimization(bool use_shapes = true);
+
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-};
 
-ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> slice);
+private:
+    bool m_use_shapes = true;
+};

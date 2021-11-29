@@ -55,7 +55,7 @@ from ngraph.opset1.ops import floor
 from ngraph.opset1.ops import floor_mod
 from ngraph.opset8.ops import gather
 from ngraph.opset6.ops import gather_elements
-from ngraph.opset5.ops import gather_nd
+from ngraph.opset8.ops import gather_nd
 from ngraph.opset1.ops import gather_tree
 from ngraph.opset7.ops import gelu
 from ngraph.opset1.ops import greater
@@ -140,6 +140,7 @@ from ngraph.opset1.ops import sigmoid
 from ngraph.opset1.ops import sign
 from ngraph.opset1.ops import sin
 from ngraph.opset1.ops import sinh
+from ngraph.opset8.ops import slice
 from ngraph.opset1.ops import softmax
 from ngraph.opset4.ops import softplus
 from ngraph.opset2.ops import space_to_batch

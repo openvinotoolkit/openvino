@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::GRUCellIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::GRUCellIE);
 
 op::GRUCellIE::GRUCellIE(const Output<Node>& X, const Output<Node>& H_t,
                            const Output<Node>& WR, const Output<Node>& B, std::size_t hidden_size,

@@ -18,7 +18,6 @@ public:
                             const InferenceEngine::ITaskExecutor::Ptr&        taskExecutor,
                             const InferenceEngine::ITaskExecutor::Ptr&        callbackExecutor);
     ~HeteroAsyncInferRequest();
-    void StartAsync_ThreadUnsafe() override;
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;
 
 private:

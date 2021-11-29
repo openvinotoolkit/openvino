@@ -6,7 +6,7 @@
 
 #include "conv2d_utils.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -64,4 +64,4 @@ NamedOutputs deformable_conv(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -13,11 +13,12 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Pad, "Pad", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Pad);
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
@@ -26,6 +27,8 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, arg_pad_value}),
       m_pad_mode{pad_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -35,6 +38,8 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), ov::Shape{}, {0})}),
       m_pad_mode{pad_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -154,6 +159,18 @@ void op::v1::Pad::validate_and_infer_types() {
                                           "of at least 2 at each "
                                           "spatial axis.");
                 }
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_pad_mode != op::PadMode::REFLECT || (pads_begin_coord[i] < arg_shape[i].get_length() &&
+                                                           pads_end_coord[i] < arg_shape[i].get_length()),
+                    "REFLECT padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
+                    "must be not greater than 'data_shape[D] - 1'.");
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_pad_mode != op::PadMode::SYMMETRIC || (pads_begin_coord[i] <= arg_shape[i].get_length() &&
+                                                             pads_end_coord[i] <= arg_shape[i].get_length()),
+                    "SYMMETRIC padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
+                    "must be not greater than 'data_shape[D]'.");
             }
         }
         set_output_type(0, get_input_element_type(0), result_dims);
@@ -183,7 +200,24 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs, const HostTensor
     } else {
         pad_value = pad_zero_value.data();
     }
+
+    // compute pads_begin and pads_end CoordinateDiffs from pads_begin
+    // and pads_end shapes and reshape output to determine shape
+    // (in case pads_begin and pads_end are Parameters, output is dynamic with static rank).
+
+    op::v0::Constant pads_begin_const(inputs[1]);
+    CoordinateDiff pads_begin_coord(pads_begin_const.cast_vector<ptrdiff_t>());
+    op::v0::Constant pads_end_const(inputs[2]);
+    CoordinateDiff pads_end_coord(pads_end_const.cast_vector<ptrdiff_t>());
+
+    auto data_shape = data->get_shape();
+    ov::Shape padded_shape(data_shape.size());
+    for (size_t i = 0; i < data_shape.size(); ++i) {
+        padded_shape[i] = data_shape[i] + pads_begin_coord[i] + pads_end_coord[i];
+    }
+
     const auto& out = outputs[0];
+    out->set_shape(padded_shape);
 
     ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
                                     pad_value,
@@ -191,8 +225,8 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs, const HostTensor
                                     elem_size,
                                     data->get_shape(),
                                     out->get_shape(),
-                                    get_pads_begin(),
-                                    get_pads_end(),
+                                    pads_begin_coord,
+                                    pads_end_coord,
                                     get_pad_mode());
 
     return true;

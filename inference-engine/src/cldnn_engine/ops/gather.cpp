@@ -104,21 +104,21 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather>& op) {
+static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather>& op) {
     p.ValidateInputs(op, {2, 3});
     CreateGatherOpBase<ngraph::op::v1::Gather>(p, op);
 }
 
 REGISTER_FACTORY_IMPL(v1, Gather);
 
-void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gather>& op) {
+static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gather>& op) {
     p.ValidateInputs(op, {2, 3, 4});
     CreateGatherOpBase<ngraph::op::v7::Gather>(p, op, op->get_batch_dims());
 }
 
 REGISTER_FACTORY_IMPL(v7, Gather);
 
-void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v8::Gather>& op) {
+static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v8::Gather>& op) {
     p.ValidateInputs(op, {2, 3, 4});
     CreateGatherOpBase<ngraph::op::v8::Gather>(p, op, op->get_batch_dims(), true);
 }

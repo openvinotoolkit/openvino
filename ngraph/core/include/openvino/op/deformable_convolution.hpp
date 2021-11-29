@@ -15,7 +15,8 @@ namespace v1 {
 /// \brief DeformableConvolution operation.
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -58,7 +59,8 @@ public:
 namespace v8 {
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -152,10 +154,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
-
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-
-    bool has_evaluate() const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

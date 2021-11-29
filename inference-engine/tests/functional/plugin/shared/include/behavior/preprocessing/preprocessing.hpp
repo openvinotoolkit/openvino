@@ -113,13 +113,13 @@ public:
         // w/a: copy of original function is required to provide correct op coverage report (overflow of convert counter issue)
         auto copyOriginalFunction = function;
         //force the reference implementation to use graph with extra Convert operation
-        function = reference_function;
         LayerTestsUtils::LayerTestsCommon::Validate();
         function = copyOriginalFunction;
     }
 
     void Run() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        functionRefs = ngraph::clone_function(*function);
         try {
             LoadNetwork();
             GenerateInputs();

@@ -33,22 +33,22 @@ static PoolingParameters GetPoolingParameters(const ngraph::Shape& kernel,
         case 3: {
             k = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(kernel[2], kernel[1], kernel[0]));
             s = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[2], strides[1], strides[0]));
-            pb = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pb_casted[2], -pb_casted[1], -pb_casted[0]));
-            pe = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pe_casted[2], -pe_casted[1], -pe_casted[0]));
+            pb = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pb_casted[2], pb_casted[1], pb_casted[0]));
+            pe = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pe_casted[2], pe_casted[1], pe_casted[0]));
             break;
         }
         case 2: {
             k = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(kernel[1], kernel[0], 1));
             s = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[1], strides[0], 1));
-            pb = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pb_casted[1], -pb_casted[0], 0));
-            pe = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pe_casted[1], -pe_casted[0], 0));
+            pb = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pb_casted[1], pb_casted[0], 0));
+            pe = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pe_casted[1], pe_casted[0], 0));
             break;
         }
         case 1: {
             k = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(kernel[0], 1, 1));
             s = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[0], 1, 1));
-            pb = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pb_casted[0], 0, 0));
-            pe = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-pe_casted[0], 0, 0));
+            pb = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pb_casted[0], 0, 0));
+            pe = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(pe_casted[0], 0, 0));
             break;
         }
         default: IE_THROW() << "Unsupported pooling parameters size. Only 1d, 2d, and 3d cases are supported";
@@ -57,7 +57,7 @@ static PoolingParameters GetPoolingParameters(const ngraph::Shape& kernel,
     return {k, s, pb, pe};
 }
 
-void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>& op) {
+static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -77,7 +77,7 @@ void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>&
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::MaxPool>& op) {
+static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::MaxPool>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

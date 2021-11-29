@@ -17,8 +17,8 @@ namespace op {
 /// matches for pattern nodes not in the static node list. The match always succeeds.
 class OPENVINO_API Capture : public Pattern {
 public:
-    static constexpr NodeTypeInfo type_info{"patternCapture", 0};
-    const NodeTypeInfo& get_type_info() const override;
+    OPENVINO_RTTI("patternCapture");
+    BWDCMP_RTTI_DECLARATION;
     Capture(const Output<Node>& arg) : Pattern({arg}) {
         set_output_type(0, arg.get_element_type(), arg.get_partial_shape());
     }

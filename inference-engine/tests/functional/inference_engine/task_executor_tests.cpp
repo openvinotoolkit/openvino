@@ -206,6 +206,18 @@ static auto Executors = ::testing::Values(
                                                streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
     },
     [] {
+        auto streams = getNumberOfLogicalCPUCores(true);
+        auto threads = parallel_get_max_threads();
+        return std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"TestCPUStreamsExecutor",
+                                               streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
+    },
+    [] {
+        auto streams = getNumberOfLogicalCPUCores(false);
+        auto threads = parallel_get_max_threads();
+        return std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"TestCPUStreamsExecutor",
+                                               streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
+    },
+    [] {
         return std::make_shared<ImmediateExecutor>();
     }
 );
@@ -215,6 +227,18 @@ INSTANTIATE_TEST_SUITE_P(TaskExecutorTests, TaskExecutorTests, Executors);
 static auto AsyncExecutors = ::testing::Values(
     [] {
         auto streams = getNumberOfCPUCores();
+        auto threads = parallel_get_max_threads();
+        return std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"TestCPUStreamsExecutor",
+                                               streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
+    },
+    [] {
+        auto streams = getNumberOfLogicalCPUCores(true);
+        auto threads = parallel_get_max_threads();
+        return std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"TestCPUStreamsExecutor",
+                                               streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
+    },
+    [] {
+        auto streams = getNumberOfLogicalCPUCores(false);
         auto threads = parallel_get_max_threads();
         return std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"TestCPUStreamsExecutor",
                                                streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});

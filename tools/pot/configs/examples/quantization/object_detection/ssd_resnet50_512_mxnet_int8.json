@@ -1,0 +1,57 @@
+{
+    "model": {
+        "model_name": "ssd_resnet50_512_mxnet",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "ssd"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "VOC2007",
+                "data_source": "<PATH TO VALIDATION DATASET>/VOC2007/JPEGImages",
+                "annotation_conversion": {
+                    "converter": "voc_detection",
+                    "has_background": false,
+                    "annotations_dir": "<PATH TO VALIDATION DATASET>/VOC2007/Annotations",
+                    "images_dir": "<PATH TO VALIDATION DATASET>/VOC2007/JPEGImages",
+                    "imageset_file": "<PATH TO VALIDATION DATASET>/VOC2007/ImageSets/Main/test.txt"
+                },
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "size": 512
+                    }
+                ],
+                "postprocessing":[{
+                    "type": "resize_prediction_boxes"
+                }],
+                "metrics": [
+                    {
+                        "type": "map",
+                        "integral": "11point",
+                        "ignore_difficult": true,
+                        "presenter": "print_scalar"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "preset": "performance",
+                    "stat_subset_size": 300
+                }
+            }
+        ]
+    }
+}

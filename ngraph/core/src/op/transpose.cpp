@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Transpose, "Transpose", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Transpose);
 
 op::v1::Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_order) : Op({arg, input_order}) {
     constructor_validate_and_infer_types();
@@ -69,6 +69,7 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
 }
 
 namespace transpose {
+namespace {
 bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out) {
     NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
                  "Transpose axis element type has to be integral data type.");
@@ -102,6 +103,7 @@ bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, co
                                   out_shape);
     return true;
 }
+}  // namespace
 }  // namespace transpose
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v1_Transpose_evaluate);

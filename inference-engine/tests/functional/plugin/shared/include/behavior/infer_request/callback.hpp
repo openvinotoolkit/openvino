@@ -10,6 +10,7 @@
 #include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
+
 using InferRequestCallbackTests = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
@@ -32,11 +33,6 @@ TEST_P(InferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
 }
 
 TEST_P(InferRequestCallbackTests, syncInferDoesNotCallCompletionCallback) {
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
@@ -142,6 +138,23 @@ TEST_P(InferRequestCallbackTests, ReturnResultNotReadyFromWaitInAsyncModeForTooS
     if (afterWaitTimeStamp < callbackTimeStampFuture.get()) {
         ASSERT_TRUE(sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
     }
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
+}
+
+TEST_P(InferRequestCallbackTests, ImplDoseNotCopyCallback) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::CNNNetwork cnnNet(function);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto req = execNet.CreateInferRequest();
+    {
+        auto somePtr = std::make_shared<int>(42);
+        req.SetCompletionCallback([somePtr] {
+            ASSERT_EQ(1, somePtr.use_count());
+        });
+    }
+
+    ASSERT_NO_THROW(req.StartAsync());
     ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 }
 

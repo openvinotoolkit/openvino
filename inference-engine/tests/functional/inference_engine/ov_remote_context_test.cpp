@@ -17,7 +17,7 @@ TEST(RemoteContextOVTests, throwsOnUninitializedReset) {
 
 TEST(RemoteContextOVTests, throwsOnUninitializedGetname) {
     ov::runtime::RemoteContext ctx;
-    ASSERT_THROW(ctx.create_blob({}, {}), ov::Exception);
+    ASSERT_THROW(ctx.create_tensor({}, {}, {}), ov::Exception);
 }
 
 TEST(RemoteContextOVTests, throwsOnUninitializedGetParams) {

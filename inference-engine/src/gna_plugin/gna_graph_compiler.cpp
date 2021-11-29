@@ -2101,7 +2101,7 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
-void SKIP(GNAGraphCompiler*, CNNLayerPtr) {}
+inline void SKIP(GNAGraphCompiler*, CNNLayerPtr) {}
 
 void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
     static const LayersBuilder layersBuilder[] = {

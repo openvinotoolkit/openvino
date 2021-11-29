@@ -18,7 +18,8 @@ namespace v6 {
 /// is TopK operation applied to probabilities of input ROIs.
 class OPENVINO_API ExperimentalDetectronTopKROIs : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op, 6);
+    BWDCMP_RTTI_DECLARATION;
 
     ExperimentalDetectronTopKROIs() = default;
     /// \brief Constructs a ExperimentalDetectronTopKROIs operation.
@@ -39,6 +40,11 @@ public:
 
 private:
     size_t m_max_rois;
+
+    template <class T>
+    friend void shape_infer(ExperimentalDetectronTopKROIs* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

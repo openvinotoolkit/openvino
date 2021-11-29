@@ -360,9 +360,9 @@ Output<Node> get_axes_mapping_output(const Shape& output_shape, const AxisSet& b
     return op::Constant::create(element::i64, Shape{axes_mapping.size()}, axes_mapping);
 }
 
-Output<Node> get_axes_mapping_output(const PartialShape& output_shape,
-                                     const Output<Node>& input_shape,
-                                     std::size_t start_match_axis) {
+static Output<Node> get_axes_mapping_output(const PartialShape& output_shape,
+                                            const Output<Node>& input_shape,
+                                            std::size_t start_match_axis) {
     const auto one_node = opset7::Constant::create(element::i64, Shape{}, {1});
     const auto zero_node = opset7::Constant::create(element::i64, Shape{}, {0});
     const auto start_match_axis_node = opset7::Constant::create(element::i64, Shape{}, {start_match_axis});

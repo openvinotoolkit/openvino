@@ -6,8 +6,8 @@
 
 #include <cnpy.h>
 
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "util/test_control.hpp"
 #include "utils.hpp"
 
@@ -15,7 +15,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 using TestEngine = test::IE_CPU_Engine;
 
 std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<FuzzyOpTestParam>& obj) {

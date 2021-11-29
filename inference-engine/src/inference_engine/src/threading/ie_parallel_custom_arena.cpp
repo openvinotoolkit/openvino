@@ -6,11 +6,11 @@
 
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 
-#    ifndef TBBBIND_2_4_AVAILABLE
-#        define TBBBIND_2_4_AVAILABLE 0
+#    ifndef TBBBIND_2_5_AVAILABLE
+#        define TBBBIND_2_5_AVAILABLE 0
 #    endif
 
-#    define USE_TBBBIND_2_4                 (TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020)
+#    define USE_TBBBIND_2_5                 (TBBBIND_2_5_AVAILABLE && TBB_INTERFACE_VERSION < 12020)
 #    define TBB_NUMA_SUPPORT_PRESENT        (TBB_INTERFACE_VERSION >= 11100)
 #    define TBB_HYBRID_CPUS_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 12020)
 
@@ -21,7 +21,7 @@
 namespace custom {
 namespace detail {
 
-#    if USE_TBBBIND_2_4
+#    if USE_TBBBIND_2_5
 extern "C" {
 void __TBB_internal_initialize_system_topology(std::size_t groups_num,
                                                int& numa_nodes_count,
@@ -38,7 +38,7 @@ void __TBB_internal_restore_affinity(binding_handler* handler_ptr, int slot_num)
 int __TBB_internal_get_default_concurrency(int numa_id, int core_type_id, int max_threads_per_core);
 }
 
-int get_processors_group_num() {
+static int get_processors_group_num() {
 #        if defined(_WIN32) || defined(_WIN64)
     SYSTEM_INFO si;
     GetNativeSystemInfo(&si);
@@ -57,7 +57,7 @@ int get_processors_group_num() {
     return 1;
 }
 
-bool is_binding_environment_valid() {
+static bool is_binding_environment_valid() {
 #        if defined(_WIN32) && !defined(_WIN64)
     static bool result = [] {
         // For 32-bit Windows applications, process affinity masks can only support up to 32 logical CPUs.
@@ -79,7 +79,7 @@ static int* numa_nodes_indexes = nullptr;
 static int core_types_count = 0;
 static int* core_types_indexes = nullptr;
 
-void initialize_system_topology() {
+static void initialize_system_topology() {
     static std::once_flag is_topology_initialized;
 
     std::call_once(is_topology_initialized, [&] {
@@ -120,7 +120,7 @@ void binding_observer::on_scheduler_exit(bool) {
     detail::__TBB_internal_restore_affinity(my_binding_handler, tbb::this_task_arena::current_thread_index());
 }
 
-binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c) {
+static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c) {
     binding_oberver_ptr observer{};
     if (detail::is_binding_environment_valid() &&
         ((c.core_type >= 0 && info::core_types().size() > 1) || (c.numa_id >= 0 && info::numa_nodes().size() > 1) ||
@@ -131,10 +131,8 @@ binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slot
     return observer;
 }
 
-#    endif /*USE_TBBBIND_2_4*/
-
-#    if TBB_NUMA_SUPPORT_PRESENT
-tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c) {
+#    elif TBB_NUMA_SUPPORT_PRESENT
+static tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c) {
     tbb::task_arena::constraints result{};
 #        if TBB_HYBRID_CPUS_SUPPORT_PRESENT
     result.core_type = c.core_type;
@@ -154,7 +152,7 @@ task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
       my_binding_observer{} {}
 
 task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_masters)
-#    if USE_TBBBIND_2_4
+#    if USE_TBBBIND_2_5
     : my_task_arena {
     info::default_concurrency(constraints_), reserved_for_masters
 }
@@ -177,7 +175,7 @@ task_arena::task_arena(const task_arena& s)
 
 void task_arena::initialize() {
     my_task_arena.initialize();
-#    if USE_TBBBIND_2_4
+#    if USE_TBBBIND_2_5
     std::call_once(my_initialization_state, [this] {
         my_binding_observer =
             detail::construct_binding_observer(my_task_arena, my_task_arena.max_concurrency(), my_constraints);
@@ -187,7 +185,7 @@ void task_arena::initialize() {
 
 void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters) {
     my_task_arena.initialize(max_concurrency_, reserved_for_masters);
-#    if USE_TBBBIND_2_4
+#    if USE_TBBBIND_2_5
     std::call_once(my_initialization_state, [this] {
         my_binding_observer =
             detail::construct_binding_observer(my_task_arena, my_task_arena.max_concurrency(), my_constraints);
@@ -197,7 +195,7 @@ void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters)
 
 void task_arena::initialize(constraints constraints_, unsigned reserved_for_masters) {
     my_constraints = constraints_;
-#    if USE_TBBBIND_2_4
+#    if USE_TBBBIND_2_5
     my_task_arena.initialize(info::default_concurrency(constraints_), reserved_for_masters);
     std::call_once(my_initialization_state, [this] {
         my_binding_observer =
@@ -221,7 +219,7 @@ int task_arena::max_concurrency() {
 
 namespace info {
 std::vector<numa_node_id> numa_nodes() {
-#    if USE_TBBBIND_2_4
+#    if USE_TBBBIND_2_5
     detail::initialize_system_topology();
     std::vector<numa_node_id> node_indexes(detail::numa_nodes_count);
     std::memcpy(node_indexes.data(), detail::numa_nodes_indexes, detail::numa_nodes_count * sizeof(int));
@@ -234,7 +232,7 @@ std::vector<numa_node_id> numa_nodes() {
 }
 
 std::vector<core_type_id> core_types() {
-#    if USE_TBBBIND_2_4
+#    if USE_TBBBIND_2_5
     detail::initialize_system_topology();
     std::vector<numa_node_id> core_type_indexes(detail::core_types_count);
     std::memcpy(core_type_indexes.data(), detail::core_types_indexes, detail::core_types_count * sizeof(int));
@@ -250,7 +248,7 @@ int default_concurrency(task_arena::constraints c) {
     if (c.max_concurrency > 0) {
         return c.max_concurrency;
     }
-#    if USE_TBBBIND_2_4
+#    if USE_TBBBIND_2_5
     if (detail::is_binding_environment_valid()) {
         detail::initialize_system_topology();
         return detail::__TBB_internal_get_default_concurrency(c.numa_id, c.core_type, c.max_threads_per_core);

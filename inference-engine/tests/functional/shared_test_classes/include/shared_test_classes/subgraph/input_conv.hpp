@@ -31,7 +31,7 @@ typedef std::tuple<
 > inputConvParams;
 
 class InputConvTest : public testing::WithParamInterface<inputConvParams>,
-                     public LayerTestsUtils::LayerTestsCommon {
+                     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<inputConvParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;

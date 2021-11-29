@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::FloorMod, "FloorMod", 1, op::util::BinaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v1::FloorMod);
 
 op::v1::FloorMod::FloorMod(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
@@ -25,6 +25,7 @@ shared_ptr<Node> op::v1::FloorMod::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace floor_mod {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -61,6 +62,7 @@ bool evaluate_floor_mod(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace floor_mod
 
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

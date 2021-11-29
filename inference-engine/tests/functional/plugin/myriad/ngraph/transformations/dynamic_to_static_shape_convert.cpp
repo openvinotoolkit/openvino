@@ -47,7 +47,7 @@ protected:
                 "Actual");
         convert->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(outputShape.rank()));
 
-        const auto transformations = vpu::Transformations{{ngraph::opset3::Convert::type_info, vpu::dynamicToStaticUnaryElementwise}};
+        const auto transformations = vpu::Transformations{{ngraph::opset3::Convert::get_type_info_static(), vpu::dynamicToStaticUnaryElementwise}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }

@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::BroadcastMove, "BroadcastMove", 0);
-
 snippets::op::BroadcastMove::BroadcastMove(const Output<Node>& x, Shape shape) : Op({x}), output_shape(shape) {
     constructor_validate_and_infer_types();
 }

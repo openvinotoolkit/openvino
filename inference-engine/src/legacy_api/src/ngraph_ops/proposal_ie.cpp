@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ProposalIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::ProposalIE);
 
 op::ProposalIE::ProposalIE(const Output<Node>& class_probs, const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape, const ProposalAttrs& attrs)

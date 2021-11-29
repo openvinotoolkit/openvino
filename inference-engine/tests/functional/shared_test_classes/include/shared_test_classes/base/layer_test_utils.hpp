@@ -16,6 +16,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/bfloat16.hpp>
+#include <ngraph/pass/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -51,19 +52,23 @@ enum RefMode {
 
 class LayerTestsCommon : public CommonTestUtils::TestsCommon {
 public:
-    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const;
 
     virtual void Run();
 
-    virtual void Serialize();
+    virtual void Serialize(ngraph::pass::Serialize::Version ir_version = ngraph::pass::Serialize::Version::UNSPECIFIED);
+
+    virtual void QueryNetwork();
 
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold);
+                        float threshold,
+                        float abs_threshold = -1.f);
 
     static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
-                        float threshold);
+                        float threshold,
+                        float abs_threshold = -1.f);
 
     virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
@@ -88,11 +93,16 @@ public:
 #endif
 
     template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
+                IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                           << " at index " << i << " with absolute threshold " << abs_threshold
+                           << " failed";
+            }
             if (absoluteDifference <= threshold) {
                 continue;
             }
@@ -133,6 +143,7 @@ protected:
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ngraph::Function> functionRefs;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
@@ -142,6 +153,7 @@ protected:
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
+    float abs_threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
 

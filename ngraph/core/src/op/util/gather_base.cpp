@@ -16,7 +16,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::GatherBase, "GatherBase", 7);
+BWDCMP_RTTI_DEFINITION(ov::op::util::GatherBase);
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -144,6 +144,7 @@ int64_t ov::op::util::GatherBase::get_axis() const {
 }
 
 namespace gather {
+namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ngraph::HostTensorPtr& arg0,
               const ngraph::HostTensorPtr& arg1,
@@ -269,6 +270,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 
     return true;
 }
+}  // namespace
 }  // namespace gather
 
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

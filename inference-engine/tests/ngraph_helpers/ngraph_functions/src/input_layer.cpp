@@ -28,5 +28,18 @@ std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type &type, ngraph::
     }
     return input;
 }
+
+std::shared_ptr<ngraph::Node> makeDynamicInputLayer(const element::Type &type, ngraph::helpers::InputLayerType inputType,
+                                                    const PartialShape& shape) {
+    if (shape.is_static()) {
+        return makeInputLayer(type, inputType, shape.get_shape());
+    }
+
+    if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        return ngraph::builder::makeDynamicParams(type, {shape}).front();
+    }
+
+    throw std::runtime_error("Could not make input layer. Unsupported inputType for dynamic shape");
+}
 }  // namespace builder
 }  // namespace ngraph

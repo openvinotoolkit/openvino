@@ -16,7 +16,7 @@ namespace cldnn {
 namespace ocl {
 
 struct profiling_period_ocl_start_stop {
-    const char* name;
+    instrumentation::profiling_stage stage;
     cl_profiling_info start;
     cl_profiling_info stop;
 };

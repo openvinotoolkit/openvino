@@ -4,12 +4,14 @@
 
 #pragma once
 
+#include <set>
 #include <string>
 #include <type_traits>
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/enum_names.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 
 ///
@@ -172,10 +174,8 @@ class OPENVINO_API AttributeAdapter<float> : public IndirectScalarValueAccessor<
 public:
     AttributeAdapter(float& value) : IndirectScalarValueAccessor<float, double>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<float>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<float>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a double as a double
@@ -184,10 +184,8 @@ class OPENVINO_API AttributeAdapter<double> : public DirectValueAccessor<double>
 public:
     AttributeAdapter(double& value) : DirectValueAccessor<double>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<double>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<double>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a string as a string
@@ -196,10 +194,8 @@ class OPENVINO_API AttributeAdapter<std::string> : public DirectValueAccessor<st
 public:
     AttributeAdapter(std::string& value) : DirectValueAccessor<std::string>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<string>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::string>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a bool as a bool
@@ -208,10 +204,8 @@ class OPENVINO_API AttributeAdapter<bool> : public DirectValueAccessor<bool> {
 public:
     AttributeAdapter(bool& value) : DirectValueAccessor<bool>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<bool>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<bool>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access an int8_t and an int64_t
@@ -220,10 +214,8 @@ class OPENVINO_API AttributeAdapter<int8_t> : public IndirectScalarValueAccessor
 public:
     AttributeAdapter(int8_t& value) : IndirectScalarValueAccessor<int8_t, int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<int8_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<int8_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access an int16_t as an int64_t
@@ -232,10 +224,8 @@ class OPENVINO_API AttributeAdapter<int16_t> : public IndirectScalarValueAccesso
 public:
     AttributeAdapter(int16_t& value) : IndirectScalarValueAccessor<int16_t, int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<int16_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<int16_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access an int32_t as an int64_t
@@ -244,10 +234,8 @@ class OPENVINO_API AttributeAdapter<int32_t> : public IndirectScalarValueAccesso
 public:
     AttributeAdapter(int32_t& value) : IndirectScalarValueAccessor<int32_t, int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<int32_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<int32_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access an int64_t as an int64_t
@@ -256,10 +244,8 @@ class OPENVINO_API AttributeAdapter<int64_t> : public DirectValueAccessor<int64_
 public:
     AttributeAdapter(int64_t& value) : DirectValueAccessor<int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<int64_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<int64_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a uint8_t as an int64_t
@@ -268,10 +254,8 @@ class OPENVINO_API AttributeAdapter<uint8_t> : public IndirectScalarValueAccesso
 public:
     AttributeAdapter(uint8_t& value) : IndirectScalarValueAccessor<uint8_t, int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<uint8_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<uint8_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a uint16_t as an int64_t
@@ -280,10 +264,8 @@ class OPENVINO_API AttributeAdapter<uint16_t> : public IndirectScalarValueAccess
 public:
     AttributeAdapter(uint16_t& value) : IndirectScalarValueAccessor<uint16_t, int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<uint16_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<uint16_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a uint32_t as an int64_t
@@ -292,10 +274,8 @@ class OPENVINO_API AttributeAdapter<uint32_t> : public IndirectScalarValueAccess
 public:
     AttributeAdapter(uint32_t& value) : IndirectScalarValueAccessor<uint32_t, int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<uint32_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<uint32_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a uint64_t as an int64_t
@@ -304,10 +284,8 @@ class OPENVINO_API AttributeAdapter<uint64_t> : public IndirectScalarValueAccess
 public:
     AttributeAdapter(uint64_t& value) : IndirectScalarValueAccessor<uint64_t, int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<uint64_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<uint64_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 #ifdef __APPLE__
@@ -317,10 +295,8 @@ class OPENVINO_API AttributeAdapter<size_t> : public IndirectScalarValueAccessor
 public:
     AttributeAdapter(size_t& value) : IndirectScalarValueAccessor<size_t, int64_t>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<size_t>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<size_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -330,10 +306,8 @@ public:
     AttributeAdapter(std::vector<size_t>& value)
         : IndirectVectorValueAccessor<std::vector<size_t>, std::vector<int64_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<size_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<size_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 #endif
 
@@ -346,10 +320,8 @@ class OPENVINO_API AttributeAdapter<std::vector<int8_t>> : public DirectValueAcc
 public:
     AttributeAdapter(std::vector<int8_t>& value) : DirectValueAccessor<std::vector<int8_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<int8_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<int8_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<int16_t>
@@ -358,10 +330,8 @@ class OPENVINO_API AttributeAdapter<std::vector<int16_t>> : public DirectValueAc
 public:
     AttributeAdapter(std::vector<int16_t>& value) : DirectValueAccessor<std::vector<int16_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<int16_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<int16_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<int32_t>
@@ -370,10 +340,8 @@ class OPENVINO_API AttributeAdapter<std::vector<int32_t>> : public DirectValueAc
 public:
     AttributeAdapter(std::vector<int32_t>& value) : DirectValueAccessor<std::vector<int32_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<int32_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<int32_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<int64_t>
@@ -382,10 +350,8 @@ class OPENVINO_API AttributeAdapter<std::vector<int64_t>> : public DirectValueAc
 public:
     AttributeAdapter(std::vector<int64_t>& value) : DirectValueAccessor<std::vector<int64_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<int64_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<int64_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<uint8_t>
@@ -394,10 +360,8 @@ class OPENVINO_API AttributeAdapter<std::vector<uint8_t>> : public DirectValueAc
 public:
     AttributeAdapter(std::vector<uint8_t>& value) : DirectValueAccessor<std::vector<uint8_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<uint8_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<uint8_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<uint16_t>
@@ -406,10 +370,8 @@ class OPENVINO_API AttributeAdapter<std::vector<uint16_t>> : public DirectValueA
 public:
     AttributeAdapter(std::vector<uint16_t>& value) : DirectValueAccessor<std::vector<uint16_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<uint16_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<uint16_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<uint32_t>
@@ -418,10 +380,8 @@ class OPENVINO_API AttributeAdapter<std::vector<uint32_t>> : public DirectValueA
 public:
     AttributeAdapter(std::vector<uint32_t>& value) : DirectValueAccessor<std::vector<uint32_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<uint32_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<uint32_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<uint64_t>
@@ -430,10 +390,8 @@ class OPENVINO_API AttributeAdapter<std::vector<uint64_t>> : public DirectValueA
 public:
     AttributeAdapter(std::vector<uint64_t>& value) : DirectValueAccessor<std::vector<uint64_t>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<uint64_t>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<uint64_t>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<float>
@@ -442,10 +400,8 @@ class OPENVINO_API AttributeAdapter<std::vector<float>> : public DirectValueAcce
 public:
     AttributeAdapter(std::vector<float>& value) : DirectValueAccessor<std::vector<float>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<float>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<float>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<double>
@@ -454,10 +410,8 @@ class OPENVINO_API AttributeAdapter<std::vector<double>> : public DirectValueAcc
 public:
     AttributeAdapter(std::vector<double>& value) : DirectValueAccessor<std::vector<double>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<double>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<double>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<string>
@@ -466,9 +420,14 @@ class OPENVINO_API AttributeAdapter<std::vector<std::string>> : public DirectVal
 public:
     AttributeAdapter(std::vector<std::string>& value) : DirectValueAccessor<std::vector<std::string>>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<string>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<std::vector<std::string>");
+    BWDCMP_RTTI_DECLARATION;
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<std::set<std::string>> : public DirectValueAccessor<std::set<std::string>> {
+public:
+    OPENVINO_RTTI("AttributeAdapter<set<string>>");
+    AttributeAdapter(std::set<std::string>& value) : DirectValueAccessor<std::set<std::string>>(value) {}
 };
 }  // namespace ov

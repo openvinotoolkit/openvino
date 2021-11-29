@@ -75,17 +75,6 @@ fi
 export PATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PATH:+:$PATH}"
 export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
-
-
-if [ -e "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader" ]; then
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader:$PYTHONPATH"
-    export PATH="$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader:$PATH"
-fi
-
-if [ -e "$INTEL_OPENVINO_DIR/tools/accuracy_checker" ]; then
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/accuracy_checker:$PYTHONPATH"
-fi
-
 if [ -e "$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit" ]; then
     export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit:$PYTHONPATH"
 fi

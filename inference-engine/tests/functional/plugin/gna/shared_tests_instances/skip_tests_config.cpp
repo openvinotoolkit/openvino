@@ -17,7 +17,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
-        R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
         R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
@@ -51,7 +50,39 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
-        // CVS-58963: Not implemented yet
-        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // Not implemented yet
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetWithIncorrectConfig).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        // Not implemented yet (dynamic cases)
+        R"(.*Behavior.*OVInferenceChaining.*(StaticOutputToDynamicInput).*)",
+        R"(.*Behavior.*OVInferenceChaining.*(DynamicOutputToDynamicInput).*)",
+        R"(.*Behavior.*OVInferenceChaining.*(DynamicInputToDynamicOutput).*)",
+        R"(.*Behavior.*OVInferRequestDynamicTests.*)",
+        // Not expected behavior
+        R"(.*Behavior.*ExecNetSetPrecision.*canSetInputPrecisionForNetwork.*FP16.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
+        R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
+        R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
+        R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
+        // TODO: Issue: 29577
+        R"(.*QueryNetwork.*)",
+        // TODO: GNA plugin does not support ExecGraph
+        R"(.*ExecGraphTests.*)",
+        // Issue connected with OV2.0
+        R"(.*EltwiseLayerTest.*NetType=f16.*)",
+        // TODO: Issue: 69639
+        R"(.*EltwiseLayerTest.*OpType=Prod.*)",
+        R"(.*EltwiseLayerTest.*OpType=Sum.*PARAMETER.*VECTOR.*)",
+        // TODO: Issue:27391
+        // TODO: Issue:28036
+        R"(.*ActivationLayerGNATest.*(Log|Exp).*netPRC=(FP16|FP32).*)",
+        // TODO: Issue: 71068
+        R"(.*OVInferRequestCancellationTests.*)",
+        // TODO: Issue: 71070
+        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
     };
 }

@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::MaxPool, "MaxPool", 1, op::util::MaxPoolBase);
+BWDCMP_RTTI_DEFINITION(op::v1::MaxPool);
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
@@ -66,6 +66,7 @@ shared_ptr<Node> op::v1::MaxPool::get_default_value() const {
 }
 
 namespace maxpool {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg,
                      const HostTensorPtr& out,
@@ -110,6 +111,7 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
     }
     return rc;
 }
+}  // namespace
 }  // namespace maxpool
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -161,6 +163,7 @@ bool op::v1::MaxPool::has_evaluate() const {
 // ------------------------------ V8 ------------------------------
 
 namespace maxpool_v8 {
+namespace {
 template <element::Type_t Values, element::Type_t Indices>
 inline bool evaluate(const HostTensorPtr& data,
                      const HostTensorPtr& values,
@@ -217,8 +220,10 @@ bool evaluate_maxpool(const HostTensorPtr& data,
     switch (indices->get_element_type()) {
     case element::Type_t::i32: {
         switch (data->get_element_type()) {
+            EVAL_MAX_POOL_8(i8, i32);
             EVAL_MAX_POOL_8(i32, i32);
             EVAL_MAX_POOL_8(i64, i32);
+            EVAL_MAX_POOL_8(u8, i32);
             EVAL_MAX_POOL_8(u32, i32);
             EVAL_MAX_POOL_8(u64, i32);
             EVAL_MAX_POOL_8(f16, i32);
@@ -230,8 +235,10 @@ bool evaluate_maxpool(const HostTensorPtr& data,
     } break;
     case element::Type_t::i64: {
         switch (data->get_element_type()) {
+            EVAL_MAX_POOL_8(i8, i64);
             EVAL_MAX_POOL_8(i32, i64);
             EVAL_MAX_POOL_8(i64, i64);
+            EVAL_MAX_POOL_8(u8, i64);
             EVAL_MAX_POOL_8(u32, i64);
             EVAL_MAX_POOL_8(u64, i64);
             EVAL_MAX_POOL_8(f16, i64);
@@ -248,9 +255,8 @@ bool evaluate_maxpool(const HostTensorPtr& data,
 
     return rc;
 }
+}  // namespace
 }  // namespace maxpool_v8
-
-OPENVINO_RTTI_DEFINITION(op::v8::MaxPool, "MaxPool", 8, op::util::MaxPoolBase);
 
 op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
@@ -317,8 +323,10 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
 bool op::v8::MaxPool::has_evaluate() const {
     NGRAPH_OP_SCOPE(v8_MaxPool_has_evaluate);
     switch (get_input_element_type(0)) {
+    case ngraph::element::i8:
     case ngraph::element::i32:
     case ngraph::element::i64:
+    case ngraph::element::u8:
     case ngraph::element::u32:
     case ngraph::element::u64:
     case ngraph::element::f16:

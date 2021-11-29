@@ -847,6 +847,23 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
+void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+    const auto& min_value = -tensor_rank;
+    const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;
+    transform(axes.begin(), axes.end(), axes.begin(), [=](int64_t& axis) {
+        NODE_VALIDATION_CHECK(node,
+                              ((axis >= min_value) && (axis <= max_value)),
+                              " Parameter axis ",
+                              axis,
+                              " out of the tensor rank range [",
+                              min_value,
+                              ", ",
+                              max_value,
+                              "].");
+        return axis < 0 ? axis + tensor_rank : axis;
+    });
+}
+
 std::vector<size_t> ov::normalize_axes(const std::string& node_description,
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank) {
@@ -1096,16 +1113,16 @@ vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) {
 }  // namespace
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value) {
-    static Evaluator<MaxValue>::op_handler_map handlers = {{op::v0::Concat::type_info, exec_concat},
-                                                           {op::v0::Constant::type_info, exec_constant},
-                                                           {op::v0::Convert::type_info, exec_nop},
-                                                           {op::v1::Gather::type_info, exec_gather},
-                                                           {op::v1::Minimum::type_info, exec_minimum},
-                                                           {op::v1::ReduceMin::type_info, exec_reduce_min},
-                                                           {op::v1::Reshape::type_info, exec_nop},
-                                                           {op::v3::ShapeOf::type_info, exec_shape_of},
-                                                           {op::v0::Squeeze::type_info, exec_nop},
-                                                           {op::v0::Unsqueeze::type_info, exec_nop}};
+    static Evaluator<MaxValue>::op_handler_map handlers = {{op::v0::Concat::get_type_info_static(), exec_concat},
+                                                           {op::v0::Constant::get_type_info_static(), exec_constant},
+                                                           {op::v0::Convert::get_type_info_static(), exec_nop},
+                                                           {op::v1::Gather::get_type_info_static(), exec_gather},
+                                                           {op::v1::Minimum::get_type_info_static(), exec_minimum},
+                                                           {op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
+                                                           {op::v1::Reshape::get_type_info_static(), exec_nop},
+                                                           {op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
+                                                           {op::v0::Squeeze::get_type_info_static(), exec_nop},
+                                                           {op::v0::Unsqueeze::get_type_info_static(), exec_nop}};
     Evaluator<MaxValue>::value_map value_map;
     Evaluator<MaxValue> evaluator(handlers, value_map);
     auto val = evaluator.evaluate(value);
@@ -1117,7 +1134,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             const OutputVector& outputs,
                             const EvaluationContext& evaluation_context) {
     Evaluator<HostTensorPtr> evaluator({}, value_map);
-    evaluator.set_univeral_handler(
+    evaluator.set_universal_handler(
         [&output_tensor_map, &evaluation_context](Node* node,
                                                   const HostTensorVector& input_tensors) -> HostTensorVector {
             HostTensorVector output_tensors;
@@ -1164,6 +1181,8 @@ bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& ord
     }
     return status;
 }
+
+namespace {
 
 void propagate_rt_info(Node* node, const Output<Node>& final_port) {
     auto node_outputs = node->outputs();
@@ -1242,6 +1261,8 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
         return output.get_tensor().get_lower_value();
 }
 
+}  // namespace
+
 HostTensorPtr ngraph::evaluate_lower_bound(const Output<Node>& output) {
     return evaluate_bound(output, false);
 }
@@ -1273,7 +1294,7 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
     return shape_defined;
 }
 
-bool default_bound_evaluator(const Node* node, const HostTensorVector& output_values, bool is_upper) {
+inline bool default_bound_evaluator(const Node* node, const HostTensorVector& output_values, bool is_upper) {
     HostTensorVector input_tensors;
     for (const auto& input : node->input_values()) {
         if (auto bound = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value())
@@ -1350,10 +1371,43 @@ shared_ptr<op::Constant> ngraph::get_constant_min_of_type(element::Type_t t) {
     }
 }
 
+std::shared_ptr<op::Constant> ngraph::get_constant_lowest_of_type(element::Type_t t) {
+#define NGRAPH_TYPE_TO_LOWEST_CONST(t)                                                                             \
+    case t:                                                                                                        \
+        return op::Constant::create(t,                                                                             \
+                                    {},                                                                            \
+                                    {std::numeric_limits<typename element_type_traits<t>::value_type>::lowest()}); \
+        break
+
+    switch (t) {
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::boolean);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::bf16);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::f16);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::f32);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::f64);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::i8);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::i16);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::i32);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::i64);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u1);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u8);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u16);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u32);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u64);
+
+    case element::undefined:
+    case element::dynamic:
+    default:
+        return nullptr;
+    }
+}
+
+namespace {
+
 HostTensorPtr equality_mask(const HostTensorPtr& tensor, const shared_ptr<op::Constant>& constant) {
     auto mask = std::make_shared<HostTensor>(element::boolean, tensor->get_shape());
     const auto& param = std::make_shared<op::Parameter>(tensor->get_element_type(), tensor->get_shape());
-    op::v1::Equal(param, constant, ngraph::op::AutoBroadcastSpec::NUMPY)
+    op::v1::Equal(param, constant, ngraph::op::AutoBroadcastType::NUMPY)
         .evaluate({mask}, {tensor, std::make_shared<HostTensor>(constant)});
     return mask;
 }
@@ -1362,10 +1416,12 @@ HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs) {
     auto result = std::make_shared<HostTensor>();
     op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs->get_element_type(), lhs->get_shape()),
                       std::make_shared<op::Parameter>(rhs->get_element_type(), rhs->get_shape()),
-                      ngraph::op::AutoBroadcastSpec::NUMPY)
+                      ngraph::op::AutoBroadcastType::NUMPY)
         .evaluate({result}, {lhs, rhs});
     return result;
 }
+
+}  // namespace
 
 bool ngraph::interval_bound_evaluator(const Node* node,
                                       const HostTensorVector& lower_output_values,

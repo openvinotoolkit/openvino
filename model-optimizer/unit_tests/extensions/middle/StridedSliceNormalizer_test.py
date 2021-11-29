@@ -1588,6 +1588,7 @@ class TestStridedSlicePermute(unittest.TestCase):
     def run_permute_test(self, inp, ref_res, begin, end, strides, begin_mask, end_mask,
                          shrink_axis_mask, new_axis_mask, ellipsis_mask):
         from extensions.middle.ApplyPermutations import ApplyPermutation
+        from extensions.middle.MergeNodesPermutations import MergeNodesPermutations
         from extensions.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
         nodes = {
             **regular_op_with_shaped_data('input', int64_array(inp), {'op': 'Parameter', 'type': 'Parameter',
@@ -1614,6 +1615,7 @@ class TestStridedSlicePermute(unittest.TestCase):
         StridedSliceNormalizer().find_and_replace_pattern(graph)
         graph = partial_infer(graph)
         ApplyNHWCtoNCHWpermutation().find_and_replace_pattern(graph)
+        MergeNodesPermutations().find_and_replace_pattern(graph)
         ApplyPermutation().find_and_replace_pattern(graph)
         graph = partial_infer(graph)
 

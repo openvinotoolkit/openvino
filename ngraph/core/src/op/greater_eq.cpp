@@ -13,6 +13,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace greater_equalop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -47,11 +48,12 @@ bool evaluate_greater_equal(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace greater_equalop
 
 //---------------------------------- v1 ----------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::GreaterEqual, "GreaterEqual", 1, op::util::BinaryElementwiseComparison);
+BWDCMP_RTTI_DEFINITION(op::v1::GreaterEqual);
 
 op::v1::GreaterEqual::GreaterEqual(const Output<Node>& arg0,
                                    const Output<Node>& arg1,

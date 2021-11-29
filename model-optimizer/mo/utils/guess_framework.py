@@ -42,3 +42,4 @@ def guess_framework_by_ext(input_model_path: str) -> int:
         return 'kaldi'
     elif re.match(r'^.*\.onnx$', input_model_path):
         return 'onnx'
+

@@ -11,12 +11,12 @@ from tests.test_onnx.utils import OpenVinoOnnxBackend
 from tests.test_onnx.utils.model_importer import ModelImportRunner
 
 from tests import (
+    xfail_issue_67415,
     xfail_issue_38701,
     xfail_issue_45457,
     xfail_issue_37957,
     xfail_issue_38084,
     xfail_issue_39669,
-    xfail_issue_38726,
     xfail_issue_37973,
     xfail_issue_47430,
     xfail_issue_47495,
@@ -77,6 +77,7 @@ tolerance_map = {
     "resnet34-v2-7": {"atol": 0.001, "rtol": 0.001},
     "vgg16-7": {"atol": 0.001, "rtol": 0.001},
     "vgg19-bn-7": {"atol": 0.001, "rtol": 0.001},
+    "vgg19-7": {"atol": 0.001, "rtol": 0.001},
     "tinyyolov2-7": {"atol": 0.001, "rtol": 0.001},
     "tinyyolov2-8": {"atol": 0.001, "rtol": 0.001},
     "candy-8": {"atol": 0.001, "rtol": 0.001},
@@ -115,6 +116,12 @@ tolerance_map = {
     "test_retinanet_resnet101": {"atol": 1.3e-06},
 }
 
+def tolerance_map_key_in_model_path(path):
+    for key in tolerance_map:
+        if key in path:
+            return key
+    return None
+
 zoo_models = []
 # rglob doesn't work for symlinks, so models have to be physically somwhere inside "MODELS_ROOT_DIR"
 for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
@@ -127,6 +134,12 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
             # updated model looks now:
             # {"model_name": path, "model_file": file, "dir": mdir, "atol": ..., "rtol": ...}
             model.update(tolerance_map[basedir])
+        else:
+            # some models have the same stem, have to check if any of the keys from tolerance_map
+            # is found in the full model path
+            model_key = tolerance_map_key_in_model_path(str(path))
+            if model_key is not None:
+                model.update(tolerance_map[model_key])
         if basedir in post_processing:
             model.update(post_processing[basedir])
         zoo_models.append(model)
@@ -145,7 +158,6 @@ if len(zoo_models) > 0:
         import_xfail_list = [
             # ONNX Model Zoo
             (xfail_issue_38701, "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_bidaf_bidaf_cpu"),
-            (xfail_issue_38726, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
 
             # Model MSFT
             (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
@@ -159,8 +171,15 @@ if len(zoo_models) > 0:
     test_cases = backend_test.test_cases["OnnxBackendModelExecutionTest"]
     if tests.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
+            # New Python API - fp16 blob
+            (xfail_issue_67415, "test_MSFT_opset7_fp16_inception_v1_onnxzoo_lotus_inception_v1_cpu"),
+            (xfail_issue_67415, "test_MSFT_opset7_fp16_shufflenet_onnxzoo_lotus_shufflenet_cpu"),
+            (xfail_issue_67415, "test_MSFT_opset8_fp16_inception_v1_onnxzoo_lotus_inception_v1_cpu"),
+            (xfail_issue_67415, "test_MSFT_opset8_fp16_shufflenet_onnxzoo_lotus_shufflenet_cpu"),
+
             # ONNX Model Zoo
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
+            (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet50_11_fcn_resnet50_11_model_cpu"),

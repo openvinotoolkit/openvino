@@ -18,8 +18,6 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", 8, op::util::NmsBase);
-
 op::v8::MatrixNms::MatrixNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 
 op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
@@ -79,6 +77,6 @@ EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v8::MatrixNms::DecayFunction>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v8::MatrixNms::DecayFunction>);
 
 }  // namespace ov

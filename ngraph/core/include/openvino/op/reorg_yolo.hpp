@@ -11,7 +11,8 @@ namespace op {
 namespace v0 {
 class OPENVINO_API ReorgYolo : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ReorgYolo", "opset2");
+    BWDCMP_RTTI_DECLARATION;
 
     ReorgYolo() = default;
     /// \brief Constructs a ReorgYolo operation

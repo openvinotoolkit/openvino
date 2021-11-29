@@ -13,20 +13,18 @@ endif()
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
 
-target_link_libraries(${TARGET_NAME}
-        PRIVATE
-        inference_engine
-        inference_engine_c_api
-        ${OpenCV_LIBRARIES}
-        commonTestUtils
-        )
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_c_api ${OpenCV_LIBRARIES}
+                                             commonTestUtils gtest_main)
 
 target_compile_definitions(${TARGET_NAME}
-        PUBLIC ${ARGV}
+        PRIVATE
+        $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\" )
 
-add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+if(ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+endif()
 
 if(ENABLE_MKL_DNN)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)

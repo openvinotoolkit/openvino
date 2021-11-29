@@ -2,10 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
+endif()
+
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph/models\")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
+
+if(ENABLE_TESTS)
+    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
+    add_subdirectory(util)
+    add_subdirectory(engines_util)
+    if (NGRAPH_ONNX_FRONTEND_ENABLE)
+        add_subdirectory(onnx_test_util)
+    endif()
+endif()
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "nGraph unit tests disabled")
@@ -37,10 +51,12 @@ set(SRC
     copy.cpp
     element_type.cpp
     eval.cpp
+    extension.cpp
     file_util.cpp
     float16.cpp
+    framework_node.cpp
+    function.cpp
     graph_rewrite.cpp
-    includes.cpp
     input_output_assign.cpp
     int4.cpp
     intervals.cpp
@@ -48,6 +64,7 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
+    rtti.cpp
     node_input_output.cpp
     rtti.cpp
     op.cpp
@@ -75,23 +92,30 @@ set(SRC
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     opset1.cpp
+    ov_default_allocator_test.cpp
+    ov_tensor_test.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
+    pass/serialization/cleanup.cpp
+    pass/serialization/const_compression.cpp
+    pass/serialization/deterministicity.cpp
+    pass/serialization/serialize.cpp
     pattern.cpp
     preprocess.cpp
-    provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
     shape.cpp
     span.cpp
     specialize_function.cpp
     tensor.cpp
+    threading.cpp
     type_info.cpp
     type_prop/abs.cpp
     type_prop/acos.cpp
     type_prop/adaptive_avg_pool.cpp
     type_prop/adaptive_max_pool.cpp
+    type_prop/add.cpp
     type_prop/asin.cpp
     type_prop/asinh.cpp
     type_prop/assign.cpp
@@ -109,6 +133,8 @@ set(SRC
     type_prop/concat.cpp
     type_prop/constant.cpp
     type_prop/convert.cpp
+    type_prop/convert_color_i420.cpp
+    type_prop/convert_color_nv12.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
     type_prop/cos.cpp
@@ -141,6 +167,7 @@ set(SRC
     type_prop/fake_quantize.cpp
     type_prop/floor.cpp
     type_prop/floor_mod.cpp
+    type_prop/framework_node.cpp
     type_prop/gather.cpp
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
@@ -198,6 +225,7 @@ set(SRC
     type_prop/reduce_min.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/relu.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
     type_prop/result.cpp
@@ -217,6 +245,7 @@ set(SRC
     type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sigmoid.cpp
     type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
@@ -231,6 +260,7 @@ set(SRC
     type_prop/squeeze.cpp
     type_prop/swish.cpp
     type_prop/tan.cpp
+    type_prop/tanh.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -242,48 +272,77 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acos.cpp
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/add.cpp
+    visitors/op/asin.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
+    visitors/op/avg_pool.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
+    visitors/op/binary_convolution.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
+    visitors/op/clamp.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convert_color_i420.cpp
+    visitors/op/convert_color_nv12.cpp
     visitors/op/convolution_backprop.cpp
+    visitors/op/convolution.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
+    visitors/op/ctc_greedy_decoder.cpp
+    visitors/op/ctc_greedy_decoder_seq_len.cpp
     visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
+    visitors/op/dft.cpp
+    visitors/op/divide.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
+    visitors/op/embedding_segments_sum.cpp
+    visitors/op/embeddingbag_offsetssum.cpp
+    visitors/op/embeddingbag_packedsum.cpp
     visitors/op/equal.cpp
     visitors/op/erf.cpp
+    visitors/op/exp.cpp
+    visitors/op/experimental_detectron_detection_output.cpp
+    visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
+    visitors/op/gather_elements.cpp
+    visitors/op/gather_nd.cpp
     visitors/op/gather_tree.cpp
     visitors/op/gelu.cpp
     visitors/op/greater_equal.cpp
     visitors/op/greater.cpp
     visitors/op/grn.cpp
+    visitors/op/gru_cell.cpp
+    visitors/op/gru_sequence.cpp
     visitors/op/group_conv.cpp
+    visitors/op/hard_sigmoid.cpp
+    visitors/op/hsigmoid.cpp
+    visitors/op/hswish.cpp
     visitors/op/interpolate.cpp
+    visitors/op/if.cpp
+    visitors/op/idft.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
+    visitors/op/log_softmax.cpp
     visitors/op/logical_and.cpp
     visitors/op/logical_or.cpp
     visitors/op/logical_not.cpp
@@ -310,6 +369,7 @@ set(SRC
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
     visitors/op/power.cpp
+    visitors/op/prelu.cpp
     visitors/op/prior_box.cpp
     visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
@@ -325,6 +385,7 @@ set(SRC
     visitors/op/reduce_prod.cpp
     visitors/op/reduce_sum.cpp
     visitors/op/region_yolo.cpp
+    visitors/op/relu.cpp
     visitors/op/reorg_yolo.cpp
     visitors/op/reshape.cpp
     visitors/op/result.cpp
@@ -333,13 +394,18 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/rnn_sequence.cpp
     visitors/op/roi_pooling.cpp
+    visitors/op/roll.cpp
     visitors/op/round.cpp
     visitors/op/scatter_elements_update.cpp
+    visitors/op/scatter_update.cpp
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
+    visitors/op/shape_of.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sigmoid.cpp
     visitors/op/sign.cpp
+    visitors/op/sin.cpp
     visitors/op/sinh.cpp
     visitors/op/slice.cpp
     visitors/op/softmax.cpp
@@ -363,8 +429,20 @@ set(SRC
     util.cpp
 )
 
-set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
-    NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
+# For type relaxed types
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+
+# Add include path to so_extension.hpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(ov_tensor_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
+
+list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
 if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
@@ -393,9 +471,6 @@ if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
 endif()
 
-add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
-add_subdirectory(util)
-
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the `test/backend` directory
@@ -407,130 +482,32 @@ add_subdirectory(util)
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/abs.in.cpp
-    backend/acos.in.cpp
-    backend/adaptive_avg_pool.in.cpp
-    backend/adaptive_max_pool.in.cpp
-    backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
-    backend/asin.in.cpp
-    backend/asinh.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/avg_pool.in.cpp
-    backend/batch_norm.in.cpp
-    backend/batch_to_space.in.cpp
-    backend/broadcast.in.cpp
-    backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
-    backend/ceiling.in.cpp
-    backend/concat.in.cpp
-    backend/constant.in.cpp
-    backend/convolution_backprop.in.cpp
-    backend/convolution.in.cpp
-    backend/binary_convolution.in.cpp
-    backend/clamp.in.cpp
-    backend/cos.in.cpp
-    backend/cosh.in.cpp
-    backend/ctc_greedy_decoder.in.cpp
-    backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/deformable_psroi_pooling.in.cpp
-    backend/detection_output.in.cpp
-    backend/dft.in.cpp
-    backend/divide.in.cpp
-    backend/deformable_convolution.in.cpp
-    backend/deformable_convolution_opset8.in.cpp
-    backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/experimental_detectron_generate_proposals.in.cpp
-    backend/experimental_detectron_topk_rois.in.cpp
-    backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
-    backend/elu.in.cpp
-    backend/exp.in.cpp
-    backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
-    backend/fake_quantize.in.cpp
-    backend/floor.in.cpp
-    backend/floor_mod.in.cpp
     backend/function_name.in.cpp
-    backend/gather.in.cpp
-    backend/gather_elements.in.cpp
-    backend/gather_nd.in.cpp
-    backend/gelu.in.cpp
-    backend/group_convolution.in.cpp
-    backend/group_convolution_backprop_data.in.cpp
-    backend/hard_sigmoid.in.cpp
-    backend/idft.in.cpp
     backend/interpolate.in.cpp
-    backend/log.in.cpp
-    backend/log_softmax.in.cpp
-    backend/lrn.in.cpp
-    backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
-    backend/maximum.in.cpp
-    backend/max_pool.in.cpp
-    backend/mish.in.cpp
-    backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
-    backend/multiply.in.cpp
-    backend/negative.in.cpp
     backend/node_name.in.cpp
-    backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
-    backend/non_zero.in.cpp
-    backend/one_hot.in.cpp
-    backend/pad.in.cpp
-    backend/parameter_as_output.in.cpp
-    backend/power.in.cpp
-    backend/prelu.in.cpp
-    backend/prior_box_clustered.in.cpp
-    backend/prior_box.in.cpp
-    backend/proposal.in.cpp
-    backend/psroi_pooling.in.cpp
-    backend/range.in.cpp
-    backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
-    backend/relu.in.cpp
-    backend/reorg_yolo.in.cpp
-    backend/reshape.in.cpp
-    backend/result.in.cpp
-    backend/reverse.in.cpp
-    backend/roll.in.cpp
-    backend/round.in.cpp
-    backend/scatter_nd_update.in.cpp
-    backend/space_to_depth.in.cpp
-    backend/selu.in.cpp
-    backend/shape_of.in.cpp
-    backend/shuffle_channels.in.cpp
-    backend/sigmoid.in.cpp
-    backend/sin.in.cpp
-    backend/sinh.in.cpp
-    backend/softmax.in.cpp
-    backend/softplus.in.cpp
-    backend/space_to_batch.in.cpp
-    backend/split.in.cpp
     backend/sqrt.in.cpp
-    backend/squared_difference.in.cpp
-    backend/squeeze.in.cpp
-    backend/subtract.in.cpp
-    backend/swish.in.cpp
-    backend/tanh.in.cpp
-    backend/tile.in.cpp
-    backend/topk.in.cpp
-    backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
-    backend/unsqueeze.in.cpp
     backend/validate_call.in.cpp
-    backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp
 )
 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
+            onnx/onnx_import_com_microsoft.in.cpp
             onnx/onnx_import_controlflow.in.cpp
             onnx/onnx_import_const_folding.in.cpp
             onnx/onnx_import_convpool.in.cpp
@@ -538,14 +515,14 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
-            onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
-            onnx/onnx_tensor_names.cpp)
+            onnx/onnx_tensor_names.cpp
+            onnx/onnx_transformations.cpp)
 endif()
 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
@@ -585,24 +562,35 @@ endforeach()
 
 add_executable(unit-test ${SRC})
 
+add_dependencies(unit-test template_extension)
+
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
-add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
-add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
+get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
+target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
+
+target_compile_definitions(unit-test
+    PRIVATE
+        SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
+        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
+                                        engines_test_util
                                         ngraph::builder
+                                        openvino::util
+                                        pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         ie_backend
                                         interpreter_backend
                                         Threads::Threads
                                         openvino::conditional_compilation
-                                        frontend_manager)
+                                        openvino::util
+                                        frontend_common)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
@@ -616,6 +604,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_definitions(unit-test PRIVATE NGRAPH_ONNX_FRONTEND_ENABLE)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
@@ -623,14 +612,18 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
-    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ngraph_frontend SOURCE_DIR)
+    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend)
+    target_link_libraries(unit-test PRIVATE onnx_ov_frontend onnx_test_util)
     if (LINUX)
         target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
         target_link_options(unit-test PRIVATE -Wl,-dead_strip)
     endif()
+endif()
+
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    add_dependencies(unit-test ir_ov_frontend)
 endif()
 
 install(TARGETS unit-test

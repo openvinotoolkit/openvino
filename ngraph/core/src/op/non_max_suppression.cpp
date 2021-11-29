@@ -20,7 +20,7 @@ using namespace ngraph;
 
 // ------------------------------ V1 ------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::NonMaxSuppression, "NonMaxSuppression", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::NonMaxSuppression);
 
 op::v1::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -186,7 +186,7 @@ EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>);
 
 }  // namespace ov
 
@@ -195,7 +195,7 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v1::NonMaxSuppression::B
 }
 
 // ------------------------------ V3 ------------------------------
-OPENVINO_RTTI_DEFINITION(op::v3::NonMaxSuppression, "NonMaxSuppression", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::NonMaxSuppression);
 
 op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -374,7 +374,7 @@ EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>);
 
 }  // namespace ov
 
@@ -384,7 +384,7 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v3::NonMaxSuppression::B
 
 // ------------------------------ V4 ------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v4::NonMaxSuppression, "NonMaxSuppression", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::NonMaxSuppression);
 
 op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -471,7 +471,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 
 // ------------------------------ V5 ------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v5::NonMaxSuppression, "NonMaxSuppression", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::NonMaxSuppression);
 
 op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -834,5 +834,5 @@ EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>);
 }  // namespace ov

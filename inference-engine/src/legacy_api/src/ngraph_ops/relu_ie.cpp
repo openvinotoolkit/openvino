@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ReLUIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::ReLUIE);
 
 op::ReLUIE::ReLUIE(const Output<Node>& data, const float& negative_slope, const element::Type output_type)
     : Op(OutputVector {data}), m_negative_slope(negative_slope), m_output_type(output_type) {

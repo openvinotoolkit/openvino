@@ -15,8 +15,8 @@ namespace op {
 /// succeeds on the first match. Otherwise the match fails.
 class OPENVINO_API Or : public Pattern {
 public:
-    static constexpr NodeTypeInfo type_info{"patternOr", 0};
-    const NodeTypeInfo& get_type_info() const override;
+    OPENVINO_RTTI("patternOr");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief creates an Or node matching one of several sub-patterns in order. Does
     /// not add node to match list.
     /// \param patterns The patterns to try for matching

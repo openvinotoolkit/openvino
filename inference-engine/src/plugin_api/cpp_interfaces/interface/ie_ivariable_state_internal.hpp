@@ -7,8 +7,8 @@
 #include <memory>
 #include <string>
 
-#include "details/ie_so_pointer.hpp"
 #include "ie_blob.h"
+#include "so_ptr.hpp"
 
 namespace InferenceEngine {
 
@@ -66,9 +66,9 @@ protected:
 using IMemoryStateInternal = IVariableStateInternal;
 
 /**
- * @brief SOPointer to IVariableStateInternal.
+ * @brief SoPtr to IVariableStateInternal.
  */
-using SoIVariableStateInternal = details::SOPointer<IVariableStateInternal>;
+using SoIVariableStateInternal = ov::runtime::SoPtr<IVariableStateInternal>;
 
 /**
  * @brief For compatibility reasons.

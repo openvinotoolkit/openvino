@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v5::Loop, "Loop", 5, op::util::SubGraphOp);
+BWDCMP_RTTI_DEFINITION(op::v5::Loop);
 
 op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
@@ -263,12 +263,12 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
 
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v5_Loop_evaluate);
-    runtime::reference::loop(m_bodies[0],
-                             m_output_descriptions[0],
-                             m_input_descriptions[0],
-                             m_special_body_ports,
-                             outputs,
-                             inputs);
+    ngraph::runtime::reference::loop(m_bodies[0],
+                                     m_output_descriptions[0],
+                                     m_input_descriptions[0],
+                                     m_special_body_ports,
+                                     outputs,
+                                     inputs);
     return true;
 }
 
@@ -306,6 +306,4 @@ op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
     other.clone_to(*this, other.input_values());
 }
 
-namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>::type_info;
-}
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>);

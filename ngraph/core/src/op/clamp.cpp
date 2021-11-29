@@ -14,6 +14,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace clamp {
+namespace {
 template <element::Type_t ET, typename T>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count) {
     runtime::reference::clamp<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), min, max, count);
@@ -68,6 +69,7 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
     }
     return rc;
 }
+}  // namespace
 }  // namespace clamp
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -97,7 +99,7 @@ bool op::v0::Clamp::has_evaluate() const {
     return false;
 }
 
-OPENVINO_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Clamp);
 
 op::Clamp::Clamp() : Op(), m_min(), m_max() {}
 

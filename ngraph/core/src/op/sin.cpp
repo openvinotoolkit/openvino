@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Sin, "Sin", 0, util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v0::Sin);
 
 op::Sin::Sin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -31,6 +31,7 @@ shared_ptr<Node> op::Sin::clone_with_new_inputs(const OutputVector& new_args) co
 }
 
 namespace sinop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -43,7 +44,6 @@ bool evaluate_sin(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_sin, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sin, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sin, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sin, u32, arg0, out, count);
@@ -56,6 +56,7 @@ bool evaluate_sin(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     }
     return rc;
 }
+}  // namespace
 }  // namespace sinop
 
 bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -66,7 +67,6 @@ bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
 bool op::Sin::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Sin_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

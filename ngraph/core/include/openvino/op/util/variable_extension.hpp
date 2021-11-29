@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/op/util/variable.hpp"
 

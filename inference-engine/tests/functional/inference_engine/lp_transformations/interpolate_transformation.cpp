@@ -188,6 +188,14 @@ public:
     }
 };
 
+TEST_P(InterpolateTransformation, CompareFunctions) {
+    actualFunction->validate_nodes_and_infer_types();
+    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
+}
+
 const std::vector<InterpolateTransformationTestValues> testValues {
     // opset1
     // nearest mode - move dequantization
@@ -582,12 +590,6 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         }
     },
 };
-
-TEST_P(InterpolateTransformation, CompareFunctions) {
-    actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
-    ASSERT_TRUE(res.first) << res.second;
-}
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,

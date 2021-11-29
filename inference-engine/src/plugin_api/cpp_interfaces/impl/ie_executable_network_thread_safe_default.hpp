@@ -58,7 +58,13 @@ protected:
      */
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
     IInferRequestInternal::Ptr CreateAsyncInferRequestFromSync() {
-        auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
+        InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl;
+        try {
+            syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
+        } catch (const NotImplemented&) {
+        }
+        if (!syncRequestImpl)
+            syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         return std::make_shared<AsyncInferRequestType>(syncRequestImpl, _taskExecutor, _callbackExecutor);
     }

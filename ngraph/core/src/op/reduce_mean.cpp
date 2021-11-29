@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::ReduceMean, "ReduceMean", 1, util::ArithmeticReductionKeepDims);
+BWDCMP_RTTI_DEFINITION(op::v1::ReduceMean);
 
 op::v1::ReduceMean::ReduceMean(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
@@ -31,6 +31,7 @@ shared_ptr<Node> op::v1::ReduceMean::clone_with_new_inputs(const OutputVector& n
 }
 
 namespace mean {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -53,6 +54,7 @@ bool evaluate_mean(const HostTensorPtr& arg, const HostTensorPtr& out, const Axi
     }
     return rc;
 }
+}  // namespace
 }  // namespace mean
 
 bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

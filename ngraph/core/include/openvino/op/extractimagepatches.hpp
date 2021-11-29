@@ -11,7 +11,8 @@ namespace op {
 namespace v3 {
 class OPENVINO_API ExtractImagePatches : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ExtractImagePatches", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
 
     ExtractImagePatches() = default;
     /// \brief Constructs a ExtractImagePatches operation

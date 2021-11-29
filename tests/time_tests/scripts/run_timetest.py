@@ -65,7 +65,6 @@ def prepare_executable_cmd(args: dict):
 
 def run_timetest(args: dict, log=None):
     """Run provided executable several times and aggregate collected statistics"""
-
     if log is None:
         log = logging.getLogger('run_timetest')
 
@@ -77,8 +76,8 @@ def run_timetest(args: dict, log=None):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
         retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
-            log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
-                      "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
+            log.error(f"Run of executable '{args['executable']}' failed with return code '{retcode}'. Error: {msg}\n"
+                      f"Statistics aggregation is skipped.")
             return retcode, msg, {}, {}
 
         # Read raw statistics
@@ -91,7 +90,7 @@ def run_timetest(args: dict, log=None):
         flatten_data = {}
         parse_stats(raw_data[0], flatten_data)
 
-        log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_data))
+        log.debug(f"Statistics after run of executable #{run_iter}: {flatten_data}")
 
         # Combine statistics from several runs
         stats = dict((step_name, stats.get(step_name, []) + [duration])
@@ -102,7 +101,7 @@ def run_timetest(args: dict, log=None):
 
     # Aggregate results
     aggregated_stats = aggregate_stats(filtered_stats)
-    log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
+    log.debug(f"Aggregated statistics after full run: {aggregated_stats}")
 
     return 0, "", aggregated_stats, stats
 
@@ -144,14 +143,13 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, _, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
-
+    exit_code, _, aggr_stats, _ = run_timetest(
+        dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
     if args.stats_path:
         # Save aggregated results to a file
         with open(args.stats_path, "w") as file:
             yaml.safe_dump(aggr_stats, file)
-        logging.info("Aggregated statistics saved to a file: '{}'".format(
-            args.stats_path.resolve()))
+        logging.info(f"Aggregated statistics saved to a file: '{args.stats_path.resolve()}'")
     else:
         logging.info("Aggregated statistics:")
         pprint(aggr_stats)

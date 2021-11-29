@@ -12,12 +12,13 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                            "${OpenVINO_SOURCE_DIR}/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/thirdparty/pybind11"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
+                           "${OpenVINO_SOURCE_DIR}/tools/pot/thirdparty"
                            "${TEMP}"
                            # TODO fix and enable back:
-                           "${OpenVINO_SOURCE_DIR}/inference-engine/scripts/dependencies.sh"
                            "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh"
                            "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh"
                            "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/tests/test_onnx/model_zoo_preprocess.sh"
+                           "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/tests_compatibility/test_onnx/model_zoo_preprocess.sh"
                            )
 
 #
@@ -44,25 +45,6 @@ if(UNIX)
     ie_cpack_add_component(install_dependencies REQUIRED)
     install(DIRECTORY install_dependencies/
             DESTINATION install_dependencies
-            COMPONENT install_dependencies)
-endif()
-
-# install files for demo
-
-ie_cpack_add_component(demo_scripts DEPENDS core)
-
-if(UNIX)
-    install(DIRECTORY demo/
-            DESTINATION samples/scripts
-            COMPONENT demo_scripts
-            USE_SOURCE_PERMISSIONS
-            PATTERN demo_security_barrier_camera.* EXCLUDE
-            PATTERN *.bat EXCLUDE)
-elseif(WIN32)
-    install(DIRECTORY demo/
-            DESTINATION samples/scripts
-            COMPONENT demo_scripts
-            USE_SOURCE_PERMISSIONS
-            PATTERN demo_security_barrier_camera.* EXCLUDE
-            PATTERN *.sh EXCLUDE)
+            COMPONENT install_dependencies
+            USE_SOURCE_PERMISSIONS)
 endif()

@@ -28,12 +28,6 @@ namespace InferenceEngine {
 class ICore {
 public:
     /**
-     * @brief Returns global to Inference Engine class task executor
-     * @return Reference to task executor
-     */
-    virtual std::shared_ptr<ITaskExecutor> GetTaskExecutor() const = 0;
-
-    /**
      * @brief Reads IR xml and bin (with the same name) files
      * @param model string with IR
      * @param weights shared pointer to constant blob with weights
@@ -116,7 +110,20 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    virtual Parameter GetMetric(const std::string& deviceName, const std::string& name) const = 0;
+    virtual Parameter GetMetric(const std::string& deviceName,
+                                const std::string& name,
+                                const ParamMap& options = {}) const = 0;
+
+    /**
+     * @brief Gets configuration dedicated to device behaviour.
+     *
+     * The method is targeted to extract information which can be set via SetConfig method.
+     *
+     * @param deviceName  - A name of a device to get a configuration value.
+     * @param name  - config key.
+     * @return Value of config corresponding to config key.
+     */
+    virtual Parameter GetConfig(const std::string& deviceName, const std::string& name) const = 0;
 
     /**
      * @brief Returns devices available for neural networks inference
@@ -134,6 +141,8 @@ public:
      * this metric returns 'true', False otherwise.
      */
     virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
+
+    virtual bool isNewAPI() const = 0;
 
     /**
      * @brief Default virtual destructor

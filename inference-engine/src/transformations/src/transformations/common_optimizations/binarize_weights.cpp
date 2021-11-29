@@ -165,7 +165,6 @@ pass::BinarizeWeights::BinarizeWeights() {
         auto quantized_weights_const = op::Constant::create(element::f32, weights_const->get_shape(), quantized_weights);
         quantized_weights_const->set_friendly_name(weights_const->get_friendly_name());
         auto new_conv = conv->clone_with_new_inputs({new_activations_fq, quantized_weights_const});
-        new_conv->set_friendly_name(conv->get_friendly_name());
 
         std::vector<int64_t> norm_factor_shape = {-1};
         for (size_t i = 2; i < weights_const->get_shape().size(); i++)
@@ -179,6 +178,7 @@ pass::BinarizeWeights::BinarizeWeights() {
 
         copy_runtime_info({activations_fq, weights_fq, conv},
                           {new_activations_fq, new_conv, activations_norm_factor_reshaped, mul, weights_norm_factor_reshaped, mul2});
+        mul2->set_friendly_name(conv->get_friendly_name());
         replace_node(conv, mul2);
         return true;
     };

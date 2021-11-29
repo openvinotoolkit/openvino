@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <ngraph_ops/framework_node.hpp>
+#include <openvino/op/util/framework_node.hpp>
 
 #include "decoder.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
-class PDPDFrameworkNode : public op::FrameworkNode {
+class PDPDFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -20,7 +20,7 @@ public:
         : FrameworkNode(inputs, decoder.get_output_size()),
           m_decoder{decoder},
           m_inputs_names{inputs_names} {
-        op::FrameworkNodeAttrs attrs;
+        ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name(m_decoder.get_op_type());
         set_attrs(attrs);
 
@@ -50,4 +50,4 @@ private:
     std::vector<std::string> m_inputs_names;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

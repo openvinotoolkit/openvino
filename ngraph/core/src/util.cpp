@@ -78,11 +78,7 @@ vector<string> ngraph::split(const string& src, char delimiter, bool do_trim) {
 }
 
 size_t ngraph::hash_combine(const std::vector<size_t>& list) {
-    size_t seed = 0;
-    for (size_t v : list) {
-        seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    return seed;
+    return ov::util::hash_combine(list);
 }
 
 void* ngraph::ngraph_malloc(size_t size) {

@@ -1,6 +1,13 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -52,6 +59,23 @@ inline bool strDoesnotContain(const std::string & str, const std::string & subst
 
 #define ASSERT_STRINGEQ(lhs, rhs) \
     compare_cpp_strings(lhs, rhs)
+
+#define OV_ASSERT_NO_THROW(statement) \
+  OV_ASSERT_NO_THROW_(statement, GTEST_FATAL_FAILURE_)
+
+#define OV_ASSERT_NO_THROW_(statement, fail)    \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
+  if (::testing::internal::AlwaysTrue()) { \
+    try { \
+      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement); \
+    }  catch (const std::exception& e) { \
+      fail("Expected: " #statement " doesn't throw an exception.\n" \
+           "  Actual: it throws.") << e.what(); \
+    }  catch (...) { \
+      fail("Expected: " #statement " doesn't throw an exception.\n" \
+           "  Actual: it throws."); \
+    } \
+  }
 
 inline void compare_blob(InferenceEngine::Blob::Ptr lhs, InferenceEngine::Blob::Ptr rhs) {
     ASSERT_EQ(lhs.get(), rhs.get());

@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <frontend_manager/frontend_exceptions.hpp>
-#include <frontend_manager/frontend_manager.hpp>
+#include <common/frontend_exceptions.hpp>
+#include <manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "paddle_utils.hpp"
 #include "utils.hpp"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 TEST(FrontEndConvertModelTest, throw_in_conversion) {
     FrontEndManager fem;

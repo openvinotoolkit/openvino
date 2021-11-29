@@ -12,7 +12,8 @@ namespace v0 {
 /// \brief Performs a SELU activation function on all elements of the input node
 class OPENVINO_API Selu : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Selu", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     Selu() = default;
     /// \brief Constructs a Selu node.

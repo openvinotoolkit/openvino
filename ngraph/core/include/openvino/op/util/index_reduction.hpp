@@ -14,7 +14,7 @@
 namespace ov {
 namespace op {
 namespace util {
-class NGRAPH_API IndexReduction : public Op {
+class OPENVINO_API IndexReduction : public Op {
 protected:
     IndexReduction();
 

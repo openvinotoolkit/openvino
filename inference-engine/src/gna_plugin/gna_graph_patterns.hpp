@@ -42,9 +42,24 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         next = input_to.begin()->second;
     }
 
-    // Check if the found layer is NCHW to NHWC permute, if it's not just skip this convolution
-    if (!LayerInfo(next).isPermute() || next->input()->getLayout() != InferenceEngine::Layout::NCHW ||
-        next->GetParamAsInts("order") != GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) {
+    // Check if the found layer is NCHW to NHWC permute or has 1D data, if it's not just skip this convolution
+    if (LayerInfo(next).isPermute()) {
+        if (next->outData[0]->getLayout() != InferenceEngine::Layout::NCHW ||
+            next->GetParamAsInts("order") != GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) {
+            return std::make_pair(nullptr, nullptr);
+        }
+    } else if (LayerInfo(next).isReshape()) {
+        if (next->outData.size() != 1) {
+            return std::make_pair(nullptr, nullptr);
+        }
+        // Check if reshape is expected for this pattern:
+        // the next layer has the both, height and width dimensions > 1
+        if (next->outData[0]->getDims().size() != 4 ||
+            GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::H) != 1 ||
+            GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::W) != 1) {
+            return std::make_pair(nullptr, nullptr);
+        }
+    } else {
         return std::make_pair(nullptr, nullptr);
     }
 
@@ -55,23 +70,26 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
            InferenceEngine::CNNNetHasPrevLayer(prev.get())) {
         prev = InferenceEngine::CNNNetPrevLayer(prev);
     }
-    // Check if the found layer is NHWC to NCHW permute or have 1D data, if it's not just skip this convolution
+    // Check if the found layer is NHWC to NCHW permute or has 1D data, if it's not just skip this convolution
     if (LayerInfo(prev).isPermute()) {
         if (prev->outData[0]->getLayout() != InferenceEngine::Layout::NCHW ||
             prev->GetParamAsInts("order") != GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)) {
             return std::make_pair(nullptr, nullptr);
         }
-    } else  {
+    } else if (LayerInfo(prev).isReshape())  {
         if (parent->outData.size() != 1 || InferenceEngine::getInputTo(parent->outData[0]).size() != 1) {
             return std::make_pair(nullptr, nullptr);
         }
         // Check if reshape is expected for this pattern:
         // the previous layer has number of channels > 1 and one of height/width dimensions is also > 1
-        if (GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::C) != 1 &&
+        if (parent->insData[0].lock()->getDims().size() != 4 ||
+            GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::C) != 1 &&
             (GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H) != 1 ||
              GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::W) != 1)) {
             return std::make_pair(nullptr, nullptr);
         }
+    } else {
+        return std::make_pair(nullptr, nullptr);
     }
     return std::make_pair(prev, next);
 }

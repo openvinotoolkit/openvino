@@ -5,7 +5,7 @@
 #include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -16,7 +16,7 @@ NamedOutputs pow(const NodeContext& node) {
     if (node.has_ng_input("FactorTensor")) {
         factor_node = node.get_ng_input("FactorTensor");
         if (factor_node.get_element_type() != dtype)
-            factor_node = std::make_shared<opset6::Convert>(factor_node, dtype);
+            factor_node = std::make_shared<ngraph::opset6::Convert>(factor_node, dtype);
     } else {
         factor_node = ngraph::opset6::Constant::create(dtype, Shape{1}, {node.get_attribute<float>("factor")});
     }
@@ -27,4 +27,4 @@ NamedOutputs pow(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

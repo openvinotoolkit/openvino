@@ -4,18 +4,21 @@
 
 #include "ngraph/op/convolution.hpp"
 
+#include <convolution_shape_inference.hpp>
+
 #include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 // *** Convolution OP SET 1 ***
-OPENVINO_RTTI_DEFINITION(op::v1::Convolution, "Convolution", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Convolution);
 
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
@@ -45,9 +48,7 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Convolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Convolution_validate_and_infer_types);
-    const ov::PartialShape& data_batch_pshape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
-    const ov::PartialShape& filters_pshape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
     element::Type result_et;
@@ -63,25 +64,21 @@ void op::v1::Convolution::validate_and_infer_types() {
                           result_et.is_real() || result_et.is_integral_number(),
                           "Element types must be numeric. Got: ",
                           result_et);
+    auto& data_shape = get_input_partial_shape(0);
+    auto& filter_shape = get_input_partial_shape(1);
 
-    Rank result_ps_rank;
-    NODE_VALIDATION_CHECK(this,
-                          Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
-                          "Data batch and filters inputs must have same rank. Got: ",
-                          data_batch_pshape,
-                          " and ",
-                          filters_pshape);
+    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 2);
+    update_and_validate_attributes(this);
 
-    ov::PartialShape result_shape = validate_and_infer_convolution_forward_output_shape(this,
-                                                                                        result_ps_rank,
-                                                                                        data_batch_pshape,
-                                                                                        filters_pshape,
-                                                                                        m_auto_pad,
-                                                                                        m_strides,
-                                                                                        m_dilations,
-                                                                                        m_pads_begin,
-                                                                                        m_pads_end);
-    set_output_type(0, result_et, result_shape);
+    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+
+    if (m_num_spatial != -1) {
+        resolve_auto_pad_for_shape(this, m_pads_begin, m_pads_end, input_shapes, 2, 2);
+        shape_infer(this, m_pads_begin, m_pads_end, input_shapes, output_shapes);
+    }
+
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -103,7 +100,7 @@ shared_ptr<Node> op::v1::Convolution::get_default_value() const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 // *** ConvolutionBackpropData OP SET 1 ***
-NGRAPH_RTTI_DEFINITION(op::v1::ConvolutionBackpropData, "ConvolutionBackpropData", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::ConvolutionBackpropData);
 
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
                                                          const Output<Node>& filters,
@@ -121,6 +118,7 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
       m_pads_end(pads_end),
       m_auto_pad(auto_pad),
       m_output_padding(output_padding) {
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 

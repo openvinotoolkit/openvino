@@ -25,7 +25,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_Convolution_1D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::Convolution::type_info),
+                                    ::testing::Values(ngraph::opset8::Convolution::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{1, 8, 64}),
                                     ::testing::Values(ngraph::Shape{64, 8, 1}),
                                     ::testing::ValuesIn(const_shapes_fprop_1d),
@@ -46,7 +46,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_Convolution_2D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::Convolution::type_info),
+                                    ::testing::Values(ngraph::opset8::Convolution::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 8, 14, 14}),
                                     ::testing::Values(ngraph::Shape{2, 8, 7, 7}),
                                     ::testing::ValuesIn(const_shapes_fprop_2d),
@@ -73,7 +73,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_Convolution_2D_kernel_same_as_input, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::Convolution::type_info),
+                                    ::testing::Values(ngraph::opset8::Convolution::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 8, 7, 7}),
                                     ::testing::Values(ngraph::Shape{3, 8, 7, 7}),
                                     ::testing::ValuesIn(const_shapes_fprop_2d_kernel_same_as_input),
@@ -93,7 +93,7 @@ namespace {
     };
     INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData_2D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::ConvolutionBackpropData::type_info),
+                                    ::testing::Values(ngraph::opset8::ConvolutionBackpropData::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{4, 3, 64, 64}),
                                     ::testing::Values(ngraph::Shape{3, 20, 3, 3}),
                                     ::testing::ValuesIn(const_shapes_conv_bprop),
@@ -114,7 +114,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution_2D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::GroupConvolution::type_info),
+                                    ::testing::Values(ngraph::opset8::GroupConvolution::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 14, 14}),
                                     ::testing::Values(ngraph::Shape{4, 5, 3, 7, 7}),
                                     ::testing::ValuesIn(const_shapes_group_conv),
@@ -141,7 +141,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution_2D_kernel_same_as_input, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::GroupConvolution::type_info),
+                                    ::testing::Values(ngraph::opset8::GroupConvolution::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 14, 14}),
                                     ::testing::Values(ngraph::Shape{4, 5, 3, 14, 14}),
                                     ::testing::ValuesIn(const_shapes_group_conv_kernel_same_as_input),
@@ -162,7 +162,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData_2D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::GroupConvolutionBackpropData::type_info),
+                                    ::testing::Values(ngraph::opset8::GroupConvolutionBackpropData::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 10, 10}),
                                     ::testing::Values(ngraph::Shape{4, 3, 5, 2, 2}),
                                     ::testing::ValuesIn(const_shapes_group_conv_bprop),
@@ -181,7 +181,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeConvolution_2D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::Convolution::type_info),
+                                    ::testing::Values(ngraph::opset8::Convolution::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 64, 64}),
                                     ::testing::Values(ngraph::Shape{20, 12, 1, 1}),
                                     ::testing::ValuesIn(negative_const_shapes),
@@ -192,7 +192,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeConvolutionBackpropData_2D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::ConvolutionBackpropData::type_info),
+                                    ::testing::Values(ngraph::opset8::ConvolutionBackpropData::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 64, 64}),
                                     ::testing::Values(ngraph::Shape{12, 20, 3, 3}),
                                     ::testing::ValuesIn(negative_const_shapes),
@@ -203,7 +203,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeGroupConvolution_2D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::GroupConvolution::type_info),
+                                    ::testing::Values(ngraph::opset8::GroupConvolution::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 64, 64}),
                                     ::testing::Values(ngraph::Shape{4, 5, 3, 1, 2}),
                                     ::testing::ValuesIn(negative_const_shapes),
@@ -214,7 +214,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeGroupConvolutionBackpropData_2D, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::GroupConvolutionBackpropData::type_info),
+                                    ::testing::Values(ngraph::opset8::GroupConvolutionBackpropData::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 64, 64}),
                                     ::testing::Values(ngraph::Shape{4, 3, 5, 1, 1}),
                                     ::testing::ValuesIn(negative_const_shapes),
@@ -241,7 +241,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeConvolutionBackpropData_2D_kernel_same_as_input, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::ConvolutionBackpropData::type_info),
+                                    ::testing::Values(ngraph::opset8::ConvolutionBackpropData::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 7, 7}),
                                     ::testing::Values(ngraph::Shape{12, 20, 7, 7}),
                                     ::testing::ValuesIn(negative_const_shapes_kernel_same_as_input),
@@ -252,7 +252,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeGroupConvolutionBackpropData_2D_kernel_same_as_input, MulConvFusion,
                             ::testing::Combine(
-                                    ::testing::Values(ngraph::opset8::GroupConvolutionBackpropData::type_info),
+                                    ::testing::Values(ngraph::opset8::GroupConvolutionBackpropData::get_type_info_static()),
                                     ::testing::Values(ngraph::Shape{2, 12, 7, 7}),
                                     ::testing::Values(ngraph::Shape{4, 3, 5, 7, 7}),
                                     ::testing::ValuesIn(negative_const_shapes_kernel_same_as_input),

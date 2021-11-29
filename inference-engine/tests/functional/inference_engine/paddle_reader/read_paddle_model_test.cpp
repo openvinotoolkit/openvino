@@ -47,7 +47,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
     std::string win_dir_path{ PADDLE_TEST_MODELS "relu.pdmodel" };
     std::wstring wmodel = CommonTestUtils::addUnicodePostfixToPath(win_dir_path,

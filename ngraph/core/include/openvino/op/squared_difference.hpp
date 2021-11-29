@@ -14,10 +14,11 @@ namespace v0 {
 /// y[i] = (x1[i] - x2[i])^2
 class OPENVINO_API SquaredDifference : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("SquaredDifference", "opset1", util::BinaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constrcuts an uninitialized squared difference operation
-    SquaredDifference() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    SquaredDifference() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs the squared difference operation.
     ///
     /// \param x1 First input tensor

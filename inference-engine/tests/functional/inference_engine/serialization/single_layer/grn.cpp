@@ -29,7 +29,7 @@ const auto basicCases = ::testing::Combine(
     ::testing::Values(1e-6f),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_GRN_Serialization, GrnLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GRN_Serialization, GrnLayerTest,
                         basicCases,
                         GrnLayerTest::getTestCaseName);
 }  // namespace

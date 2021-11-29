@@ -152,6 +152,8 @@ TEST_P(AddTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::element::Type> netPrecision = {
@@ -925,6 +927,28 @@ const std::vector<AddTransformationTestValues> testValues = {
             ngraph::element::u8,
             { {ngraph::element::f32},  { {7.f, 8.f, 9.f, 10.f} }, { {1.f, 0.f, 2.f, 3.f} }},
             { },
+            { }
+        },
+        ""
+    },
+    // float path without subtract
+    {
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  {}, { 4.f }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { {ngraph::element::f32},  {}, { 0.25f } },
+            ngraph::element::u8,
+            { },
+            { {},  {}, { 4.f }},
             { }
         },
         ""

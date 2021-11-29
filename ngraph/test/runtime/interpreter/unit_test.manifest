@@ -11,17 +11,6 @@ INTERPRETER.onnx_resize10_down_scales_const_nearest
 # Failed in MacOS:
 INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
 
-# nGraph does not support the following ONNX operations
-INTERPRETER.onnx_model_qlinear_matmul
-INTERPRETER.onnx_model_qlinear_matmul_3d
-INTERPRETER.onnx_model_matmul_integer
-INTERPRETER.onnx_model_matmul_integer_zero_point_zero
-INTERPRETER.onnx_model_matmul_integer_no_zero_point
-INTERPRETER.onnx_model_matmul_integer_scalar
-INTERPRETER.onnx_model_matmul_integer_4d
-INTERPRETER.onnx_model_matmul_integer_4d_zero_point
-INTERPRETER.onnx_model_matmul_integer_4d_no_zero_point
-
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
 INTERPRETER.sum_2d_to_scalar_int8
@@ -79,10 +68,10 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
-INTERPRETER.onnx_model_conv_integer
-INTERPRETER.onnx_model_conv_integer_zero_point_zero
-INTERPRETER.onnx_model_conv_integer_no_zero_point
-INTERPRETER.onnx_model_conv_integer_pads
+
+# If doesn't have evaluate method and we cannot infer it
+INTERPRETER.onnx_if_inside_if
+INTERPRETER.onnx_if_inside_loop
 
 # Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
 # Peepholes input unsupported
@@ -129,14 +118,10 @@ quantize_clamp_int32
 minimum_u16
 
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
-INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
+# INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
 
 # No evaluator for DeformableConv2D
 onnx_model_deformable_conv_2d
 
 # No support for unsigned types
 INTERPRETER.zero_sized_negative
-
-# No support yet for RandomUniform
-INTERPRETER.onnx_model_random_uniform
-INTERPRETER.onnx_model_random_uniform_like

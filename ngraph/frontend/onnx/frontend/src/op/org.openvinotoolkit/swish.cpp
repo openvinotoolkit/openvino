@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "op/org.openvinotoolkit/swish.hpp"
+
 #include "default_opset.hpp"
 #include "ngraph/op/normalize_l2.hpp"
 #include "op/org.openvinotoolkit/normalize.hpp"

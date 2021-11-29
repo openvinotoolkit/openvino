@@ -23,7 +23,7 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
     py::class_<ngraph::VariantWrapper<VT>,
                std::shared_ptr<ngraph::VariantWrapper<VT>>,
                ngraph::Variant>
-        variant_wrapper(m, pyclass_name);
+        variant_wrapper(m, pyclass_name, py::module_local());
     variant_wrapper.doc() =
         "ngraph.impl.Variant[typestring] wraps ngraph::VariantWrapper<typestring>";
 

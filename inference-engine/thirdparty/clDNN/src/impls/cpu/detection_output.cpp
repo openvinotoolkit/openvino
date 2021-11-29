@@ -263,7 +263,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                              const std::vector<std::vector<std::vector<bounding_box>>>& all_bboxes,
                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
                              std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
-        mem_lock<dtype> lock{instance.output_memory_ptr(), stream};
+        mem_lock<dtype, mem_lock_type::write> lock{instance.output_memory_ptr(), stream};
         auto out_ptr = lock.begin();
 
         const auto& args = instance.argument;
@@ -423,7 +423,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         auto input_location = instance.location_memory();
         auto location_layout = input_location->get_layout();
         const int num_of_images = static_cast<int>(locations.size());
-        mem_lock<dtype> lock{input_location, stream};
+        mem_lock<dtype, mem_lock_type::read> lock{input_location, stream};
         auto location_data = lock.begin();
         assert(num_of_priors * num_loc_classes * PRIOR_BOX_SIZE == input_location->get_layout().size.feature[0]);
 
@@ -487,7 +487,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                                            std::vector<std::array<float, PRIOR_BOX_SIZE>>& prior_variances) {
         auto input_prior_box = instance.prior_box_memory();
         const int num_of_priors = static_cast<int>(prior_bboxes.size()) / images_count;
-        mem_lock<dtype> lock{input_prior_box, stream};
+        mem_lock<dtype, mem_lock_type::read> lock{input_prior_box, stream};
         for (int i = 0; i < images_count; i++) {
             auto prior_box_data =
                 lock.begin() + i * num_of_priors * prior_info_size * (variance_encoded_in_target ? 1 : 2);
@@ -523,7 +523,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         auto input_confidence = instance.confidence_memory();
         const float confidence_threshold = instance.argument.confidence_threshold;
 
-        mem_lock<dtype> lock{input_confidence, stream};
+        mem_lock<dtype, mem_lock_type::read> lock{input_confidence, stream};
         auto confidence_data = lock.begin();
 
         assert(num_of_priors * num_classes == input_confidence->get_layout().size.feature[0]);
@@ -615,7 +615,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         const float confidence_threshold = instance.argument.confidence_threshold;
         auto confidence_layout = input_confidence->get_layout();
 
-        mem_lock<dtype> lock{input_confidence, stream};
+        mem_lock<dtype, mem_lock_type::read> lock{input_confidence, stream};
         auto confidence_data = lock.begin();
 
         assert(num_of_priors * num_classes == confidence_layout.size.feature[0]);

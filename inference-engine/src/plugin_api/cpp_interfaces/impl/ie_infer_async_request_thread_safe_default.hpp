@@ -145,7 +145,8 @@ public:
     AsyncInferRequestThreadSafeDefault(const IInferRequestInternal::Ptr& request,
                                        const ITaskExecutor::Ptr& taskExecutor,
                                        const ITaskExecutor::Ptr& callbackExecutor)
-        : _syncRequest{request},
+        : IInferRequestInternal(*request),
+          _syncRequest{request},
           _requestExecutor{taskExecutor},
           _callbackExecutor{callbackExecutor},
           _pipeline{{taskExecutor,
@@ -404,14 +405,17 @@ private:
                         {
                             std::lock_guard<std::mutex> lock{_mutex};
                             _state = InferState::Idle;
-                            callback = _callback;
+                            std::swap(callback, _callback);
                         }
                         if (callback) {
                             try {
-                                auto local_callback = std::move(callback);
-                                local_callback(currentException);
+                                callback(currentException);
                             } catch (...) {
                                 currentException = std::current_exception();
+                            }
+                            std::lock_guard<std::mutex> lock{_mutex};
+                            if (!_callback) {
+                                std::swap(callback, _callback);
                             }
                         }
                         if (nullptr == currentException) {

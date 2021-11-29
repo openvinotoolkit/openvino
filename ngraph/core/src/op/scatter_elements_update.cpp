@@ -13,7 +13,7 @@
 using namespace ngraph;
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(op::v3::ScatterElementsUpdate, "ScatterElementsUpdate", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::ScatterElementsUpdate);
 
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
@@ -116,6 +116,7 @@ shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const Outp
 }
 
 namespace scatter_element_update {
+namespace {
 template <element::Type_t DT, element::Type_t IT, element::Type_t AT>
 bool evaluate(const HostTensorPtr& data,
               const HostTensorPtr& indices,
@@ -229,6 +230,7 @@ bool evaluate_scatter_element_update(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace scatter_element_update
 
 bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTensorVector& outputs,

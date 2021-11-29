@@ -11,7 +11,8 @@ namespace op {
 namespace v1 {
 class OPENVINO_API OneHot : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("OneHot", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a one-hot operation.
     OneHot() = default;
@@ -35,7 +36,9 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
     /// \return The index of the one-hot axis.

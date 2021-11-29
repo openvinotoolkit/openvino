@@ -19,7 +19,7 @@ using SplitConcatMemoryParamsTuple = typename std::tuple<
 
 
 class SplitConcatMemory : public testing::WithParamInterface<SplitConcatMemoryParamsTuple>,
-                          public LayerTestsUtils::LayerTestsCommon {
+                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ParamType>& obj);
 

@@ -43,7 +43,7 @@ check_value(T value) {
     return value == value && value_minus_value == value_minus_value;
 }
 
-OPENVINO_RTTI_DEFINITION(op::v4::Range, "Range", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::Range);
 
 op::v4::Range::Range(const Output<Node>& start,
                      const Output<Node>& stop,
@@ -190,6 +190,7 @@ bool get_casted_value(const HostTensorPtr& tensor, T* val) {
 }
 
 namespace rangeop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& out,
               const HostTensorPtr& start,
@@ -253,6 +254,7 @@ bool evaluate_power(const HostTensorPtr& out,
     }
     return rc;
 }
+}  // namespace
 }  // namespace rangeop
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -286,7 +288,7 @@ bool op::v4::Range::has_evaluate() const {
     return false;
 }
 
-OPENVINO_RTTI_DEFINITION(op::v0::Range, "Range", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Range);
 
 op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
     : Op({start, stop, step}) {

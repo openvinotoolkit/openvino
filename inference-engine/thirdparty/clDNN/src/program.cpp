@@ -47,6 +47,7 @@
 #include "lstm_gemm_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
+#include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
 #include "proposal_inst.h"
@@ -83,6 +84,7 @@
 #include <utility>
 #include <vector>
 #include <stdexcept>
+#include <unordered_set>
 
 program::program(engine& engine_ref,
                  topology const& topology,
@@ -101,6 +103,7 @@ program::program(engine& engine_ref,
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
+    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
     if (no_optimizations) {
         init_graph();
     } else {
@@ -119,6 +122,7 @@ program::program(engine& engine_ref,
       tuning_cache(nullptr) {
     init_primitives();
     set_options();
+    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
@@ -222,7 +226,7 @@ bool program::analyze_output_size_handling_need() {
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
                                                                  filter_size,
-                                                                 prim->input_offset,
+                                                                 prim->pad,
                                                                  prim->stride,
                                                                  prim->dilation,
                                                                  true,
@@ -243,7 +247,7 @@ bool program::analyze_output_size_handling_need() {
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
                                                                  filter_size,
-                                                                 prim->input_offset,
+                                                                 prim->pad,
                                                                  prim->stride,
                                                                  prim->dilation,
                                                                  true,
@@ -266,7 +270,7 @@ bool program::analyze_output_size_handling_need() {
 
             auto calc_output_range = calc_sliding_window_needed_input_range(prim_node.input().get_output_layout().size,
                                                                             filter_size,
-                                                                            prim->input_offset,
+                                                                            prim->pad,
                                                                             prim->stride,
                                                                             {1, 1, 1, 1},
                                                                             true,
@@ -289,7 +293,7 @@ bool program::analyze_output_size_handling_need() {
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 prim_node.input().get_output_layout().size,
                 prim->size,
-                prim->input_offset,
+                prim->pad,
                 prim->stride,
                 {1, 1, 1, 1},
                 true,
@@ -423,9 +427,22 @@ void program::build_program(bool is_internal) {
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-    prepare_memory_dependencies();
-    compile();
-    init_kernels();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+#ifdef GPU_DEBUG_CONFIG
+    if (debug_config->dry_run_path.empty() || is_internal) {
+#else
+    {
+#endif
+        prepare_memory_dependencies();
+
+        if (options.get<build_option_type::partial_build_program>()->enabled()) {
+            return;
+        }
+
+        compile();
+        init_kernels();
+    }
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
@@ -512,13 +529,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, options.get<build_option_type::optimize_data>()->enabled());
 
-    if (options.get<build_option_type::optimize_data>()->enabled() && get_engine().configuration().n_streams == 1) {
-        // Fuse conv + eltw after padding preparations
-        apply_opt_pass<prepare_conv_eltw_fusing>(lo, lo.get_optimization_attributes().b_fs_yx_fsv16_network);
-
-        apply_opt_pass<prepare_conv_eltw_read_write_opt>();
-    }
-
     if (!is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
@@ -531,6 +541,9 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
+
+    // add optimization attributes for onednn primitives
+    apply_opt_pass<add_onednn_optimization_attributes>();
 }
 
 void program::post_optimize_graph(bool is_internal) {
@@ -544,7 +557,7 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
-    if (!is_internal) {
+    if (!is_internal && !options.get<build_option_type::partial_build_program>()->enabled()) {
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
     }
@@ -616,6 +629,9 @@ void program::transfer_memory_to_device() {
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+                }
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
@@ -767,18 +783,18 @@ void program::add_intermediate(program_node& node,
 }
 
 void program::add_intermediate(std::shared_ptr<primitive> prim,
-                                    program_node& next,
-                                    size_t prev_idx,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               size_t prev_idx,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     add_intermediate(get_or_create(prim), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
 void program::add_intermediate(program_node& node,
-                                    program_node& next,
-                                    program_node& prev,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               program_node& prev,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     bool node_found = false;
     size_t idx = 0;
     for (size_t i = 0; i < next.get_dependencies().size(); i++) {
@@ -1017,9 +1033,10 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
             quantize_node& q_node = peer_node.as<quantize>();
             if (q_node.get_scale_shift_opt()) {
                 bool can_drop_input = false;
+                bool out_range_usage = q_node.get_per_tensor_output_range() && q_node.get_output_lo_val() < q_node.get_output_hi_val();
 
-                // Drop input range if clamp is not needed
-                can_drop_input |= (i == 1 || i == 2) && !q_node.get_need_clamp();
+                // Drop input range if we use output per-tensor range or if clamp is used for input range
+                can_drop_input |= (i == 1 || i == 2) && (out_range_usage || (!out_range_usage && !q_node.get_need_clamp()));
                 // Drop output range - it's not used in scale-shift-opt quantize kernel
                 can_drop_input |= i == 3 || i == 4;
                 // Drop tensor with input scale when we have per-tensor parameter
@@ -1288,6 +1305,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::border::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
             prim.type() != cldnn::scale::type_id() &&
@@ -1302,6 +1320,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
             prim.type() != cldnn::region_yolo::type_id() &&
+            prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id())
             can_use_fsv16 = false;
 
@@ -1374,4 +1393,51 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     if (should_use_bs_fs_yx_bsv16_fsv16)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& engine = get_engine();
+    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+#endif
+}
+
+std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
+    auto max_alloc_size = get_engine().get_device_info().max_alloc_mem_size;
+    memory_pool pool(get_engine());
+    int64_t const_sum = 0;
+
+    std::vector<program_node*> nodes_to_allocate{};
+    for (auto node : processing_order) {
+        nodes_to_allocate.push_back(node);
+    }
+
+    std::sort(nodes_to_allocate.begin(),
+              nodes_to_allocate.end(),
+              [](program_node* const& lhs, program_node* const& rhs) {
+                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+              });
+
+    // just to prevent the memories from being freed during allocation
+    std::unordered_set<memory::ptr> allocated_mem_ptrs;
+    for (const auto& node : nodes_to_allocate) {
+        auto out_size = node->get_output_layout().bytes_count();
+        if (out_size > max_alloc_size) {
+            // to consider: if the base batch size is > 1, should we allow this single output allocation to host?
+            continue; // to be allocated to host
+        }
+        if (node->can_be_optimized())
+            continue;
+        if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
+            continue;
+        }
+        if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>())) {
+            const_sum += out_size;
+        } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
+            continue;
+        } else {
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), pool, *node, false));
+        }
+    }
+
+    return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
 }

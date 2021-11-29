@@ -293,7 +293,7 @@ static RuleClassSet classifyOutputRules(const TensorIterator& ti) {
  * @param master
  * @param slave
  */
-void CombineData(DataPtr& master, DataPtr& slave) {
+static void CombineData(DataPtr& master, DataPtr& slave) {
     for (auto& kvp : getInputTo(slave)) {
         auto& slave_layer = kvp.second;
         for (auto& slv_ins_wptr : slave_layer->insData) {
@@ -325,7 +325,7 @@ void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataP
  * void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, NET &net), where
  * NET = CNNNetwork
  */
-void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, CNNNetwork& net) {
+static void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, CNNNetwork& net) {
     if (getInputTo(out_data).empty()) {
         InferenceEngine::OutputsDataMap outputs_data_map = net.getOutputsInfo();
         auto out_data_name = out_data->getName();
@@ -522,7 +522,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     return true;
 }
 
-bool unrollTI(CNNLayerPtr cur, CNNNetwork& net) {
+static bool unrollTI(CNNLayerPtr cur, CNNNetwork& net) {
     IE_SUPPRESS_DEPRECATED_START
     auto & icnnnet = static_cast<ICNNNetwork&>(net);
     IE_SUPPRESS_DEPRECATED_END
@@ -1282,7 +1282,7 @@ std::vector<CNNLayerPtr> TopolSort(const details::CNNSubnet& net) {
     return details::CNNSubnetSortTopologically(net);
 }
 
-void restore_net_consistency(CNNNetwork& net) {
+static void restore_net_consistency(CNNNetwork& net) {
     IE_SUPPRESS_DEPRECATED_START
     auto & icnnnet = static_cast<ICNNNetwork&>(net);
     auto inet = dynamic_cast<details::CNNNetworkImpl*>(&icnnnet);

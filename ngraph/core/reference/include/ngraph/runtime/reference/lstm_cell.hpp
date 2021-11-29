@@ -92,7 +92,7 @@ void lstm_cell(const T* X,
 
     // Ht-1*(R^T) + Wb + Rb
     std::vector<T> Ht_R_B(all_gates_shape_size);
-    reference::add(Ht_R.data(), B, Ht_R_B.data(), all_gates_shape, B_shape, op::AutoBroadcastSpec::NUMPY);
+    reference::add(Ht_R.data(), B, Ht_R_B.data(), all_gates_shape, B_shape, op::AutoBroadcastType::NUMPY);
 
     // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb
     std::vector<T> XHB(all_gates_shape_size);
@@ -101,7 +101,7 @@ void lstm_cell(const T* X,
                    XHB.data(),
                    all_gates_shape,
                    all_gates_shape,
-                   op::AutoBroadcastSpec::NUMPY);
+                   op::AutoBroadcastType::NUMPY);
 
     std::vector<std::vector<T>> X_W_fico(4, std::vector<T>(all_gates_shape_size / 4));
     std::vector<char*> pointers = {reinterpret_cast<char*>(X_W_fico[0].data()),
@@ -139,21 +139,21 @@ void lstm_cell(const T* X,
     std::vector<T> mul2(gate_shape_size);
     std::vector<T> Ct(gate_shape_size);
     // ft (.) Ct-1
-    reference::multiply(X_W_fico[0].data(), C, mul1.data(), gate_shape, C_shape, op::AutoBroadcastSpec::NUMPY);
+    reference::multiply(X_W_fico[0].data(), C, mul1.data(), gate_shape, C_shape, op::AutoBroadcastType::NUMPY);
     // it (.) ct
     reference::multiply(X_W_fico[1].data(),
                         X_W_fico[2].data(),
                         mul2.data(),
                         gate_shape,
                         gate_shape,
-                        op::AutoBroadcastSpec::NUMPY);
+                        op::AutoBroadcastType::NUMPY);
     // Ct = ft (.) Ct-1 + it (.) ct
-    reference::add(mul1.data(), mul2.data(), Ct.data(), gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
+    reference::add(mul1.data(), mul2.data(), Ct.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     std::memcpy(out_Ct, Ct.data(), Ct.size() * sizeof(T));
     clip_activation(Ct, activation_h, false);
 
     // Ht = ot (.) h(Ct)
-    reference::multiply(X_W_fico[3].data(), Ct.data(), out_Ht, gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
+    reference::multiply(X_W_fico[3].data(), Ct.data(), out_Ht, gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
 }
 }  // namespace reference
 }  // namespace runtime

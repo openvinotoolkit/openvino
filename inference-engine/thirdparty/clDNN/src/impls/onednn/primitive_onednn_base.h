@@ -12,6 +12,7 @@
 #include "utils.hpp"
 
 #include "quantize_inst.h"
+#include "reorder_inst.h"
 
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
@@ -32,7 +33,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     std::shared_ptr<dnnl::primitive_attr> _attrs;
     PrimDescType _pd;
     PrimType _prim;
-    std::unordered_map<int, dnnl::memory> _args;
+    std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
 
     typed_primitive_onednn_impl(const typed_program_node<PType>& arg,
                                 std::shared_ptr<DescType> desc,
@@ -51,7 +52,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
 
-    static bool has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr) {
+    static bool has_output_scales(const std::shared_ptr<dnnl::primitive_attr>& attr) {
         int mask;
         std::vector<float> scales;
         attr->get_output_scales(mask, scales);
@@ -67,12 +68,84 @@ protected:
         return !zp.empty() && (reinterpret_cast<const int32_t&>(zp[0]) == drsv);
     }
 
+    void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
+        auto& node = instance.get_node();
+        auto& engine = instance.get_network().get_engine();
+        auto dnnl_engine = engine.get_onednn_engine();
+
+        // Get current post-ops info
+        auto onednn_attrs = node.get_onednn_primitive_attributes();
+        dnnl::post_ops post_ops = onednn_attrs->get_post_ops();
+
+        // Create onednn memory buffers for post-ops
+        auto& cur_post_ops = node.get_fused_primitives_onednn();
+        auto post_ops_size = cur_post_ops.size();
+        for (size_t post_op_idx = 0, num_of_optimized_post_ops = 0; post_op_idx < post_ops_size; post_op_idx++) {
+            auto post_op_type = cur_post_ops[post_op_idx].op_type;
+            auto memory_offset = cur_post_ops[post_op_idx].mem_offset;
+            auto onednn_post_op_idx = has_output_scales(onednn_attrs) && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
+            onednn_post_op_idx -= num_of_optimized_post_ops;
+
+            switch (post_op_type) {
+                case onednn_post_op_type::eltwise_act:
+                case onednn_post_op_type::eltwise_clip:
+                case onednn_post_op_type::eltwise_linear:
+                case onednn_post_op_type::eltwise_round:
+                {
+                    // onednn elwise doesn't need any data from memory buffers
+                    break;
+                }
+
+                case onednn_post_op_type::binary_add:
+                case onednn_post_op_type::binary_mul:
+                case onednn_post_op_type::binary_max:
+                case onednn_post_op_type::binary_min:
+                {
+                    auto binary_op_mem = instance.fused_memory(memory_offset);
+                    dnnl::algorithm alg;
+                    dnnl::memory::desc desc;
+                    post_ops.get_params_binary(static_cast<int>(onednn_post_op_idx), alg, desc);
+                    args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_SRC_1,
+                                 binary_op_mem->get_onednn_memory(desc)});
+                    break;
+                }
+
+                case onednn_post_op_type::scale:
+                {
+                    auto scale_op_mem = instance.fused_memory(memory_offset);
+                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_op_mem->get_layout(), dnnl::memory::format_tag::a, true);
+                    args.insert({DNNL_ARG_ATTR_OUTPUT_SCALES, scale_op_mem->get_onednn_memory(desc)});
+                    break;
+                }
+
+                case onednn_post_op_type::sum:
+                case onednn_post_op_type::optimized_sum:
+                case onednn_post_op_type::optimized_eltwise:
+                {
+                    break;
+                }
+
+                case onednn_post_op_type::optimized:
+                {
+                    // Optimized post-op, count it to respect onednn_post_op_idx in the next operations
+                    num_of_optimized_post_ops++;
+                    break;
+                }
+
+                default:
+                    throw std::runtime_error("Unsupported onednn post-operation type");
+            }
+        }
+    }
+
     virtual std::unordered_map<int, dnnl::memory> get_arguments(typed_primitive_inst<PType>& instance) const {
         std::unordered_map<int, dnnl::memory> args;
+        auto& engine = instance.get_network().get_engine();
+        auto dnnl_engine = engine.get_onednn_engine();
 
-        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
-            auto& input = instance.input_memory(i);
-            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)))});
+        {
+            auto& input = instance.input_memory(0);
+            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0))});
         }
 
         {
@@ -80,18 +153,12 @@ protected:
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0))});
         }
 
+        configure_post_ops_arguments(instance, args);
+
         return args;
     }
 
     void init_kernels() override { }
-
-    static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<PType>& /* arg */) {
-        auto attrs = std::make_shared<dnnl::primitive_attr>();
-        dnnl::post_ops post_ops;
-        attrs->set_post_ops(post_ops);
-
-        return attrs;
-    }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
@@ -104,7 +171,8 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        _args = get_arguments(instance);
+        uint32_t net_id = instance.get_network().get_id();
+        _args[net_id] = get_arguments(instance);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
@@ -113,17 +181,19 @@ protected:
         auto& engine = network.get_engine();
         auto& stream = network.get_stream();
         auto profiling = engine.configuration().enable_profiling;
+        auto net_id = network.get_id();
         event::ptr event;
 
-        if (profiling)
+        if (profiling) {
             stream.finish();
+            event = stream.create_user_event(false);
+        }
 
-        _prim.execute(stream.get_onednn_stream(), _args);
+        _prim.execute(stream.get_onednn_stream(), _args[net_id]);
 
         if (profiling) {
-            // Measure all previously queued tasks
-            event = stream.enqueue_marker({}, true);
-            stream.wait_for_events({event});
+            stream.finish();
+            event->set();
         } else {
             // Create and set user event as complete
             event = stream.create_user_event(true);

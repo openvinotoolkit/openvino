@@ -49,6 +49,9 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc> desc);
     operator std::shared_ptr<mkldnn::eltwise_forward::desc>();
 
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::matmul::desc> desc);
+    operator std::shared_ptr<mkldnn::matmul::desc>();
+
     mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
             const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) const;
 

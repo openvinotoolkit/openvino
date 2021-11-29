@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
@@ -13,7 +13,7 @@ namespace util {
 ///
 class OPENVINO_API NmsBase : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NmsBase", "util");
     enum class SortResultType {
         CLASSID,  // sort selected boxes by class id (ascending) in each batch element
         SCORE,    // sort selected boxes by score (descending) in each batch element
@@ -83,10 +83,8 @@ public:
     AttributeAdapter(op::util::NmsBase::SortResultType& value)
         : EnumAttributeAdapterBase<op::util::NmsBase::SortResultType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::util::NmsBase::SortResultType>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::util::NmsBase::SortResultType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

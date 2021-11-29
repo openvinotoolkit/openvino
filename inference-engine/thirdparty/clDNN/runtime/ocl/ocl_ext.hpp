@@ -19,6 +19,9 @@ typedef cl_va_api_device_source_intel cl_device_source_intel;
 typedef cl_va_api_device_set_intel    cl_device_set_intel;
 #endif
 
+// cl_intel_required_subgroup_size
+#define CL_DEVICE_SUB_GROUP_SIZES_INTEL           0x4108
+
 // cl_intel_device_attribute_query
 #define CL_DEVICE_IP_VERSION_INTEL                0x4250
 #define CL_DEVICE_ID_INTEL                        0x4251
@@ -33,10 +36,17 @@ typedef cl_bitfield         cl_device_feature_capabilities_intel;
 /* For GPU devices, version 1.0.0: */
 
 #define CL_DEVICE_FEATURE_FLAG_DP4A_INTEL         (1 << 0)
+#define CL_DEVICE_FEATURE_FLAG_DPAS_INTEL         (1 << 1)
 
+#define CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(F) \
+    F(cl_device_info, CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL, cl::vector<cl_queue_family_properties_intel>) \
+    \
+    F(cl_command_queue_info, CL_QUEUE_FAMILY_INTEL, cl_uint) \
+    F(cl_command_queue_info, CL_QUEUE_INDEX_INTEL, cl_uint)
 
 namespace cl {
 namespace detail {
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_IP_VERSION_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_ID_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_SLICES_INTEL, cl_uint)
@@ -44,6 +54,7 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NUM_THREADS_PER_EU_INTEL, cl_uint)
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_FEATURE_CAPABILITIES_INTEL, cl_device_feature_capabilities_intel)
+CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(CL_HPP_DECLARE_PARAM_TRAITS_)
 }  // namespace detail
 }  // namespace cl
 
@@ -513,6 +524,7 @@ public:
             _enqueue_memcpy_fn             = try_load_entrypoint<clEnqueueMemcpyINTEL_fn>(_ctx.get(), "clEnqueueMemcpyINTEL");
             _enqueue_mem_fill_fn           = try_load_entrypoint<clEnqueueMemFillINTEL_fn>(_ctx.get(), "clEnqueueMemFillINTEL");
             _enqueue_memset_fn             = try_load_entrypoint<clEnqueueMemsetINTEL_fn>(_ctx.get(), "clEnqueueMemsetINTEL");
+            _get_mem_alloc_info_fn         = try_load_entrypoint<clGetMemAllocInfoINTEL_fn>(_ctx.get(), "clGetMemAllocInfoINTEL");
         }
     }
 
@@ -610,6 +622,17 @@ public:
         return err;
     }
 
+    cl_unified_shared_memory_type_intel get_usm_allocation_type(const void* usm_ptr) const {
+        if (!_get_mem_alloc_info_fn) {
+            throw std::runtime_error("[GPU] clGetMemAllocInfoINTEL is nullptr");
+        }
+
+        cl_unified_shared_memory_type_intel ret_val;
+        size_t ret_val_size;
+        _get_mem_alloc_info_fn(_ctx.get(), usm_ptr, CL_MEM_ALLOC_TYPE_INTEL, sizeof(cl_unified_shared_memory_type_intel), &ret_val, &ret_val_size);
+        return ret_val;
+    }
+
 private:
     cl::Context _ctx;
     cl::Device _device;
@@ -621,6 +644,7 @@ private:
     clEnqueueMemcpyINTEL_fn _enqueue_memcpy_fn = nullptr;
     clEnqueueMemFillINTEL_fn _enqueue_mem_fill_fn = nullptr;
     clEnqueueMemsetINTEL_fn _enqueue_memset_fn = nullptr;
+    clGetMemAllocInfoINTEL_fn _get_mem_alloc_info_fn = nullptr;
 };
 
 /*
@@ -629,14 +653,24 @@ private:
 */
 class UsmHolder {
 public:
-    UsmHolder(const cl::UsmHelper& usmHelper, void* ptr) : _usmHelper(usmHelper), _ptr(ptr) { }
+    UsmHolder(const cl::UsmHelper& usmHelper, void* ptr, bool shared_memory = false)
+    : _usmHelper(usmHelper)
+    , _ptr(ptr)
+    , _shared_memory(shared_memory) { }
+
     void* ptr() { return _ptr; }
     ~UsmHolder() {
-        _usmHelper.free_mem(_ptr);
+        try {
+            if (!_shared_memory)
+                _usmHelper.free_mem(_ptr);
+        } catch (...) {
+            // Exception may happen only when clMemFreeINTEL function is unavailable, thus can't free memory properly
+        }
     }
 private:
     const cl::UsmHelper& _usmHelper;
     void* _ptr;
+    bool _shared_memory = false;
 };
 /*
     USM base class. Different usm types should derive from this class.
@@ -644,6 +678,13 @@ private:
 class UsmMemory {
 public:
     explicit UsmMemory(const cl::UsmHelper& usmHelper) : _usmHelper(usmHelper) { }
+    UsmMemory(const cl::UsmHelper& usmHelper, void* usm_ptr)
+    : _usmHelper(usmHelper)
+    , _usm_pointer(std::make_shared<UsmHolder>(_usmHelper, usm_ptr, true)) {
+        if (!usm_ptr) {
+            throw std::runtime_error("[GPU] Can't share null usm pointer");
+        }
+    }
 
     // Get methods returns original pointer allocated by openCL.
     void* get() const { return _usm_pointer->ptr(); }

@@ -69,13 +69,15 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
 
     // wrapping into tiles
     std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles;
-    tiles.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::type_info)(std::make_shared<ngraph::snippets::op::Tile>(lowered)),
-                                   std::make_pair(std::vector<size_t>({target->get_lanes(), nptrs}), std::vector<size_t>{})));
-    tiles.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::type_info)(std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered)),
+    tiles.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(
+                        std::make_shared<ngraph::snippets::op::Tile>(lowered)),
+                    std::make_pair(std::vector<size_t>({target->get_lanes(), nptrs}), std::vector<size_t>{})));
+    tiles.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(
+                        std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered)),
                     std::make_pair(std::vector<size_t>{{1, nptrs}}, std::vector<size_t>{})));
 
     // emission
-    std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::type_info)(std::make_shared<ngraph::snippets::op::Kernel>(tiles));
+    std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::get_type_info_static())(std::make_shared<ngraph::snippets::op::Kernel>(tiles));
     kernel->emit_code({params.size(), results.size()}, {});
 
     lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());

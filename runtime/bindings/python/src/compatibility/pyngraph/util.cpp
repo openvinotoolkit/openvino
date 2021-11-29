@@ -7,6 +7,7 @@
 #include <pybind11/numpy.h>
 
 #include "ngraph/validation_util.hpp"
+#include "ngraph/version.hpp"
 
 namespace py = pybind11;
 
@@ -23,12 +24,10 @@ void regmodule_pyngraph_util(py::module m) {
             py::arg("output"),
             R"(
                     Runs an estimation of source tensor.
-
                     Parameters
                     ----------
                     output : Output
                         output node
-
                     Returns
                     ----------
                     get_constant_from_source : Constant or None
@@ -36,4 +35,10 @@ void regmodule_pyngraph_util(py::module m) {
                         they are the same returns Constant operation
                         from the resulting bound, otherwise Null.
                 )");
+
+    mod.def("get_ngraph_version_string", []() -> std::string {
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        return get_ngraph_version_string();
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    });
 }

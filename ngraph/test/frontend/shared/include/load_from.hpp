@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 
 struct LoadFromFEParam {
     std::string m_frontEndName;
@@ -20,9 +20,9 @@ struct LoadFromFEParam {
 class FrontEndLoadFromTest : public ::testing::TestWithParam<LoadFromFEParam> {
 public:
     LoadFromFEParam m_param;
-    ngraph::frontend::FrontEndManager m_fem;
-    ngraph::frontend::FrontEnd::Ptr m_frontEnd;
-    ngraph::frontend::InputModel::Ptr m_inputModel;
+    ov::frontend::FrontEndManager m_fem;
+    ov::frontend::FrontEnd::Ptr m_frontEnd;
+    ov::frontend::InputModel::Ptr m_inputModel;
 
     static std::string getTestCaseName(const testing::TestParamInfo<LoadFromFEParam>& obj);
 

@@ -4,30 +4,24 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/grn.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct GrnParams {
     template <class IT>
     GrnParams(const float bias, const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues,
               const std::vector<IT>& oValues)
-        : bias(bias), pshape(shape), inType(iType), outType(iType), inputData(CreateBlob(iType, iValues)), refData(CreateBlob(iType, oValues)) {}
+        : bias(bias), pshape(shape), inType(iType), outType(iType), inputData(CreateTensor(iType, iValues)), refData(CreateTensor(iType, oValues)) {}
     float bias;
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceGrnLayerTest : public testing::TestWithParam<GrnParams>, public CommonReferenceTest {
@@ -50,9 +44,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(float bias, const PartialShape& input_shape, const element::Type& input_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto grn = std::make_shared<op::v0::GRN>(in, bias);
-        return std::make_shared<Function>(NodeVector {grn}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {grn}, ParameterVector {in});
     }
 };
 

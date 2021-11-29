@@ -13,6 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include <transformations/rt_info/disable_constant_folding.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -52,11 +53,11 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
     this->register_matcher(m, callback);
 }
 
-bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
     return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer);
 }
 
-bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, false);
 }
 
@@ -97,6 +98,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
     convolutionBackpropData = NetworkHelper::separateInStandaloneBranch(convolutionBackpropData);
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolutionBackpropData);
+    std::shared_ptr<Node> newMultiplyAfter;
     {
         if (dequantization.subtract != nullptr) {
             NetworkHelper::optimizeSubtract(dequantization.subtract);
@@ -108,24 +110,24 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             dequantization.multiplyConstant->cast_vector<float>()[0]);
         auto inputs = convolutionBackpropData->input_values();
         inputs[0] = dequantization.multiply->input_value(0);
-        const auto copyNode = convolutionBackpropData->copy_with_new_inputs(inputs);
+        const auto copyNode = convolutionBackpropData->clone_with_new_inputs(inputs);
 
         const auto relaxedConvolutionBackpropData = std::make_shared<op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
             *ov::as_type_ptr<opset1::ConvolutionBackpropData>(copyNode),
             std::vector<element::Type>{deqPrecision, deqPrecision},
             std::vector<element::Type>{deqPrecision});
 
-        const auto newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(relaxedConvolutionBackpropData, deqPrecision).get(),
             ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
+        NetworkHelper::insertDequantizationAfter(convolutionBackpropData, newMultiplyAfter, relaxedConvolutionBackpropData);
 
-        replace_node(convolutionBackpropData, newMultiplyAfter);
         convolutionBackpropData = newMultiplyAfter->get_input_node_shared_ptr(0);
         inputs[0] = convolutionBackpropData->get_input_node_ptr(0)->input_value(0);
         if (ov::is_type<opset1::Convert>(convolutionBackpropData->get_input_node_ptr(0))) {
-            auto newConvolution = convolutionBackpropData->copy_with_new_inputs(inputs);
+            auto newConvolution = convolutionBackpropData->clone_with_new_inputs(inputs);
             replace_node(convolutionBackpropData, newConvolution);
             convolutionBackpropData = newConvolution;
         }
@@ -153,15 +155,17 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
             auto inputs = convolutionBackpropData->input_values();
             inputs[1] = multiplyFromWeights->input_value(0);
-            auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
-                convolutionBackpropData->copy_with_new_inputs(inputs),
+
+            const auto newconvolutionBackpropData = convolutionBackpropData->copy_with_new_inputs(inputs);
+            newMultiplyAfter = std::make_shared<opset1::Multiply>(
+                newconvolutionBackpropData,
                 foldConvert(
                     fold_reshape<opset1::Reshape>(
                         multiplyFromWeights->input_value(1),
                         std::make_shared<opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
                         false),
                     convolutionBackpropData->get_output_element_type(0)));
-            replace_node(convolutionBackpropData, newMultiplyAfter);
+            NetworkHelper::insertDequantizationAfter(convolutionBackpropData, newMultiplyAfter, newconvolutionBackpropData);
             convolutionBackpropData = newMultiplyAfter->get_input_node_shared_ptr(0);
         }
 
@@ -181,7 +185,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                 zeroPointShape[1] = static_cast<size_t>(weightsPShape[1].get_length());
 
                 auto zeroPointConstant = fold<opset1::Broadcast>(
-                        subtractFromWeights->get_input_node_shared_ptr(1),
+                        subtractFromWeights->input_value(1),
                         std::make_shared<opset1::Constant>(element::i32, Shape{zeroPointShape.size()}, zeroPointShape));
                 replace_node(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
             }
@@ -201,8 +205,8 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             convolutionBackpropData = newConvolution;
         }
     }
-    std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
-            convolutionBackpropData->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
+
+    const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ngraph::copy_runtime_info({ convolutionBackpropData, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolutionBackpropData);
 
@@ -212,8 +216,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     }
 
     if (ov::is_type<opset1::Subtract>(onWeights)) {
-        auto& rt = onWeights->get_rt_info();
-        rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
+        ov::disable_constant_folding(onWeights);
     }
 
     return true;

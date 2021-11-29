@@ -39,8 +39,6 @@ protected:
         NodeVector& convertNodes,
         NodeVector& subtractNodes,
         NodeVector& multiplyNodes) const;
-
-    std::shared_ptr<Node> concatenateDeqNodes(NodeVector& nodes) const;
 };
 
 } // namespace low_precision

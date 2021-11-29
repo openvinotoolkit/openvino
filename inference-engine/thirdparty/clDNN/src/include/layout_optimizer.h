@@ -50,7 +50,8 @@ public:
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
-                                                          const layout& out_layout);
+                                                          const layout& out_layout,
+                                                          bool needs_split_reorder = false);
 
     std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
         primitive_id input_id,
@@ -61,9 +62,11 @@ private:
     struct cache_key {
         primitive_id data_source;
         layout expected_layout;
+        bool needs_split_reorder;
 
         friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
-            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout;
+            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
+                   lhs.needs_split_reorder == rhs.needs_split_reorder;
         }
 
         friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
@@ -71,7 +74,9 @@ private:
         friend bool operator<(cache_key const& lhs, cache_key const& rhs) {
             if (lhs.data_source != rhs.data_source)
                 return (lhs.data_source < rhs.data_source);
-            return lhs.expected_layout < rhs.expected_layout;
+            else if (lhs.expected_layout != rhs.expected_layout)
+                return (lhs.expected_layout < rhs.expected_layout);
+            return lhs.needs_split_reorder < rhs.needs_split_reorder;
         }
     };
 
@@ -90,7 +95,8 @@ public:
         b_fs_zyx_fsv32_network,
         b_fs_yx_fsv16_network,
         b_fs_zyx_fsv16_network,
-        bs_fs_yx_bsv16_fsv16_network
+        bs_fs_yx_bsv16_fsv16_network,
+        use_onednn_impls
     };
 
     struct optimization_attributes {
@@ -103,6 +109,7 @@ public:
         int32_t b_fs_yx_fsv16_network = 0;
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
+        int32_t use_onednn_impls = 0;
     };
 
 private:
@@ -151,6 +158,10 @@ private:
                                               const layout& output_layout,
                                               const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
+    bool convolution_bs_fs_yx_bsv32_fsv32_opt(const layout &input_layout,
+                                              const layout& output_layout,
+                                              const layout& weights_layout,
+                                              std::shared_ptr<const convolution> conv);
     bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
                                        const layout& output_layout,
                                        const layout& weights_layout,
@@ -169,8 +180,10 @@ public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
 
     format get_preferred_format(program_node& node);
-    impl_types get_preferred_impl_type(program_node& node);
+    impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
+    bool are_data_types_suitable_for_onednn(program_node& node);
+    bool are_layouts_suitable_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
@@ -190,5 +203,11 @@ public:
     size_t get_total_conv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
+
+    /// @brief Validates if this convolution satisfies condition to support mixed format execution from bfyx to blocked fsv16 or fsv32.
+    /// This validation is used by selecting onednn type as preferred impl and handling reorders at reorder_inputs and remove_redundant_reorders.
+    /// As an example, if a reorder has 2 reorder users that each reorder has a convolution user, then merge is not done when those 2 convolutions
+    /// have different result from this function.
+    bool needs_onednn_bfyx_to_blocked(format fmt_prev, format fmt_next, layout& prev_output_layout, const convolution_node& node);
 };
 }  // namespace cldnn

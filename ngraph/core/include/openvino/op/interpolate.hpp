@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <tuple>
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
@@ -18,11 +19,12 @@ namespace v0 {
 /// \brief Layer which performs bilinear interpolation
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Interpolate", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         // specify dimension indices where interpolation is applied, and `axes` is any
-        // unordered list of indeces of different dimensions of input tensor. Required.
+        // unordered list of indices of different dimensions of input tensor. Required.
         AxisSet axes;
         // specifies type of interpolation
         // one of `nearest`, `linear`, `cubic`, `area`. Required.
@@ -77,7 +79,8 @@ private:
 namespace v4 {
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Interpolate", "opset4", op::Op, 4);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief PartialShape calculation mode
     ///
@@ -185,6 +188,28 @@ public:
               nearest_mode(nearest_mode),
               antialias(antialias),
               cube_coeff(cube_coeff) {}
+
+        bool operator==(const InterpolateAttrs& other) const {
+            return std::tie(mode,
+                            shape_calculation_mode,
+                            pads_begin,
+                            pads_end,
+                            coordinate_transformation_mode,
+                            nearest_mode,
+                            antialias,
+                            cube_coeff) == std::tie(other.mode,
+                                                    other.shape_calculation_mode,
+                                                    other.pads_begin,
+                                                    other.pads_end,
+                                                    other.coordinate_transformation_mode,
+                                                    other.nearest_mode,
+                                                    other.antialias,
+                                                    other.cube_coeff);
+        }
+
+        bool operator!=(const InterpolateAttrs& other) const {
+            return !operator==(other);
+        }
     };
 
     Interpolate() = default;
@@ -216,7 +241,9 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
     const InterpolateAttrs& get_attrs() const {
@@ -301,10 +328,8 @@ public:
     AttributeAdapter(op::v0::Interpolate::InterpolateMode& value)
         : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::Interpolate::InterpolateMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v0::Interpolate::InterpolateMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 template <>
 class OPENVINO_API AttributeAdapter<op::v4::Interpolate::InterpolateMode>
@@ -313,10 +338,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::InterpolateMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::InterpolateMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::InterpolateMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -326,10 +349,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::CoordinateTransformMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::CoordinateTransformMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -339,10 +360,8 @@ public:
     AttributeAdapter(op::v4::Interpolate::NearestMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::NearestMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::NearestMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -352,9 +371,7 @@ public:
     AttributeAdapter(op::v4::Interpolate::ShapeCalcMode& value)
         : EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>", 4};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::ShapeCalcMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

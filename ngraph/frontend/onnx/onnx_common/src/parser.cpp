@@ -26,7 +26,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
     return model_proto;
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
     std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
 
@@ -53,20 +53,8 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
 
     ONNX_NAMESPACE::ModelProto model_proto;
     if (!model_proto.ParseFromIstream(&model_stream)) {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
         throw ngraph_error("Error during import of ONNX model provided as input stream "
                            " with binary protobuf message.");
-#else
-        // Rewind to the beginning and clear stream state.
-        model_stream.clear();
-        model_stream.seekg(0);
-        google::protobuf::io::IstreamInputStream iistream(&model_stream);
-        // Try parsing input as a prototxt message
-        if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto)) {
-            throw ngraph_error("Error during import of ONNX model provided as input stream with prototxt "
-                               "protobuf message.");
-        }
-#endif
     }
 
     return model_proto;

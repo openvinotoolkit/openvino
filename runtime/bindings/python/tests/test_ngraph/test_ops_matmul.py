@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import ngraph as ng
+import openvino.opset8 as ov
 from tests.test_ngraph.util import run_op_node
 
 
@@ -29,7 +29,7 @@ def test_matmul(shape_a, shape_b, transpose_a, transpose_b):
     left_input = -100.0 + np.random.rand(*shape_a).astype(np.float32) * 200.0
     right_input = -100.0 + np.random.rand(*shape_b).astype(np.float32) * 200.0
 
-    result = run_op_node([left_input, right_input], ng.matmul, transpose_a, transpose_b)
+    result = run_op_node([left_input, right_input], ov.matmul, transpose_a, transpose_b)
 
     if transpose_a:
         left_input = np.transpose(left_input)

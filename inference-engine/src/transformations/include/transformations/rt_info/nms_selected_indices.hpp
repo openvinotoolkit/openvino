@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <assert.h>
 #include <functional>
 #include <memory>
@@ -14,27 +16,17 @@
 
 namespace ov {
 
-class TRANSFORMATIONS_API NmsSelectedIndices {
-public:
-    NmsSelectedIndices() = default;
-};
-
 TRANSFORMATIONS_API bool has_nms_selected_indices(const Node * node);
 
 TRANSFORMATIONS_API void set_nms_selected_indices(Node * node);
 
-extern template class TRANSFORMATIONS_API VariantImpl<NmsSelectedIndices>;
-
-template<>
-class TRANSFORMATIONS_API VariantWrapper<NmsSelectedIndices> : public VariantImpl<NmsSelectedIndices> {
+class TRANSFORMATIONS_API NmsSelectedIndices : public VariantImpl<bool> {
 public:
-    static constexpr VariantTypeInfo type_info{"NMS_SELECTED_INDICES", 0};
+    OPENVINO_RTTI("nms_selected_indices", "0");
 
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
+    NmsSelectedIndices() = default;
 
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
+    NmsSelectedIndices(const value_type &value) : VariantImpl<value_type>(value) {}
 
     bool is_copyable() const override { return false; }
 };
