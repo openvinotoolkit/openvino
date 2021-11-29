@@ -856,7 +856,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     bool non_grouped = prim->groups == 1;
     bool is_2d = input_layout.format.spatial_num() == 2;
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
-    bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
+    bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (use_onednn_impls && onednn_valid_post_ops) {
@@ -876,6 +876,18 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     }
 
     if (use_onednn_impls) {
+        std::function<bool(const program_node&)> has_any_convolutions_below;
+        has_any_convolutions_below = [&](const program_node& node) -> bool {
+            if (node.get_users().empty())
+                return false;
+            for (auto& usr : node.get_users()) {
+                if (usr->is_type<convolution>())
+                    return true;
+                return has_any_convolutions_below(*usr);
+            }
+            return false;
+        };
+
         /* ***************************** OneDNN impls format selection part ****************************** */
         bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
         if (i8_u8_input) {
@@ -883,7 +895,12 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                 if (input_layout.size.batch[0] % 16 == 0) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
-                    expected_format = cldnn::format::b_fs_yx_fsv32;
+                    if (data_type_traits::is_floating_point(output_layout.data_type) &&
+                        !has_any_convolutions_below(node)) {
+                        expected_format = cldnn::format::b_fs_yx_fsv16;
+                    } else {
+                        expected_format = cldnn::format::b_fs_yx_fsv32;
+                    }
                 }
             } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                        convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim)) && is_2d) {
@@ -1147,7 +1164,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         auto& detection_output_node = node.as<detection_output>();
         auto confidence_layout = detection_output_node.confidence().get_output_layout();
         auto prim = detection_output_node.get_primitive();
-        if (confidence_layout.size.batch[0] <= lws_max && confidence_layout.size.batch[0] >= 4 && prim->confidence_threshold >= 0.1 &&
+        auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ? true : confidence_layout.size.batch[0] >= 4;
+        if (confidence_layout.size.batch[0] <= lws_max && batch_size_limitations &&
+            prim->confidence_threshold >= 0.1 &&
             prim->top_k <= 400 && prim->num_classes >= 16 && confidence_layout.size.feature[0] > 10000)
             preferred_impl = impl_types::ocl;
         else

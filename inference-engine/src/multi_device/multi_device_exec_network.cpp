@@ -20,6 +20,7 @@
 
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/log_util.hpp"
 
 #include "multi_itt.hpp"
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
@@ -167,6 +168,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
     _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
+    LOG_INFO("[AUTOPLUGIN]:select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
@@ -179,6 +181,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         if (CPUIter != metaDevices.end()) {
             _loadContext[CPU].isEnabled = true;
             _loadContext[CPU].deviceInfo = *CPUIter;
+            LOG_INFO("[AUTOPLUGIN]:will load CPU for accelerator");
         } else {
             _loadContext[CPU].isEnabled = false;
         }
@@ -201,6 +204,21 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                             contextPtr->deviceInfo.config.end());
                           }
                           contextPtr->isAlready = true;
+                          auto& deviceName = contextPtr->deviceInfo.deviceName;
+                          LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
+                                  deviceName.c_str());
+                          std::vector<std::string> supported_config_keys =
+                              _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                          // there is log mutex in LOG_DEBUG, add _configMutex just want to print them all together
+                          // toDo maybe neet to implement LOG_RUN(task, LOG_LEVEL) to run some debug code.
+                          std::lock_guard<std::mutex> lock(_confMutex);
+                          for (const auto& cfg : supported_config_keys) {
+                              try {
+                                  LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", deviceName.c_str(),
+                                          cfg.c_str(), contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
+                              } catch (...) {
+                              }
+                          }
                       }
                       contextPtr->promise.set_value();
                       // the first load network process finished
@@ -290,6 +308,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         return;
     }
 
+    LOG_DEBUG("[AUTOPLUGIN] try to load %s", context.deviceInfo.deviceName.c_str());
     // try to load this candidate device
     TryToLoadNetWork(context, modelPath, network);
 }
@@ -318,8 +337,14 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
         }
     }
 
-    // ToDo need to print failed error mesage
-    IE_THROW() << "[AUTO] load all devices failed";
+    //print errMessage
+    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
+        if (_loadContext[i].isEnabled) {
+            LOG_ERROR("[AUTOPLUGIN] load failed, %s", _loadContext[i].errMessage.c_str());
+        }
+    }
+
+    IE_THROW() << "[AUTOPLUGIN] load all devices failed";
 }
 
 void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
@@ -336,7 +361,7 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                    _loadContext[ACTUALDEVICE].deviceInfo = _loadContext[CPU].deviceInfo;
                    _loadContext[ACTUALDEVICE].isAlready = true;
                }
-            });
+               });
 }
 
 void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
@@ -352,6 +377,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             }
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         } else {
+            // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
             if (_loadContext[ACTUALDEVICE].isAlready) {
                 devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
             } else {
