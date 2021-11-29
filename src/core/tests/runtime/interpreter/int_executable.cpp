@@ -59,8 +59,6 @@ inline ov::runtime::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor
         ov::Shape shape = tensor->get_shape();
         return std::move(ov::runtime::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr()));
     } else {
-        // return std::move(ov::runtime::Tensor());
-
         if (tensor->get_element_type().is_dynamic()) {
             return std::move(ov::runtime::Tensor());
         } else {
@@ -83,12 +81,10 @@ inline void update_output_tensors(const ngraph::HostTensorVector& output_values,
     OPENVINO_ASSERT(output_values.size(), outputs.size());
     for (size_t i = 0; i < outputs.size(); i++) {
         const auto& tensor = output_values[i];
-        if (tensor->get_partial_shape().is_dynamic()) {
-            tensor->set_element_type(outputs[i].get_element_type());
-            tensor->set_shape(outputs[i].get_shape());
-            void* dst_data = tensor->get_data_ptr();
-            memcpy(dst_data, outputs[i].data(), tensor->get_size_in_bytes());
-        }
+        tensor->set_element_type(outputs[i].get_element_type());
+        tensor->set_shape(outputs[i].get_shape());
+        void* dst_data = tensor->get_data_ptr();
+        memcpy(dst_data, outputs[i].data(), tensor->get_size_in_bytes());
     }
 }
 }  // namespace
@@ -187,15 +183,13 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         }
         // Call evaluate for cloned_node with static shapes
         if (!cloned_node->evaluate(op_outputs, op_inputs)) {
-            evaluate_node(cloned_node, op_outputs, op_inputs);
-
-            // std::vector<ov::runtime::Tensor> ov_tensor_inputs = create_tmp_tensors(op_inputs);
-            // std::vector<ov::runtime::Tensor> ov_tensor_outputs = create_tmp_tensors(op_outputs);
-            // if (cloned_node->evaluate(ov_tensor_outputs, ov_tensor_inputs)) {
-            //     update_output_tensors(op_outputs, ov_tensor_outputs);
-            // } else {
-            //     evaluate_node(cloned_node, op_outputs, op_inputs);
-            // }
+            std::vector<ov::runtime::Tensor> ov_tensor_inputs = create_tmp_tensors(op_inputs);
+            std::vector<ov::runtime::Tensor> ov_tensor_outputs = create_tmp_tensors(op_outputs);
+            if (cloned_node->evaluate(ov_tensor_outputs, ov_tensor_inputs)) {
+                update_output_tensors(op_outputs, ov_tensor_outputs);
+            } else {
+                evaluate_node(cloned_node, op_outputs, op_inputs);
+            }
         }
         if (m_performance_counters_enabled) {
             m_timer_map[op].stop();
