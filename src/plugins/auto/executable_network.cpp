@@ -614,14 +614,21 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
-        if (_loadContext[ACTUALDEVICE].isAlready) {
-            return _loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+        if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+            unsigned int real = 0;
+            if (_loadContext[ACTUALDEVICE].isAlready) {
+                real = _loadContext[ACTUALDEVICE].
+                    executableNetwork->GetMetric(name).as<unsigned int>();
+            } else {
+                real = _loadContext[CPU].
+                    executableNetwork->GetMetric(name).as<unsigned int>();
+            }
+            unsigned int res = std::max(4u, real);
+            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
         }
 
-        // if Actual Device is not ready, use hard code value
-        if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-            unsigned int res = 4u;
-            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
+        if (_loadContext[ACTUALDEVICE].isAlready) {
+            return _loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
         }
 
         return _loadContext[CPU].executableNetwork->GetMetric(name);
