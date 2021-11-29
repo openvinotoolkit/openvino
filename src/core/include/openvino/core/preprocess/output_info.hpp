@@ -26,11 +26,11 @@ class OPENVINO_API OutputInfo final {
     OutputInfo();
 
 public:
-    /// \brief Default move constructor
-    OutputInfo(OutputInfo&& other) noexcept = default;
+    /// \brief Move constructor
+    OutputInfo(OutputInfo&& other) noexcept;
 
-    /// \brief Default move assignment operator
-    OutputInfo& operator=(OutputInfo&& other) noexcept = default;
+    /// \brief Move assignment operator
+    OutputInfo& operator=(OutputInfo&& other) noexcept;
 
     /// \brief Default destructor
     ~OutputInfo();

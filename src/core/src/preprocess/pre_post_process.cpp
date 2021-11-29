@@ -213,6 +213,9 @@ struct OutputInfo::OutputInfoImpl {
 
 //-------------- InputInfo ------------------
 InputInfo::InputInfo() : m_impl(std::unique_ptr<InputInfoImpl>(new InputInfoImpl)) {}
+InputInfo::InputInfo(InputInfo&& other) noexcept = default;
+InputInfo& InputInfo::operator=(InputInfo&& other) noexcept = default;
+
 InputInfo::~InputInfo() = default;
 
 InputTensorInfo& InputInfo::tensor() {
@@ -229,6 +232,8 @@ InputNetworkInfo& InputInfo::network() {
 
 //-------------- OutputInfo ------------------
 OutputInfo::OutputInfo() : m_impl(std::unique_ptr<OutputInfoImpl>(new OutputInfoImpl)) {}
+OutputInfo::OutputInfo(OutputInfo&& other) noexcept = default;
+OutputInfo& OutputInfo::operator=(OutputInfo&& other) noexcept = default;
 OutputInfo::~OutputInfo() = default;
 
 OutputNetworkInfo& OutputInfo::network() {
