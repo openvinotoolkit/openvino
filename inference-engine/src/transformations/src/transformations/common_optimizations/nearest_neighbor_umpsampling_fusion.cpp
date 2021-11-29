@@ -312,7 +312,9 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        const auto scales_node = opset8::Constant::create(element::f32, {scales.size()}, scales);
+        const auto& input_node = pattern_to_output.at(input);
+        const auto& type = input_node.get_element_type();
+        const auto scales_node = opset8::Constant::create(type, {scales.size()}, scales);
         const auto sizes_node = opset8::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
 
         std::vector<int64_t> axes(input_rank - 2);
