@@ -20,6 +20,7 @@ add_subdirectory(src)
 if(ENABLE_TESTS)
     include(CTest)
     enable_testing()
+    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
 
     if(ENABLE_FUNCTIONAL_TESTS)
         add_subdirectory(tests/functional)
