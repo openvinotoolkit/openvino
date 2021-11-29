@@ -7,8 +7,8 @@
 #include <inference_engine.hpp>
 #include <memory>
 #include <string>
+#include "manager.hpp"
 
-#include "frontend_manager/frontend_manager.hpp"
 #include "graph_comparator.hpp"
 #include "ie_blob.h"
 #include "ngraph/op/parameter.hpp"

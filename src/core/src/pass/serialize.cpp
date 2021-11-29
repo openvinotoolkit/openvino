@@ -35,6 +35,27 @@ std::string join(const Container& c, const char* glue = ", ") {
     return oss.str();
 }
 
+    std::string dimension_to_str(const Dimension& dim) {
+        if (dim.is_dynamic() and !dim.get_interval().has_upper_bound() and dim.get_min_length() == 0)
+            return "?";
+        if (dim.is_static()) {
+            return std::to_string(dim.get_length());
+        }
+        std::string min_bound = dim.get_min_length() > 0 ? std::to_string(dim.get_min_length()) : "";
+        std::string max_bound = dim.get_interval().has_upper_bound() ? std::to_string(dim.get_max_length()) : "";
+        return min_bound + ".." + max_bound;
+    }
+
+    std::string partial_shape_to_str(const PartialShape& shape) {
+        if (shape.rank().is_dynamic())
+            return "[...]";
+        std::vector<std::string> dims_str;
+        for (const auto& dim : shape) {
+            dims_str.emplace_back(dimension_to_str(dim));
+        }
+        return "[" + join(dims_str) + "]";
+    }
+
 struct Edge {
     int from_layer = 0;
     int from_port = 0;
@@ -457,6 +478,14 @@ public:
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
             const auto& attrs = a->get();
             m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            const auto& attrs = a->get();
+            auto shape_str = partial_shape_to_str(attrs);
+            m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            const auto& attrs = a->get();
+            auto dim_str = dimension_to_str(attrs);
+            m_xml_node.append_attribute(name.c_str()).set_value(dim_str.c_str());
         } else {
             throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
