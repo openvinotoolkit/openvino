@@ -569,6 +569,7 @@ std::vector<InputShape> inShapes_4D_dyn_param_fusing = {
         {
             {3, 7, 1, 1},
             {1, 7, 5, 1},
+            {3, 7, 1, 1},
             {3, 7, 4, 11},
         }
     },
@@ -579,6 +580,7 @@ std::vector<InputShape> inShapes_4D_dyn_param_fusing = {
         {
             {1, 7, 5, 1},
             {3, 7, 1, 10},
+            {1, 7, 5, 1},
             {3, 7, 4, 11}
         }
     }

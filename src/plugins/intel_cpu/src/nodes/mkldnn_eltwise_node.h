@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <caseless.hpp>
+#include <cpu_lru_cache.h>
 
 namespace MKLDNNPlugin {
 
@@ -72,6 +73,33 @@ public:
         float alpha;
         float beta;
         float gamma;
+
+        bool operator==(const EltwiseData& rhs) const noexcept;
+    };
+
+    class IEltwiseExecutor {
+    public:
+        IEltwiseExecutor() = default;
+        virtual void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
+        virtual size_t getBatchDimIdx() const = 0;
+        virtual const VectorDims& getOutDims() const = 0;
+        virtual ~IEltwiseExecutor() = default;
+    };
+
+    struct EltwiseKey {
+        std::vector<EltwiseData> eltwise_data;
+        std::vector<Type> ops_list;
+        VectorDims outBlkDims;
+        VectorDims outOrder;
+        std::vector<VectorDims> dims_in;
+        std::vector<InferenceEngine::Precision> inpPrc;
+        InferenceEngine::Precision outPrc;
+        mkldnn::post_ops post_ops;
+        bool useDynBatch;
+        bool isOptimized;
+
+        size_t hash() const;
+        bool operator==(const EltwiseKey& rhs) const noexcept;
     };
 
 public:
@@ -118,79 +146,16 @@ public:
 
 
 private:
-    struct EltwiseExecutor {
-        EltwiseExecutor() = default;
-        virtual void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
-        virtual size_t getBatchDimIdx() const = 0;
-        virtual const VectorDims& getOutDims() const = 0;
-        virtual ~EltwiseExecutor() = default;
-
-    protected:
-        void offset_out_calc(VectorDims& offset, const VectorDims& dims) {
-            int k = 1;
-            for (int i = offset.size() - 1; i >= 0; i--) {
-                offset[i] = k;
-                k *= dims[i];
-            }
-        }
-
-        void offset_in_calc(VectorDims& offset, const VectorDims& dims_in, const VectorDims& dims_out) {
-            int k = 1;
-            for (int i = offset.size() - 1; i >= 0; i--) {
-                offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
-                k *= dims_in[i];
-            }
-        }
-    };
-    using executorPtr = std::shared_ptr<EltwiseExecutor>;
+    using executorPtr = std::shared_ptr<IEltwiseExecutor>;
     executorPtr execPtr = nullptr;
 
-    struct EltwiseJitExecutor : public EltwiseExecutor {
-        EltwiseJitExecutor(const std::vector<EltwiseData>& eltwise_data,
-                           const std::vector<Type>& ops_list,
-                           const VectorDims& outBlkDims,
-                           const VectorDims& outOrder,
-                           std::vector<VectorDims> dims_in,
-                           const std::vector<InferenceEngine::Precision>& inpPrc,
-                           InferenceEngine::Precision& outPrc,
-                           const mkldnn::post_ops& post_ops,
-                           bool useDynBatch);
-
-        void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
-        const VectorDims& getOutDims() const override;
-        size_t getBatchDimIdx() const override {
-            return _batchDimIdx;
-        }
-
-        std::unique_ptr<jit_uni_eltwise_kernel> _pKernel;
-        size_t _schedulerWorkAmount = 0;
-        size_t _batchDimIdx = 0;
-    };
-
-    struct EltwiseRefExecutor : public EltwiseExecutor {
-        EltwiseRefExecutor(EltwiseData opData,
-                           const VectorDims& outBlkDims,
-                           std::vector<VectorDims> dims_in);
-        void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
-        const VectorDims& getOutDims() const override;
-        size_t getBatchDimIdx() const override {
-            return _batchDimIdx;
-        }
-
-        const MKLDNNEltwiseNode::EltwiseData _opData;
-        VectorDims _dims;
-        VectorDims _src_offsets[MAX_ELTWISE_INPUTS];
-        VectorDims _dst_offsets;
-        size_t _fullWorkAmount = 0;
-        size_t _inputNum = 0;
-        size_t _batchDimIdx = 0;
-    };
+    using cacheType = LruCache<EltwiseKey, executorPtr>;
+    static cacheType cache;
 
     BroadcastingPolicy broadcastingPolicy;
 
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
-    static const int optimalTensorRank = 6;
     bool canUseOptimizedImpl = false;
     bool isDynBatchEnabled = false;
     bool specialConvolutionAddFusing = false;
@@ -211,7 +176,7 @@ private:
     std::vector<float> shiftsBuffer = {};
 
     std::vector<MKLDNNMemoryPtr> memPtrs = {};
-    mkldnn::post_ops post_ops_;
+    std::vector<std::vector<const float*>> fqDataPtrs;
 
     using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
     static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
