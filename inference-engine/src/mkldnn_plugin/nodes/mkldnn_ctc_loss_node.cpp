@@ -13,10 +13,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNCTCLossNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
         if (!ctcLossOp) {
             errorMessage = "Node is not an instance of the CTCLoss operation from operation set v4.";
@@ -59,6 +55,14 @@ void MKLDNNCTCLossNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
+}
+
+void MKLDNNCTCLossNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
 }
 
 void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
