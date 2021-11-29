@@ -599,8 +599,6 @@ struct tensor {
 
 private:
     value_type _sizes[tensor_dim_max];
-    value_type _dimOffset;
-    value_type _dimSize;
 
 public:
     explicit tensor(value_type default_size = 0) :
@@ -884,7 +882,7 @@ public:
         for (size_t i = 0; i < sizes.size(); ++i) {
             auto c = output_order[i];
             auto pos = internal_order.find(c);
-            if (pos == internal_order.npos)
+            if (pos == std::string::npos)
                 throw std::domain_error(std::string("Unknown coord type: ") + c);
 
             sizes[i] = _sizes[pos];

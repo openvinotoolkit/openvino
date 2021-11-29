@@ -385,6 +385,17 @@ inline std::shared_ptr<Function> cvt_color_i420_to_bgr_three_planes() {
     return p.build();
 }
 
+inline std::shared_ptr<Function> cvt_color_bgrx_to_bgr() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_2inputs(element::f32, PartialShape{1, 160, 160, 3});
+    auto p = PrePostProcessor(function);
+    p.input(0).tensor().set_color_format(ColorFormat::BGRX);
+    p.input(0).preprocess().convert_color(ColorFormat::BGR);
+    p.input(1).tensor().set_color_format(ColorFormat::RGBX);
+    p.input(1).preprocess().convert_color(ColorFormat::BGR);
+    return p.build();
+}
+
 inline std::vector<preprocess_func> generic_preprocess_functions() {
     return std::vector<preprocess_func> {
             preprocess_func(mean_only, "mean_only", 0.01f),
@@ -408,11 +419,12 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
             preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
             preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
-            preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 2.f),
-            preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 2.f),
-            preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 2.f),
-            preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 2.f),
-            preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 2.f),
+            preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 1.f),
+            preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 1.f),
+            preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 1.f),
+            preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
+            preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
+            preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f),
     };
 }
 
