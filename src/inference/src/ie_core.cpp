@@ -45,6 +45,9 @@
 #    include "ie_plugins.hpp"
 #endif
 
+// Specify the default device when no device name is provided.
+const char* DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
+
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
 
@@ -732,9 +735,15 @@ public:
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
         auto deviceName = pluginName;
+        if (deviceName == DEFAULT_DEVICE_NAME)
+            deviceName = "AUTO";
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
-            IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+            if (pluginName == DEFAULT_DEVICE_NAME)
+                IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading. Should "
+                              "you rebuild OpenVINO with the AUTO enabled or re-install accordingly?";
+            else
+                IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
 
         // Plugin is in registry, but not created, let's create
@@ -1162,6 +1171,10 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
     return _impl->ReadNetwork(model, weights);
 }
 
+ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network) {
+    return LoadNetwork(network, DEFAULT_DEVICE_NAME);
+}
+
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
@@ -1181,6 +1194,10 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
     return {exec._so, exec._ptr};
+}
+
+ExecutableNetwork Core::LoadNetwork(const std::string& modelPath) {
+    return LoadNetwork(modelPath, DEFAULT_DEVICE_NAME);
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
@@ -1229,6 +1246,11 @@ void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_)
 
 void Core::AddExtension(const IExtensionPtr& extension) {
     _impl->AddExtension(extension);
+}
+
+ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
+    return ImportNetwork(modelFileName, DEFAULT_DEVICE_NAME);
 }
 
 ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,

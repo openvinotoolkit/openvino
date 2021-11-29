@@ -357,6 +357,11 @@ TEST(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
     ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), InferenceEngine::NetworkNotRead);
 }
 
+TEST(IEClassBasicTest, smoke_ImportNetworkDefaultThrows) {
+    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    ASSERT_THROW(ie.ImportNetwork("model"), InferenceEngine::NetworkNotRead);
+}
+
 TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::RemoteContext::Ptr context = nullptr;
@@ -885,6 +890,12 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 //
 // LoadNetwork
 //
+
+TEST_P(IEClassNetworkTestP, LoadNetworkWithoutDeviceNameNoThrow) {
+  SKIP_IF_CURRENT_TEST_IS_DISABLED()
+  InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+  ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
+}
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

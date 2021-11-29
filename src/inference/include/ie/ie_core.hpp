@@ -95,6 +95,19 @@ public:
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const;
 
     /**
+     * @brief Creates an executable network from a network object and uses AUTO plugin as the default device to load
+     * executable network.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * operation
+     * @return An executable network reference
+     */
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network);
+
+    /**
      * @brief Creates an executable network from a network object.
      *
      * Users can create as many networks as they need and use
@@ -109,6 +122,19 @@ public:
     ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                   const std::string& deviceName,
                                   const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @brief Reads model and creates an executable network from IR or ONNX file and uses AUTO plugin as the default
+     * device to load executable network.
+     *
+     * This can be more efficient than using ReadNetwork + LoadNetwork(CNNNetwork) flow
+     *        especially for cases when caching is enabled and cached model is available
+     *
+     * @param modelPath path to model
+     *
+     * @return An executable network reference
+     */
+    ExecutableNetwork LoadNetwork(const std::string& modelPath);
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -154,6 +180,15 @@ public:
     void AddExtension(IExtensionPtr extension, const std::string& deviceName);
 
     /**
+     * @brief Creates an executable network from a previously exported network and uses AUTO plugin as the default
+     * device to load executable network.
+     *
+     * @param modelFileName Path to the location of the exported file
+     * @return An executable network reference
+     */
+    ExecutableNetwork ImportNetwork(const std::string& modelFileName);
+
+    /**
      * @brief Creates an executable network from a previously exported network
      *
      * @param modelFileName Path to the location of the exported file
@@ -167,6 +202,16 @@ public:
                                     const std::map<std::string, std::string>& config = {});
 
     /**
+     * @brief Creates an executable network from a previously exported network and uses AUTO plugin as the default
+     * device to load executable network.
+     *
+     * @param networkModel network model stream
+     * operation*
+     * @return An executable network reference
+     */
+    ExecutableNetwork ImportNetwork(std::istream& networkModel);
+
+    /**
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
@@ -177,15 +222,6 @@ public:
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config = {});
-
-    /**
-     * @deprecated Use Core::ImportNetwork with explicit device name
-     * @brief Creates an executable network from a previously exported network
-     * @param networkModel network model stream
-     * @return An executable network reference
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Core::ImportNetwork with explicit device name")
-    ExecutableNetwork ImportNetwork(std::istream& networkModel);
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified
