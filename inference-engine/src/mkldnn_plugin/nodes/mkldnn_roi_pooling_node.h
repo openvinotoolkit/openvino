@@ -83,8 +83,6 @@ private:
     template<typename T> void execute();
     template<typename T> struct ROIPoolingExecute;
 
-    InferenceEngine::Precision runtimePrecision;
-
     size_t src_data_size = 0;
     size_t dst_data_size = 0;
 
@@ -96,16 +94,12 @@ private:
     public:
         ROIPoolingExecutor() = default;
         virtual void exec(
-            void* srcData,
-            void* srcRoi,
-            void* dst,
-            const VectorDims& src_strides,
-            const VectorDims& dst_strides,
-            const size_t src_roi_step) = 0;
+            const MKLDNNPlugin::MKLDNNMemory& srcData,
+            const MKLDNNPlugin::MKLDNNMemory& srcRoi,
+            const MKLDNNPlugin::MKLDNNMemory& dst) = 0;
         virtual ~ROIPoolingExecutor() = default;
 
-        static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const InferenceEngine::Precision& prc,
-                                                                               const jit_roi_pooling_params& jpp);
+        static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);
 
     protected:
         std::tuple<int, int, int, int> getBordersForMaxMode(
@@ -122,7 +116,6 @@ private:
         struct ROIPoolingContext {
             std::shared_ptr<ROIPoolingExecutor> executor;
             jit_roi_pooling_params jpp;
-            InferenceEngine::Precision prc;
         };
 
         template<typename T>

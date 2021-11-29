@@ -376,14 +376,14 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    runtimePrecision = getOriginalInputPrecisionAtPort(0);
+    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
 
     if (!mayiuse(avx512_core)) {
-        if (runtimePrecision == Precision::BF16)
-            runtimePrecision = Precision::FP32;
+        if (refParams.src_prc == Precision::BF16)
+            refParams.src_prc = Precision::FP32;
     }
 
-    src_data_size = dst_data_size = runtimePrecision.size();
+    src_data_size = dst_data_size = refParams.src_prc.size();
 
     auto format = mayiuse(avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
@@ -397,9 +397,9 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    addSupportedPrimDesc({{format, runtimePrecision},
-                          {LayoutType::ncsp, runtimePrecision}},
-                         {{format, runtimePrecision}},
+    addSupportedPrimDesc({{format, refParams.src_prc},
+                          {LayoutType::ncsp, refParams.src_prc}},
+                         {{format, refParams.src_prc}},
                           impl_type);
 }
 
@@ -427,15 +427,10 @@ void MKLDNNROIPoolingNode::createPrimitive() {
 
 void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
     if (execPtr) {
-        auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-        auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-        auto &dstMemory = getChildEdgeAt(0)->getMemory();
-
-        auto src_strides = srcMemory0.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        auto dst_strides = dstMemory.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        size_t src_roi_step = srcMemory1.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
-
-        execPtr->exec(srcMemory0.GetPtr(), srcMemory1.GetPtr(), dstMemory.GetPtr(), src_strides, dst_strides, src_roi_step);
+        const auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
+        const auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
+        const auto &dstMemory = getChildEdgeAt(0)->getMemory();
+        execPtr->exec(srcMemory0, srcMemory1, dstMemory);
     } else {
         IE_THROW() << "Can't execute ROI Pooling node. Primitive wasn't created";
     }
@@ -469,7 +464,7 @@ void MKLDNNROIPoolingNode::prepareParams() {
     refParams.oh = outDims[2];
     refParams.ow = outDims[3];
 
-    execPtr = ROIPoolingExecutor::createROIPoolingNewExecutor(runtimePrecision, refParams);
+    execPtr = ROIPoolingExecutor::createROIPoolingNewExecutor(refParams);
 }
 
 template <typename T>
@@ -491,18 +486,18 @@ public:
     }
 
     void exec(
-        void* srcData,
-        void* srcRoi,
-        void* dst,
-        const VectorDims& src_strides,
-        const VectorDims& dst_strides,
-        const size_t src_roi_step) override {
+        const MKLDNNPlugin::MKLDNNMemory& srcData,
+        const MKLDNNPlugin::MKLDNNMemory& srcRoi,
+        const MKLDNNPlugin::MKLDNNMemory& dst) override {
         if (!roi_pooling_kernel)
             IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
 
-        const auto src_ptr = reinterpret_cast<const T*>(srcData);
-        const auto roi_ptr = reinterpret_cast<const T*>(srcRoi);
-        auto dst_ptr = reinterpret_cast<T*>(dst);
+        auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+        auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto* src_ptr = reinterpret_cast<const T*>(srcData.GetPtr());
+        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.GetPtr());
+        auto* dst_ptr = reinterpret_cast<T*>(dst.GetPtr());
         executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
@@ -614,16 +609,16 @@ class MKLDNNROIPoolingNode::ROIPoolingRefExecutor : public MKLDNNROIPoolingNode:
 public:
     ROIPoolingRefExecutor(const jit_roi_pooling_params &_jpp) : jpp(_jpp) {}
     void exec(
-    void* srcData,
-    void* srcRoi,
-    void* dst,
-    const VectorDims& srcstrides,
-    const VectorDims& dststrides,
-    const size_t roiStep) override {
-        const auto *src_ptr = reinterpret_cast<const T*>(srcData);
-        const auto *roi_ptr = reinterpret_cast<const T*>(srcRoi);
-        auto *dst_ptr = reinterpret_cast<T*>(dst);
-        executeReference(src_ptr, roi_ptr, dst_ptr, srcstrides, dststrides, roiStep);
+        const MKLDNNPlugin::MKLDNNMemory& srcData,
+        const MKLDNNPlugin::MKLDNNMemory& srcRoi,
+        const MKLDNNPlugin::MKLDNNMemory& dst) override {
+        auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+        auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto* src_ptr = reinterpret_cast<const T*>(srcData.GetPtr());
+        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.GetPtr());
+        auto* dst_ptr = reinterpret_cast<T*>(dst.GetPtr());
+        executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
     void executeReference(
@@ -764,11 +759,10 @@ private:
 };
 
 std::shared_ptr<MKLDNNROIPoolingNode::ROIPoolingExecutor> MKLDNNROIPoolingNode::ROIPoolingExecutor::createROIPoolingNewExecutor(
-    const InferenceEngine::Precision& prc,
     const jit_roi_pooling_params& jpp) {
-    ROIPoolingContext ctx = { nullptr, jpp, prc };
+    ROIPoolingContext ctx = { nullptr, jpp };
 
-    OV_SWITCH(MKLDNNPlugin, ROIPoolingExecutorCreation, ctx, prc,
+    OV_SWITCH(MKLDNNPlugin, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::BF16, bfloat16_t))
 
