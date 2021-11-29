@@ -118,10 +118,15 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i64, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i64, format::bfzyx),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
     });
 }
 

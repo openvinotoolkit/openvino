@@ -7,19 +7,25 @@
 #include "shared_test_classes/single_layer/multiclass_nms.hpp"
 
 using namespace ngraph;
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 
 namespace {
 TEST_P(MulticlassNmsLayerTest, Serialize) {
-    Serialize();
+    serialize();
 }
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
-
-const std::vector<InputShapeParams> inShapeParams = {
-    InputShapeParams{3, 100, 5}, InputShapeParams{1, 10, 50},
-    InputShapeParams{2, 50, 50}};
+const std::vector<std::vector<ov::test::InputShape>> shapeParams = {
+    // num_batches, num_boxes, 4
+    {{{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), 4},
+        {{1, 10, 4}, {2, 100, 4}}},
+    // num_batches, num_classes, num_boxes
+     {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
+        {{1, 3, 10}, {2, 5, 100}}}},
+    {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), 4},
+        {{1, 10, 4}, {2, 100, 4}}},
+    {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), ngraph::Dimension(1, 100)}},
+        {{1, 3, 10}, {2, 5, 100}}}}
+};
 
 const std::vector<int32_t> nmsTopK = {-1, 20};
 const std::vector<float> iouThreshold = {0.7f};
@@ -37,10 +43,10 @@ const std::vector<float> nmsEta = {0.6f, 1.0f};
 const std::vector<bool> normalized = {true, false};
 
 const auto nmsParams = ::testing::Combine(
-    ::testing::ValuesIn(inShapeParams),
-    ::testing::Combine(::testing::Values(InferenceEngine::Precision::FP32),
-                       ::testing::Values(InferenceEngine::Precision::I32),
-                       ::testing::Values(InferenceEngine::Precision::FP32)),
+    ::testing::ValuesIn(shapeParams),
+    ::testing::Combine(::testing::Values(ov::element::f32),
+                       ::testing::Values(ov::element::i32),
+                       ::testing::Values(ov::element::f32)),
     ::testing::ValuesIn(nmsTopK),
     ::testing::Combine(::testing::ValuesIn(iouThreshold),
                        ::testing::ValuesIn(scoreThreshold),

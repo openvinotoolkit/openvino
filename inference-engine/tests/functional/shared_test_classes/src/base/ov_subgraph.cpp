@@ -26,6 +26,11 @@
 namespace ov {
 namespace test {
 
+std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
+    os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
+    return os;
+}
+
 void SubgraphBaseTest::run() {
     auto crashHandler = [](int errCode) {
         auto& s = LayerTestsUtils::Summary::getInstance();
