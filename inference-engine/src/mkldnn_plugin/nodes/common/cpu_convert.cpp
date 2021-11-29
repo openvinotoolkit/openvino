@@ -279,15 +279,15 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
 template<typename T, typename U>
 std::tuple<T, T> commonRange() {
     if (std::is_integral<T>::value && std::is_integral<U>::value) {
-        int64_t lbound = static_cast<int64_t>(std::numeric_limits<T>::min());
-        lbound = std::max(lbound, static_cast<int64_t>(std::numeric_limits<U>::min()));
+        int64_t lbound = static_cast<int64_t>(std::numeric_limits<T>::lowest());
+        lbound = std::max(lbound, static_cast<int64_t>(std::numeric_limits<U>::lowest()));
         uint64_t ubound = static_cast<uint64_t>(std::numeric_limits<T>::max());
         ubound = std::min(ubound, static_cast<uint64_t>(std::numeric_limits<U>::max()));
         return std::make_tuple(static_cast<T>(lbound), static_cast<T>(ubound));
     }
 
-    double lbound = static_cast<double>(std::numeric_limits<T>::min());
-    lbound = std::max(lbound, static_cast<double>(std::numeric_limits<U>::min()));
+    double lbound = static_cast<double>(std::numeric_limits<T>::lowest());
+    lbound = std::max(lbound, static_cast<double>(std::numeric_limits<U>::lowest()));
     double ubound = static_cast<double>(std::numeric_limits<T>::max());
     ubound = std::min(ubound, static_cast<double>(std::numeric_limits<U>::max()));
     return std::make_tuple(static_cast<T>(lbound), static_cast<T>(ubound));
