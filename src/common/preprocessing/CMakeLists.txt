@@ -137,16 +137,11 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-if(ENABLE_GAPI_PREPROCESSING)
-    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
-    target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
-endif()
-
 if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 else()
     # for static linkage the dependencies are in opposite order
-    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+    target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
 endif()
 
 target_include_directories(${TARGET_NAME} INTERFACE
