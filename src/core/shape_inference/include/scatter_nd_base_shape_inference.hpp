@@ -42,12 +42,12 @@ void shape_infer(const ov::op::util::ScatterNDBase* op,
         bool compatible = true;
         size_t static_indices_rank = indices_shape.size();
         for (size_t i = 0; i < static_indices_rank - 1; i++) {
-            compatible = compatible && updates_shape[i].same_scheme(indices_shape[i]);
+            compatible = compatible && updates_shape[i].compatible(indices_shape[i]);
             NODE_VALIDATION_CHECK(op, compatible, "updates_shape[0:indices_rank-1] shape must be indices_shape[:-1]");
         }
         size_t j = indices_shape[static_indices_rank - 1].get_length();
         for (int64_t i = static_indices_rank - 1; i < expected_updates_rank; i++, j++) {
-            compatible = compatible && updates_shape[i].same_scheme(inputs_shape[j]);
+            compatible = compatible && updates_shape[i].compatible(inputs_shape[j]);
             NODE_VALIDATION_CHECK(op,
                                   compatible,
                                   "updates_shape[indices_rank-1:] shape must be input_shape[indices_shape[-1]:]");
