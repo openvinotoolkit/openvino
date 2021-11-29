@@ -34,11 +34,12 @@ MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
         if (op->get_input_shape(PER_SAMPLE_WEIGHTS_IDX) != op->get_input_shape(INDICES_IDX))
              IE_THROW() << logPrefix << "must have equal shapes for indices and per_sample_weights inputs.";
     }
+}
 
-    const auto& inDataDims = op->get_input_shape(EMB_TABLE_IDX);
+void MKLDNNEmbeddingBagSumNode::prepareParams(const VectorDims& indexStaticShape) {
     _embDepth = 1lu;
-    for (size_t i = 1lu; i < inDataDims.size(); i++) {
-        _embDepth *= inDataDims[i];
+    for (size_t i = 1lu; i < indexStaticShape.size(); i++) {
+        _embDepth *= indexStaticShape[i];
     }
 }
 
