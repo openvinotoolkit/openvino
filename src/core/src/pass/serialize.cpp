@@ -35,26 +35,26 @@ std::string join(const Container& c, const char* glue = ", ") {
     return oss.str();
 }
 
-    std::string dimension_to_str(const Dimension& dim) {
-        if (dim.is_dynamic() and !dim.get_interval().has_upper_bound() and dim.get_min_length() == 0)
-            return "?";
-        if (dim.is_static()) {
-            return std::to_string(dim.get_length());
-        }
-        std::string min_bound = dim.get_min_length() > 0 ? std::to_string(dim.get_min_length()) : "";
-        std::string max_bound = dim.get_interval().has_upper_bound() ? std::to_string(dim.get_max_length()) : "";
-        return min_bound + ".." + max_bound;
+std::string dimension_to_str(const Dimension& dim) {
+    if (dim.is_dynamic() and !dim.get_interval().has_upper_bound() and dim.get_min_length() == 0)
+        return "?";
+    if (dim.is_static()) {
+        return std::to_string(dim.get_length());
     }
+    std::string min_bound = dim.get_min_length() > 0 ? std::to_string(dim.get_min_length()) : "";
+    std::string max_bound = dim.get_interval().has_upper_bound() ? std::to_string(dim.get_max_length()) : "";
+    return min_bound + ".." + max_bound;
+}
 
-    std::string partial_shape_to_str(const PartialShape& shape) {
-        if (shape.rank().is_dynamic())
-            return "[...]";
-        std::vector<std::string> dims_str;
-        for (const auto& dim : shape) {
-            dims_str.emplace_back(dimension_to_str(dim));
-        }
-        return "[" + join(dims_str) + "]";
+std::string partial_shape_to_str(const PartialShape& shape) {
+    if (shape.rank().is_dynamic())
+        return "[...]";
+    std::vector<std::string> dims_str;
+    for (const auto& dim : shape) {
+        dims_str.emplace_back(dimension_to_str(dim));
     }
+    return "[" + join(dims_str) + "]";
+}
 
 struct Edge {
     int from_layer = 0;
