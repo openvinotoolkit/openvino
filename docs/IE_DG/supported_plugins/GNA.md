@@ -18,14 +18,15 @@ Devices with Intel® GNA support:
 
 * [Amazon Alexa\* Premium Far-Field Developer Kit](https://developer.amazon.com/en-US/alexa/alexa-voice-service/dev-kits/amazon-premium-voice)
 
-* [Intel® Pentium® Silver Processors N5xxx, J5xxx and Intel® Celeron® Processors N4xxx, J4xxx](https://ark.intel.com/content/www/us/en/ark/products/codename/83915/gemini-lake.html):
-	- Intel® Pentium® Silver J5005 Processor
-	- Intel® Pentium® Silver N5000 Processor
-	- Intel® Celeron® J4005 Processor
-	- Intel® Celeron® J4105 Processor
-    - Intel® Celeron® J4125 Processor
-	- Intel® Celeron® Processor N4100
-	- Intel® Celeron® Processor N4000
+* [Intel® Pentium® Silver Processors N5xxx, J5xxx and Intel® Celeron® Processors N4xxx, J4xxx (formerly codenamed Gemini Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/83915/gemini-lake.html):
+   - Intel® Pentium® Silver J5005 Processor
+   - Intel® Pentium® Silver N5000 Processor
+   - Intel® Celeron® J4005 Processor
+   - Intel® Celeron® J4105 Processor
+   - Intel® Celeron® J4125 Processor
+   - Intel® Celeron® Processor N4100
+   - Intel® Celeron® Processor N4000
+
 * [Intel® Pentium® Processors N6xxx, J6xxx, Intel® Celeron® Processors N6xxx, J6xxx and Intel Atom® x6xxxxx (formerly codenamed Elkhart Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/128825/products-formerly-elkhart-lake.html)
 
 * [Intel® Core™ Processors (formerly codenamed Cannon Lake)](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html)
@@ -393,6 +394,7 @@ Processor | Frequency of Intel® GNA
 ---|---
 Intel® Core™ processors| 400MHz
 Intel® processors formerly codenamed Elkhart Lake | 200MHz
+Intel® processors formerly codenamed Gemini Lake | 200MHz
 
 Performance counters provided for the time being:
 
