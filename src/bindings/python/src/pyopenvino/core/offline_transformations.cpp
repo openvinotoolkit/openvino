@@ -109,12 +109,6 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("function"));
 
-    // py::enum_<Version>(m_offline_transformations, "Version")
-    //     .value("0", Version::UNSPECIFIED)
-    //     .value("ir_10", Version::IR_V10)
-    //     .value("11", Version::IR_V11)
-    //     .export_values();
-
     // todo: remove as serialize as part of passManager api will be merged
     m_offline_transformations.def(
         "serialize",
