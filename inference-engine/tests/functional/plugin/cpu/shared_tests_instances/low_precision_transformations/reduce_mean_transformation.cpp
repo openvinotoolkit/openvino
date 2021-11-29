@@ -33,21 +33,21 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 2, 3 },
         false,
-        "Output/pool",
+        "Output_original",
         "U8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 1 },
         true,
-        "Output/pool",
+        "Output_original",
         "U8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 1 },
         false,
-        "Output/pool",
+        "Output_original",
         "U8"
     },
     {
@@ -73,7 +73,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         },
         { 2, 3 },
         false,
-        "Output/pool",
+        "Output_original",
         "U8"
     },
     {
@@ -86,7 +86,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         },
         { 0, 1 },
         true,
-        "Output/pool",
+        "Output",
         "FP32"
     },
     {
@@ -99,7 +99,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         },
         { 0, 1 },
         false,
-        "Output/pool",
+        "Output",
         "FP32"
     },
 };
