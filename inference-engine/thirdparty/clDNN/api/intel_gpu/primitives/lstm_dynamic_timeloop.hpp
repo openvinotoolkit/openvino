@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/primitive.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
 #include <vector>
 
 namespace cldnn {

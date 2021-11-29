@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "api/cldnn/runtime/device_info.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "convolution_kernel_base.h"
 #include <string>
 #include <vector>
