@@ -562,15 +562,21 @@ private:
                 bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwise_data_.size() - 1;
                 int s_idx = vmm_dst.getIdx();
 
-                quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(reg_oc_off);
+                push(reg_const_params);
+                mov(reg_const_params, ptr[reg_const_params + GET_OFF(post_op_data)]);
+
+                size_t ptrs_buff_off = quantization_post_op_idx * sizeof(const void*);
+
+                quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(ptr[reg_const_params + ptrs_buff_off], reg_oc_off);
                 quantization_injectors[quantization_post_op_idx]->compute_crop(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
 
-                quantization_injectors[quantization_post_op_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->init_input_scale_shift_ptrs(ptr[reg_const_params + ptrs_buff_off], reg_oc_off);
                 quantization_injectors[quantization_post_op_idx]->compute_input_scale_shift(s_idx, s_idx + 1, offset, do_rounding,
                                                                                             is_scalar, jep_.oc_size == 1);
 
-                quantization_injectors[quantization_post_op_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->init_output_scale_shift_ptrs(ptr[reg_const_params + ptrs_buff_off], reg_oc_off);
                 quantization_injectors[quantization_post_op_idx]->compute_output_scale_shift(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
+                pop(reg_const_params);
 
                 quantization_post_op_idx++;
             } else {
@@ -1390,6 +1396,8 @@ void MKLDNNEltwiseNode::prepareParams() {
                 IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
             }
         }
+        post_ops_ = post_ops;
+
         std::vector<InferenceEngine::Precision> inpPrc;
         for (size_t i = 0; i < inputNum; ++i) {
             inpPrc.push_back(getParentEdgeAt(i)->getMemory().getDesc().getPrecision());
@@ -1455,6 +1463,13 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
                 IE_THROW() << "Can't set batch dims for eltwise node with rank: " << dims_out.size() << " and batch idx: " << batchDimIdx;
             dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
         }
+
+        std::vector<const void*> vecPostOpData(post_ops_.len());
+        for (int i = 0; i < post_ops_.len(); ++i) {
+            vecPostOpData[i] = post_ops_.get()->entry_[i].quantization.data;
+        }
+
+        args_ptrs.post_op_data = vecPostOpData.data();
 
         execPtr->exec(args_ptrs, dims_out);
     } else {
