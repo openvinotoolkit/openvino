@@ -710,12 +710,12 @@ def remove_shape_from_input_value(input_value: str):
     :return: string without shape specification
     """
     assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
-    return re.sub(r'[(\[]([0-9  -]*)[)\]]', '', input_value)
+    return re.sub(r'[(\[]([0-9\.?  -]*)[)\]]', '', input_value)
 
 
 def get_shape_from_input_value(input_value: str):
     """
-    Returns the numpy array with shape corresponding to the shape specified in the input value string
+    Returns the list of tuples corresponding to the shape specified in the input value string
     :param input_value: string passed as input to the --input command line parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
@@ -723,11 +723,11 @@ def get_shape_from_input_value(input_value: str):
     input_value = input_value.split('->')[0]
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9  -]*)[)\]]', input_value)
+    shape = re.findall(r'[(\[]([0-9\.\?  -]+)[)\]]', input_value)
     if len(shape) == 0:
         shape = None
     elif len(shape) == 1:
-        shape = np.fromstring(shape[0], dtype=np.int64, sep=' ')
+        shape = tuple(map(parse_dimension, shape[0].split(' ')))
     else:
         raise Error("Wrong syntax to specify shape. Use --input "
                     "\"node_name[shape]->value\"")
@@ -844,6 +844,23 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     return placeholder_values, input_node_names
 
 
+def parse_dimension(dim: str):
+    if '..' in dim:
+        numbers_reg = r'[0-9]+'
+        dims = dim.split('..')
+        min_val = np.int64(dims[0]) if re.match(numbers_reg, dims[0]) else np.int64(0)
+        max_val = np.int64(dims[1]) if re.match(numbers_reg, dims[1]) else np.iinfo(np.int64).max
+        assert min_val >= 0, "Incorrect min value of the dimension {}".format(dim)
+
+        if min_val == np.int64(0) and max_val == np.iinfo(np.int64).max:
+            return np.int64(-1)
+
+        return min_val, max_val
+    if '?' in dim:
+        return np.int64(-1)
+    return np.int64(dim)
+
+
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
     """
     Parses input layers names and input shapes from the cli and returns the parsed object.
@@ -856,16 +873,18 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         E.g. 'inp1,inp2', 'node_name1[shape1]->value1,node_name2[shape2]->value2'
     argv_input_shape
         string with a list of input shapes: either an empty string, or tuples separated with comma.
-        E.g. '(1,2),(3,4)'.
-        Only positive integers are accepted except -1, which can be on any position in a shape.
+        E.g. '[1,2],[3,4]'.
+        Only positive integers are accepted.
+        '?' marks dynamic dimension.
+        Partial shape is specified with ellipsis. E.g. '[1..10,2,3]'
     argv_batch
         integer that overrides batch size in input shape
 
     Returns
     -------
-        parsed shapes in form of {'name of input':ndarray} if names of inputs are provided with shapes
+        parsed shapes in form of {'name of input':tuple} if names of inputs are provided with shapes
         parsed shapes in form of {'name of input':None} if names of inputs are provided without shapes
-        ndarray if only one shape is provided and no input name
+        tuple if only one shape is provided and no input name
         None if neither shape nor input were provided
     """
     if argv_input_shape and argv_batch:
@@ -900,7 +919,8 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     inputs = list()
     placeholder_shapes = None
 
-    first_digit_reg = r'([0-9 ]+|-1)'
+    range_reg = r'([0-9]*\.\.[0-9]*)'
+    first_digit_reg = r'([0-9 ]+|-1|\?|{})'.format(range_reg)
     next_digits_reg = r'(,{})*'.format(first_digit_reg)
     tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
                                                   first_digit_reg, next_digits_reg)
@@ -908,7 +928,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
         if not re.match(full_reg, argv_input_shape):
             raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
-        shapes = re.findall(r'[(\[]([0-9, -]+)[)\]]', argv_input_shape)
+        shapes = re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
 
     if argv_input:
         inputs = argv_input.split(',')
@@ -919,14 +939,14 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         if len(shapes) > 1:
             raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
         else:
-            placeholder_shapes = np.fromstring(shapes[0], dtype=np.int64, sep=',')
+            placeholder_shapes = tuple(map(parse_dimension, shapes[0].split(',')))
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
         inputs = list(map(lambda x: x.split('->')[0], inputs))
         placeholder_shapes = dict(zip_longest(inputs,
-                                              map(lambda x: np.fromstring(x, dtype=np.int64,
-                                                                          sep=',') if x else None, shapes)))
+                                              map(lambda x: tuple(map(parse_dimension, x.split(','))) if x else None,
+                                                  shapes)))
     elif argv_input:
         raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
 

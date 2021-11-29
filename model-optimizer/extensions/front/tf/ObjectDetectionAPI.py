@@ -421,6 +421,11 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
     if user_shapes and input_name in user_shapes and user_shapes[input_name]:
         user_defined_shape = user_shapes[input_name][0]['shape']
         if user_defined_shape is not None:
+            assert len(user_defined_shape) >= 3, "Incorrect input shape for OD API model {}".format(user_defined_shape)
+            assert not isinstance(user_defined_shape[1], tuple) and user_defined_shape[1] > 0, \
+                "Dynamic image height is not supported. Input shape: {}".format(user_defined_shape)
+            assert not isinstance(user_defined_shape[2], tuple) and user_defined_shape[2] > 0, \
+                "Dynamic image width is not supported. Input shape: {}".format(user_defined_shape)
             user_defined_height = user_defined_shape[1]
             user_defined_width = user_defined_shape[2]
 

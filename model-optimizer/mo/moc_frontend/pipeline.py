@@ -4,6 +4,7 @@
 import argparse
 import logging as log
 from typing import List
+import numpy as np
 
 from mo.moc_frontend.extractor import fe_user_data_repack
 from mo.middle.passes.infer import validate_batch_in_shape
@@ -66,7 +67,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         for user_shape in user_shapes:
             if user_shape.get('shape') is not None:
                 input_model.set_partial_shape(
-                    user_shape['node'], PartialShape(user_shape['shape']))
+                    user_shape['node'], partial_shape_from_tuple(user_shape['shape']))
             if user_shape.get('data_type') is not None:
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug('Set data type: {}'.format(data_type))
@@ -97,3 +98,17 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     ngraph_function = moc_front_end.convert(input_model)
     return ngraph_function
+
+
+def partial_shape_from_tuple(shape: tuple):
+    new_shape = []
+    for dim in shape:
+        if isinstance(dim, tuple):
+            assert len(dim) == 2, "Incorrect boundaries of dimension {} in shape {}".format(dim, shape)
+            assert dim[0] >= 0, "Incorrect min value of dimension {} in shape".format(dim, shape)
+            new_shape.append(Dimension(dim[0], dim[1]))
+        else:
+            assert isinstance(dim, np.int64), "Incorrect type of dimension {} in shape".format(dim, shape)
+            new_shape.append(Dimension(dim))
+    return PartialShape(new_shape)
+
