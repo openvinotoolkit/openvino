@@ -102,7 +102,7 @@ from openvino.opset1.ops import pad
 from openvino.opset1.ops import parameter
 from openvino.opset1.ops import power
 from openvino.opset1.ops import prelu
-from openvino.opset1.ops import prior_box
+from openvino.opset8.ops import prior_box
 from openvino.opset1.ops import prior_box_clustered
 from openvino.opset1.ops import psroi_pooling
 from openvino.opset4.ops import proposal

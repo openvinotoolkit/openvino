@@ -417,3 +417,108 @@ def gather_nd(
     }
 
     return _get_node_factory_opset8().create("GatherND", inputs, attributes)
+
+
+def prior_box(
+    layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None
+) -> Node:
+    """Generate prior boxes of specified sizes and aspect ratios across all dimensions.
+
+    @param  layer_shape:  Shape of layer for which prior boxes are computed.
+    @param  image_shape:  Shape of image to which prior boxes are scaled.
+    @param  attrs:        The dictionary containing key, value pairs for attributes.
+    @param  name:         Optional name for the output node.
+    @return Node representing prior box operation.
+    Available attributes are:
+    * min_size                      The minimum box size (in pixels).
+                                    Range of values: positive floating point numbers
+                                    Default value: []
+                                    Required: no
+    * max_size                      The maximum box size (in pixels).
+                                    Range of values: positive floating point numbers
+                                    Default value: []
+                                    Required: no
+    * aspect_ratio                  Aspect ratios of prior boxes.
+                                    Range of values: set of positive floating point numbers
+                                    Default value: []
+                                    Required: no
+    * flip                          The flag that denotes that each aspect_ratio is duplicated and flipped.
+                                    Range of values: {True, False}
+                                    Default value: False
+                                    Required: no
+    * clip                          The flag that denotes if each value in the output tensor should be clipped
+                                    to [0,1] interval.
+                                    Range of values: {True, False}
+                                    Default value: False
+                                    Required: no
+    * step                          The distance between box centers.
+                                    Range of values: floating point non-negative number
+                                    Default value: 0
+                                    Required: no
+    * offset                        This is a shift of box respectively to top left corner.
+                                    Range of values: floating point non-negative number
+                                    Default value: None
+                                    Required: yes
+    * variance                      The variance denotes a variance of adjusting bounding boxes. The attribute
+                                    could contain 0, 1 or 4 elements.
+                                    Range of values: floating point positive numbers
+                                    Default value: []
+                                    Required: no
+    * scale_all_sizes               The flag that denotes type of inference.
+                                    Range of values: False - max_size is ignored
+                                                     True  - max_size is used
+                                    Default value: True
+                                    Required: no
+    * fixed_ratio                   This is an aspect ratio of a box.
+                                    Range of values: a list of positive floating-point numbers
+                                    Default value: None
+                                    Required: no
+    * fixed_size                    This is an initial box size (in pixels).
+                                    Range of values: a list of positive floating-point numbers
+                                    Default value: None
+                                    Required: no
+    * density                       This is the square root of the number of boxes of each type.
+                                    Range of values: a list of positive floating-point numbers
+                                    Default value: None
+                                    Required: no
+    * min_max_aspect_ratios_order   The flag that denotes the order of output prior box.
+                                    Range of values: False - the output prior box is in order of
+                                                             [min, aspect_ratios, max]
+                                                     True  - the output prior box is in order of
+                                                             [min, max, aspect_ratios]
+                                    Default value: True
+                                    Required: no
+    Example of attribute dictionary:
+    @code{.py}
+        # just required ones
+        attrs = {
+            'offset': 85,
+        }
+        attrs = {
+            'offset': 85,
+            'flip': True,
+            'clip': True,
+            'fixed_size': [32, 64, 128]
+        }
+    @endcode
+    Optional attributes which are absent from dictionary will be set with corresponding default.
+    """
+    requirements = [
+        ("offset", True, np.floating, is_non_negative_value),
+        ("min_size", False, np.floating, is_positive_value),
+        ("max_size", False, np.floating, is_positive_value),
+        ("aspect_ratio", False, np.floating, is_positive_value),
+        ("flip", False, np.bool_, None),
+        ("clip", False, np.bool_, None),
+        ("step", False, np.floating, is_non_negative_value),
+        ("variance", False, np.floating, is_positive_value),
+        ("scale_all_sizes", False, np.bool_, None),
+        ("fixed_ratio", False, np.floating, is_positive_value),
+        ("fixed_size", False, np.floating, is_positive_value),
+        ("density", False, np.floating, is_positive_value),
+        ("min_max_aspect_ratios_order", False, np.bool_, None),
+    ]
+
+    check_valid_attributes("PriorBox", attrs, requirements)
+
+    return _get_node_factory_opset8().create("PriorBox", [layer_shape, as_node(image_shape)], attrs)

@@ -39,7 +39,8 @@ using priorBoxSpecificParams =  std::tuple<
         float,              // step
         float,              // offset
         std::vector<float>, // variance
-        bool>;              // scale_all_sizes
+        bool,               // scale_all_sizes
+        bool>;              // min_max_aspect_ratios_order
 
 typedef std::tuple<
         priorBoxSpecificParams,
@@ -73,6 +74,7 @@ protected:
     bool clip;
     bool flip;
     bool scale_all_sizes;
+    bool min_max_aspect_ratios_order;
 
     void SetUp() override;
 };

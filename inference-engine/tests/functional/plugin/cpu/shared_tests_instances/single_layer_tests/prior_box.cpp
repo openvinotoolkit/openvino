@@ -50,6 +50,9 @@ const std::vector<std::vector<float>> variances = {
 const std::vector<bool> scale_all_sizes = {
     false, true};
 
+const std::vector<bool> min_max_aspect_ratios_order = {
+    false, true};
+
 const std::vector<size_t> inputShape = {300, 300};
 const std::vector<size_t> imageShape = {32, 32};
 
@@ -65,7 +68,8 @@ const auto layerSpecificParams = ::testing::Combine(
     ::testing::ValuesIn(steps),
     ::testing::ValuesIn(offsets),
     ::testing::ValuesIn(variances),
-    ::testing::ValuesIn(scale_all_sizes));
+    ::testing::ValuesIn(scale_all_sizes),
+    ::testing::ValuesIn(min_max_aspect_ratios_order));
 
 INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic, PriorBoxLayerTest,
                             ::testing::Combine(

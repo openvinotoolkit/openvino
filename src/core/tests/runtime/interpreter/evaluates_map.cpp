@@ -1527,17 +1527,6 @@ bool evaluate(const shared_ptr<op::v0::Elu>& op, const HostTensorVector& outputs
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::PriorBox>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::prior_box<T>(inputs[0]->get_data_ptr<T>(),
-                                     inputs[1]->get_data_ptr<T>(),
-                                     outputs[0]->get_data_ptr<float>(),
-                                     outputs[0]->get_shape(),
-                                     op->get_attrs());
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Proposal>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::proposal_v0<T>(inputs[0]->get_data_ptr<T>(),
@@ -2704,11 +2693,8 @@ bool evaluate(const shared_ptr<op::v8::Gather>& op, const HostTensorVector& outp
 template <typename T>
 bool evaluate_node(std::shared_ptr<Node> node, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<op::v1::Select>(node)) {
+    if (ov::is_type<op::v1::Select>(node))
         element_type = node->get_input_element_type(1);
-    } else if (ov::is_type<op::v0::PriorBox>(node)) {
-        element_type = node->get_input_element_type(0);
-    }
 
     switch (element_type) {
     case element::Type_t::boolean:
