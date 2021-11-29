@@ -17,6 +17,7 @@
 #include "nodes/mkldnn_mvn_node.h"
 #include <nodes/mkldnn_transpose_node.h>
 #include "nodes/mkldnn_interpolate_node.h"
+#include "nodes/mkldnn_reduce_node.h"
 #include "nodes/mkldnn_input_node.h"
 #include "nodes/mkldnn_rnn.h"
 #include "nodes/common/cpu_convert.h"
@@ -135,6 +136,10 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseNormalizeL2AndSimpleOperation");
     FuseNormalizeL2AndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseReduceAndSimpleOperation");
+    FuseReduceAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
@@ -1277,6 +1282,9 @@ void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph)
         if (!childNode->getFusedWith().empty())
             return false;
         auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
+        if (!interpolateNode) {
+            IE_THROW() << "Cannot cast " << parentNode->getName() << " to MKLDNNInterpolateNode";
+        }
         return interpolateNode->canFuse(childNode);
     };
 
@@ -1339,6 +1347,46 @@ void MKLDNNGraphOptimizer::FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph)
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
                 if (p_edge->getParent()->getType() == NormalizeL2)
+                    continue;
+
+                graph.RemoveEdge(p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseReduceAndSimpleOperation(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](MKLDNNNodePtr node) {
+        return node->getType() == Reduce && node->getChildEdges().size() == 1;
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSuitableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!parentNode->canFuse(childNode)) {
+            parent++;
+            continue;
+        }
+
+        childNode->fuseInto(parentNode);
+
+        if (childNode->getType() == FakeQuantize || childNode->getType() == Eltwise) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge == nullptr)
+                    IE_THROW() << "Cannot get parent edge " << childNode->getName();
+                if (p_edge->getParent()->getType() == Reduce)
                     continue;
 
                 graph.RemoveEdge(p_edge);
@@ -1915,16 +1963,16 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
 void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+    auto isSuitableParentNode = [](MKLDNNNodePtr node) {
         if (node->type != RNNSeq)
             return false;
         auto rnnNode = std::dynamic_pointer_cast<MKLDNNRNN>(node);
         return rnnNode && !rnnNode->hasNativeOrder() && node->outputShapes[0].getRank() == 4 && node->outputShapes[0].getDims()[1] == 1;
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
-        auto& parentNode = graphNodes[i];
-        if (!isSutableParentNode(parentNode)) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto parentNode = graphNodes[i];
+        if (!isSuitableParentNode(parentNode)) {
             continue;
         }
 
@@ -1934,15 +1982,15 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         const auto newShape = Shape(origShape);
         parentNode->outputShapes[0] = newShape;
 
-        for (size_t i = 0; i < childrenEdges.size(); i++) {
-            auto edge = childrenEdges[i];
+        for (size_t j = 0; j < childrenEdges.size(); j++) {
+            auto edge = childrenEdges[j];
             auto childNode = edge->getChild();
 
             const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, std::vector<int>{1});
             const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
                 std::make_shared<ngraph::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
-            unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(i));
+            unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 
             const auto cpuUnsqueeze = std::make_shared<MKLDNNReshapeNode>(unsqueeze, graph.getEngine(), graph.weightsCache);
             graph.InsertNode(parentNode, childNode, cpuUnsqueeze, edge->getInputNum(), edge->getOutputNum(), false);

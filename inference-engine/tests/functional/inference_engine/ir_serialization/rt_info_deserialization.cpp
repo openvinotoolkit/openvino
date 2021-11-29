@@ -15,7 +15,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/rt_info/old_api_map_order_attribute.hpp>
 #include <transformations/rt_info/old_api_map_element_type_attribute.hpp>
-#include "frontend_manager/frontend_manager.hpp"
+#include "manager.hpp"
 #include "graph_comparator.hpp"
 #include "ie_blob.h"
 #include "ie_precision.hpp"
@@ -27,6 +27,7 @@
 #include "ngraph/variant.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
 
 using namespace ngraph;
 
@@ -785,6 +786,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test1,test2"/>
                         <attribute name="layout" version="0" layout="[N,C,H,W]" />
+                        <attribute name="memory_type" version="0" value="test_memory_type" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -872,6 +874,9 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
     EXPECT_EQ(param->get_layout(), "NCHW");
+    auto var0 = std::dynamic_pointer_cast<ov::preprocess::TensorInfoMemoryType>(
+            f->input(0).get_rt_info()[ov::preprocess::TensorInfoMemoryType::get_type_info_static()]);
+    EXPECT_EQ(var0->get(), "test_memory_type");
 
     auto result = f->get_result();
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");
