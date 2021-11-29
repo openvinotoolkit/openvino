@@ -32,8 +32,23 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::
     if (!detection_output_v1_node) return false;
 
     const auto& attributes_v1 = detection_output_v1_node->get_attrs();
-    opset8::DetectionOutput::Attributes attributes_v8 =
-        static_cast<DetectionOutputBase::AttributesBase>(attributes_v1);
+    opset8::DetectionOutput::Attributes attributes_v8;
+    attributes_v8.background_label_id = attributes_v1.background_label_id;
+    attributes_v8.clip_after_nms = attributes_v1.clip_after_nms;
+    attributes_v8.clip_before_nms = attributes_v1.clip_before_nms;
+    attributes_v8.code_type = attributes_v1.code_type;
+    attributes_v8.confidence_threshold = attributes_v1.confidence_threshold;
+    attributes_v8.decrease_label_id = attributes_v1.decrease_label_id;
+    attributes_v8.input_height = attributes_v1.input_height;
+    attributes_v8.input_width = attributes_v1.input_width;
+    attributes_v8.keep_top_k = attributes_v1.keep_top_k;
+    attributes_v8.nms_threshold = attributes_v1.nms_threshold;
+    attributes_v8.normalized = attributes_v1.normalized;
+    attributes_v8.objectness_score = attributes_v1.objectness_score;
+    attributes_v8.share_location = attributes_v1.share_location;
+    attributes_v8.top_k = attributes_v1.top_k;
+    attributes_v8.variance_encoded_in_target =
+        attributes_v1.variance_encoded_in_target;
 
     std::shared_ptr<opset8::DetectionOutput> detection_output_v8_node = nullptr;
     if (detection_output_v1_node->get_input_size() == 3) {
@@ -59,7 +74,7 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::
     return true;
   };
 
-  auto m = make_shared<pattern::Matcher>(detection_output_v1_pattern,
-      matcher_name);
+  auto m =
+      make_shared<pattern::Matcher>(detection_output_v1_pattern, matcher_name);
   register_matcher(m, callback);
 }

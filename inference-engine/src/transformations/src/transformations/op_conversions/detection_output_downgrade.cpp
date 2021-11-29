@@ -37,9 +37,24 @@ pass::ConvertDetectionOutput8ToDetectionOutput1::
     // the transformation is applicable only if the number of classes is deduced
     if (num_classes.is_dynamic()) return false;
 
-    opset1::DetectionOutput::Attributes attributes_v1 =
-        static_cast<DetectionOutputBase::AttributesBase>(attributes_v8);
+    opset1::DetectionOutput::Attributes attributes_v1;
+    attributes_v1.background_label_id = attributes_v8.background_label_id;
+    attributes_v1.clip_after_nms = attributes_v8.clip_after_nms;
+    attributes_v1.clip_before_nms = attributes_v8.clip_before_nms;
+    attributes_v1.code_type = attributes_v8.code_type;
+    attributes_v1.confidence_threshold = attributes_v8.confidence_threshold;
+    attributes_v1.decrease_label_id = attributes_v8.decrease_label_id;
+    attributes_v1.input_height = attributes_v8.input_height;
+    attributes_v1.input_width = attributes_v8.input_width;
+    attributes_v1.keep_top_k = attributes_v8.keep_top_k;
+    attributes_v1.nms_threshold = attributes_v8.nms_threshold;
+    attributes_v1.normalized = attributes_v8.normalized;
     attributes_v1.num_classes = num_classes.get_length();
+    attributes_v1.objectness_score = attributes_v8.objectness_score;
+    attributes_v1.share_location = attributes_v8.share_location;
+    attributes_v1.top_k = attributes_v8.top_k;
+    attributes_v1.variance_encoded_in_target =
+        attributes_v8.variance_encoded_in_target;
 
     std::shared_ptr<opset1::DetectionOutput> detection_output_v1_node = nullptr;
     if (detection_output_v8_node->get_input_size() == 3) {
