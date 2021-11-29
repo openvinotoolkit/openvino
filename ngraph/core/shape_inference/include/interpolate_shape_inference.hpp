@@ -12,16 +12,6 @@ namespace ov {
 namespace op {
 
 template <class T>
-inline void set_dim(T& dim) {
-    OPENVINO_UNREACHABLE("Cannot set Dimension to in-compatible type.");
-}
-
-template <>
-inline void set_dim<ov::Dimension>(ov::Dimension& dim) {
-    dim = ov::Dimension::dynamic();
-};
-
-template <class T>
 inline void set_low_upper_bound(T& dim, int64_t lower_bound, int64_t upper_bound) {
     OPENVINO_UNREACHABLE("Cannot set Dimension to in-compatible type.");
 }
@@ -31,34 +21,69 @@ inline void set_low_upper_bound<ov::Dimension>(ov::Dimension& dim, int64_t lower
     dim = ov::Dimension(lower_bound, upper_bound);
 };
 
+template <class T>
+inline bool get_data_as_shape(size_t idx,
+                              const ov::Node* op,
+                              T& output,
+                              const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    std::vector<int64_t> output_value;
+    if (get_data_as_int64<T>(1, op, output_value, constant_data)) {
+        output.resize(output_value.size());
+        for (size_t i = 0; i < output_value.size(); i++) {
+            output[i] = output_value[i];
+        }
+        return true;
+    }
+    return false;
+}
+
+template <>
+inline bool get_data_as_shape<ov::PartialShape>(
+    size_t idx,
+    const ov::Node* op,
+    ov::PartialShape& output,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    if (ov::evaluate_as_partial_shape(op->input_value(idx), output)) {
+        return true;
+    }
+    return false;
+}
+
 namespace v0 {
 template <class T>
 void shape_infer(const Interpolate* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
 
     const auto& input_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
     output_shape = input_shape;
 
-    auto attrs = op->get_attrs();
-
     if (input_shape.rank().is_static()) {
-        for (auto axis : attrs.axes) {
-            NODE_VALIDATION_CHECK(op, static_cast<int64_t>(axis) < input_shape.rank().get_length());
-        }
+        auto input_rank = input_shape.size();
+        NODE_VALIDATION_CHECK(op,
+                              std::all_of(op->m_attrs.axes.begin(),
+                                          op->m_attrs.axes.end(),
+                                          [input_rank](size_t axis) {
+                                              return axis < input_rank;
+                                          }),
+                              "Axis value should less than input rank. ",
+                              "Got: input rank ",
+                              input_rank,
+                              ", axes ",
+                              op->m_attrs.axes);
 
-        std::vector<int64_t> out_shape;
-        if (get_data_as_int64<T>(1, op, out_shape, constant_data)) {
+        T target_spatial_shape;
+        if (get_data_as_shape<T>(1, op, target_spatial_shape, constant_data)) {
             size_t i = 0;
-            for (auto axis : attrs.axes) {
-                output_shape[axis] = out_shape[i++];
+            for (auto axis : op->m_attrs.axes) {
+                output_shape[axis] = target_spatial_shape[i++];
             }
         } else {
-            for (auto axis : attrs.axes) {
-                set_dim(output_shape[axis]);
+            for (auto axis : op->m_attrs.axes) {
+                output_shape[axis] = ov::Dimension::dynamic();
             }
         }
     }
@@ -74,34 +99,31 @@ std::vector<T> correct_pad(const std::vector<T>& p, size_t rank) {
     }
 
     std::vector<T> result;
-
     if (pad_len > rank) {
         result.insert(result.end(), p.begin(), p.begin() + rank);
     } else {
         result = p;
         result.insert(result.end(), rank - pad_len, T{});
     }
-
     return result;
 }
 
 template <typename T>
 void correct_pads_attr(const Interpolate* op,
-                  std::vector<size_t>& pads_begin,
-                  std::vector<size_t>& pads_end,
-                  const std::vector<T>& input_shapes) {
-    auto attrs = op->get_attrs();
+                       std::vector<size_t>& pads_begin,
+                       std::vector<size_t>& pads_end,
+                       const std::vector<T>& input_shapes) {
     auto input_shape = input_shapes[0];
-    pads_begin = attrs.pads_begin;
-    pads_end = attrs.pads_end;
+    pads_begin = op->m_attrs.pads_begin;
+    pads_end = op->m_attrs.pads_end;
 
     if (input_shape.rank().is_dynamic()) {
         return;
     }
-    const auto input_rank = input_shape.rank().get_length();
+    const auto input_rank = input_shape.size();
 
-    pads_begin = correct_pad(attrs.pads_begin, input_rank);
-    pads_end = correct_pad(attrs.pads_end, input_rank);
+    pads_begin = correct_pad(op->m_attrs.pads_begin, input_rank);
+    pads_end = correct_pad(op->m_attrs.pads_end, input_rank);
 }
 
 inline int64_t multiply_bound_and_scale(int64_t bound, float scale) {
@@ -119,7 +141,6 @@ void infer_using_scales(T& output_shape,
     size_t i = 0;
     static constexpr float epsilon = 1.0e-6f;
     for (auto axis : axes) {
-        NGRAPH_CHECK(axis < padded_input_shape.rank().get_length());
         const auto& current_dim = padded_input_shape[axis];
         float multiplier = scales[i] + epsilon;
         if (current_dim.is_static()) {
@@ -133,22 +154,13 @@ void infer_using_scales(T& output_shape,
     }
 }
 
-template <typename T>
-void infer_using_shapes(T& output_shape, const std::vector<int64_t>& axes, const std::vector<int64_t>& sizes) {
-    size_t i = 0;
-    for (auto axis : axes) {
-        NGRAPH_CHECK(axis < output_shape.rank().get_length());
-        output_shape[axis] = sizes[i++];
-    }
-}
-
 template <class T>
 void shape_infer(const Interpolate* op,
                  std::vector<size_t>& pads_begin,
                  std::vector<size_t>& pads_end,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
 
     const auto& input_shape = input_shapes[0];
@@ -156,18 +168,25 @@ void shape_infer(const Interpolate* op,
     output_shape = input_shape;
 
     if (input_shape.rank().is_static()) {
-        const auto input_rank = input_shape.rank().get_length();
+        const auto input_rank = input_shape.size();
 
         // Get axes
         std::vector<int64_t> axes;
         if (input_shapes.size() == 4 && !(get_data_as_int64<T>(3, op, axes, constant_data))) {
             for (size_t i = 0; i < input_rank; i++)
-                set_dim(output_shape[i]);
+                output_shape[i] = ov::Dimension::dynamic();
             return;
         } else if (input_shapes.size() == 3) {
             axes.resize(input_rank);
             std::iota(axes.begin(), axes.end(), 0);
         }
+        NODE_VALIDATION_CHECK(op,
+                              std::all_of(axes.begin(),
+                                          axes.end(),
+                                          [input_rank](size_t axis) {
+                                              return axis < input_rank;
+                                          }),
+                              "Axis value should less than input rank.");
 
         // Get padded input shape
         auto padded_input_shape = input_shape;
@@ -179,27 +198,25 @@ void shape_infer(const Interpolate* op,
         }
 
         output_shape = padded_input_shape;
-
-        auto attrs = op->get_attrs();
-
-        if (attrs.shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES) {
+        if (op->m_attrs.shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES) {
             std::vector<float> scales;
             if (get_data_as_float<T>(2, op, scales, constant_data)) {
                 infer_using_scales(output_shape, axes, scales, padded_input_shape);
             } else {
                 for (auto axis : axes) {
-                    NGRAPH_CHECK(axis < input_rank);
-                    set_dim(output_shape[axis]);
+                     output_shape[axis] = ov::Dimension::dynamic(); // todo: add test case
                 }
             }
         } else {
-            std::vector<int64_t> sizes;
-            if (get_data_as_int64<T>(1, op, sizes, constant_data)) {
-                infer_using_shapes(output_shape, axes, sizes);
+            T target_spatial_shape;
+            if (get_data_as_shape<T>(1, op, target_spatial_shape, constant_data)) {
+                size_t i = 0;
+                for (auto axis : axes) {
+                    output_shape[axis] = target_spatial_shape[i++];
+                }
             } else {
                 for (auto axis : axes) {
-                    NGRAPH_CHECK(axis < input_rank);
-                    set_dim(output_shape[axis]);
+                    output_shape[axis] = ov::Dimension::dynamic();
                 }
             }
         }

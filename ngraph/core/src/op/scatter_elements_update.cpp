@@ -52,11 +52,13 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
                           " and: ",
                           updates_et);
 
+    auto data = get_input_partial_shape(0);
+    auto indices = get_input_partial_shape(1);
+    auto updates = get_input_partial_shape(2);
+    auto axis = get_input_partial_shape(3);
+
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
-    std::vector<ov::PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); i++) {
-        input_shapes.push_back(get_input_partial_shape(i));
-    }
+    std::vector<ov::PartialShape> input_shapes = {data, indices, updates, axis};
 
     shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, data_et, output_shapes[0]);

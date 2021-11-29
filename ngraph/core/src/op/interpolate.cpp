@@ -223,9 +223,15 @@ void op::v4::Interpolate::validate_and_infer_types() {
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); i++) {
-        input_shapes.push_back(get_input_partial_shape(i));
-    }
+    const auto input_shape = get_input_partial_shape(0);
+    const auto target_spatial_shape = get_input_partial_shape(1);
+    const auto scales = get_input_partial_shape(2);
+    if (input_values().size() == 3) {
+        input_shapes = {input_shape, target_spatial_shape, scales};
+    } else {
+        const auto axes = get_input_partial_shape(3);
+        input_shapes = {input_shape, target_spatial_shape, scales, axes};
+     }
 
     correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
     shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes);

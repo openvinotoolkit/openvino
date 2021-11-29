@@ -72,6 +72,11 @@ public:
 
 private:
     Attributes m_attrs;
+    template <class T>
+    friend void shape_infer(const Interpolate* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes,
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
 };
 }  // namespace v0
 
@@ -276,6 +281,20 @@ private:
     void infer_using_shapes(PartialShape& output_shape,
                             const std::vector<int64_t>& axes,
                             const std::vector<int64_t>& sizes) const;
+
+    template <class T>
+    friend void correct_pads_attr(const Interpolate* op,
+                           std::vector<size_t>& pads_begin,
+                           std::vector<size_t>& pads_end,
+                           const std::vector<T>& input_shapes);
+
+    template <class T>
+    friend void shape_infer(const Interpolate* op,
+                     std::vector<size_t>& pads_begin,
+                     std::vector<size_t>& pads_end,
+                     const std::vector<T>& input_shapes,
+                     std::vector<T>& output_shapes,
+                     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
 };
 }  // namespace v4
 }  // namespace op
