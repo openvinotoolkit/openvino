@@ -210,6 +210,8 @@ void DynamicBuffer::execute(mkldnn::stream strm, const mkldnn::engine& eng, cons
 
 void DynamicBuffer::init(mkldnn::stream strm, const mkldnn::engine& eng) {
     chunk_offset_in_byte = 0;
+    chunk_stride_in_byte = 0;
+
     auto src_mem = from->GetPrimitive();
     auto src_desc = src_mem.get_desc();
     mem_holder_buffer.reset(new memory(src_desc, eng));
@@ -233,6 +235,13 @@ std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engin
     dims[map_rule.axis] += from->getStaticDims()[map_rule.axis];
     mkldnn::memory::desc new_buffer_desc(dims, old_desc.data_type(), MKLDNNExtensionUtils::GetPlainFormatByRank(dims.size()));
 
+    const auto axis = map_rule.stride;
+    const auto stride = map_rule.stride;
+    const auto abs_stride = std::abs(stride);
+    const auto sign_of_stride = stride < 0.0f ? -1 : 1;
+    chunk_stride_in_byte += sign_of_stride * new_buffer_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+    chunk_offset_in_byte = sign_of_stride < 0 ? labs(chunk_stride_in_byte) : 0;
+
     return std::make_shared<mkldnn::memory>(new_buffer_desc, eng);
 }
 
@@ -247,7 +256,7 @@ void DynamicBuffer::move_buffer(mkldnn::stream strm, const mkldnn::engine& eng, 
 
     const auto new_mem_handler = new_buffer->get_data_handle();
     mkldnn::memory chunk_mem(chunk_desc, eng, new_mem_handler);
-    chunk_mem.set_data_handle(static_cast<uint8_t *>(new_buffer->get_data_handle()));
+    chunk_mem.set_data_handle(static_cast<uint8_t *>(new_buffer->get_data_handle()) + chunk_offset_in_byte);
 
     copy(strm, *mem_holder_buffer.get(), chunk_mem);
     mem_holder_buffer = new_buffer;
@@ -255,9 +264,6 @@ void DynamicBuffer::move_buffer(mkldnn::stream strm, const mkldnn::engine& eng, 
 
 void DynamicBuffer::move_data(mkldnn::stream strm, const mkldnn::engine& eng) {
     auto axis = map_rule.axis;
-    auto stride = map_rule.stride;
-    auto abs_stride = std::abs(stride);
-
     auto src_mem = from->GetPrimitive();
     auto src_desc = src_mem.get_desc();
 
@@ -268,9 +274,7 @@ void DynamicBuffer::move_data(mkldnn::stream strm, const mkldnn::engine& eng) {
 
     const auto new_mem_handler = mem_holder_buffer->get_data_handle();
     mkldnn::memory chunk_mem = { chunk_desc, eng, new_mem_handler };
-
-    chunk_offset_in_byte += chunk_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
-    chunk_mem.set_data_handle(static_cast<uint8_t*>(mem_holder_buffer->get_data_handle()) + chunk_offset_in_byte);
+    chunk_mem.set_data_handle(static_cast<uint8_t*>(mem_holder_buffer->get_data_handle()) + chunk_stride_in_byte);
 
     copy(strm, src_mem, chunk_mem);
 }
