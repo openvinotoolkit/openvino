@@ -336,6 +336,9 @@ public:
             selectedPrimitiveDescriptorIndex = -1;
         else
             selectedPrimitiveDescriptorIndex = index;
+
+        // Each primitive descriptor has its own InPlace status. So after new primitive descriptor selection
+        // we should reset InPlace type to definite new status for node using MKLDNNNode::isInPlace()
         inplace = InPlaceType::Unknown;
     }
 
