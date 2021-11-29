@@ -6,19 +6,18 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "bd0a40b82b1e024f99a175c0c967a61647d790a42a546b3f0ce8562107dc13dc"
-    "74efa0bb416ead2238878862aeca2f80d91268efb4859e09594536ef15908d0e")
+    "e65fcc1c6b0f3e9d814e53022c212ec0a2b83197a9df38badb298fb85ccf3acf"
+    "b11368fec2036d96fb703d2a40b171184fefe89f27e74a988ef1ca34260a2bc5")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1774)
+set(FIRMWARE_PACKAGE_VERSION 1875)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
 # CMake variables to override default firmware files
-#
 list(LENGTH VPU_SUPPORTED_FIRMWARES num_firmwares)
 math(EXPR num_firmwares "${num_firmwares} - 1")
 foreach(idx RANGE 0 ${num_firmwares})

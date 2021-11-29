@@ -4,6 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.ops.op import Op
 
@@ -50,6 +51,8 @@ class RandomUniform(Op):
         # ir data type is not equal to data node type.
         node.in_node(1)['correct_data_type'] = True
         node.in_node(2)['correct_data_type'] = True
+
+        PermuteInputs().set_input_permutation(node.in_node(0), node, 'output:0', 'shape')
 
 
 class AttributedRandomUniform(Op):

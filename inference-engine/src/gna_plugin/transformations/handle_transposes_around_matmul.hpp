@@ -11,15 +11,18 @@ namespace GNAPluginNS {
 /**
  * @brief Inserts Transpose before MatMul or removes it (if it exists) if there is Reshape
  * before MatMul which changes the batch size:
- *    [1, A*B]                 [1, A*B]
+ *    [1, A*B]                [1, A*B]
  *       |                       |
  *    Reshape                 Reshape
  *       |                       |
- * [1, A, 1, B]            [1, A, 1, B]
+ *    [A, B]                  [A, B]
  *       |                       |
  *       |                   Transpose
  *       |           ->          |
- *       |           <-     [1, B, 1, A]
+ *       |           <-       [B, A]
+ *       |                       |
+ *       |                    Reshape
+ *       |                    [A, B]
  *       |                       |
  *    MatMul                   MatMul
  */
@@ -33,12 +36,20 @@ public:
  * @brief Inserts Transpose after MatMul or removes it (if it exists) if there is Reshape
  * after MatMul which changes the batch size:
  *    MatMul                  MatMul
+ *    [A, B]                  [A, B]
  *       |                       |
- * [1, A, 1, B]            [1, A, 1, B]
+ *     [Add]                   [Add]
+ *       |                       |
+ *  [FakeQuantize]        [FakeQuantize]
+ *       |                       |
+ *   [Activation]          [Activation]
+ *       |                       |
+ *       |                    Reshape
+ *       |                    [B, A]
  *       |                       |
  *       |                   Transpose
  *       |           ->          |
- *       |           <-     [1, B, 1, A]
+ *       |           <-        [A, B]
  *       |                       |
  *    Reshape                 Reshape
  *       |                       |

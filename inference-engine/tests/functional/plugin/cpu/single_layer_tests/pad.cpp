@@ -56,26 +56,20 @@ public:
 protected:
     void SetUp() override {
         InputShape shapes;
-        ElementType elementType;
         std::vector<int64_t> padsBegin, padsEnd;
         ngraph::helpers::PadMode padMode;
         float argPadValue;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = this->GetParam();
+        std::tie(shapes, inType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        if (selectedType.empty()) {
-            selectedType = getPrimitiveType();
-        }
-        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inType).name();
+        selectedType = makeSelectedTypeStr("ref", inType);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(elementType, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto pad = ngraph::builder::makePad(params[0], padsBegin, padsEnd, argPadValue, padMode);
-        pad->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
-        function = std::make_shared<ngraph::Function>(results, params, "pad");
+        function = makeNgraphFunction(inType, params, pad, "Pad");
     }
 };
 
@@ -84,8 +78,7 @@ TEST_P(PadLayerCPUTest, CompareWithRefs) {
 
     run();
 
-    // TODO: need to uncomment when this method will be updated
-    //CheckPluginRelatedResults(executableNetwork, "Pad");
+    CheckPluginRelatedResults(executableNetwork, "Pad");
 }
 
 namespace {

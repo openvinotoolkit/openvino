@@ -45,8 +45,8 @@ class GlobalPoolingToReduce(FrontReplacementPattern):
 
             pooling.out_port(0).get_connection().set_source(reduce.out_port(0))
             src = pooling.in_port(0).get_connection().get_source()
-            pooling.in_port(0).disconnect()
-            src.connect(reduce.in_port(0))
+
+            reduce.in_port(0).get_connection().set_source(src)
 
             start = Const(graph, {'value': int64_array(2)}).create_node()
             end = Rank(graph, {'name': name + '/input_rank'}).create_node()

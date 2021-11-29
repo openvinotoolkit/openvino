@@ -34,7 +34,7 @@ add_subdirectory(${OpenVINO_SOURCE_DIR}/runtime/bindings/python/thirdparty/pybin
 
 pybind11_add_module(${PYBIND_FE_NAME} MODULE ${PYBIND_FE_SRC})
 
-target_link_libraries(${PYBIND_FE_NAME} PRIVATE ngraph frontend_manager::static)
+target_link_libraries(${PYBIND_FE_NAME} PRIVATE ngraph frontend_common::static)
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE ${TARGET_FE_NAME})
 
 add_dependencies(${PYBIND_FE_NAME} ${TARGET_FE_NAME})

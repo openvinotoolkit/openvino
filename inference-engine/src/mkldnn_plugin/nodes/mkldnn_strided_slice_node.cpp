@@ -225,7 +225,7 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
             const auto& srcDims = getInputShapeAtPort(DATA_ID).getDims();
             if (srcDims[1] == Shape::UNDEFINED_DIM)
                 return false;
-            auto channelBeginNormalized = attrs.begin[1] > 0 ? attrs.begin[1] : attrs.begin[1] + srcDims[1];
+            auto channelBeginNormalized = attrs.begin[1] > 0 ? attrs.begin[1] : attrs.begin[1] + static_cast<std::int64_t>(srcDims[1]);
             return srcDims[1] % blockSize == 0 && abs(attrs.stride[1]) == 1 &&
             (channelBeginNormalized > srcDims[1] || channelBeginNormalized % blockSize == 0 || channelBeginNormalized < 0 || attrs.beginMask[1] == 0);
         };
