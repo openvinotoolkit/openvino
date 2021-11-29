@@ -7,6 +7,7 @@ from openvino.exceptions import UserInputError
 from openvino.utils.node_factory import NodeFactory
 from _pyngraph import NodeFactory as _NodeFactory
 
+
 def test_node_factory_add():
     shape = [2, 2]
     dtype = np.int8
