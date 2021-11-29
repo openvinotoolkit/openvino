@@ -70,7 +70,7 @@ def get_element_type(precision):
     raise Exception("Can't find openvino element type for precision: " + precision)
 
 
-def process_precision(function: Function, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+def pre_post_processing(function: Function, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
     pre_post_processor = PrePostProcessor(function)
     if input_precision:
         element_type = get_element_type(input_precision)
@@ -110,6 +110,11 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
             else:
                 app_inputs_info[i].element_type = inputs[i].get_element_type()
+
+    # set layout for model input
+    for info in app_inputs_info:
+        pre_post_processor.input(info.name).network().set_layout(info.layout)
+
     function = pre_post_processor.build()
 
 

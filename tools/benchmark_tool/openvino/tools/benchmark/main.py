@@ -12,7 +12,7 @@ from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_D
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
-from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, process_precision, \
+from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, pre_post_processing, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_batch_size, load_config, dump_config, get_latency_groups
@@ -276,7 +276,7 @@ def run(args):
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
 
-            process_precision(function, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
+            pre_post_processing(function, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
             print_inputs_and_outputs_info(function)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
