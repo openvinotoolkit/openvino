@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "HeteroPlugin")
+set (TARGET_NAME "ov_hetero_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
@@ -10,7 +10,8 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
               SOURCES ${SOURCES} ${HEADERS}
-              VERSION_DEFINES_FOR hetero_plugin.cpp)
+              VERSION_DEFINES_FOR plugin.cpp
+              ADD_CLANG_FORMAT)
 
 ie_faster_build(${TARGET_NAME}
     UNITY

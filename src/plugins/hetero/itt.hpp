@@ -4,7 +4,7 @@
 
 /**
  * @brief Defines openvino domains for tracing
- * @file hetero_itt.hpp
+ * @file itt.hpp
  */
 
 #pragma once
@@ -14,7 +14,7 @@
 namespace HeteroPlugin {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(HeteroPlugin);
+OV_ITT_DOMAIN(HeteroPlugin);
 }
-}
-}
+}  // namespace itt
+}  // namespace HeteroPlugin

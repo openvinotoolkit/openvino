@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include "ie_metric_helpers.hpp"
-#include "hetero_executable_network.hpp"
-#include "hetero_async_infer_request.hpp"
-#include "hetero_itt.hpp"
+#include "executable_network.hpp"
+#include "async_infer_request.hpp"
+#include "itt.hpp"
 #include "ie_precision.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
@@ -34,7 +35,7 @@
 #include "ie_plugin_config.hpp"
 #include "ie_algorithm.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "hetero_plugin.hpp"
+#include "plugin.hpp"
 #include <ie_algorithm.hpp>
 
 #include <ngraph/function.hpp>
@@ -45,6 +46,7 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+// clang-format on
 
 using namespace InferenceEngine;
 using namespace details;
@@ -52,25 +54,25 @@ using namespace HeteroPlugin;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::HeteroConfigParams;
 
-template<typename T>
+template <typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
-HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork&     network,
-                                                 const Engine::Configs&                 config,
-                                                 Engine*                                plugin):
-    InferenceEngine::ExecutableNetworkThreadSafeDefault(
-        nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
-    _heteroPlugin{plugin},
-    _name{network.getName()},
-    _config{config} {
+HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
+                                                 const Engine::Configs& config,
+                                                 Engine* plugin)
+    : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
+                                                          std::make_shared<InferenceEngine::ImmediateExecutor>()),
+      _heteroPlugin{plugin},
+      _name{network.getName()},
+      _config{config} {
     auto function = network.getFunction();
     IE_ASSERT(function != nullptr);
     auto clonedFunction = ngraph::clone_function(*function);
     auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
     bool dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
-//#ifndef NDEBUG
-//    dumpDotFile  = true;
-//#endif
+    //#ifndef NDEBUG
+    //    dumpDotFile  = true;
+    //#endif
 
     QueryNetworkResult queryNetworkResult;
     auto orderedOps = clonedFunction->get_ordered_ops();
@@ -101,7 +103,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     using NodeSet = std::unordered_set<ngraph::Node*>;
     using InputSet = std::set<Input>;
 
-    auto InputNode  = [] (const ngraph::Input<ngraph::Node>& input) {
+    auto InputNode = [](const ngraph::Input<ngraph::Node>& input) {
         return input.get_source_output().get_node();
     };
 
@@ -109,13 +111,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     for (auto&& node : clonedFunction->get_ops()) {
         if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
             if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
-                auto& nodeWithAffinityName = ngraph::op::is_output(node)
-                                           ? node->input_value(0).get_node()->get_friendly_name()
-                                           : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
+                auto& nodeWithAffinityName =
+                    ngraph::op::is_output(node)
+                        ? node->input_value(0).get_node()->get_friendly_name()
+                        : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
                 auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
                 if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                    IE_THROW() << "Node " << nodeWithAffinityName <<
-                                        " was not assigned on any pointed device.";
+                    IE_THROW() << "Node " << nodeWithAffinityName << " was not assigned on any pointed device.";
                 }
                 queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
             }
@@ -131,18 +133,18 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             affinities[node.get()] = itAffinity->second;
             devices.emplace(itAffinity->second);
         } else if (allEmpty) {
-            IE_THROW() << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
-                node->get_friendly_name() << ", Type: " << node->get_type_name() <<
-                ") were not able to be assigned on any pointed device.\n" <<
-                "It happened because these layers are not supported in plugins by default.\n" <<
-                "You need to implement custom layers to support them.";
+            IE_THROW() << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:"
+                       << node->get_friendly_name() << ", Type: " << node->get_type_name()
+                       << ") were not able to be assigned on any pointed device.\n"
+                       << "It happened because these layers are not supported in plugins by default.\n"
+                       << "You need to implement custom layers to support them.";
         } else {
-            IE_THROW() << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
-                node->get_friendly_name() << ", Type: " << node->get_type_name() <<
-                ") were not assigned to any device.\n" <<
-                "It might happen if you assigned layers manually and missed some layers or\n" <<
-                "if you used some automatic assigning mode which decided that these layers are not\n" <<
-                "supported by any plugin";
+            IE_THROW() << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:"
+                       << node->get_friendly_name() << ", Type: " << node->get_type_name()
+                       << ") were not assigned to any device.\n"
+                       << "It might happen if you assigned layers manually and missed some layers or\n"
+                       << "if you used some automatic assigning mode which decided that these layers are not\n"
+                       << "supported by any plugin";
         }
     }
 
@@ -164,17 +166,21 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     };
 
     if (dumpDotFile) {
-        ngraph::pass::VisualizeTree{"hetero_affinity_" + _name + ".dot",
-            [&] (const ngraph::Node& node, std::vector<std::string>& attributes) {
+        ngraph::pass::VisualizeTree{
+            "hetero_affinity_" + _name + ".dot",
+            [&](const ngraph::Node& node, std::vector<std::string>& attributes) {
                 auto nodeDevice = queryNetworkResult.supportedLayersMap.at(node.get_friendly_name());
                 int colorIndex = 0;
                 for (auto&& device : devices) {
                     if (device == nodeDevice) {
-                        attributes.push_back(std::string {"fillcolor="} + colors[colorIndex % colors.size()] + " style=filled");
-                        auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [] (const std::string& str) {
-                            return str.find("label") != std::string::npos;
-                        });
-                        auto label = "\\ndevice=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
+                        attributes.push_back(std::string{"fillcolor="} + colors[colorIndex % colors.size()] +
+                                             " style=filled");
+                        auto itLabel =
+                            std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
+                                return str.find("label") != std::string::npos;
+                            });
+                        auto label =
+                            "\\ndevice=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
                         IE_ASSERT(itLabel != attributes.end());
                         itLabel->pop_back();
                         (*itLabel) += label;
@@ -182,9 +188,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     }
                     colorIndex++;
                 }
-            }}.run_on_function(ngraph::clone_function(*function));
+            }}
+            .run_on_function(ngraph::clone_function(*function));
     }
-
 
     NodeMap<InputSet> nodeInputDependencies;
     NodeSet graphInputNodes;
@@ -245,7 +251,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     };
 
     // Split cyclic dependencies.
-    for (std::size_t prevSubgraphs = 0, cyclicSplitStep = 0; prevSubgraphs != subgraphInputs.size(); ++cyclicSplitStep) {
+    for (std::size_t prevSubgraphs = 0, cyclicSplitStep = 0; prevSubgraphs != subgraphInputs.size();
+         ++cyclicSplitStep) {
         IE_ASSERT(cyclicSplitStep < orderedOps.size());
         prevSubgraphs = subgraphInputs.size();
         auto subgraphIds = CollectSubgraphs();
@@ -282,10 +289,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     }
                 }
                 for (auto&& input : node->inputs()) {
-                    auto& inputNodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[InputNode(input)];
+                    auto& inputNodeSubgraphCyclicInputDependency =
+                        nodeSubgraphCyclicInputDependencies[InputNode(input)];
                     auto& inputNodeSubgraphInputDependency = nodeSubgraphInputDependencies[InputNode(input)];
-                    if (!Intersects(nodeSubgraphCyclicInputDependency,
-                                    inputNodeSubgraphCyclicInputDependency) &&
+                    if (!Intersects(nodeSubgraphCyclicInputDependency, inputNodeSubgraphCyclicInputDependency) &&
                         Intersects(cyclicInputsDependencies, inputNodeSubgraphInputDependency)) {
                         subgraphInputs.insert(input);
                     }
@@ -303,30 +310,32 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             auto output = input.get_source_output();
             output.remove_target_input(input);
             auto result = std::make_shared<ngraph::op::Result>(output);
-            result->set_friendly_name(output.get_node()->get_friendly_name()
-                + "_" + std::to_string(output.get_index()) + "_result");
+            result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
+                                      std::to_string(output.get_index()) + "_result");
             ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
-            auto parameter = std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_partial_shape());
-            parameter->set_friendly_name(input.get_node()->get_friendly_name()
-                + "_" + std::to_string(input.get_index()) + "_parameter");
+            auto parameter =
+                std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_partial_shape());
+            parameter->set_friendly_name(input.get_node()->get_friendly_name() + "_" +
+                                         std::to_string(input.get_index()) + "_parameter");
             ngraph::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
             input.replace_source_output(parameter->output(0));
             results.push_back(result);
             subgraphIds.emplace(result.get(), subgraphIds[output.get_node()]);
             subgraphIds.emplace(parameter.get(), subgraphIds[input.get_node()]);
             subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
-            _blobNameMap.emplace(parameter->get_friendly_name(),
-                                 output.get_node()->get_friendly_name() +
-                                 ((output.get_node()->get_output_size() != 1)
-                                 ? ("." + std::to_string(output.get_index())) : std::string{}));
+            _blobNameMap.emplace(
+                parameter->get_friendly_name(),
+                output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
+                                                              ? ("." + std::to_string(output.get_index()))
+                                                              : std::string{}));
         }
     }
 
     struct Subgraph {
-        ngraph::ResultVector    _results;
+        ngraph::ResultVector _results;
         ngraph::ParameterVector _parameters;
-        ngraph::SinkVector      _sinks;
-        std::string             _affinity;
+        ngraph::SinkVector _sinks;
+        std::string _affinity;
     };
     std::unordered_map<int, Subgraph> subgraphs;
     // Extracts subgraph parameters, results and affinities
@@ -334,14 +343,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         auto node = subgraphIdPtrValue.first;
         auto& subgraph = subgraphs[subgraphIdPtrValue.second];
         if (ngraph::op::is_output(node)) {
-            subgraph._results.emplace_back(
-                std::dynamic_pointer_cast<ngraph::op::v0::Result>(node->shared_from_this()));
+            subgraph._results.emplace_back(std::dynamic_pointer_cast<ngraph::op::v0::Result>(node->shared_from_this()));
         } else if (ngraph::op::is_parameter(node)) {
             subgraph._parameters.emplace_back(
                 std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
         } else if (ngraph::op::is_sink(node)) {
-            subgraph._sinks.emplace_back(
-                    std::dynamic_pointer_cast<ngraph::op::Sink>(node->shared_from_this()));
+            subgraph._sinks.emplace_back(std::dynamic_pointer_cast<ngraph::op::Sink>(node->shared_from_this()));
         }
         auto itAffinity = affinities.find(node);
         if (itAffinity != affinities.end()) {
@@ -362,20 +369,24 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         IE_ASSERT(subgraphTopoSortsStep < subgraphs.size());
         ++subgraphTopoSortsStep;
         std::vector<Subgraph> nextSubgraphs;
-        auto IsNextSubGraph = [&] (const Subgraph& subgraph) {
+        auto IsNextSubGraph = [&](const Subgraph& subgraph) {
             auto& parameters = subgraph._parameters;
-            return std::all_of(parameters.begin(), parameters.end(),
-                    [&] (const ngraph::ParameterVector::value_type& parameter) {
-                    return contains(graphInputNodes, parameter.get()) ||
-                           contains(prevResults, subgraphParameterToPrevResult[parameter.get()]);});
+            return std::all_of(parameters.begin(),
+                               parameters.end(),
+                               [&](const ngraph::ParameterVector::value_type& parameter) {
+                                   return contains(graphInputNodes, parameter.get()) ||
+                                          contains(prevResults, subgraphParameterToPrevResult[parameter.get()]);
+                               });
         };
-        std::remove_copy_if(std::begin(allSubgraphs), std::end(allSubgraphs),
+        std::remove_copy_if(std::begin(allSubgraphs),
+                            std::end(allSubgraphs),
                             std::back_inserter(nextSubgraphs),
-                            [&] (const Subgraph& subgraph) { return !IsNextSubGraph(subgraph);});
-        allSubgraphs.erase(
-            std::remove_if(std::begin(allSubgraphs), std::end(allSubgraphs), IsNextSubGraph),
-            std::end(allSubgraphs));
-        for (auto&& subgraph :  nextSubgraphs) {
+                            [&](const Subgraph& subgraph) {
+                                return !IsNextSubGraph(subgraph);
+                            });
+        allSubgraphs.erase(std::remove_if(std::begin(allSubgraphs), std::end(allSubgraphs), IsNextSubGraph),
+                           std::end(allSubgraphs));
+        for (auto&& subgraph : nextSubgraphs) {
             for (auto&& result : subgraph._results) {
                 prevResults.insert(result.get());
             }
@@ -390,9 +401,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     int id = 0;
     for (auto&& subgraph : orderedSubgraphs) {
         _networks[id]._device = subgraph._affinity;
-        subFunctions[id] =
-            std::make_shared<ngraph::Function>(subgraph._results, subgraph._sinks, subgraph._parameters,
-                                                     _name + '_' + std::to_string(id));
+        subFunctions[id] = std::make_shared<ngraph::Function>(subgraph._results,
+                                                              subgraph._sinks,
+                                                              subgraph._parameters,
+                                                              _name + '_' + std::to_string(id));
         _networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
         // update of pre-processing info
         auto clonedInputs = _networks[id]._clonedNetwork.getInputsInfo();
@@ -414,9 +426,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             }
         }
 
-        auto toLegacyType = [] (const ngraph::element::Type& ngraph_type) {
-            return (ngraph_type == ngraph::element::f16 || ngraph_type == ngraph::element::bf16) ?
-                ngraph::element::f32 : ngraph_type;
+        auto toLegacyType = [](const ngraph::element::Type& ngraph_type) {
+            return (ngraph_type == ngraph::element::f16 || ngraph_type == ngraph::element::bf16) ? ngraph::element::f32
+                                                                                                 : ngraph_type;
         };
 
         // CNNNetwork converts input and output types to preserve legacy behaviour
@@ -428,8 +440,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     auto name = parameter->get_friendly_name();
                     if (parameter->get_friendly_name() == input.first) {
                         input.second->setPrecision(
-                            InferenceEngine::details::convertPrecision(
-                                toLegacyType(parameter->get_element_type())));
+                            InferenceEngine::details::convertPrecision(toLegacyType(parameter->get_element_type())));
                     }
                 }
             }
@@ -441,8 +452,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     auto output_name = ngraph::op::util::create_ie_output_name(source_output);
                     if (output_name == output.first) {
                         output.second->setPrecision(
-                            InferenceEngine::details::convertPrecision(
-                                toLegacyType(source_output.get_element_type())));
+                            InferenceEngine::details::convertPrecision(toLegacyType(source_output.get_element_type())));
                     }
                 }
             }
@@ -450,37 +460,42 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         ++id;
     }
     if (dumpDotFile) {
-        ngraph::pass::VisualizeTree{"hetero_subgraphs_" + _name + ".dot",
-            [&] (const ngraph::Node& node, std::vector<std::string>& attributes) {
+        ngraph::pass::VisualizeTree{
+            "hetero_subgraphs_" + _name + ".dot",
+            [&](const ngraph::Node& node, std::vector<std::string>& attributes) {
                 for (size_t i = 0; i < subFunctions.size(); i++) {
                     for (auto&& nodeInSubfunction : subFunctions[i]->get_ops()) {
                         if (nodeInSubfunction->get_friendly_name() == node.get_friendly_name()) {
-                            attributes.push_back(std::string {"fillcolor="} + colors[i % colors.size()] + " style=filled");
-                            auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [] (const std::string& str) {
-                                return str.find("label") != std::string::npos;
-                            });
-                            auto label = "\\nsubgraph=" + std::to_string(i) + "\\n"
-                                       + "device=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
+                            attributes.push_back(std::string{"fillcolor="} + colors[i % colors.size()] +
+                                                 " style=filled");
+                            auto itLabel =
+                                std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
+                                    return str.find("label") != std::string::npos;
+                                });
+                            auto label = "\\nsubgraph=" + std::to_string(i) + "\\n" + "device=" +
+                                         queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
                             IE_ASSERT(itLabel != attributes.end());
                             itLabel->pop_back();
                             (*itLabel) += label;
                         }
                     }
                 }
-            }}.run_on_function(ngraph::clone_function(*function));
+            }}
+            .run_on_function(ngraph::clone_function(*function));
     }
     for (auto&& network : _networks) {
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
         metaDevices[network._device].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
-            network._device, metaDevices[network._device]);
+                                                                 network._device,
+                                                                 metaDevices[network._device]);
     }
 }
 
-HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                               heteroModel,
-                                                 const std::map<std::string, std::string>&   configs,
-                                                 Engine*                                     heteroPlugin) :
-    _heteroPlugin(heteroPlugin) {
+HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
+                                                 const std::map<std::string, std::string>& configs,
+                                                 Engine* heteroPlugin)
+    : _heteroPlugin(heteroPlugin) {
     std::string heteroXmlStr;
     std::getline(heteroModel, heteroXmlStr);
 
@@ -498,24 +513,20 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     std::unordered_set<std::string> networkInputs;
     pugi::xml_node inputsNode = heteroNode.child("inputs");
-    FOREACH_CHILD(inputNode, inputsNode, "input")  {
-        networkInputs.insert(GetStrAttr(inputNode, "name"));
-    }
+    FOREACH_CHILD (inputNode, inputsNode, "input") { networkInputs.insert(GetStrAttr(inputNode, "name")); }
 
     std::unordered_set<std::string> networkOutputs;
     pugi::xml_node outputsNode = heteroNode.child("outputs");
-    FOREACH_CHILD(outputNode, outputsNode, "output") {
-        networkOutputs.insert(GetStrAttr(outputNode, "name"));
-    }
+    FOREACH_CHILD (outputNode, outputsNode, "output") { networkOutputs.insert(GetStrAttr(outputNode, "name")); }
 
     Engine::Configs importedConfigs;
     auto configsNode = heteroNode.child("configs");
-    FOREACH_CHILD(configNode, configsNode, "config") {
+    FOREACH_CHILD (configNode, configsNode, "config") {
         importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
     }
 
     auto blobNamesNode = heteroNode.child("blob_names_map");
-    FOREACH_CHILD(blobNameNode, blobNamesNode, "blob_name_map") {
+    FOREACH_CHILD (blobNameNode, blobNamesNode, "blob_name_map") {
         _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
     }
 
@@ -525,7 +536,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     std::vector<NetworkDesc> descs;
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
-    FOREACH_CHILD(subnetworkNode, subnetworksNode, "subnetwork") {
+    FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
         auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, importedConfigs);
@@ -560,14 +571,14 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
             auto inputs = cnnnetwork.getInputsInfo();
             auto inputsNode = subnetworkNode.child("inputs");
-            FOREACH_CHILD(inputNode, inputsNode, "input") {
+            FOREACH_CHILD (inputNode, inputsNode, "input") {
                 auto inputName = GetStrAttr(inputNode, "name");
                 inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
             }
 
             auto outputs = cnnnetwork.getOutputsInfo();
             auto outputsNode = subnetworkNode.child("outputs");
-            FOREACH_CHILD(outputNode, outputsNode, "output") {
+            FOREACH_CHILD (outputNode, outputsNode, "output") {
                 auto outputName = GetStrAttr(outputNode, "name");
                 outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
             }
@@ -596,21 +607,19 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         });
     }
 
-    const auto parseNode = [] (const pugi::xml_node & xml_node, bool is_param) ->
-        std::shared_ptr<const ov::Node> {
+    const auto parseNode = [](const pugi::xml_node& xml_node, bool is_param) -> std::shared_ptr<const ov::Node> {
         const std::string operation_name = GetStrAttr(xml_node, "operation_name");
-        const auto elementType =
-            ov::EnumNames<ov::element::Type_t>::as_enum(GetStrAttr(xml_node, "element_type"));
+        const auto elementType = ov::EnumNames<ov::element::Type_t>::as_enum(GetStrAttr(xml_node, "element_type"));
 
         std::vector<ov::Dimension> partialShape;
         pugi::xml_node partialShapeNode = xml_node.child("partial_shape");
-        FOREACH_CHILD(dimNode, partialShapeNode, "dim") {
+        FOREACH_CHILD (dimNode, partialShapeNode, "dim") {
             partialShape.emplace_back(ov::Dimension(GetInt64Attr(dimNode, "value")));
         }
 
         pugi::xml_node tensorNamesNode = xml_node.child("tensor_names");
         std::unordered_set<std::string> tensorNames;
-        FOREACH_CHILD(tensorNameNode, tensorNamesNode, "tensor_name") {
+        FOREACH_CHILD (tensorNameNode, tensorNamesNode, "tensor_name") {
             tensorNames.insert(GetStrAttr(tensorNameNode, "value"));
         }
 
@@ -625,14 +634,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     (void)parseNode;
 
     pugi::xml_node parametersNode = heteroNode.child("parameters");
-    FOREACH_CHILD(parameterNode, parametersNode, "parameter") {
+    FOREACH_CHILD (parameterNode, parametersNode, "parameter") {
         _parameters.emplace_back(parseNode(parameterNode, true));
     }
 
     pugi::xml_node resultsNode = heteroNode.child("results");
-    FOREACH_CHILD(resultNode, resultsNode, "result") {
-        _results.emplace_back(parseNode(resultNode, false));
-    }
+    FOREACH_CHILD (resultNode, resultsNode, "result") { _results.emplace_back(parseNode(resultNode, false)); }
 
     // save state
     this->_config = importedConfigs;
@@ -657,28 +664,26 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
         outputsNode.append_child("output").append_attribute("name").set_value(networkInput.first.c_str());
     }
 
-    const auto serializeNode = [&] (const std::shared_ptr<const ov::Node>& node,
-        pugi::xml_node & xml_node) {
+    const auto serializeNode = [&](const std::shared_ptr<const ov::Node>& node, pugi::xml_node& xml_node) {
         const bool is_result = ov::is_type<ov::op::v0::Result>(node);
-        const std::string name = is_result ?
-            ngraph::op::util::create_ie_output_name(node->input_value(0)) :
-            node->get_friendly_name();
+        const std::string name =
+            is_result ? ngraph::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
         xml_node.append_attribute("operation_name").set_value(name.c_str());
-        xml_node.append_attribute("element_type").set_value(
-            node->get_output_element_type(0).get_type_name().c_str());
+        xml_node.append_attribute("element_type").set_value(node->get_output_element_type(0).get_type_name().c_str());
 
-        const auto & pShape = node->get_output_partial_shape(0);
+        const auto& pShape = node->get_output_partial_shape(0);
         OPENVINO_ASSERT(pShape.rank().is_static(), "Serialization of shapes with dynamic rank is not supported");
         auto partialShapeNode = xml_node.append_child("partial_shape");
-        for (auto && dim : node->get_output_partial_shape(0)) {
+        for (auto&& dim : node->get_output_partial_shape(0)) {
             if (dim.is_dynamic())
                 partialShapeNode.append_child("dim").append_attribute("value").set_value("-1");
             else
-                partialShapeNode.append_child("dim").append_attribute("value").set_value(std::to_string(dim.get_length()).c_str());
+                partialShapeNode.append_child("dim").append_attribute("value").set_value(
+                    std::to_string(dim.get_length()).c_str());
         }
 
         auto tensorNamesNode = xml_node.append_child("tensor_names");
-        for (auto & tensorName : node->get_output_tensor(0).get_names()) {
+        for (auto& tensorName : node->get_output_tensor(0).get_names()) {
             tensorNamesNode.append_child("tensor_name").append_attribute("value").set_value(tensorName.c_str());
         }
     };
@@ -753,8 +758,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
 
             // Note: custom ngraph extensions are not supported
             std::stringstream xmlFile, binFile;
-            ov::pass::Serialize serializer(xmlFile, binFile,
-                ov::pass::Serialize::Version::IR_V10);
+            ov::pass::Serialize serializer(xmlFile, binFile, ov::pass::Serialize::Version::IR_V10);
             serializer.run_on_function(subnet.getFunction());
 
             auto m_constants = binFile.str();
@@ -784,15 +788,11 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
         desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
         inferRequests.push_back(desc);
     }
-    return std::make_shared<HeteroInferRequest>(inputs,
-                                                outputs,
-                                                inferRequests,
-                                                _blobNameMap);
+    return std::make_shared<HeteroInferRequest>(inputs, outputs, inferRequests, _blobNameMap);
 }
 
-IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
-        InputsDataMap networkInputs,
-        OutputsDataMap networkOutputs) {
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
+                                                                           OutputsDataMap networkOutputs) {
     HeteroInferRequest::SubRequestsList inferRequests;
     int index = 0;
     for (auto&& subnetwork : _networks) {
@@ -801,17 +801,14 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
         desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
         inferRequests.push_back(desc);
     }
-    return std::make_shared<HeteroInferRequest>(networkInputs,
-                                                networkOutputs,
-                                                inferRequests,
-                                                _blobNameMap);
+    return std::make_shared<HeteroInferRequest>(networkInputs, networkOutputs, inferRequests, _blobNameMap);
 }
 
 IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<HeteroAsyncInferRequest>();
 }
 
-InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string &name) const {
+InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string& name) const {
     InferenceEngine::Parameter result;
     if (name == "TARGET_FALLBACK") {
         auto it = _config.find(name);
@@ -820,8 +817,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string 
         } else {
             result = std::string{};
         }
-    } else if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) ||
-               name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
+    } else if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) || name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
         auto it = _config.find(name);
         IE_ASSERT(it != _config.end());
         result = it->second == YES ? true : false;
@@ -830,7 +826,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string 
         for (auto&& desc : _networks) {
             auto execNetwork = desc._network;
             auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-            for (auto && configKey : param.as<std::vector<std::string>>()) {
+            for (auto&& configKey : param.as<std::vector<std::string>>()) {
                 if (configKey == name) {
                     return execNetwork->GetConfig(configKey);
                 }
@@ -847,16 +843,14 @@ using Metrics = std::map<std::string, Parameter>;
 
 namespace {
 
-void collectPluginMetrics(std::vector<std::string> & baseMetrics,
-                          const std::vector<::Metrics> pluginMetrics) {
+void collectPluginMetrics(std::vector<std::string>& baseMetrics, const std::vector<::Metrics> pluginMetrics) {
     // check whether the metric has unique name and value among all the plugins
-    auto isMetricValueUnique = [&](const std::string & key,
-                                    const Parameter & value) -> bool {
-        if (std::find(baseMetrics.begin(), baseMetrics.end(), key) !=  baseMetrics.end())
+    auto isMetricValueUnique = [&](const std::string& key, const Parameter& value) -> bool {
+        if (std::find(baseMetrics.begin(), baseMetrics.end(), key) != baseMetrics.end())
             return false;
 
-        for (auto && metrics : pluginMetrics) {
-            for (auto && metric : metrics)
+        for (auto&& metrics : pluginMetrics) {
+            for (auto&& metric : metrics)
                 if (key == metric.first && value != metric.second)
                     return false;
         }
@@ -866,8 +860,8 @@ void collectPluginMetrics(std::vector<std::string> & baseMetrics,
 
     // collect only unique metrics
     std::vector<std::string> uniqueMetrics;
-    for (auto && metrics : pluginMetrics) {
-        for (auto && metric : metrics) {
+    for (auto&& metrics : pluginMetrics) {
+        for (auto&& metric : metrics) {
             if (isMetricValueUnique(metric.first, metric.second)) {
                 uniqueMetrics.push_back(metric.first);
             }
@@ -880,14 +874,12 @@ void collectPluginMetrics(std::vector<std::string> & baseMetrics,
 
 }  // namespace
 
-InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string &name) const {
+InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string& name) const {
     if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        std::vector<std::string> heteroMetrics = {
-            METRIC_KEY(NETWORK_NAME),
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)
-        };
+        std::vector<std::string> heteroMetrics = {METRIC_KEY(NETWORK_NAME),
+                                                  METRIC_KEY(SUPPORTED_METRICS),
+                                                  METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                  METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 
         {
             std::vector<::Metrics> pluginMetrics;
@@ -895,7 +887,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
                 auto execNetwork = desc._network;
                 auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
                 ::Metrics metrics;
-                for (auto && metricName : param.as<std::vector<std::string>>()) {
+                for (auto&& metricName : param.as<std::vector<std::string>>()) {
                     metrics[metricName] = execNetwork->GetMetric(metricName);
                 }
                 pluginMetrics.push_back(std::move(metrics));
@@ -906,11 +898,9 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
 
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> heteroConfigKeys = {
-            "TARGET_FALLBACK",
-            HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
-            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)
-        };
+        std::vector<std::string> heteroConfigKeys = {"TARGET_FALLBACK",
+                                                     HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
+                                                     CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
 
         {
             std::vector<::Metrics> pluginConfigKeys;
@@ -918,7 +908,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
                 auto execNetwork = desc._network;
                 auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 ::Metrics configKeys;
-                for (auto && metricName : param.as<std::vector<std::string>>()) {
+                for (auto&& metricName : param.as<std::vector<std::string>>()) {
                     configKeys[metricName] = execNetwork->GetConfig(metricName);
                 }
                 pluginConfigKeys.push_back(std::move(configKeys));
@@ -933,7 +923,8 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
     } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = 0u;
         for (auto&& desc : _networks) {
-            value = std::max(value, desc._network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
+            value = std::max(value,
+                             desc._network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
@@ -941,7 +932,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
         for (auto&& desc : _networks) {
             auto execNetwork = desc._network;
             auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
-            for (auto && metricKey : param.as<std::vector<std::string>>()) {
+            for (auto&& metricKey : param.as<std::vector<std::string>>()) {
                 if (metricKey == name) {
                     return execNetwork->GetMetric(metricKey);
                 }

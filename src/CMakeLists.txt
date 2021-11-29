@@ -21,6 +21,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
 endif()
 
+add_subdirectory(plugins)
 add_subdirectory(inference)
 add_subdirectory(common)
 
