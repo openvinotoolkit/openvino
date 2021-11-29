@@ -22,35 +22,6 @@
 
 namespace CLDNNPlugin {
 
-struct ConstProperties {
-    bool isWeights;
-    bool hasGroupDimension;
-    bool reversedChannelsOrder;
-};
-
-static ConstProperties getConstProperties(const std::shared_ptr<ngraph::op::Constant>& op) {
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        auto outTensors = op->get_output_target_inputs(i);
-        for (auto& t : outTensors) {
-            auto outOp = t.get_node();
-            if (dynamic_cast<ngraph::op::v1::Convolution*>(outOp)) {
-                return {t.get_index() == 1, false, false};
-            } else if (dynamic_cast<ngraph::op::v1::BinaryConvolution*>(outOp)) {
-                return {t.get_index() == 1, false, false};
-            } else if (auto castedOp = dynamic_cast<ngraph::op::v1::DeformableConvolution*>(outOp)) {
-                return {t.get_index() == 2, castedOp->get_group() > 1, false};
-            } else if (dynamic_cast<ngraph::op::v1::GroupConvolution*>(outOp)) {
-                return {t.get_index() == 1, true, false};
-            } else if (dynamic_cast<ngraph::op::v1::ConvolutionBackpropData*>(outOp)) {
-                return {t.get_index() == 1, false, true};
-            } else if (dynamic_cast<ngraph::op::v1::GroupConvolutionBackpropData*>(outOp)) {
-                return {t.get_index() == 1, true, true};
-            }
-        }
-    }
-    return {false, false, false};
-}
-
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
     cldnn::tensor constTensor;
     switch (constDims.size()) {
@@ -78,53 +49,86 @@ static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
     return constTensor;
 }
 
+struct ConstProperties {
+    bool needsBatchInterpretation;
+    bool swapOI;
+    bool hasGroupDimension;
+};
+
+static void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::shared_ptr<ngraph::op::v0::Constant>& op, const ConstProperties& props);
+
 static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
-    auto constDims = op->get_shape();
-    cldnn::tensor constTensor = getConstTensor(constDims);
+    const auto& constDims = op->get_shape();
+    auto constUsers = op->get_output_target_inputs(0);
+    size_t numConstUsers = constUsers.size();
+
+    std::unordered_map<std::shared_ptr<ngraph::op::v0::Constant>, ConstProperties> consts = {
+        {op, {false, false, false}}
+    };
+
+    // handleConvWeights function is executed when one of the constant users is ConvolutionBackpropData or GroupConvolutionBackpropData.
+    // In that case, we mark that constant's O and I dimensions need to be swapped.
+    auto handleConvWeights = [&op] (ngraph::Node* conv, std::unordered_map<std::shared_ptr<ngraph::op::v0::Constant>, ConstProperties>& consts,
+                                 size_t& numConstUsers, bool hasGroupDimension) {
+                                 // If constant has multiple users - create its copy and replace 'conv' weights with the copy.
+                                 // This is to make sure that dimension change doesn't break other users of the constant node.
+                                 // It is a shallow copy, but that's fine since in createClDnnConstant
+                                 // every constant created here, gets memcopied to a brand new cldnn::memory.
+                                 if (numConstUsers > 1) {
+                                     auto constant = std::make_shared<ngraph::op::v0::Constant>(*(op.get()));
+                                     conv->input(1).replace_source_output(constant);
+                                     consts.insert({constant, {false, true, hasGroupDimension}});
+                                     numConstUsers--;
+                                 } else {
+                                     consts[op].swapOI = true;
+                                     consts[op].hasGroupDimension = hasGroupDimension;
+                                 }
+                             };
 
     // WA to inconsistency between input and const 1d tensors
     // For Concat along batch we go with batch interpretation
     // For Gather input we go with batch interpretation
-    bool needsBatchInterpretation = false;
-    if (constDims.size() == 1) {
-        for (size_t i = 0; i < op->get_output_size(); i++) {
-            auto outTensors = op->get_output_target_inputs(i);
-
-            for (auto& t : outTensors) {
-                auto outOp = t.get_node();
-                if (auto castedOp = dynamic_cast<ngraph::op::v0::Concat*>(outOp)) {
-                    if (castedOp->get_axis() == 0) {
-                        needsBatchInterpretation = true;
-                        break;
-                    }
-                } else if (ngraph::op::is_binary_elementwise_arithmetic(outOp) ||
-                           ngraph::op::is_binary_elementwise_logical(outOp) ||
-                           ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
-                    bool all_inputs_1d = true;
-                    for (size_t j = 0; j < outOp->get_input_size(); j++) {
-                        auto& in_shape = outOp->get_input_shape(j);
-                        if (in_shape.size() != 1)
-                            all_inputs_1d = false;
-                    }
-                    needsBatchInterpretation = all_inputs_1d;
-                    break;
-                } else if (ngraph::is_type<ngraph::op::v1::Gather>(outOp) ||
-                           ngraph::is_type<ngraph::op::v1::Split>(outOp) ||
-                           ngraph::is_type<ngraph::op::v1::VariadicSplit>(outOp)) {
-                    needsBatchInterpretation = true;
-                    break;
-                }
+    // Also check if constant users is a backprop convolution - in that case O and I need to be swapped.
+    for (auto& node : constUsers) {
+        auto outOp = node.get_node();
+        if (auto castedOp = dynamic_cast<ngraph::op::v0::Concat*>(outOp)) {
+            if (castedOp->get_axis() == 0) {
+                consts[op].needsBatchInterpretation = constDims.size() == 1;
             }
+        } else if (ngraph::op::is_binary_elementwise_arithmetic(outOp) ||
+                   ngraph::op::is_binary_elementwise_logical(outOp) ||
+                   ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
+            bool all_inputs_1d = true;
+            for (size_t j = 0; j < outOp->get_input_size(); j++) {
+                auto& in_shape = outOp->get_input_shape(j);
+                if (in_shape.size() > 1)
+                    all_inputs_1d = false;
+            }
+            consts[op].needsBatchInterpretation = all_inputs_1d && constDims.size() == 1;
+        } else if (ngraph::is_type<ngraph::op::v1::Gather>(outOp) ||
+                   ngraph::is_type<ngraph::op::v1::Split>(outOp) ||
+                   ngraph::is_type<ngraph::op::v1::VariadicSplit>(outOp)) {
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
+        } else if (ngraph::is_type<ngraph::op::v1::ConvolutionBackpropData>(outOp) && node.get_index() == 1) {
+            handleConvWeights(outOp, consts, numConstUsers, false);
+        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolutionBackpropData>(outOp) && node.get_index() == 1) {
+            handleConvWeights(outOp, consts, numConstUsers, true);
         }
     }
 
-    if (needsBatchInterpretation) {
+    for (auto& it : consts) {
+        createClDnnConstant(p, constDims, it.first, it.second);
+    }
+}
+
+void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::shared_ptr<ngraph::op::v0::Constant>& op, const ConstProperties& props) {
+    cldnn::tensor constTensor = getConstTensor(constDims);
+    auto constFormat = DefaultFormatForDims(constDims.size());
+
+    if (props.needsBatchInterpretation) {
         constTensor.batch[0] = constTensor.count();
         constTensor.feature[0] = 1;
     }
-
-    auto constFormat = DefaultFormatForDims(op->get_output_shape(0).size());
-    auto prop = getConstProperties(op);
 
     // If constDims has a dimension = 0, then create tensor with single value
     // TODO: check if dim=0 is a valid case
@@ -132,17 +136,16 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
         constTensor = cldnn::tensor{1};
 
     // Swap O and I dimensions to match expected deconvolution weights format
-    bool swap_oi = prop.isWeights && prop.reversedChannelsOrder;
     size_t inputFeatureElements = 1;
     size_t outputFeatureElements = 1;
     size_t groups = 1;
-    if (swap_oi) {
-        size_t expected_min_rank = 2 + (prop.hasGroupDimension ? 1 : 0);
+    auto newDims = constDims;
+    if (props.swapOI) {
+        size_t expected_min_rank = 2 + (props.hasGroupDimension ? 1 : 0);
         if (expected_min_rank > constDims.size())
             IE_THROW() << "Invalid constant properties or shape";
 
-        auto newDims = constDims;
-        if (prop.hasGroupDimension) {
+        if (props.hasGroupDimension) {
             std::swap(newDims[2], newDims[1]);
             inputFeatureElements = newDims[2];
             outputFeatureElements = newDims[1];
@@ -164,8 +167,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
 
-
-    auto bufIter = p.blobMemCache.find(std::make_pair(data, constDims));
+    auto bufIter = p.blobMemCache.find(std::make_pair(data, newDims));
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
@@ -181,9 +183,9 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
         auto bufSize = constLayout.bytes_count();
 
         // Do actual weights reorder and change O and I channels order
-        if (swap_oi) {
+        if (props.swapOI) {
             auto elementSize = cldnn::data_type_traits::size_of(constLayout.data_type);
-            size_t spatial_dim_off = prop.hasGroupDimension ? 3 : 2;
+            size_t spatial_dim_off = props.hasGroupDimension ? 3 : 2;
             size_t featureSize = elementSize;
             for (size_t i = spatial_dim_off; i < constDims.size(); i++) {
                 featureSize *= constDims[i];
@@ -205,7 +207,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             std::memcpy(&buf[0], &data[0], bufSize);
         }
         p.AddPrimitive(cldnn::data(initialconstPrimID, mem, op->get_friendly_name()));
-        p.blobMemCache[std::make_pair(data, constDims)] = initialconstPrimID;
+        p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
 

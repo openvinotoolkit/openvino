@@ -87,22 +87,11 @@ std::string border_inst::to_string(border_node const& node) {
 border_inst::typed_primitive_inst(network& network, border_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
-    const auto input_format = input_layout.format;
     const auto& input_sizes = input_layout.size;
 
     auto lt_sizes = argument.left_top_sizes.sub(tensor(0));
     auto rb_sizes = argument.right_bottom_sizes.sub(tensor(0));
     auto b_type = argument.type;
-
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
-                                  "Input format",
-                                  input_format.value,
-                                  "supported border primitive input formats",
-                                  format::bfyx,
-                                  format::yxfb,
-                                  format::byxf,
-                                  format::bfzyx,
-                                  format::bfwzyx);
 
     tensor null_tensor = tensor(0);
 

@@ -304,6 +304,7 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | SparseFillEmptyRows | Supported only when it is part of a sub-graph of the special form |
 | SparseReshape | Supported only when it is part of a sub-graph of the special form |
 | SparseSegmentSum | Supported only when it is part of a sub-graph of the special form |
+| SparseSegmentMean | Supported only when it is part of a sub-graph of the special form |
 | SparseToDense | CPU only |
 | Split |  |
 | SplitV |  |
