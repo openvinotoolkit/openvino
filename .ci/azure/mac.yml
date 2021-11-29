@@ -84,7 +84,7 @@ jobs:
   - script: |
       brew install cython
       brew install automake
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
       # Speed up build
       brew install ninja
       # Speed up tests
