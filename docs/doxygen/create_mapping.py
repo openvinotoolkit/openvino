@@ -6,7 +6,8 @@ from pathlib import Path
 
 REPOSITORIES = [
     'openvino',
-    'omz'
+    'omz',
+    'ovms'
 ]
 
 def create_mapping(xml_input: Path, output_dir: Path, strip_path: Path):

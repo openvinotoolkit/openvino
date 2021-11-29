@@ -106,6 +106,7 @@ def process(input_dir, output_dir, exclude_dirs):
 
         md_links = inline_links
         md_links.update(reference_links)
+        md_links = list(filter(lambda x: md_folder.joinpath(x) in label_to_file_map, md_links))
         content = replace_links(content, md_links, md_folder, label_to_file_map, input_dir)
         # content = add_htmlonly(content)
 

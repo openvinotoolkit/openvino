@@ -65,7 +65,7 @@
    :caption: Add-Ons
    :hidden:
 
-   model_server_what_is_openvino_model_server
+   ovms_what_is_openvino_model_server
    ovsa_get_started
 
 .. toctree::
