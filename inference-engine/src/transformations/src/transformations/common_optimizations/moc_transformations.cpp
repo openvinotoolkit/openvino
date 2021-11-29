@@ -84,7 +84,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams
     // should be performed before first ConstantFolding call.
     // The passes can deteach graph branches where zero dimesion is calculated.
-    // Zero dimensions in shape causes creation empty tensors, which are incorrect during CT.
+    // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
