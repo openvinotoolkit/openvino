@@ -489,7 +489,7 @@ int main(int argc, char* argv[]) {
             app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
                                                              FLAGS_layout,
                                                              batchSize,
-                                                             FLAGS_tensor_shape,
+                                                             FLAGS_data_shape,
                                                              FLAGS_iscale,
                                                              FLAGS_imean,
                                                              exeNetwork.GetInputsInfo());
@@ -524,7 +524,7 @@ int main(int argc, char* argv[]) {
             app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
                                                             FLAGS_layout,
                                                             FLAGS_b,
-                                                            FLAGS_tensor_shape,
+                                                            FLAGS_data_shape,
                                                             FLAGS_iscale,
                                                             FLAGS_imean,
                                                             inputInfo,
@@ -545,7 +545,7 @@ int main(int argc, char* argv[]) {
 
             topology_name = cnnNetwork.getName();
             // use batch size according to provided layout and shapes (static case)
-            if (FLAGS_tensor_shape.empty())
+            if (FLAGS_data_shape.empty())
                 batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
             slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
                        << slog::endl;
@@ -598,7 +598,7 @@ int main(int argc, char* argv[]) {
             app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
                                                              FLAGS_layout,
                                                              FLAGS_b,
-                                                             FLAGS_tensor_shape,
+                                                             FLAGS_data_shape,
                                                              FLAGS_iscale,
                                                              FLAGS_imean,
                                                              exeNetwork.GetInputsInfo());
@@ -606,12 +606,19 @@ int main(int argc, char* argv[]) {
                 batchSize = 1;
             }
         }
-        bool isDynamic = app_inputs_info.begin()->begin()->second.partialShape.is_dynamic();
         // Check if network has dynamic shapes
-        if (isDynamic && FLAGS_api == "sync") {
+        auto input_info = app_inputs_info[0];
+        bool isDynamicNetwork = std::any_of(input_info.begin(),
+                                            input_info.end(),
+                                            [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
+                                                return i.second.partialShape.is_dynamic();
+                                            });
+
+        if (isDynamicNetwork && FLAGS_api == "sync") {
             throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
         }
+
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
@@ -719,7 +726,7 @@ int main(int argc, char* argv[]) {
         if (inputFiles.size() > 0) {
             inputHasName = inputFiles.begin()->first != "";
         }
-        bool newInputType = isDynamic || !FLAGS_tensor_shape.empty() || inputHasName;
+        bool newInputType = isDynamicNetwork || !FLAGS_data_shape.empty() || inputHasName;
 
         // create vector to store remote input blobs buffer
         std::vector<::gpu::BufferType> clInputsBuffer;
@@ -794,13 +801,29 @@ int main(int argc, char* argv[]) {
 
         next_step(ss.str());
 
-        // warming up - out of scope
-        bool legacyMode = FLAGS_legacy_mode;
+        // for static models inference mode is used as default one
+        bool inferenceOnly = FLAGS_inference_only;
+        if (isDynamicNetwork) {
+            if (inferenceOnly && isFlagSetInCommandLine("inference_only")) {
+                slog::warn
+                    << "Dynamic models must be benhmarked only in full mode. -inference_only flag will be ignored"
+                    << slog::endl;
+            }
+            inferenceOnly = false;
+        }
 
-        if (legacyMode) {
-            slog::warn << "Benchmark legacy mode was enabled! Input blobs will be filled once before performance "
+        if (inferenceOnly) {
+            slog::info
+                << "Benchmark inference only mode is enabled. Input blobs will be filled once before performance "
+                   "measurements."
+                << slog::endl;
+        } else {
+            slog::info << "Benchmark full mode is enabled. Input blobs setting will be included in performance "
                           "measurements."
                        << slog::endl;
+        }
+
+        if (inferenceOnly) {
             if (nireq < inputsData.begin()->second.size())
                 slog::warn << "Only " << nireq << " test configs will be used." << slog::endl;
             size_t i = 0;
@@ -827,7 +850,7 @@ int main(int argc, char* argv[]) {
             IE_THROW() << "No idle Infer Requests!";
         }
 
-        if (!legacyMode) {
+        if (!inferenceOnly) {
             auto input = app_inputs_info[0];
 
             for (auto& item : input) {
@@ -876,14 +899,14 @@ int main(int argc, char* argv[]) {
                 IE_THROW() << "No idle Infer Requests!";
             }
 
-            if (!legacyMode) {
+            if (!inferenceOnly) {
                 auto input = app_inputs_info[iteration % app_inputs_info.size()];
 
                 if (FLAGS_pcseq) {
                     inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
                 }
 
-                if (isDynamic) {
+                if (isDynamicNetwork) {
                     batchSize = getBatchSize(input);
                 }
 

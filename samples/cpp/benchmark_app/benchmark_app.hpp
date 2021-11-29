@@ -142,7 +142,7 @@ static const char progress_message[] =
 static const char pc_message[] = "Optional. Report performance counters.";
 
 // @brief message for performance counters for sequence option
-static const char pcseq_message[] = "Optional. Report latencies for each shape in --tensor_shape sequence.";
+static const char pcseq_message[] = "Optional. Report latencies for each shape in --data_shape sequence.";
 
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 // @brief message for switching memory allocation type option
@@ -168,10 +168,10 @@ static const char shape_message[] =
     " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
     " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
-static const char tensor_shape_message[] =
+static const char data_shape_message[] =
     "Optional if network shapes are all static (original ones or set by -shape.\n"
     "                              Required if at least one input shape is dynamic."
-    " Set shape for input blobs. For example, \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\""
+    " Set shape for input tensores. For example, \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\""
     " in case of one input size."
     " In case of several input sizes provide the same number for each input (except cases with 1 shape for 1 input):"
     " \"[1,3,128,128][3,3,128,128][1,3,320,320]\", \"input1[1,1,128,128][1,1,256,256],input2[80,1]\""
@@ -214,8 +214,11 @@ static constexpr char input_image_mean_message[] =
     "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model,\n"
     "Example: -imean data[255,255,255],info[255,255,255]\n";
 
-static constexpr char legacy_mode_message[] =
-    "Optional. Enable legacy scenario with inputs filling only once before measurements for static models.\n";
+static constexpr char inference_only_message[] =
+    "Optional. Measure only inference stage. Default option for static models. Dynamic models"
+    " are measured in full mode which includes inputs setting stage."
+    " To enable full mode for static models pass \"false\" value to this argument:"
+    " ex. \"-inference_only=false\".\n";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -317,7 +320,7 @@ DEFINE_string(dump_config, "", dump_config_message);
 DEFINE_string(shape, "", shape_message);
 
 /// @brief Define flag for input blob shape <br>
-DEFINE_string(tensor_shape, "", tensor_shape_message);
+DEFINE_string(data_shape, "", data_shape_message);
 
 /// @brief Define flag for layout shape <br>
 DEFINE_string(layout, "", layout_message);
@@ -349,8 +352,8 @@ DEFINE_string(iscale, "", input_image_scale_message);
 /// @brief Define flag for using input image mean <br>
 DEFINE_string(imean, "", input_image_mean_message);
 
-/// @brief Define flag for showing help message <br>
-DEFINE_bool(legacy_mode, false, legacy_mode_message);
+/// @brief Define flag for inference only mode <br>
+DEFINE_bool(inference_only, true, inference_only_message);
 
 /**
  * @brief This function show a help message
@@ -376,7 +379,7 @@ static void showUsage() {
     std::cout << "    -t                        " << execution_time_message << std::endl;
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
-    std::cout << "    -tensor_shape             " << tensor_shape_message << std::endl;
+    std::cout << "    -data_shape             " << data_shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
     std::cout << "    -cache_dir \"<path>\"       " << cache_dir_message << std::endl;
     std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
@@ -405,5 +408,5 @@ static void showUsage() {
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
     std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
     std::cout << "    -imean                     " << input_image_mean_message << std::endl;
-    std::cout << "    -legacy_mode              " << legacy_mode_message << std::endl;
+    std::cout << "    -inference_only              " << inference_only_message << std::endl;
 }
