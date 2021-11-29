@@ -9,8 +9,6 @@
 #include <openvino/core/type.hpp>
 #include <ie/ie_parallel.hpp>
 #include <utils/jit_kernel.hpp>
-#include <tuple>
-#include <array>
 
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
@@ -19,71 +17,33 @@ using namespace Xbyak;
 
 namespace MKLDNNPlugin {
 
-class MKLDNNColorConvertNode::Converter {
-public:
-    using PrimitiveDescs = std::vector<std::tuple<std::vector<PortConfigurator>,
-                                                    std::vector<PortConfigurator>,
-                                                    impl_desc_type,
-                                                    bool>>;
-    using Shapes = std::vector<VectorDims>;
-
-    static constexpr size_t N_DIM = 0;
-    static constexpr size_t H_DIM = 1;
-    static constexpr size_t W_DIM = 2;
-    static constexpr size_t C_DIM = 3;
-
-    using ColorFormat = std::array<uint8_t, 3>;
-
-    Converter(MKLDNNNode *node, const ColorFormat & colorFormat);
-    virtual ~Converter() = default;
-    InferenceEngine::Precision inputPrecision(size_t idx) const;
-    InferenceEngine::Precision outputPrecision(size_t idx) const;
-    const void * input(size_t idx) const;
-    void * output(size_t idx) const;
-    const VectorDims & inputDims(size_t idx) const;
-    virtual Shapes shapeInfer() const = 0;
-    virtual void prepare() = 0;
-    virtual void execute(mkldnn::stream strm) = 0;
-
-protected:
-    MKLDNNNode *_node;
-    ColorFormat _colorFormat;   // RGB: {0,1,2}, BGR: {2,1,0}
-};
-
 namespace {
 
 std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ngraph::Node>& op) {
     if (ov::is_type<ov::op::v8::NV12toRGB>(op))
-        return std::make_tuple(Algorithm::NV12toRGB, std::string());
+        return std::make_tuple(Algorithm::ColorConvertNV12toRGB, std::string());
     if (ov::is_type<ov::op::v8::NV12toBGR>(op))
-        return std::make_tuple(Algorithm::NV12toBGR, std::string());
+        return std::make_tuple(Algorithm::ColorConvertNV12toBGR, std::string());
     return std::make_tuple(Algorithm::Default, "Only v8::NV12toRGB or v8::NV12toBGR operation is supported");
 }
 
 namespace nv12 {
 
-MKLDNNColorConvertNode::Converter::PrimitiveDescs supportedPrimitives(MKLDNNNode *node) {
-    static const LayoutType layouts[] = {
-        LayoutType::ncsp    // 0,1,2,3
-    };
-    static const Precision precisions[] = {
-        Precision::FP32,
-        Precision::U8,
-    };
+MKLDNNColorConvertNode::Converter::PrimitiveDescs supportedPrimitiveDescs(MKLDNNNode *node) {
+    const LayoutType layout = LayoutType::ncsp; // 0,1,2,3
+
+    const Precision precision = node->getOriginalInputPrecisionAtPort(0) == Precision::U8
+                                    ? Precision::U8
+                                    : Precision::FP32;
 
     MKLDNNColorConvertNode::Converter::PrimitiveDescs descs;
 
-    for (auto layout : layouts)
-        for (const auto & precision : precisions) {
-            descs.emplace_back(std::vector<PortConfigurator> { node->getOriginalInputsNumber(), { layout, precision } },
-                                std::vector<PortConfigurator> { { layout, precision } },
-                                impl_desc_type::ref,
-                                true);
-            descs.emplace_back(std::vector<PortConfigurator> { node->getOriginalInputsNumber(), { layout, precision } },
-                                std::vector<PortConfigurator> { { layout, precision } },
-                                impl_desc_type::jit_uni,
-                                true);
-        }
+    descs.emplace_back(std::vector<PortConfigurator> { node->getOriginalInputsNumber(), { layout, precision } },
+                        std::vector<PortConfigurator> { { layout, precision } },
+                        mayiuse(cpu_isa_t::sse41)
+                            ? impl_desc_type::jit_uni
+                            : impl_desc_type::ref,
+                        true);
 
     return std::move(descs);
 }
@@ -96,7 +56,6 @@ public:
 
 protected:
     Shapes shapeInfer() const override;
-    void prepare() override;
     bool singlePlane() const;
 
     template<typename T>
@@ -111,7 +70,7 @@ protected:
 };
 
 Converter::Converter(MKLDNNNode *node)
-    : Base(node, node->getAlgorithm() == Algorithm::NV12toRGB
+    : Base(node, node->getAlgorithm() == Algorithm::ColorConvertNV12toRGB
                         ? ColorFormat { { 0, 1, 2 } }
                         : ColorFormat { { 2, 1, 0 } }) {
     if (node->getOriginalInputsNumber() != (singlePlane() ? 1: 2))
@@ -129,8 +88,6 @@ Converter::shapeInfer() const {
                 ? Shapes { { dims[N_DIM], dims[H_DIM] * 2 / 3, dims[W_DIM], 3 } }
                 : Shapes { { dims[N_DIM], dims[H_DIM], dims[W_DIM], 3 } };
 }
-
-void Converter::prepare() {}
 
 bool Converter::singlePlane() const {
     return _node->getOriginalInputsNumber() == 1;
@@ -493,7 +450,8 @@ const jit_uni_converter & jit_uni_converter::get() {
             IE_THROW() << "Can't create jit color converter kernel";
         }
 
-        kernel->create_kernel();
+        if (kernel->create_kernel() != status::success)
+            IE_THROW() << "Can't generate jit color converter kernel";
         kernel->_fn = (function_t)kernel->jit_ker();
 
         return std::move(kernel);
@@ -525,14 +483,12 @@ public:
         const size_t stride_uv = height * width * 3 / 2;
 
         InferenceEngine::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args = {
-                y + batch * stride_y + h * width,
-                uv + batch * stride_uv + (h / 2) * width,
-                dst + (batch * width * height + h * width) * 3,
-                width,
-                _colorFormat[0]     // The first byte is enough to determine the RGB or BGR format.
-            };
-
+            typename jit_uni_converter::Params args;
+            args.y = y + batch * stride_y + h * width;
+            args.uv = uv + batch * stride_uv + (h / 2) * width;
+            args.dst = dst + (batch * width * height + h * width) * 3;
+            args.width = width;
+            args.colorFormat = _colorFormat[0]; // The first byte is enough to determine the RGB or BGR format.
             kernel(args);
         });
     }
@@ -559,14 +515,12 @@ public:
         const size_t stride_uv = height * width / 2;
 
         InferenceEngine::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args = {
-                y + batch * stride_y + h * width,
-                uv + batch * stride_uv + (h / 2) * width,
-                dst + (batch * width * height + h * width) * 3,
-                width,
-                _colorFormat[0]     // The first byte is enough to determine the RGB or BGR format.
-            };
-
+            typename jit_uni_converter::Params args;
+            args.y = y + batch * stride_y + h * width;
+            args.uv = uv + batch * stride_uv + (h / 2) * width;
+            args.dst = dst + (batch * width * height + h * width) * 3;
+            args.width = width;
+            args.colorFormat = _colorFormat[0]; // The first byte is enough to determine the RGB or BGR format.
             kernel(args);
         });
     }
@@ -600,6 +554,12 @@ const VectorDims & MKLDNNColorConvertNode::Converter::inputDims(size_t idx) cons
     return _node->getParentEdgesAtPort(idx)[0]->getMemory().getStaticDims();
 }
 
+bool MKLDNNColorConvertNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    Algorithm alg;
+    std::tie(alg, errorMessage) = getAlgorithmFor(op);
+    return alg != Algorithm::Default;
+}
+
 MKLDNNColorConvertNode::MKLDNNColorConvertNode(const std::shared_ptr<ngraph::Node>& op,
                                                const mkldnn::engine& eng,
                                                MKLDNNWeightsSharing::Ptr &cache)
@@ -615,9 +575,9 @@ void MKLDNNColorConvertNode::getSupportedDescriptors() {}
 void MKLDNNColorConvertNode::initSupportedPrimitiveDescriptors() {
     if (supportedPrimitiveDescriptors.empty()) {
         switch (algorithm) {
-            case Algorithm::NV12toRGB:
-            case Algorithm::NV12toBGR: {
-                for (const auto &desc : nv12::supportedPrimitives(this)) {
+            case Algorithm::ColorConvertNV12toRGB:
+            case Algorithm::ColorConvertNV12toBGR: {
+                for (const auto &desc : nv12::supportedPrimitiveDescs(this)) {
                     const auto & inPortConfigs = std::get<0>(desc);
                     const auto & outPortConfigs = std::get<1>(desc);
                     const auto implType = std::get<2>(desc);
@@ -661,7 +621,22 @@ void MKLDNNColorConvertNode::initSupportedNV12Impls() {
 }
 
 void MKLDNNColorConvertNode::createPrimitive() {
-    prepareParams();
+    const NodeDesc *desc = getSelectedPrimitiveDescriptor();
+    if (!desc)
+        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
+                   << "no optimal primitive descriptor selected";
+
+    if (!_impl) {
+        const auto & cfg = desc->getConfig();
+        const auto precision = cfg.inConfs[0].desc->getPrecision();
+        const bool isSinglePlane = cfg.inConfs.size() == 1;
+
+        _impl = std::unique_ptr<Converter>(_supportedImpls
+                                            .at(desc->getImplementationType())
+                                            .at(algorithm)
+                                            .at(precision)
+                                            .at(isSinglePlane)(this));
+    }
 }
 
 void MKLDNNColorConvertNode::execute(mkldnn::stream strm) {
@@ -682,25 +657,8 @@ std::vector<VectorDims> MKLDNNColorConvertNode::shapeInfer() const {
     return _impl->shapeInfer();
 }
 
-void MKLDNNColorConvertNode::prepareParams() {
-    const NodeDesc *desc = getSelectedPrimitiveDescriptor();
-    if (!desc)
-        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
-                   << "no optimal primitive descriptor selected";
-
-    if (!_impl) {
-        const auto & cfg = desc->getConfig();
-        const auto precision = cfg.inConfs[0].desc->getPrecision();
-        const bool isSinglePlane = cfg.inConfs.size() == 1;
-
-        _impl = std::unique_ptr<Converter>(_supportedImpls
-                                            .at(desc->getImplementationType())
-                                            .at(algorithm)
-                                            .at(precision)
-                                            .at(isSinglePlane)(this));
-    }
-
-    _impl->prepare();
+bool MKLDNNColorConvertNode::needPrepareParams() const {
+    return false;
 }
 
 void MKLDNNColorConvertNode::executeDynamicImpl(mkldnn::stream strm) {

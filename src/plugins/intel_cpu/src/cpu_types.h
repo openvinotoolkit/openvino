@@ -225,8 +225,8 @@ enum Algorithm {
     TensorIteratorCommon,
     TensorIteratorLoop,
     // Color conversions
-    NV12toRGB,
-    NV12toBGR,
+    ColorConvertNV12toRGB,
+    ColorConvertNV12toBGR,
 };
 
 extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;

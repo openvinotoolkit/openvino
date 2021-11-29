@@ -156,7 +156,7 @@ struct if_expression {
         : _expr(expr) {}
 
     ~if_expression() {
-        if (!_exit.getAddress())
+        if (!_is_exit_valid)
             _expr._kernel.assignL(_exit, _else);
     }
 
@@ -176,6 +176,7 @@ private:
     const boolean_expression<T> & _expr;
     Xbyak::Label _exit;
     Xbyak::Label _else;
+    bool _is_exit_valid = false;
 
     friend class then_expression<T>;
 };
@@ -591,6 +592,7 @@ template<typename F>
 void then_expression<T>::_else(F && fn) {
     fn();
     _if_expr._expr._kernel.L(_if_expr._exit);
+    _if_expr._is_exit_valid = true;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

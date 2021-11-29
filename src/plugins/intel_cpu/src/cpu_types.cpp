@@ -103,7 +103,6 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "ReadValue", MemoryInput},  // for construction from name ctor, arbitrary name is used
         { "Assign", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
-        { "ColorConvert", ColorConvert },
         { "NV12toRGB", ColorConvert },
         { "NV12toBGR", ColorConvert },
         { "MVN", MVN},
@@ -475,8 +474,8 @@ std::string algToString(const Algorithm alg) {
     CASE(MathTan);
     CASE(TensorIteratorCommon);
     CASE(TensorIteratorLoop);
-    CASE(NV12toRGB);
-    CASE(NV12toBGR);
+    CASE(ColorConvertNV12toRGB);
+    CASE(ColorConvertNV12toBGR);
 #undef CASE
     return "Undefined";
 }
