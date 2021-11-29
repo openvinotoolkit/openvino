@@ -69,6 +69,11 @@ protected:
 
         std::tie(inputShape, attributes, mask, inPrc, outPrc, additionalConfig, targetDevice) = this->GetParam();
 
+        if (inPrc == ov::test::ElementType::bf16) {
+            // ticket #72342
+            rel_threshold = 0.02;
+        }
+
         init_input_shapes({ inputShape });
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
