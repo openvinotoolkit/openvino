@@ -4,8 +4,6 @@
 import json
 
 import numpy as np
-from numpy.core.numeric import _ones_like_dispatcher
-from numpy.lib.arraysetops import isin
 import pytest
 
 import openvino.opset8 as ops
@@ -98,6 +96,7 @@ def test_simple_computation_on_ndarrays(dtype):
     value_c = np.array([[5, 4], [3, 2]], dtype=dtype)
     result = computation(value_a, value_b, value_c)
     assert np.allclose(result, np.array([[110, 96], [78, 56]], dtype=dtype))
+
 
 def test_serialization():
     dtype = np.float32
@@ -331,6 +330,7 @@ def test_node_friendly_name():
 
     assert(dummy_node.get_friendly_name() == "new_name")
 
+
 def test_node_output():
     input_array = np.array([0, 1, 2, 3, 4, 5])
     splits = 3
@@ -363,9 +363,11 @@ def test_node_output():
 
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
 
+
 def test_node_input_size():
     node = ops.add([1], [2])
     assert node.get_input_size() == 2
+
 
 def test_node_input_values():
     shapes = [Shape([3]), Shape([3])]
@@ -396,6 +398,7 @@ def test_node_input_values():
         [data1, data2]
     )
 
+
 def test_node_input_tensor():
     data1 = np.array([[1, 2, 3], [1, 2, 3]])
     data2 = np.array([3, 2, 1])
@@ -409,6 +412,7 @@ def test_node_input_tensor():
     assert(isinstance(inputTensor2, descriptor.Tensor))
     assert np.equal(inputTensor1.get_shape(), data1.shape).all()
     assert np.equal(inputTensor2.get_shape(), data2.shape).all()
+
 
 def test_node_evaluate():
     data1 = np.array([3, 2, 3])
@@ -428,8 +432,9 @@ def test_node_evaluate():
     inputsTensorVector = [inputTensor1, inputTensor2]
 
     outputTensorVector = [Tensor(array=output, shared_memory=True)]
-    assert node.evaluate(outputTensorVector, inputsTensorVector) == True
+    assert node.evaluate(outputTensorVector, inputsTensorVector) is True
     assert np.equal(outputTensorVector[0].data, expected_result).all()
+
 
 def test_node_input():
     shape = [2, 2]
