@@ -187,14 +187,15 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         }
         // Call evaluate for cloned_node with static shapes
         if (!cloned_node->evaluate(op_outputs, op_inputs)) {
-            std::vector<ov::runtime::Tensor> ov_tensor_inputs = create_tmp_tensors(op_inputs);
-            std::vector<ov::runtime::Tensor> ov_tensor_outputs = create_tmp_tensors(op_outputs);
+            evaluate_node(cloned_node, op_outputs, op_inputs);
 
-            if (cloned_node->evaluate(ov_tensor_outputs, ov_tensor_inputs)) {
-                update_output_tensors(op_outputs, ov_tensor_outputs);
-            } else {
-                evaluate_node(cloned_node, op_outputs, op_inputs);
-            }
+            // std::vector<ov::runtime::Tensor> ov_tensor_inputs = create_tmp_tensors(op_inputs);
+            // std::vector<ov::runtime::Tensor> ov_tensor_outputs = create_tmp_tensors(op_outputs);
+            // if (cloned_node->evaluate(ov_tensor_outputs, ov_tensor_inputs)) {
+            //     update_output_tensors(op_outputs, ov_tensor_outputs);
+            // } else {
+            //     evaluate_node(cloned_node, op_outputs, op_inputs);
+            // }
         }
         if (m_performance_counters_enabled) {
             m_timer_map[op].stop();
