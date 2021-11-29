@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.graph.graph import Graph
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 
 
 class ReverseSequence(Op):
@@ -35,3 +35,6 @@ class ReverseSequence(Op):
 
         assert len(node.out_nodes()) == 1
         node.out_port(0).data.set_shape(input_data_shape)
+
+        PermuteAttrs.create_permute_attrs(node, attrs=[('seq_axis', 'input:0')])
+        PermuteAttrs.create_permute_attrs(node, attrs=[('batch_axis', 'input:0')])

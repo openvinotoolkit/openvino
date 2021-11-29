@@ -374,6 +374,8 @@ class PermuteAttrs:
             'ellipsis_mask': slice_permutation,
             'axes': common_permutation_inv,
             'axis': common_permutation_inv,
+            'seq_axis': common_permutation_inv,
+            'batch_axis': common_permutation_inv,
             'batch_dims': common_permutation_inv,
             'channel_dims': common_permutation_inv,
             'spatial_dims': common_permutation_inv,
