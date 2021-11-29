@@ -3,7 +3,7 @@
 
 """Factory functions for all ngraph ops."""
 from functools import partial
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Callable, Iterable, List, Optional, Set, Union, Tuple
 
 import numpy as np
 from ngraph.impl import Node, Shape
