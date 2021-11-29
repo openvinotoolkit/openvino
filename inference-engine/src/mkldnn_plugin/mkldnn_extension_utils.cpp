@@ -127,13 +127,14 @@ DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::des
     }
 }
 
-size_t MKLDNNExtensionUtils::getMemSizeForDnnlDesc(mkldnn::memory::desc desc) {
-    const auto offset0 = desc.data.offset0;
-    desc.data.offset0 = 0;
-    size_t size = desc.get_size();
+size_t MKLDNNExtensionUtils::getMemSizeForDnnlDesc(const mkldnn::memory::desc& desc) {
+    auto tmpDesc = desc;
+    const auto offset0 = tmpDesc.data.offset0;
+    tmpDesc.data.offset0 = 0;
+    size_t size = tmpDesc.get_size();
     if (size == DNNL_RUNTIME_SIZE_VAL)
         return MemoryDesc::UNDEFINED_SIZE;
-    size += offset0 * sizeOfDataType(desc.data_type());
+    size += offset0 * sizeOfDataType(tmpDesc.data_type());
     return size;
 }
 

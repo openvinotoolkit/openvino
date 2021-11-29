@@ -34,8 +34,8 @@ private:
 
     size_t axis_;
     size_t dataTypeSize_ = 0;
-    int strideAxDst_;
-    int dstAxDim_;
+    int strideAxDst_ = 0;
+    int dstAxDim_ = 0;
     int strideAx1Diff_ = 0;
     std::string errorPrefix_;
 

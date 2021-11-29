@@ -27,7 +27,7 @@ public:
 
 private:
     int axis;
-    size_t reducedAxisSize;
+    size_t reducedAxisSize = 0;
     size_t reducedAxisStride = 1;
     size_t axisStep = 1;
     bool isLastDim = false;
