@@ -5,6 +5,7 @@ import numpy as np
 
 from openvino.tools.mo.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
 from openvino.tools.mo.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.eliminate import remove_op_node_with_data_node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -18,6 +19,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
     """
 
     enabled = True
+    force_clean_up = True
 
     def run_after(self):
         return [
@@ -26,45 +28,61 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
         ]
 
     def run_before(self):
-        from openvino.tools.mo.middle.pass_separator import MiddleFinish
+        from extensions.middle.pass_separator import MiddleFinish
         return [MiddleFinish]
 
     @staticmethod
     def is_fusable_reverse_sequence(node: Node):
         sequence_lengths = node.in_port(1).data.get_value()
-        assert sequence_lengths is not None
         input_shape = node.in_port(0).data.get_shape()
         assert input_shape is not None
 
         seq_len = input_shape[node.seq_axis]
-        return np.all(sequence_lengths == seq_len)
+        if sequence_lengths is not None and is_fully_defined(sequence_lengths) and is_fully_defined(seq_len):
+            return np.all(sequence_lengths == seq_len)
+        else:
+            # check that we take sequence_length from input shape based on ReverseV2ToReverseSequence transformation
+            broadcast_node = node.in_port(1).get_source().node
+            if broadcast_node.op != 'Broadcast':
+                return False
+            gather_node = broadcast_node.in_port(0).get_source().node
+            if gather_node.op != "Gather" or \
+                    (np.all(gather_node.in_port(2).data.get_value() != [0]) or
+                     np.all(gather_node.in_port(1).data.get_value() != [node.seq_axis])):
+                return False
+            gather_node_2 = broadcast_node.in_port(1).get_source().node
+            if gather_node_2.op != "Gather" or \
+                    (np.all(gather_node_2.in_port(2).data.get_value() != [0]) or
+                     np.all(gather_node_2.in_port(1).data.get_value() != [node.batch_axis])):
+                return False
+            shape_node = gather_node.in_port(0).get_source().node
+            if shape_node.op != "ShapeOf":
+                return False
+            if shape_node.in_port(0).get_source().node != node.in_port(0).get_source().node:
+                return False
+
+            return True
 
     def pattern(self):
         return dict(
             nodes=[
                 ('input', dict(kind='data')),
 
-                ('const', dict(type='Const')),
-                ('const_d', dict(kind='data')),
-
+                ('direct_seq_len_d', dict(kind='data')),
                 ('direct_reverse', dict(op='ReverseSequence')),
                 ('input_reversed', dict(kind='data')),
                 ('init_hidden', dict(kind='data')),
 
                 ('ti', dict(kind='op', op='TensorIterator')),
-
                 ('output_reversed', dict(kind='data')),
 
-                ('const_1', dict(type='Const')),
-                ('const_1_d', dict(kind='data')),
-
+                ('inverse_seq_len_d', dict(kind='data')),
                 ('inverse_reverse', dict(op='ReverseSequence')),
                 ('output', dict(kind='data')),
             ],
             edges=[
                 ('input', 'direct_reverse', {'in': 0}),
-                ('const', 'const_d'),
-                ('const_d', 'direct_reverse', {'in': 1}),
+                ('direct_seq_len_d', 'direct_reverse', {'in': 1}),
                 ('direct_reverse', 'input_reversed'),
 
                 ('input_reversed', 'ti', {'in': 0}),
@@ -72,8 +90,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                 ('ti', 'output_reversed', {'out': 0}),
 
                 ('output_reversed', 'inverse_reverse', {'in': 0}),
-                ('const_1', 'const_1_d'),
-                ('const_1_d', 'inverse_reverse', {'in': 1}),
+                ('inverse_seq_len_d', 'inverse_reverse', {'in': 1}),
                 ('inverse_reverse', 'output'),
             ]
         )
@@ -106,9 +123,12 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                         port['start'] = -1
                         port['end'] = 0
                     elif port['stride'] == 1:
-                        port['start'] = None
-                        port['end'] = None
+                        port['start'] = 0
+                        port['end'] = -1
 
+        # disconnect subgraph for seq length calculation
+        direct_reverse.in_port(1).disconnect()
+        inverse_reverse.in_port(1).disconnect()
         # Remove reverses
         remove_op_node_with_data_node(graph, direct_reverse)
         remove_op_node_with_data_node(graph, inverse_reverse)

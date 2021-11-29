@@ -9,7 +9,7 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(DEPENDENCIES mock_engine)
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES HeteroPlugin)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
 if(ENABLE_MULTI)
