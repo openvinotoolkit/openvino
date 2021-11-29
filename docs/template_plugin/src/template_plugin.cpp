@@ -165,7 +165,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 #undef _OPENVINO_OP_REG
     for (auto &&node : transformedFunction->get_ops()) {
         // Extract transformation history from transformed node as list of nodes
-        for (auto &&fusedLayerName: ngraph::getFusedNamesVector(node)) {
+        for (auto &&fusedLayerName : ngraph::getFusedNamesVector(node)) {
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
