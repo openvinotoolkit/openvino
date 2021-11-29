@@ -6,7 +6,6 @@
 
 #include "onnx_utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 using ONNXTelemetryTest = FrontEndTelemetryTest;

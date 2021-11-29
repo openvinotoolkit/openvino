@@ -8,7 +8,6 @@
 
 #include "utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 std::string FrontEndTelemetryTest::getTestCaseName(const testing::TestParamInfo<TelemetryFEParam>& obj) {
