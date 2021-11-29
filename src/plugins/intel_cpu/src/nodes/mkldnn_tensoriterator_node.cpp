@@ -509,20 +509,8 @@ void MKLDNNTensorIteratorNode::createPrimitive() {
         initial_cond_check.reset(new staticValueCheck(true));
 
     n_iter = getNumIteration(inputPortMap, outputPortMap);
-    if (!isDynamic) {
-        const auto &eng = getEngine();
-        prepareInputPorts(eng);
-        prepareOutputPorts(eng);
-        prepareBackEdges(eng);
-        // special purpose ports
-        prepareLoopBodyCurrentIteration(eng);
-
-        prepareContinueCond();
-        prepareInitialCond();
-        prepareTripCount();
-    } else {
+    if (isDynamic)
         prepareDynamicBuffers();
-    }
 
     if (inputShapesDefined()) {
         if (needPrepareParams())
@@ -532,7 +520,14 @@ void MKLDNNTensorIteratorNode::createPrimitive() {
 }
 
 bool MKLDNNTensorIteratorNode::needPrepareParams() const {
-    return isDynamic && inputShapesModified();
+    if (ov::is_type<ov::op::v5::Loop>(ngraphOp)) {
+        const auto tripCountPtr = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetPtr());
+        const auto condPtr = reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetPtr());
+        if (tripCountPtr[0] != lastTripCount || condPtr[0] != lastCond)
+            return true;
+    }
+
+    return MKLDNNNode::needPrepareParams();
 }
 
 void MKLDNNTensorIteratorNode::prepareParams() {
@@ -549,6 +544,11 @@ void MKLDNNTensorIteratorNode::prepareParams() {
     prepareTripCount();
     // special purpose ports
     prepareLoopBodyCurrentIteration(eng);
+
+    if (!isDynamic) {
+        prepareOutputPorts(eng);
+        prepareBackEdges(eng);
+    }
 }
 
 void MKLDNNTensorIteratorNode::execute(mkldnn::stream strm) {
@@ -684,6 +684,7 @@ void MKLDNNTensorIteratorNode::prepareInitialCond() {
     if (loopExecutionConditionIdx != -1 || !initial_cond_check) {
         auto mem = getParentEdgesAtPort(loopExecutionConditionIdx)[0]->getMemoryPtr();
         initial_cond_check.reset(new asBoolCheck(mem));
+        lastCond = initial_cond_check->getStatus();
     }
 }
 
@@ -694,6 +695,7 @@ void MKLDNNTensorIteratorNode::prepareTripCount() {
         auto mem = getParentEdgesAtPort(loopTripCountIdx)[0]->getMemoryPtr();
         trip_count_check.reset(new asIntCheck(mem));
     }
+    lastTripCount = trip_count_check->getStatus();
 }
 
 /* *==============* *==============* *==============* *==============* *==============* */

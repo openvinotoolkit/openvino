@@ -119,6 +119,7 @@ private:
     void prepareContinueCond();
     void prepareInitialCond();
     void prepareTripCount();
+
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap);
 
     /* Dynamic support */
@@ -153,6 +154,9 @@ private:
     int loopBodyConditionOutputIdx = -1;
     int loopTripCountIdx = -1;
     int loopExecutionConditionIdx = -1;
+
+    int lastTripCount = -1;
+    bool lastCond = false;
 
     const std::shared_ptr<ngraph::Node> ngraphOp;
 };
