@@ -20,7 +20,7 @@
 #endif
 
 #ifndef IE_BUILD_POSTFIX  // should be already defined by cmake
-#define IE_BUILD_POSTFIX ""
+# error "IE_BUILD_POSTFIX is not defined"
 #endif
 
 static std::string get_extension_path() {
@@ -69,6 +69,12 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
 
 #ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 
+// This test will not work because template_extension for ONNX registers
+// extension via `register_operator` function which registers operator
+// is template_extension's copy of onnx_importer. So, extensions as
+// a shared library for ONNX don't make sence in static OpenVINO build
+#ifndef OPENVINO_STATIC_LIBRARY
+
 TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(
         IR_SERIALIZATION_MODELS_PATH "custom_op.onnx");
@@ -90,7 +96,9 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     ASSERT_TRUE(success) << message;
 }
 
-#endif
+#endif // OPENVINO_STATIC_LIBRARY
+
+#endif // NGRAPH_ONNX_FRONTEND_ENABLE
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(
