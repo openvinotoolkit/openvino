@@ -18,9 +18,9 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "inference"
 ie_coverage_genhtml(INFO_FILE "inference"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_legacy"
+ie_coverage_extract(INPUT "openvino" OUTPUT "legacy"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/common/legacy/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_legacy"
+ie_coverage_genhtml(INFO_FILE "legacy"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "hetero_plugin"
