@@ -108,8 +108,8 @@ TEST_F(ReferencePreprocessLegacyTest, resize) {
 }
 
 TEST_F(ReferencePreprocessLegacyTest, bgrx_to_bgr) {
-    const int h = 32;
-    const int w = 32;
+    const int h = 160;
+    const int w = 160;
     auto rgbx_input = std::vector<uint8_t>(h * w * 4, 0);
     for (auto i = 0; i < h * w * 4; i++) {
         rgbx_input[i] = i % 256;
@@ -138,8 +138,8 @@ TEST_F(ReferencePreprocessLegacyTest, bgrx_to_bgr) {
 }
 
 TEST_F(ReferencePreprocessLegacyTest, rgbx_to_bgr) {
-    const int h = 32;
-    const int w = 32;
+    const int h = 160;
+    const int w = 160;
     auto rgbx_input = std::vector<uint8_t>(h * w * 4, 0);
     for (auto i = 0; i < h * w * 4; i++) {
         rgbx_input[i] = i % 256;

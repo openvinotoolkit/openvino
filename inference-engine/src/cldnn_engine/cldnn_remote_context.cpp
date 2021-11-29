@@ -5,7 +5,7 @@
 #include <memory>
 #include "cldnn_remote_context.h"
 #include "cldnn_itt.h"
-
+#include "cldnn_engine.h"
 #include "cldnn/runtime/device_query.hpp"
 
 using namespace InferenceEngine;
@@ -35,6 +35,24 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
     case BT_BUF_SHARED:
         return{
             { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER) },
+            { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
+            { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
+        };
+    case BT_USM_SHARED:
+        return{
+            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_USER_BUFFER) },
+            { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
+            { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
+        };
+    case BT_USM_HOST_INTERNAL:
+        return{
+            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER) },
+            { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
+            { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
+        };
+    case BT_USM_DEVICE_INTERNAL:
+        return{
+            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_DEVICE_BUFFER) },
             { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
         };
@@ -81,7 +99,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
     return lockedHolder != nullptr;
 }
 
-void CLDNNRemoteBlobImpl::allocate() noexcept {
+void CLDNNRemoteBlobImpl::allocate() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::Allocate");
     assert(m_memObject == nullptr);
 
@@ -91,11 +109,23 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
 
     switch (m_mem_type) {
     case BlobType::BT_BUF_INTERNAL: {
-        m_memObject = eng->allocate_memory(m_layout);
+        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
+        break;
+    }
+    case BlobType::BT_USM_HOST_INTERNAL: {
+        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::usm_host);
+        break;
+    }
+    case BlobType::BT_USM_DEVICE_INTERNAL: {
+        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::usm_device);
         break;
     }
     case BlobType::BT_BUF_SHARED: {
         m_memObject = eng->share_buffer(m_layout, m_mem);
+        break;
+    }
+    case BlobType::BT_USM_SHARED: {
+        m_memObject = eng->share_usm(m_layout, m_mem);
         break;
     }
 #ifdef _WIN32
@@ -139,6 +169,9 @@ std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept 
 }
 
 void CLDNNRemoteBlobImpl::lock() const {
+    if (!is_allocated()) {
+        IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
+    }
     lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
     auto ptr = lockedHolder->data();
     _handle = reinterpret_cast<void*>(ptr);
@@ -241,34 +274,23 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     auto iter = device_map.find(m_config.device_id);
     auto& dev = iter != device_map.end() ? iter->second : device_map.begin()->second;
 
-    {
-        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecutionContextImpl::Create");
-        bool enable_profiling = (m_config.useProfiling ||
-                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
-                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
-        cldnn::queue_types queue_type;
-        if (m_external_queue) {
-            queue_type = cldnn::stream::detect_queue_type(engine_type, m_external_queue);
-        } else if (dev->get_info().supports_immad) {
-            queue_type = cldnn::queue_types::in_order;
-        } else {
-            queue_type = cldnn::queue_types::out_of_order;
-        }
+    bool enable_profiling = (m_config.useProfiling ||
+                            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
+                            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
 
-
-        ITaskExecutor::Ptr task_executor = std::make_shared<CPUStreamsExecutor>(m_config.task_exec_config);
-        bool use_unified_shared_memory = true;
-        m_engine = cldnn::engine::create(engine_type, runtime_type, dev,
-                                                    cldnn::engine_configuration(enable_profiling,
-                                                                                queue_type,
-                                                                                m_config.sources_dumps_dir,
-                                                                                m_config.queuePriority,
-                                                                                m_config.queueThrottle,
-                                                                                m_config.memory_pool_on,
-                                                                                use_unified_shared_memory,
-                                                                                m_config.kernels_cache_dir,
-                                                                                m_config.throughput_streams), task_executor);
-    }
+    auto engine_params = clDNNEngine::GetEngineParams(m_config, dev, m_external_queue);
+    m_engine = cldnn::engine::create(engine_params.engine_type,
+                                     engine_params.runtime_type, dev,
+                                     cldnn::engine_configuration(enable_profiling,
+                                         engine_params.queue_type,
+                                         m_config.sources_dumps_dir,
+                                         m_config.queuePriority,
+                                         m_config.queueThrottle,
+                                         m_config.memory_pool_on,
+                                         engine_params.use_unified_shared_memory,
+                                         m_config.kernels_cache_dir,
+                                         m_config.throughput_streams),
+                                     engine_params.task_executor);
 }
 
 ParamMap CLDNNExecutionContextImpl::getParams() const {
@@ -295,15 +317,17 @@ std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
 
     auto engine_type = cldnn::engine_types::ocl;
     auto runtime_type = cldnn::runtime_types::ocl;
-    // Use actual runtime and engine types
-    cldnn::device_query device_query(engine_type, runtime_type);
-    auto all_devices = device_query.get_available_devices();
-    auto current_device = m_engine->get_device();
+    try {
+        // Use actual runtime and engine types
+        cldnn::device_query device_query(engine_type, runtime_type);
+        auto all_devices = device_query.get_available_devices();
+        auto current_device = m_engine->get_device();
 
-    for (auto& kv : all_devices) {
-        if (current_device->is_same(kv.second))
-            return devName + "." + kv.first;
-    }
+        for (auto& kv : all_devices) {
+            if (current_device->is_same(kv.second))
+                return devName + "." + kv.first;
+        }
+    } catch (...) { }
 
     if (!m_config.device_id.empty())
         devName += "." + m_config.device_id;

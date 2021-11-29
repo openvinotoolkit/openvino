@@ -111,9 +111,8 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
     ${__CLDNN_AllSources}
   )
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  target_compile_options(${CLDNN_BUILD__PROJ} PRIVATE -Os)
-endif()
+target_compile_options("${CLDNN_BUILD__PROJ}" PRIVATE
+  $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 
@@ -128,15 +127,7 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
 )
 
 if(ENABLE_ONEDNN_FOR_GPU)
-  get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-  if (isMultiConfig)
-    add_dependencies(${CLDNN_BUILD__PROJ} onednn_gpu_build)
-	foreach(dir IN LISTS ONEDNN_INCLUDE_DIRS)
-	  target_include_directories("${CLDNN_BUILD__PROJ}" PUBLIC $<BUILD_INTERFACE:${dir}>)
-	endforeach()
-	target_compile_definitions("${CLDNN_BUILD__PROJ}" PUBLIC ENABLE_ONEDNN_FOR_GPU)
-  endif()
-  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC ${ONEDNN_LIBRARY})
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu_tgt)
 endif()
 
 if(COMMAND add_cpplint_target)
