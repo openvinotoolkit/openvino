@@ -5,11 +5,11 @@
 #include "manager.hpp"
 #include "tensorflow_frontend/frontend.hpp"
 
-extern "C" OPENVINO_CORE_EXPORTS ov::frontend::FrontEndVersion GetAPIVersion() {
+TF_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" OPENVINO_CORE_EXPORTS void* GetFrontEndData() {
+TF_C_API void* GetFrontEndData() {
     auto res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "tf";
     res->m_creator = []() {
