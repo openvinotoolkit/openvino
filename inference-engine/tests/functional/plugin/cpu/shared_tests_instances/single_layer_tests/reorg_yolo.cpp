@@ -7,74 +7,63 @@
 #include "single_layer_tests/reorg_yolo.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ov::test::subgraph;
+using namespace LayerTestsDefinitions;
 
-const std::vector<ov::test::InputShape> inShapes_caffe_yolov2 = ov::test::static_shapes_to_test_representation({
+const std::vector<ngraph::Shape> inShapes_caffe_yolov2 = {
     {1, 64, 26, 26},
-});
+};
 
-const std::vector<ov::test::InputShape> inShapes = ov::test::static_shapes_to_test_representation({
+const std::vector<ngraph::Shape> inShapes = {
     {1, 4, 4, 4},
     {1, 8, 4, 4},
     {1, 9, 3, 3},
     {1, 24, 34, 62},
     {2, 8, 4, 4},
-});
+};
 
-const std::vector<ov::test::InputShape> inShapesDynamic = {{{ngraph::Dimension(1, 2),
-                                                             ngraph::Dimension::dynamic(),
-                                                             ngraph::Dimension::dynamic(),
-                                                             ngraph::Dimension::dynamic()},
-                                                            {{1, 4, 4, 4}, {1, 8, 4, 4}, {2, 8, 4, 4}}}};
-
-const std::vector<size_t> strides = {2, 3};
+const std::vector<size_t> strides = {
+    2, 3
+};
 
 const auto testCase_caffe_yolov2 = ::testing::Combine(
     ::testing::ValuesIn(inShapes_caffe_yolov2),
     ::testing::Values(strides[0]),
-    ::testing::Values(ov::element::f32),
+    ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 const auto testCase_smallest = ::testing::Combine(
     ::testing::Values(inShapes[0]),
     ::testing::Values(strides[0]),
-    ::testing::Values(ov::element::f32),
+    ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 const auto testCase_stride_2 = ::testing::Combine(
     ::testing::Values(inShapes[1]),
     ::testing::Values(strides[0]),
-    ::testing::Values(ov::element::f32),
+    ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 const auto testCase_stride_3 = ::testing::Combine(
     ::testing::Values(inShapes[2]),
     ::testing::Values(strides[1]),
-    ::testing::Values(ov::element::f32),
+    ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 const auto testCase_smaller_h = ::testing::Combine(
     ::testing::Values(inShapes[4]),
     ::testing::Values(strides[0]),
-    ::testing::Values(ov::element::f32),
+    ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 const auto testCase_batch_2 = ::testing::Combine(
     ::testing::Values(inShapes[3]),
     ::testing::Values(strides[0]),
-    ::testing::Values(ov::element::f32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
-);
-
-const auto testCase_Dynamic = ::testing::Combine(
-    ::testing::ValuesIn(inShapesDynamic),
-    ::testing::Values(strides[0]),
-    ::testing::Values(ov::element::f32),
+    ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -84,4 +73,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride_2, ReorgYoloLayerTest, test
 INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride_3, ReorgYoloLayerTest, testCase_stride_3, ReorgYoloLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_smaller_h, ReorgYoloLayerTest, testCase_smaller_h, ReorgYoloLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_batch_2, ReorgYoloLayerTest, testCase_batch_2, ReorgYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_DynamicShape, ReorgYoloLayerTest, testCase_Dynamic, ReorgYoloLayerTest::getTestCaseName);

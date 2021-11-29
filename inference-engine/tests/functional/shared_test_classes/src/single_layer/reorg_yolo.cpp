@@ -4,45 +4,30 @@
 
 #include "shared_test_classes/single_layer/reorg_yolo.hpp"
 
-#include "common_test_utils/common_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+namespace LayerTestsDefinitions {
 
-namespace ov {
-namespace test {
-namespace subgraph {
-
-std::string ReorgYoloLayerTest::getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple>& obj) {
-    InputShape inputShape;
+std::string ReorgYoloLayerTest::getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple> &obj) {
+    ngraph::Shape inputShape;
     size_t stride;
-    ElementType netPrecision;
-    TargetDevice targetDev;
-    std::tie(inputShape, stride, netPrecision, targetDev) = obj.param;
+    InferenceEngine::Precision netPrecision;
+    std::string targetName;
+    std::tie(inputShape, stride, netPrecision, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
-    for (const auto& item : inputShape.second) {
-        result << CommonTestUtils::vec2str(item) << "_";
-    }
+    result << "IS=" << inputShape << "_";
     result << "stride=" << stride << "_";
-    result << "netPRC=" << netPrecision << "_";
-    result << "targetDevice=" << targetDev << "_";
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "targetDevice=" << targetName << "_";
     return result.str();
 }
 
 void ReorgYoloLayerTest::SetUp() {
-    InputShape inputShape;
+    ngraph::Shape inputShape;
     size_t stride;
-    ElementType netPrecision;
+    InferenceEngine::Precision netPrecision;
     std::tie(inputShape, stride, netPrecision, targetDevice) = this->GetParam();
-
-    init_input_shapes({inputShape});
-
-    auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, inputDynamicShapes[0]);
+    auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, inputShape);
     auto reorg_yolo = std::make_shared<ngraph::op::v0::ReorgYolo>(param, stride);
-    function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
-                                                  ngraph::ParameterVector{param},
-                                                  "ReorgYolo");
+    function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(reorg_yolo), ngraph::ParameterVector{param}, "ReorgYolo");
 }
 
-}  // namespace subgraph
-}  // namespace test
-}  // namespace ov
+} // namespace LayerTestsDefinitions
