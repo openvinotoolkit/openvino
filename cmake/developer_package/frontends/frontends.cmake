@@ -21,7 +21,7 @@ function(ov_target_link_frontends TARGET_NAME)
 
     foreach(name IN LISTS FRONTEND_NAMES)
         set(frontend_target_name "${name}${FRONTEND_NAME_SUFFIX}")
-        target_link_libraries(${TARGET_NAME} PRIVATE ${frontend_target_name})
+        target_link_libraries(${TARGET_NAME} INTERFACE ${frontend_target_name})
     endforeach()
 endfunction()
 
