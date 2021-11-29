@@ -2,22 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Disabled in CMakeList
-// Update to higher opset required
+// Disabled in CMakeLists.txt
+// Update to higher opset is required
 
-#include <cstddef>
-#include <memory>
-#include <vector>
+#if 0
 
-#include "default_opset.hpp"
-#include "exceptions.hpp"
-#include "ngraph/builder/quantization/quantized_linear_convolution.hpp"
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/frontend/onnx_import/utils/convpool.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset0.hpp"
-#include "ngraph/strides.hpp"
-#include "op/quant_conv.hpp"
+#    include "op/quant_conv.hpp"
+
+#    include <cstddef>
+#    include <memory>
+#    include <vector>
+
+#    include "default_opset.hpp"
+#    include "exceptions.hpp"
+#    include "ngraph/builder/quantization/quantized_linear_convolution.hpp"
+#    include "ngraph/coordinate_diff.hpp"
+#    include "ngraph/frontend/onnx_import/utils/convpool.hpp"
+#    include "ngraph/op/util/attr_types.hpp"
+#    include "ngraph/opsets/opset0.hpp"
+#    include "ngraph/strides.hpp"
 
 namespace ngraph
 {
@@ -269,3 +272,5 @@ namespace ngraph
     } // namespace onnx_import
 
 } // namespace ngraph
+
+#endif
