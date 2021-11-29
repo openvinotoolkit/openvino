@@ -94,6 +94,24 @@ std::map<std::string, InferenceEngineProfileInfo> MultiDeviceAsyncInferRequest::
 
 MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {
     StopAndWait();
+    --(_multiDeviceExecutableNetwork->_numRequestsCreated);
+    //TODO release the extra idle worker requests
+    /*auto idlerequests = _multiDeviceExecutableNetwork->_idleWorkerRequests;
+    std::vector<MultiDeviceExecutableNetwork::WorkerInferRequest*> tempvec;
+    for (auto&& idleWorker : idlerequests) {
+        MultiDeviceExecutableNetwork::WorkerInferRequest* workerRequestPtr = nullptr;
+        while (idleWorker.second.try_pop(workerRequestPtr)) {
+            auto it = std::find(tempvec.begin(), tempvec.end(), workerRequestPtr);
+            if (it != tempvec.end())
+                break;
+            if (workerRequestPtr != nullptr && workerRequestPtr->_manualyDestory) {
+                delete workerRequestPtr;
+                workerRequestPtr = nullptr;
+                break;
+            }
+            idleWorker.second.try_push(workerRequestPtr);
+            tempvec.push_back(workerRequestPtr);
+        }
+    }*/
 }
-
 }  // namespace MultiDevicePlugin

@@ -121,7 +121,7 @@ public:
         _capacity = newCapacity;
     }
     size_t capacity() {
-        return _capcacity;
+        return _capacity;
     }
 
 protected:
@@ -209,7 +209,8 @@ private:
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
-    mutable std::mutex                                                  _idleWorkerMutex;
+    std::mutex                                                          _idleWorkerMutex;
+    std::mutex                                                          _numRequestMutex;
 };
 
 }  // namespace MultiDevicePlugin
