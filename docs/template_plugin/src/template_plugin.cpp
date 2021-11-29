@@ -163,7 +163,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 #include "openvino/opsets/opset7_tbl.hpp"
 #include "openvino/opsets/opset8_tbl.hpp"
 #undef _OPENVINO_OP_REG
-    for (auto &&node: transformedFunction->get_ops()) {
+    for (auto &&node : transformedFunction->get_ops()) {
         // Extract transformation history from transformed node as list of nodes
         for (auto &&fusedLayerName: ngraph::getFusedNamesVector(node)) {
             // Filter just nodes from original operation set
