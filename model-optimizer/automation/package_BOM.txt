@@ -421,6 +421,7 @@ extensions/front/tf/faster_rcnn_support_api_v2.4.json
 extensions/front/tf/fft_ext.py
 extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
+extensions/front/tf/FifoQueueDequeueCut.py
 extensions/front/tf/fill_ext.py
 extensions/front/tf/FlattenToReshape.py
 extensions/front/tf/floor_div_decomposition.py
@@ -465,6 +466,7 @@ extensions/front/tf/placeholder_ext.py
 extensions/front/tf/placeholder_with_default_ext.py
 extensions/front/tf/pooling_ext.py
 extensions/front/tf/prelu.py
+extensions/front/tf/QueueDequeue_ext.py
 extensions/front/tf/random_uniform_ext.py
 extensions/front/tf/random_uniform_int_ext.py
 extensions/front/tf/range_ext.py
