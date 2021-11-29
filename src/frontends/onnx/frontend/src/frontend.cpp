@@ -20,11 +20,11 @@ using VariantString = VariantWrapper<std::string>;
 using VariantWString = VariantWrapper<std::wstring>;
 using VariantIstreamPtr = VariantWrapper<std::istream*>;
 
-extern "C" ONNX_FRONTEND_API FrontEndVersion GetAPIVersion() {
+ONNX_FRONTEND_C_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" ONNX_FRONTEND_API void* GetFrontEndData() {
+ONNX_FRONTEND_C_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "onnx";
     res->m_creator = []() {

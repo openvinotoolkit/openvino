@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include "common/frontend_exceptions.hpp"
+#include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"
 
 #ifndef _WIN32
@@ -25,18 +26,6 @@
 #    include <Windows.h>
 #endif
 
-namespace {
-std::string get_path_name(const std::string& s) {
-    size_t i = s.rfind(FileSeparator, s.length());
-    if (i != std::string::npos) {
-        return (s.substr(0, i));
-    }
-
-    return {};
-}
-
-}  // namespace
-
 static std::string _get_frontend_library_path() {
 #ifdef _WIN32
     CHAR ie_library_path[MAX_PATH];
@@ -47,11 +36,11 @@ static std::string _get_frontend_library_path() {
         FRONT_END_INITIALIZATION_CHECK(false, "GetModuleHandle returned ", GetLastError());
     }
     GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
-    return get_path_name(std::string(ie_library_path));
+    return ov::util::get_directory(std::string(ie_library_path));
 #elif defined(__APPLE__) || defined(__linux__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::frontend::get_frontend_library_path), &info);
-    return get_path_name(std::string(info.dli_fname)).c_str();
+    return ov::util::get_directory(std::string(info.dli_fname)).c_str();
 #else
 #    error "Unsupported OS"
 #endif  // _WIN32
