@@ -368,6 +368,8 @@ def run(args):
                 benchmark.benchmark_mode = 'legacy'
             else:
                 benchmark.benchmark_mode = 'full'
+        elif benchmark.benchmark_mode == 'legacy' and not static_mode:
+            raise Exception("Benchmarking dynamic model available in full mode only!")
 
         benchmark.latency_groups = get_latency_groups(app_inputs_info)
 
