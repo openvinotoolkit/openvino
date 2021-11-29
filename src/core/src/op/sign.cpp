@@ -67,7 +67,6 @@ bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 bool op::Sign::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Sign_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
