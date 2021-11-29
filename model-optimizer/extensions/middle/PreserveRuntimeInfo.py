@@ -5,8 +5,9 @@ import numpy as np
 
 from extensions.middle.MergeNodesPermutations import MergeNodesPermutations
 from extensions.ops.transpose import Transpose
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.runtime_info import OldAPIMapOrder
 
@@ -40,29 +41,40 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
         self.preserve_rt_info(graph)
 
     @staticmethod
+    def add_old_api_map_order_into_rt_info(op: Node):
+        # rt info update
+        assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op)
+
+        old_api_map = OldAPIMapOrder(version=0)
+        attr_name = old_api_map.get_name()
+        if (attr_name, old_api_map.get_version()) not in op.rt_info.info:
+            op.rt_info.info[(attr_name, old_api_map.get_version())] = old_api_map
+        return attr_name, old_api_map.get_version()
+
+    @staticmethod
     def preserve_rt_info(graph: Graph):
-        for op in graph.get_op_nodes():
+        for op in graph.get_op_nodes(type='Parameter'):
             op_name = op.soft_get('name', op.id)
-            op_type = op.soft_get('type')
-            if op_type == 'Parameter' and op.has_valid('permute_attrs') and not op.has_and_set('nchw_layout'):
-                if not op.out_node(0).has_valid('permutation'):
+            if 'auto_disable_nhwc_to_nchw' in graph.graph['cmd_params'] and \
+                    graph.graph['cmd_params'].auto_disable_nhwc_to_nchw:
+                rank = op.out_port(0).data.get_shape().size
+                if rank < 4:
                     continue
+                order = list(range(rank))
+                order.remove(1)
+                order.append(1)
+                order = int64_array(order)
+            elif op.has_valid('permute_attrs') and not op.has_and_set('nchw_layout') and \
+                    op.out_node(0).has_valid('permutation'):
                 permutation = op.out_node(0).permutation
-                if np.array_equal(permutation.inv, range(len(permutation.inv))):
+                order = permutation.inv
+                if np.array_equal(order, range(len(permutation.inv))):
                     continue
-
-                # rt info update
-                assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op_name)
-
-                old_api_map = OldAPIMapOrder(version=0)
-                attr_name = old_api_map.get_name()
-                if (attr_name, old_api_map.get_version()) not in op.rt_info.info:
-                    op.rt_info.info[(attr_name, old_api_map.get_version())] = old_api_map
-                op.rt_info.info[(attr_name, old_api_map.get_version())].old_api_transpose_parameter(permutation.inv)
 
                 # keep input in the framework format
                 transpose = create_op_node_with_second_input(
-                    graph, Transpose, permutation.perm, {'name': op_name + '/Transpose({})'.format(permutation.perm)})
+                    graph, Transpose, permutation.perm,
+                    {'name': op_name + '/Transpose({})'.format(permutation.perm)})
 
                 # source mode is used to keep tensor names at Parameter node
                 op.out_port(0).get_connection().insert_node(transpose, "source")
@@ -71,25 +83,34 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                     del op['permute_attrs']
                 if op.out_node(0).has_valid('permutation'):
                     del op.out_node(0)['permutation']
+            else:
+                continue
 
-            elif op_type == 'Result' and op.in_ports():
+            rt_info_key = PreserveRuntimeInfo.add_old_api_map_order_into_rt_info(op)
+            op.rt_info.info[rt_info_key].old_api_transpose_parameter(order)
+
+        for op in graph.get_op_nodes(type='Result'):
+            if op.in_ports():
                 prev_node_out_port = op.in_port(0).get_connection().get_source()
                 if prev_node_out_port is None:
                     continue
                 in_node = prev_node_out_port.node
                 in_data_node = in_node.out_node(prev_node_out_port.idx)
-                if in_data_node.has_and_set('permutation'):
-                    permutation = in_data_node['permutation']
-                    if np.array_equal(permutation.perm, range(len(permutation.perm))):
-                        continue
 
-                    # rt info update
-                    assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op)
-                    old_api_map = OldAPIMapOrder(version=0)
-                    attr_name = old_api_map.get_name()
-                    if (attr_name, old_api_map.get_version()) not in op.rt_info.info:
-                        op.rt_info.info[(attr_name, old_api_map.get_version())] = old_api_map
-                    op.rt_info.info[(attr_name, old_api_map.get_version())].old_api_transpose_result(permutation.perm)
+                if 'auto_disable_nhwc_to_nchw' in graph.graph['cmd_params'] and \
+                        graph.graph['cmd_params'].auto_disable_nhwc_to_nchw:
+                    rank = prev_node_out_port.data.get_shape().size
+                    if rank < 4:
+                        continue
+                    order = list(range(rank - 1))
+                    order.insert(1, rank - 1)
+                    order = int64_array(order)
+                elif in_data_node.has_and_set('permutation'):
+                    permutation = in_data_node['permutation']
+                    order = permutation.perm
+
+                    if np.array_equal(order, range(len(permutation.perm))):
+                        continue
 
                     # keep result in the framework format
                     transpose = create_op_node_with_second_input(graph, Transpose, permutation.inv)
@@ -98,3 +119,8 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                     in_node.name += "/prev"
 
                     prev_node_out_port.get_connection().insert_node(transpose)
+                else:
+                    continue
+
+                rt_info_key = PreserveRuntimeInfo.add_old_api_map_order_into_rt_info(op)
+                op.rt_info.info[rt_info_key].old_api_transpose_result(order)

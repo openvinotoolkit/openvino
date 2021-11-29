@@ -299,7 +299,9 @@ TensorFlow*-specific parameters:
                         TensorFlow*: comma separated list of shared libraries
                         with TensorFlow* custom operations implementation.
   --disable_nhwc_to_nchw
-                        Disables default translation from NHWC to NCHW
+                        [DEPRECATED] Disables default translation from NHWC to NCHW. Since 2022.1
+                        this option is deprecated and used only to maintain backward compatibility
+                        with previous releases.
 ```
 
 > **NOTE:** Models produces with TensorFlow\* usually have not fully defined shapes (contain `-1` in some dimensions). It is necessary to pass explicit shape for the input using command line parameter `--input_shape` or `-b` to override just batch dimension. If the shape is fully defined, then there is no need to specify either `-b` or `--input_shape` options.

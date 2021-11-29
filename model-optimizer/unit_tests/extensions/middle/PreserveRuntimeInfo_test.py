@@ -88,3 +88,37 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
             rt_info = result_node.rt_info.info
             old_api_map = rt_info[('old_api_map_order', 0)].info
             self.assertTrue(np.array_equal(old_api_map['order'], nhwc_to_nchw_order))
+
+    def test_auto_disable_nhwc_to_nchw(self):
+        shape_len = 4
+        shape = np.array(range(shape_len))
+        add_shape = shape
+        graph_nodes = {
+            **regular_op_with_shaped_data('placeholder1', shape,
+                                          {'type': 'Parameter', 'rt_info': RTInfo(), 'shape': shape}),
+            **regular_op_with_shaped_data('placeholder2', shape,
+                                          {'type': 'Parameter', 'rt_info': RTInfo(), 'shape': shape}),
+            **regular_op_with_shaped_data('result', shape, {'type': 'Result', 'rt_info': RTInfo(), 'shape': shape}),
+            **regular_op_with_shaped_data('add', add_shape,
+                                          {'type': 'Add', 'op': 'Add', 'infer': copy_shape_infer}),
+        }
+
+        graph = build_graph(graph_nodes, edges)
+        graph.graph['cmd_params'].auto_disable_nhwc_to_nchw = True
+        graph_ref = build_graph(graph_nodes, edges)
+
+        param_node = Node(graph, 'placeholder1')
+        result_node = Node(graph, 'result')
+
+        PreserveRuntimeInfo().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result')
+        self.assertTrue(flag, resp)
+
+        rt_info = param_node.rt_info.info
+        old_api_map = rt_info[('old_api_map_order', 0)].info
+        self.assertTrue(np.array_equal(old_api_map['inverse_order'], [0, 2, 3, 1]))
+
+        rt_info = result_node.rt_info.info
+        old_api_map = rt_info[('old_api_map_order', 0)].info
+        self.assertTrue(np.array_equal(old_api_map['order'], [0, 3, 1, 2]))
