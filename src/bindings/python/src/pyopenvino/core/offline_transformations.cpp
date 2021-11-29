@@ -8,6 +8,7 @@
 
 #include <generate_mapping_file.hpp>
 #include <openvino/pass/make_stateful.hpp>
+#include <openvino/pass/serialize.hpp>
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
@@ -18,16 +19,17 @@
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 
-#include <openvino/pass/serialize.hpp>
-
 using Version = ov::pass::Serialize::Version;
 
-inline Version convert_to_version(const std::string& version)
-{
-    if (version == "UNSPECIFIED") return Version::UNSPECIFIED;
-    if (version == "IR_V10") return Version::IR_V10;
-    if (version == "IR_V11") return Version::IR_V11;
-    throw ov::Exception("Invoked with wrong version argument: '" + version + "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
+inline Version convert_to_version(const std::string& version) {
+    if (version == "UNSPECIFIED")
+        return Version::UNSPECIFIED;
+    if (version == "IR_V10")
+        return Version::IR_V10;
+    if (version == "IR_V11")
+        return Version::IR_V11;
+    throw ov::Exception("Invoked with wrong version argument: '" + version +
+                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
 namespace py = pybind11;
@@ -107,16 +109,19 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("function"));
 
-        // py::enum_<Version>(m_offline_transformations, "Version")
-        //     .value("0", Version::UNSPECIFIED)   
-        //     .value("ir_10", Version::IR_V10)
-        //     .value("11", Version::IR_V11)
-        //     .export_values();
+    // py::enum_<Version>(m_offline_transformations, "Version")
+    //     .value("0", Version::UNSPECIFIED)
+    //     .value("ir_10", Version::IR_V10)
+    //     .value("11", Version::IR_V11)
+    //     .export_values();
 
     // todo: remove as serialize as part of passManager api will be merged
     m_offline_transformations.def(
         "serialize",
-        [](std::shared_ptr<ov::Function> function, const std::string& path_to_xml, const std::string& path_to_bin, const std::string& version) {
+        [](std::shared_ptr<ov::Function> function,
+           const std::string& path_to_xml,
+           const std::string& path_to_bin,
+           const std::string& version) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::Serialize>(path_to_xml, path_to_bin, convert_to_version(version));
             manager.run_passes(function);
@@ -166,4 +171,3 @@ void regmodule_offline_transformations(py::module m) {
         serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")    
     // )");
 }
-
