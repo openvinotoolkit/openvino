@@ -127,6 +127,10 @@ public:
        IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, optimalNum, 2);
        ON_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
+       IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
+       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
+           .WillByDefault(Return(supportConfigs));
+       EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
     }
 };
 
