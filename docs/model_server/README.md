@@ -1,5 +1,20 @@
 # OpenVINO&trade; Model Server {#openvino_docs_ovms}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   model_server_docs_what_is_openvino_model_server
+   model_server_docs_quick_start_guide
+   model_server_docs_models_repository
+   model_server_docs_starting_the_serving
+   model_server_docs_grpc_api
+   model_server_docs_rest_api
+
+
+@endsphinxdirective
+
 OpenVINO&trade; Model Server (OVMS) is a scalable, high-performance solution for serving machine learning models optimized for Intel&reg; architectures.
 The server provides an inference service via gRPC or REST API - making it easy to deploy new algorithms and AI experiments using the same
 architecture as [TensorFlow* Serving](https://github.com/tensorflow/serving) for any models trained in a framework that is supported
