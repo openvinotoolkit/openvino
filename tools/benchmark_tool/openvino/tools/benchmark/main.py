@@ -381,7 +381,11 @@ def run(args):
 
         # Set input tensors before first inference
         for request in requests:
-            request.set_tensors(data_queue.get_next_input())
+            data_tensors = data_queue.get_next_input()
+            for name, data_tensor in data_tensors.items():
+                input_tensor = request.get_tensor(name)
+                input_tensor.shape = data_tensor.shape
+                input_tensor.data[:] = data_tensor.data
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
