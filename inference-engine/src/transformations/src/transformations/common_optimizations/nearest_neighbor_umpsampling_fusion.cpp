@@ -48,7 +48,7 @@ bool check_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& 
     const auto inputs = concat->input_values();
     size_t num_of_input_values = inputs.size();
 
-    if (num_of_input_values != 2 + 2 * (rank - 2)) return false;
+    if (num_of_input_values != 2 * rank - 2) return false;
 
     std::vector<int64_t> input_constants(num_of_input_values, 1);
     for (size_t i = 1; i < num_of_input_values; ++i) {
@@ -78,6 +78,13 @@ bool check_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& 
     return true;
 }
 
+// In this transformation 'concat_2' must have r inputs (where r is an output rank of the root of the transformation pattern).
+// And (r - 1) inputs must be unsqueezed constants, and the list of these constants is
+//      [newD_1, newD_2, ..., newD_{r - 2}, C],
+// where C is number of channels in the output shape of the root of the transformation pattern.
+//
+// This function gets a new spatial shape from unsqueezed constants of 'concat_2', that is, the vector with elements
+//      [newD_1, newD_2, ..., newD_{r - 2}].
 std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<opset8::Concat>& concat, const Shape& input_shape) {
     size_t rank = input_shape.size();
 
