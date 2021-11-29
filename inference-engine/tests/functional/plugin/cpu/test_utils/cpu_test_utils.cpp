@@ -151,8 +151,13 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Funct
             return value->get();
         };
         // skip policy
-        auto should_be_skipped = [] (const ngraph::Shape &shape, cpu_memory_format_t fmt) {
-            bool skip_unsquized_1D =  std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+        auto should_be_skipped = [] (const ngraph::PartialShape &partialShape, cpu_memory_format_t fmt) {
+            if (partialShape.is_dynamic()) {
+                return false;
+            }
+
+            auto shape = partialShape.get_shape();
+            bool skip_unsquized_1D = std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
             bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
@@ -165,7 +170,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Funct
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
                     auto parentNode = parentPort.get_node_shared_ptr();
-                    auto shape = parentNode->get_output_tensor(0).get_shape();
+                    auto shape = parentNode->get_output_tensor(0).get_partial_shape();
                     auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
 
                     if (!should_be_skipped(shape, inFmts[i])) {
@@ -204,7 +209,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Funct
 
             for (size_t i = 0; i < fmtsNum; i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
-                const auto shape = node->get_output_shape(i);
+                const auto shape = node->get_output_partial_shape(i);
 
                 if (should_be_skipped(shape, outFmts[i]))
                     continue;
@@ -261,11 +266,11 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
 
     if (!inFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
+                std::make_shared<ngraph::MLKDNNInputMemoryFormats>(fmts2str(inFmts, "cpu:"))});
     }
     if (!outFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
+                std::make_shared<ngraph::MLKDNNOutputMemoryFormats>(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
@@ -278,7 +283,7 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
 
 std::shared_ptr<ngraph::Function>
 CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
-                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
+                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) {
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
    ngraph::ResultVector results;
 
@@ -289,7 +294,7 @@ CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::Par
 }
 
 std::shared_ptr<ngraph::Node>
-CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
     lastNode->get_rt_info() = getCPUInfo();
     return lastNode;
 }

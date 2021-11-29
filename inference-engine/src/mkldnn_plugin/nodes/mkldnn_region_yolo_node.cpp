@@ -261,6 +261,7 @@ MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& 
     num = regionYolo->get_num_regions();
     do_softmax = regionYolo->get_do_softmax();
     mask = regionYolo->get_mask();
+    block_size = 1;
 }
 
 void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {

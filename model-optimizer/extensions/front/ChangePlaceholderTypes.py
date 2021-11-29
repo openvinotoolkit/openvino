@@ -7,7 +7,7 @@ import numpy as np
 
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph, Node
-from mo.utils.runtime_info import OldAPIMap
+from mo.utils.runtime_info import OldAPIMapElementType
 
 
 class ChangePlaceholderTypes(FrontReplacementPattern):
@@ -22,10 +22,11 @@ class ChangePlaceholderTypes(FrontReplacementPattern):
     @staticmethod
     def update_type(node: Node, new_type: np.array):
         assert node.has_valid('rt_info')
-        old_api_map = OldAPIMap(version=0)
-        if ('old_api_map', old_api_map.get_version()) not in node.rt_info.info:
-            node.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
-        node.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_convert(new_type)
+        old_api_map = OldAPIMapElementType(version=0)
+        attr_name = old_api_map.get_name()
+        if (attr_name, old_api_map.get_version()) not in node.rt_info.info:
+            node.rt_info.info[(attr_name, old_api_map.get_version())] = old_api_map
+        node.rt_info.info[(attr_name, old_api_map.get_version())].set_legacy_type(new_type)
 
     def find_and_replace_pattern(self, graph: Graph):
         for op in graph.get_op_nodes(type='Parameter'):

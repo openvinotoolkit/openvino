@@ -389,7 +389,8 @@ public:
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                return srcDescs[i]->isCompatible(*selectedDescs[i].desc);
+                if (!srcDescs[i]->isCompatible(*selectedDescs[i].desc))
+                    return false;
             }
             return true;
         };
@@ -713,6 +714,8 @@ protected:
     bool isDynamic = false;
 
     bool inputShapesDefined() const;
+    bool outputShapesDefined() const;
+    bool shapesDefined() const;
     void updateLastInputDims();
 
     bool inputShapesModified() const;

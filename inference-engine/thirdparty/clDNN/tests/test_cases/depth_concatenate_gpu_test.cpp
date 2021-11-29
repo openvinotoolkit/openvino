@@ -450,7 +450,7 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
     topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "actv2", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(-1, -1, 0, 0))));
+    topology.add(convolution("conv", "actv2", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(1, 1, 0, 0))));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
     topology.add(concatenation("depth2", { "depth1", "conv" }, concatenation::along_f));
     topology.add(reorder("output", "depth2", format::bfyx, data_types::f32));
@@ -528,7 +528,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "depth1", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(-1, -1, 0, 0))));
+    topology.add(convolution("conv", "depth1", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(1, 1, 0, 0))));
     topology.add(reorder("output", "conv", format::bfyx, data_types::f32));
 
     cldnn::build_options options;

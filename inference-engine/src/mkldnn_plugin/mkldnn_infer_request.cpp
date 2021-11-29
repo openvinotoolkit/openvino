@@ -63,6 +63,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::CreateInferRequest() {
     for (auto& node : graph->GetNodes()) {
         if (node->getType() == MemoryInput) {
             auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            if (!memoryNode) {
+                IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+            }
             auto state_store = memoryNode->getStore();
             auto state_name = memoryNode->getId();
 
@@ -140,6 +143,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushStates() {
     for (auto &node : graph->GetNodes()) {
         if (node->getType() == MemoryInput) {
             auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            if (!cur_node) {
+                IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+            }
             auto cur_id = cur_node->getId();
             for (const auto& state : memoryStates) {
                 if (state->GetName() == cur_id) {
@@ -274,7 +280,9 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         if (preProcessedInput != std::end(_networkInputs)) {
             InferenceEngine::InputInfo::Ptr foundInput;
             InferenceEngine::DataPtr foundOutput;
-            findInputAndOutputBlobByName(name, foundInput, foundOutput);
+            if (!findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+                IE_THROW() << "Blob with name: " << name << " absents in network inputs";
+            }
             if (preProcessingRequired(foundInput, data)) {
                 _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
                 _preProcData[name]->isApplicable(data, _inputs[name]);

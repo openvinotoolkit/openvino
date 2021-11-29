@@ -26,6 +26,11 @@
 namespace ov {
 namespace test {
 
+std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
+    os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
+    return os;
+}
+
 void SubgraphBaseTest::run() {
     auto crashHandler = [](int errCode) {
         auto& s = LayerTestsUtils::Summary::getInstance();
@@ -50,7 +55,7 @@ void SubgraphBaseTest::run() {
             try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
-                    ngraph::helpers::resize_function(functionRefs, targetStaticShapeVec);
+                    init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
                 infer();
@@ -162,6 +167,10 @@ void SubgraphBaseTest::compile_model() {
     executableNetwork = core->compile_model(function, targetDevice, configuration);
 }
 
+void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
+    ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+}
+
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -170,7 +179,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         ov::runtime::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {
             tensor = ov::test::utils::create_and_fill_tensor(
-                funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         }

@@ -151,7 +151,7 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
             input_tile_ifm_pitch = zyx_pitch_factor * 16;
         }
         input_in_tile_batch_pitch = Align(in.Feature().LogicalDimPadded(), 16) * zyx_pitch_factor;
-    } else if (in_layout == DataLayout::b_fs_yx_fsv32 || in_layout == DataLayout::b_fs_yx_fsv32) {
+    } else if (in_layout == DataLayout::b_fs_yx_fsv32 || in_layout == DataLayout::b_fs_zyx_fsv32) {
         if (tile_ifm == 32) {
             input_tile_ifm_pitch = zyx_pitch_factor * 32;
         }
