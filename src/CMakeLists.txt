@@ -61,6 +61,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
 endif()
 
+add_subdirectory(plugins)
 add_subdirectory(inference)
 add_subdirectory(common)
 
@@ -83,6 +84,9 @@ endif()
 if(NGRAPH_TF_FRONTEND_ENABLE)
     add_dependencies(inference_engine tensorflow_ov_frontend)
 endif()
+
+ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+                    POSSIBLE_PLUGINS MultiDevicePlugin ov_hetero_plugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 
 # Export for build tree
 
