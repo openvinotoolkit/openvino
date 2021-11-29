@@ -21,6 +21,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 
 using InputShape = ngraph::PartialShape;
@@ -115,11 +117,18 @@ public:
 };
 
 TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertReduceToPooling().run_on_function(f);
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    ngraph::pass::Manager m;
+    m.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ngraph::pass::ConvertReduceToPooling>();
+    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #define MAX std::make_shared<ngraph::opset1::ReduceMax>()
@@ -142,7 +151,9 @@ INSTANTIATE_TEST_SUITE_P(ReduceToReshapePoolReshape, ConvertReduceToPoolingTests
 
 TEST(ConvertReduceToPooling, Negative) {
     auto f = ConvertReduceToPoolingTests::get_initial_function(ngraph::PartialShape::dynamic(), {3}, MAX, true);
-    ASSERT_NO_THROW(ngraph::pass::ConvertReduceToPooling().run_on_function(f));
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertReduceToPooling>();
+    ASSERT_NO_THROW(manager.run_passes(f));
 }
 
 #undef MAX

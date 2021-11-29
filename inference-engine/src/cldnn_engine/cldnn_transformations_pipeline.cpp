@@ -34,6 +34,10 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
+
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -101,9 +105,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
+    bool use_onednn = false;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    use_onednn = device_info.supports_immad;
+#endif
+
     bool enableInt8;
     {
         ngraph::pass::Manager manager;
+        manager.set_per_pass_validation(false);
+
         enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
             manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
@@ -112,6 +123,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
 
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ngraph::pass::TransposeSinking>();
 
         if (!config.enable_loop_unrolling) {
             manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
@@ -154,9 +167,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
                 {ngraph::element::u4, ngraph::element::u8},
         };
 
+        manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
         auto pass_config = manager.get_pass_config();
+
+        pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
@@ -325,7 +341,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
 
         // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
         // With this key users can work-around such issues
-        if (!config.enable_fp16_for_quantized_models) {
+        if (!config.enable_fp16_for_quantized_models || use_onednn) {
             ngraph::pass::Manager manager;
             manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
             manager.run_passes(func);
@@ -396,9 +412,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
 
             return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
         });
-        lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
-            return MatMulTransformation::is3DTensorOnActivations(node);
-        });
+        if (!use_onednn) {
+            lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
+                return MatMulTransformation::is3DTensorOnActivations(node);
+            });
+        }
 
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
         lptManager.run_passes(func);

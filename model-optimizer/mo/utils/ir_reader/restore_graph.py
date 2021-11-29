@@ -88,4 +88,4 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
-    prepare_emit_ir(graph, data_type, path, name, meta_info=meta_data)
+    prepare_emit_ir(graph, data_type, path, name, meta_info=meta_data, used_by_ir_reader=True)

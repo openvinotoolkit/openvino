@@ -20,5 +20,5 @@ class IteratorGetNextExtractor(FrontExtractorOp):
         result_shapes = []
         for shape_pb in shapes:
             result_shapes.append(tf_tensor_shape(shape_pb))
-        Op.update_node_stat(node, {'shapes': result_shapes, 'types': extracted_types})
+        Op.update_node_stat(node, {'shapes': result_shapes, 'types': extracted_types, 'out_ports_count': 1})
         return cls.enabled

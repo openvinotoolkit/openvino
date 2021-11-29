@@ -931,6 +931,28 @@ const std::vector<AddTransformationTestValues> testValues = {
         },
         ""
     },
+    // float path without subtract
+    {
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  {}, { 4.f }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { {ngraph::element::f32},  {}, { 0.25f } },
+            ngraph::element::u8,
+            { },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

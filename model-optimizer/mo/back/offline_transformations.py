@@ -33,19 +33,39 @@ def apply_moc_transformations(net: object):
     from openvino.offline_transformations import ApplyMOCTransformations  # pylint: disable=import-error,no-name-in-module
     ApplyMOCTransformations(net, False)
 
+def compress_model(net:object):
+    from openvino.offline_transformations import CompressModelTransformation  # pylint: disable=import-error,no-name-in-module
+    CompressModelTransformation(net)
 
-def apply_offline_transformations(input_model: str, framework: str, transforms: list):
+def apply_offline_transformations(input_model: str, framework: str, transforms: list, compress_fp16=False):
     # This variable is only needed by GenerateMappingFile transformation
     # to produce correct mapping
     extract_names = framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.inference_engine import read_network  # pylint: disable=import-error,no-name-in-module
-    from openvino.offline_transformations import GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import GenerateMappingFile, Serialize  # pylint: disable=import-error,no-name-in-module
+    from openvino.inference_engine import IENetwork  # pylint: disable=import-error,no-name-in-module
+    from ngraph.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
+    from ngraph.impl import Function  # pylint: disable=no-name-in-module,import-error
 
-    net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
+    fem = FrontEndManager()
+
+    # We have to separate fe object lifetime from fem to
+    # avoid segfault during object destruction. So fe must
+    # be destructed before fem object explicitly.
+    def read_network(path_to_xml):
+        fe = fem.load_by_framework(framework="ir")
+        f = fe.convert(fe.load(path_to_xml))
+        return IENetwork(Function.to_capsule(f))
+
+    net = read_network(input_model + "_tmp.xml")
+
     apply_user_transformations(net, transforms)
     apply_moc_transformations(net)
-    net.serialize(input_model + ".xml", input_model + ".bin")
+
+    if compress_fp16:
+        compress_model(net)
+
+    Serialize(net, str(input_model + ".xml").encode('utf-8'), (input_model + ".bin").encode('utf-8'))
     path_to_mapping = input_model + ".mapping"
     GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
 
@@ -55,6 +75,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_model")
     parser.add_argument("--framework")
     parser.add_argument("--transform")
+    parser.add_argument("--compress_fp16", action='store_true')
     args = parser.parse_args()
 
-    apply_offline_transformations(args.input_model, args.framework, parse_transform(args.transform))
+    apply_offline_transformations(args.input_model, args.framework, parse_transform(args.transform), args.compress_fp16)

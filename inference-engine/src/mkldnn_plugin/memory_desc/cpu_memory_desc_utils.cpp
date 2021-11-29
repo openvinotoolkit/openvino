@@ -107,4 +107,20 @@ std::string MemoryDescUtils::dims2str(const VectorDims& dims) {
     return output.str();
 }
 
+std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &desc, Dim dummyVal) {
+    auto dummyShape = makeDummyShape(desc.getShape(), dummyVal);
+    return desc.cloneWithNewDims(dummyShape.getStaticDims());
+}
+
+Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
+    const auto& minDims = shape.getMinDims();
+    const auto& maxDims = shape.getMaxDims();
+    const auto& dims = shape.getDims();
+    VectorDims dummyDims(dims.size());
+    for (size_t i = 0; i < dims.size(); ++i) {
+        dummyDims[i] = dims[i] == Shape::UNDEFINED_DIM ? std::min(maxDims[i], std::max(minDims[i], dummyVal)) : dims[i];
+    }
+    return Shape(dummyDims);
+}
+
 } // namespace MKLDNNPlugin

@@ -10,13 +10,11 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 
-#ifdef OPENVINO_OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
 #    define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #    include <codecvt>
 #    include <functional_test_utils/skip_tests_config.hpp>
-
-
 #endif
 
 namespace ov {
@@ -44,6 +42,17 @@ public:
     }
 };
 
+class OVClassSetDefaultDeviceIDTest : public ::testing::Test,
+                                      public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
+protected:
+    std::string deviceName;
+    std::string deviceID;
+public:
+    void SetUp() override {
+        std::tie(deviceName, deviceID) = GetParam();
+    }
+};
+
 using OVClassNetworkTestP = OVClassBaseTestP;
 using OVClassQueryNetworkTest = OVClassBaseTestP;
 using OVClassImportExportTestP = OVClassBaseTestP;
@@ -60,17 +69,38 @@ using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
 using OVClassGetMetricTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetConfigTest = OVClassBaseTestP;
 using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
-using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
-using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetAvailableDevices = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
 using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
+using OVClassSetGlobalConfigTest = OVClassBaseTestP;
+using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
+using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
+
+class OVClassSeveralDevicesTest : public OVClassNetworkTest,
+                                  public ::testing::WithParamInterface<std::vector<std::string>> {
+public:
+    std::vector<std::string> deviceNames;
+    void SetUp() override {
+        OVClassNetworkTest::SetUp();
+        deviceNames = GetParam();
+    }
+};
+using OVClassSeveralDevicesTestLoadNetwork = OVClassSeveralDevicesTest;
+using OVClassSeveralDevicesTestQueryNetwork = OVClassSeveralDevicesTest;
+using OVClassSeveralDevicesTestDefaultCore = OVClassSeveralDevicesTest;
 
 inline bool supportsAvaliableDevices(ov::runtime::Core& ie, const std::string& deviceName) {
     auto supportedMetricKeys = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
     return supportedMetricKeys.end() !=
            std::find(std::begin(supportedMetricKeys), std::end(supportedMetricKeys), METRIC_KEY(AVAILABLE_DEVICES));
+}
+
+bool supportsDeviceID(ov::runtime::Core& ie, const std::string& deviceName) {
+    auto supportedConfigKeys =
+            ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+    return supportedConfigKeys.end() !=
+           std::find(std::begin(supportedConfigKeys), std::end(supportedConfigKeys), CONFIG_KEY(DEVICE_ID));
 }
 
 TEST(OVClassBasicTest, smoke_createDefault) {
@@ -81,6 +111,9 @@ TEST_P(OVClassBasicTestP, registerExistingPluginThrows) {
     ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.register_plugin(pluginName, deviceName), ov::Exception);
 }
+
+// TODO: CVS-68982
+#ifndef OPENVINO_STATIC_LIBRARY
 
 TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
     ov::runtime::Core ie = createCoreWithTemplate();
@@ -118,7 +151,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 #endif
 
-#ifdef OPENVINO_OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     std::string pluginXML{"mock_engine_valid.xml"};
@@ -164,7 +197,8 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     CommonTestUtils::removeFile(pluginXML);
 }
 
-#endif  // OPENVINO_OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#endif // !OPENVINO_STATIC_LIBRARY
 
 //
 // GetVersions()
@@ -268,6 +302,29 @@ TEST(OVClassBasicTest, smoke_SetConfigHeteroNoThrow) {
     ASSERT_FALSE(value);
 }
 
+TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
+    ov::runtime::Core ie = createCoreWithTemplate();
+
+    std::string deviceID, clearDeviceName;
+    auto pos = deviceName.find('.');
+    if (pos != std::string::npos) {
+        clearDeviceName = deviceName.substr(0, pos);
+        deviceID =  deviceName.substr(pos + 1,  deviceName.size());
+    }
+    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+        GTEST_SKIP();
+    }
+    std::vector<std::string> deviceIDs = ie.get_metric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        GTEST_SKIP();
+    }
+
+    ASSERT_NO_THROW(ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}, deviceName));
+    std::string value;
+    ASSERT_NO_THROW(value = ie.get_config(deviceName, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT).as<std::string>());
+    ASSERT_EQ(value, InferenceEngine::PluginConfigParams::YES);
+}
+
 //
 // QueryNetwork
 //
@@ -303,6 +360,31 @@ TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
     }
+}
+
+TEST_P(OVClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNoThrow) {
+    ov::runtime::Core ie = createCoreWithTemplate();
+
+    std::string clearDeviceName;
+    auto pos = deviceNames.begin()->find('.');
+    if (pos != std::string::npos) {
+        clearDeviceName = deviceNames.begin()->substr(0, pos);
+    }
+    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+        GTEST_SKIP();
+    }
+    std::vector<std::string> deviceIDs = ie.get_metric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < deviceNames.size())
+        GTEST_SKIP();
+
+    std::string multiDeviceName = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    for (auto& dev_name : deviceNames) {
+        multiDeviceName += dev_name;
+        if (&dev_name != &(deviceNames.back())) {
+            multiDeviceName += ",";
+        }
+    }
+    ASSERT_NO_THROW(ie.query_model(actualNetwork, multiDeviceName));
 }
 
 TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
@@ -388,7 +470,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
@@ -404,7 +486,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -427,7 +509,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
 
 TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
     std::vector<std::string> t = p;
@@ -442,7 +524,7 @@ TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> t = p;
@@ -457,7 +539,7 @@ TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)));
     std::vector<std::string> t = p;
@@ -472,7 +554,7 @@ TEST_P(OVClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
     std::string t = p;
@@ -483,7 +565,7 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
     std::vector<std::string> t = p;
@@ -498,7 +580,7 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
 
 TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(DEVICE_GOPS)));
     std::map<InferenceEngine::Precision, float> t = p;
@@ -513,7 +595,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(DEVICE_TYPE)));
     InferenceEngine::Metrics::DeviceType t = p;
@@ -525,7 +607,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
     unsigned int t = p;
@@ -537,7 +619,7 @@ TEST_P(OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintN
 
 TEST_P(OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
     unsigned int t = p;
@@ -549,7 +631,7 @@ TEST_P(OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoTh
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
     std::tuple<unsigned int, unsigned int, unsigned int> t = p;
@@ -571,7 +653,7 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(RANGE_FOR_STREAMS)));
     std::tuple<unsigned int, unsigned int> t = p;
@@ -590,20 +672,20 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_THROW(p = ie.get_metric(deviceName, "unsupported_metric"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
 
     for (auto&& confKey : configValues) {
-        runtime::Parameter defaultValue;
+        ov::Any defaultValue;
         ASSERT_NO_THROW(defaultValue = ie.get_config(deviceName, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
@@ -611,7 +693,7 @@ TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
 
 TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
@@ -623,14 +705,14 @@ TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName,
                                    HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
@@ -639,9 +721,37 @@ TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_THROW(p = ie.get_config(deviceName, "unsupported_config"), ov::Exception);
+}
+
+TEST_P(OVClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
+    ov::runtime::Core ie = createCoreWithTemplate();
+    ov::Any p;
+
+    std::string deviceID, clearDeviceName;
+    auto pos = deviceName.find('.');
+    if (pos != std::string::npos) {
+        clearDeviceName = deviceName.substr(0, pos);
+        deviceID =  deviceName.substr(pos + 1,  deviceName.size());
+    }
+    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+        GTEST_SKIP();
+    }
+    std::vector<std::string> deviceIDs = ie.get_metric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        GTEST_SKIP();
+    }
+
+    ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    std::vector<std::string> configValues = p;
+
+    for (auto &&confKey : configValues) {
+        ov::Any defaultValue;
+        ASSERT_NO_THROW(defaultValue = ie.get_config(deviceName, confKey));
+        ASSERT_FALSE(defaultValue.empty());
+    }
 }
 
 TEST_P(OVClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
@@ -667,12 +777,6 @@ TEST_P(OVClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
 //
 // QueryNetwork with HETERO on particular device
 //
-bool supportsDeviceID(ov::runtime::Core& ie, const std::string& deviceName) {
-    auto supportedConfigKeys =
-            ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-    return supportedConfigKeys.end() !=
-           std::find(std::begin(supportedConfigKeys), std::end(supportedConfigKeys), CONFIG_KEY(DEVICE_ID));
-}
 
 TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
@@ -785,6 +889,31 @@ TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
         auto actual_shape = actual_results[i]->get_input_shape(0);
         ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
     }
+}
+
+TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoThrow) {
+    ov::runtime::Core ie = createCoreWithTemplate();
+
+    std::string clearDeviceName;
+    auto pos = deviceNames.begin()->find('.');
+    if (pos != std::string::npos) {
+        clearDeviceName = deviceNames.begin()->substr(0, pos);
+    }
+    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+        GTEST_SKIP();
+    }
+    std::vector<std::string> deviceIDs = ie.get_metric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < deviceNames.size())
+        GTEST_SKIP();
+
+    std::string multiDeviceName = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    for (auto& dev_name : deviceNames) {
+        multiDeviceName += dev_name;
+        if (&dev_name != &(deviceNames.back())) {
+            multiDeviceName += ",";
+        }
+    }
+    ASSERT_NO_THROW(ie.compile_model(actualNetwork, multiDeviceName));
 }
 
 //
@@ -1003,6 +1132,64 @@ TEST_P(OVClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins
     //     auto executableNetwork = ie.compile_model(actualNetwork, deviceName, config);
     // });
 };
+
+TEST_P(OVClassSetDefaultDeviceIDTest, SetDefaultDeviceIDNoThrow) {
+    ov::runtime::Core ie = createCoreWithTemplate();
+
+    std::vector<std::string> deviceIDs = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        GTEST_SKIP();
+    }
+    std::string value;
+    ASSERT_NO_THROW(ie.set_config({{ InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, deviceID },
+                                  { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES }},
+                                  deviceName));
+    ASSERT_NO_THROW(value = ie.get_config(deviceName, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT).as<std::string>());
+    ASSERT_EQ(value, InferenceEngine::PluginConfigParams::YES);
+}
+
+TEST_P(OVClassSetGlobalConfigTest, SetGlobalConfigNoThrow) {
+    ov::runtime::Core ie = createCoreWithTemplate();
+
+    std::vector<std::string> deviceIDs = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    ov::Any ref, src;
+    for (auto& dev_id : deviceIDs) {
+        ASSERT_NO_THROW(ie.set_config({{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO }},
+                                      deviceName + "." + dev_id));
+    }
+    ASSERT_NO_THROW(ie.set_config({{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES }}, deviceName));
+    ASSERT_NO_THROW(ref = ie.get_config(deviceName, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT));
+
+    for (auto& dev_id : deviceIDs) {
+        ASSERT_NO_THROW(src = ie.get_config(deviceName + "." + dev_id, InferenceEngine::PluginConfigParams::KEY_PERF_COUNT));
+        ASSERT_EQ(src, ref);
+    }
+}
+
+TEST_P(OVClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
+    ov::runtime::Core ie;
+
+    std::string clearDeviceName;
+    auto pos = deviceNames.begin()->find('.');
+    if (pos != std::string::npos) {
+        clearDeviceName = deviceNames.begin()->substr(0, pos);
+    }
+    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+        GTEST_SKIP();
+    }
+    std::vector<std::string> deviceIDs = ie.get_metric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < deviceNames.size())
+        GTEST_SKIP();
+
+    for (size_t i = 0; i < deviceNames.size(); ++i) {
+        ASSERT_NO_THROW(ie.set_config({{ InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(i + 2) }}, deviceNames[i]));
+    }
+    std::string res;
+    for (size_t i = 0; i < deviceNames.size(); ++i) {
+        ASSERT_NO_THROW(res = ie.get_config(deviceNames[i], InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>());
+        ASSERT_EQ(res, std::to_string(i + 2));
+    }
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

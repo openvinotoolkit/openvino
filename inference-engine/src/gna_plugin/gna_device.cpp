@@ -27,6 +27,7 @@
 #include "backend/am_intel_dnn.hpp"
 #include "gna/gna_config.hpp"
 #include "gna_plugin_log.hpp"
+#include "layers/gna_convolution_layer.hpp"
 
 //#define MODEL_DUMP
 
@@ -116,7 +117,7 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     return reqId;
 }
 
-void enforceLegacyCnn(Gna2Operation& operation) {
+inline void enforceLegacyCnn(Gna2Operation& operation) {
     snprintf(
         const_cast<char*>(operation.Operands[1]->Layout),
         sizeof(operation.Operands[1]->Layout) / sizeof(char),
@@ -143,10 +144,14 @@ void GNADeviceHelper::enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel) {
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t modelId;
-    if (enforceLegacyCnnNeeded()) {
+    const auto legacyExecTarget = enforceLegacyCnnNeeded();
+    if (legacyExecTarget) {
         enforceLegacyCnns(gnaModel);
     }
     enforceLegacyCnnsWhenNeeded(gnaModel);
+
+    GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(gnaModel, legacyExecTarget);
+
 #if GNA_LIB_VER == 2 && defined MODEL_DUMP
     std::string path =
 #ifdef _WIN32

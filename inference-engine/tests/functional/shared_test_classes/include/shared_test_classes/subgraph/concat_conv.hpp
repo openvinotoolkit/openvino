@@ -31,7 +31,7 @@ typedef std::tuple<
 > ConcatConvParams;
 
 class ConcatConvTest : public testing::WithParamInterface<ConcatConvParams>,
-                       public LayerTestsUtils::LayerTestsCommon {
+                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatConvParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;

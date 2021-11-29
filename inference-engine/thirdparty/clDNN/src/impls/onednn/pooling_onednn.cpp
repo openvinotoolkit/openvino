@@ -32,7 +32,7 @@ protected:
 
         auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
         auto kernel = onednn::convert_spatials(prim->size, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->input_offset, spatials_rank);
+        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
         auto pad_r = onednn::convert_spatials(prim->pad_end, spatials_rank);
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
@@ -44,7 +44,6 @@ protected:
         }
 
         for (size_t i = 0; i < kernel.size(); i++) {
-            pad_l[i] = -pad_l[i];
             pad_r[i] = (output_md.dims()[2 + i] - 1) * stride[i] - input_md.dims()[2 + i] + kernel[i] - pad_l[i];
         }
 
@@ -71,7 +70,7 @@ public:
     static primitive_impl* create(const pooling_node& arg) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_pooling_descriptor(arg);
-        auto attr = get_primitive_attributes(arg);
+        auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
         return new pooling_onednn(arg, desc, attr, prim_desc);

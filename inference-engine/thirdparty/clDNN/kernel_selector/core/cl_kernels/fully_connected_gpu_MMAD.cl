@@ -17,8 +17,6 @@
 
 #define MMAD                    CAT(MMAD_, SUB_GROUP_SIZE)
 
-#define AS_TYPE(type, val)      CAT(as_, type)(val)
-
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL(fully_connected_gpu_MMAD)(
     const __global INPUT0_TYPE* input,
@@ -302,4 +300,3 @@ KERNEL(fully_connected_gpu_MMAD)(
 #undef BLOCK_READ_8
 
 #undef MMAD
-#undef AS_TYPE

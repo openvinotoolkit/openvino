@@ -18,10 +18,9 @@
 
 using namespace testing;
 
-TEST(TransformationTests, SplitSqueezeConcatFusion) {
+TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
     size_t num_splits = 4;
 
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
         auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
@@ -35,13 +34,9 @@ TEST(TransformationTests, SplitSqueezeConcatFusion) {
 
         auto concat = std::make_shared<ngraph::opset7::Concat>(squeeze_vec, 4);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SplitSqueezeConcatFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -52,17 +47,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusion) {
                                                                        { 1, 2, 640, 20, 2 * (int64_t)num_splits });
         auto reshape = std::make_shared<ngraph::opset7::Reshape>(transpose, reshape_shape, false);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutputsGoToSqueeze) {
+TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutputsGoToSqueeze) {
     size_t num_splits = 4;
 
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
         auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
@@ -76,14 +67,10 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutputs
 
         auto concat = std::make_shared<ngraph::opset7::Concat>(squeeze_vec, 4);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SplitSqueezeConcatFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -99,17 +86,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutputs
 
         auto concat = std::make_shared<ngraph::opset7::Concat>(squeeze_vec, 4);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoInDifferentOrder) {
+TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoInDifferentOrder) {
     size_t num_splits = 4;
 
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
         auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
@@ -125,14 +108,10 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoInDi
 
         auto concat = std::make_shared<ngraph::opset7::Concat>(squeeze_vec, 4);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SplitSqueezeConcatFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -150,17 +129,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoInDi
 
         auto concat = std::make_shared<ngraph::opset7::Concat>(squeeze_vec, 4);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitAxisDifferentFromSqueezeAxis) {
+TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitAxisDifferentFromSqueezeAxis) {
     size_t num_splits = 4;
 
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
         auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
@@ -174,14 +149,10 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitAxisDifferent
 
         auto concat = std::make_shared<ngraph::opset7::Concat>(squeeze_vec, 4);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SplitSqueezeConcatFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -197,9 +168,6 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitAxisDifferent
 
         auto concat = std::make_shared<ngraph::opset7::Concat>(squeeze_vec, 4);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

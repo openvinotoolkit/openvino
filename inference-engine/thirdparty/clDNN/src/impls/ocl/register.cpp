@@ -65,7 +65,6 @@ void register_implementations() {
     REGISTER_OCL(space_to_depth);
     REGISTER_OCL(strided_slice);
     REGISTER_OCL(tile);
-    REGISTER_OCL(fused_conv_eltwise);
     REGISTER_OCL(lstm_dynamic_input);
     REGISTER_OCL(lstm_dynamic_timeloop);
     REGISTER_OCL(generic_layer);

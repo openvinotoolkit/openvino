@@ -25,7 +25,7 @@ typedef std::tuple<
 
 class ReluSplitReshape:
         public testing::WithParamInterface<ReluSplitReshapeTuple>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReluSplitReshapeTuple> &obj);
 protected:

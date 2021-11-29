@@ -165,8 +165,7 @@ def parse_devices(device_string):
     devices = device_string
     if ':' in devices:
         devices = devices.partition(':')[2]
-    return [d[:d.index('(')] if '(' in d else
-            d[:d.index('.')] if '.' in d else d for d in devices.split(',')]
+    return [d for d in devices.split(',')]
 
 
 def parse_nstreams_value_per_device(devices, values_string):
@@ -194,19 +193,15 @@ def parse_nstreams_value_per_device(devices, values_string):
     return result
 
 
-def process_help_inference_string(benchmark_app, exe_network):
+def process_help_inference_string(benchmark_app, device_number_streams):
     output_string = f'Start inference {benchmark_app.api_type}hronously'
     if benchmark_app.api_type == 'async':
         output_string += f', {benchmark_app.nireq} inference requests'
 
         device_ss = ''
-        if CPU_DEVICE_NAME in benchmark_app.device:
-            device_ss += str(exe_network.get_config('CPU_THROUGHPUT_STREAMS'))
-            device_ss += f' streams for {CPU_DEVICE_NAME}'
-        if GPU_DEVICE_NAME in benchmark_app.device:
+        for device, streams in device_number_streams.items():
             device_ss += ', ' if device_ss else ''
-            device_ss += str(exe_network.get_config('GPU_THROUGHPUT_STREAMS'))
-            device_ss += f' streams for {GPU_DEVICE_NAME}'
+            device_ss += f'{streams} streams for {device}'
 
         if device_ss:
             output_string += ' using ' + device_ss

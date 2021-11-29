@@ -285,7 +285,7 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) 
                 // Stores the given blob as ROI blob. It will be used to fill in network input
                 // during pre-processing
                 if (_inputs[name]->is<gpu::ClBlob>()) {
-                    Blob::Ptr inputHostBlob = create_input_host_blob(desc);
+                    Blob::Ptr inputHostBlob = create_host_blob(desc);
                     inputHostBlob->allocate();
                     _inputs[name] = inputHostBlob;
                 }
@@ -450,9 +450,15 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 
 CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : IInferRequestInternal(networkInputs, networkOutputs)
-        , m_useProfiling(false)
-        , m_useStreams(false) {
+        : IInferRequestInternal(networkInputs, networkOutputs) {
+    IE_ASSERT(nullptr != execNetwork);
+    streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+}
+
+CLDNNInferRequest::CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                     const CLDNNExecNetwork::Ptr& execNetwork)
+        : IInferRequestInternal(inputs, outputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
@@ -460,28 +466,30 @@ CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap
 // ----------------------------------------------------------------------------------------- //
 // ---------------------------- internal pipeline stages ----------------------------------- //
 // ----------------------------------------------------------------------------------------- //
-
-void CLDNNInferRequest::preprocess() {
-    int streamID = 0;
-    auto& streamGraphs = static_cast<CLDNNExecNetwork*>(_exeNetwork.get())->m_graphs;
-    if (nullptr != streamExecutor) {
-        streamID = streamExecutor->GetStreamId();
-        int numGraphs = streamGraphs.size();
-        streamID = streamID % numGraphs;
-    }
-    m_graph = streamGraphs[streamID];
-
+void CLDNNInferRequest::preprocess_notify() {
     m_graph->wait(CLDNNGraph::Stage::PREPROC);
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
         preprocess_dynamic();
-        return;
+    } else {
+        execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
     }
-    execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
     m_graph->notify(CLDNNGraph::Stage::PREPROC);
 }
 
-void CLDNNInferRequest::enqueue() {
+void CLDNNInferRequest::preprocess() {
+    if (m_graph->GetMaxDynamicBatchSize() > 1) {
+        preprocess_dynamic();
+    } else {
+        execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
+    }
+}
+
+void CLDNNInferRequest::enqueue_notify() {
     m_graph->wait(CLDNNGraph::Stage::EXECUTE);
+    enqueue();
+}
+
+void CLDNNInferRequest::enqueue() {
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
         enqueue_dynamic();
         return;
@@ -530,6 +538,11 @@ void CLDNNInferRequest::enqueue() {
     internal_outputs = m_graph->GetNetwork()->execute(dependencies);
 }
 
+void CLDNNInferRequest::wait_notify() {
+    wait();
+    m_graph->notify(CLDNNGraph::Stage::EXECUTE);
+}
+
 void CLDNNInferRequest::wait() {
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
         wait_dynamic();
@@ -557,13 +570,11 @@ void CLDNNInferRequest::wait() {
     if (m_useProfiling) {
         m_graph->UpdatePerfStatistics();
     }
-    m_graph->notify(CLDNNGraph::Stage::EXECUTE);
 }
 
 void CLDNNInferRequest::preprocess_dynamic() {
     // execute input pre-processing.
     execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
-    m_graph->notify(CLDNNGraph::Stage::PREPROC);
 }
 
 void CLDNNInferRequest::enqueue_dynamic() {
@@ -608,15 +619,24 @@ void CLDNNInferRequest::wait_dynamic() {
             }
         }
     }
-    m_graph->notify(CLDNNGraph::Stage::EXECUTE);
 }
 
 // ----------------------------------------------------------------------------------------- //
 // ---------------------------- internal utils --------- ----------------------------------- //
 // ----------------------------------------------------------------------------------------- //
+void CLDNNInferRequest::setup_stream_graph() {
+    int streamID = 0;
+    auto& streamGraphs = static_cast<CLDNNExecNetwork*>(_exeNetwork.get())->m_graphs;
+    if (nullptr != streamExecutor) {
+        streamID = streamExecutor->GetStreamId();
+        int numGraphs = streamGraphs.size();
+        streamID = streamID % numGraphs;
+    }
+    m_graph = streamGraphs[streamID];
+}
 
-Blob::Ptr CLDNNInferRequest::create_input_host_blob(const TensorDesc& desc, uint8_t* mem_ptr) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::create_input_host_blob");
+Blob::Ptr CLDNNInferRequest::create_host_blob(const TensorDesc& desc, uint8_t* mem_ptr) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::create_host_blob");
     const Precision& p = desc.getPrecision();
 
     switch (p) {
@@ -666,37 +686,7 @@ Blob::Ptr CLDNNInferRequest::create_input_host_blob(const TensorDesc& desc, uint
         else
             return make_shared_blob<uint8_t>(desc);
     default:
-        IE_THROW(NotImplemented) << "The plugin does not support input " << p.name() << " precision";
-    }
-}
-
-Blob::Ptr CLDNNInferRequest::create_output_host_blob(const TensorDesc& desc, uint8_t* mem_ptr) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::create_output_host_blob");
-    const Precision& p = desc.getPrecision();
-
-    switch (p) {
-    case Precision::FP32:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<float>(desc, reinterpret_cast<float*>(mem_ptr));
-        else
-            return make_shared_blob<float>(desc);
-    case Precision::FP16:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<uint16_t>(desc, reinterpret_cast<uint16_t*>(mem_ptr));
-        else
-            return make_shared_blob<uint16_t>(desc);
-    case Precision::I32:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<int32_t>(desc, reinterpret_cast<int32_t*>(mem_ptr));
-        else
-            return make_shared_blob<int32_t>(desc);
-     case Precision::I64:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<int64_t>(desc, reinterpret_cast<int64_t*>(mem_ptr));
-        else
-            return make_shared_blob<int64_t>(desc);
-    default:
-        IE_THROW() << "The plugin does not support output " << p.name() << " precision";
+        IE_THROW(NotImplemented) << "The plugin does not support " << p.name() << " blob precision";
     }
 }
 
@@ -708,6 +698,8 @@ void CLDNNInferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst, 
     case Precision::FP16: copyResultToOutputBlob<uint16_t>(src, dst, bi, stream); break;
     case Precision::I32:  copyResultToOutputBlob<int32_t>(src, dst, bi, stream);  break;
     case Precision::I64:  copyResultToOutputBlob<int64_t>(src, dst, bi, stream);  break;
+    case Precision::U8:  copyResultToOutputBlob<uint8_t>(src, dst, bi, stream);  break;
+    case Precision::I8:  copyResultToOutputBlob<int8_t>(src, dst, bi, stream);  break;
     default: IE_THROW(NotImplemented) << "The plugin does not support output " << dst->getTensorDesc().getPrecision() << " precision";
     }
 }
@@ -763,6 +755,21 @@ void CLDNNInferRequest::copy_input_data(std::shared_ptr<cldnn::network> network,
     }
 }
 
+Blob::Ptr CLDNNInferRequest::host_blob_from_device_blob(Blob::Ptr blobPtr) {
+    uint8_t* bufferMem = nullptr;
+    auto clblobPtr = std::dynamic_pointer_cast<InferenceEngine::gpu::ClBlob>(blobPtr);
+    if (clblobPtr) {
+        const auto memPtr = getBlobImpl(clblobPtr.get())->getMemory();
+        if (memPtr->get_allocation_type() == cldnn::allocation_type::usm_host) {
+            bufferMem = reinterpret_cast<uint8_t*>(memPtr->get_internal_params().mem);
+        }
+    }
+    Blob::Ptr hostBlob = create_host_blob(blobPtr->getTensorDesc(), bufferMem);
+    hostBlob->allocate();
+
+    return hostBlob;
+}
+
 void CLDNNInferRequest::allocate_inputs() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::allocate_inputs");
     auto inputLayouts = m_graph->GetInputLayouts();
@@ -788,13 +795,13 @@ void CLDNNInferRequest::allocate_inputs() {
                 desc_fp32.setPrecision(Precision::FP32);
                 auto blobPtr = create_device_blob(desc_fp32, litr->second);
                 _deviceInputs[name] = blobPtr;
-                Blob::Ptr inputBlob = create_input_host_blob(desc);
+                Blob::Ptr inputBlob = create_host_blob(desc);
                 inputBlob->allocate();
                 _inputs[name] = inputBlob;
             } else {
                 auto blobPtr = create_device_blob(desc, litr->second);
                 _deviceInputs[name] = blobPtr;
-                _inputs[name] = blobPtr;
+                _inputs[name] = host_blob_from_device_blob(blobPtr);
             }
         }
     }
@@ -814,7 +821,7 @@ void CLDNNInferRequest::allocate_inputs_dynamic() {
             IE_THROW() << "Empty dimensions for input blob " << input.first;
         }
 
-        Blob::Ptr inputBlob = create_input_host_blob(desc);
+        Blob::Ptr inputBlob = create_host_blob(desc);
         if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
             desc.setPrecision(Precision::FP32);
             auto fp32inputBlob = InferenceEngine::make_shared_blob<float>(desc);
@@ -840,7 +847,7 @@ void CLDNNInferRequest::allocate_outputs() {
         }
         auto blobPtr = create_device_blob(desc, output_layout);
         _deviceOutputs[no.first] = blobPtr;
-        _outputs[no.first] = blobPtr;
+        _outputs[no.first] = host_blob_from_device_blob(blobPtr);
         outputsMap[no.first] = outputID;
     }
 }
@@ -860,7 +867,7 @@ void CLDNNInferRequest::allocate_outputs_dynamic() {
             IE_THROW() << "Empty dimensions for output blob " << no.first;
         }
 
-        Blob::Ptr outputBlob = create_output_host_blob(desc);
+        Blob::Ptr outputBlob = create_host_blob(desc);
         outputBlob->allocate();
         _outputs[no.first] = outputBlob;
         outputsMap[no.first] = outputID;
@@ -869,7 +876,8 @@ void CLDNNInferRequest::allocate_outputs_dynamic() {
 
 void CLDNNInferRequest::InferImpl() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::InferImpl");
-
+    setup_stream_graph();
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     preprocess();
     enqueue();
     wait();
@@ -958,9 +966,25 @@ void CLDNNInferRequest::prepare_output(const cldnn::primitive_id& outputName, Bl
 }
 
 InferenceEngine::Blob::Ptr CLDNNInferRequest::create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout) {
-    auto blobPtr = std::make_shared<CLDNNRemoteCLbuffer>(m_graph->GetContext(), m_graph->GetNetwork()->get_stream(), desc, layout);
-    getBlobImpl(blobPtr.get())->allocate();
-    return blobPtr;
+    if (m_graph->GetEngine()->use_unified_shared_memory()) {
+        auto blobPtr = std::make_shared<CLDNNRemoteUSMbuffer>(m_graph->GetContext(),
+                                                              m_graph->GetNetwork()->get_stream(),
+                                                              desc,
+                                                              layout,
+                                                              nullptr,
+                                                              0,
+                                                              0,
+                                                              CLDNNRemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
+        getBlobImpl(blobPtr.get())->allocate();
+        return blobPtr;
+    } else {
+        auto blobPtr = std::make_shared<CLDNNRemoteCLbuffer>(m_graph->GetContext(),
+                                                             m_graph->GetNetwork()->get_stream(),
+                                                             desc,
+                                                             layout);
+        getBlobImpl(blobPtr.get())->allocate();
+        return blobPtr;
+    }
 }
 
 }  // namespace CLDNNPlugin

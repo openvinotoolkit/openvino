@@ -33,6 +33,9 @@ public:
 
     CLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
                       const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
+    CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                      const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
 
     CLDNNInferRequest(const CLDNNInferRequest &) = delete;
 
@@ -46,6 +49,11 @@ public:
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
+    void setup_stream_graph();
+    void preprocess_notify();
+    void enqueue_notify();
+    void wait_notify();
+
     void preprocess();
     void enqueue();
     void wait();
@@ -54,13 +62,17 @@ public:
     void enqueue_dynamic();
     void wait_dynamic();
 
+    bool use_external_queue() const { return m_useExternalQueue; }
+    void enable_external_queue() { m_useExternalQueue = true; }
+
 private:
     InferenceEngine::BlobMap _deviceOutputs;
     std::map<std::string, cldnn::primitive_id> inputsMap;
     std::map<std::string, cldnn::primitive_id> outputsMap;
 
-    bool m_useProfiling;
-    bool m_useStreams;
+    bool m_useProfiling = false;
+    bool m_useStreams = false;
+    bool m_useExternalQueue = false;
     std::shared_ptr<CLDNNGraph> m_graph;
 
     // dynamic batch stuff
@@ -72,8 +84,7 @@ private:
                        std::vector<cldnn::event::ptr>& dependencies);
     void prepare_output(const cldnn::primitive_id& outputName, InferenceEngine::Blob::Ptr& outputBlob);
 
-    InferenceEngine::Blob::Ptr create_input_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
-    InferenceEngine::Blob::Ptr create_output_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
+    InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout);
 
     void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
@@ -81,6 +92,7 @@ private:
                          const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob,
                          buf_info* bi = nullptr);
 
+    InferenceEngine::Blob::Ptr host_blob_from_device_blob(const InferenceEngine::Blob::Ptr blobPtr);
     void allocate_inputs();
     void allocate_outputs();
     void allocate_inputs_dynamic();

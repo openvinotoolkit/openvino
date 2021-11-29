@@ -20,7 +20,7 @@ using ActivationConcatsEltwiseParamsTuple = typename std::tuple<
 
 
 class ActivationConcatsEltwise : public testing::WithParamInterface<ActivationConcatsEltwiseParamsTuple>,
-                          public LayerTestsUtils::LayerTestsCommon {
+                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ParamType>& obj);
 

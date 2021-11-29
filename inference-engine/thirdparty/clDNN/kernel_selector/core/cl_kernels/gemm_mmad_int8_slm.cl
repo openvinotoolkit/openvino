@@ -6,7 +6,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/mmad.cl"
 
-#define AS_TYPE(type, val)      CAT(as_, type)(val)
 #define ACCUMULATOR_TYPE_VEC    CAT(ACCUMULATOR_TYPE, SUB_GROUP_SIZE)
 #define ACTIVATION_TYPE_VEC     CAT(ACTIVATION_TYPE, SUB_GROUP_SIZE)
 #define PACKED_INPUT0_TYPE_VEC  CAT(PACKED_INPUT0_TYPE, SUB_GROUP_SIZE)
@@ -212,7 +211,6 @@ KERNEL(gemm_mmad_int8_slm)(
     }
 }
 
-#undef AS_TYPE
 #undef ACCUMULATOR_TYPE_VEC
 #undef ACTIVATION_TYPE_VEC
 #undef PACKED_INPUT0_TYPE_VEC

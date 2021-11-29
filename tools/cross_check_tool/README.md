@@ -72,6 +72,13 @@ CCT mode arguments:
   --load LOAD           Path to a file to load blobs from
 
 ```
+
+Cross Check Tool can also be installed via:
+```sh
+$python3 -m pip install <openvino_repo>/tools/cross_check_tool
+```
+In this case, to run the tool, call `cross_check_tool` on the command line with necessary parameters.
+
 ### Examples
 
 1. To check per-layer accuracy and performance of inference in FP32 precision on the CPU against the GPU, run:

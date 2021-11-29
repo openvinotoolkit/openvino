@@ -14,7 +14,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::StridedSlice>& op) {
+static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::StridedSlice>& op) {
     p.ValidateInputs(op, {4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -217,7 +217,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
 
         auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize, op->get_friendly_name());
         p.AddPrimitive(cropPrim);
-        p.AddPrimitiveToProfiler(layerName, op);
+        auto last_layer_primitive = layerName;
 
         // Reshape in case of deleting of axis
         if (!shrink_axis_mask.empty()) {
@@ -226,7 +226,9 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
             auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeOutName, layerName, op);
+            last_layer_primitive = reshapeOutName;
         }
+        p.AddPrimitiveToProfiler(op, last_layer_primitive);
         return;
     } while (false);
 

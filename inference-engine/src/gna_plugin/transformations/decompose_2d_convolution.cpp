@@ -320,7 +320,7 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
 
         // Activation function & fake quantize
         if (graph_data.af && graph_data.conv_count == 1) {
-            last_conv_block_op = graph_data.af->copy_with_new_inputs({last_conv_block_op});
+            last_conv_block_op = graph_data.af->clone_with_new_inputs({last_conv_block_op});
             copy_runtime_info(conv, last_conv_block_op);
             last_conv_block_op = InsertFQLayer(graph_data.fq_af, last_conv_block_op);
         }
@@ -453,7 +453,7 @@ static void Decompose(const GraphData& graph_data, ConvData& conv_data) {
 
     // Activation function after trailing Transpose NCHW->NHWC
     if (graph_data.af && graph_data.conv_count > 1) {
-        auto af_result = graph_data.af->copy_with_new_inputs({conv_result});
+        auto af_result = graph_data.af->clone_with_new_inputs({conv_result});
         copy_runtime_info(graph_data.conv, af_result);
         conv_result = af_result;
     }

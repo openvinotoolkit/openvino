@@ -197,7 +197,7 @@ private:
 
 }  // namespace MKLDNNPlugin
 
-int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
+static int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
     const auto isIterable = [](const PortMap& rule) { return rule.axis != -1; };
 
     const auto getNumIterations = [](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
@@ -283,8 +283,8 @@ bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const 
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::TensorIterator::type_info,
-                ngraph::op::v5::Loop::type_info)) {
+                ngraph::op::v0::TensorIterator::get_type_info_static(),
+                ngraph::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
         }

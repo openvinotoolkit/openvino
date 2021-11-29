@@ -7,7 +7,7 @@ The primary means of the performance of the CPU codepath in the Inference Engine
 All custom kernels for the CPU plugin should be inherited from the InferenceEngine::ILayerExecImpl interface.
 Based on that, declaration of a kernel implementation class can look as follows:
 
-@snippet template_extension/cpu_kernel.hpp cpu_implementation:header
+@snippet template_extension/old/cpu_kernel.hpp cpu_implementation:header
 
 ### Class Fields
 
@@ -22,25 +22,25 @@ The provided implementation has several fields:
 
 An implementation constructor checks parameters of an nGraph operation, stores required attributes, and stores an error message in the case of an error.
 
-@snippet template_extension/cpu_kernel.cpp cpu_implementation:ctor
+@snippet template_extension/old/cpu_kernel.cpp cpu_implementation:ctor
 
 ### `getSupportedConfigurations`
 
 InferenceEngine::ILayerExecImpl::getSupportedConfigurations method returns all supported configuration formats (input/output tensor layouts) for your implementation. To specify formats of data, use InferenceEngine::TensorDesc. Refer to the [Memory Primitives](../Memory_primitives.md) section for instructions.
 
-@snippet template_extension/cpu_kernel.cpp cpu_implementation:getSupportedConfigurations
+@snippet template_extension/old/cpu_kernel.cpp cpu_implementation:getSupportedConfigurations
 
 ### `init`
 
 InferenceEngine::ILayerExecImpl::init method gets a runtime-selected configuration from a vector that is populated from the `getSupportedConfigurations` method and checks the parameters:
 
-@snippet template_extension/cpu_kernel.cpp cpu_implementation:init
+@snippet template_extension/old/cpu_kernel.cpp cpu_implementation:init
 
 ### `execute`
 
 InferenceEngine::ILayerExecImpl::execute method accepts and processes the actual tenors as input/output blobs:
 
-@snippet template_extension/cpu_kernel.cpp cpu_implementation:execute
+@snippet template_extension/old/cpu_kernel.cpp cpu_implementation:execute
 
 ## Register Implementation in `Extension` Class
 
@@ -52,13 +52,13 @@ To register custom kernel implementation in the [Extension](Extension.md) class,
 
 InferenceEngine::IExtension::getImplTypes returns a vector of implementation types for an operation.
 
-@snippet template_extension/extension.cpp extension:getImplTypes
+@snippet template_extension/old/extension.cpp extension:getImplTypes
 
 ### <a name="getImplementation"><code>getImplementation</code></a>
 
 InferenceEngine::IExtension::getImplementation returns the kernel implementation with a specified type for an operation.
 
-@snippet template_extension/extension.cpp extension:getImplementation
+@snippet template_extension/old/extension.cpp extension:getImplementation
 
 
 ## Load Extension with Executable Kernels to Plugin

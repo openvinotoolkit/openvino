@@ -68,7 +68,7 @@ protected:
                 ngraph::ParameterVector{boxes, scores, dims},
                 "Actual");
 
-        const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticNonMaxSuppression}};
+        const auto transformations = vpu::Transformations{{node->get_type_info(), vpu::dynamicToStaticNonMaxSuppression}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }

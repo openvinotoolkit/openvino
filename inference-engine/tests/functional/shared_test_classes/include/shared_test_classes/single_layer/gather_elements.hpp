@@ -22,7 +22,7 @@ typedef std::tuple<
 > GatherElementsParams;
 
 class GatherElementsLayerTest : public testing::WithParamInterface<GatherElementsParams>,
-                          public LayerTestsUtils::LayerTestsCommon {
+                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherElementsParams>& obj);
 

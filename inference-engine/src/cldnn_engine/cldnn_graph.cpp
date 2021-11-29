@@ -84,8 +84,6 @@ void CLDNNGraph::Build() {
         m_networks.emplace_back(network);
     }
 
-    UpdateImplementationsMap();
-
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dry_run_path.empty()) {
         CNNNetwork net(GetExecGraphInfo());
@@ -94,9 +92,26 @@ void CLDNNGraph::Build() {
     }
 }
 
+bool CLDNNGraph::use_external_queue() const {
+    auto impl = getContextImpl(m_context);
+    return impl->GetExternalQueue() != nullptr;
+}
+
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::BuildNetwork");
-    auto network = std::make_shared<cldnn::network>(program, m_stream_id);
+    std::shared_ptr<cldnn::network> network = nullptr;
+
+    auto impl = getContextImpl(m_context);
+    auto externalQueue = impl->GetExternalQueue();
+    if (externalQueue) {
+        if (m_config.throughput_streams != 1)
+            IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
+        auto &engine = m_program->GetEngine();
+        network = std::make_shared<cldnn::network>(program, engine.create_stream(externalQueue), m_stream_id);
+    } else {
+        network = std::make_shared<cldnn::network>(program, m_stream_id);
+    }
+
 
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
         static int net_id = 0;
@@ -528,49 +543,6 @@ bool CLDNNGraph::IsLoaded() const {
     return GetNetwork() != nullptr;
 }
 
-void CLDNNGraph::UpdateImplementationsMap() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdateImplementationsMap");
-    if (m_config.useProfiling) {
-        auto extractImplementationFromInfo = [](const std::string& info) -> std::string {
-            std::string def_implementation = "undef";
-            std::string impl_section = "implementation :";
-            std::string::size_type pos = info.find(impl_section);
-            if (pos == std::string::npos) {
-                return def_implementation;
-            }
-
-            std::string::size_type end_pos = info.find(',', pos);
-            if (end_pos == std::string::npos) {
-                return def_implementation;
-            }
-
-            std::string::size_type length = end_pos - pos - impl_section.size();
-
-            auto trim = [](const std::string& str) {
-                size_t first = str.find_first_not_of(' ');
-                if (std::string::npos == first) {
-                    return str;
-                }
-                size_t last = str.find_last_not_of(' ');
-                return str.substr(first, (last - first + 1));
-            };
-            std::string tmp = trim(info.substr(pos + impl_section.size(), length));
-
-            return tmp.length() > 1 ? tmp : def_implementation;
-        };
-
-        // Parse primitive info and extract implementation name.
-        for (auto& id : profilingIDs) {
-            std::string prim_info = "";
-            try {
-                prim_info = GetNetwork()->get_primitive_info(id);
-            } catch (std::exception& /*e*/) { }
-
-            implementationsMap.insert({id, extractImplementationFromInfo(prim_info)});
-        }
-    }
-}
-
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::GetPerformanceCounts() const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetPerformanceCounts");
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> result;
@@ -615,7 +587,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
             static const std::string cpuExecType("CPU");
             cpuExecType.copy(extPerfEntry.exec_type, cpuExecType.length());  // Override execType as CPU
         } else {
-            std::string impl = implementationsMap.at(primId);
+            std::string impl = GetNetwork()->get_implementation_info(primId);
             impl.copy(extPerfEntry.exec_type, impl.length());
         }
 
@@ -642,8 +614,10 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
                     allIds.erase(std::find(allIds.begin(), allIds.end(), id));
                 }
             }
-            if (!kernelId.empty())
-                implementationsMap.at(kernelId).copy(extPerfEntry.exec_type, implementationsMap.at(kernelId).length());
+            if (!kernelId.empty()) {
+                std::string impl_info = GetNetwork()->get_implementation_info(kernelId);
+                std::memcpy(extPerfEntry.exec_type, &impl_info[0], impl_info.length());
+            }
         }
 
         getUpperCaseName(perfCounter.layerType).copy(extPerfEntry.layer_type, perfCounter.layerType.length());

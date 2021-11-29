@@ -11,17 +11,28 @@
 using namespace ngraph;
 using namespace ov;
 
-template class ov::MLKDNNMemoryFormatsHelper<MLKDNNInputMemoryFormats>;
-constexpr VariantTypeInfo VariantWrapper<MLKDNNInputMemoryFormats>::type_info;
+MLKDNNInputMemoryFormats::~MLKDNNInputMemoryFormats() = default;
 
 std::string ngraph::getMLKDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
-    return MLKDNNMemoryFormatsHelper<MLKDNNInputMemoryFormats>::getMemoryFormats(node);
+    auto it_info = node->get_rt_info().find(MLKDNNInputMemoryFormatsAttr);
+    if (it_info != node->get_rt_info().end()) {
+        if (auto ptr = it_info->second.as<std::shared_ptr<MLKDNNInputMemoryFormats>>()) {
+            return ptr->getMemoryFormats();
+        }
+    }
+    return {};
 }
 
-template class ov::MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats>;
-constexpr VariantTypeInfo VariantWrapper<MLKDNNOutputMemoryFormats>::type_info;
+MLKDNNOutputMemoryFormats::~MLKDNNOutputMemoryFormats() = default;
 
 std::string ngraph::getMLKDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
-    return MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats>::getMemoryFormats(node);
+    auto it_info = node->get_rt_info().find(MLKDNNOutputMemoryFormatsAttr);
+    if (it_info != node->get_rt_info().end()) {
+        if (auto ptr = it_info->second.as<std::shared_ptr<MLKDNNOutputMemoryFormats>>()) {
+            return ptr->getMemoryFormats();
+        }
+    }
+    return {};
 }
+
 

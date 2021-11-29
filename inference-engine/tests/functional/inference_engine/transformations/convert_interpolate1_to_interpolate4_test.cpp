@@ -21,8 +21,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertInterpolate1ToInterpolate4) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4) {
     {
         auto data_node = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 4, 30, 30});
         auto out_shape_node = opset1::Constant::create(element::i32, Shape{4}, {2, 4, 40, 40});
@@ -37,13 +36,9 @@ TEST(TransformationTests, ConvertInterpolate1ToInterpolate4) {
 
         auto interpolate1 = std::make_shared<opset1::Interpolate>(data_node, out_shape_node, interpolate1_attr);
 
-        f = std::make_shared<Function>(NodeVector{interpolate1}, ParameterVector{data_node});
+        function = std::make_shared<Function>(NodeVector{interpolate1}, ParameterVector{data_node});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
     }
 
     {
@@ -59,15 +54,11 @@ TEST(TransformationTests, ConvertInterpolate1ToInterpolate4) {
 
         auto interpolate4 = std::make_shared<opset4::Interpolate>(data_node, out_shape_node, default_scales_node, axes_node, interpolate4_attr);
 
-        f_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
+        function_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertInterpolate1ToInterpolate4_1) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4_1) {
     {
         auto data_node = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 4, 30, 30});
         auto out_shape_node = opset1::Constant::create(element::i32, Shape{2}, {40, 40});
@@ -82,13 +73,9 @@ TEST(TransformationTests, ConvertInterpolate1ToInterpolate4_1) {
 
         auto interpolate1 = std::make_shared<opset1::Interpolate>(data_node, out_shape_node, interpolate1_attr);
 
-        f = std::make_shared<Function>(NodeVector{interpolate1}, ParameterVector{data_node});
+        function = std::make_shared<Function>(NodeVector{interpolate1}, ParameterVector{data_node});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
     }
 
     {
@@ -104,9 +91,6 @@ TEST(TransformationTests, ConvertInterpolate1ToInterpolate4_1) {
 
         auto interpolate4 = std::make_shared<opset4::Interpolate>(data_node, out_shape_node, default_scales_node, axes_node, interpolate4_attr);
 
-        f_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
+        function_ref = std::make_shared<Function>(NodeVector{interpolate4}, ParameterVector{data_node});
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }

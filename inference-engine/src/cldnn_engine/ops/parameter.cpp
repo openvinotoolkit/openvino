@@ -16,7 +16,7 @@ using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
 
-void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
+static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
     auto networkInputs = p.GetNetworkInputs();
     if (networkInputs.find(op->get_friendly_name()) == networkInputs.end()) {
         IE_THROW() << "Can't find input " << op->get_friendly_name() << " in InputsDataMap";

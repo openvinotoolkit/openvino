@@ -17,7 +17,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::Node>& op, bool ctc_merge_repeated) {
+static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::Node>& op, bool ctc_merge_repeated) {
     p.ValidateInputs(op, {2, 3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 
@@ -120,11 +120,11 @@ void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::No
     p.AddPrimitiveToProfiler(CTCGreedyDecoderLayerName, op);
 }
 
-void CreateCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::op::v0::CTCGreedyDecoder>& op) {
+static void CreateCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::op::v0::CTCGreedyDecoder>& op) {
     CreateCommonCTCGreedyDecoderOp(p, op, op->get_ctc_merge_repeated());
 }
 
-void CreateCTCGreedyDecoderSeqLenOp(Program& p, const std::shared_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLen>& op) {
+static void CreateCTCGreedyDecoderSeqLenOp(Program& p, const std::shared_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLen>& op) {
     CreateCommonCTCGreedyDecoderOp(p, op, op->get_merge_repeated());
 }
 

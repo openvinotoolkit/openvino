@@ -30,7 +30,6 @@ import pytest
 import yaml
 from jsonschema import validate, ValidationError
 
-# add utils folder to imports
 UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
@@ -233,9 +232,6 @@ def omz_models_conversion(instance, request):
             return_code, _ = cmd_exec(cmd, log=logging)
             assert return_code == 0, "Converting OMZ models has failed!"
 
-            instance["orig_instance"]["model"]["framework"] = model_info["framework"]
-            instance["orig_instance"]["model"]["path"] = sub_model_path
-
             instance["instance"]["model"]["cache_path"] = model_out_path
             instance["instance"]["model"]["irs_out_path"] = model_irs_out_path
 
@@ -434,8 +430,7 @@ def prepare_timeline_report(pytestconfig):
         import jinja2  # pylint: disable=import-outside-toplevel
 
         env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(
-                searchpath=Path().absolute() / 'memory_template'),
+            loader=jinja2.FileSystemLoader(searchpath=os.path.join(abs_path('.'), 'memory_template')),
             autoescape=False)
         template = env.get_template('timeline_report.html')
         template.stream(records=records, timelines=timelines).dump(report_path)
@@ -511,7 +506,7 @@ def pytest_make_parametrize_id(config, val, argname):
             yield d
 
     keys = ["device", "model"]
-    values = {key: val["instance"][key] for key in keys}
+    values = {key: val["instance"][key]["name"] for key in keys}
     values = list(get_dict_values(values))
 
     return "-".join(["_".join([key, str(val)]) for key, val in zip(keys, values)])

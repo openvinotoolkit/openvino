@@ -10,6 +10,10 @@ namespace LayerTestsDefinitions {
 
 TEST_P(ConvertColorNV12LayerTest, CompareWithRefs) {
     Run();
-};
+}
+
+TEST_P(ConvertColorNV12AccuracyTest, CompareWithRefs) {
+    Run();
+}
 
 } // namespace LayerTestsDefinitions

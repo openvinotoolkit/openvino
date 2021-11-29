@@ -4,8 +4,6 @@
 
 #include "power_static.hpp"
 
-constexpr ngraph::NodeTypeInfo MKLDNNPlugin::PowerStaticNode::type_info;
-
 MKLDNNPlugin::PowerStaticNode::PowerStaticNode(const ngraph::Output<Node> &data,
                                                const float &power,
                                                const float &scale,

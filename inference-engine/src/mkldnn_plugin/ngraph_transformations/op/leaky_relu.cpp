@@ -4,8 +4,6 @@
 
 #include "leaky_relu.hpp"
 
-constexpr ngraph::NodeTypeInfo MKLDNNPlugin::LeakyReluNode::type_info;
-
 MKLDNNPlugin::LeakyReluNode::LeakyReluNode(const ngraph::Output<ngraph::Node> &data,
                                            const float &negative_slope,
                                            const ngraph::element::Type output_type)

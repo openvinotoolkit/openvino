@@ -43,7 +43,7 @@ class VirtualEnv:
         if sys.platform.startswith('linux') or sys.platform == 'darwin':
             self.venv_executable = self.venv_dir / "bin" / "python3"
         else:
-            self.venv_executable = self.venv_dir / "Scripts" / "python3.exe"
+            self.venv_executable = self.venv_dir / "Scripts" / "python.exe"
 
     def get_venv_executable(self):
         """Returns path to executable from virtual environment."""
@@ -55,7 +55,8 @@ class VirtualEnv:
 
     def create(self):
         """Creates virtual environment."""
-        cmd = '{executable} -m venv {venv}'.format(executable=sys.executable, venv=self.get_venv_dir())
+        cmd = '"{executable}" -m venv {venv}'.format(executable=sys.executable,
+                                                     venv=self.get_venv_dir())
         run_in_subprocess(cmd)
         self.is_created = True
 
@@ -63,10 +64,10 @@ class VirtualEnv:
         """Installs provided requirements. Creates virtual environment if it hasn't been created."""
         if not self.is_created:
             self.create()
-        cmd = '{executable} -m pip install --upgrade pip'.format(executable=self.get_venv_executable())
+        cmd = '"{executable}" -m pip install --upgrade pip'.format(executable=self.get_venv_executable())
         for req in requirements:
             # Don't install requirements via one `pip install` call to prevent "ERROR: Double requirement given"
-            cmd += ' && {executable} -m pip install -r {req}'.format(executable=self.get_venv_executable(), req=req)
+            cmd += ' && "{executable}" -m pip install -r {req}'.format(executable=self.get_venv_executable(), req=req)
         run_in_subprocess(cmd)
 
     def create_n_install_requirements(self, *requirements):
@@ -146,7 +147,6 @@ def main():
         Venv = VirtualEnv("./.stress_venv")
         requirements = [
             args.mo_tool.parent / "requirements.txt",
-            args.mo_tool.parent / "requirements_dev.txt",
             omz_path / "tools" / "model_tools" / "requirements.in",
             omz_path / "tools" / "model_tools" / "requirements-caffe2.in",
             omz_path / "tools" / "model_tools" / "requirements-pytorch.in"
@@ -165,7 +165,7 @@ def main():
         precision = model_rec.attrib["precision"]
 
         info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
-        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
+        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=python_executable,
                                                                                info_dumper_path=info_dumper_path,
                                                                                model_name=model_name)
         try:
@@ -192,22 +192,22 @@ def main():
             args.omz_irs_out_dir / model_rec.attrib["subdirectory"] / precision / (model_rec.attrib["name"] + ".xml"))
 
         # prepare models
+
         downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
-        cmd = '{downloader_path} --name {model_name}' \
+        cmd = '"{executable}" {downloader_path} --name {model_name}' \
               ' --precisions={precision}' \
               ' --num_attempts {num_attempts}' \
               ' --output_dir {models_dir}' \
-              ' --cache_dir {cache_dir}'.format(downloader_path=downloader_path, precision=precision,
-                                                models_dir=args.omz_models_out_dir,
-                                                num_attempts=OMZ_NUM_ATTEMPTS, model_name=model_name,
-                                                cache_dir=args.omz_cache_dir)
-
+              ' --cache_dir {cache_dir}'.format(executable=python_executable, downloader_path=downloader_path,
+                                                model_name=model_name,
+                                                precision=precision, num_attempts=OMZ_NUM_ATTEMPTS,
+                                                models_dir=args.omz_models_out_dir, cache_dir=args.omz_cache_dir)
         run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 
         # convert models to IRs
         converter_path = omz_path / "tools" / "model_tools" / "converter.py"
         # NOTE: remove --precisions if both precisions (FP32 & FP16) required
-        cmd = '{executable} {converter_path} --name {model_name}' \
+        cmd = '"{executable}" {converter_path} --name {model_name}' \
               ' -p "{executable}"' \
               ' --precisions={precision}' \
               ' --output_dir {irs_dir}' \

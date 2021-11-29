@@ -7,8 +7,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo OutShapeOfReshape::type_info;
-
 OutShapeOfReshape::OutShapeOfReshape(
         const Output<Node>& inDataShape,
         const Output<Node>& outShapeDescriptor,
@@ -68,6 +66,7 @@ bool OutShapeOfReshape::visit_attributes(ngraph::AttributeVisitor& visitor) {
 }
 
 namespace out_shape {
+namespace {
 
 template<element::Type_t ET>
 bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
@@ -250,6 +249,7 @@ bool evaluateOutShapeOfReshape(
     return true;
 }
 
+}  // namespace
 }  // namespace out_shape
 
 bool OutShapeOfReshape::evaluate(const HostTensorVector& outputs,

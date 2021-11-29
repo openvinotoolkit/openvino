@@ -63,13 +63,13 @@ MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         if (fc->get_input_size() == 2) {
             new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape->input_value(0),
                                                                         weightInput,
-                                                                        outShape,
+                                                                        ngraph::Rank(outShape.size()),
                                                                         fc->output(0).get_element_type());
         } else if (fc->get_input_size() == 3) {
             new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape->input_value(0),
                                                                         weightInput,
                                                                         fc->input_value(2),
-                                                                        outShape,
+                                                                        ngraph::Rank(outShape.size()),
                                                                         fc->output(0).get_element_type());
         } else {
             return false;

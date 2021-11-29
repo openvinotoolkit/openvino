@@ -77,8 +77,8 @@ private:
 
 class CustomAbs : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"CustomAbs", 100500};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    OPENVINO_RTTI("CustomAbs", "custom_opset");
+
     CustomAbs() = default;
     CustomAbs(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
         constructor_validate_and_infer_types();
@@ -93,8 +93,6 @@ public:
         return true;
     }
 };
-
-constexpr ngraph::NodeTypeInfo CustomAbs::type_info;
 
 class CustomAbsExtension : public InferenceEngine::IExtension {
 public:
@@ -111,7 +109,7 @@ public:
     }
 
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-        if (node->description() != CustomAbs::type_info.name)
+        if (node->description() != CustomAbs::get_type_info_static().name)
             return {};
         return {"CPU"};
     }
@@ -121,10 +119,8 @@ public:
     }
 };
 
-void infer_model(InferenceEngine::Core& ie, const std::string& model,
+static void infer_model(InferenceEngine::Core& ie, InferenceEngine::CNNNetwork& network,
                  const std::vector<float>& input_values, const std::vector<float>& expected) {
-    InferenceEngine::Blob::CPtr weights;
-    auto network = ie.ReadNetwork(model, weights);
     auto function = network.getFunction();
 
     auto network_inputs = network.getInputsInfo();
@@ -152,65 +148,24 @@ void infer_model(InferenceEngine::Core& ie, const std::string& model,
     ASSERT_EQ(expected, computed_values);
 }
 
+static std::string model_full_path(const char* path) {
+    return FileUtils::makePath<char>(TEST_MODELS, path);
+}
 
 TEST(Extension, OnnxModelWithCustomAbs) {
-    std::string model = R"V0G0N(
-ir_version: 3
-producer_name: "nGraph ONNX Importer"
-graph {
-  node {
-    input: "A"
-    output: "Y"
-    name: "customrelu"
-    op_type: "CustomAbs"
-    domain: "custom_domain"
-  }
-  name: "test_graph"
-  input {
-    name: "A"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 10
-          }
-        }
-      }
-    }
-  }
-  output {
-    name: "Y"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 10
-          }
-        }
-      }
-    }
-  }
-}
-opset_import {
-  version: 1
-  domain: "custom_domain"
-}
-)V0G0N";
-
     std::vector<float> input_values{1, -2, 3, -4, 5, -6, 7, -8, 9, -10};
     std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAbsExtension>());
     ngraph::onnx_import::register_operator(
-        CustomAbs::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+        CustomAbs::get_type_info_static().name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
             ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
             return {std::make_shared<CustomAbs>(ng_inputs.at(0))};
     });
 
-    infer_model(ie, model, input_values, expected);
-    ngraph::onnx_import::unregister_operator(CustomAbs::type_info.name, 1, "custom_domain");
+    auto network = ie.ReadNetwork(model_full_path("func_tests/models/custom_abs_op.onnx"));
+    infer_model(ie, network, input_values, expected);
+    ngraph::onnx_import::unregister_operator(CustomAbs::get_type_info_static().name, 1, "custom_domain");
 }
 
 
@@ -257,7 +212,9 @@ TEST(Extension, XmlModelWithCustomAbs) {
     std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAbsExtension>());
-    infer_model(ie, model, input_values, expected);
+    InferenceEngine::Blob::CPtr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    infer_model(ie, network, input_values, expected);
 }
 
 
@@ -322,84 +279,19 @@ TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
-    infer_model(ie, model, input_values, expected);
+    InferenceEngine::Blob::CPtr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    infer_model(ie, network, input_values, expected);
 }
 
 
 TEST(Extension, OnnxModelWithExtensionFromDSO) {
-    std::string model = R"V0G0N(
-ir_version: 3
-producer_name: "nGraph ONNX Importer"
-graph {
-  node {
-    input: "A"
-    output: "Y"
-    name: "operation"
-    op_type: "Template"
-    domain: "custom_domain"
-    attribute {
-        name: "add"
-        type: INT
-        i: 11
-    }
-  }
-  name: "test_graph"
-  input {
-    name: "A"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
-  output {
-    name: "Y"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
-}
-opset_import {
-  version: 1
-  domain: "com.example"
-}
-)V0G0N";
-
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
-    infer_model(ie, model, input_values, expected);
+    auto network = ie.ReadNetwork(model_full_path("func_tests/models/custom_template_op.onnx"));
+    infer_model(ie, network, input_values, expected);
 }
 
 
@@ -409,6 +301,7 @@ TEST(Extension, OnnxModelWithCustomReluDocsExample) {
 
     register_custom_relu_operator();
     InferenceEngine::Core ie;
-    infer_model(ie, custom_relu_model(), input_values, expected);
+    auto network = ie.ReadNetwork(model_full_path("docs/models/custom_relu_model.onnx"));
+    infer_model(ie, network, input_values, expected);
     unregister_custom_relu_operator();
 }

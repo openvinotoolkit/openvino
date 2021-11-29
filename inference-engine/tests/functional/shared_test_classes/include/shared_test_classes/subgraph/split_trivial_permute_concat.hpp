@@ -26,7 +26,7 @@ typedef std::tuple<
 
 class SplitTrivialPermuteConcatTest
     : public testing::WithParamInterface<SplitTrivialPermuteConcatTuple>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SplitTrivialPermuteConcatTuple>& obj);
 protected:

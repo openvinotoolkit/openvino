@@ -14,7 +14,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
+static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
     p.ValidateInputs(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -58,15 +58,15 @@ void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) 
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateReshapeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Reshape>& op) {
+static void CreateReshapeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Reshape>& op) {
     CreateCommonReshapeOp(p, op);
 }
 
-void CreateSqueezeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Squeeze>& op) {
+static void CreateSqueezeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Squeeze>& op) {
     CreateCommonReshapeOp(p, op);
 }
 
-void CreateUnsqueezeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Unsqueeze>& op) {
+static void CreateUnsqueezeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Unsqueeze>& op) {
     CreateCommonReshapeOp(p, op);
 }
 

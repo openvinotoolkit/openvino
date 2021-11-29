@@ -22,7 +22,7 @@ typedef std::tuple<
 
 class ConvStridesOpt
         : public testing::WithParamInterface<ConvStridesOptParams>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvStridesOptParams> &obj);
 

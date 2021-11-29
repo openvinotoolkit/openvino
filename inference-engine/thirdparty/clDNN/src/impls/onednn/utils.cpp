@@ -98,8 +98,16 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
     }
 }
 
+void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
+    auto rank = cldnn::format::dimension(l.format);
+    auto last_spatial_dim_idx = rank - 2 - 1;
+
+    l.size.batch[0] *= l.size.feature[0];
+    l.size.feature[0] = l.size.spatial[last_spatial_dim_idx];
+    l.size.spatial[last_spatial_dim_idx] = 1;
+}
+
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {
-    size_t rank = cldnn::format::dimension(l.format);
     dnnl::memory::dims dims;
     dnnl::memory::dims padded_dims;
     dnnl::memory::dims padded_offset;
@@ -115,6 +123,7 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
         dims = flatten_tensor(l.size);
         padded_dims = dims;
     } else {
+        auto rank = cldnn::format::dimension(l.format);
         auto padded_size = l.size + l.data_padding.lower_size() + l.data_padding.upper_size();
         auto offset = l.data_padding.lower_size();
         dims = convert_tensor(l.size, rank, cldnn::format::is_grouped(l.format));
@@ -201,13 +210,17 @@ dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
 dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
     switch (func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
+        case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
+        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu;
         case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
+        case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
+        case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
+        case cldnn::activation_func::hswish: return dnnl::algorithm::eltwise_hardswish;
+        case cldnn::activation_func::abs: return dnnl::algorithm::eltwise_abs;
+        case cldnn::activation_func::exp: return dnnl::algorithm::eltwise_exp;
         case cldnn::activation_func::logistic: return dnnl::algorithm::eltwise_logistic;
         case cldnn::activation_func::clamp: return dnnl::algorithm::eltwise_clip;
-        case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::hyperbolic_tan: return dnnl::algorithm::eltwise_tanh;
-        case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
-        case cldnn::activation_func::abs: return dnnl::algorithm::eltwise_abs;
         default: throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
     }
 }
@@ -231,6 +244,7 @@ cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
         }
     } else {
         switch (fmt) {
+        case dnnl::memory::format_tag::ab: return cldnn::format::oiyx;
         case dnnl::memory::format_tag::abcd: return cldnn::format::oiyx;
         case dnnl::memory::format_tag::bacd: return cldnn::format::oiyx;
         case dnnl::memory::format_tag::BAcd16b16a: return cldnn::format::is_os_yx_isv16_osv16;
@@ -251,6 +265,29 @@ cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
         }
     }
 }
+
+template <typename T>
+void make_per_tensor_if_possible(cldnn::data_node& node) {
+    auto ptr = node.get_attached_memory_ptr();
+    auto engine = ptr->get_engine();
+    auto& stream = engine->get_program_stream();
+    auto num_elems = node.get_output_layout().count();
+    mem_lock<T, mem_lock_type::read> old_data {ptr, stream};
+    auto val = old_data[0];
+    for (size_t i = 1; i < num_elems; i++) {
+        if (val != old_data[i])
+            return;
+    }
+
+    auto l = layout {node.get_output_layout().data_type, node.get_output_layout().format, tensor{1, 1, 1, 1}};
+    auto new_mem = engine->allocate_memory(l);
+    mem_lock<T, mem_lock_type::write> new_data{new_mem, stream};
+    new_data[0] = val;
+    node.attach_memory(new_mem, false);
+}
+
+template void make_per_tensor_if_possible<int8_t>(cldnn::data_node& node);
+template void make_per_tensor_if_possible<uint8_t>(cldnn::data_node& node);
 
 }  // namespace onednn
 }  // namespace cldnn

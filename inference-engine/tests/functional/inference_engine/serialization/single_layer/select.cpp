@@ -17,7 +17,7 @@ const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
 
 const auto noneCases = ::testing::Combine(
     ::testing::ValuesIn(noneShapes), ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE),
+    ::testing::Values(ngraph::op::AutoBroadcastType::NONE),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
 const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
@@ -25,7 +25,7 @@ const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
 
 const auto numpyCases = ::testing::Combine(
     ::testing::ValuesIn(numpyShapes), ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastSpec::NUMPY),
+    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
 TEST_P(SelectLayerTest, Serialize) {

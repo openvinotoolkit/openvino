@@ -1,7 +1,8 @@
 # build/artifact dirs
 _*
-# but ensure we don't skip __init__.py
+# but ensure we don't skip __init__.py and __main__.py
 !__init__.py
+!__main__.py
 
 # developer tools
 *.idea
@@ -19,8 +20,8 @@ doc/
 !ngraph/doc
 docs/build_documentation/work_dir/
 inference-engine/plugins/
-inference-engine/temp
 inference-engine/report
+temp/
 .repo/
 docs/template_plugin/html/
 CMakeLists.txt.user

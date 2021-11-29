@@ -11,7 +11,6 @@
 #include <tuple>
 #include <cctype>
 #include <memory>
-
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
 #include <ie_ngraph_utils.hpp>
@@ -23,12 +22,12 @@
 #include "cldnn_custom_layer.h"
 #include "cldnn_itt.h"
 #include "gpu/gpu_config.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
 #include "cldnn/runtime/device_query.hpp"
 #include "cldnn/runtime/debug_configuration.hpp"
-
 #ifdef __linux__
 # include <dlfcn.h>
 #endif
@@ -61,17 +60,25 @@ void clDNNEngine::RegisterPrimitives() {
 }
 
 struct clDNNEngine::impl {
-    CLDNNPlugin::Config m_config;
+    CLDNNPlugin::Configs m_configs;
 };
+
+std::string clDNNEngine::GetDeviceIDFromConfig(const std::map<std::string, std::string>& config) const {
+    std::string device_id;
+    if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
+        device_id = config.at(PluginConfigParams::KEY_DEVICE_ID);
+    }
+    return device_id;
+}
 
 cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::string> &config) const {
     auto device_info = device_map.begin()->second->get_info();
-    if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
-        auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
-        if (device_map.find(val) == device_map.end()) {
-            IE_THROW() << "Invalid device ID: " << val;
+    std::string device_id = GetDeviceIDFromConfig(config);
+    if (!device_id.empty()) {
+        if (device_map.find(device_id) == device_map.end()) {
+            IE_THROW() << "Invalid device ID: " << device_id;
         }
-        device_info = device_map.at(val)->get_info();
+        device_info = device_map.at(device_id)->get_info();
     }
 
     return device_info;
@@ -84,12 +91,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
     if (clonedNetwork.getFunction()) {
         auto nGraphFunc = clonedNetwork.getFunction();
-        auto transformation_config = CLDNNPlugin::Config(config);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        if (GetDeviceInfo(config.key_config_map).supports_immad)
-            transformation_config.enable_fp16_for_quantized_models = false;
-#endif
-        TransformationsPipeline transformations(transformation_config);
+        auto deviceInfo = GetDeviceInfo(config.key_config_map);
+        TransformationsPipeline transformations(config, deviceInfo);
         transformations.apply(nGraphFunc);
     }
 
@@ -109,6 +112,11 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
         // Set OCL runtime which should be always available
         cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
         device_map = device_query.get_available_devices();
+
+        // Set default configs for each device
+        for (auto& device : device_map) {
+            _impl->m_configs.CreateConfig(device.first);
+        }
     }
     // locate global custom kernel config
     // and auto-load kernels from it
@@ -133,7 +141,9 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
         config_path = configFile.substr(0, dir_split_pos);
     }
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
-    CLDNNCustomLayer::LoadFromFile(config_path, _impl->m_config.customLayers, true);
+    for (auto& config : _impl->m_configs) {
+        CLDNNCustomLayer::LoadFromFile(config_path, config.second.customLayers, true);
+    }
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
@@ -161,6 +171,25 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
     conf.UpdateFromMap(params);
     if (conf.enableDynamicBatch) {
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
+    }
+}
+
+void clDNNEngine::UpdateStatistics(const CLDNNRemoteCLContext::Ptr& context) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::UpdateStatistics");
+    {
+        std::lock_guard<std::mutex> lock(engine_mutex);
+
+        std::map<std::string, uint64_t> statistics;
+        auto impl = getContextImpl(context);
+        impl->acquire_lock();
+        std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
+        statistics = eng->get_memory_statistics();
+        impl->release_lock();
+
+        // if the same context exists, the statistics is replaced with the latest one
+        // (currently, memory usage is accumulated for several networks in the same context)
+        // if it does not exist, a new statistics is added
+        statistics_map[context] = statistics;
     }
 }
 
@@ -201,7 +230,10 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
-    CLDNNPlugin::Config conf = _impl->m_config;
+    CLDNNPlugin::Configs confs = _impl->m_configs;
+    std::string device_id = GetDeviceIDFromConfig(orig_config);
+    CLDNNPlugin::Config conf = confs.GetConfig(device_id);
+
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
@@ -225,7 +257,8 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
                context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
                context_config.device_id == current_config.device_id &&
-               context_config.n_threads == current_config.n_threads &&
+               context_config.task_exec_config._streams == current_config.task_exec_config._streams &&
+               context_config.task_exec_config._threadPreferredCoreType == current_config.task_exec_config._threadPreferredCoreType &&
                context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
     };
 
@@ -242,7 +275,9 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateExeNetwork");
-        return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+        CLDNNExecNetwork::Ptr exeNetwork = std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+        UpdateStatistics(context);
+        return exeNetwork;
     }
 }
 
@@ -270,12 +305,12 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == contextTypeStr) {
-        return std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
 #ifdef _WIN32
-        return std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
 #else
-        return std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
 #endif
     } else {
         IE_THROW() << "Invalid remote context type" << contextTypeStr;
@@ -284,7 +319,7 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
 
 RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
-        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
+        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig()));
     }
     return m_defaultContext;
 }
@@ -292,15 +327,32 @@ RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     streamsSet = (config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end());
     throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
-            config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
-    _impl->m_config.UpdateFromMap(config);
+                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
+    std::string device_id;
+    if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
+        device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
+        _impl->m_configs.GetConfig(device_id).UpdateFromMap(config);
+    } else {
+        device_id = GetDeviceIDFromConfig(config);
+        if (!device_id.empty()) {
+            _impl->m_configs.SetDefaultDeviceID(device_id);
+            _impl->m_configs.GetConfig(device_id).UpdateFromMap(config);
+        } else {
+            for (auto& conf : _impl->m_configs) {
+                conf.second.UpdateFromMap(config);
+            }
+        }
+    }
 }
 
 QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                                              const std::map<std::string, std::string>& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::QueryNetwork");
     QueryNetworkResult res;
-    CLDNNPlugin::Config conf = _impl->m_config;
+    CLDNNPlugin::Configs confs = _impl->m_configs;
+    std::string device_id = GetDeviceIDFromConfig(config);
+    CLDNNPlugin::Config conf = confs.GetConfig(device_id);
+
     UpdateConfig(conf, network, config);
 
     if (m_defaultContext == nullptr) {
@@ -516,12 +568,18 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     return res;
 }
 
-Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetConfig");
     Parameter result;
-    auto option = _impl->m_config.key_config_map.find(name);
-    if (option != _impl->m_config.key_config_map.end()) {
-        result = option->second;
+
+    std::string device_id;
+    if (options.find(PluginConfigParams::KEY_DEVICE_ID) != options.end()) {
+        device_id = options.find(PluginConfigParams::KEY_DEVICE_ID)->second.as<std::string>();
+    }
+    Config config = _impl->m_configs.GetConfig(device_id);
+
+    if (config.key_config_map.find(name) != config.key_config_map.end()) {
+        result = config.key_config_map.find(name)->second;
     } else {
         IE_THROW() << "Unsupported config key : " << name;
     }
@@ -553,7 +611,14 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
     switch (dt) {
     case cldnn::data_types::u8:
     case cldnn::data_types::i8: {
-        if (info.supports_imad) {
+        if (info.supports_immad) {
+            if (info.gfx_ver.major == 12) {
+                if (info.gfx_ver.minor == 5)
+                    opsPerComputeBlock = 512;
+                else if (info.gfx_ver.minor == 7)
+                    opsPerComputeBlock = 256;
+            }
+        } else if (info.supports_imad) {
             // fma * simd size
             opsPerComputeBlock = 2 * 32;
         } else {
@@ -565,8 +630,17 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
         break;
     }
     case cldnn::data_types::f16: {
-        // fma * simd size
-        opsPerComputeBlock = 2 * 16;
+        if (info.supports_immad) {
+            if (info.gfx_ver.major == 12) {
+                if (info.gfx_ver.minor == 5)
+                    opsPerComputeBlock = 256;
+                else if (info.gfx_ver.minor == 7)
+                    opsPerComputeBlock = 128;
+            }
+        } else {
+            // fma * simd size
+            opsPerComputeBlock = 2 * 16;
+        }
         break;
     }
     case cldnn::data_types::f32: {
@@ -583,9 +657,7 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
 
 Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetMetric");
-    auto device_id = GetConfig(CONFIG_KEY(DEVICE_ID), {});
-    if (options.find(CONFIG_KEY(DEVICE_ID)) != options.end())
-        device_id = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+    std::string device_id = GetConfig(CONFIG_KEY(DEVICE_ID), options);
 
     auto iter = device_map.find(device_id);
     auto device_info = iter != device_map.end() ?
@@ -603,10 +675,11 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         metrics.push_back(METRIC_KEY(DEVICE_TYPE));
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
+        metrics.push_back(GPU_METRIC_KEY(MAX_BATCH_SIZE));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
-
+        metrics.push_back(GPU_METRIC_KEY(MEMORY_STATISTICS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
@@ -643,7 +716,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceName);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto opt : _impl->m_config.key_config_map)
+        for (auto opt : _impl->m_configs.GetConfig(device_id).key_config_map)
             configKeys.push_back(opt.first);
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
@@ -666,11 +739,152 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
+    } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS)) {
+        std::map<std::string, uint64_t> statistics;
+        for (auto const &item : statistics_map) {
+            // Before collecting memory statistics of each context, it's updated with the latest memory statistics from engine.
+            UpdateStatistics(item.first);
+            for (auto const &kv : item.second) {
+                if (!statistics.count(kv.first)) {
+                    statistics[kv.first] = kv.second;
+                } else {
+                    statistics[kv.first] += kv.second;
+                }
+            }
+        }
+        IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
+    } else if (name == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        const auto& config = _impl->m_configs.GetConfig(device_id);
+        uint32_t n_streams = static_cast<uint32_t>(config.throughput_streams);
+        uint64_t occupied_device_mem = 0;
+        auto statistic_result = GetMetric(GPU_METRIC_KEY(MEMORY_STATISTICS), options).as<std::map<std::string, uint64_t>>();
+        auto occupied_usm_dev = statistic_result.find("usm_device_current");
+        if (occupied_usm_dev != statistic_result.end()) {
+            occupied_device_mem = occupied_usm_dev->second;
+        }
+
+        int64_t available_device_mem = device_info.max_global_mem_size - occupied_device_mem;
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is " << available_device_mem
+                           << " (occupied: " << occupied_device_mem << ")" << std::endl;
+        }
+
+        int64_t max_batch_size = 0;
+
+        if (options.find("MODEL_PTR") == options.end()) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
+            }
+            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(1));
+        }
+        if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
+            try {
+                n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint32_t>();
+            } catch (...) {
+                IE_THROW() << "[GPU] bad casting: GPU_THROUGHPUT_STREAMS should be uint32_t type";
+            }
+        }
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] n_streams : " << n_streams << std::endl;
+        }
+
+        if (options.find("AVAILABLE_DEVICE_MEM_SIZE") != options.end()) {
+            try {
+                available_device_mem = std::min(static_cast<int64_t>(available_device_mem), options.find("AVAILABLE_DEVICE_MEM_SIZE")->second.as<int64_t>());
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
+                }
+            } catch (...) {
+                IE_THROW() << "[GPU] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
+            }
+            if (available_device_mem < 0) {
+                IE_THROW() << "[GPU] AVAILABLE_DEVICE_MEM_SIZE value should be greater than 0 for max batch size calculation";
+            }
+        }
+
+        std::shared_ptr<ngraph::Function> model;
+        auto model_param = options.find("MODEL_PTR")->second;
+        try {
+            model = model_param.as<std::shared_ptr<ngraph::Function>>();
+        } catch (...) {
+            IE_THROW() << "[GPU] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+        }
+
+        InferenceEngine::CNNNetwork network(model);
+        size_t base_batch_size = 16; // empirically decided for DG1
+        auto engine_params = clDNNEngine::GetEngineParams(config, iter->second, nullptr);
+        auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, iter->second,
+                                cldnn::engine_configuration(false, engine_params.queue_type, std::string(),
+                                config.queuePriority, config.queueThrottle, config.memory_pool_on,
+                                engine_params.use_unified_shared_memory, std::string(), config.throughput_streams),
+                                engine_params.task_executor);
+
+        std::shared_ptr<Program> program;
+
+        GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
+            int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+            base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
+        }
+
+        auto cloned_network = InferenceEngine::details::cloneNetwork(network);
+        auto inputs_info = cloned_network.getInputsInfo();
+        ICNNNetwork::InputShapes new_shapes;
+        //std::map<std::string, SizeVector>;
+        bool batch_detected = false;
+        for (auto& info : inputs_info) {
+            if (!info.second)
+                continue;
+            Layout layout = info.second->getLayout();
+            auto data = info.second->getInputData();
+            if (!data)
+                continue;
+            std::string name = info.second->getInputData()->getName();
+            auto shape = data->getTensorDesc().getDims();
+            if (layout == InferenceEngine::Layout::NCHW ||
+                layout == InferenceEngine::Layout::NHWC ||
+                layout == InferenceEngine::Layout::NCDHW ||
+                layout == InferenceEngine::Layout::NDHWC ||
+                layout == InferenceEngine::Layout::NC)  {
+                shape[0] = base_batch_size;
+                batch_detected = true;
+            } else if (layout == InferenceEngine::Layout::CN) {
+                shape[1] = base_batch_size;
+                batch_detected = true;
+            }
+            new_shapes[name] = shape;
+        }
+        if (batch_detected) { // reshape only for batched layout
+            cloned_network.reshape(new_shapes);
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Reshaped base batch size to " << base_batch_size << std::endl;
+            }
+        } else {
+            base_batch_size = 1;
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Batch dimension is not used in inputs." << std::endl;
+            }
+        }
+
+        auto nGraphFunc = cloned_network.getFunction();
+        TransformationsPipeline transformations(config, device_info);
+        transformations.apply(nGraphFunc);
+        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
+        int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
+                                  static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
+        int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
+        max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << "Base batch size: " << base_batch_size  << std::endl;
+            GPU_DEBUG_COUT << "Const mem usage: " << device_memory_usage.first  << std::endl;
+            GPU_DEBUG_COUT << "General mem usage: " << device_memory_usage.second  << std::endl;
+        }
+        IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
 }
-
 };  // namespace CLDNNPlugin
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "clDNNPlugin" };

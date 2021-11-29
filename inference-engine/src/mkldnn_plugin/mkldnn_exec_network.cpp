@@ -25,10 +25,20 @@
 #include <cstring>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_icore.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+InferenceEngine::IInferRequestInternal::Ptr
+MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+        return nullptr;
+    return std::make_shared<MKLDNNInferRequest>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+}
 
 InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
@@ -112,6 +122,9 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         for (auto &node : GetGraph()._graph.GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+                if (!memoryNode) {
+                    IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+                }
                 auto state_store = memoryNode->getStore();
                 auto state_name = memoryNode->getId();
 
@@ -272,12 +285,6 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
 
     return true;
 }
-
-IE_SUPPRESS_DEPRECATED_START
-std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
-    return memoryStates;
-}
-IE_SUPPRESS_DEPRECATED_END
 
 void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
     CNNNetworkSerializer serializer(modelStream, extensionManager);

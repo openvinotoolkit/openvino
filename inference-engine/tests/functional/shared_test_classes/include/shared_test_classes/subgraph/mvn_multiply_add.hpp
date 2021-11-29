@@ -25,7 +25,7 @@ typedef std::tuple<
 > mvnMultiplyAddParams;
 
 class MVNMultiplyAdd: public testing::WithParamInterface<mvnMultiplyAddParams>,
-                      public LayerTestsUtils::LayerTestsCommon{
+                      virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<mvnMultiplyAddParams> &obj);
 protected:

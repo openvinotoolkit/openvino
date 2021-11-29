@@ -13,7 +13,10 @@ class MultiBoxDetectionOutputExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        num_classes = 21
+        # We can not get num_classes attribute from the operation, so it must be set to None.
+        # In this case num_classes attribute will be defined in the infer function in
+        # mo/front/common/partial_infer/multi_box_detection.py
+        num_classes = None
         top_k = attrs.int("nms_topk", -1)
         keep_top_k = top_k
         variance_encoded_in_target = 0

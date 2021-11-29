@@ -82,7 +82,7 @@ protected:
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
-        const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
+        const auto transformations = vpu::Transformations{{node->get_type_info(), vpu::dynamicToStaticShapeGather}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -162,7 +162,7 @@ protected:
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
-        const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
+        const auto transformations = vpu::Transformations{{node->get_type_info(), vpu::dynamicToStaticShapeGather}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -245,7 +245,7 @@ protected:
         node->set_output_type(0, node->get_input_element_type(0), ngraph::PartialShape::dynamic(
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
-        const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
+        const auto transformations = vpu::Transformations{{node->get_type_info(), vpu::dynamicToStaticShapeGather}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }

@@ -6,8 +6,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/mmad.cl"
 
-#define AS_TYPE(type, val) CAT(as_, type)(val)
-
 #ifdef ACCUMULATOR_TYPE
 #undef ACCUMULATOR_TYPE
 #endif

@@ -70,6 +70,9 @@ public:
         }
         m_cv.notify_one();
     }
+    std::mutex& get_mutex() { return m_infer_mutex; }
+
+    bool use_external_queue() const;
 
 protected:
     uint32_t m_state;
@@ -85,7 +88,6 @@ protected:
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
 
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
-    std::map<cldnn::primitive_id, std::string> implementationsMap;
     std::vector<cldnn::primitive_id> profilingIDs;
 
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
@@ -96,7 +98,6 @@ protected:
     std::shared_ptr<cldnn::network> BuildNetwork(std::shared_ptr<cldnn::program> program);
     void Build();
     void UpdateLayersMaps();
-    void UpdateImplementationsMap();
     std::shared_ptr<ngraph::Function> GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
                                                                        bool filter_const_primitives = true);
 };

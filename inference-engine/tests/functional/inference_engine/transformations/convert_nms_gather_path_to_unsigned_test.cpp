@@ -15,9 +15,8 @@ using namespace testing;
 using namespace ngraph;
 using namespace std;
 
-TEST(TransformationTests, test_convert_to_unsigned_nms_gather_1) {
+TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_1) {
     // if Convert doesn't exist
-    shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto boxes = make_shared<opset8::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = make_shared<opset8::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -34,13 +33,9 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_1) {
         auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
         auto gather = make_shared<opset8::Gather>(reshape_node, squeeze_node, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        f = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -59,16 +54,12 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_1) {
         auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
         auto gather = make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        f_ref = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        function_ref = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, test_convert_to_unsigned_nms_gather_2) {
+TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_2) {
     // if Convert already exists
-    shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto boxes = make_shared<opset8::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = make_shared<opset8::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -86,13 +77,9 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_2) {
         auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
         auto gather = make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        f = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -111,11 +98,8 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_2) {
         auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
         auto gather = make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        f_ref = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        function_ref = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 TEST(TransformationTests, test_convert_to_unsigned_nms_gather_3) {

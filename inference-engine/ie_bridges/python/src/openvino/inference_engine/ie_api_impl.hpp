@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <iostream>
 #include <iterator>
 #include <list>
 #include <map>
 #include <mutex>
+#include <numeric>
 #include <queue>
 #include <set>
 #include <sstream>
@@ -144,6 +146,7 @@ struct IEExecNetwork {
 
     PyObject* getMetric(const std::string& metric_name);
     PyObject* getConfig(const std::string& name);
+    void setConfig(const std::map<std::string, std::string>& config);
 
     int wait(int num_requests, int64_t timeout);
     int getIdleRequestId();
@@ -202,5 +205,7 @@ std::string get_version();
 InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
 
 PyObject* getPartialShape_capsule(InferenceEngine::CDataPtr data);
+
+const size_t product(const InferenceEngine::SizeVector& dims);
 
 };  // namespace InferenceEnginePython

@@ -190,20 +190,6 @@ public:
                     struct lstm_elt_t {
                         uint32_t cell : 1;
                     } lstm_elt;
-                    struct fused_conv_eltw_t {
-                        // conv
-                        uint32_t split : 1;
-                        uint32_t dilation : 1;
-                        uint32_t depthwise_separable_opt : 1;
-                        uint32_t transposed : 1;
-                        uint32_t local : 1;
-                        uint32_t grouped : 1;
-                        // eltw
-                        uint32_t stride : 1;
-                        // fused conv eltw
-                        uint32_t rw_out_opt : 1;
-                        uint32_t depth_to_space_fused : 1;
-                    } fused_conv_eltw;
                     struct quantize_t {
                         uint32_t packed_binary_output : 1;
                         uint32_t scale_shift_opt : 1;
@@ -302,17 +288,6 @@ public:
     void EnableLocalConvolution() { key.restrict.val.dedicated.conv.local = 1; }
     void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
     void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
-
-    void EnableFusedConvEltwSplitSupport() { key.restrict.val.dedicated.fused_conv_eltw.split = 1; }
-    void EnableFusedConvEltwDilation() { key.restrict.val.dedicated.fused_conv_eltw.dilation = 1; }
-    void EnableFusedConvEltwDepthwiseSeparableOpt() {
-        key.restrict.val.dedicated.fused_conv_eltw.depthwise_separable_opt = 1;
-    }
-    void EnableFusedConvEltwLocalConvolution() { key.restrict.val.dedicated.fused_conv_eltw.local = 1; }
-    void EnableFusedConvEltwGroupedConvolution() { key.restrict.val.dedicated.fused_conv_eltw.grouped = 1; }
-    void EnableFusedConvEltwTranspose() { key.restrict.val.dedicated.fused_conv_eltw.transposed = 1; }
-    void EnableFusedConvEltwEltwiseStride();
-    void EnableFusedConvEltwDepthToSpaceFusing();
 
     void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }

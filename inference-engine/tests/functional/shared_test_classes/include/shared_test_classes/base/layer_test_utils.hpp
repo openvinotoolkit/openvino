@@ -16,6 +16,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/bfloat16.hpp>
+#include <ngraph/pass/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -55,7 +56,7 @@ public:
 
     virtual void Run();
 
-    virtual void Serialize();
+    virtual void Serialize(ngraph::pass::Serialize::Version ir_version = ngraph::pass::Serialize::Version::UNSPECIFIED);
 
     virtual void QueryNetwork();
 
@@ -155,12 +156,6 @@ protected:
     float abs_threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
-    // dynamic input shapes
-    std::vector<ngraph::PartialShape> inputDynamicShapes;
-    // index for targetStaticShape
-    size_t index = 0;
-    // target static input shapes which is used for reshape ngraph function & generate input blobs
-    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
 
     virtual void Validate();
 
@@ -171,7 +166,6 @@ protected:
     InferenceEngine::InferRequest inferRequest;
 
 private:
-    void ResizeNgraphFunction();
     RefMode refMode = RefMode::INTERPRETER;
 };
 
