@@ -14,8 +14,10 @@ namespace v0 {
 /// generate detection output using location and confidence predictions
 class OPENVINO_API DetectionOutput : public op::util::DetectionOutputBase {
 public:
-    struct Attributes : op::util::DetectionOutputBase::AttributesBase {
+    struct Attributes : public op::util::DetectionOutputBase::AttributesBase {
         int num_classes;
+        Attributes(const op::util::DetectionOutputBase::AttributesBase& attrs_base)
+            : op::util::DetectionOutputBase::AttributesBase(attrs_base), num_classes(-1) {}
     };
 
     OPENVINO_OP("DetectionOutput", "opset1", op::util::DetectionOutputBase);
@@ -67,7 +69,10 @@ namespace v8 {
 /// generate detection output using location and confidence predictions
 class OPENVINO_API DetectionOutput : public op::util::DetectionOutputBase {
 public:
-    struct Attributes : op::util::DetectionOutputBase::AttributesBase {};
+    struct Attributes : public op::util::DetectionOutputBase::AttributesBase {
+        Attributes(const op::util::DetectionOutputBase::AttributesBase& attrs_base)
+            : op::util::DetectionOutputBase::AttributesBase(attrs_base) {}
+    };
 
     OPENVINO_OP("DetectionOutput", "opset8", op::util::DetectionOutputBase);
     BWDCMP_RTTI_DECLARATION;

@@ -9,7 +9,7 @@
 namespace ov {
 namespace op {
 namespace util {
-/// \brief GatherNDBase basic class for GatherND v5 and v8
+/// \brief DetectionOutputBase basic class for DetectionOutput v0 and v8
 class OPENVINO_API DetectionOutputBase : public Op {
 public:
     struct AttributesBase {
