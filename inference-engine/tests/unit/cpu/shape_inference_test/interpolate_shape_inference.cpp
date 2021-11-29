@@ -108,8 +108,6 @@ TEST(StaticShapeInferenceTest, InterpolateV0Test) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 2, 33, 65}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
-    std::vector<size_t> pads_begin;
-    std::vector<size_t> pads_end;
     shape_infer(interpolate.get(), static_input_shapes, static_output_shapes, constant_data);
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 2, 15, 30}));
 }
@@ -119,7 +117,5 @@ TEST(StaticShapeInferenceTest, InterpolateV0MissingConstantTest) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 2, 33, 65}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
-    std::vector<size_t> pads_begin;
-    std::vector<size_t> pads_end;
-    EXPECT_THROW(shape_infer(interpolate.get(), static_input_shapes, static_output_shapes), NodeValidationFailure);
+    EXPECT_THROW(shape_infer(interpolate.get(), static_input_shapes, static_output_shapes, {}), NodeValidationFailure);
 }

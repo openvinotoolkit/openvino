@@ -11,8 +11,7 @@
 template <class T>
 void shape_infer(const ov::op::util::ScatterNDBase* op,
                  const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
     const auto& inputs_shape = input_shapes[0];
     const auto& indices_shape = input_shapes[1];

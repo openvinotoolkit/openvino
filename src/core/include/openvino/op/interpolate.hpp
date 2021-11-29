@@ -77,7 +77,7 @@ private:
     friend void shape_infer(const Interpolate* op,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes,
-                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
 };
 }  // namespace v0
 
@@ -317,7 +317,7 @@ private:
                             std::vector<size_t>& pads_end,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes,
-                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
 };
 }  // namespace v4
 }  // namespace op

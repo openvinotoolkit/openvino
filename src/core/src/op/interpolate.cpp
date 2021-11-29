@@ -4,11 +4,10 @@
 
 #include "ngraph/op/interpolate.hpp"
 
-#include <interpolate_shape_inference.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <interpolate_shape_inference.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
@@ -52,7 +51,7 @@ void op::v0::Interpolate::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {input_shape, target_spatial_shape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
-    shape_infer(this, input_shapes, output_shapes);
+    shape_infer(this, input_shapes, output_shapes, {});
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
@@ -232,10 +231,10 @@ void op::v4::Interpolate::validate_and_infer_types() {
     } else {
         const auto axes = get_input_partial_shape(3);
         input_shapes = {input_shape, target_spatial_shape, scales, axes};
-     }
+    }
 
     correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
-    shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes);
+    shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes, {});
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 

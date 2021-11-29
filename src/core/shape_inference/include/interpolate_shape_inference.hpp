@@ -204,7 +204,7 @@ void shape_infer(const Interpolate* op,
                 infer_using_scales(output_shape, axes, scales, padded_input_shape);
             } else {
                 for (auto axis : axes) {
-                     output_shape[axis] = ov::Dimension::dynamic(); // todo: add test case
+                    output_shape[axis] = ov::Dimension::dynamic();
                 }
             }
         } else {
