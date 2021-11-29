@@ -6,6 +6,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
 #include "cldnn_itt.h"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -92,7 +93,8 @@ bool Program::CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops,
     return true;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly)
+Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
+    bool createTopologyOnly, bool partialBuild)
     : m_config(config)
     , m_engine(engine)
     , m_curBatch(-1)
@@ -127,10 +129,10 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
             blobMemCache.clear();
 
             ChangeInputBatch(1U << static_cast<unsigned>(b));
-            m_programs.insert(m_programs.begin(), BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly));
+            m_programs.insert(m_programs.begin(), BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
         }
     } else {
-        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly));
+        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
     }
 }
 
@@ -174,7 +176,7 @@ void Program::CleanupBuild() {
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                       InferenceEngine::InputsDataMap networkInputs,
                                                       InferenceEngine::OutputsDataMap networkOutputs,
-                                                      bool createTopologyOnly) {
+                                                      bool createTopologyOnly, bool partialBuild) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::BuildProgram");
     cldnn::build_options options;
 
@@ -184,7 +186,9 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
 
     options.set_option(cldnn::build_option::optimize_data(true));
     options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
-
+    if (partialBuild) {
+        options.set_option(cldnn::build_option::partial_build_program(true));
+    }
     PrepareBuild(networkInputs, networkOutputs);
     for (const auto& op : ops) {
         CreateSingleLayerPrimitive(*m_topology, op);
@@ -231,6 +235,12 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateSingleLayerPrimitive");
     InitProfileInfo(op->get_friendly_name(), op->get_type_name());
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
+                       << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
+    }
+
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
     while (op_type_info != nullptr) {
@@ -251,8 +261,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
 
     if (!is_created) {
         IE_THROW() << "Operation: " << op->get_friendly_name()
-                           << " of type " << op->get_type_name()
-                           << "(op::v" << op->get_type_info().version << ") is not supported";
+                   << " of type " << op->get_type_name()
+                   << "(op::v" << op->get_type_info().version << ") is not supported";
     }
 }
 

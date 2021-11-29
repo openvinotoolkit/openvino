@@ -26,7 +26,7 @@
 #include <vpu/configuration/options/number_of_shaves.hpp>
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
@@ -108,7 +108,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<NumberOfSHAVEsOption>();
     _configuration.registerOption<NumberOfCMXSlicesOption>();
     _configuration.registerOption<ThroughputStreamsOption>();
-    _configuration.registerOption<IRWithScalesDirectoryOption>();
+    _configuration.registerOption<VPUScalesOption>();
     _configuration.registerOption<TensorStridesOption>();
     _configuration.registerOption<IgnoreUnknownLayersOption>();
     _configuration.registerOption<ForcePureTensorIteratorOption>();

@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src)
+set(INCLUDES $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src)
 
 set(LINK_LIBRARIES
     gmock
@@ -19,7 +19,7 @@ set(LINK_LIBRARIES
     inference_engine_snippets
     offline_transformations
     inference_engine
-    frontend_manager
+    frontend_common
     pugixml::static
 )
 
@@ -33,7 +33,7 @@ set(DEPENDENCIES
 )
 
 if(NGRAPH_IR_FRONTEND_ENABLE)
-    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+    list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 
 if(ENABLE_IR_V7_READER)
@@ -74,13 +74,13 @@ if(NGRAPH_ONNX_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_FRONTEND_ENABLE
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
-    add_dependencies(${TARGET_NAME} onnx_ngraph_frontend)
+    add_dependencies(${TARGET_NAME} onnx_ov_frontend)
 endif()
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
-    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
+    add_dependencies(${TARGET_NAME} paddlepaddle_ov_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
@@ -124,12 +124,12 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_PLUGIN_API)
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/plugin_api/")
+            "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/")
     else()
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/ngraph/core/include"
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie"
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/")
+            "${OpenVINO_SOURCE_DIR}/src/core/include"
+            "${OpenVINO_SOURCE_DIR}/src/inference/include/ie"
+            "${OpenVINO_SOURCE_DIR}/src/inference/include/")
     endif()
 
     foreach(include_dir IN LISTS include_dirs)
@@ -149,18 +149,18 @@ function(ie_headers_compilation_with_custom_flags)
                                                 "gpu/gpu_context_api_va.hpp"
                                                 "gpu/gpu_context_api_dx.hpp"
                                                 "gpu/gpu_ocl_wrapper.hpp"
-                                                "openvino/runtime/gpu/ocl_wrapper.hpp"
-                                                "openvino/runtime/gpu/ocl.hpp"
-                                                "openvino/runtime/gpu/va.hpp"
-                                                "openvino/runtime/gpu/dx.hpp")
+                                                "openvino/runtime/gpu/ocl/ocl_wrapper.hpp"
+                                                "openvino/runtime/gpu/ocl/ocl.hpp"
+                                                "openvino/runtime/gpu/ocl/va.hpp"
+                                                "openvino/runtime/gpu/ocl/dx.hpp")
         endif()
         if(NOT WIN32)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
-                                                "openvino/runtime/gpu/dx.hpp")
+                                                "openvino/runtime/gpu/ocl/dx.hpp")
         endif()
         if(NOT LIBVA_FOUND)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
-                                                "openvino/runtime/gpu/va.hpp")
+                                                "openvino/runtime/gpu/ocl/va.hpp")
         endif()
     endif()
 
@@ -200,6 +200,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_compile_definitions(${target_name} PRIVATE
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
     else()
         # OpenCL headers if any
         if(OPENCL_HEADERS_DIR)

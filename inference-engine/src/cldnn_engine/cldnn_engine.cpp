@@ -11,7 +11,6 @@
 #include <tuple>
 #include <cctype>
 #include <memory>
-
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
 #include <ie_ngraph_utils.hpp>
@@ -29,7 +28,6 @@
 
 #include "cldnn/runtime/device_query.hpp"
 #include "cldnn/runtime/debug_configuration.hpp"
-
 #ifdef __linux__
 # include <dlfcn.h>
 #endif
@@ -176,6 +174,25 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
     }
 }
 
+void clDNNEngine::UpdateStatistics(const CLDNNRemoteCLContext::Ptr& context) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::UpdateStatistics");
+    {
+        std::lock_guard<std::mutex> lock(engine_mutex);
+
+        std::map<std::string, uint64_t> statistics;
+        auto impl = getContextImpl(context);
+        impl->acquire_lock();
+        std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
+        statistics = eng->get_memory_statistics();
+        impl->release_lock();
+
+        // if the same context exists, the statistics is replaced with the latest one
+        // (currently, memory usage is accumulated for several networks in the same context)
+        // if it does not exist, a new statistics is added
+        statistics_map[context] = statistics;
+    }
+}
+
 std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
         const std::map<std::string, std::string>& network_config,
         const CLDNNPlugin::Config& plugin_config) const {
@@ -258,7 +275,9 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateExeNetwork");
-        return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+        CLDNNExecNetwork::Ptr exeNetwork = std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+        UpdateStatistics(context);
+        return exeNetwork;
     }
 }
 
@@ -592,7 +611,14 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
     switch (dt) {
     case cldnn::data_types::u8:
     case cldnn::data_types::i8: {
-        if (info.supports_imad) {
+        if (info.supports_immad) {
+            if (info.gfx_ver.major == 12) {
+                if (info.gfx_ver.minor == 5)
+                    opsPerComputeBlock = 512;
+                else if (info.gfx_ver.minor == 7)
+                    opsPerComputeBlock = 256;
+            }
+        } else if (info.supports_imad) {
             // fma * simd size
             opsPerComputeBlock = 2 * 32;
         } else {
@@ -604,8 +630,17 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
         break;
     }
     case cldnn::data_types::f16: {
-        // fma * simd size
-        opsPerComputeBlock = 2 * 16;
+        if (info.supports_immad) {
+            if (info.gfx_ver.major == 12) {
+                if (info.gfx_ver.minor == 5)
+                    opsPerComputeBlock = 256;
+                else if (info.gfx_ver.minor == 7)
+                    opsPerComputeBlock = 128;
+            }
+        } else {
+            // fma * simd size
+            opsPerComputeBlock = 2 * 16;
+        }
         break;
     }
     case cldnn::data_types::f32: {
@@ -640,10 +675,11 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         metrics.push_back(METRIC_KEY(DEVICE_TYPE));
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
+        metrics.push_back(GPU_METRIC_KEY(MAX_BATCH_SIZE));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
-
+        metrics.push_back(GPU_METRIC_KEY(MEMORY_STATISTICS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
@@ -703,11 +739,152 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
+    } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS)) {
+        std::map<std::string, uint64_t> statistics;
+        for (auto const &item : statistics_map) {
+            // Before collecting memory statistics of each context, it's updated with the latest memory statistics from engine.
+            UpdateStatistics(item.first);
+            for (auto const &kv : item.second) {
+                if (!statistics.count(kv.first)) {
+                    statistics[kv.first] = kv.second;
+                } else {
+                    statistics[kv.first] += kv.second;
+                }
+            }
+        }
+        IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
+    } else if (name == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        const auto& config = _impl->m_configs.GetConfig(device_id);
+        uint32_t n_streams = static_cast<uint32_t>(config.throughput_streams);
+        uint64_t occupied_device_mem = 0;
+        auto statistic_result = GetMetric(GPU_METRIC_KEY(MEMORY_STATISTICS), options).as<std::map<std::string, uint64_t>>();
+        auto occupied_usm_dev = statistic_result.find("usm_device_current");
+        if (occupied_usm_dev != statistic_result.end()) {
+            occupied_device_mem = occupied_usm_dev->second;
+        }
+
+        int64_t available_device_mem = device_info.max_global_mem_size - occupied_device_mem;
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is " << available_device_mem
+                           << " (occupied: " << occupied_device_mem << ")" << std::endl;
+        }
+
+        int64_t max_batch_size = 0;
+
+        if (options.find("MODEL_PTR") == options.end()) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
+            }
+            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(1));
+        }
+        if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
+            try {
+                n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint32_t>();
+            } catch (...) {
+                IE_THROW() << "[GPU] bad casting: GPU_THROUGHPUT_STREAMS should be uint32_t type";
+            }
+        }
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] n_streams : " << n_streams << std::endl;
+        }
+
+        if (options.find("AVAILABLE_DEVICE_MEM_SIZE") != options.end()) {
+            try {
+                available_device_mem = std::min(static_cast<int64_t>(available_device_mem), options.find("AVAILABLE_DEVICE_MEM_SIZE")->second.as<int64_t>());
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
+                }
+            } catch (...) {
+                IE_THROW() << "[GPU] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
+            }
+            if (available_device_mem < 0) {
+                IE_THROW() << "[GPU] AVAILABLE_DEVICE_MEM_SIZE value should be greater than 0 for max batch size calculation";
+            }
+        }
+
+        std::shared_ptr<ngraph::Function> model;
+        auto model_param = options.find("MODEL_PTR")->second;
+        try {
+            model = model_param.as<std::shared_ptr<ngraph::Function>>();
+        } catch (...) {
+            IE_THROW() << "[GPU] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+        }
+
+        InferenceEngine::CNNNetwork network(model);
+        size_t base_batch_size = 16; // empirically decided for DG1
+        auto engine_params = clDNNEngine::GetEngineParams(config, iter->second, nullptr);
+        auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, iter->second,
+                                cldnn::engine_configuration(false, engine_params.queue_type, std::string(),
+                                config.queuePriority, config.queueThrottle, config.memory_pool_on,
+                                engine_params.use_unified_shared_memory, std::string(), config.throughput_streams),
+                                engine_params.task_executor);
+
+        std::shared_ptr<Program> program;
+
+        GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
+            int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+            base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
+        }
+
+        auto cloned_network = InferenceEngine::details::cloneNetwork(network);
+        auto inputs_info = cloned_network.getInputsInfo();
+        ICNNNetwork::InputShapes new_shapes;
+        //std::map<std::string, SizeVector>;
+        bool batch_detected = false;
+        for (auto& info : inputs_info) {
+            if (!info.second)
+                continue;
+            Layout layout = info.second->getLayout();
+            auto data = info.second->getInputData();
+            if (!data)
+                continue;
+            std::string name = info.second->getInputData()->getName();
+            auto shape = data->getTensorDesc().getDims();
+            if (layout == InferenceEngine::Layout::NCHW ||
+                layout == InferenceEngine::Layout::NHWC ||
+                layout == InferenceEngine::Layout::NCDHW ||
+                layout == InferenceEngine::Layout::NDHWC ||
+                layout == InferenceEngine::Layout::NC)  {
+                shape[0] = base_batch_size;
+                batch_detected = true;
+            } else if (layout == InferenceEngine::Layout::CN) {
+                shape[1] = base_batch_size;
+                batch_detected = true;
+            }
+            new_shapes[name] = shape;
+        }
+        if (batch_detected) { // reshape only for batched layout
+            cloned_network.reshape(new_shapes);
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Reshaped base batch size to " << base_batch_size << std::endl;
+            }
+        } else {
+            base_batch_size = 1;
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Batch dimension is not used in inputs." << std::endl;
+            }
+        }
+
+        auto nGraphFunc = cloned_network.getFunction();
+        TransformationsPipeline transformations(config, device_info);
+        transformations.apply(nGraphFunc);
+        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
+        int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
+                                  static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
+        int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
+        max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << "Base batch size: " << base_batch_size  << std::endl;
+            GPU_DEBUG_COUT << "Const mem usage: " << device_memory_usage.first  << std::endl;
+            GPU_DEBUG_COUT << "General mem usage: " << device_memory_usage.second  << std::endl;
+        }
+        IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
 }
-
 };  // namespace CLDNNPlugin
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "clDNNPlugin" };

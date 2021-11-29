@@ -322,6 +322,28 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
     //        { ngraph::element::f16, { {ngraph::element::f16}, {}, { {0.01f, 0.1f, 1.f} }} }
     //    }
     //},
+    // u4 through u8
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 1.5f } },
+        { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 15.f } },
+        ngraph::element::u8,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.1f }} },
+            { ngraph::element::f16, { {ngraph::element::f16}, {}, { 0.1f }} }
+        }
+    },
+    // i4 through i8
+    {
+        LayerTransformation::createParamsI8I8(),
+        { 16ul, {}, { -0.8f }, { 0.7f }, { -0.8f }, { 0.7f } },
+        { 16ul, {}, { -0.8f }, { 0.7f }, { -8.f }, { 7.f } },
+        ngraph::element::i8,
+        {
+            { ngraph::element::f32, {{ngraph::element::f32}, { }, { 0.1f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, { }, { 0.1f }} }
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(
