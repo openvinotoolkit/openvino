@@ -1,6 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+cmake_minimum_required (VERSION 3.13)
+project(openvino_dev)
+
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
+    find_package(InferenceEngineDeveloperPackage REQUIRED)
+endif()
+
 
 set(WHEEL_VERSION "${IE_VERSION}" CACHE STRING "Version of this release" FORCE)
 set(WHEEL_BUILD "${IE_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
@@ -41,4 +48,9 @@ foreach(EXTRAS ${EXTRAS_LIST})
         EXCLUDE_FROM_ALL)
 endforeach()
 
-ie_cpack_add_component(openvino_dev_req_files)
+if(InferenceEngineDeveloperPackage_FOUND)
+    ie_cpack_add_component(openvino_dev_req_files)
+    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+endif()
+
+
