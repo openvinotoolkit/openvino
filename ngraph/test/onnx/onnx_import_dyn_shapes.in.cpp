@@ -985,6 +985,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
     test_case.add_input<int64_t>({1, 1, 1});
     test_case.add_input<int64_t>({2, 2, 2});
     test_case.add_expected_output<float>(Shape{1, 1, 1}, {9});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
