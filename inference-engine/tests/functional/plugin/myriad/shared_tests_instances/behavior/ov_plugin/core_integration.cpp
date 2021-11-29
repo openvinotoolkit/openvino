@@ -37,7 +37,7 @@ TEST_P(OVClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
     ov::runtime::Core ie;
     ASSERT_METRIC_SUPPORTED(METRIC_KEY(OPTIMIZATION_CAPABILITIES))
 
-    ov::runtime::Parameter optimizationCapabilitiesParameter;
+    ov::Any optimizationCapabilitiesParameter;
     ASSERT_NO_THROW(optimizationCapabilitiesParameter =
                             ie.get_metric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
 

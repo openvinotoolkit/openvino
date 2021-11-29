@@ -63,20 +63,20 @@ class RangeOptimization(OptimizationAlgorithm):
             parents = nu.get_node_inputs(fq)
             if parents[0].type != 'Const':
                 if parents[0].type in ('Clamp', 'ReLU'):
-                    out[parents[0].name] = [nu.get_node_value(parents[2])]
-                    self._optimization_scope[parents[0].name] = 'ReLU'
-                if parents[0].name not in self._optimization_scope:
-                    out[parents[0].name] = [
+                    out[parents[0].fullname] = [nu.get_node_value(parents[2])]
+                    self._optimization_scope[parents[0].fullname] = 'ReLU'
+                if parents[0].fullname not in self._optimization_scope:
+                    out[parents[0].fullname] = [
                         nu.get_node_value(val) for val in parents[1:3]
                     ]
         return out
 
     def _set_parameter_values(self, model, param_values):
-        for fq in model.get_op_nodes(type='FakeQuantize'):
+        for fq in mu.get_nodes_by_type(model, ['FakeQuantize']):
             # get zero parent because this is FakeQuantize node input
             _node_input = nu.get_node_input(fq, 0)
-            if _node_input.name in self._activation_ranges:
-                min_level_, max_level_ = param_values[_node_input.name]
+            if _node_input.fullname in self._activation_ranges:
+                min_level_, max_level_ = param_values[_node_input.fullname]
                 fqut.fill_fake_quantize_node(fq, min_level_, max_level_)
 
         return model
