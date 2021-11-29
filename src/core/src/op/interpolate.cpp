@@ -4,6 +4,8 @@
 
 #include "ngraph/op/interpolate.hpp"
 
+#include <interpolate_shape_inference.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
