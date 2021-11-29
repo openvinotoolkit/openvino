@@ -15,8 +15,10 @@
 #include "samples/common.hpp"
 #include "samples/slog.hpp"
 #include "format_reader_ptr.h"
-#include "reshape_ssd_extension.hpp"
 // clang-format on
+
+// thickness of a line (in pixels) to be used for bounding boxes
+#define BBOX_THICKNESS 2
 
 using namespace ov::preprocess;
 
@@ -26,14 +28,13 @@ int main(int argc, char* argv[]) {
         slog::info << ov::get_openvino_version() << slog::endl;
 
         // --------------------------- Parsing and validation of input arguments
-        if (argc != 5) {
-            std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device> <batch>" << std::endl;
+        if (argc != 4) {
+            std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device>" << std::endl;
             return EXIT_FAILURE;
         }
         const std::string model_path{argv[1]};
         const std::string image_path{argv[2]};
         const std::string device_name{argv[3]};
-        const size_t batch_size{std::stoul(argv[4])};
         // -----------------------------------------------------------------------------------------------------
 
         // Step 1. Initialize inference engine core
@@ -79,13 +80,14 @@ int main(int argc, char* argv[]) {
         // reshape model to image size and batch size
         ov::Shape tensor_shape = model->input().get_shape();
 
+        size_t batch_size = 1;
+
         tensor_shape[ov::layout::batch_idx(model_layout)] = batch_size;
         tensor_shape[ov::layout::channels_idx(model_layout)] = image_channels;
         tensor_shape[ov::layout::height_idx(model_layout)] = image_height;
         tensor_shape[ov::layout::width_idx(model_layout)] = image_width;
 
-        std::cout << "Reshape network to the image size = [" << image_height << "x" << image_width << "] "
-                  << "with batch = " << batch_size << std::endl;
+        std::cout << "Reshape network to the image size = [" << image_height << "x" << image_width << "] " << std::endl;
         model->reshape({{model->input().get_any_name(), tensor_shape}});
         printInputAndOutputsInfo(*model);
 
@@ -133,10 +135,8 @@ int main(int argc, char* argv[]) {
         unsigned char* image_data_ptr = image_data.get();
         unsigned char* tensor_data_ptr = input_tensor.data<unsigned char>();
         size_t image_size = image_width * image_height * image_channels;
-        for (size_t b = 0; b < batch_size; b++) {
-            for (size_t i = 0; i < image_size; i++) {
-                tensor_data_ptr[b * image_size + i] = image_data_ptr[i];
-            }
+        for (size_t i = 0; i < image_size; i++) {
+            tensor_data_ptr[i] = image_data_ptr[i];
         }
 
         // Step 8. Do inference synchronously
@@ -154,19 +154,19 @@ int main(int argc, char* argv[]) {
         std::vector<std::vector<int>> boxes(batch_size);
         std::vector<std::vector<int>> classes(batch_size);
 
-        // Each detection has image_id that denotes processed image
         for (size_t cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
             auto image_id = static_cast<int>(detection[cur_proposal * object_size + 0]);
             if (image_id < 0) {
                 break;
             }
 
+            // detection, has the format: [image_id, label, conf, x_min, y_min, x_max, y_max]
+            int label = static_cast<int>(detection[cur_proposal * object_size + 1]);
             float confidence = detection[cur_proposal * object_size + 2];
-            auto label = static_cast<int>(detection[cur_proposal * object_size + 1]);
-            auto xmin = static_cast<int>(detection[cur_proposal * object_size + 3] * image_width);
-            auto ymin = static_cast<int>(detection[cur_proposal * object_size + 4] * image_height);
-            auto xmax = static_cast<int>(detection[cur_proposal * object_size + 5] * image_width);
-            auto ymax = static_cast<int>(detection[cur_proposal * object_size + 6] * image_height);
+            int xmin = static_cast<int>(detection[cur_proposal * object_size + 3] * image_width);
+            int ymin = static_cast<int>(detection[cur_proposal * object_size + 4] * image_height);
+            int xmax = static_cast<int>(detection[cur_proposal * object_size + 5] * image_width);
+            int ymax = static_cast<int>(detection[cur_proposal * object_size + 6] * image_height);
 
             if (confidence > 0.5f) {
                 // Drawing only objects with >50% probability
@@ -176,10 +176,8 @@ int main(int argc, char* argv[]) {
                 boxes[image_id].push_back(xmax - xmin);
                 boxes[image_id].push_back(ymax - ymin);
 
-                std::cout << "[" << cur_proposal << "," << label << "] element, prob = " << confidence << "    ("
-                          << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")"
-                          << " batch id = " << image_id;
-                std::cout << std::endl;
+                std::cout << "[" << cur_proposal << "," << label << "] element, prob = " << confidence << ",    ("
+                          << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")" << std::endl;
             }
         }
 
