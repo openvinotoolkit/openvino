@@ -565,7 +565,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
             info.layout = Layout(layout_map[info.name])
         elif parameters[i].get_layout() != Layout():
             info.layout = parameters[i].get_layout()
-        else: # will be removed
+        else:
             image_colors_dim = Dimension(3)
             shape = info.partial_shape
             num_dims = len(shape)
@@ -574,30 +574,32 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                     info.layout = Layout("NCHW")
                 elif(shape[3] == image_colors_dim):
                     info.layout = Layout("NHWC")
-            elif num_dims == image_colors_dim:
+            elif num_dims == 3:
                 if(shape[0]) == image_colors_dim:
                     info.layout = Layout("CHW")
                 elif(shape[2] == image_colors_dim):
                     info.layout = Layout("HWC")
-            elif num_dims == 2:
-                info.layout = Layout("NC")
-            else:
-                info.layout = Layout("C")
 
         # Update shape with batch if needed
         if batch_size != 0:
             if batch_size.is_static and data_shape_map:
                  logger.warning(f"Batch size will be ignored. Provide batch deminsion in data_shape parameter.")
             else:
-                batch_index = 0
+                batch_index = -1
                 if info.layout.has_name('N'):
                     batch_index = info.layout.get_index_by_name('N')
-                else:
-                    logger.warning(f"Batch dimension is not provided in layout. "
-                                    "The first dimension will be interpreted as batch size.")
-                if info.partial_shape[batch_index] != batch_size:
+                elif info.layout == Layout():
+                    supposed_batch = info.partial_shape[0]
+                    if supposed_batch.is_dynamic or supposed_batch in [0, 1]:
+                        logger.warning(f"Batch dimension is not specified in layout. "
+                                        "The first dimension will be interpreted as batch size.")
+                        batch_index = 0
+                        info.layout = Layout("N...")
+                if batch_index != -1 and info.partial_shape[batch_index] != batch_size:
                     info.partial_shape[batch_index] = batch_size
                     reshape = True
+                elif batch_index == -1:
+                    raise Exception(f"Batch dimension is not specified for this model!")
 
         # Data shape
         if info.name in data_shape_map.keys() and info.is_dynamic:
