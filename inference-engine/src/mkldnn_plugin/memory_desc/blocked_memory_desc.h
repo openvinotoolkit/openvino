@@ -75,6 +75,8 @@ public:
      */
     virtual MemoryDescPtr cloneWithDefaultStridesAndOffset() const = 0;
 
+    std::string serializeFormat() const override;
+
 protected:
     /**
      * @brief Check descs on compatibility

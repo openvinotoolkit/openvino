@@ -470,12 +470,34 @@ void MKLDNNGraph::InitEdges() {
         uniqueLayerNames.insert(node->getName());
     }
 
-    for (auto i = 0; i < numberOfEdges; i++) {
-        if (graphEdges[i]->needReorder()) {
-            auto edge = graphEdges[i];
-            bool insertReorder = true;
+    auto insertReorder = [&](MKLDNNEdgePtr& edge, bool isOptimized) {
+        std::string basicLayerName = edge->getParent()->getName() + "_" +
+                                     MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                                     edge->getChild()->getName();
+        std::string layerName = basicLayerName;
+        int idx = 0;
+        while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+            idx++;
+            layerName = basicLayerName + "_" + std::to_string(idx);
+        }
+        uniqueLayerNames.insert(layerName);
 
-            // Check if there is a reorder that supports the type conversion
+        // optimized flag indicate that just desc update w/o actual physical memory movement.
+        InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
+    };
+
+    auto updateEdge = [&](int& i) {
+        graphEdges.erase(graphEdges.begin() + i);
+        i--;
+        numberOfEdges--;
+    };
+
+    for (auto i = 0; i < numberOfEdges; i++) {
+        auto edge = graphEdges[i];
+        auto reorderStatus = graphEdges[i]->needReorder();
+        if (reorderStatus == MKLDNNEdge::ReorderStatus::Regular) {
+            MKLDNNEdge::ReorderStatus reorderStatusInternal = MKLDNNEdge::ReorderStatus::Regular;
+            // Check if there is a reorder that needs the precision conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
                     !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
                 // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
@@ -491,29 +513,17 @@ void MKLDNNGraph::InitEdges() {
                 InsertNode(edge, convertNode, true);
 
                 //Check if reorder is still needed
-                if (convertNode->getChildEdgeAt(0)->needReorder()) {
+                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
+                if (reorderStatusInternal != MKLDNNEdge::ReorderStatus::No)
                     edge = convertNode->getChildEdgeAt(0);
-                } else {
-                    insertReorder = false;
-                }
             }
-
-            if (insertReorder) {
-                std::string basicLayerName = edge->getParent()->getName() + "_" +
-                                             MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
-                                             edge->getChild()->getName();
-                std::string layerName = basicLayerName;
-                int idx = 0;
-                while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
-                    idx++;
-                    layerName = basicLayerName + "_" + std::to_string(idx);
-                }
-                uniqueLayerNames.insert(layerName);
-                InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc());
+            if (reorderStatusInternal != MKLDNNEdge::ReorderStatus::No) {
+                insertReorder(edge, reorderStatusInternal == MKLDNNEdge::ReorderStatus::Optimized);
             }
-            graphEdges.erase(graphEdges.begin() + i);
-            i--;
-            numberOfEdges--;
+            updateEdge(i);
+        } else if (reorderStatus == MKLDNNEdge::ReorderStatus::Optimized) {
+            insertReorder(edge, true);
+            updateEdge(i);
         }
     }
 }
@@ -1254,7 +1264,11 @@ void MKLDNNGraph::EnforceBF16() {
         if (node->getType() != Input && node->getType() != Output) {
             for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
                 const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
-                if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude skipNodes after Constant Inputs
+                /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
+                 * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
+                 * and if activation is BF16 */
+                if (!(parent->getType() == Input && parent->isConstant() &&
+                      node->getType() != Concatenation) && // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
                     !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
                     node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalInputPrecisionAtPort(i, Precision::BF16);

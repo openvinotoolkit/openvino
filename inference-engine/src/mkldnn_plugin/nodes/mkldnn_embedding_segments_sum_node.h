@@ -34,8 +34,8 @@ private:
 
     int numSegments_ = 0;
 
-    const int* indices_;
-    const int* segmentIds_;
+    const int* indices_ = nullptr;
+    const int* segmentIds_ = nullptr;
     const int* defaultIndices_ = nullptr;
 
     size_t indicesSize_ = 0;

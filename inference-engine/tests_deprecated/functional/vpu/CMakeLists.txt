@@ -75,3 +75,7 @@ addIeTargetTest(
         VPU
         MYRIAD
     )
+# because vpu_graph_transformer is compiled with LTO
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+    set_target_properties(VPUCommonTests PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+endif()

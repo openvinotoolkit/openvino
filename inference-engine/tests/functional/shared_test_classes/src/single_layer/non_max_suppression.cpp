@@ -91,12 +91,12 @@ void NmsLayerTest::CompareBuffer(const std::vector<std::pair<ngraph::element::Ty
                     case ngraph::element::Type_t::f32:
                         LayerTestsUtils::LayerTestsCommon::Compare(
                                 reinterpret_cast<const float *>(expectedBuffer),
-                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                                reinterpret_cast<const float *>(actualBuffer), size, threshold);
                         break;
                     case ngraph::element::Type_t::f64:
                         LayerTestsUtils::LayerTestsCommon::Compare(
                                 reinterpret_cast<const double *>(expectedBuffer),
-                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                                reinterpret_cast<const float *>(actualBuffer), size, threshold);
                         break;
                     default:
                         break;

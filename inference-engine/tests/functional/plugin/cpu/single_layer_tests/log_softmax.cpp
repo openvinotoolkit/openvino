@@ -76,8 +76,7 @@ TEST_P(LogSoftmaxLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "logSoftmax");
+    CheckPluginRelatedResults(executableNetwork, "logSoftmax");
 }
 
 namespace {

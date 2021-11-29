@@ -91,7 +91,7 @@ class TestMainFrontend(unittest.TestCase):
     def test_simple_convert(self, mock_argparse):
         f = io.StringIO()
         with redirect_stdout(f):
-            main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+            main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
             out = f.getvalue()
 
         xml_file = re.search(r'\[ SUCCESS \] XML file: (.*)', out).\
@@ -106,7 +106,7 @@ class TestMainFrontend(unittest.TestCase):
         assert stat.supported == 0
         # verify that meta info is added to XML file
         with open(xml_file) as file:
-            assert 'mock_mo_ngraph_frontend' in file.read()
+            assert 'mock_mo_ov_frontend' in file.read()
 
     @mock_needed
     @patch('argparse.ArgumentParser.parse_args',
@@ -131,14 +131,14 @@ class TestMainFrontend(unittest.TestCase):
 
         # verify that meta info is added to XML file
         with open(xml_file) as file:
-            assert 'mock_mo_ngraph_frontend' in file.read()
+            assert 'mock_mo_ov_frontend' in file.read()
 
     @mock_needed
     @patch('argparse.ArgumentParser.parse_args',
            return_value=replaceArgsHelper(_input='newInput1,mock_input2'))
     def test_override_inputs(self, mock_argparse):
 
-        main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+        main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
 
         # verify that 'override_all_inputs' was called
@@ -150,7 +150,7 @@ class TestMainFrontend(unittest.TestCase):
     @patch('argparse.ArgumentParser.parse_args',
            return_value=replaceArgsHelper(output='newOut1,mock_output2'))
     def test_override_outputs(self, mock_argparse):
-        main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+        main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
 
         # verify that 'override_all_outputs' was called
@@ -163,7 +163,7 @@ class TestMainFrontend(unittest.TestCase):
            return_value=replaceArgsHelper(_input='newIn1,newIn2',
                                           output='newOut1,newOut2'))
     def test_extract_subgraph(self, mock_argparse):
-        main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+        main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
 
         # verify that 'extract_subgraph' was called
@@ -177,7 +177,7 @@ class TestMainFrontend(unittest.TestCase):
                                           output='new_output2,mock_output1'))
     def test_override_same_inputs(self, mock_argparse):
 
-        main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+        main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
 
         # verify that 'override_all_outputs' was called
@@ -192,7 +192,7 @@ class TestMainFrontend(unittest.TestCase):
                                           output='mock_output2,mock_output1'))
     def test_override_same_outputs(self, mock_argparse):
 
-        main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+        main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
 
         # verify that 'override_all_inputs' was called
@@ -206,7 +206,7 @@ class TestMainFrontend(unittest.TestCase):
            return_value=replaceArgsHelper(_input='newIn1',
                                           input_shape='[1,2,3,4]'))
     def test_input_shape(self, mock_argparse):
-        main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+        main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
 
         # verify that 'set_partial_shape' was called
@@ -217,7 +217,7 @@ class TestMainFrontend(unittest.TestCase):
     @patch('argparse.ArgumentParser.parse_args',
            return_value=replaceArgsHelper(_input='newIn1{i8}'))
     def test_element_type(self, mock_argparse):
-        main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+        main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
 
         # verify that 'set_element_type' was called
@@ -229,7 +229,7 @@ class TestMainFrontend(unittest.TestCase):
            return_value=replaceArgsHelper(batch=123))
     def test_set_batch_size(self, mock_argparse):
         mock_return_partial_shape(PartialShape([-1, 2, 3, 4]))
-        main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+        main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
 
         # verify that 'set_element_type' was called
@@ -246,7 +246,7 @@ class TestMainFrontend(unittest.TestCase):
         # so MO shall not convert anything and produce specified error
         mock_return_partial_shape(PartialShape([122, 2, 3, 4]))
         with self.assertLogs() as logger:
-            main(argparse.ArgumentParser(), fem, 'mock_mo_ngraph_frontend')
+            main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
 
         stat = get_model_statistic()
 

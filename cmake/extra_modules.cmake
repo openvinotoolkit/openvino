@@ -6,8 +6,9 @@ function(ie_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
 
-    set(all_dev_targets gflags ie_libraries)
+    set(all_dev_targets gflags ov_runtime_libraries)
     foreach(component IN LISTS openvino_export_components)
+        # export all targets with prefix and use them during extra modules build
         export(TARGETS ${${component}} NAMESPACE IE::
             APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
         list(APPEND all_dev_targets ${${component}})
@@ -24,8 +25,6 @@ function(ie_generate_dev_package_config)
                    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
                    @ONLY)
 endfunction()
-
-ie_generate_dev_package_config()
 
 #
 # Add extra modules
@@ -54,7 +53,7 @@ function(register_extra_modules)
 
     generate_fake_dev_package()
 
-    # automatically import plugins from the 'plugins' folder
+    # automatically import plugins from the 'runtime/plugins' folder
     file(GLOB local_extra_modules "runtime/plugins/*")
     # add template plugin
     if(ENABLE_TEMPLATE)
@@ -90,4 +89,24 @@ function(register_extra_modules)
     endforeach()
 endfunction()
 
+#
+# Extra modules support
+#
+
+# for Template plugin
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
+
+# this InferenceEngineDeveloperPackageConfig.cmake is not used
+# during extra modules build since it's generated after modules
+# are configured
+ie_generate_dev_package_config()
+
+# extra modules must be registered after inference_engine library
+# and all other IE common libraries (ov_runtime_libraries) are creared
+# because 'register_extra_modules' creates fake InferenceEngineDeveloperPackageConfig.cmake
+# with all imported developer targets
 register_extra_modules()
+
+# for static libraries case we need to generate final ie_plugins.hpp
+# with all the information about plugins
+ie_generate_plugins_hpp()

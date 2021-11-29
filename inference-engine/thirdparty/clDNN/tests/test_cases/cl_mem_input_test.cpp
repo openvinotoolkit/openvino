@@ -3,13 +3,12 @@
 //
 
 #include "test_utils.h"
+#include "opencl_helper_instance.hpp"
 
 #include <cldnn/primitives/input_layout.hpp>
 #include <cldnn/primitives/activation.hpp>
 #include <cldnn/primitives/data.hpp>
 #include <cldnn/runtime/device_query.hpp>
-
-#include <ocl/ocl_wrapper.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -19,15 +18,6 @@ typedef std::chrono::nanoseconds ns;
 typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
 typedef std::chrono::duration<float> fsec;
 
-
-void checkStatus(int status, const char *message) {
-    if (status != 0) {
-        std::string str_message(message + std::string(": "));
-        std::string str_number(std::to_string(status));
-
-        throw std::runtime_error(str_message + str_number);
-    }
-}
 
 std::vector<unsigned char> createSampleData(int width, int height) {
     int data_size = width * (height + height / 2);
@@ -78,55 +68,6 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
 
     return img;
 }
-
-struct OpenCL {
-    cl::Context _context;
-    cl::Device _device;
-    cl::CommandQueue _queue;
-
-    OpenCL() {
-        // get Intel iGPU OCL device, create context and queue
-        {
-            static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
-            const uint32_t device_type = CL_DEVICE_TYPE_GPU;  // only gpu devices
-            const uint32_t device_vendor = 0x8086;  // Intel vendor
-
-            cl_uint n = 0;
-            cl_int err = clGetPlatformIDs(0, NULL, &n);
-            checkStatus(err, "clGetPlatformIDs");
-
-            // Get platform list
-            std::vector<cl_platform_id> platform_ids(n);
-            err = clGetPlatformIDs(n, platform_ids.data(), NULL);
-            checkStatus(err, "clGetPlatformIDs");
-
-            for (auto& id : platform_ids) {
-                cl::Platform platform = cl::Platform(id);
-
-                auto vendor_id = platform.getInfo<CL_PLATFORM_VENDOR>();
-                if (vendor_id != INTEL_PLATFORM_VENDOR)
-                    continue;
-
-                std::vector<cl::Device> devices;
-                platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-                for (auto& d : devices) {
-                    if (d.getInfo<CL_DEVICE_TYPE>() == device_type ||
-                        d.getInfo<CL_DEVICE_VENDOR_ID>() == device_vendor) {
-                        _device = d;
-                        _context = cl::Context(_device);
-                        goto greateQueue;
-                    }
-                }
-            }
-            greateQueue:
-            cl_command_queue_properties props = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
-            _queue = cl::CommandQueue(_context, _device, props);
-        }
-    }
-    void releaseOclImage(std::shared_ptr<cl_mem> image) {
-        checkStatus(clReleaseMemObject(*image), "clReleaseMemObject");
-    }
-};
 
 TEST(cl_mem_check, check_2_inputs) {
     auto ocl_instance = std::make_shared<OpenCL>();

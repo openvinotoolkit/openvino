@@ -16,6 +16,13 @@
 #include <string>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
 namespace MultiDevicePlugin {
 
 class MultiDeviceInferRequest : public InferenceEngine::IInferRequestInternal {
