@@ -175,6 +175,8 @@ bool isSuitableMiscParent(std::shared_ptr<Node> node) {
                                   ov::is_type<ngraph::op::v0::LSTMCell>(node) ||
                                   ov::is_type<ngraph::op::v4::LSTMCell>(node) ||
                                   ov::is_type<ngraph::opset1::ConvolutionBackpropData>(node) ||
+                                  ov::is_type<ngraph::op::util::ArithmeticReductionKeepDims>(node) ||
+                                  ov::is_type<ngraph::op::util::LogicalReductionKeepDims>(node) ||
                                   ov::is_type<ngraph::opset1::GroupConvolutionBackpropData>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
