@@ -15,6 +15,7 @@ namespace subgraph {
 
 using namespace ngraph;
 using namespace InferenceEngine;
+using ngraph::helpers::operator<<;
 
 std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj) {
     std::vector<InputShape> shapes;
