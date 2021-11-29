@@ -7,7 +7,7 @@ from mo.pipeline.common import get_ir_version
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.utils.cli_parser import get_meta_info, parse_transform
 
-from openvino import Function         # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Function         # pylint: disable=no-name-in-module,import-error
 
 
 def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):

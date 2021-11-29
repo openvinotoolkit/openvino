@@ -24,9 +24,9 @@ try:
         mock_return_partial_shape
 
     # pylint: disable=no-name-in-module,import-error
-    from ngraph import PartialShape
+    from openvino.runtime import PartialShape
     from openvino.frontend import FrontEndManager
-    from openvino.utils.types import get_element_type
+    from openvino.runtime.utils.types import get_element_type
 
 except Exception:
     print("No mock frontend API available, "
@@ -205,7 +205,6 @@ class TestMainFrontend(unittest.TestCase):
     @patch('argparse.ArgumentParser.parse_args',
            return_value=replaceArgsHelper(_input='newIn1',
                                           input_shape='[1,2,3,4]'))
-    @pytest.mark.skip(reason="Unskip as 8301 will be merged")
     def test_input_shape(self, mock_argparse):
         main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
@@ -217,7 +216,6 @@ class TestMainFrontend(unittest.TestCase):
     @mock_needed
     @patch('argparse.ArgumentParser.parse_args',
            return_value=replaceArgsHelper(_input='newIn1{i8}'))
-    @pytest.mark.skip(reason="Unskip as 8301 will be merged")
     def test_element_type(self, mock_argparse):
         main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')
         stat = get_model_statistic()
@@ -229,7 +227,6 @@ class TestMainFrontend(unittest.TestCase):
     @mock_needed
     @patch('argparse.ArgumentParser.parse_args',
            return_value=replaceArgsHelper(batch=123))
-    @pytest.mark.skip(reason="Unskip as 8301 will be merged")
     def test_set_batch_size(self, mock_argparse):
         mock_return_partial_shape(PartialShape([-1, 2, 3, 4]))
         main(argparse.ArgumentParser(), fem, 'mock_mo_ov_frontend')

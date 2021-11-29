@@ -3,9 +3,9 @@
 
 import pickle
 
-from openvino import PartialShape
+from openvino.runtime import PartialShape
 from openvino.frontend import FrontEndManager, InitializationFailure
-from openvino.utils.types import get_element_type
+from openvino.runtime.utils.types import get_element_type
 
 import numpy as np
 
