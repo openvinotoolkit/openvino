@@ -33,15 +33,15 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
         # TODO rewrite this transformation to generate a shape-computing sub-graph. Ticket 62076
         I = input_shape[1]
         new_shape = shape_array([group, node.output // group, I // group, *weights_shape[2:]])
-        assert is_fully_defined(weights_shape[2:]) and is_fully_defined(I) and \
-               np.prod(weights_shape) == np.prod(new_shape), 'Initial weights shape {}, grouped weights shape {}' \
-                                                             ''.format(weights_shape, new_shape)
+        if is_fully_defined(weights_shape[2:]) and is_fully_defined(I):
+            assert np.prod(weights_shape) == np.prod(new_shape), 'Initial weights shape {}, grouped weights shape {}' \
+                                                                 ''.format(weights_shape, new_shape)
         del node['group']
         node['type'] = 'GroupConvolution'
     else:
         raise Error("Unknown IR version: {}".format(ir_version))
 
-    reshape = create_op_node_with_second_input(node.graph, Reshape, int64_array(new_shape),
+    reshape = create_op_node_with_second_input(node.graph, Reshape, new_shape,
                                                {'override_output_shape': True})
 
     node.in_port(1).get_connection().insert_node(reshape)
