@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -28,11 +16,11 @@ namespace ngraph
             int background_label_id = 0;
             int top_k = -1;
             bool variance_encoded_in_target = false;
-            std::vector<int> keep_top_k = {1};
+            std::vector<int> keep_top_k;
             std::string code_type = std::string{"caffe.PriorBoxParameter.CORNER"};
             bool share_location = true;
             float nms_threshold;
-            float confidence_threshold = std::numeric_limits<float>::min();
+            float confidence_threshold = 0;
             bool clip_after_nms = false;
             bool clip_before_nms = false;
             bool decrease_label_id = false;
@@ -89,7 +77,7 @@ namespace ngraph
             private:
                 DetectionOutputAttrs m_attrs;
             };
-        }
+        } // namespace v0
         using v0::DetectionOutput;
-    }
-}
+    } // namespace op
+} // namespace ngraph

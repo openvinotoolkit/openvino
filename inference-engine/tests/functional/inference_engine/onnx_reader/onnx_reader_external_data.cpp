@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 
         EXPECT_PRED_FORMAT2(
             testing::IsSubstring,
-            std::string("data/tensor.data, offset: 0, data_lenght: 0, sha1_digest: 0)"),
+            std::string("data/tensor.data, offset: 0, data_length: 0, sha1_digest: 0)"),
             e.what());
     }
     catch(...) {
@@ -78,7 +78,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     std::string win_dir_path = ONNX_TEST_MODELS;
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
     const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
-    const std::wstring path = unicode_win_dir_path + L"АБВГДЕЁЖЗИЙ\\ひらがな日本語.prototxt";
+    const std::wstring path = unicode_win_dir_path + L"ひらがな日本語.prototxt";
 
     auto cnnNetwork = ie.ReadNetwork(path, L"");
     auto function = cnnNetwork.getFunction();

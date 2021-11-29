@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace ngraph {
 namespace op {
 
 /// A base class for templated TypeRelaxed that maintains overridden input types and output types for an operation.
-class TRANSFORMATIONS_API TypeRelaxedBase {
+class NGRAPH_API TypeRelaxedBase {
 public:
     virtual ~TypeRelaxedBase();
 
@@ -115,6 +115,9 @@ public:
     }
 };
 
+// TODO: remove once FusedOp is removed
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 /// Relaxes tensor element type requirements for BaseOp inputs and outputs
 /// This class template should be used with Node descendant class. Defines a new operation by extending the
 /// original BaseOp operation with ability to accept inputs and provide outputs with element type that is
@@ -183,7 +186,9 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         }
     }
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     BaseOp::validate_and_infer_types();
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     // Restore original input data types
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
@@ -208,6 +213,8 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         new_node->input(i).replace_source_output(new_args[i]);
     }
+
+    new_node->validate_and_infer_types();
     return new_node;
 }
 
@@ -229,6 +236,8 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
 
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
+
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 }  // namespace op
 }  // namespace ngraph

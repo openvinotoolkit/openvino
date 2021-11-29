@@ -1,16 +1,6 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "include/common.cl"
 
@@ -185,7 +175,9 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
                         }
                         slm_block[c + lid] = AS_PACKED_IN_TYPE(src);
                     #elif INPUT0_LAYOUT_B_FS_YX_FSV4
-                        const __global uint* ptr = input + input_offset + kh * DILATION_SIZE_Y * input_y_pitch + (x_chunk + lid) * input_x_pitch;
+                        const __global uint* ptr = input + input_offset
+                                                   + (kh * DILATION_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y) * input_y_pitch
+                                                   + (x_chunk + lid + INPUT0_PAD_BEFORE_SIZE_X) * input_x_pitch;
                         PACKED_IN_TYPE src = AS_PACKED_IN_TYPE(ptr[0]);
                         slm_block[c + lid] = src;
                     #endif
@@ -214,7 +206,9 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
                         }
                         slm_block_tail[lid] = AS_PACKED_IN_TYPE(src);
                     #elif INPUT0_LAYOUT_B_FS_YX_FSV4
-                        const __global uint* ptr = input + input_offset + kh * DILATION_SIZE_Y * input_y_pitch + (x_chunk + lid) * input_x_pitch;
+                        const __global uint* ptr = input + input_offset
+                                                   + (kh * DILATION_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y) * input_y_pitch
+                                                   + (x_chunk + lid + INPUT0_PAD_BEFORE_SIZE_X) * input_x_pitch;
                         PACKED_IN_TYPE src = AS_PACKED_IN_TYPE(ptr[0]);
                         slm_block_tail[lid] = src;
                     #endif

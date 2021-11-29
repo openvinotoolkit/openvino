@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,6 @@ static void gemm_ref(int M, int N, int K,
 
     const int stride_a = (transposeA ? M : K);
     const int stride_b = (transposeB ? K : N);
-    const int stride_d = N;
 
     const int strideMB2_src1 = (MB2 != MB2_A) ? 0 : 1;
     const int strideMB2_src2 = (MB2 != MB2_B) ? 0 : 1;

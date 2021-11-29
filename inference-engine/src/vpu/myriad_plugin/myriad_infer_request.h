@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 #include <memory>
 
 #include <ie_common.h>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/ie_helpers.hpp>
@@ -22,7 +21,7 @@
 namespace vpu {
 namespace MyriadPlugin {
 
-class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
+class MyriadInferRequest : public InferenceEngine::IInferRequestInternal {
     MyriadExecutorPtr _executor;
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
@@ -52,8 +51,8 @@ public:
     void InferAsync();
     void GetResult();
 
-    void
-    GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>
+    GetPerformanceCounts() const override;
 };
 
 }  // namespace MyriadPlugin

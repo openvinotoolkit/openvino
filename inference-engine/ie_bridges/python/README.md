@@ -3,7 +3,7 @@
 - Microsoft\* Visual Studio 2015 or later on Windows\*
 - gcc 4.8 or later on Linux
 - Python 2.7 or higher on Linux\*
-- Python 3.4 or higher on Windows\*
+- Python 3.6 or higher on Windows\*
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ Build Inference Engine Python API alongside with the Inference Engine build.
 You need to run Inference Engine build with the following flags:
 
 ```shellscript
-  cd <IE_ROOT>
+  cd <INSTALL_DIR>/openvino
   mkdir -p build
   cd build
   cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3.6` \
@@ -32,7 +32,7 @@ You need to run Inference Engine build with the following flags:
 You need to run Inference Engine build with the following flags:
 
 ```shellscript
-	cd <IE_ROOT>
+	cd <INSTALL_DIR>/openvino
 	mkdir build
 	cd build
 	set PATH=C:\Program Files\Python36\Scripts;%PATH%
@@ -45,6 +45,27 @@ You need to run Inference Engine build with the following flags:
 
 Then build generated solution INFERENCE_ENGINE_DRIVER.sln using Microsoft\* Visual Studio or run `cmake --build . --config Release` to build from the command line.
 
+
+## Building Python wheel
+1) Install Inference Engine Python API dependencies:
+```bash
+pip3 install -r wheel/requirements-dev.txt
+```
+2) Install the *patchelf* tool on Linux only:
+```shellscript
+sudo apt install patchelf
+```
+3) Run Inference Engine build with the following options:
+
+```shellscript
+-DENABLE_PYTHON=ON
+-DENABLE_WHEEL=ON
+```
+If you need to include other components to the package you need to enable them too.
+For example, to include ngraph python API:
+```shellscript
+-NGRAPH_PYTHON_BUILD_ENABLE=ON
+```
 
 ## Running sample
 

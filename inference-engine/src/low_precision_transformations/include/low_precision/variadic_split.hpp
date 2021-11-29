@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,6 @@ class TRANSFORMATIONS_API VariadicSplitTransformation : public SplitTransformati
 public:
     VariadicSplitTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
-protected:
-    std::vector<size_t> getConstSplitLengths(
-        const OutputVector& inputs,
-        const ngraph::Shape& constShape,
-        const size_t outputSize) const override;
 };
 } // namespace low_precision
 } // namespace pass

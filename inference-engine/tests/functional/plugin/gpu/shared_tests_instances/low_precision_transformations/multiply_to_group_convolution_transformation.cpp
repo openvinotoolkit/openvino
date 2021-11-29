@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,8 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<element::Type> precisions = {
-    element::f32
+    element::f32,
+    element::f16
 };
 
 const std::vector< ngraph::Shape > inputShapes = {

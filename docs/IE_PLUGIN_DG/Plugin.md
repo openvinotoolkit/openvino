@@ -1,4 +1,4 @@
-# Plugin {#plugin}
+# Plugin {#openvino_docs_ie_plugin_dg_plugin}
 
 Inference Engine Plugin usually represents a wrapper around a backend. Backends can be:
 - OpenCL-like backend (e.g. clDNN library) for GPU devices.
@@ -8,7 +8,7 @@ Inference Engine Plugin usually represents a wrapper around a backend. Backends 
 The responsibility of Inference Engine Plugin:
 - Initializes a backend and throw exception in `Engine` constructor if backend cannot be initialized.
 - Provides information about devices enabled by a particular backend, e.g. how many devices, their properties and so on.
-- Loads or imports [executable network](@ref executable_network) objects.
+- Loads or imports [executable network](@ref openvino_docs_ie_plugin_dg_executable_network) objects.
 
 In addition to the Inference Engine Public API, the Inference Engine provides the Plugin API, which is a set of functions and helper classes that simplify new plugin development:
 
@@ -16,12 +16,12 @@ In addition to the Inference Engine Public API, the Inference Engine provides th
 - implementations in the `inference_engine/src/inference_engine` directory
 - symbols in the Inference Engine Core shared library
 
-To build an Inference Engine plugin with the Plugin API, see the [Inference Engine Plugin Building](@ref plugin_build) guide.  
+To build an Inference Engine plugin with the Plugin API, see the [Inference Engine Plugin Building](@ref openvino_docs_ie_plugin_dg_plugin_build) guide.  
 
 Plugin Class
 ------------------------
 
-Inference Engine Plugin API provides the helper InferenceEngine::InferencePluginInternal class recommended to use as a base class for a plugin.
+Inference Engine Plugin API provides the helper InferenceEngine::IInferencePlugin class recommended to use as a base class for a plugin.
 Based on that, declaration of a plugin class can look as follows:
 
 @snippet src/template_plugin.hpp plugin:header
@@ -39,7 +39,7 @@ The provided plugin class also has several fields:
 As an example, a plugin configuration has three value parameters:
 
 - `deviceId` - particular device ID to work with. Applicable if a plugin supports more than one `Template` device. In this case, some plugin methods, like `SetConfig`, `QueryNetwork`, and `LoadNetwork`, must support the CONFIG_KEY(KEY_DEVICE_ID) parameter. 
-- `perfCounts` - boolean value to identify whether to collect performance counters during [Inference Request](@ref infer_request) execution.
+- `perfCounts` - boolean value to identify whether to collect performance counters during [Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) execution.
 - `_streamsExecutorConfig` - configuration of `InferenceEngine::IStreamsExecutor` to handle settings of multi-threaded context.
 
 ### Engine Constructor
@@ -56,8 +56,8 @@ A plugin must define a device name enabled via the `_pluginName` field of a base
 
 ### `LoadExeNetworkImpl()`
 
-**Implementation details:** The base InferenceEngine::InferencePluginInternal class provides a common implementation 
-of the public InferenceEngine::InferencePluginInternal::LoadNetwork method that calls plugin-specific `LoadExeNetworkImpl`, which is defined in a derived class.
+**Implementation details:** The base InferenceEngine::IInferencePlugin class provides a common implementation 
+of the public InferenceEngine::IInferencePlugin::LoadNetwork method that calls plugin-specific `LoadExeNetworkImpl`, which is defined in a derived class.
 
 This is the most important function of the `Plugin` class and creates an instance of compiled `ExecutableNetwork`,
 which holds a backend-dependent compiled graph in an internal representation:
@@ -69,7 +69,7 @@ InferenceEngine::ICNNNetwork object is supported by a device. In the example abo
 
 The very important part before creation of `ExecutableNetwork` instance is to call `TransformNetwork` method which applies ngraph transformation passes.
 
-Actual graph compilation is done in the `ExecutableNetwork` constructor. Refer to the [ExecutableNetwork Implementation Guide](@ref executable_network) for details.
+Actual graph compilation is done in the `ExecutableNetwork` constructor. Refer to the [ExecutableNetwork Implementation Guide](@ref openvino_docs_ie_plugin_dg_executable_network) for details.
 
 > **NOTE**: Actual configuration map used in `ExecutableNetwork` is constructed as a base plugin 
 > configuration set via `Plugin::SetConfig`, where some values are overwritten with `config` passed to `Plugin::LoadExeNetworkImpl`. 
@@ -82,11 +82,11 @@ The function accepts a const shared pointer to `ngraph::Function` object and per
 1. Deep copies a const object to a local object, which can later be modified.
 2. Applies common and plugin-specific transformations on a copied graph to make the graph more friendly to hardware operations. For details how to write custom plugin-specific transformation, please, refer to [Writing ngraph transformations](@ref ngraph_transformation) guide. See detailed topics about network representation:
     * [Intermediate Representation and Operation Sets](../_docs_MO_DG_IR_and_opsets.html)
-    * [Quantized networks](@ref quantized_networks).
+    * [Quantized networks](@ref openvino_docs_ie_plugin_dg_quantized_networks).
 
 @snippet src/template_plugin.cpp plugin:transform_network
 
-> **NOTE**: After all these transformations, a `ngraph::Function` object cointains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `TransformNetwork` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set. 
+> **NOTE**: After all these transformations, a `ngraph::Function` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `TransformNetwork` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set.
 
 ### `QueryNetwork()`
 
@@ -159,20 +159,12 @@ The snippet below provides an example of the implementation for `GetMetric`:
 
 > **NOTE**: If an unsupported metric key is passed to the function, it must throw an exception.
 
-### `ImportNetworkImpl()`
+### `ImportNetwork()`
 
 The importing network mechanism allows to import a previously exported backend specific graph and wrap it 
-using an [ExecutableNetwork](@ref executable_network) object. This functionality is useful if 
+using an [ExecutableNetwork](@ref openvino_docs_ie_plugin_dg_executable_network) object. This functionality is useful if 
 backend specific graph compilation takes significant time and/or cannot be done on a target host 
 device due to other reasons.
-
-**Implementation details:** The base plugin class InferenceEngine::InferencePluginInternal implements InferenceEngine::InferencePluginInternal::ImportNetwork 
-as follows: exports a device type (InferenceEngine::InferencePluginInternal::_pluginName) and then calls `ImportNetworkImpl`, 
-which is implemented in a derived class. 
-If a plugin cannot use the base implementation InferenceEngine::InferencePluginInternal::ImportNetwork, it can override base 
-implementation and define an output blob structure up to its needs. This 
-can be useful if a plugin exports a blob in a special format for integration with other frameworks 
-where a common Inference Engine header from a base class implementation is not appropriate. 
 
 During export of backend specific graph using `ExecutableNetwork::Export`, a plugin may export any 
 type of information it needs to import a compiled graph properly and check its correctness. 
@@ -195,4 +187,4 @@ Inference Engine plugin library must export only one function creating a plugin 
 
 @snippet src/template_plugin.cpp plugin:create_plugin_engine
 
-Next step in a plugin library implementation is the [ExecutableNetwork](@ref executable_network) class.
+Next step in a plugin library implementation is the [ExecutableNetwork](@ref openvino_docs_ie_plugin_dg_executable_network) class.

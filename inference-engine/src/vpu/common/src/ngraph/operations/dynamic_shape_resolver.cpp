@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
     }
     size_t outputRank = data->get_shape()[0];
 
-    for (int i = 0; i < outputRank; i++) {
+    for (size_t i = 0; i < outputRank; i++) {
         result.push_back(dataPtr[i]);
     }
 

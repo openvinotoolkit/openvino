@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -83,11 +71,11 @@ namespace ngraph
 
                     // Save the sample coords and weights as they will be identical across all
                     // channels
-                    for (unsigned int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
+                    for (int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
                     {
-                        for (unsigned int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
+                        for (int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
                         {
-                            for (unsigned int y_sample_ind = 0; y_sample_ind < sampling_ratio_y;
+                            for (int y_sample_ind = 0; y_sample_ind < sampling_ratio_y;
                                  y_sample_ind++)
                             {
                                 T sample_y = y1 + static_cast<T>(y_bin_ind) * bin_height +
@@ -128,7 +116,7 @@ namespace ngraph
                                         sample_y_high = sample_y_low + 1;
                                     }
 
-                                    if (sample_x_low >= feature_map_height - 1)
+                                    if (sample_x_low >= feature_map_width - 1)
                                     {
                                         sample_x_high = sample_x_low = feature_map_width - 1;
                                         sample_x = static_cast<T>(sample_x_low);
@@ -163,9 +151,9 @@ namespace ngraph
                     {
                         tmp_out.reserve(pooled_height * pooled_width);
                         unsigned int sample_index = 0;
-                        for (unsigned int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
+                        for (int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
                         {
-                            for (unsigned int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
+                            for (int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
                             {
                                 T pooled_value = 0;
                                 for (unsigned int bin_sample_ind = 0;

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/low_precision_transformations/concat_function.hpp"
+#include "lpt_ngraph_functions/concat_function.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -63,7 +63,8 @@ void ConcatWithSplitTransformation::SetUp() {
         netPrecision,
         inputShapes,
         param.fqOnData1,
-        param.fqOnData2);
+        param.fqOnData2,
+        true);
 }
 
 TEST_P(ConcatWithSplitTransformation, CompareWithRefImpl) {

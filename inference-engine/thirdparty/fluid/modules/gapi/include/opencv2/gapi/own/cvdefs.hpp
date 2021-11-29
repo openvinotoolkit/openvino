@@ -32,7 +32,8 @@ typedef unsigned short ushort;
 #define CV_32S  4
 #define CV_32F  5
 #define CV_64F  6
-#define CV_USRTYPE1 7
+#define CV_16F  7
+#define CV_USRTYPE1 8
 
 #define CV_MAT_DEPTH_MASK       (CV_DEPTH_MAX - 1)
 #define CV_MAT_DEPTH(flags)     ((flags) & CV_MAT_DEPTH_MASK)
@@ -70,6 +71,13 @@ typedef unsigned short ushort;
 #define CV_32SC4 CV_MAKETYPE(CV_32S,4)
 #define CV_32SC(n) CV_MAKETYPE(CV_32S,(n))
 
+
+#define CV_16FC1 CV_MAKETYPE(CV_16F,1)
+#define CV_16FC2 CV_MAKETYPE(CV_16F,2)
+#define CV_16FC3 CV_MAKETYPE(CV_16F,3)
+#define CV_16FC4 CV_MAKETYPE(CV_16F,4)
+#define CV_16FC(n) CV_MAKETYPE(CV_16F,(n))
+
 #define CV_32FC1 CV_MAKETYPE(CV_32F,1)
 #define CV_32FC2 CV_MAKETYPE(CV_32F,2)
 #define CV_32FC3 CV_MAKETYPE(CV_32F,3)
@@ -96,10 +104,10 @@ typedef unsigned short ushort;
 #define CV_SUBMAT_FLAG          (1 << CV_SUBMAT_FLAG_SHIFT)
 #define CV_IS_SUBMAT(flags)     ((flags) & CV_MAT_SUBMAT_FLAG)
 
-///** Size of each channel item,
+//** Size of each channel item,
 //   0x8442211 = 1000 0100 0100 0010 0010 0001 0001 ~ array of sizeof(arr_type_elem) */
-//#define CV_ELEM_SIZE1(type) \
-//    ((((sizeof(size_t)<<28)|0x8442211) >> CV_MAT_DEPTH(type)*4) & 15)
+#define CV_ELEM_SIZE1(type) \
+   ((((sizeof(size_t)<<28)|0x8442211) >> CV_MAT_DEPTH(type)*4) & 15)
 
 #define CV_MAT_TYPE(flags)      ((flags) & CV_MAT_TYPE_MASK)
 

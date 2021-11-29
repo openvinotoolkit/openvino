@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
 from extensions.ops.elementwise import Mul
@@ -27,7 +15,7 @@ from mo.ops.shape import Shape
 
 
 class InterpolateConcat(BackReplacementPattern):
-    """
+    r"""
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph using the following Concat inputs
 
     BEFORE:
@@ -54,7 +42,6 @@ class InterpolateConcat(BackReplacementPattern):
                         \                   /
                            Concat(axis=1)
                         shape=[1, 7, 60, 160]
-
     """
     enabled = True
     graph_condition = [lambda graph: not graph.graph['cmd_params'].static_shape]
@@ -89,7 +76,7 @@ class InterpolateConcat(BackReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
+        for interpolate in graph.get_op_nodes(type='Interpolate'):
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
                 continue
             dsts = interpolate.out_port(0).get_destinations()
@@ -98,17 +85,15 @@ class InterpolateConcat(BackReplacementPattern):
 
 
 class InterpolateReshapeWA(BackReplacementPattern):
-    """
+    r"""
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph.
     WARNING: Could cause troubles if model has hard-coded Interpolate intentionally -- rare situation
-
     BEFORE:
         input                   Const
     shape=[1, 3, 30, 40]      value=[60, 160]
             \                   /
            Interpolate(axes=(2, 3))
             shape=[1, 3, 60, 160]
-
     AFTER:
             input
     shape=[1, 3, 30, 40]
@@ -151,6 +136,6 @@ class InterpolateReshapeWA(BackReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(mul.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
+        for interpolate in graph.get_op_nodes(type='Interpolate'):
             if interpolate.in_port(1).get_source().node.soft_get('type') == 'Const':
                 self.make_interpolate_reshapeable(interpolate)

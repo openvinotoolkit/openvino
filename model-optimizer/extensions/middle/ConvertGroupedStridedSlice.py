@@ -1,21 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 from copy import deepcopy
+from typing import Callable
 
 import numpy as np
 
@@ -28,6 +16,21 @@ from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
+from mo.utils.utils import unique_by
+
+
+def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
+    """
+    Equality criterion for StridedSlice layers.
+    :param lhs: the first StridedSlice layer
+    :param rhs: the second StridedSlice layer
+    :return: True, if lhs and rhs have identical attributes 'slices', 'begin_mask', 'end_mask', 'ellipsis_mask',
+             'new_axis_mask', 'shrink_axis_mask', and False otherwise.
+    """
+    for attr in ['slices', 'new_axis_mask', 'shrink_axis_mask', 'begin_mask', 'end_mask', 'ellipsis_mask']:
+        if not np.array_equal(lhs[attr], rhs[attr]):
+            return False
+    return True
 
 
 class ConvertGroupedStridedSlice(MiddleReplacementPattern):
@@ -53,7 +56,8 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        return [ConvertSlice]
+        from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
+        return [ConvertSlice, StridedSliceNormalizer]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleFinish
@@ -68,8 +72,10 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
 
             input_shape = np.array(input_data.shape)
 
-            # Get all StridedSlice consumers
+            # Get all unique StridedSlice consumers
             out_nodes = [node for node in input_data.out_nodes() if node.op == 'StridedSlice' and node.in_node(0).name == input_data.name]
+            sorted_out_nodes = sorted(out_nodes, key=lambda n: list(n.slices))
+            out_nodes = unique_by(sorted_out_nodes, strided_slices_equality)
             if len(out_nodes) <= 1:
                 continue
 

@@ -1,4 +1,4 @@
-## Parameter <a name="Parameter"></a> {#openvino_docs_ops_infrastructure_Parameter_1}
+# Parameter  {#openvino_docs_ops_infrastructure_Parameter_1}
 
 **Versioned name**: *Parameter-1*
 
@@ -19,7 +19,7 @@
 * *shape*
 
   * **Description**: the shape of the output tensor
-  * **Range of values**: list of non-negative integers, emty list is allowed that means 0D or scalar tensor
+  * **Range of values**: list of non-negative integers, empty list is allowed that means 0D or scalar tensor
   * **Type**: int[]
   * **Default value**: None
   * **Required**: *Yes*

@@ -1,22 +1,12 @@
-"""
- Copyright (c) 2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import numpy as np
 from typing import Optional
 
+from extensions.ops.activation_ops import Floor
+from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
@@ -29,6 +19,19 @@ from mo.ops.strided_slice import StridedSlice
 
 
 def get_concat_after_split(split: Node) -> Optional[Node]:
+    """
+    This function gets consumers of the 'split' node, checks that the following conditions are fulfilled:
+    1) 'split' node has only one consumer;
+    2) for any output port of 'split', number of corresponding input ports of the consumer is the same;
+    3) for any output port 'i' of the 'split', corresponding input ports of the consumer are
+       [i * m, ..., i * m + (m - 1)], where 'm' is the same for all 'i';
+    4) the consumer operation is 'Concat';
+    5) 'split' is a unique producer for this 'Concat';
+    and, if all these conditions are fulfilled, returns the above mentioned 'Concat' node. Otherwise, if some of these
+    conditions is false, this functions returns None.
+    :param split: Split node
+    :return: Concat node, if all conditions are fulfilled, or None otherwise
+    """
     # If number of output nodes of 'split' is not equal to 1, then the transformation is not applicable.
     split_outputs = [d.node for _, p in split.out_ports().items() for d in p.get_connection().get_destinations()]
     names_of_split_outputs = set([n.name for n in split_outputs])
@@ -50,7 +53,17 @@ def get_concat_after_split(split: Node) -> Optional[Node]:
 
     dest = split.out_port(0).get_destinations()[0].node
     # The transformation is applicable, only if next node is Concat.
-    return dest if dest.soft_get('type') == 'Concat' else None
+    if dest.soft_get('type') != 'Concat':
+        return
+
+    # The transformation is applicable, only if Split is a unique producer for Concat.
+    dest_inputs = [p.get_source().node for p in dest.in_ports().values() if not p.disconnected()]
+    names_of_concat_inputs = set([n.soft_get('name', n.id) for n in dest_inputs])
+    expected_number_of_unique_inputs = 1 if dest.has_valid('axis') else 2
+    if len(names_of_concat_inputs) != expected_number_of_unique_inputs:
+        return
+
+    return dest
 
 
 def get_interpolate_pattern(split: Node) -> dict:
@@ -74,20 +87,21 @@ def get_split_scale(split: Node) -> int:
 
 def replace_interpolate_pattern(graph: Graph, match: dict):
     split = match['split']
-    scale = int64_array([get_split_scale(split)])
+    scale = np.array([get_split_scale(split)], dtype=np.float32)
     axis = int(split.in_port(1).get_connection().get_source().node.value)
     split_node_name = split.name
+    axis_node = Const(graph, {'name': split_node_name + '/axis', 'value': int64_array([axis])}).create_node()
 
-    shape_node = Shape(graph, dict(name=split_node_name + '/Shape_')).create_node()
-    scales_node = Const(graph, dict(name=split_node_name + '/scales_', value=scale)).create_node()
-    mul_node = Mul(graph, dict(name=split_node_name + '/Mul_')).create_node()
+    shape_node = Shape(graph, dict(name=split_node_name + '/Shape')).create_node()
+    scales_node = Const(graph, dict(name=split_node_name + '/scales', value=scale)).create_node()
+    mul_node = Mul(graph, dict(name=split_node_name + '/Mul')).create_node()
     scales_node.out_port(0).connect(mul_node.in_port(1))
 
     strided_slice_node = create_op_with_const_inputs(graph,
                                                      StridedSlice,
                                                      {1: int64_array([axis]), 2: int64_array([axis + 1])},
                                                      {
-                                                        'name': split_node_name + '/StridedSlice_',
+                                                        'name': split_node_name + '/StridedSlice',
                                                         'begin_mask': int64_array([1]),
                                                         'end_mask': int64_array([1]),
                                                         'new_axis_mask': int64_array([0]),
@@ -96,12 +110,28 @@ def replace_interpolate_pattern(graph: Graph, match: dict):
                                                      })
     shape_node.out_port(0).connect(strided_slice_node.in_port(0))
 
-    strided_slice_node.out_port(0).connect(mul_node.in_port(0))
+    cast_shape_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
 
-    interp_node = Interpolate(graph, dict(name=split_node_name + '/Interpolate_',
-                                          axes=int64_array([axis]),
-                                          mode='nearest')).create_node()
-    mul_node.out_port(0).connect(interp_node.in_port(1))
+    strided_slice_node.out_port(0).connect(cast_shape_to_float.in_port(0))
+    cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
+
+    interp_node = Interpolate(graph,
+                              dict(name=split_node_name + '/Interpolate',
+                                   mode='nearest',
+                                   antialias=0, pads_begin=int64_array([0]), pads_end=int64_array([0]),
+                                   coordinate_transformation_mode='half_pixel', nearest_mode='round_prefer_floor',
+                                   cube_coeff=-0.75, version='opset4', shape_calculation_mode='scales',
+                                   in_ports_count=4, maybe_part_of_sequence=True)).create_node()
+
+    floor_node = Floor(graph, {'name': split_node_name + '/Floor'}).create_node()
+    cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
+
+    mul_node.out_port(0).connect(floor_node.in_port(0))
+    floor_node.out_port(0).connect(cast_mul_result_to_int.in_port(0))
+
+    cast_mul_result_to_int.out_port(0).connect(interp_node.in_port(1))
+    scales_node.out_port(0).connect(interp_node.in_port(2))
+    axis_node.out_port(0).connect(interp_node.in_port(3))
 
     match['concat'].out_port(0).get_connection().set_source(interp_node.out_port(0))
 

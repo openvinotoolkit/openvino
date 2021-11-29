@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,11 +19,6 @@
 namespace InferenceEngine {
 class RemoteContext;
 
-/**
- * @brief An std::map object containing low-level object parameters
- * of classes that are derived from RemoteBlob or RemoteContext
- */
-using ParamMap = std::map<std::string, Parameter>;
 /**
  * @brief This class represents an Inference Engine abstraction to the memory allocated
  * on the remote (non-CPU) accelerator device

@@ -188,6 +188,16 @@ inline unsigned int trailingZeros32(unsigned int value) {
 // access from within opencv code more accessible
 namespace cv {
 
+#ifndef CV_ALWAYS_INLINE
+#if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
+#define CV_ALWAYS_INLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define CV_ALWAYS_INLINE __forceinline
+#else
+#define CV_ALWAYS_INLINE inline
+#endif
+#endif
+
 namespace hal {
 
 enum StoreMode

@@ -1,8 +1,9 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "../common/tests_utils.h"
+#include "../common/ie_utils.h"
 #include "../common/managers/thread_manager.h"
 #include "tests_pipelines/tests_pipelines.h"
 
@@ -98,7 +99,22 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
         CNNNetwork cnnNetwork = ie.ReadNetwork(test_params.model);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, test_params.device);
         InferRequest infer_request = exeNetwork.CreateInferRequest();
-        return test_reinfer_request_inference(infer_request, cnnNetwork, test_params.model, test_params.device, test_params.numiters);
+
+        OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+        fillBlobs(infer_request, inputsInfo, batchSize);
+
+        return test_reinfer_request_inference(infer_request, output_info, test_params.model, test_params.device, test_params.numiters);
+    };
+    test_runner(test_params.numthreads, test);
+}
+
+TEST_P(MemLeaksTestSuite, infer_request_inference) {
+    auto test_params = GetParam();
+    auto test = [&] {
+        return test_infer_request_inference(test_params.model, test_params.device, test_params.numiters);
     };
     test_runner(test_params.numthreads, test);
 }

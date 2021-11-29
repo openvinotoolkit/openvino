@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>

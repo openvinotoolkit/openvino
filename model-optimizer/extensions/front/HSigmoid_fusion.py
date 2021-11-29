@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
 from extensions.front.AttributedClampNormalizer import AttributedClampNormalizer
@@ -20,6 +8,7 @@ from extensions.ops.activation_ops import HSigmoid
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph, rename_nodes
+from mo.middle.pattern_match import check_value
 from mo.utils.graph import Node
 
 
@@ -50,10 +39,11 @@ class HSigmoidWithClamp(FrontReplacementSubgraph):
             nodes=[
                 ('input', dict()),
                 ('add', dict(op='Add')),
-                ('const_0', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 0.0, atol=1e-6))),
-                ('const_3', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 3.0, atol=1e-6))),
-                ('const_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
-                ('const_1_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1.0 / 6.0, atol=1e-6))),
+                ('const_0', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 0.0, atol=1e-6)))),
+                ('const_3', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 3.0, atol=1e-6)))),
+                ('const_6', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 6.0, atol=1e-6)))),
+                ('const_1_6',
+                 dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 1.0 / 6.0, atol=1e-6)))),
                 ('clamp', dict(op='Clamp')),
                 ('mul_2', dict(op='Mul')),
             ],
@@ -86,10 +76,11 @@ class HSigmoidWithMinMax(FrontReplacementSubgraph):
             nodes=[
                 ('input', dict()),
                 ('add', dict(op='Add')),
-                ('const_0', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 0.0, atol=1e-6))),
-                ('const_3', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 3.0, atol=1e-6))),
-                ('const_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
-                ('const_1_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1.0 / 6.0, atol=1e-6))),
+                ('const_0', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 0.0, atol=1e-6)))),
+                ('const_3', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 3.0, atol=1e-6)))),
+                ('const_6', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 6.0, atol=1e-6)))),
+                ('const_1_6',
+                 dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 1.0 / 6.0, atol=1e-6)))),
                 ('max', dict(op='Maximum')),
                 ('min', dict(op='Minimum')),
                 ('mul_2', dict(op='Mul')),
@@ -123,12 +114,15 @@ class HSigmoidWithReluDiv(FrontReplacementSubgraph):
         return dict(
             nodes=[
                 ('input', dict()),
-                ('add_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 3.0, atol=1e-6))),
+                ('add_const',
+                 dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 3.0, atol=1e-6)))),
                 ('add', dict(op='Add')),
                 ('relu', dict(op='ReLU')),
-                ('min_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
+                ('min_const',
+                 dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 6.0, atol=1e-6)))),
                 ('min', dict(op='Minimum')),
-                ('div_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
+                ('div_const',
+                 dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 6.0, atol=1e-6)))),
                 ('div', dict(op='Div')),
             ],
             edges=[
@@ -159,12 +153,15 @@ class HSigmoidWithReluMul(FrontReplacementSubgraph):
         return dict(
             nodes=[
                 ('input', dict()),
-                ('add_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 3.0, atol=1e-6))),
+                ('add_const',
+                 dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 3.0, atol=1e-6)))),
                 ('add', dict(op='Add')),
                 ('relu', dict(op='ReLU')),
-                ('min_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
+                ('min_const',
+                 dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 6.0, atol=1e-6)))),
                 ('min', dict(op='Minimum')),
-                ('mul_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1.0/6.0, atol=1e-6))),
+                ('mul_const',
+                 dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 1.0 / 6.0, atol=1e-6)))),
                 ('mul', dict(op='Mul')),
             ],
             edges=[

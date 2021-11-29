@@ -1,4 +1,4 @@
-# Operation Set `opset3` Specification {#openvino_docs_ops_opset3}
+# opset3 {#openvino_docs_ops_opset3}
 
 This specification document describes `opset3` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin
@@ -113,7 +113,7 @@ declared in `namespace opset3`.
 * [ScatterElementsUpdate](movement/ScatterElementsUpdate_3.md)
 * [ScatterUpdate](movement/ScatterUpdate_3.md)
 * [Select](condition/Select_1.md)
-* [Selu](arithmetic/Selu_1.md)
+* [Selu](activation/Selu_1.md)
 * [ShapeOf](shape/ShapeOf_3.md)
 * [ShuffleChannels](movement/ShuffleChannels_1.md)
 * [Sigmoid](activation/Sigmoid_1.md)

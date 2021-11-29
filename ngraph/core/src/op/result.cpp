@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include <typeindex>
@@ -26,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Result::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Result, "Result", 0);
 
 op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
     : Op({arg})
@@ -37,11 +25,13 @@ op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
 
 bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Result_visit_attributes);
     return true;
 }
 
 void op::Result::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
@@ -50,6 +40,7 @@ void op::Result::validate_and_infer_types()
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Result_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     auto res = make_shared<Result>(new_args.at(0), m_needs_default_layout);
@@ -58,11 +49,18 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
 
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Result::evaluate");
+    NGRAPH_OP_SCOPE(v0_Result_evaluate);
     outputs[0]->set_unary(inputs[0]);
     void* output = outputs[0]->get_data_ptr();
     void* input = inputs[0]->get_data_ptr();
     memcpy(output, input, outputs[0]->get_size_in_bytes());
+
+    return true;
+}
+
+bool op::Result::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Result_has_evaluate);
     return true;
 }
 
@@ -80,14 +78,14 @@ AttributeAdapter<ResultVector>::AttributeAdapter(ResultVector& ref)
 
 bool AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor)
 {
-    int64_t size = m_ref.size();
+    size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size())
     {
         m_ref.resize(size);
     }
     ostringstream index;
-    for (int64_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         index.str("");
         index << i;

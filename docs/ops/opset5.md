@@ -1,4 +1,4 @@
-# Operation Set `opset5` Specification {#openvino_docs_ops_opset5}
+# opset5 {#openvino_docs_ops_opset5}
 
 This specification document describes `opset5` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin
@@ -129,7 +129,7 @@ declared in `namespace opset5`.
 * [ScatterNDUpdate](movement/ScatterNDUpdate_3.md)
 * [ScatterUpdate](movement/ScatterUpdate_3.md)
 * [Select](condition/Select_1.md)
-* [Selu](arithmetic/Selu_1.md)
+* [Selu](activation/Selu_1.md)
 * [ShapeOf](shape/ShapeOf_3.md)
 * [ShuffleChannels](movement/ShuffleChannels_1.md)
 * [Sigmoid](activation/Sigmoid_1.md)

@@ -13,7 +13,7 @@
 <h2>Memcheck report</h2>
     {% for timeline in timelines %}
     <div class="w3-container">
-        <h4> {{ timeline['device'][0]|e }} {{ timeline['model'][0]|e }} {{ timeline['test_name'][0]|e }} </h4>
+        <h4> {{ timeline['device'][0]|e }} {{ timeline['model_name'][0]|e }} {{ timeline['test_name'][0]|e }} </h4>
         <div class={{ '"w3-text-green"' if timeline['status'] else '"w3-text-red"' }}>
             {{ "PASS" if timeline['status'] else "FAIL" }}
         </div>

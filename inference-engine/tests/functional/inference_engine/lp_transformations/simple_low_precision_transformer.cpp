@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,19 +49,41 @@ bool SimpleLowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<n
 }
 
 void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ngraph::Function>& function) {
+    // initialization
+    for (auto it : branchSpecificTransformations) {
+        ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
+        transformation->setParamsManager(this);
+        transformation->setLayerTransformationsManager(this);
+    }
+
+    for (auto it : transformations) {
+        ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
+        transformation->setParamsManager(this);
+        transformation->setLayerTransformationsManager(this);
+    }
+
+    // transformation
     {
         ngraph::pass::low_precision::TypeRelaxedReplacer pass;
         pass.run_on_function(function);
     }
 
     ngraph::pass::low_precision::TransformationContext context(function);
-    GraphRewrite pass;
-    for (auto it : transformations) {
-        ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
-
-        transformation->setParamsManager(this);
-        transformation->setLayerTransformationsManager(this);
-        transformation->registerMatcherIn(pass, context);
+    {
+        GraphRewrite pass;
+        for (auto it : branchSpecificTransformations) {
+            ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
+            transformation->registerMatcherIn(pass, context);
+        }
+        pass.run_on_function(function);
     }
-    pass.run_on_function(function);
+
+    {
+        GraphRewrite pass;
+        for (auto it : transformations) {
+            ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
+            transformation->registerMatcherIn(pass, context);
+        }
+        pass.run_on_function(function);
+    }
 }

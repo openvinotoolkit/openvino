@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <tests_file_utils.hpp>
-#include "details/ie_exception.hpp"
 #include <fstream>
 #include <string>
 
@@ -16,7 +15,7 @@
 # include <mach/mach.h>
 #endif
 
-#if defined(WIN32) || defined(WIN64)
+#ifdef _WIN32
 // Copied from linux libc sys/stat.h:
 # define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 # define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
@@ -28,10 +27,10 @@ using namespace std;
 void FileUtils::readAllFile(const std::string &file_name, void *buffer, size_t maxSize) {
     std::ifstream inputFile;
     inputFile.open(file_name, std::ios::binary | std::ios::in);
-    if (!inputFile.is_open()) THROW_IE_EXCEPTION << "cannot open file " << file_name;
+    if (!inputFile.is_open()) IE_THROW() << "cannot open file " << file_name;
     if (!inputFile.read(static_cast<char *> (buffer), maxSize)) {
         inputFile.close();
-        THROW_IE_EXCEPTION << "cannot read " << maxSize << " bytes from file " << file_name;
+        IE_THROW() << "cannot read " << maxSize << " bytes from file " << file_name;
     }
 
     inputFile.close();

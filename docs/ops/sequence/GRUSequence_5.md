@@ -1,4 +1,4 @@
-## GRUSequence <a name="GRUSequence"></a> {#openvino_docs_ops_sequence_GRUSequence_5}
+# GRUSequence  {#openvino_docs_ops_sequence_GRUSequence_5}
 
 **Versioned name**: *GRUSequence-5*
 
@@ -31,7 +31,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
 
 * *activations_alpha, activations_beta*
 
-  * **Description**: *activations_alpha, activations_beta* attributes of functions; applicability and meaning of these attributes depends on choosen activation functions
+  * **Description**: *activations_alpha, activations_beta* attributes of functions; applicability and meaning of these attributes depends on chosen activation functions
   * **Range of values**: a list of floating-point numbers
   * **Type**: `float[]`
   * **Default value**: None

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,6 @@
 
 namespace vpu {
 
-InferenceEngine::CNNNetwork buildRuntimeGraphAsIeNet(
-        GraphMetaInfo& graphMetaInfo,
-        const std::vector<float>& perfInfo);
 InferenceEngine::CNNNetwork buildRuntimeGraph(
         GraphMetaInfo& graphMetaInfo,
         const std::vector<float>& perfInfo);

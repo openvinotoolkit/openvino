@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,8 +51,14 @@ template<> inline uint16_t saturate_cast(uint8_t x) { return x; }
 template<> inline float    saturate_cast(uint8_t x) { return x; }
 template<> inline uint8_t  saturate_cast(uint8_t x) { return x; }
 
-template<> inline uint8_t saturate_cast(uint16_t x) { using lim = std::numeric_limits<uint8_t>; return (uint8_t)std::min(static_cast<uint16_t>(lim::max()), std::max(static_cast<uint16_t>(lim::min()), x));}
+template<> inline uint8_t saturate_cast(uint16_t x) {
+  using lim = std::numeric_limits<uint8_t>;
+  return (uint8_t)std::min(static_cast<uint16_t>(lim::max()),
+                           std::max(static_cast<uint16_t>(lim::min()), x));
+}
 template<> inline uint8_t saturate_cast(float x)    { return saturate_cast<uint8_t>(static_cast<int>(std::rint(x))); }
+
+template<> inline float saturate_cast(double x)     { return x; }
 //------------------------------------------------------------------------------
 
 constexpr static const int ONE = 1 << 15;

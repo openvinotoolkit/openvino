@@ -1,24 +1,40 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include "subgraph_tests/delayed_copy_layer.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "gna/gna_config.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
     };
 
-    std::map<std::string, std::string> additional_config = {
-            {"GNA_COMPACT_MODE", "NO"}
+    std::vector<std::map<std::string, std::string>> additional_config = {
+        {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+        {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}
+    };
+
+    std::vector<size_t> memory_sizes = {
+        128, 256, 32
     };
 
     INSTANTIATE_TEST_CASE_P(delayed_copy_layer, DelayedCopyTest,
                             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-            ::testing::Values(additional_config)),
-                            DelayedCopyTest::getTestCaseName);
+            ::testing::ValuesIn(additional_config),
+            ::testing::ValuesIn(memory_sizes)),
+                            DelayedCopyTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_delayed_copy_layer, DelayedCopyAfterReshapeWithMultipleConnTest,
+                            ::testing::Combine(
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+            ::testing::ValuesIn(additional_config),
+            ::testing::ValuesIn(memory_sizes)),
+                            DelayedCopyTestBase::getTestCaseName);
 }  // namespace

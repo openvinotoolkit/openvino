@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 #include "tests_common.hpp"
 #include "precision_utils.h"
 
@@ -139,6 +139,7 @@ protected:
     }
 
     void TearDown() override {
+        PluginCache::get().reset();
     }
 
     template <Precision::ePrecision PRC>

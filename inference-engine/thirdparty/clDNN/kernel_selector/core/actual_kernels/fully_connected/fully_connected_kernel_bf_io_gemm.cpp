@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "fully_connected_kernel_bf_io_gemm.h"
 #include <vector>
@@ -47,9 +36,11 @@ FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(co
     dispatchData.gws = { globalWorkSizeX, params.output.Feature().v, 1 };
     dispatchData.lws = { localWorkSizeX, 1, 1 };
 
-    dispatchData.efficiency = FORCE_PRIORITY_6;
-
     return dispatchData;
+}
+
+KernelsPriority FullyConnected_bf_io_GEMM::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 
 JitConstants FullyConnected_bf_io_GEMM::GetJitConstants(const fully_connected_params& params,
@@ -82,7 +73,6 @@ KernelsData FullyConnected_bf_io_GEMM::GetKernelsData(const Params& params, cons
                                                     options,
                                                     DataLayout::bf,
                                                     WeightsLayout::oiyx,
-                                                    FORCE_PRIORITY_6,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);

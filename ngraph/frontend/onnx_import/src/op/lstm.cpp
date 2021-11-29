@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <cstddef>
 #include <cstdint>
@@ -21,7 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "lstm.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/enum_names.hpp"
@@ -33,10 +23,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/lstm.hpp"
+#include "op/lstm.hpp"
 
 namespace ngraph
 {
@@ -62,111 +49,154 @@ namespace ngraph
 
                 struct LSTMNgInputMap
                 {
-                    using container_type = std::map<LSTMInput, Output<ngraph::Node>>;
-                    using iterator = typename container_type::iterator;
-
                     explicit LSTMNgInputMap(const Node& node)
                     {
                         const auto& ng_inputs = node.get_ng_inputs();
                         // We have input, output, forget and cell gates
                         constexpr std::size_t gates_count{4};
-                        // Peepholes add additional connections to input, output and forget gates.
-                        constexpr std::size_t peepholes_count{3};
 
                         // ----- Mandatory inputs ------
-                        // Packed input sequences. Shape: [seq_length, batch_size, input_size]
-                        m_map[LSTMInput::LSTM_INPUT_X] =
+                        // Packed input sequences.
+                        // ONNX Shape: [seq_length, batch_size, input_size]
+                        // OpenVino Shape: [batch_size, seq_length, input_size]
+                        m_input_map[LSTMInput::LSTM_INPUT_X] =
                             builder::opset1::reorder_axes(ng_inputs.at(0), {1, 0, 2});
+
                         // Weight tensor for the gates.
                         // Shape: [num_directions, 4*hidden_size, input_size]
-                        m_map[LSTMInput::LSTM_INPUT_W] = ngraph::op::util::convert_lstm_node_format(
-                            ng_inputs.at(1),
-                            ngraph::op::util::LSTMWeightsFormat::IOFC,
-                            ngraph::op::util::LSTMWeightsFormat::FICO,
-                            1);
+                        m_input_map[LSTMInput::LSTM_INPUT_W] =
+                            ngraph::op::util::convert_lstm_node_format(
+                                ng_inputs.at(1),
+                                ngraph::op::util::LSTMWeightsFormat::IOFC,
+                                ngraph::op::util::LSTMWeightsFormat::FICO,
+                                1);
+
                         // The recurrence weight tensor.
                         // Shape: [num_directions, 4*hidden_size, hidden_size]
-                        m_map[LSTMInput::LSTM_INPUT_R] = ngraph::op::util::convert_lstm_node_format(
-                            ng_inputs.at(2),
-                            ngraph::op::util::LSTMWeightsFormat::IOFC,
-                            ngraph::op::util::LSTMWeightsFormat::FICO,
-                            1);
+                        m_input_map[LSTMInput::LSTM_INPUT_R] =
+                            ngraph::op::util::convert_lstm_node_format(
+                                ng_inputs.at(2),
+                                ngraph::op::util::LSTMWeightsFormat::IOFC,
+                                ngraph::op::util::LSTMWeightsFormat::FICO,
+                                1);
 
-                        const std::size_t hidden_size =
-                            m_map[LSTMInput::LSTM_INPUT_R].get_shape().back();
-                        const std::size_t batch_size =
-                            m_map[LSTMInput::LSTM_INPUT_X].get_shape().at(0);
-                        const std::size_t num_directions =
-                            m_map[LSTMInput::LSTM_INPUT_W].get_shape().front();
+                        // Get dimensions needed for default inputs creation
+                        auto shape_of_x = std::make_shared<default_opset::ShapeOf>(
+                            m_input_map[LSTMInput::LSTM_INPUT_X]);
+                        auto axes =
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {0});
+                        auto batch_size_node = std::make_shared<default_opset::Gather>(
+                            shape_of_x,
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {0}),
+                            axes);
+                        auto seq_length_node = std::make_shared<default_opset::Gather>(
+                            shape_of_x,
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {1}),
+                            axes);
+
+                        auto shape_of_r = std::make_shared<default_opset::ShapeOf>(
+                            m_input_map[LSTMInput::LSTM_INPUT_R]);
+                        auto num_directions_node = std::make_shared<default_opset::Gather>(
+                            shape_of_r,
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {0}),
+                            axes);
+                        auto hidden_size_node = std::make_shared<default_opset::Gather>(
+                            shape_of_r,
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {2}),
+                            axes);
 
                         // ------ Optional inputs ------
-                        // The bias tensor for input gate. Shape [num_directions, 4*hidden_size]
+                        // `B` - The bias tensor for input gate.
+                        // ONNX Shape: [num_directions, 8*hidden_size]
+                        // OpenVino Shape: [num_directions, 4*hidden_size]
                         if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                         {
                             auto bias = ng_inputs.at(3);
                             auto split_bias = builder::opset1::split(bias, 2, 1);
-                            NGRAPH_SUPPRESS_DEPRECATED_START
-                            m_map[LSTMInput::LSTM_INPUT_B] = split_bias.at(0) + split_bias.at(1);
-                            NGRAPH_SUPPRESS_DEPRECATED_END
-                            m_map[LSTMInput::LSTM_INPUT_B] =
+                            m_input_map[LSTMInput::LSTM_INPUT_B] =
+                                std::make_shared<default_opset::Add>(split_bias.at(0),
+                                                                     split_bias.at(1));
+                            m_input_map[LSTMInput::LSTM_INPUT_B] =
                                 ngraph::op::util::convert_lstm_node_format(
-                                    m_map[LSTMInput::LSTM_INPUT_B],
+                                    m_input_map[LSTMInput::LSTM_INPUT_B],
                                     ngraph::op::util::LSTMWeightsFormat::IOFC,
                                     ngraph::op::util::LSTMWeightsFormat::FICO,
                                     1);
                         }
                         else
                         {
-                            m_map[LSTMInput::LSTM_INPUT_B] = default_opset::Constant::create(
-                                element::f32,
-                                Shape{num_directions, gates_count * hidden_size},
-                                std::vector<float>(num_directions * gates_count * hidden_size,
-                                                   0.f));
+                            auto b_shape = std::make_shared<default_opset::Concat>(
+                                OutputVector{num_directions_node,
+                                             std::make_shared<default_opset::Multiply>(
+                                                 default_opset::Constant::create(
+                                                     element::Type_t::i64, Shape{1}, {gates_count}),
+                                                 hidden_size_node)},
+                                0);
+                            m_input_map[LSTMInput::LSTM_INPUT_B] =
+                                std::make_shared<default_opset::Broadcast>(
+                                    default_opset::Constant::create(
+                                        m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
+                                        Shape{},
+                                        {0}),
+                                    b_shape);
                         }
-                        // The lengths of the sequences in a batch. Shape [batch_size]
+                        // `sequence_lens`- The lengths of the sequences in a batch.
+                        // Shape: [batch_size]
                         if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4)))
                         {
-                            m_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ng_inputs.at(4);
+                            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ng_inputs.at(4);
                         }
                         else
                         {
-                            m_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
-                                default_opset::Constant::create(
-                                    element::i32,
-                                    Shape{batch_size},
-                                    std::vector<std::int32_t>(
-                                        batch_size,
-                                        m_map[LSTMInput::LSTM_INPUT_X].get_shape().at(1)));
+                            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
+                                std::make_shared<default_opset::Broadcast>(seq_length_node,
+                                                                           batch_size_node);
                         }
-                        // The initial value of the hidden.
-                        // Shape [num_directions, batch_size, hidden_size]
+                        // `initial_h` - The initial value of the hidden.
+                        // ONNX Shape: [num_directions, batch_size, hidden_size]
+                        // OpenVino Shape: [batch_size, num_directions, hidden_size]
                         if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
                         {
-                            m_map[LSTMInput::LSTM_INPUT_INIT_H] =
+                            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
                                 builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
                         }
                         else
                         {
-                            m_map[LSTMInput::LSTM_INPUT_INIT_H] = default_opset::Constant::create(
-                                element::f32,
-                                Shape{batch_size, num_directions, hidden_size},
-                                std::vector<float>(batch_size * num_directions * hidden_size, 0.f));
+                            auto init_h_shape = std::make_shared<default_opset::Concat>(
+                                OutputVector{
+                                    batch_size_node, num_directions_node, hidden_size_node},
+                                0);
+                            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
+                                std::make_shared<default_opset::Broadcast>(
+                                    default_opset::Constant::create(
+                                        m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
+                                        Shape{},
+                                        {0}),
+                                    init_h_shape);
                         }
-                        // The initial value of the cell.
-                        // Shape [num_directions, batch_size, hidden_size]
+                        // `initial_c` - The initial value of the cell.
+                        // ONNX Shape: [num_directions, batch_size, hidden_size]
+                        // OpenVino Shape: [batch_size, num_directions, hidden_size]
                         if (ng_inputs.size() > 6 && !ngraph::op::is_null(ng_inputs.at(6)))
                         {
-                            m_map[LSTMInput::LSTM_INPUT_INIT_C] =
+                            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
                                 builder::opset1::reorder_axes(ng_inputs.at(6), {1, 0, 2});
                         }
                         else
                         {
-                            m_map[LSTMInput::LSTM_INPUT_INIT_C] = default_opset::Constant::create(
-                                element::f32,
-                                Shape{batch_size, num_directions, hidden_size},
-                                std::vector<float>(batch_size * num_directions * hidden_size, 0.f));
+                            auto init_c_shape = std::make_shared<default_opset::Concat>(
+                                OutputVector{
+                                    batch_size_node, num_directions_node, hidden_size_node},
+                                0);
+                            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
+                                std::make_shared<default_opset::Broadcast>(
+                                    default_opset::Constant::create(
+                                        m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
+                                        Shape{},
+                                        {0}),
+                                    init_c_shape);
                         }
-                        // The weight tensor for peepholes. Shape [num_directions, 3*hidde_size]
+                        // `P` - The weight tensor for peepholes.
                         // Peepholes input is not supported by OpenVino
                         if (ng_inputs.size() > 7 && !ngraph::op::is_null(ng_inputs.at(7)))
                         {
@@ -176,8 +206,8 @@ namespace ngraph
                         }
                     }
 
-                    Output<ngraph::Node>& at(const LSTMInput& key) { return m_map.at(key); }
-                    container_type m_map;
+                    Output<ngraph::Node>& at(const LSTMInput& key) { return m_input_map.at(key); }
+                    std::map<LSTMInput, Output<ngraph::Node>> m_input_map;
                 };
 
                 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -206,8 +236,9 @@ namespace ngraph
 
                         if (m_input_forget != 0)
                         {
-                            NGRAPH_WARN << (node) << " Attribute `input_forget` is not supported "
-                                                     "and will be ignored ";
+                            NGRAPH_WARN << (node)
+                                        << " Attribute `input_forget` is not supported "
+                                           "and will be ignored ";
                         }
                     }
 

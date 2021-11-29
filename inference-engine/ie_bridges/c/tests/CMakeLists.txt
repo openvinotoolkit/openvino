@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "InferenceEngineCAPITests")
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs videoio imgproc QUIET)
+find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
 if(NOT OpenCV_FOUND)
-    message(WARNING "OPENCV is disabled or not found, " ${TARGET_NAME} " is disabled")
+    message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is disabled")
     return()
 endif()
 
@@ -22,9 +22,9 @@ target_link_libraries(${TARGET_NAME}
         )
 
 target_compile_definitions(${TARGET_NAME}
-        PUBLIC ${ARGV}
+        PUBLIC ${ARGV} ${GNA_LIBRARY_VERSION}
         DATA_PATH=\"${DATA_PATH}\"
-        MODELS_PATH=\"${MODELS_PATH}\" )
+        MODELS_PATH=\"${MODELS_PATH}\")
 
 add_dependencies(${TARGET_NAME} MultiDevicePlugin)
 
@@ -34,6 +34,10 @@ endif()
 
 if(ENABLE_CLDNN)
     add_dependencies(${TARGET_NAME} clDNNPlugin)
+endif()
+
+if(ENABLE_GNA)
+    add_dependencies(${TARGET_NAME} GNAPlugin)
 endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

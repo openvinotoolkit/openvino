@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,15 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 50}, {{}}},
         {{1, 128}, {{}}},
-        {{1, 10 * 1024}, {{}}}
+        {{1, 10 * 1024}, {{}}},
+        {{8, 128}, {{}}},
+        {{1, 4, 2, 256}, {{}}},
+        {{4, 4, 4, 4}, {{}}},
+        {{1, 16, 1, 128}, {{}}},
+        {{1, 8, 15, 128}, {{}}},
+        {{1, 4, 4, 128}, {{}}},
+        {{8}, {{}}},
+        {{5}, {{}}}
 };
 
 const auto basicCases = ::testing::Combine(

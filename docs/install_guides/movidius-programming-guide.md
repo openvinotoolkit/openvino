@@ -3,10 +3,10 @@
 ## See Also
 
 - [Intel® Movidius™ VPUs Setup Guide for use with the Intel® Distribution of OpenVINO™](movidius-setup-guide.md)
-- <a class="download" href="<domain_placeholder>/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius™_VPUs-HAL Configuration Guide_rev1.3.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/613514_Intel Vision Accelerator Design with Intel Movidius™ VPUs Workload Distribution_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/613759_Intel Vision Accelerator Design with Intel Movidius™ VPUs Scheduler_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Scheduler User Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/Intel Vision Accelerator Design with Intel Movidius™ VPUs Errata.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Errata</a>
+- <a class="download" href="<domain_placeholder>/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius_VPUs-HAL Configuration Guide_rev1.3.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide</a>
+- <a class="download" href="<domain_placeholder>/downloads/613514_Intel Vision Accelerator Design with Intel Movidius VPUs Workload Distribution_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide</a>
+- <a class="download" href="<domain_placeholder>/downloads/613759_Intel Vision Accelerator Design with Intel Movidius VPUs Scheduler_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Scheduler User Guide</a>
+- <a class="download" href="<domain_placeholder>/downloads/Intel Vision Accelerator Design with Intel Movidius VPUs Errata.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Errata</a>
 
 The following section provides information on how to distribute a model across all 8 VPUs to maximize performance.
 
@@ -18,11 +18,11 @@ The structure should hold:
 1.	A pointer to an inference request.
 2.	An ID to keep track of the request.
 
-@snippet openvino/docs/snippets/movidius-programming-guide.cpp part0
+@snippet snippets/movidius-programming-guide.cpp part0
 
 ### Declare a Vector of Requests
 
-@snippet openvino/docs/snippets/movidius-programming-guide.cpp part1
+@snippet snippets/movidius-programming-guide.cpp part1
 
 Declare and initialize 2 mutex variables:
 1.	For each request
@@ -34,9 +34,9 @@ Conditional variable indicates when at most 8 requests are done at a time.
 
 For inference requests, use the asynchronous IE API calls:
 
-@snippet openvino/docs/snippets/movidius-programming-guide.cpp part2
+@snippet snippets/movidius-programming-guide.cpp part2
 
-@snippet openvino/docs/snippets/movidius-programming-guide.cpp part3
+@snippet snippets/movidius-programming-guide.cpp part3
 
 
 ### Create a Lambda Function
@@ -45,7 +45,7 @@ Lambda Function enables the parsing and display of results.
 
 Inside the Lambda body use the completion callback function:
 
-@snippet openvino/docs/snippets/movidius-programming-guide.cpp part4
+@snippet snippets/movidius-programming-guide.cpp part4
 
 ## Additional Resources
 

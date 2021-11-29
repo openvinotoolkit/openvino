@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ DECLARE_VPU_CONFIG(MYRIAD_TILING_CMX_LIMIT_KB);
 
 DECLARE_VPU_CONFIG(MYRIAD_TENSOR_STRIDES);
 
-DECLARE_VPU_CONFIG(MYRIAD_IR_WITH_SCALES_DIRECTORY);
+DECLARE_VPU_CONFIG(MYRIAD_SCALES_PATTERN);
 DECLARE_VPU_CONFIG(MYRIAD_DETECT_NETWORK_BATCH);
 DECLARE_VPU_CONFIG(MYRIAD_COPY_OPTIMIZATION);
 DECLARE_VPU_CONFIG(MYRIAD_HW_INJECT_STAGES);
@@ -36,12 +36,29 @@ DECLARE_VPU_CONFIG(MYRIAD_PER_LAYER);
 DECLARE_VPU_CONFIG(MYRIAD_PER_STAGE);
 
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
+DECLARE_VPU_CONFIG(MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
 
 /**
  * @brief Used to disable analyzeWeightableLayers pass in cases where
  * weights scaling leads to poor accuracy. Default = "YES"
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
+
+/**
+ * @brief MyriadPlugin uses heuristic algorithm to avoid accuracy degradations.
+ * This algorithm tries to find the preprocessing at the beginning of the model to adjust its parameters.
+ * This option should be set to "NO" if preprocessing is not a part of the model and performed separately
+ * in order to avoid accuracy degradation.
+ * Default is "YES"
+ */
+DECLARE_VPU_CONFIG(MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);
+
+/**
+ * @brief Used to enable reshapeBeforeConvTiling pass in cases where
+ * user have reshape parameter "alt_width" in IR.
+ * Default is "NO".
+ */
+DECLARE_VPU_CONFIG(MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
 
 //
 // Debug options
@@ -109,6 +126,8 @@ DECLARE_VPU_CONFIG(MYRIAD_WATCHDOG);
 DECLARE_VPU_CONFIG(MYRIAD_PLUGIN_LOG_FILE_PATH);
 
 DECLARE_VPU_CONFIG(MYRIAD_DEVICE_CONNECT_TIMEOUT);
+
+DECLARE_VPU_CONFIG(MYRIAD_ENABLE_ASYNC_DMA);
 
 namespace VPUConfigParams {
 

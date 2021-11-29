@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,13 +32,17 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle);
 int DispatcherClean(xLinkDeviceHandle_t *deviceHandle);
 
 xLinkEvent_t* DispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event);
-int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle);
+int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle, unsigned int timeoutMs);
 
 char* TypeToStr(int type);
 int DispatcherUnblockEvent(eventId_t id,
-                           xLinkEventType_t type,
-                           streamId_t stream,
-                           void *xlinkFD);
+                             xLinkEventType_t type,
+                             streamId_t stream,
+                             void *xlinkFD);
+int DispatcherServeEvent(eventId_t id,
+                             xLinkEventType_t type,
+                             streamId_t stream,
+                             void *xlinkFD);
 #ifdef __cplusplus
 }
 #endif

@@ -1,68 +1,38 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 project(InferenceEngine)
 
-set(CMAKE_MODULE_PATH "${IE_MAIN_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
-
-include(features_ie)
-
-# include developer package
-include(developer_package_ie)
-
-# These options are shared with 3rdparty plugins by means of developer package
-include(check_features_ie)
-
-# resolving dependencies for the project
-include(dependencies)
-
-
-# Fuzz tests also building without ENABLE_FUZZING
-include(fuzzing)
-
-if (ENABLE_FUZZING)
-    enable_fuzzing()
+if(CMAKE_SOURCE_DIR STREQUAL "${InferenceEngine_SOURCE_DIR}")
+    message(FATAL_ERROR "Cmake source directory must point to <openvino_root>")
 endif()
 
-find_package(Threads REQUIRED)
+include(cmake/features.cmake)
 
-unset(IEDeveloperPackageTargets CACHE)
+# resolving dependencies for the project
+include(cmake/dependencies.cmake)
+
 function(ie_developer_export_targets)
-    set(IEDeveloperPackageTargets "${IEDeveloperPackageTargets};${ARGV}")
-
-    # to allow exporting of aliased targets with the original names
-    foreach(target_name ${IEDeveloperPackageTargets})
-        if(TARGET "${target_name}")
-            get_target_property(original_name ${target_name} ALIASED_TARGET)
-            if(TARGET "${original_name}")
-                message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
-                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
-                list(REMOVE_ITEM IEDeveloperPackageTargets ${target_name})
-                list(APPEND IEDeveloperPackageTargets ${original_name})
-            endif()
-        endif()
-    endforeach()
-
-    list(REMOVE_DUPLICATES IEDeveloperPackageTargets)
-    set(IEDeveloperPackageTargets "${IEDeveloperPackageTargets}" CACHE INTERNAL
-        "Paths to extra Inference Engine plugins" FORCE)
+    openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${ARGN})
 endfunction()
 
 function(ie_developer_export)
-    export(TARGETS ${OpenVINODeveloperPackageTargets} NAMESPACE IE::
-        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
+    set(all_dev_targets gflags ie_libraries)
+    foreach(component IN LISTS openvino_export_components)
+        export(TARGETS ${${component}} NAMESPACE IE::
+               APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+        list(APPEND all_dev_targets ${${component}})
+    endforeach()
 
-    export(TARGETS ${IEDeveloperPackageTargets} NAMESPACE IE::
-        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
-
-    # Custom target to build only Inference Engine Developer Package targets
-    add_custom_target(ie_dev_targets ALL DEPENDS ${OpenVINODeveloperPackageTargets} ${IEDeveloperPackageTargets} gflags
-                      inference_engine_ir_reader inference_engine_ir_v7_reader)
+    add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
 endfunction()
 
 add_subdirectory(thirdparty)
 
 add_subdirectory(src)
+
+add_subdirectory(ie_bridges/c)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
@@ -82,7 +52,7 @@ function(ie_build_samples)
                 MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
         unset(${var})
     endforeach()
-    include(sanitizer)
+    include("${IEDevScripts_DIR}/compile_flags/sanitizer.cmake")
     add_subdirectory(samples)
 endfunction()
 
@@ -90,22 +60,9 @@ endfunction()
 # they must be built even if samples build is disabled (required for tests and tools).
 ie_build_samples()
 
-file(GLOB_RECURSE SAMPLES_SOURCES samples/*.cpp samples/*.hpp samples/*.h)
-add_cpplint_target(sample_cpplint
-    FOR_SOURCES ${SAMPLES_SOURCES}
-    EXCLUDE_PATTERNS "thirdparty/*" "pugixml/*")
-
-if (ENABLE_PYTHON)
+if(ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
-
-add_subdirectory(ie_bridges/c)
-
-if (ENABLE_JAVA)
-    add_subdirectory(ie_bridges/java)
-endif()
-
-add_cpplint_report_target()
 
 #
 # Install
@@ -113,7 +70,19 @@ add_cpplint_report_target()
 
 # install C++ samples
 
-ie_cpack_add_component(cpp_samples REQUIRED DEPENDS core)
+ie_cpack_add_component(cpp_samples DEPENDS core)
+
+install(DIRECTORY ../thirdparty/zlib
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        COMPONENT cpp_samples
+        USE_SOURCE_PERMISSIONS
+        PATTERN .clang-format EXCLUDE)
+
+install(DIRECTORY ../thirdparty/cnpy
+        DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp/thirdparty
+        COMPONENT cpp_samples
+        USE_SOURCE_PERMISSIONS
+        PATTERN .clang-format EXCLUDE)
 
 if(UNIX)
     install(DIRECTORY samples/
@@ -121,19 +90,21 @@ if(UNIX)
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE)
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY samples/
             DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE)
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 endif()
 
 # install C samples
 
-ie_cpack_add_component(c_samples REQUIRED DEPENDS core)
+ie_cpack_add_component(c_samples DEPENDS core_c)
 
 if(UNIX)
     install(PROGRAMS samples/build_samples.sh
@@ -148,30 +119,22 @@ endif()
 install(DIRECTORY ie_bridges/c/samples/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples
-        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE)
+        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE
+        PATTERN ie_bridges/c/samples/.clang-format EXCLUDE)
 
 install(FILES samples/CMakeLists.txt
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples)
 
-# install Python samples
-
-if(ENABLE_PYTHON)
-    ie_cpack_add_component(python_samples REQUIRED DEPENDS core)
-
-    install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
-            DESTINATION ${IE_CPACK_IE_DIR}/samples/python
-            COMPONENT python_samples)
-endif()
-
 # install speech demo files
 
 if(SPEECH_LIBS_AND_DEMOS)
-    ie_cpack_add_component(speech_demo_files REQUIRED)
+    ie_cpack_add_component(speech_demo_files)
 
     install(DIRECTORY ${TEMP}/deployment_tools
                       ${TEMP}/data_processing
             DESTINATION .
+            USE_SOURCE_PERMISSIONS
             COMPONENT speech_demo_files)
 endif()
 
@@ -179,32 +142,38 @@ endif()
 # Developer package
 #
 
-ie_developer_export_targets(format_reader)
-ie_developer_export_targets(${NGRAPH_LIBRARIES})
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader gflags ie_samples_utils)
 
 # for Template plugin
 if(NGRAPH_INTERPRETER_ENABLE)
-    ie_developer_export_targets(ngraph_backend interpreter_backend)
+    openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
 endif()
 
-ie_developer_export()
+function(ie_generate_dev_package_config)
+    # dummy check that OpenCV is here
+    find_package(OpenCV QUIET)
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/developer_package_config.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
-    @ONLY)
+    ie_developer_export()
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
-    COPYONLY)
+    configure_package_config_file("${InferenceEngine_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
+                                "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
+                                INSTALL_DESTINATION share # not used
+                                PATH_VARS "OpenVINO_MAIN_SOURCE_DIR;IE_MAIN_SOURCE_DIR;gflags_BINARY_DIR"
+                                NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+
+    configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+                "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
+                @ONLY)
+endfunction()
+
+ie_generate_dev_package_config()
 
 #
 # Coverage
 #
 
 if(ENABLE_COVERAGE)
-    include(coverage_ie)
+    include(cmake/coverage.cmake)
 endif()
 
 #
@@ -212,6 +181,10 @@ endif()
 #
 
 function(register_extra_modules)
+    # post export
+    ie_developer_export_targets(inference_engine)
+    openvino_developer_export_targets(COMPONENT ngraph TARGETS ${NGRAPH_LIBRARIES})
+
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/build-modules")
 
     function(generate_fake_dev_package)
@@ -221,7 +194,7 @@ function(register_extra_modules)
         file(WRITE "${iedevconfig_file}" "\# !! AUTOGENERATED: DON'T EDIT !!\n\n")
         file(APPEND "${iedevconfig_file}" "ie_deprecated_no_errors()\n")
 
-        foreach(target IN LISTS OpenVINODeveloperPackageTargets IEDeveloperPackageTargets)
+        foreach(target IN LISTS ${openvino_export_components})
             if(target)
                 file(APPEND "${iedevconfig_file}" "add_library(IE::${target} ALIAS ${target})\n")
             endif()
@@ -250,8 +223,12 @@ function(register_extra_modules)
     foreach(module_path IN LISTS extra_modules local_extra_modules)
         if(module_path)
             get_filename_component(module_name "${module_path}" NAME)
+            set(build_module ON)
+            if(NOT EXISTS "${module_path}/CMakeLists.txt") # if module is built not using cmake
+                set(build_module OFF)
+            endif()
             if(NOT DEFINED BUILD_${module_name})
-                set(BUILD_${module_name} ON CACHE BOOL "Build ${module_name} extra module" FORCE)
+                set(BUILD_${module_name} ${build_module} CACHE BOOL "Build ${module_name} extra module" FORCE)
             endif()
             if(BUILD_${module_name})
                 message(STATUS "Register ${module_name} to be built in build-modules/${module_name}")

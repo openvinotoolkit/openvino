@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2017-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -35,7 +22,7 @@ class MVNReplacer(FrontReplacementSubgraph):
                 ('variance', dict(op='ReduceMean')),
                 ('squeeze_mean', dict(op='Squeeze')),
                 ('squeeze_variance', dict(op='Squeeze')),
-                ('fbn', dict(op='FusedBatchNorm')),
+                ('fbn', dict(op=lambda op: op in ['FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3'])),
             ],
             edges=[
                 ('mean', 'stop_grad', {'in': 0}),
@@ -59,7 +46,8 @@ class MVNReplacer(FrontReplacementSubgraph):
         mvn = MVN(graph, dict(
             name=fbn.name + '/MVN_',
             eps=fbn.eps,
-            required_reduction_indices=[1, 2] if fbn.data_format == b'NHWC' else [2, 3]
+            eps_mode='outside_sqrt',
+            normalize_variance=1
         ))
         mvn.attrs['old_infer'] = mvn.attrs['infer']
         mvn.attrs['infer'] = __class__.infer
@@ -84,19 +72,20 @@ class MVNReplacer(FrontReplacementSubgraph):
 
     @staticmethod
     def infer(node: Node):
-        if not (node.in_node(1).has_valid('value') and node.in_node(2).has_valid('value')):
+        axes_1_value = node.in_port(1).data.get_value()
+        axes_2_value = node.in_port(2).data.get_value()
+        if axes_1_value is None or axes_2_value is None:
             log.warning('Reduction indices for mean and variance for MVN node {} are not constants'.format(node.name))
             return
 
-        if not (all(node.in_node(1).value == node.required_reduction_indices) and
-                    all(node.in_node(2).value == node.required_reduction_indices)):
-            log.warning('Reduction indices for mean {} and variance {} do not match required ones {}'.format(
-                node.in_node(1).value,
-                node.in_node(2).value,
-                node.required_reduction_indices
+        if not (all(axes_1_value == axes_2_value)):
+            log.warning('Reduction indices for mean {} and variance {} do not match'.format(
+                axes_1_value,
+                axes_2_value
             ))
             return
 
-        node.graph.remove_edge(node.in_node(2).id, node.id)
-        node.graph.remove_edge(node.in_node(1).id, node.id)
+        node.in_port(2).disconnect()
         node.old_infer(node)
+        node.infer = node.old_infer
+        del node['old_infer']

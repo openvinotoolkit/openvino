@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/extractimagepatches.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
@@ -40,6 +29,7 @@ op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
 
 void op::v3::ExtractImagePatches::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_ExtractImagePatches_validate_and_infer_types);
     const PartialShape input_Pshape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this, input_Pshape.rank() == 4, "input tensor must be 4D tensor.");
@@ -148,6 +138,7 @@ void op::v3::ExtractImagePatches::validate_and_infer_types()
 
 bool op::v3::ExtractImagePatches::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_ExtractImagePatches_visit_attributes);
     visitor.on_attribute("sizes", m_patch_sizes);
     visitor.on_attribute("strides", m_patch_movement_strides);
     visitor.on_attribute("rates", m_patch_selection_rates);
@@ -158,6 +149,7 @@ bool op::v3::ExtractImagePatches::visit_attributes(AttributeVisitor& visitor)
 shared_ptr<Node>
     op::v3::ExtractImagePatches::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_ExtractImagePatches_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v3::ExtractImagePatches>(new_args.at(0),
                                                     m_patch_sizes,

@@ -1,56 +1,113 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cstring>
-#include <iostream>
-#include <details/ie_exception.hpp>
+#include <gna_plugin_log.hpp>
+#include <limits>
 #include "backend/gna_types.h"
 #include "quantization.h"
+#include <algorithm>
 
-void QuantizeAffine16(float *ptr_float_weights,
-                      float *ptr_float_biases,
-                      int16_t *ptr_int_weights,
-                      int32_t *ptr_int_biases,
-                      float input_scale_factor,
-                      float *ptr_weight_scale_factor,
-                      float *ptr_output_scale_factor,
-                      uint32_t num_rows,
-                      uint32_t num_columns,
-                      uint32_t num_rows_padded,
-                      uint32_t num_columns_padded) {
-    uint32_t num_saturate = 0;
+#ifdef DEBUG
+#define QUANTWARNING(...) (fprintf(stderr, __VA_ARGS__))
+#else
+#define QUANTWARNING(...)
+#endif
 
-    if (*ptr_weight_scale_factor == 1.0) {
-        // scale factor for weights is not calculated yet
-        float mean_weight = 0.0;
-        float mean_weight_squared = 0.0;
-        float max_weight = -1e20f;
-        float var_weight;
-        float mean_plus_2stdev;
 
-        for (uint32_t i = 0; i < num_rows; i++) {
-            for (uint32_t j = 0; j < num_columns; j++) {
-                float weight = ptr_float_weights[i * num_columns + j];
-                mean_weight += weight;
-                mean_weight_squared += weight * weight;
-                if (fabs(weight) > max_weight) {
-                    max_weight = fabs(weight);
-                }
-            }
-        }
-
-        mean_weight /= static_cast<float>(num_rows * num_columns);
-        mean_weight_squared /= static_cast<float>(num_rows * num_columns);
-        var_weight = mean_weight_squared - mean_weight * mean_weight;
-        mean_plus_2stdev = mean_weight + 2.0f * static_cast<float>(sqrtf(var_weight));
-
-        if (max_weight != 0.0f) {
-            *ptr_weight_scale_factor = static_cast<float>(MAX_VAL_2B_WEIGHT) / max_weight;
-        }
-        *ptr_output_scale_factor = input_scale_factor * *ptr_weight_scale_factor;
+template<>
+void QuantizationCallback<int16_t, int32_t>::runFakeQuantize() const {
+    if (quantizedWeights) {
+        THROW_GNA_EXCEPTION << "Quantized weights are not yet supported in int16 quantization mode";
     }
 
+    uint32_t num_saturate = 0;
+    auto input_low = 0.0f;
+    auto input_high = 0.0f;
+    auto output_low = 0.0f;
+    auto output_high = 0.0f;
+    auto levels = 1;
+    if (fq_num_stats > 0) {
+        input_low = *fq_ptr_input_low;
+        input_high = *fq_ptr_input_high;
+        output_low = *fq_ptr_output_low;
+        output_high = *fq_ptr_output_high;
+        levels = fq_levels;
+    }
+
+    for (uint32_t row = 0; row < num_rows; row++) {
+        for (uint32_t col = 0; col < num_columns; col++) {
+            float rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_weights[row * num_columns + col];
+            if (fq_num_stats > 0) {
+                auto x = value;
+                if (x <= std::min(input_low, input_high)) {
+                    value = output_low;
+                } else if (x > std::max(input_low, input_high)) {
+                    value = output_high;
+                } else {
+                    value = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                        (levels - 1) * (output_high - output_low) + output_low;
+                }
+            }
+
+            value = value * *ptr_weight_scale_factor + rounding_value;
+
+            int16_t* ptr_weight_16 = ptr_int_weights + (row * num_columns_padded + col);
+
+            if (value > std::numeric_limits<int16_t>::max()) {
+                *ptr_weight_16 = std::numeric_limits<int16_t>::max();
+                num_saturate++;
+            } else if (value < std::numeric_limits<int16_t>::min()) {
+                *ptr_weight_16 = std::numeric_limits<int16_t>::min();
+                num_saturate++;
+            } else {
+                *ptr_weight_16 = (int16_t)value;
+            }
+        }
+        for (uint32_t col = num_columns; col < num_columns_padded; col++) {
+            int16_t* ptr_weight_16 = ptr_int_weights + (row * num_columns_padded + col);
+            *ptr_weight_16 = 0;
+        }
+    }
+    for (uint32_t row = num_rows; row < num_rows_padded; row++) {
+        for (uint32_t col = 0; col < num_columns_padded; col++) {
+            int16_t* ptr_weight_16 = ptr_int_weights + (row * num_columns_padded + col);
+            *ptr_weight_16 = 0;
+        }
+    }
+
+    // case for element wise layer
+    if (ptr_float_biases != nullptr && ptr_int_biases != nullptr) {
+        for (uint32_t j = 0; j < num_rows; j++) {
+            float rounding_value = (ptr_float_biases[j] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_biases[j] * *ptr_output_scale_factor + rounding_value;
+            if (value > 2147483647.0) {
+                ptr_int_biases[j] = 2147483647L;
+                num_saturate++;
+            } else if (value < -2147483648.0) {
+                ptr_int_biases[j] = -2147483648LL;
+                num_saturate++;
+            } else {
+                ptr_int_biases[j] = (int32_t)value;
+            }
+        }
+        for (uint32_t j = num_rows; j < num_rows_padded; j++) {
+            ptr_int_biases[j] = 0;
+        }
+    }
+
+    if (num_saturate > 0) {
+        QUANTWARNING("Warning:  %d / %d saturations in QuantizeAffine16()\n",
+            num_saturate,
+            num_rows * num_columns + num_rows);
+    }
+}
+
+template<>
+void QuantizationCallback<int16_t, int32_t>::runQuantize() const {
+    uint32_t num_saturate = 0;
     for (uint32_t row = 0; row < num_rows; row++) {
         for (uint32_t col = 0; col < num_columns; col++) {
             float rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
@@ -105,6 +162,24 @@ void QuantizeAffine16(float *ptr_float_weights,
     }
 }
 
+std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements) {
+    float* ptr_float_feat = reinterpret_cast<float*>(ptr_float_memory);
+    float min = num_elements ? ptr_float_feat[0] : 0.0;
+    float max = num_elements ? ptr_float_feat[0] : 0.0;
+
+    for (size_t i = 1; i < num_elements; i++) {
+        if (fabs(ptr_float_feat[i]) > max) {
+            max = fabs(ptr_float_feat[i]);
+        }
+
+        if (fabs(ptr_float_feat[i]) < min) {
+            min = fabs(ptr_float_feat[i]);
+        }
+    }
+
+    return { min, max };
+}
+
 float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_t num_elements) {
     float *ptr_float_feat = reinterpret_cast<float *>(ptr_float_memory);
     float max = 0.0;
@@ -149,50 +224,121 @@ void QuantizeVector16(float *ptr_float_memory, int16_t *ptr_int_memory, uint32_t
     }
 }
 
-void QuantizeAffine8(float *ptr_float_weights, float *ptr_float_biases,
-                     int8_t *ptr_int_weights, gna_compound_bias_t *ptr_int_biases,
-                     float input_scale_factor, float *ptr_weight_scale_factor,
-                     float *ptr_output_scale_factor, uint32_t num_rows, uint32_t num_columns,
-                     uint32_t num_rows_padded, uint32_t num_columns_padded) {
+template<>
+void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const {
+    uint32_t num_saturate = 0;
+
+    auto input_low = 0.0f;
+    auto input_high = 0.0f;
+    auto output_low = 0.0f;
+    auto output_high = 0.0f;
+    auto levels = 1;
+    float valueAcc = 0.0;
+    for (uint32_t i = 0; i < num_rows; i++) {
+        uint32_t channel_multiplier = 1;
+        if (fq_num_stats > 0) {
+            auto idx = fq_num_stats == 1 ? 0 : i;
+            input_low = fq_ptr_input_low[idx];
+            input_high = fq_ptr_input_high[idx];
+            output_low = fq_ptr_output_low[idx];
+            output_high = fq_ptr_output_high[idx];
+            levels = fq_levels;
+
+            channel_multiplier = ((input_high - input_low) * *ptr_weight_scale_factor) / (levels - 1);
+        } else {
+            float scaled_row_max = 0;
+            for (uint32_t col = 0; col < num_columns; col++) {
+                float value = ptr_float_weights[i * num_columns + col] * *ptr_weight_scale_factor;
+                valueAcc += value;
+                if (fabs(value) > scaled_row_max) {
+                    scaled_row_max = fabs(value);
+                }
+            }
+
+            channel_multiplier = scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT);
+        }
+
+        ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_multiplier + 0.5f);
+        if (channel_multiplier > MAX_OUT_MULTIPLIER) {
+            THROW_GNA_EXCEPTION << "invalid channel multiplier: " << channel_multiplier;
+        }
+
+        for (uint32_t j = 0; j < num_columns; j++) {
+            auto offset = i * num_columns + j;
+            auto rounding_value = (ptr_float_weights[i * num_columns + j] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_weights[offset];
+            if (!quantizedWeights) {
+                if (fq_num_stats > 0) {
+                    auto x = value;
+                    if (x <= std::min(input_low, input_high)) {
+                        value = output_low;
+                    } else if (x > std::max(input_low, input_high)) {
+                        value = output_high;
+                    } else {
+                        value = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                            (levels - 1) * (output_high - output_low) + output_low;
+                    }
+                }
+
+                value = value * (*ptr_weight_scale_factor / ptr_int_biases[i].multiplier) + rounding_value;
+            } else {
+                value -= MAX_VAL_1B_WEIGHT;
+            }
+            auto normalizedWeight = static_cast<int32_t>(value);
+
+            if (value > std::numeric_limits<int8_t>::max()) {
+                normalizedWeight = std::numeric_limits<int8_t>::max();
+                num_saturate++;
+            } else if (value < std::numeric_limits<int8_t>::min()) {
+                normalizedWeight = std::numeric_limits<int8_t>::min();
+                num_saturate++;
+            } else {
+                normalizedWeight = (int8_t)value;
+            }
+
+            // range checking
+            ptr_int_weights[offset] = static_cast<int8_t>(normalizedWeight);
+        }
+
+        for (uint32_t j = num_columns; j < num_columns_padded; j++) {
+            ptr_int_weights[i * num_columns + j] = 0;
+        }
+    }
+
+    for (uint32_t i = num_rows; i < num_rows_padded; i++) {
+        for (uint32_t j = 0; j < num_columns_padded; j++) {
+            ptr_int_weights[i * num_columns + j] = 0;
+        }
+        ptr_int_biases[i].multiplier = 0;
+    }
+
+    if (ptr_float_biases != nullptr) {
+        for (uint32_t j = 0; j < num_rows; j++) {
+            float rounding_value = (ptr_float_biases[j] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_biases[j] * *ptr_output_scale_factor + rounding_value;
+            if (value > 2147483647.0) {
+                ptr_int_biases[j].bias = 2147483647L;
+                num_saturate++;
+            } else if (value < -2147483648.0) {
+                ptr_int_biases[j].bias = -2147483648LL;
+                num_saturate++;
+            } else {
+                ptr_int_biases[j].bias = (int32_t) value;
+            }
+        }
+    }
+    if (num_saturate > 0) {
+        QUANTWARNING("Warning:  %d / %d saturations in QuantizeAffine8()\n", num_saturate, num_rows * num_columns + num_rows);
+    }
+}
+
+template<>
+void QuantizationCallback<int8_t, gna_compound_bias_t>::runQuantize() const {
     if (ptr_int_biases == nullptr) {
-        THROW_IE_EXCEPTION << "Int biases are empty";
+        IE_THROW() << "Int biases are empty";
     }
     uint32_t num_saturate = 0;
 
-    if (*ptr_weight_scale_factor == 1.0) {
-        // scale factor for weights is not calculated yet
-        float mean_weight = 0.0;
-        float mean_weight_squared = 0.0;
-        float max_weight = -1e20f;
-        float var_weight;
-        float mean_plus_2stdev;
-
-        for (uint32_t i = 0; i < num_rows; i++) {
-            for (uint32_t j = 0; j < num_columns; j++) {
-                float weight = ptr_float_weights[i*num_columns + j];
-                mean_weight += weight;
-                mean_weight_squared += weight * weight;
-                if (fabs(weight) > max_weight) {
-                    max_weight = fabs(weight);
-                }
-            }
-        }
-
-        mean_weight /= static_cast<float>(num_rows * num_columns);
-        mean_weight_squared /= static_cast<float>(num_rows * num_columns);
-        var_weight = mean_weight_squared - mean_weight * mean_weight;
-        mean_plus_2stdev = mean_weight + 2.0f * static_cast<float>(sqrtf(var_weight));
-
-        *ptr_weight_scale_factor = static_cast<float>(MAX_VAL_1B_WEIGHT) / max_weight;
-
-        // For 8 bit weights quantize as follows:
-        // 1. adjust scale factor to increase dynamic range of entire matrix by max multiplier
-        // 2. find maximum scaled weight for each row
-        // 3. find multiplier such that dividing by the multiplier brings row back within 8-bit dynamic range
-        // 4. quantize and store scaled row
-        *ptr_weight_scale_factor = MAX_OUT_MULTIPLIER * *ptr_weight_scale_factor;  //  increase dynamic range by max multiplier
-        *ptr_output_scale_factor = input_scale_factor * *ptr_weight_scale_factor;
-    }
     float valueAcc = 0.0;
     for (uint32_t row = 0; row < num_rows; row++) {
         float scaled_row_max = 0;
@@ -210,7 +356,6 @@ void QuantizeAffine8(float *ptr_float_weights, float *ptr_float_biases,
         for (uint32_t col = 0; col < num_columns; col++) {
             int8_t *ptr_weight_8 = ptr_int_weights + (row * num_columns_padded + col);
             rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
-
 
             value = ptr_float_weights[row * num_columns + col] * (*ptr_weight_scale_factor / ptr_int_biases[row].multiplier) + rounding_value;
             if (value > 127.0) {
@@ -255,5 +400,59 @@ void QuantizeAffine8(float *ptr_float_weights, float *ptr_float_biases,
 
     if (num_saturate > 0) {
         QUANTWARNING("Warning:  %d / %d saturations in QuantizeAffine8()\n", num_saturate, num_rows * num_columns + num_rows);
+    }
+}
+
+template<>
+void QuantizationCallback<int8_t, int8_t>::runQuantize() const {
+    uint32_t num_saturate = 0;
+    for (uint32_t row = 0; row < num_rows; row++) {
+        for (uint32_t col = 0; col < num_columns; col++) {
+            float rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_weights[row * num_columns + col] * *ptr_weight_scale_factor + rounding_value;
+            int8_t* ptr_weight_8 = ptr_int_weights + (row * num_columns_padded + col);
+            if (value > 127.0) {
+                *ptr_weight_8 = 127;
+                num_saturate++;
+            } else if (value < -128.0) {
+                *ptr_weight_8 = -128;
+                num_saturate++;
+            } else {
+                *ptr_weight_8 = (int8_t)value;
+            }
+        }
+        for (uint32_t col = num_columns; col < num_columns_padded; col++) {
+            int8_t* ptr_weight_8 = ptr_int_weights + (row * num_columns_padded + col);
+            *ptr_weight_8 = 0;
+        }
+    }
+    for (uint32_t row = num_rows; row < num_rows_padded; row++) {
+        for (uint32_t col = 0; col < num_columns_padded; col++) {
+            int8_t* ptr_weight_8 = ptr_int_weights + (row * num_columns_padded + col);
+            *ptr_weight_8 = 0;
+        }
+    }
+
+    if (ptr_float_biases != nullptr && ptr_int_biases != nullptr) {
+        for (uint32_t j = 0; j < num_rows; j++) {
+            float rounding_value = (ptr_float_biases[j] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_biases[j] * *ptr_output_scale_factor + rounding_value;
+            if (value > 127.0) {
+                ptr_int_biases[j] = 127;
+                num_saturate++;
+            } else if (value < -128.0) {
+                ptr_int_biases[j] = -128;
+                num_saturate++;
+            } else {
+                ptr_int_biases[j] = (int8_t)value;
+            }
+        }
+        for (uint32_t j = num_rows; j < num_rows_padded; j++) {
+            ptr_int_biases[j] = 0;
+        }
+    }
+
+    if (num_saturate > 0) {
+        QUANTWARNING("Warning:  %d / %d saturations in QuantizeAffine8_8()\n", num_saturate, num_rows * num_columns + num_rows);
     }
 }

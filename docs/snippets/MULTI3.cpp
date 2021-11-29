@@ -1,6 +1,4 @@
-#include <inference_engine.hpp>
-#include <multi-device/multi_device_config.hpp>
-
+#include <ie_core.hpp>
 
 int main() {
 //! [part3]
@@ -8,7 +6,7 @@ int main() {
     auto cnnNetwork = ie.ReadNetwork("sample.xml");
     std::string allDevices = "MULTI:";
     std::vector<std::string> myriadDevices = ie.GetMetric("MYRIAD", METRIC_KEY(AVAILABLE_DEVICES));
-    for (int i = 0; i < myriadDevices.size(); ++i) {
+    for (size_t i = 0; i < myriadDevices.size(); ++i) {
         allDevices += std::string("MYRIAD.")
                                 + myriadDevices[i]
                                 + std::string(i < (myriadDevices.size() -1) ? "," : "");

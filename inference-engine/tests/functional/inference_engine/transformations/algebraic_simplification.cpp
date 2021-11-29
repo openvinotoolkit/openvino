@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 #include <transformations/common_optimizations/algebraic_simplification.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/common_optimizations/transpose_to_reshape.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -36,10 +37,10 @@ TEST(algebraic_simplification, add_negative_tests) {
     auto c = make_shared<op::Parameter>(type, shape);
     auto abs_a = make_shared<op::Abs>(a);
     auto iconst2 = ngraph::make_constant_from_string("2", type, shape);
-    auto add_a_0 = a + iconst2;
-    auto add_a_0_0 = add_a_0 + iconst2;
-    auto add_b_0 = b + abs_a;
-    auto add_b_0_0 = add_b_0 + abs_a;
+    auto add_a_0 = std::make_shared<ngraph::op::v1::Add>(a, iconst2);
+    auto add_a_0_0 = std::make_shared<ngraph::op::v1::Add>(add_a_0, iconst2);
+    auto add_b_0 = std::make_shared<ngraph::op::v1::Add>(b, abs_a);
+    auto add_b_0_0 = std::make_shared<ngraph::op::v1::Add>(add_b_0, abs_a);
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{a, b, add_a_0_0, c, add_b_0_0},
                                         ParameterVector{a, b, c});
@@ -63,10 +64,10 @@ TEST(algebraic_simplification, multiply_negative_tests) {
     auto c = make_shared<op::Parameter>(type, shape);
     auto abs_a = make_shared<op::Abs>(a);
     auto iconst2 = ngraph::make_constant_from_string("2", type, shape);
-    auto add_a_0 = a * iconst2;
-    auto add_a_0_0 = add_a_0 * iconst2;
-    auto add_b_0 = b * abs_a;
-    auto add_b_0_0 = add_b_0 * abs_a;
+    auto add_a_0 = make_shared<op::v1::Multiply>(a, iconst2);
+    auto add_a_0_0 = make_shared<op::v1::Multiply>(add_a_0, iconst2);
+    auto add_b_0 = make_shared<op::v1::Multiply>(b, abs_a);
+    auto add_b_0_0 = make_shared<op::v1::Multiply>(add_b_0, abs_a);
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{a, b, add_a_0_0, c, add_b_0_0},
                                         ParameterVector{a, b, c});
@@ -228,7 +229,7 @@ TEST(algebraic_simplification, log_no_exp) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto b = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto abs_a = make_shared<op::Abs>(a);
-    auto div = abs_a / b;
+    auto div = std::make_shared<op::v1::Divide>(abs_a, b);
     auto log_div = make_shared<op::Log>(div);
 
     auto neg_inner = make_shared<op::Negative>(log_div);
@@ -248,7 +249,7 @@ TEST(algebraic_simplification, log_no_divide) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto b = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto exp_a = make_shared<op::Exp>(a);
-    auto mul = exp_a * b;
+    auto mul = make_shared<op::v1::Multiply>(exp_a, b);
     auto log_mul = make_shared<op::Log>(mul);
 
     auto neg_inner = make_shared<op::Negative>(log_mul);
@@ -290,8 +291,17 @@ TEST(algebraic_simplification, replace_transpose_with_reshape) {
         auto param = make_shared<op::Parameter>(element::f32, shape);
         shared_ptr<Node> A1;
         if (multiout) {
+            shared_ptr<Node> k;
             auto last_dim = shape.rank().get_length() - 1;
-            A1 = make_shared<op::v0::TopK>(param, last_dim, element::i32);
+            if (shape[last_dim].is_dynamic()) {
+                k = make_shared<op::v1::Gather>(make_shared<op::ShapeOf>(param),
+                                                op::Constant::create(element::i64, {}, {last_dim}),
+                                                op::Constant::create(element::i64, {}, {0}));
+            } else {
+                k = make_shared<op::Constant>(element::i64, Shape{}, std::vector<int64_t>{shape[last_dim].get_length()});
+            }
+            A1 = make_shared<op::v1::TopK>(param, k, last_dim,
+                                           op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(param);
         }
@@ -302,8 +312,7 @@ TEST(algebraic_simplification, replace_transpose_with_reshape) {
 
         pass::Manager pass_manager;
         pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::AlgebraicSimplification>();
-        pass_manager.register_pass<pass::ConstantFolding>();
+        pass_manager.register_pass<pass::TransposeToReshape>();
         pass_manager.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
@@ -383,7 +392,7 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1) {
         shared_ptr<Node> A1;
         if (multiout) {
             auto last_dim = pshape.rank().get_length() - 1;
-            A1 = make_shared<op::v0::TopK>(A, last_dim, element::i32);
+            A1 = make_shared<op::v1::TopK>(A, op::Constant::create(element::i64, {}, {1}), last_dim, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
         } else {
             A1 = make_shared<op::v0::Abs>(A);
         }

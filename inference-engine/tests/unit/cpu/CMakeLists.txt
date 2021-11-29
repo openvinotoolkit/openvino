@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,16 +16,11 @@ addIeTargetTest(
             unitTestUtils
             mkldnn
             inference_engine_transformations
+            inference_engine_lp_transformations
         ADD_CPPLINT
         LABELS
             CPU
 )
-
-if(USE_CNNNETWORK_LPT)
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
-else()
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations)
-endif()
 
 ie_faster_build(${TARGET_NAME}
     UNITY

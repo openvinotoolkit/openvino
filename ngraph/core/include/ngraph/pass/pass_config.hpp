@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -72,22 +60,26 @@ namespace ngraph
         public:
             /// \brief Disable transformation by its type_info
             /// \param type_info Transformation type_info
-            void disable(const DiscreteTypeInfo& type_info) { m_disabled.insert(type_info); }
+            void disable(const DiscreteTypeInfo& type_info);
             /// \brief Disable transformation by its class type (based on type_info)
             template <typename T>
             void disable()
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 disable(T::type_info);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             /// \brief Enable transformation by its type_info
             /// \param type_info Transformation type_info
-            void enable(const DiscreteTypeInfo& type_info) { m_disabled.erase(type_info); }
+            void enable(const DiscreteTypeInfo& type_info);
             /// \brief Enable transformation by its class type (based on type_info)
             template <typename T>
             void enable()
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 enable(T::type_info);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             /// \brief Set callback for all kind of transformations
@@ -142,7 +134,9 @@ namespace ngraph
             template <typename T>
             param_callback get_callback() const
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 return get_callback(T::type_info);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             /// \brief Check either transformation type is disabled or not
@@ -158,8 +152,28 @@ namespace ngraph
             template <typename T>
             bool is_disabled() const
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 return is_disabled(T::type_info);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
+
+            /// \brief Check either transformation type is force enabled or not
+            /// \param type_info Transformation type_info
+            /// \return true if transformation type was force enabled and false otherwise
+            bool is_enabled(const DiscreteTypeInfo& type_info) const
+            {
+                return m_enabled.count(type_info);
+            }
+
+            /// \brief Check either transformation class type is force enabled or not
+            /// \return true if transformation type was force enabled and false otherwise
+            template <typename T>
+            bool is_enabled() const
+            {
+                return is_enabled(T::type_info);
+            }
+
+            void add_disabled_passes(const PassConfig& rhs);
 
         private:
             param_callback m_callback = [](const std::shared_ptr<const ::ngraph::Node>&) {
@@ -167,6 +181,7 @@ namespace ngraph
             };
             param_callback_map m_callback_map;
             std::unordered_set<DiscreteTypeInfo> m_disabled;
+            std::unordered_set<DiscreteTypeInfo> m_enabled;
         };
-    }
-}
+    } // namespace pass
+} // namespace ngraph

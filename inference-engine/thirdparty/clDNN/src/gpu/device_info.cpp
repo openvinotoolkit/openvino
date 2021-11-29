@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "device_info.h"
 #include "include/to_string_utils.h"
@@ -43,8 +33,7 @@ namespace cldnn {
 namespace gpu {
 
 namespace {
-int driver_dev_id()
-{
+int driver_dev_id() {
     const std::vector<int> unused_ids = {
         0x4905, 0x4906, 0x4907, 0x4908
     };
@@ -61,9 +50,9 @@ int driver_dev_id()
         devinfo_data.cbSize = sizeof(devinfo_data);
 
         for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
-            const size_t buf_size = 512;
-            char buf[buf_size];
-            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, buf_size, NULL)) {
+            const size_t kBufSize = 512;
+            char buf[kBufSize];
+            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
                 continue;
             }
 
@@ -84,16 +73,13 @@ int driver_dev_id()
     {
         std::string dev_base{ "/sys/devices/pci0000:00/0000:00:02.0/" };
         std::ifstream ifs(dev_base + "vendor");
-        if (ifs.good())
-        {
+        if (ifs.good()) {
             int ven_id;
             ifs >> std::hex >> ven_id;
             ifs.close();
-            if (ven_id == 0x8086)
-            {
+            if (ven_id == 0x8086) {
                 ifs.open(dev_base + "device");
-                if (ifs.good())
-                {
+                if (ifs.good()) {
                     int res = 0;
                     ifs >> std::hex >> res;
                     result.push_back(res);
@@ -121,6 +107,14 @@ static device_type get_device_type(const cl::Device& device) {
     auto unified_mem = device.getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
 
     return unified_mem ? device_type::integrated_gpu : device_type::discrete_gpu;
+}
+
+gfx_version parse_version(cl_uint ver) {
+    uint16_t major = ver >> 16;
+    uint8_t minor = (ver >> 8) & 0xFF;
+    uint8_t revision = ver & 0xFF;
+
+    return {major, minor, revision};
 }
 
 static bool get_imad_support(const cl::Device& device) {
@@ -165,7 +159,7 @@ bool is_local_block_io_supported(const cl::Device& device) {
             "    dst[lid] = read.s0 + 1;"
             "}";
         cl::Program program(ctx, kernel_code);
-        if (program.build({ device }, "-Dcl_intel_subgroup_local_block_io") != CL_SUCCESS)
+        if (program.build(device, "-Dcl_intel_subgroup_local_block_io") != CL_SUCCESS)
             return false;
         cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
         cl::Kernel kernel(program, "is_local_block_io_supported");
@@ -226,6 +220,9 @@ device_info_internal::device_info_internal(const cl::Device& device) {
     supports_imad = get_imad_support(device);
     supports_immad = false;
 
+    max_threads_per_execution_unit = 7;
+    max_threads_per_device = static_cast<uint32_t>(cores_count * max_threads_per_execution_unit);
+
     vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
 
     supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
@@ -233,6 +230,27 @@ device_info_internal::device_info_internal(const cl::Device& device) {
     supports_optimization_hints = false;
     supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos &&
                               is_local_block_io_supported(device);
+
+    bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
+
+    if (device_attr_supported) {
+        gfx_ver = parse_version(device.getInfo<CL_DEVICE_IP_VERSION_INTEL>());
+        device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
+        num_slices = device.getInfo<CL_DEVICE_NUM_SLICES_INTEL>();
+        num_sub_slices_per_slice = device.getInfo<CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_INTEL>();
+        num_eus_per_sub_slice = device.getInfo<CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL>();
+        num_threads_per_eu = device.getInfo<CL_DEVICE_NUM_THREADS_PER_EU_INTEL>();
+        auto features = device.getInfo<CL_DEVICE_FEATURE_CAPABILITIES_INTEL>();
+
+        supports_imad = supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
+    } else {
+        gfx_ver = {0, 0, 0};
+        device_id = driver_dev_id();
+        num_slices = 0;
+        num_sub_slices_per_slice = 0;
+        num_eus_per_sub_slice = 0;
+        num_threads_per_eu = 0;
+    }
 }
 }  // namespace gpu
 }  // namespace cldnn

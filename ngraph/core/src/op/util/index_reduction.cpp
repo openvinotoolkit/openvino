@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/index_reduction.hpp"
@@ -22,9 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-op::util::IndexReduction::IndexReduction()
-{
-}
+op::util::IndexReduction::IndexReduction() {}
 
 op::util::IndexReduction::IndexReduction(const Output<Node>& arg,
                                          uint64_t axis,
@@ -54,6 +41,7 @@ void op::util::IndexReduction::set_index_element_type(const element::Type& index
 
 void op::util::IndexReduction::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_IndexReduction_validate_and_infer_types);
     // TODO(amprocte): Should reject if size of reduction axis is zero.
     const PartialShape& arg_shape = get_input_partial_shape(0);
     Rank rank = arg_shape.rank();
@@ -61,7 +49,7 @@ void op::util::IndexReduction::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, rank.is_dynamic() || rank.get_length() >= 1, "Argument rank is zero.");
     NODE_VALIDATION_CHECK(this,
-                          rank.is_dynamic() || m_axis < rank.get_length(),
+                          rank.is_dynamic() || m_axis < static_cast<uint64_t>(rank.get_length()),
                           "Reduction axis (",
                           m_axis,
                           ") is not less than argument rank (",
@@ -88,7 +76,7 @@ void op::util::IndexReduction::validate_and_infer_types()
         std::vector<Dimension> output_dims(rank.get_length() - 1);
         size_t j = 0;
 
-        for (size_t i = 0; i < rank.get_length() - 1; i++)
+        for (int64_t i = 0; i < rank.get_length() - 1; i++)
         {
             if (j == m_axis)
             {
@@ -105,6 +93,7 @@ void op::util::IndexReduction::validate_and_infer_types()
 
 bool op::util::IndexReduction::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(util_IndexReduction_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("index_element_type", m_index_element_type);
     return true;

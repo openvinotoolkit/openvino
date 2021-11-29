@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ namespace MKLDNNPlugin {
 
 class MKLDNNReorderNode : public MKLDNNNode {
 public:
-    MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNReorderNode() override = default;
+    MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -27,6 +27,10 @@ public:
     void setDescs(const InferenceEngine::TensorDesc& input, const InferenceEngine::TensorDesc& output) {
         this->input = input;
         this->output = output;
+    }
+
+    void setOptimized(bool isOptimized) {
+        this->isOptimized = isOptimized;
     }
 
     void setDynamicBatchLim(int lim) override;
@@ -50,8 +54,13 @@ private:
     MKLDNNMemoryPtr dst_blocked;
     MKLDNNMemoryPtr src_blocked;
 
+    bool isOptimized = false;
+    bool canUseOptimizedNspc2Ncsp = false;
+    bool canUseOptimizedNcsp2Nspc = false;
+
+    void optimizedNspc2Ncsp();
+    void optimizedNcsp2Nspc();
     void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
 };
 
 }  // namespace MKLDNNPlugin
-

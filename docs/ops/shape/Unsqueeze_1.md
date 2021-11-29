@@ -1,4 +1,4 @@
-## Unsqueeze <a name="Unsqueeze"></a> {#openvino_docs_ops_shape_Unsqueeze_1}
+# Unsqueeze {#openvino_docs_ops_shape_Unsqueeze_1}
 
 **Versioned name**: *Unsqueeze-1*
 
@@ -10,19 +10,23 @@
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor of type *T*. *Required*.
+*   **1**: Tensor of type *T* and arbitrary shape. **Required**.
 
-*   **2**: OD or 1D tensor of type *T_SHAPE* with dimensions indices to be set to 1. Values could be negative. *Required*.
+*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to unsqueeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the output). **Required**.
+
+**Outputs**:
+
+*   **1**: Tensor with unsqueezed values of type *T*.
 
 **Types**
 
-* *T*: supported type.
+* *T*: any numeric type.
 
-* *T_SHAPE*: supported integer type.
+* *T_INT*: any supported integer type.
 
 **Example**
 
-*Example 1:*
+*Example 1: unsqueeze 2D tensor to a 4D tensor*
 ```xml
 <layer ... type="Unsqueeze">
     <input>
@@ -47,7 +51,7 @@
 </layer>
 ```
 
-*Example 2: (unsqueeze 0D tensor (constant) to 1D tensor)*
+*Example 2: unsqueeze 0D tensor (constant) to 1D tensor*
 ```xml
 <layer ... type="Unsqueeze">
     <input>

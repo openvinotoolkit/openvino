@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,13 +19,8 @@ class TRANSFORMATIONS_API ConvertShuffleChannels3;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertShuffleChannels3: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertShuffleChannels3: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertShuffleChannels3() : GraphRewrite() {
-        convert_shuffle_channels3();
-    }
-
-private:
-    void convert_shuffle_channels3();
+    ConvertShuffleChannels3();
 };

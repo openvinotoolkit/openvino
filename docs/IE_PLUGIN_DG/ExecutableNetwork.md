@@ -1,11 +1,11 @@
-# Executable Network {#executable_network}
+# Executable Network {#openvino_docs_ie_plugin_dg_executable_network}
 
 `ExecutableNetwork` class functionality:
 - Compile an InferenceEngine::ICNNNetwork instance to a backend specific graph representation
 - Create an arbitrary number of `InferRequest` objects
 - Hold some common resources shared between different instances of `InferRequest`. For example:
-	- InferenceEngine::ExecutableNetworkInternal::_taskExecutor task executor to implement asynchronous execution
-	- InferenceEngine::ExecutableNetworkInternal::_callbackExecutor task executor to run an asynchronous inference request callback in a separate thread
+	- InferenceEngine::IExecutableNetworkInternal::_taskExecutor task executor to implement asynchronous execution
+	- InferenceEngine::IExecutableNetworkInternal::_callbackExecutor task executor to run an asynchronous inference request callback in a separate thread
 
 `ExecutableNetwork` Class
 ------------------------
@@ -49,27 +49,22 @@ The function accepts a const shared pointer to `ngraph::Function` object and per
 
 This constructor creates a backend specific graph by importing from a stream object:
 
-> **NOTE**: The export of backend specific graph is done in the `ExportImpl` method, and data formats must be the same for both import and export.
+> **NOTE**: The export of backend specific graph is done in the `Export` method, and data formats must be the same for both import and export.
 
 @snippet src/template_executable_network.cpp executable_network:ctor_import_stream
 
-### `ExportImpl()`
-
-**Implementation details:**   
-Base InferenceEngine::ExecutableNetworkThreadSafeDefault class implements the public InferenceEngine::ExecutableNetworkThreadSafeDefault::Export method as following:
-- Writes `_plugin->GetName()` to the `model` stream.
-- Calls the `ExportImpl` method defined in a derived class to dump a backend specific graph.
+### `Export()`
 
 The implementation of the method should write all data to the `model` stream, which is required to import a backend specific graph later in the `Plugin::Import` method:
 
-@snippet src/template_executable_network.cpp executable_network:export_impl
+@snippet src/template_executable_network.cpp executable_network:export
 
 ### `CreateInferRequest()`
 
 The method creates an asynchronous inference request and returns it. While the public Inference Engine API has a single interface for inference request, which can be executed in synchronous and asynchronous modes, a plugin library implementation has two separate classes:
 
-- [Synchronous inference request](@ref infer_request), which defines pipeline stages and runs them synchronously in the `Infer` method.
-- [Asynchronous inference request](@ref async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
+- [Synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which defines pipeline stages and runs them synchronously in the `Infer` method.
+- [Asynchronous inference request](@ref openvino_docs_ie_plugin_dg_async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
    - For single-stage pipelines, there is no need to define this method and create a class derived from InferenceEngine::AsyncInferRequestThreadSafeDefault. For single stage pipelines, a default implementation of this method creates InferenceEngine::AsyncInferRequestThreadSafeDefault wrapping a synchronous inference request and runs it asynchronously in the `_taskExecutor` executor.
    - For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
    > **IMPORTANT**: It is up to you to decide how many task executors you need to optimally execute a device pipeline.
@@ -78,7 +73,7 @@ The method creates an asynchronous inference request and returns it. While the p
 
 ### `CreateInferRequestImpl()`
 
-This is a helper method used by `CreateInferRequest` to create a [synchronous inference request](@ref infer_request), which is later wrapped with the asynchronous inference request class:
+This is a helper method used by `CreateInferRequest` to create a [synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which is later wrapped with the asynchronous inference request class:
 
 @snippet src/template_executable_network.cpp executable_network:create_infer_request_impl
 
@@ -92,7 +87,7 @@ Returns a metric value for a metric with the name `name`.  A metric is a static 
 
 @snippet src/template_executable_network.cpp executable_network:get_metric
 
-The IE_SET_METRIC helper macro sets metric value and checks that the actual metric type matches a type of the specified value.
+The IE_SET_METRIC_RETURN helper macro sets metric value and checks that the actual metric type matches a type of the specified value.
 
 ### `GetConfig()`
 
@@ -102,4 +97,4 @@ Returns a current value for a configuration key with the name `name`. The method
 
 This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](../_inference_engine_tools_compile_tool_README.html)).
 
-The next step in plugin library implementation is the [Synchronous Inference Request](@ref infer_request) class.
+The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) class.

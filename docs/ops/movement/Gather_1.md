@@ -1,4 +1,4 @@
-## Gather <a name="Gather"></a> {#openvino_docs_ops_movement_Gather_1}
+# Gather {#openvino_docs_ops_movement_Gather_1}
 
 **Versioned name**: *Gather-1*
 
@@ -8,9 +8,10 @@
 
 **Detailed description**
 
-    output[:, ... ,:, i, ... , j,:, ... ,:] = input1[:, ... ,:, input2[i, ... ,j],:, ... ,:]
+    output[p_0, p_1, ..., p_{axis-1}, i, ..., j, ...] = 
+       input1[p_0, p_1, ..., p_{axis-1}, input2[i, ..., j], ...]
 
-Where `i` is the value from the third input.
+Where `axis` is the value from the third input.
 
 **Attributes**: *Gather* has no attributes
 

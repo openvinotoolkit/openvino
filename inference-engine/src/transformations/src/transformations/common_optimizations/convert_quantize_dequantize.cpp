@@ -1,9 +1,10 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/utils/utils.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -57,6 +58,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertQuantizeDequantize, "ConvertQuantizeDequantize", 0);
 
 ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
+    MATCHER_SCOPE(ConvertQuantizeDequantize);
     auto data_pattern = ngraph::pattern::any_input();
     auto input_low_pattern = ngraph::pattern::any_input();
     auto input_high_pattern = ngraph::pattern::any_input();
@@ -74,6 +76,11 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
+
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
         auto input_high = pattern_map[input_high_pattern];
@@ -149,6 +156,6 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, "ConvertQuantizeDequantize");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,10 +9,16 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
 
     set_ie_threading_interface_for(${TARGET_NAME})
 
+    # To avoid further TBB find_package action in next call of this function. Some version of TBB
+    # has an issue with cmake config which lead to fail in case of multiple call of find_package
+    # from one cmake script file.
+    set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
+    set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+    set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
-        target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-variable")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-function")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=strict-aliasing")
     endif()
@@ -22,6 +28,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
         target_compile_definitions(${TARGET_NAME}
             PUBLIC
                 USE_STATIC_IE)
+        set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
     endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
@@ -53,7 +60,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     if(NOT STATIC_IE)
         add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} CUSTOM_FILTERS "+runtime/explicit")
 
-        ie_developer_export_targets(${TARGET_NAME})
+        openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
     endif()
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

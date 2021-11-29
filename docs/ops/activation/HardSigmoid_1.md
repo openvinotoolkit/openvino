@@ -1,14 +1,20 @@
-## HardSigmoid <a name="HardSigmoid"></a> {#openvino_docs_ops_activation_HardSigmoid_1}
+# HardSigmoid {#openvino_docs_ops_activation_HardSigmoid_1}
 
 **Versioned name**: *HardSigmoid-1*
 
 **Category**: *Activation function*
 
-**Short description**: *HardSigmoid* calculates the hard sigmoid function `y(x) = max(0, min(1, alpha * x + beta))` element-wise with given tensor.
+**Short description**: HardSigmoid element-wise activation function.
 
-**Attributes**:
+**Attributes**: *HardSigmoid* operation has no attributes.
 
-    No attributes available.
+**Mathematical Formulation**
+
+For each element from the input tensor calculates corresponding
+ element in the output tensor with the following formula:
+ \f[
+ y = max(0, min(1, alpha * x + beta))
+ \f]
 
 **Inputs**
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,17 @@
 
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
-
-#include <ngraph/pass/visualize_tree.hpp>
 #include <low_precision/fake_quantize.hpp>
 #include <low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
-#include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ngraph_functions/convolution_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -82,7 +80,7 @@ const std::vector<TestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     TransformerIsFunctionQuantized,
     ::testing::ValuesIn(testValues),
     TransformerIsFunctionQuantized::getTestCaseName);

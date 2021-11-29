@@ -1,26 +1,14 @@
-//*****************************************************************************
-// Copyright 2017-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <fstream>
 #include <sstream>
 
+#include "exceptions.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "tensor_external_data.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ngraph
 {
@@ -37,7 +25,7 @@ namespace ngraph
                     if (entry.key() == "offset")
                         m_offset = std::stoi(entry.value());
                     if (entry.key() == "length")
-                        m_data_lenght = std::stoi(entry.value());
+                        m_data_length = std::stoi(entry.value());
                     if (entry.key() == "checksum")
                         m_sha1_digest = std::stoi(entry.value());
                 }
@@ -55,11 +43,11 @@ namespace ngraph
                 if (external_data_stream.fail())
                     throw error::invalid_external_data{*this};
 
-                std::streamsize read_data_lenght;
-                if (m_data_lenght == 0) // read entire file
-                    read_data_lenght = external_data_stream.tellg();
+                std::streamsize read_data_length;
+                if (m_data_length == 0) // read entire file
+                    read_data_length = external_data_stream.tellg();
                 else
-                    read_data_lenght = m_data_lenght;
+                    read_data_length = m_data_length;
 
                 const auto page_size = 4096;
                 if (m_offset != 0 && m_offset % page_size != 0)
@@ -77,8 +65,8 @@ namespace ngraph
                 }
 
                 std::string read_data;
-                read_data.resize(read_data_lenght);
-                external_data_stream.read(&read_data[0], read_data_lenght);
+                read_data.resize(read_data_length);
+                external_data_stream.read(&read_data[0], read_data_length);
                 external_data_stream.close();
 
                 return read_data;
@@ -90,10 +78,10 @@ namespace ngraph
                 s << "ExternalDataInfo(";
                 s << "data_full_path: " << m_data_location;
                 s << ", offset: " << m_offset;
-                s << ", data_lenght: " << m_data_lenght;
+                s << ", data_length: " << m_data_length;
                 s << ", sha1_digest: " << m_sha1_digest << ")";
                 return s.str();
             }
-        }
-    }
-}
+        } // namespace detail
+    }     // namespace onnx_import
+} // namespace ngraph

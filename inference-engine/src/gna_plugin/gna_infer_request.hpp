@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,14 @@
 #include <string>
 #include <map>
 
-#include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "cpp/ie_infer_request.hpp"
 #include "gna_plugin.hpp"
 
 namespace GNAPluginNS {
 
-class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
+class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
+ protected:
     std::shared_ptr<GNAPlugin> plg;
     uint32_t inferRequestIdx = -1;
 
@@ -21,13 +23,10 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
                     InferenceEngine::InputsDataMap networkInputs,
                     InferenceEngine::OutputsDataMap networkOutputs)
-        : InferenceEngine::AsyncInferRequestInternal(networkInputs, networkOutputs), plg(plg) {
+        : InferenceEngine::IInferRequestInternal(networkInputs, networkOutputs), plg(plg) {
         // TODO: internal connection API - better to generalize
         if (networkOutputs.empty()) {
             THROW_GNA_EXCEPTION << "GNAInferRequest :: network has zero outputs";
-        }
-        if (networkInputs.empty()) {
-            THROW_GNA_EXCEPTION << "GNAInferRequest :: network has zero inputs";
         }
 
         // copy inputs blobs since we need to have them in separate address space to allow simultaneous infer requests
@@ -43,7 +42,7 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     }
     /**
      * @brief Infers specified input(s) in synchronous mode
-     * @note blocks all method of IInferRequest while request is ongoing (running or waiting in queue)
+     * @note blocks all method of InferRequest while request is ongoing (running or waiting in queue)
      */
     void InferImpl() override {
         // execute input pre-processing.
@@ -65,9 +64,8 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
      *  Note: not all plugins may provide meaningful data
      *  @param perfMap - a map of layer names to profiling information for that layer.
      */
-    void GetPerformanceCounts(std::map<std::string,
-                                               InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override {
-        plg->GetPerformanceCounts(perfMap);
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
+        return plg->GetPerformanceCounts();
     }
 
     /**
@@ -80,10 +78,19 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         inferRequestIdx = plg->QueueInference(_inputs, _outputs);
         // workaround to unblock callback-based flows
         if (_callback) {
-            auto infer_request = _publicInterface.lock();
-            IE_ASSERT(infer_request != nullptr);
-            auto res = Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-            _callback(infer_request, res);
+            auto res = Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+            std::exception_ptr exceptionPtr;
+            if (res != InferenceEngine::StatusCode::OK) {
+                try {
+                    IE_EXCEPTION_SWITCH(res, ExceptionType,
+                        InferenceEngine::details::ThrowNow<ExceptionType>{}
+                            <<= std::stringstream{} << IE_LOCATION
+                            <<  InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+                } catch (...) {
+                    exceptionPtr = std::current_exception();
+                }
+            }
+            _callback(exceptionPtr);
         }
     }
 
@@ -92,10 +99,10 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         if (inferRequestIdx == -1) {
             return InferenceEngine::INFER_NOT_STARTED;
         } else if (millis_timeout < -1) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str;
+            IE_THROW(ParameterMismatch);
         }
 
-        if (millis_timeout == InferenceEngine::IInferRequest::WaitMode::RESULT_READY) {
+        if (millis_timeout == InferenceEngine::InferRequest::WaitMode::RESULT_READY) {
             millis_timeout = MAX_TIMEOUT;
         }
         const auto waitStatus = plg->WaitFor(inferRequestIdx, millis_timeout);
@@ -111,5 +118,13 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         }
         return InferenceEngine::OK;
     }
+
+    IE_SUPPRESS_DEPRECATED_START
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
+        auto pluginStates = plg->QueryState();
+        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
+        return plg->QueryState();
+    }
+    IE_SUPPRESS_DEPRECATED_END
 };
 }  // namespace GNAPluginNS

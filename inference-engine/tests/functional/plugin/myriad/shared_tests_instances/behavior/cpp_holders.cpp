@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,5 +23,15 @@ namespace {
             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTestImportNetwork,
+            ::testing::Combine(
+            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+            ::testing::ValuesIn(orders)),
+            HoldersTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTestOnImportedNetwork,
+            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+            HoldersTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

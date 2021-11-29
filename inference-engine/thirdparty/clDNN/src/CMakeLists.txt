@@ -1,16 +1,6 @@
-# Copyright (c) 2016 Intel Corporation
-
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#      http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
 
 # =================================== Name / Output settings from parent ===============================
 
@@ -164,7 +154,27 @@ set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     clDNN_OpenCL
     cldnn_kernel_selector
+    openvino::itt
   )
+
+if(COMMAND add_cpplint_target)
+  add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
+endif()
+
+if(CLDNN_THREADING STREQUAL "TBB")
+  find_package(TBBBIND_2_4 QUIET)
+  if (TBBBIND_2_4_FOUND)
+      message(STATUS "Static tbbbind_2_4 package was found")
+  endif()
+endif()
+
+if(COMMAND set_ie_threading_interface_for)
+  set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
+  if (TBBBIND_2_4_FOUND)
+    target_compile_definitions("${CLDNN_BUILD__PROJ}" PRIVATE -DTBBBIND_2_4_AVAILABLE)
+    target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+  endif()
+endif()
 
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
@@ -172,20 +182,3 @@ elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
-
-# ========================================== Installation ==============================================
-
-# API headers.
-install(DIRECTORY "${CLDNN__API_DIR}/"
-    DESTINATION "include/clDNN"
-    FILE_PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
-  )
-# Binaries.
-install(TARGETS "${CLDNN_BUILD__PROJ}"
-    ARCHIVE DESTINATION "lib"
-    LIBRARY DESTINATION "lib"
-    RUNTIME DESTINATION "bin"
-    INCLUDES DESTINATION "include/clDNN"
-  )
-
-# ======================================================================================================

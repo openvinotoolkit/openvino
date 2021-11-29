@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, DISABLED_ReadReduceLogicalOrNetwork) {
+TEST_F(NGraphReaderTests, ReadReduceLogicalOrNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadReduceLogicalOrNetwork) {
             </output>
         </layer>
         <layer id="1" name="data1" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>

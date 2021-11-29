@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,12 +88,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("initial");
 
     //
-    // Decompose swish layer to Sigmoid + Multiply
-    //
-    ADD_PASS(decomposeSwish);
-    ADD_DUMP_PASS("decomposeSwish");
-
-    //
     // Convert shape notation
     //
     ADD_PASS(convertShapeNotation);
@@ -170,6 +164,18 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         if (env.config.hwDilation) {
             ADD_PASS(reshapeDilationConv);
             ADD_DUMP_PASS("reshapeDilationConv");
+        }
+
+        //
+        // "reshapeBeforeConvTiling" pass changes geometry of convolution stages in order
+        // to get more efficient HW tiling (pass "hwConvTiling") using reshape stages.
+        //
+        // Pass should be located before "adjustDataBatch" because "adjustDataBatch" specifies "origConvOutput" attribute
+        // for convolution in order to provide that information to "hwConvTiling" pass.
+        // Otherwise, "hwConvTiling" will see incorrect values in "origConvOutput" attribute.
+        if (env.config.enableCustomReshapeParam) {
+            ADD_PASS(reshapeBeforeConvTiling);
+            ADD_DUMP_PASS("reshapeBeforeConvTiling");
         }
 
         ADD_PASS(upliftActivationStages);
@@ -255,8 +261,10 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(mergeReLUAndBias);
     ADD_DUMP_PASS("mergeReLUAndBias");
 
-    ADD_PASS(mergeEltwiseAndReLUDynamic);
-    ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
+    if (env.config.enableEarlyEltwiseReLUFusion) {
+        ADD_PASS(mergeEltwiseAndReLUDynamic);
+        ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
+    }
 
     //
     // Data layout adjustment

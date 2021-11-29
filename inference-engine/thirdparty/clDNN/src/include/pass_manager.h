@@ -1,23 +1,14 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #pragma once
 
 #include "program_impl.h"
 #include "layout_optimizer.h"
+#include "split_inst.h"
+#include "lstm_inst.h"
+#include "lstm_dynamic_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -114,9 +105,9 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void replace_nodes(program_impl& p);
-    void handle_lstm(program_impl& p);
-    void handle_dynamic_lstm(program_impl& p);
+    void handle_split_node(program_impl& p, split_node& node);
+    void handle_lstm_node(program_impl& p, lstm_node& node);
+    void handle_dynamic_lstm_node(program_impl& p, lstm_dynamic_node& node);
     void set_outputs(program_impl& p);
 };
 
@@ -142,8 +133,6 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void mark_constants(program_impl& p);
-    void mark_data_flow(program_impl& p);
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -197,6 +186,7 @@ public:
 private:
     void run(program_impl& p) override;
     void fuse_sigmoid_mul_to_swish(program_impl &p);
+    void fuse_bias(program_impl &p);
     void fuse_reorders(program_impl& p);
     void fuse_activations(program_impl& p);
     void fuse_simple_primitives(program_impl &p);
@@ -386,6 +376,14 @@ public:
 class oooq_memory_dependencies : public memory_dependency_pass {
 public:
     oooq_memory_dependencies() : memory_dependency_pass("oooq_memory_dependencies") {}
+    void run(program_impl& p) override;
+};
+
+class update_loop_primitive_map : public base_pass {
+public:
+    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+
+private:
     void run(program_impl& p) override;
 };
 

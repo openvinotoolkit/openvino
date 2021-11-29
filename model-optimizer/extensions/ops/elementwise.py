@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -23,6 +10,7 @@ from mo.graph.graph import Graph, Node
 from mo.middle.passes.infer import copy_type_infer
 from mo.ops.op import Op
 from mo.pipeline.common import convert_const_node_value_type
+from mo.utils.error import Error
 
 
 def override_data_type_of_constant(node: Node):
@@ -35,13 +23,19 @@ def override_data_type_of_constant(node: Node):
         # power value 2, or when replacing Neg operation with Mul with -1 as second input.
         in_node_0 = node.in_port(0).get_source().node
         in_node_1 = node.in_port(1).get_source().node
+
+        if in_node_0.op != 'Const' and in_node_1.op != 'Const':
+            raise Error("Elementwise operation '{}' has inputs of different data types: '{}' and '{}' "
+                        "that cannot be aligned".format(node.soft_get('name'), in_type_0, in_type_1))
+
         if in_node_0.op == 'Const':
-            convert_const_node_value_type(in_node_0, in_type_1)
-        elif in_node_1.op == 'Const':
-            convert_const_node_value_type(in_node_1, in_type_0)
+            node_to_convert, src_type, dst_type = in_node_0, in_type_0, in_type_1
         else:
-            log.error('Elementwise operation {} has inputs of different data types: {} and {}'.format(
-                node.soft_get('name'), in_type_0, in_type_1))
+            node_to_convert, src_type, dst_type = in_node_1, in_type_1, in_type_0
+        log.error("Changing Const node '{}' data type from {} to {} for Elementwise operation".format(
+            node_to_convert.soft_get('name', node_to_convert.id), src_type, dst_type),
+            extra={'is_warning': True})
+        convert_const_node_value_type(node_to_convert, dst_type)
 
 
 class Elementwise(Op):
@@ -63,13 +57,17 @@ class Elementwise(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'is_eltwise': True,
-            'stop_value_propagation': False
+            'stop_value_propagation': False,
+            'auto_broadcast': 'numpy'
         }, attrs)
 
     @staticmethod
     def type_infer(node):
         override_data_type_of_constant(node)
         node.out_port(0).set_data_type(node.in_port(0).get_data_type())
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class UnaryElementwise(Elementwise):
@@ -81,6 +79,9 @@ class UnaryElementwise(Elementwise):
     @staticmethod
     def type_infer(node):
         copy_type_infer(node)
+
+    def backend_attrs(self):
+        return []
 
 
 class Add(Elementwise):
@@ -134,15 +135,6 @@ class Pow(Elementwise):
         if np.any(b < 0) and np.issubdtype(a.dtype, np.signedinteger):
             return np.array(a.astype(np.float32) ** b, dtype=np.float32)
         return a ** b
-
-    @staticmethod
-    def type_infer(node):
-        in_type_0 = node.in_port(0).get_data_type()
-        in_type_1 = node.in_port(1).get_data_type()
-        assert in_type_0 == in_type_1, \
-            'Power operation {} has inputs of different data types: {} and {}'.format(
-                node.soft_get('name'), in_type_0, in_type_1)
-        node.out_port(0).set_data_type(in_type_0)
 
 
 class LogicalElementwise(Elementwise):

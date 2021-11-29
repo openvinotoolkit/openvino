@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "primitive_inst.h"
@@ -188,7 +176,11 @@ memory_impl::ptr primitive_inst::allocate_output() {
                                       false);
     } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
                engine.supports_allocation(allocation_type::usm_device)) {
-        return engine.allocate_memory(layout, allocation_type::usm_device, net_id);
+        return engine.allocate_memory(layout, allocation_type::usm_device, net_id, false);
+    } else if (_network.is_internal() && !_node.is_output() && _node.is_type<input_layout>()) {
+        // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
+        // or just reuse primitive's memory
+        return engine.allocate_memory(layout, alloc_type, net_id, false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         return engine.allocate_memory(layout, alloc_type, net_id);
     }

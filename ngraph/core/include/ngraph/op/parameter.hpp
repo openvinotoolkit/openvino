@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -41,16 +29,12 @@ namespace ngraph
                 ///
                 /// \param element_type The element type of the parameter.
                 /// \param pshape The partial shape of the parameter.
-                /// \param cacheable True if the parameter is not expected to be frequently updated.
-                Parameter(const ngraph::element::Type& element_type,
-                          const PartialShape& pshape,
-                          const bool cacheable = false);
+                Parameter(const ngraph::element::Type& element_type, const PartialShape& pshape);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
 
-                bool get_cacheable() const { return m_cacheable; }
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -70,14 +54,13 @@ namespace ngraph
                 }
 
             protected:
-                bool m_cacheable;
                 PartialShape m_partial_shape;
                 element::Type m_element_type;
                 bool m_is_relevant_to_shapes;
             };
-        }
+        } // namespace v0
         using v0::Parameter;
-    }
+    } // namespace op
     using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
 
     template <>
@@ -90,7 +73,8 @@ namespace ngraph
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ParameterVector>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         ParameterVector& m_ref;
     };
-}
+} // namespace ngraph

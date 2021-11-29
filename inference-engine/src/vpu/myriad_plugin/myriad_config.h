@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,10 @@ public:
         return _forceReset;
     }
 
+    bool asyncDma() const {
+        return _enableAsyncDma;
+    }
+
     PowerConfig powerConfig() const {
         return _powerConfig;
     }
@@ -81,6 +85,7 @@ protected:
 private:
     std::string _pluginLogFilePath;
     bool _forceReset = false;
+    bool _enableAsyncDma = true;
     PowerConfig _powerConfig = PowerConfig::FULL;
     ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
     ncDeviceProtocol_t _protocol = NC_ANY_PROTOCOL;

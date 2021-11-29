@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,15 +12,11 @@ namespace  GNAPluginNS {
 
 namespace memory {
 
-    std::string GNAMemoryState::GetName() const {
-        return name;
-    }
-
-    void GNAMemoryState::Reset() {
+    void GNAVariableState::Reset() {
         state->Reset();
     }
 
-    InferenceEngine::Precision GNAMemoryState::getPrecision() const {
+    InferenceEngine::Precision GNAVariableState::getPrecision() const {
         InferenceEngine::Precision state_precision;
 
         if (state->getInput()) {
@@ -36,14 +32,14 @@ namespace memory {
                 break;
             default:
                 THROW_GNA_EXCEPTION << "Incorrect state element size " << element_size <<
-                    " to determine precision for MemoryState " << name;
+                    " to determine precision for VariableState " << name;
             }
         }
 
         return state_precision;
     }
 
-    void GNAMemoryState::SetState(InferenceEngine::Blob::Ptr newState) {
+    void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
         IE_ASSERT(newState != nullptr);
 
         auto data_ptr = newState->cbuffer().as<void*>();
@@ -71,33 +67,33 @@ namespace memory {
         case InferenceEngine::Precision::I16: {
             if (new_state_precision == InferenceEngine::Precision::FP32) {
                 auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(state->getInput());
-                auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+                auto scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : state->scale_factor;
                 GNAPluginNS::ConvertToInt16(static_cast<int16_t*>(state->gna_ptr),
                     newState->buffer().as<float*>(),
                     1,
                     data_elements,
                     scale_factor);
             } else {
-                THROW_GNA_EXCEPTION << "Failed to SetState for MemoryState " << name
+                THROW_GNA_EXCEPTION << "Failed to SetState for VariableState " << name
                     << ". If old state precision is I16 only I16 and FP32 are allowed as new state precisions."
                     << " Old state: " << state_precision << " New state: " << new_state_precision;
             }
             break;
         }
         default:
-            THROW_GNA_EXCEPTION << "Failed to SetState for MemoryState " << name
+            THROW_GNA_EXCEPTION << "Failed to SetState for VariableState " << name
                 << ". Incorrect new/old precision pair"
                 << " Old state: " << state_precision << " New state: " << new_state_precision;
         }
     }
 
-    InferenceEngine::Blob::CPtr GNAMemoryState::GetLastState() const {
+    InferenceEngine::Blob::CPtr GNAVariableState::GetState() const {
         auto elements = state->reserved_size / state->elementSizeBytes();
         InferenceEngine::Precision state_precision = getPrecision();
 
         if (state->getInput() && state_precision == InferenceEngine::Precision::I16) {
             auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(state->getInput());
-            auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+            auto scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : state->scale_factor;
 
             auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
                 InferenceEngine::SizeVector({ 1, elements }),
@@ -121,6 +117,12 @@ namespace memory {
 
             return result_blob;
         }
+    }
+
+    float GNAVariableState::GetScaleFactor() const {
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(state->getInput());
+        auto scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : state->scale_factor;
+        return scale_factor;
     }
 }  // namespace memory
 }  // namespace GNAPluginNS

@@ -1,25 +1,14 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
+from _pyngraph import PartialShape, Dimension
 
 import ngraph as ng
+from ngraph.utils.types import make_constant_node
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323
 
 
 @pytest.mark.parametrize(
@@ -104,15 +93,16 @@ def test_non_max_suppression():
 
     boxes_shape = [1, 1000, 4]
     scores_shape = [1, 1, 1000]
-    expected_shape = [0, 3]
     boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
 
-    node = ng.non_max_suppression(boxes_parameter, scores_parameter)
+    node = ng.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(1000, np.int64))
 
     assert node.get_type_name() == "NonMaxSuppression"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension(0, 1000), Dimension(3)])
+    assert node.get_output_partial_shape(1) == PartialShape([Dimension(0, 1000), Dimension(3)])
+    assert list(node.get_output_shape(2)) == [1]
 
 
 def test_non_zero():
@@ -159,7 +149,6 @@ def test_roi_align():
     assert list(node.get_output_shape(0)) == expected_shape
 
 
-@xfail_issue_34323
 @pytest.mark.parametrize(
     "input_shape, cumsum_axis, reverse",
     [([5, 2], 0, False), ([5, 2], 1, False), ([5, 2, 6], 2, False), ([5, 2], 0, True)],
@@ -179,7 +168,6 @@ def test_cum_sum(input_shape, cumsum_axis, reverse):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_normalize_l2():
     input_shape = [1, 2, 3, 4]
     input_data = np.arange(np.prod(input_shape)).reshape(input_shape).astype(np.float32)

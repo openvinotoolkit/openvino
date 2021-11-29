@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -24,6 +12,14 @@
 #include <string>
 #include <unordered_set>
 #include <kernel_selector_common.h>
+#include "custom_task_arena.h"
+
+#if(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
+#include <queue>
+#include <future>
+#include <functional>
+#include <condition_variable>
+#endif
 
 namespace cl {
 class Kernel;
@@ -38,13 +34,76 @@ namespace cldnn {
 namespace gpu {
 
 class gpu_toolkit;
+#if (CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
+class thread_pool {
+public:
+    thread_pool(size_t num_threads) : _stop_pool(false) {
+        _workers.reserve(num_threads);
+        for (size_t i = 0; i < num_threads; ++i) {
+            _workers.emplace_back(std::thread(&thread_pool::worker_thread, this));
+        }
+    }
 
+    ~thread_pool() {
+        {
+            std::lock_guard<std::mutex> lock(_q_m);
+            _stop_pool = true;
+        }
+        this->wait_all();
+    }
+
+    template <class F, class... Args>
+    std::future<typename std::result_of<F(Args...)>::type> enqueue(F&& f, Args&&... args) {
+        if (_stop_pool) {
+            throw std::runtime_error("Thread pool is stoped");
+        }
+
+        using return_type = typename std::result_of<F(Args...)>::type;
+        auto task = std::make_shared<std::packaged_task<return_type()>> (std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+        std::future<return_type> result = task->get_future();
+        {
+            std::lock_guard<std::mutex> lock(_q_m);
+            _tasks.push([task]() {(*task)();});
+        }
+        _cv.notify_one();
+        return result;
+    }
+
+    void wait_all() {
+        _cv.notify_all();
+        for (auto& w : _workers) {
+            w.join();
+        }
+    }
+
+private:
+    std::vector<std::thread> _workers;
+    std::queue<std::function<void()>> _tasks;
+    std::condition_variable _cv;
+    std::mutex _q_m;
+    bool _stop_pool;
+
+    void worker_thread() {
+        while (true) {
+            std::unique_lock<std::mutex> lock(this->_q_m);
+            _cv.wait(lock, [this]() { return (!this->_tasks.empty()) || (_stop_pool); });
+            if ((_stop_pool) && (this->_tasks.empty())) return;
+            auto task = std::move(_tasks.front());
+            this->_tasks.pop();
+            lock.unlock();
+            task();
+        }
+    }
+};
+#endif
 class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
-
-    struct program_code {
-        std::vector<source_code> source;
+    struct batch_program {
+        int32_t bucket_id = 0;
+        int32_t batch_id = 0;
+        source_code source;
+        size_t hash_value;
         uint32_t kernels_counter = 0;
         std::string options;
         bool dump_custom_program = false;
@@ -69,7 +128,7 @@ public:
 
         bool operator == (const kernel_code& c2) const {
             return kernel_strings->get_hash() == c2.kernel_strings->get_hash();
-        };
+        }
     };
 
     struct hash_kernel_code {
@@ -80,7 +139,6 @@ public:
 
     typedef std::string kernel_id;
     typedef cl::KernelIntel kernel_type;
-    using sorted_code = std::map<std::string, program_code>;
     using kernels_map = std::map<std::string, kernel_type>;
     using kernels_code = std::unordered_set<kernel_code, hash_kernel_code>;
 
@@ -88,20 +146,30 @@ private:
     gpu_toolkit& _context;
     kernels_code _kernels_code;
     std::atomic<bool> _pending_compilation{false};
-    std::map<std::string, kernel_type> _kernels;
-    std::map<std::string, kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
+    std::map<const std::string, const kernel_type> _kernels;
+    std::map<const std::string, const kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
                                                            // be removed later from the cache).
     uint32_t _prog_id;
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+    std::unique_ptr<cldnn::custom::task_arena> arena;
+#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
+    std::unique_ptr<thread_pool> pool;
+#endif
 
-    sorted_code get_program_source(const kernels_code& kernels_source_code) const;
-    kernels_map build_program(const program_code& pcode) const;
+
+    void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
+    void build_batch(const batch_program& batch);
+
+    std::string get_cache_path() const;
+    bool is_cache_enabled() const;
+    size_t get_max_kernels_per_batch() const;
 
 public:
     explicit kernels_cache(gpu_toolkit& context, uint32_t prog_id);
     kernel_id set_kernel_source(const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
                                 bool dump_custom_program,
                                 bool one_time_kernel);
-    kernel_type get_kernel(kernel_id id, bool one_time_kernel);
+    kernel_type get_kernel(kernel_id id, bool one_time_kernel) const;
     gpu_toolkit& get_context() { return _context; }
     // forces compilation of all pending kernels/programs
     void build_all();

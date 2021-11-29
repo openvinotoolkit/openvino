@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@ using Transformations = std::unordered_map<ngraph::NodeTypeInfo, std::function<v
 
 class DynamicToStaticShape: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     explicit DynamicToStaticShape(const Transformations& specificTransformations = {});
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 

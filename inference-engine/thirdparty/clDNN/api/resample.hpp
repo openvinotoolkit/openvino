@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -54,13 +42,13 @@ enum class shape_calculation_mode : int32_t {
 enum class coordinate_transformation_mode : int32_t {
     /// @brief the coordinate in the original tensor axis `x` is calculated as `((x_resized + 0.5) / scale[x]) - 0.5`.
     half_pixel,
-    /// @brief the coordinate in the original tensor axis `x` is calculated by `(x_resized + 0.5) / scale[x] - 0.5 if output_shape[x] > 1 else 0.0`.
+    /// @brief the coordinate in the original tensor axis `x` is calculated by `(x_resized + 0.5) / scale[x] - 0.5 if out_shape[x] > 1 else 0.0`.
     pytorch_half_pixel,
     /// @brief the coordinate in the original tensor axis `x` is calculated according to the formula `x_resized / scale[x]`.
     asymmetric,
     /// @brief the coordinate in the original tensor axis `x` is `(x_resized + 0.5) / scale[x]`.
     tf_half_pixel_for_nn,
-    /// @brief the coordinate in the original tensor axis `x` is calculated as `0 if output_shape[x] == 1 else x_resized * (input_shape[x] - 1) / (output_shape[x] - 1)`.
+    /// @brief the coordinate in the original tensor axis `x` is calculated as `0 if out_shape[x] == 1 else x_resized * (in_shape[x] - 1) / (out_shape[x] - 1)`.
     align_corners
 };
 

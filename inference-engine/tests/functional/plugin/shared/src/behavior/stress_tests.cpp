@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
     auto ie = PluginCache::get().ie();
 
     std::cout << "Load the network " << m_allocationsCount << " times..." << std::flush;
-    for (int i = 0; i < m_allocationsCount; ++i) {
+    for (unsigned int i = 0; i < m_allocationsCount; ++i) {
         ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }
 
@@ -42,7 +42,9 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
         LoadNetwork();
 
         std::cout << "Infer(): " << j << std::flush;
-
+        if (j == 0) {
+            GenerateInputs();
+        }
         Infer();
         Validate();
     }

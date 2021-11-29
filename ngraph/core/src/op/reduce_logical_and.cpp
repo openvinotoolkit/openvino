@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/reduce_logical_and.hpp"
 #include "itt.hpp"
@@ -24,7 +12,10 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(op::v1::ReduceLogicalAnd, "ReduceLogicalAnd", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceLogicalAnd,
+                       "ReduceLogicalAnd",
+                       1,
+                       util::LogicalReductionKeepDims);
 
 op::v1::ReduceLogicalAnd::ReduceLogicalAnd(const Output<Node>& data,
                                            const Output<Node>& reduction_axes,
@@ -36,6 +27,7 @@ op::v1::ReduceLogicalAnd::ReduceLogicalAnd(const Output<Node>& data,
 
 shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::ReduceLogicalAnd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -47,6 +39,11 @@ namespace
                                      const HostTensorPtr& out,
                                      bool keep_dims)
     {
+        if (data->get_element_type() != element::boolean ||
+            !axes->get_element_type().is_integral_number())
+        {
+            return false;
+        }
         try
         {
             const AxisSet reduction_axes = eval::extract_reduction_axes(axes, "ReduceLogicalAnd");
@@ -65,23 +62,21 @@ namespace
             return false;
         }
     }
-}
+} // namespace
 
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
                                         const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceLogicalAnd::evaluate");
-
+    NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_evaluate);
     const auto& data = inputs[0];
     const auto& axes = inputs[1];
     const auto& out = outputs[0];
+    return evaluate_reduce_logical_and(data, axes, out, get_keep_dims());
+}
 
-    if (data->get_element_type() != element::boolean || axes->get_element_type() != element::i64)
-    {
-        return false;
-    }
-    else
-    {
-        return evaluate_reduce_logical_and(data, axes, out, get_keep_dims());
-    }
+bool op::v1::ReduceLogicalAnd::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_has_evaluate);
+    return get_input_element_type(0) == element::boolean &&
+           get_input_element_type(1).is_integral_number();
 }

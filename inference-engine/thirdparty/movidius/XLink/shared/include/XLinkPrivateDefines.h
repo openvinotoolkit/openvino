@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,11 @@ extern "C"
 {
 #endif
 
+#ifdef XLINK_MAX_STREAM_RES
+#define MAXIMUM_SEMAPHORES XLINK_MAX_STREAM_RES
+#else
 #define MAXIMUM_SEMAPHORES 32
+#endif
 #define __CACHE_LINE_SIZE 64
 
 typedef int32_t eventId_t;
@@ -57,7 +61,7 @@ typedef struct xLinkDesc_t {
     xLinkState_t peerState;
     xLinkDeviceHandle_t deviceHandle;
     linkId_t id;
-    sem_t dispatcherClosedSem;
+    XLink_sem_t dispatcherClosedSem;
 
     //Deprecated fields. Begin.
     int hostClosedFD;
@@ -75,6 +79,7 @@ typedef enum
     XLINK_WRITE_REQ,
     XLINK_READ_REQ,
     XLINK_READ_REL_REQ,
+    XLINK_READ_REL_SPEC_REQ,
     XLINK_CREATE_STREAM_REQ,
     XLINK_CLOSE_STREAM_REQ,
     XLINK_PING_REQ,
@@ -84,6 +89,7 @@ typedef enum
     XLINK_WRITE_RESP,
     XLINK_READ_RESP,
     XLINK_READ_REL_RESP,
+    XLINK_READ_REL_SPEC_RESP,
     XLINK_CREATE_STREAM_RESP,
     XLINK_CLOSE_STREAM_RESP,
     XLINK_PING_RESP,

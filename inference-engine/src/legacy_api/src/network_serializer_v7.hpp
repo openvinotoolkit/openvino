@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_icnn_network.hpp>
 #include <legacy/ie_layers.h>
 
 #include <string>
@@ -20,7 +19,7 @@ namespace Serialization {
  * @param network   network to be serialized
  */
 void Serialize(const std::string& xmlPath, const std::string& binPath,
-               const InferenceEngine::ICNNNetwork& network);
+               const InferenceEngine::CNNNetwork& network);
 
 }  // namespace Serialization
 }  // namespace InferenceEngine

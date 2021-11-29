@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "caseless.hpp"
 #include "precision_utils.h"
 #include "cnn_network_ngraph_impl.hpp"
+#include "ie_ngraph_utils.hpp"
 
 #include "legacy/ie_util_internal.hpp"
 #include "legacy/cnn_network_impl.hpp"
@@ -147,28 +148,24 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
     return nullptr;  // Silence "control may reach end of non-void function" warning
 }
 
-std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
-    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNetwork");
+CNNNetwork cloneNetwork(const CNNNetwork& network) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IELegacy_LT, "cloneNetwork");
 
     if (network.getFunction()) {
-        return std::make_shared<details::CNNNetworkNGraphImpl>(network);
+        return InferenceEngine::details::cloneNetwork(network);
     }
 
-    return cloneNet(network);
+    IE_SUPPRESS_DEPRECATED_START
+    return CNNNetwork(InferenceEngine::cloneNet(network));
+    IE_SUPPRESS_DEPRECATED_END
 }
 
-details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
-    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(ICNNNetwork)");
-    std::shared_ptr<ICNNNetwork> clonedNetwork;
-    // Call conversion only on the copy of nGraph function
-    if (origin_network.getFunction()) {
-        // Copy and call conversion
-        clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(*cloneNetwork(origin_network));
-    }
-    const ICNNNetwork& network = (clonedNetwork) ? *clonedNetwork : origin_network;
+details::CNNNetworkImplPtr cloneNet(const CNNNetwork& network) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(CNNNetwork)");
+    IE_ASSERT(network.getFunction() == nullptr);
 
     std::vector<CNNLayerPtr> layers;
-    details::CNNNetworkIterator i(&network);
+    details::CNNNetworkIterator i(network);
     while (i != details::CNNNetworkIterator()) {
         layers.push_back(*i);
         i++;
@@ -177,8 +174,7 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
     // copy of the network
     details::CNNNetworkImplPtr net = cloneNet(layers);
     // going over output layers and aligning output ports and outputs
-    OutputsDataMap outputs;
-    network.getOutputsInfo(outputs);
+    OutputsDataMap outputs = network.getOutputsInfo();
     OutputsDataMap outputInfo;
     net->getOutputsInfo(outputInfo);
     for (auto o : outputs) {
@@ -195,9 +191,7 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
     }
     net->setName(network.getName());
 
-    InputsDataMap externalInputsData;
-    network.getInputsInfo(externalInputsData);
-
+    InputsDataMap externalInputsData = network.getInputsInfo();
     InputsDataMap clonedInputs;
     net->getInputsInfo(clonedInputs);
     for (auto&& it : externalInputsData) {
@@ -544,7 +538,7 @@ struct NodePrinter {
     }
 };
 
-void saveGraphToDot(InferenceEngine::ICNNNetwork& network, std::ostream& out, printer_callback layer_cb) {
+void saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& out, printer_callback layer_cb) {
     NodePrinter printer(out, std::move(layer_cb));
 
     out << "digraph Network {\n";
@@ -570,22 +564,6 @@ void saveGraphToDot(InferenceEngine::ICNNNetwork& network, std::ostream& out, pr
         }
     }
     out << "}" << std::endl;
-}
-
-std::unordered_set<DataPtr> getRootDataObjects(ICNNNetwork& network) {
-    std::unordered_set<DataPtr> ret;
-    details::CNNNetworkIterator i(&network);
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-
-        // TODO: Data without creatorLayer
-        if (CaselessEq<string>()(layer->type, "input") || CaselessEq<string>()(layer->type, "const") ||
-            CaselessEq<string>()(layer->type, "memory")) {
-            ret.insert(layer->outData.begin(), layer->outData.end());
-        }
-        i++;
-    }
-    return ret;
 }
 
 }  // namespace InferenceEngine

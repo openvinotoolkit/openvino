@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,16 +7,16 @@
 #include <thread>
 #include <chrono>
 #include <gtest/gtest.h>
-#include <regression_tests.hpp>
+#include <ie_blob.h>
 #include <string>
 #include <precision_utils.h>
+#include <tests_common.hpp>
 #include <vpu/vpu_plugin_config.hpp>
 #include "vpu_case_params.hpp"
 #include "vpu_param_containers.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
-using namespace Regression::Matchers;
 
 #define DISABLE_IF(expr) \
     do { \
@@ -26,7 +26,7 @@ using namespace Regression::Matchers;
     }while(false)
 
 
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
 #   define DISABLE_ON_WINDOWS_IF(expr) DISABLE_IF((expr))
 #else
 #   define DISABLE_ON_WINDOWS_IF(expr)
@@ -62,7 +62,7 @@ using PluginDevicePair = std::pair<std::string, std::string>;
 // class VpuNoRegressionBase
 //------------------------------------------------------------------------------
 
-class VpuNoRegressionBase : public Regression::RegressionTests {
+class VpuNoRegressionBase : public TestsCommon {
 public:
     //Operations
     static std::string getTestCaseName(PluginDevicePair,
@@ -71,7 +71,7 @@ public:
                                        DoReshape);
 
     // Accessors
-    std::string getDeviceName() const override;
+    std::string getDeviceName() const;
 
 protected:
     // Data section

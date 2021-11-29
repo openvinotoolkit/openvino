@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -97,6 +85,10 @@ namespace ngraph
                 throw ngraph_error("make_constant: Unsupported element type 'boolean'");
             case element::Type_t::u1:
                 throw ngraph_error("make_constant: Unsupported element type 'u1'");
+            case element::Type_t::i4:
+                throw ngraph_error("make_constant: Unsupported element type 'i4'");
+            case element::Type_t::u4:
+                throw ngraph_error("make_constant: Unsupported element type 'u4'");
             case element::Type_t::undefined:
                 throw ngraph_error("make_constant: Unsupported element type 'undefined'");
             }
@@ -116,5 +108,18 @@ namespace ngraph
 
             return val->add_provenance_group_members_above({});
         }
-    }
-}
+
+        /// \brief      Create constant filled with double value
+        ///
+        /// \note       If num value exeeds capacity of type, the value is clamped.
+        ///
+        /// \param[in]  type           The type of produced Constant node.
+        /// \param[in]  shape          The shape of produced Constant node.
+        /// \param[in]  num            The value used to fill Constant node.
+        ///
+        /// \return     The Constant node which have expected type, shape and value.
+        ///
+        std::shared_ptr<Node>
+            make_constant_from_double(const element::Type& type, const Shape& shape, double num);
+    } // namespace builder
+} // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,8 +133,6 @@ protected:
         else if (auto logical_reduce = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node))
             logical_reduce->set_keep_dims(reduce_setup.keep_dims);
         node->validate_and_infer_types();
-
-        const auto data_rank_value = reduce_setup.data_shape.size();
 
         ngraph::Output<ngraph::Node> output_shape;
         if (reduce_setup.keep_dims) {

@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /* on windows min and max already defined that makes using numeric_limits impossible */
-#if defined(WIN32)
-#define NOMINMAX
+#ifdef _WIN32
+# define NOMINMAX
 #endif
 
 #include <sys/stat.h>
-#include <os/windows/w_dirent.h>
 
 #include <algorithm>
 #include <map>
@@ -20,7 +19,9 @@
 
 #include "vpu_tools_common.hpp"
 #include <vpu/utils/string.hpp>
-#include "samples/common.hpp"
+
+#include <samples/os/windows/w_dirent.h>
+#include <samples/common.hpp>
 
 #include "precision_utils.h"
 
@@ -56,25 +57,6 @@ void setPrecisions(const InferenceEngine::CNNNetwork &network) {
             layer.second->setPrecision(InferenceEngine::Precision::FP16);
         }
     }
-}
-
-std::map<std::string, std::string> parseConfig(const std::string &configName, char comment) {
-    std::map<std::string, std::string> config = {};
-
-    std::ifstream file(configName);
-    if (!file.is_open()) {
-        return config;
-    }
-
-    std::string key, value;
-    while (file >> key >> value) {
-        if (key.empty() || key[0] == comment) {
-            continue;
-        }
-        config[key] = value;
-    }
-
-    return config;
 }
 
 BitMap::BitMap(const std::string &filename) {

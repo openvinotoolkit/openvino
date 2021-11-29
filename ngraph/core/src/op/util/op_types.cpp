@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/and.hpp"
@@ -27,6 +16,7 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/select.hpp"
+#include "ngraph/op/squared_difference.hpp"
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
@@ -34,8 +24,6 @@
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 #include "ngraph/op/xor.hpp"
 #include "ngraph/type.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 bool ngraph::op::is_unary_elementwise_arithmetic(const ngraph::Node* node)
 {
@@ -60,6 +48,7 @@ bool ngraph::op::is_binary_elementwise_logical(const ngraph::Node* node)
 bool ngraph::op::supports_auto_broadcast(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::op::v1::Select*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::SquaredDifference*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::util::BinaryElementwiseComparison*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::util::BinaryElementwiseLogical*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::util::BinaryElementwiseArithmetic*>(node) != nullptr;
@@ -87,6 +76,11 @@ bool ngraph::op::is_output(const ngraph::Node* node)
     return dynamic_cast<const ngraph::op::Result*>(node) != nullptr;
 }
 
+bool ngraph::op::is_sink(const ngraph::Node* node)
+{
+    return dynamic_cast<const ngraph::op::Sink*>(node) != nullptr;
+}
+
 bool ngraph::op::is_constant(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::op::Constant*>(node) != nullptr;
@@ -94,20 +88,14 @@ bool ngraph::op::is_constant(const ngraph::Node* node)
 
 bool ngraph::op::is_commutative(const ngraph::Node* node)
 {
-    return dynamic_cast<const ngraph::op::v0::Add*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v1::Add*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Maximum*>(node) != nullptr ||
+    return dynamic_cast<const ngraph::op::v1::Add*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Maximum*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Equal*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Equal*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::NotEqual*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::NotEqual*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::LogicalAnd*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v0::Xor*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::LogicalXor*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Minimum*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Minimum*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Multiply*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Multiply*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::LogicalOr*>(node) != nullptr;
 }
@@ -150,6 +138,10 @@ bool ngraph::op::is_parameter(const std::shared_ptr<ngraph::Node>& node)
 bool ngraph::op::is_output(const std::shared_ptr<ngraph::Node>& node)
 {
     return is_output(node.get());
+}
+bool ngraph::op::is_sink(const std::shared_ptr<ngraph::Node>& node)
+{
+    return is_sink(node.get());
 }
 bool ngraph::op::is_constant(const std::shared_ptr<ngraph::Node>& node)
 {

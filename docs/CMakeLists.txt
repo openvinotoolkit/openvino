@@ -1,18 +1,26 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(NOT ENABLE_DOCKER)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ie_add_compiler_flags(-Wall)
+    endif()
+
     add_subdirectory(snippets)
 
     # Detect nGraph
-    find_package(ngraph QUIET)
+    find_package(ngraph QUIET
+                 PATHS "${CMAKE_BINARY_DIR}/ngraph"
+                 NO_DEFAULT_PATH)
     if(NOT ngraph_FOUND)
         set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
     endif()
 
     # Detect InferenceEngine
-    find_package(InferenceEngine QUIET)
+    find_package(InferenceEngine QUIET
+                 PATHS "${CMAKE_BINARY_DIR}"
+                 NO_DEFAULT_PATH)
     if(NOT InferenceEngine_FOUND)
         set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
     endif()
@@ -29,157 +37,202 @@ if(NOT ENABLE_DOCKER)
     foreach(target_name IN LISTS all_docs_targets)
         if (TARGET ${target_name})
             set_target_properties(${target_name} PROPERTIES FOLDER docs)
+            if(WIN32)
+                set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
+            endif()
         endif()
     endforeach()
 endif()
 
+set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check dir.")
+set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
+set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
+set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation dir.")
+set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
+set(GITHUB_API_TOKEN "" CACHE PATH "Path to file containing github api token.")
+set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
+
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
-    find_package(Python3 COMPONENTS Interpreter)
-    find_package(LATEX)
+    find_package(PythonInterp 3 REQUIRED)
+    find_package(LATEX REQUIRED)
 
-    if(NOT DOXYGEN_FOUND)
-        message(FATAL_ERROR "Doxygen is required to build the documentation")
+    find_program(DOXYREST_EXECUTABLE NAMES doxyrest)
+    if (NOT DOXYREST_EXECUTABLE)
+        message(FATAL_ERROR "No doxyrest found. Documentation output is not available")
     endif()
 
-    if(NOT Python3_FOUND)
-        message(FATAL_ERROR "Python3 is required to build the documentation")
-    endif()
+    set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    set(DOCS_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs")
+    set(DOXYGEN_DIR "${DOCS_SOURCE_DIR}/doxygen")
 
-    if(NOT LATEX_FOUND)
-        message(FATAL_ERROR "LATEX is required to build the documentation")
-    endif()
+    # API INPUT
 
-    set(DOCS_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-    set(DOXYGEN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs/doxygen")
+    set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
+
+    # markdown docs
+    set(MARKDOWN_INPUT "${DOCS_BUILD_DIR}")
+    
+    # IE C++ API
     set(IE_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine")
-    set(PYTHON_API_IN "${IE_SOURCE_DIR}/ie_bridges/python/src/openvino/inference_engine/ie_api.pyx")
-    set(PYTHON_API_OUT "${DOCS_BINARY_DIR}/python_api/ie_api.pyx")
-    set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
-    set(PLUGIN_API_DIR "${DOCS_BINARY_DIR}/IE_PLUGIN_DG")
-
+    
+    # IE C API
+    set(IE_C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
+    
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
+    set(PYNGRAPH_REF_SCRIPT "${DOXYGEN_DIR}/pyngraph_ref.py")
+    set(DOXY_LOG_SCRIPT "${DOXYGEN_DIR}/log.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
+    set(PREPARE_XML_SCRIPT "${DOXYGEN_DIR}/prepare_xml.py")
+    set(REMOVE_XML_SCRIPT "${DOXYGEN_DIR}/remove_xml.py")
+    set(COPY_IMAGES_SCRIPT "${DOXYGEN_DIR}/copy_images.py")
+    set(DOXYGEN_MAPPING_SCRIPT "${DOXYGEN_DIR}/create_mapping.py")
+    set(DOXYGEN_MAPPING_FILE "${DOCS_BUILD_DIR}/mapping.json")
 
-    file(GLOB_RECURSE doc_source_files
-        LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg" 
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.jpg")
+    # out dirs
+    set(XML_OUTPUT "${DOCS_BUILD_DIR}/xml")
+    set(RST_OUTPUT "${DOCS_BUILD_DIR}/rst")
+    set(SPHINX_OUTPUT "${DOCS_BUILD_DIR}/_build")
 
-    configure_file(${PYTHON_API_IN} ${PYTHON_API_OUT} @ONLY)
+    # Sphinx folders, doxyrest templates and config
+    set(SPHINX_CONF_IN "${DOCS_SOURCE_DIR}/conf.py")
+    set(SPHINX_CONF_OUT "${RST_OUTPUT}/conf.py")
+    set(SPHINX_STATIC_IN "${DOCS_SOURCE_DIR}/_static")
+    set(SPHINX_STATIC_OUT "${RST_OUTPUT}/_static")
+    set(SPHINX_INDEX_IN "${DOCS_SOURCE_DIR}/index.rst")
+    set(SPHINX_INDEX_OUT "${RST_OUTPUT}/index.rst")
+    set(API_DOCS_IN "${DOCS_SOURCE_DIR}/api")
+    set(API_DOCS_OUT "${RST_OUTPUT}/api")
+    set(DOXYREST_IN "${DOCS_SOURCE_DIR}/doxyrest")
+    set(DOXYREST_OUT "${DOCS_BUILD_DIR}/doxyrest")
+    set(DOXYREST_SPHINX_IN "${DOCS_SOURCE_DIR}/doxyrest-sphinx")
+    set(DOXYREST_SPHINX_OUT "${RST_OUTPUT}/doxyrest-sphinx")
+    set(DOXYREST_CONFIG_IN "${DOCS_SOURCE_DIR}/doxyrest-config.lua")
+    set(DOXYREST_CONFIG_OUT "${DOCS_BUILD_DIR}/doxyrest-config.lua")
+    configure_file(${DOXYREST_CONFIG_IN} ${DOXYREST_CONFIG_OUT} @ONLY)
+    configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
 
-    set(IE_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_docs.config")
-    set(C_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_c_api.config")
-    set(PY_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_py_api.config")
-    set(PLUGIN_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_plugin_api.config")
+    # Doxygen config
+    set(DOXYFILE_SOURCE "${DOXYGEN_DIR}/Doxyfile.config")
+    set(DOXYFILE_BUILD "${DOCS_BUILD_DIR}/Doxyfile.config")
+    configure_file(${DOXYFILE_SOURCE} ${DOXYFILE_BUILD} @ONLY)
 
-    set(IE_CONFIG_BINARY "${DOCS_BINARY_DIR}/ie_docs.config")
-    set(C_CONFIG_BINARY "${DOCS_BINARY_DIR}/ie_c_api.config")
-    set(PY_CONFIG_BINARY "${DOCS_BINARY_DIR}/ie_py_api.config")
-    set(PLUGIN_CONFIG_BINARY "${DOCS_BINARY_DIR}/ie_plugin_api.config")
+    list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+        --input_dir=${OpenVINO_MAIN_SOURCE_DIR}
+        --output_dir=${DOCS_BUILD_DIR}/openvino
+        --exclude_dir=${CMAKE_CURRENT_BINARY_DIR}
+        --exclude_dir=${OpenVINO_MAIN_SOURCE_DIR}/out)
 
-    set(IE_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_docs.xml")
-    set(C_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_c_api.xml")
-    set(PY_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_py_api.xml")
-    set(PLUGIN_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_plugin_api.xml")
+    # include additional repositories
 
-    set(IE_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_docs.xml")
-    set(C_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_c_api.xml")
-    set(PY_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_py_api.xml")
-    set(PLUGIN_LAYOUT_BINARY "${DOCS_BINARY_DIR}/ie_plugin_api.xml")
+    # openvino notebooks dir
+    if(GITHUB_API_TOKEN)
+        set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
+        list(APPEND commands
+            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${GITHUB_API_TOKEN}" "${RST_OUTPUT}/notebooks"
+        )
+    endif()
 
-    # Tables of contents
-    configure_file(${IE_LAYOUT_SOURCE} ${IE_LAYOUT_BINARY} @ONLY)
-    configure_file(${C_LAYOUT_SOURCE} ${C_LAYOUT_BINARY} @ONLY)
-    configure_file(${PY_LAYOUT_SOURCE} ${PY_LAYOUT_BINARY} @ONLY)
-    configure_file(${PLUGIN_LAYOUT_SOURCE} ${PLUGIN_LAYOUT_BINARY} @ONLY)
+    if(GRAPH_CSV_DIR)
+        set(GRAPH_CSV_DIR_OUT "${RST_OUTPUT}/csv")
+    list(APPEND commands
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${GRAPH_CSV_DIR}" "${GRAPH_CSV_DIR_OUT}"
+    )
+    endif()
 
-    # Doxygen config files
-    configure_file(${IE_CONFIG_SOURCE} ${IE_CONFIG_BINARY} @ONLY)
-    configure_file(${C_CONFIG_SOURCE} ${C_CONFIG_BINARY} @ONLY)
-    configure_file(${PY_CONFIG_SOURCE} ${PY_CONFIG_BINARY} @ONLY)
-    configure_file(${PLUGIN_CONFIG_SOURCE} ${PLUGIN_CONFIG_BINARY} @ONLY)
+    # omz doc files
+    if(EXISTS "${OMZ_DOCS_DIR}")
+        get_filename_component(OMZ_DOCS_DIR "${OMZ_DOCS_DIR}" ABSOLUTE)
+        list(APPEND commands
+        COMMAND ${PYTHON_EXECUTABLE} ${OMZ_DOCS_DIR}/ci/prepare-documentation.py ${CMAKE_BINARY_DIR}/open_model_zoo)
+        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+            --input_dir=${CMAKE_BINARY_DIR}/open_model_zoo
+            --output_dir=${DOCS_BUILD_DIR}/open_model_zoo)
+    endif()
 
-    # Preprocessing scripts
-    set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
-    set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
+    # workbench doc files
+    if(EXISTS "${WORKBENCH_DOCS_DIR}")
+        get_filename_component(WORKBENCH_DOCS_DIR "${WORKBENCH_DOCS_DIR}" ABSOLUTE)
 
-    # C API
+        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+            --input_dir=${WORKBENCH_DOCS_DIR}
+            --output_dir=${DOCS_BUILD_DIR}/workbench)
+    endif()
 
-    add_custom_target(c_api
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${C_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
-                      COMMENT "Generating C API Reference"
-                      VERBATIM)
+    # pot doc files
+    if(EXISTS "${POT_DOCS_DIR}")
+        get_filename_component(POT_DOCS_DIR "${POT_DOCS_DIR}" ABSOLUTE)
 
-    # Python API
+        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+        --input_dir=${POT_DOCS_DIR}
+        --output_dir=${DOCS_BUILD_DIR}/pot)
+    endif()
 
-    add_custom_target(py_api
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${PY_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
-                      COMMENT "Generating Python API Reference"
-                      VERBATIM)
-
-    add_custom_command(TARGET py_api
-                       PRE_BUILD
-                       COMMAND ${Python3_EXECUTABLE} ${PYX_FILTER} ${PYTHON_API_OUT}
-                       COMMENT "Pre-process Python API")
-
-    # Plugin API
-
-    add_custom_target(plugin_api
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
-                      COMMENT "Generating Plugin API Reference"
-                      VERBATIM)
-
-    # Preprocess docs
+    # gst doc files
+    if(EXISTS "${GST_DOCS_DIR}")
+        get_filename_component(GST_DOCS_DIR "${GST_DOCS_DIR}" ABSOLUTE)
+        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+        --input_dir=${GST_DOCS_DIR}
+        --output_dir=${DOCS_BUILD_DIR}/gst)
+    endif()
 
     add_custom_target(preprocess_docs
-                      COMMENT "Pre-process docs"
-                      VERBATIM)
+                     COMMENT "Preprocess documentation"
+                     VERBATIM)
 
-    foreach(source_file ${doc_source_files})
-        list(APPEND commands COMMAND ${CMAKE_COMMAND} -E copy
-            "${OpenVINO_MAIN_SOURCE_DIR}/${source_file}" "${DOCS_BINARY_DIR}/${source_file}")
-    endforeach()
-
+    # Preprocess docs
     add_custom_command(TARGET preprocess_docs
-                       PRE_BUILD
+                       POST_BUILD
                        ${commands}
-                       COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER} ${DOCS_BINARY_DIR}
-                       COMMENT "Pre-process markdown and image links")
+                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
+                       COMMENT "Preprocess documentation"
+                       VERBATIM)
 
-    # IE dev guide and C++ API
-
-    add_custom_target(ie_docs
+    add_custom_target(doxygen_xml
                       DEPENDS preprocess_docs
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
+                      COMMAND ${PYTHON_EXECUTABLE} ${REMOVE_XML_SCRIPT} ${XML_OUTPUT}
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
+                      WORKING_DIRECTORY ${DOCS_BUILD_DIR}
+                      COMMENT "Generate doxygen XML output"
                       VERBATIM)
 
-    # Umbrella OpenVINO target
+    # Post-process docs
+    add_custom_command(TARGET doxygen_xml
+                       POST_BUILD
+                       COMMAND ${PYTHON_EXECUTABLE} ${PREPARE_XML_SCRIPT} ${XML_OUTPUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
+                       COMMAND ${DOXYREST_EXECUTABLE} -c ${DOXYREST_CONFIG_OUT}
+                       COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
+                       COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
+                       COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN} ${API_DOCS_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}
+                       COMMENT "Prepare xml"
+                       VERBATIM)
 
-    add_custom_target(openvino_docs
-                      DEPENDS c_api py_api ie_docs plugin_api
-                      COMMENT "Generating OpenVINO documentation"
+    add_custom_target(sphinx_docs
+                      DEPENDS doxygen_xml
+                      COMMAND sphinx-build -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                      WORKING_DIRECTORY ${RST_OUTPUT}
                       VERBATIM)
 
-    set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
+    add_custom_target(linkcheck
+                      COMMAND sphinx-build -b linkcheck ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                      WORKING_DIRECTORY ${RST_OUTPUT}
+                      VERBATIM)
+
+    set_target_properties(doxygen_xml sphinx_docs
                           PROPERTIES FOLDER docs)
+
 
     find_program(browser NAMES xdg-open)
     if(browser)
         add_custom_target(ie_docs_open
-                          COMMAND ${browser} "${OpenVINO_MAIN_SOURCE_DIR}/docs/html/index.html"
-                          DEPENDS ie_docs
+                          COMMAND ${browser} "${SPHINX_OUTPUT}/index.html"
+                          DEPENDS sphinx_docs
                           COMMENT "Open OpenVINO documentation"
                           VERBATIM)
         set_target_properties(ie_docs_open PROPERTIES FOLDER docs)

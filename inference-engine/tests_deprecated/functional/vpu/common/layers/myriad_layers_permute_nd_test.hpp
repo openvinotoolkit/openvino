@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ void calculateRefBlob(const Blob::Ptr& src, Blob::Ptr dst, const SizeVector& per
         case InferenceEngine::Precision::FP16:
             ref_Permute<ie_fp16>(src, dst, permutationVector);
             break;
-        default: THROW_IE_EXCEPTION << "Unsupported precision";
+        default: IE_THROW() << "Unsupported precision";
     }
 }
 

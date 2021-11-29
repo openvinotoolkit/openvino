@@ -1,142 +1,40 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <fstream>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/text_format.h>
 #include <memory>
+#include <onnx/onnx_pb.h>
 
 #include "ngraph/except.hpp"
-#include "onnx_import/core/graph.hpp"
-#include "onnx_import/core/model.hpp"
-#include "onnx_import/core/transform.hpp"
+#include "onnx_common/parser.hpp"
 #include "onnx_import/onnx.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "onnx_import/utils/onnx_internal.hpp"
+#include "ops_bridge.hpp"
 
 namespace ngraph
 {
     namespace onnx_import
     {
-        namespace detail
-        {
-            namespace error
-            {
-                struct file_open : ngraph_error
-                {
-                    explicit file_open(const std::string& path)
-                        : ngraph_error{
-                              "Error during import of ONNX model expected to be in file: " + path +
-                              ". Could not open the file."}
-                    {
-                    }
-                };
-
-                struct stream_parse_binary : ngraph_error
-                {
-                    explicit stream_parse_binary()
-                        : ngraph_error{
-                              "Error during import of ONNX model provided as input stream "
-                              " with binary protobuf message."}
-                    {
-                    }
-                };
-
-                struct stream_parse_text : ngraph_error
-                {
-                    explicit stream_parse_text()
-                        : ngraph_error{
-                              "Error during import of ONNX model provided as input stream "
-                              " with prototxt protobuf message."}
-                    {
-                    }
-                };
-
-                struct stream_corrupted : ngraph_error
-                {
-                    explicit stream_corrupted()
-                        : ngraph_error{"Provided input stream has incorrect state."}
-                    {
-                    }
-                };
-
-            } // namespace error
-
-            std::shared_ptr<Function>
-                convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
-            {
-                Model model{model_proto};
-                Graph graph{model_proto.graph(), model};
-                auto function = std::make_shared<Function>(
-                    graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
-                for (std::size_t i{0}; i < function->get_output_size(); ++i)
-                {
-                    function->get_output_op(i)->set_friendly_name(
-                        graph.get_outputs().at(i).get_name());
-                }
-                return function;
-            }
-        } // namespace detail
-
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {
-            if (!stream.good())
-            {
-                stream.clear();
-                stream.seekg(0);
-                if (!stream.good())
-                {
-                    throw detail::error::stream_corrupted();
-                }
-            }
+            ONNX_NAMESPACE::ModelProto model_proto{onnx_common::parse_from_istream(stream)};
 
-            ONNX_NAMESPACE::ModelProto model_proto;
-            // Try parsing input as a binary protobuf message
-            if (!model_proto.ParseFromIstream(&stream))
-            {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
-                throw detail::error::stream_parse_binary();
-#else
-                // Rewind to the beginning and clear stream state.
-                stream.clear();
-                stream.seekg(0);
-                google::protobuf::io::IstreamInputStream iistream(&stream);
-                // Try parsing input as a prototxt message
-                if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
-                {
-                    throw detail::error::stream_parse_text();
-                }
-#endif
-            }
-
-            transform::expand_onnx_functions(model_proto);
-            transform::fixup_legacy_operators(model_proto);
-            transform::update_external_data_paths(model_proto, model_path);
-
-            return detail::convert_to_ng_function(model_proto);
+            return detail::import_onnx_model(model_proto, model_path);
         }
 
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path)
         {
-            std::ifstream ifs{file_path, std::ios::in | std::ios::binary};
-            if (!ifs.is_open())
+            std::ifstream model_stream{file_path, std::ios::in | std::ios::binary};
+
+            if (!model_stream.is_open())
             {
-                throw detail::error::file_open{file_path};
-            }
-            return import_onnx_model(ifs, file_path);
+                throw ngraph_error("Error during import of ONNX model expected to be in file: " +
+                                   file_path + ". Could not open the file.");
+            };
+
+            return import_onnx_model(model_stream, file_path);
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,

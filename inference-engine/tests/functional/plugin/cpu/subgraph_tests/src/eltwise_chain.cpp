@@ -1,12 +1,13 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include <tuple>
 #include <string>
 #include <vector>
 #include <memory>
 #include <debug.h>
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <ie_precision.hpp>
 #include "common_test_utils/common_utils.hpp"
@@ -20,7 +21,7 @@ using InferenceEngine::Precision;
 using ngraph::helpers::EltwiseTypes;
 using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
 
-namespace CPULayerTestsDefinitions {
+namespace CPUSubgraphTestsDefinitions {
 
 typedef std::tuple<
         std::vector<std::vector<size_t>>,        // Input shapes
@@ -136,7 +137,7 @@ std::vector<std::vector<InferenceEngine::Precision>> inputPrecisions = {
 
 std::vector<std::vector<EltwiseTypes>> eltwiseOps = {
         { EltwiseTypes::ADD, EltwiseTypes::MULTIPLY, EltwiseTypes::SUBTRACT },
-        { EltwiseTypes::DIVIDE, EltwiseTypes::POWER, EltwiseTypes::ADD },
+        { EltwiseTypes::DIVIDE, EltwiseTypes::SQUARED_DIFF, EltwiseTypes::ADD },
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_EltwiseChain, EltwiseChainTest,
@@ -181,4 +182,4 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
                         EltwiseChainTest::getTestCaseName);
 
 } // namespace
-} // namespace CPULayerTestsDefinitions
+} // namespace CPUSubgraphTestsDefinitions

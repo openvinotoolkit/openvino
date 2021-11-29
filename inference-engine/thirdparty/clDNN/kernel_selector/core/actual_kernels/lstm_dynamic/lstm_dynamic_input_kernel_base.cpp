@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "lstm_dynamic_input_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -58,8 +46,7 @@ void kernel_selector::LSTM_DynamicInputKernelBase::SetKernelArguments(const lstm
 }
 
 KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& params,
-                                                              const optional_params& options,
-                                                              float estimated_time) const {
+                                                              const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -78,7 +65,6 @@ KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& para
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(orgParams, kernel);
 
-    k_data.estimatedTime = estimated_time;
     return {k_data};
 }
 }  // namespace kernel_selector

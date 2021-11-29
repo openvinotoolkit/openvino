@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,11 @@ class Policy {
         AUTO_PERMUTE
     } PermutePolicy = Permute::DISABLED;
 
+    enum class FlattenTrivialConcatConversion {
+        DISABLED,
+        ENABLED
+    } ConcatConversionPolicy = FlattenTrivialConcatConversion::ENABLED;
+
     enum class ConcatAlignment {
         DISABLED,
         DISABLED_FOR_FP32,
@@ -62,6 +67,8 @@ class Policy {
         };
         uint32_t limitedTo = LIMITED_TO_DEFAULT_GNA2_65536;
     } GNAAffineDiagonalPolicy;
+
+    bool cnn2dInputPaddingSupported = false;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {

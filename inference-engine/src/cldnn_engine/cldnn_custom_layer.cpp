@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #endif
 
 #include "simple_math.h"
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 using namespace XMLParseUtils;
@@ -52,7 +53,7 @@ void CLDNNCustomLayer::ProcessKernelNode(const pugi::xml_node & node) {
     CheckAndReturnError(m_kernelEntry.length() == 0, "No Kernel entry in layer: " << GetStrAttr(node.parent(), "name"));
 
     // Handle Source nodes
-    for (auto sourceNode = node.child("Source"); !sourceNode.empty(); sourceNode = sourceNode.next_sibling("Source")) {
+    FOREACH_CHILD(sourceNode, node, "Source") {
         // open file
         std::string filename = m_configDir + "/" + GetStrAttr(sourceNode, "filename", "");
         std::ifstream inputFile(filename);
@@ -73,7 +74,7 @@ void CLDNNCustomLayer::ProcessKernelNode(const pugi::xml_node & node) {
     }
 
     // Handle Define nodes
-    for (auto defineNode = node.child("Define"); !defineNode.empty(); defineNode = defineNode.next_sibling("Define")) {
+    FOREACH_CHILD(defineNode, node, "Define") {
         KernelDefine kd;
         kd.name = GetStrAttr(defineNode, "name", "");
         CheckAndReturnError((kd.name.length() == 0), "Missing name for define node");
@@ -90,7 +91,7 @@ void CLDNNCustomLayer::ProcessKernelNode(const pugi::xml_node & node) {
 
 void CLDNNCustomLayer::ProcessBuffersNode(const pugi::xml_node & node) {
     CheckNodeTypeAndReturnError(node, "Buffers");
-    for (auto tensorNode = node.child("Tensor"); !tensorNode.empty(); tensorNode = tensorNode.next_sibling("Tensor")) {
+    FOREACH_CHILD(tensorNode, node, "Tensor") {
         KerenlParam kp;
         kp.format = FormatFromString(GetStrAttr(tensorNode, "format", "BFYX"));
         CheckAndReturnError(kp.format == cldnn::format::format_num, "Tensor node has an invalid format: " << GetStrAttr(tensorNode, "format"));
@@ -108,7 +109,7 @@ void CLDNNCustomLayer::ProcessBuffersNode(const pugi::xml_node & node) {
         }
         m_kernelParams.push_back(kp);
     }
-    for (auto dataNode = node.child("Data"); !dataNode.empty(); dataNode = dataNode.next_sibling("Data")) {
+    FOREACH_CHILD(dataNode, node, "Data") {
         KerenlParam kp;
         kp.type = ParamType::Data;
         kp.paramIndex = GetIntAttr(dataNode, "arg-index", -1);
@@ -224,6 +225,7 @@ cldnn::format CLDNNCustomLayer::FormatFromString(const std::string & str) {
 }
 
 void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLayerMap& customLayers, bool can_be_missed) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNCustomLayer::LoadFromFile");
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
     if (res.status != pugi::status_ok) {
@@ -231,7 +233,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
             // config file might not exist - like global config, for example
             return;
         } else {
-            THROW_IE_EXCEPTION << "Error loading custom layer configuration file: " << configFile << ", " << res.description()
+            IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", " << res.description()
                 << " at offset " << res.offset;
         }
     }
@@ -244,7 +246,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
     char* abs_path_ptr = realpath(configFile.c_str(), path);
 #endif
     if (abs_path_ptr == nullptr) {
-        THROW_IE_EXCEPTION << "Error loading custom layer configuration file: " << configFile << ", "
+        IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", "
                            << "Can't get canonicalized absolute pathname.";
     }
 
@@ -260,7 +262,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
         // path is absolute
         dir_path = abs_file_name.substr(0, dir_split_pos);
     } else {
-        THROW_IE_EXCEPTION << "Error loading custom layer configuration file: " << configFile << ", "
+        IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", "
                            << "Path is not valid";
     }
 
@@ -269,7 +271,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
         layer->LoadSingleLayer(r);
         if (layer->Error()) {
             customLayers.clear();
-            THROW_IE_EXCEPTION << layer->m_ErrorMessage;
+            IE_THROW() << layer->m_ErrorMessage;
         } else {
             customLayers[layer->Name()] = layer;
         }

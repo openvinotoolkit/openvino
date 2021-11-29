@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include "behavior/set_preprocess.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -34,4 +33,48 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             PreprocessTest::getTestCaseName);
+
+    const std::vector<InferenceEngine::Precision> ioPrecisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::U8
+    };
+    const std::vector<InferenceEngine::Layout> netLayouts = {
+        InferenceEngine::Layout::NCHW,
+        // InferenceEngine::Layout::NHWC
+    };
+
+    const std::vector<InferenceEngine::Layout> ioLayouts = {
+        InferenceEngine::Layout::NCHW,
+        InferenceEngine::Layout::NHWC
+    };
+
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessConversionTest,
+                                ::testing::Combine(
+                                        ::testing::ValuesIn(netPrecisions),
+                                        ::testing::ValuesIn(ioPrecisions),
+                                        ::testing::ValuesIn(ioPrecisions),
+                                        ::testing::ValuesIn(netLayouts),
+                                        ::testing::ValuesIn(ioLayouts),
+                                        ::testing::ValuesIn(ioLayouts),
+                                        ::testing::Bool(),
+                                        ::testing::Bool(),
+                                        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                        ::testing::ValuesIn(configs)),
+                                PreprocessConversionTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessDynamicallyInSetBlobTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::ValuesIn(netLayouts),
+                                ::testing::Bool(),
+                                ::testing::Bool(),
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(true), // only SetBlob
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                ::testing::ValuesIn(configs)),
+                        PreprocessDynamicallyInSetBlobTest::getTestCaseName);
+
+
 }  // namespace

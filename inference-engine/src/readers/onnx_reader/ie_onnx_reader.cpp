@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,12 +65,6 @@ CNNNetwork ONNXReader::read(std::istream& model, const std::vector<IExtensionPtr
     return CNNNetwork(ngraph::onnx_import::import_onnx_model(model, readPathFromStream(model)), exts);
 }
 
-INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
-    try {
-        reader = new ONNXReader();
-        return OK;
-    }
-    catch (std::exception &) {
-        return GENERAL_ERROR;
-    }
+INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
+    reader = std::make_shared<ONNXReader>();
 }

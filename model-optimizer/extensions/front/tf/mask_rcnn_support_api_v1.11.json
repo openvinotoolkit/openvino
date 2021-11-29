@@ -98,6 +98,7 @@
     },
     {
        "custom_attributes": {
+            "masks_node_prefix_name": "SecondStageBoxPredictor"
         },
         "id": "ObjectDetectionAPIMaskRCNNSigmoidReplacement",
         "match_kind": "general"

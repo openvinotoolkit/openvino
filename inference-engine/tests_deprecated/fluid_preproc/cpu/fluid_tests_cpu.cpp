@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,7 +132,7 @@ INSTANTIATE_TEST_CASE_P(ResizeTestFluid_F32, ResizeTestGAPI,
 
 INSTANTIATE_TEST_CASE_P(SplitTestFluid, SplitTestGAPI,
                         Combine(Values(2, 3, 4),
-                                Values(CV_8U, CV_8S, CV_16U, CV_16S, CV_32F, CV_32S),
+                                Values(CV_8U, CV_8S, CV_16U, CV_16S, CV_16F, CV_32F, CV_32S),
                                 Values(TEST_SIZES),
                                 Values(0)));
 
@@ -144,7 +144,7 @@ INSTANTIATE_TEST_CASE_P(ChanToPlaneTestFluid, ChanToPlaneTestGAPI,
 
 INSTANTIATE_TEST_CASE_P(MergeTestFluid, MergeTestGAPI,
                         Combine(Values(2, 3, 4),
-                                Values(CV_8U, CV_8S, CV_16U, CV_16S, CV_32F, CV_32S),
+                                Values(CV_8U, CV_8S, CV_16U, CV_16S, CV_16F, CV_32F, CV_32S),
                                 Values(TEST_SIZES),
                                 Values(0)));
 
@@ -182,6 +182,20 @@ INSTANTIATE_TEST_CASE_P(ConvertDepthFluid, ConvertDepthTestGAPI,
                                        cv::Size( 300,  300),
                                        cv::Size( 320,  200)),
                                 Values(1)));
+
+INSTANTIATE_TEST_CASE_P(DivCFluid, DivCTestGAPI,
+                        Combine(Values(CV_32F),
+                                Values(1),      //channels
+                                Values(TEST_SIZES),
+                                Values(cv::Scalar{0.229}),
+                                Values(0)));
+
+INSTANTIATE_TEST_CASE_P(SubCFluid, SubCTestGAPI,
+                        Combine(Values(CV_32F),
+                                Values(1),      //channels
+                                Values(TEST_SIZES),
+                                Values(cv::Scalar{0.229}),
+                                Values(0.00001)));
 
 INSTANTIATE_TEST_CASE_P(ResizeRoiTestFluid, ResizeRoiTestGAPI,
                         Combine(Values(CV_8UC1, CV_8UC3),
@@ -269,7 +283,7 @@ INSTANTIATE_TEST_CASE_P(ColorConvertYUV420Fluid, ColorConvertYUV420TestIE,
                                 Values(0)));
 
 INSTANTIATE_TEST_CASE_P(Reorder_HWC2CHW, ColorConvertTestIE,
-                        Combine(Values(CV_8U, CV_32F),
+                        Combine(Values(CV_8U, CV_32F, CV_16S, CV_16F),
                                 Values(InferenceEngine::ColorFormat::BGR),
                                 Values(InferenceEngine::NHWC),
                                 Values(InferenceEngine::NCHW),
@@ -277,12 +291,16 @@ INSTANTIATE_TEST_CASE_P(Reorder_HWC2CHW, ColorConvertTestIE,
                                 Values(0)));
 
 INSTANTIATE_TEST_CASE_P(Reorder_CHW2HWC, ColorConvertTestIE,
-                        Combine(Values(CV_8U, CV_32F),
+                        Combine(Values(CV_8U, CV_32F, CV_16S, CV_16F),
                                 Values(InferenceEngine::ColorFormat::BGR),
                                 Values(InferenceEngine::NCHW),
                                 Values(InferenceEngine::NHWC),
                                 Values(TEST_SIZES),
                                 Values(0)));
+
+INSTANTIATE_TEST_CASE_P(MeanValueGAPI32F, MeanValueGAPI,
+                        Combine(Values(TEST_SIZES),
+                                Values(0.00001)));
 
 //------------------------------------------------------------------------------
 
@@ -394,7 +412,7 @@ INSTANTIATE_TEST_CASE_P(ColorFormat_NV12, PreprocTest,
                                 Values(TEST_SIZES_PREPROC)));
 
 
-INSTANTIATE_TEST_CASE_P(DISABLED_PlainPrecisionConversions, PreprocTest,
+INSTANTIATE_TEST_CASE_P(PlainPrecisionConversions, PreprocTest,
                         Combine(Values(std::make_pair(IE::Precision::U16,IE::Precision::FP32),
                                        std::make_pair(IE::Precision::FP32,IE::Precision::U16)
                                 ),
@@ -415,5 +433,5 @@ INSTANTIATE_TEST_CASE_P(PrecisionConversionsPipelines, PreprocTest,
                                 Values(IE::ColorFormat::RAW),
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
-                                Values(std::make_pair(1, 1)/*, std::make_pair(3, 3)*/), //U16 Split and Merge are not there
+                                Values(std::make_pair(1, 1), std::make_pair(3, 3)),
                                 Values(TEST_SIZES_PREPROC)));

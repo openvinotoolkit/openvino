@@ -1,18 +1,6 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import os
 import sys
 from enum import Enum
@@ -50,7 +38,7 @@ class StatisticsReport:
     def dump(self):
         def dump_parameters(f, parameters):
             for k, v in parameters:
-                f.write('{}{}{}\n'.format(k, self.csv_separator, v))
+                f.write(f'{k}{self.csv_separator}{v}\n')
 
         with open(os.path.join(self.config.report_folder, 'benchmark_report.csv'), 'w') as f:
             if self.Category.COMMAND_LINE_PARAMETERS in self.parameters.keys():
@@ -68,7 +56,7 @@ class StatisticsReport:
                 dump_parameters(f, self.parameters[self.Category.EXECUTION_RESULTS])
                 f.write('\n')
 
-            logger.info("Statistics report is stored to {}".format(f.name))
+            logger.info(f"Statistics report is stored to {f.name}")
 
     def dump_performance_counters_request(self, f, perf_counts):
         total = 0
@@ -88,10 +76,10 @@ class StatisticsReport:
             return
 
         if not perf_counts:
-            logger.info('Peformance counters are empty. No reports are dumped.')
+            logger.info('Performance counters are empty. No reports are dumped.')
             return
 
-        filename = os.path.join(self.config.report_folder, 'benchmark_{}_report.csv'.format(self.config.report_type))
+        filename = os.path.join(self.config.report_folder, f'benchmark_{self.config.report_type}_report.csv')
         with open(filename, 'w') as f:
             if self.config.report_type == detailedCntReport:
                 for pc in perf_counts:
@@ -116,4 +104,4 @@ class StatisticsReport:
             else:
                 raise Exception('PM data can only be collected for average or detailed report types')
 
-            logger.info('Pefromance counters report is stored to {}'.format(filename))
+            logger.info(f'Performance counters report is stored to {filename}')

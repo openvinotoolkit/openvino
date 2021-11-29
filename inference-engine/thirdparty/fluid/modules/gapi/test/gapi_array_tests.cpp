@@ -182,7 +182,7 @@ TEST(GArray, GArrayConstValInitialization)
     std::vector<cv::Point> initial_vec {Point(0,0), Point(1,1), Point(2,2)};
     std::vector<cv::Point> ref_vec     {Point(1,1), Point(2,2), Point(3,3)};
     std::vector<cv::Point> out_vec;
-    cv::Mat in_mat;
+    cv::Mat in_mat = cv::Mat::eye(32, 32, CV_8UC1);
 
     cv::GComputationT<ThisTest::GPointArray(cv::GMat)> c([&](cv::GMat in)
     {
@@ -201,7 +201,7 @@ TEST(GArray, GArrayRValInitialization)
 {
     std::vector<cv::Point> ref_vec {Point(1,1), Point(2,2), Point(3,3)};
     std::vector<cv::Point> out_vec;
-    cv::Mat in_mat;
+    cv::Mat in_mat = cv::Mat::eye(32, 32, CV_8UC1);
 
     cv::GComputationT<ThisTest::GPointArray(cv::GMat)> c([&](cv::GMat in)
     {
@@ -240,6 +240,15 @@ TEST(GArray_VectorRef, TestMov)
     EXPECT_EQ(V{}, vtest);
 }
 
+// types from anonymous namespace doesn't work well with templates
+inline namespace gapi_array_tests {
+    struct MyTestStruct {
+        int i;
+        float f;
+        std::string name;
+    };
+}
+
 TEST(GArray_VectorRef, Kind)
 {
     cv::detail::VectorRef v1(std::vector<cv::Rect>{});
@@ -264,7 +273,10 @@ TEST(GArray_VectorRef, Kind)
     EXPECT_EQ(cv::detail::OpaqueKind::CV_SIZE, v7.getKind());
 
     cv::detail::VectorRef v8(std::vector<std::string>{});
-    EXPECT_EQ(cv::detail::OpaqueKind::CV_UNKNOWN, v8.getKind());
+    EXPECT_EQ(cv::detail::OpaqueKind::CV_STRING, v8.getKind());
+
+    cv::detail::VectorRef v9(std::vector<MyTestStruct>{});
+    EXPECT_EQ(cv::detail::OpaqueKind::CV_UNKNOWN, v9.getKind());
 }
 
 TEST(GArray_VectorRef, TestRvalue)

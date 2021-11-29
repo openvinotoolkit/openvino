@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ public:
     std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> layers;
 
 private:
+    bool atLeastOneIsIntermediate(const std::shared_ptr<ngraph::Node>& node) const;
     bool fillSubgraphForQuantization(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fakeQuantize, std::unordered_set<std::string>& handledLayers);
     bool fillSubgraphForIntermediate(const std::shared_ptr<ngraph::Node>& intermediate, std::unordered_set<std::string>& handledLayers);
     bool fill(const std::shared_ptr<ngraph::Node>& concat, std::unordered_set<std::string>& handledLayers);

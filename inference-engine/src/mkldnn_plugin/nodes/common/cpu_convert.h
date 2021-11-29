@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,4 +20,4 @@
  * @return none.
  */
 
-void cpu_convert(void *srcPtr, void *dstPtr, InferenceEngine::Precision srcPrc, InferenceEngine::Precision dstPrc, const size_t size);
+void cpu_convert(const void *srcPtr, void *dstPtr, InferenceEngine::Precision srcPrc, InferenceEngine::Precision dstPrc, const size_t size);

@@ -14,3 +14,11 @@
 	path = inference-engine/samples/thirdparty/gflags
 	url = https://github.com/gflags/gflags.git
 	ignore = dirty
+[submodule "thirdparty/xbyak"]
+	path = thirdparty/xbyak
+	url = https://github.com/herumi/xbyak.git
+	ignore = dirty
+[submodule "thirdparty/zlib/zlib"]
+	path = thirdparty/zlib/zlib
+	url = https://github.com/madler/zlib.git
+	ignore = dirty

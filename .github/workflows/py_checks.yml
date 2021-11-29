@@ -1,0 +1,75 @@
+name: IE Python Checks
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'inference-engine/ie_bridges/python/**'
+  pull_request:
+    paths:
+      - 'inference-engine/ie_bridges/python/**'
+jobs:
+  linters:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.6'
+      - name: Install dependencies
+        run: python -m pip install -r inference-engine/ie_bridges/python/requirements_dev.txt
+      - name: Run Flake on samples
+        run: python -m flake8 ./ --config=../setup.cfg 
+        working-directory: inference-engine/ie_bridges/python/sample
+      - name: Create code style diff for samples
+        if: failure()
+        run: |
+          python -m black -l 160 -S ./
+          git diff > samples_diff.diff
+        working-directory: inference-engine/ie_bridges/python/sample
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: samples_diff
+          path: samples_diff.diff
+      - name: Run Flake on src
+        run: python -m flake8 ./ --config=../setup.cfg
+        working-directory: inference-engine/ie_bridges/python/src
+      - name: Create code style diff for Python src
+        if: failure()
+        run: |
+          python -m black -l 160 -S ./
+          git diff > src_diff.diff
+        working-directory: inference-engine/ie_bridges/python/src
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: src_diff
+          path: src_diff.diff
+      - name: Run Flake on wheel
+        run: python -m flake8 ./ --config=../setup.cfg
+        working-directory: inference-engine/ie_bridges/python/wheel
+      - name: Create code style diff for wheel
+        if: failure()
+        run: |
+          python -m black -l 160 -S ./
+          git diff > wheel_diff.diff
+        working-directory: inference-engine/ie_bridges/python/wheel
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: wheel_diff
+          path: wheel_diff.diff
+      
+      - name: Run MyPy
+        run: python -m mypy ./ --config-file ./setup.cfg
+        working-directory: inference-engine/ie_bridges/python     
+      - name: Run Bandit
+        run: python -m bandit -r ./ -f screen
+        working-directory: inference-engine/ie_bridges/python
+
+      

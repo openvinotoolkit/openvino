@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "details/ie_exception.hpp"
+#include "ie_common.h"
+
 
 namespace InferenceEngine {
 
@@ -29,9 +30,12 @@ public:
         FP32 = 10,         /**< 32bit floating point value */
         FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
         BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
+        FP64 = 13,         /**< 64bit floating point value */
         Q78 = 20,          /**< 16bit specific signed fixed point precision */
         I16 = 30,          /**< 16bit signed integer value */
+        U4 = 39,           /**< 4bit unsigned integer value */
         U8 = 40,           /**< 8bit unsigned integer value */
+        I4 = 49,           /**< 4bit signed integer value */
         I8 = 50,           /**< 8bit signed integer value */
         U16 = 60,          /**< 16bit unsigned integer value */
         I32 = 70,          /**< 32bit signed integer value */
@@ -60,7 +64,10 @@ public:
     /** @brief Default constructor */
     Precision() = default;
 
-    /** @brief Constructor with specified precision */
+    /**
+     * @brief Constructor with specified precision
+     * @param value A value of ePrecision to create an object from
+     */
     Precision(const Precision::ePrecision value) {  // NOLINT
         precisionInfo = getPrecisionInfo(value);
     }
@@ -69,11 +76,11 @@ public:
      * @brief Custom precision constructor
      *
      * @param bitsSize size of elements
-     * @param name optional name string, used in serialisation
+     * @param name optional: name string, used in serialisation
      */
     explicit Precision(size_t bitsSize, const char* name = nullptr) {
         if (bitsSize == 0) {
-            THROW_IE_EXCEPTION << "Precision with 0 elements size not supported";
+            IE_THROW() << "Precision with 0 elements size not supported";
         }
         precisionInfo.bitsSize = bitsSize;
         if (name == nullptr) {
@@ -108,12 +115,15 @@ public:
 
             switch (precisionInfo.value) {
                 CASE(FP32, float);
+                CASE(FP64, double);
                 CASE2(FP16, int16_t, uint16_t);
                 CASE2(BF16, int16_t, uint16_t);
+                CASE2(I4, int8_t, uint8_t);
                 CASE(I8, int8_t);
                 CASE(I16, int16_t);
                 CASE(I32, int32_t);
                 CASE(I64, int64_t);
+                CASE(U4, uint8_t);
                 CASE(U8, uint8_t);
                 CASE(U16, uint16_t);
                 CASE(U32, uint32_t);
@@ -131,39 +141,64 @@ public:
         }
     }
 
-    /** @brief Equality operator with Precision object */
+    /**
+     * @brief Equality operator with Precision object
+     * @param p A value of Precision to compare with
+     * @return `true` if values represent the same precisions, `false` otherwise
+     */
     bool operator==(const Precision& p) const noexcept {
         return precisionInfo.value == p && precisionInfo.bitsSize == p.precisionInfo.bitsSize &&
                areSameStrings(precisionInfo.name, p.precisionInfo.name);
     }
 
-    /** @brief Equality operator with ePrecision enum value */
+    /**
+     * @brief Equality operator with ePrecision enum value
+     * @param p A value of ePrecision to compare with
+     * @return `true` if values represent the same precisions, `false` otherwise
+     */
     bool operator==(const ePrecision p) const noexcept {
         return precisionInfo.value == p;
     }
 
-    /** @brief Inequality operator with ePrecision enum value */
+    /**
+     * @brief Inequality operator with ePrecision enum value
+     * @param p A value of ePrecision to compare with
+     * @return `true` if values represent different precisions, `false` otherwise
+     */
     bool operator!=(const ePrecision p) const noexcept {
         return precisionInfo.value != p;
     }
 
-    /** @brief Assignment operator with ePrecision enum value */
+    /**
+     * @brief Assignment operator with ePrecision enum value
+     * @param p A value of ePrecision enumeration
+     * @return A Precision instance
+     */
     Precision& operator=(const ePrecision p) noexcept {
         precisionInfo = getPrecisionInfo(p);
         return *this;
     }
 
-    /** @brief Cast operator to a bool */
+    /**
+     * @brief Cast operator to a bool
+     * @return `true` if precision is specified, `false` otherwise
+     */
     explicit operator bool() const noexcept {
         return precisionInfo.value != UNSPECIFIED;
     }
 
-    /** @brief Logical negation operator */
+    /**
+     * @brief Logical negation operator
+     * @return `true` if precision is NOT specified, `false` otherwise
+     */
     bool operator!() const noexcept {
         return precisionInfo.value == UNSPECIFIED;
     }
 
-    /** @brief Cast operator to a ePrecision */
+    /**
+     * @brief Cast operator to a ePrecision
+     * @return A casted value of Precision::ePrecision enumeration
+     */
     operator Precision::ePrecision() const noexcept {
         return precisionInfo.value;
     }
@@ -176,19 +211,27 @@ public:
         return precisionInfo.value;
     }
 
-    /** @brief Getter of precision name */
+    /**
+     * @brief Getter of precision name
+     * @return A string representing precision name
+     */
     const char* name() const noexcept {
         return precisionInfo.name;
     }
 
-    /** @brief Creates from string with precision name */
+    /**
+     * @brief Creates Precision from string with precision name
+     * @param str A string representing precision
+     * @return Precision created from string representation
+     */
     static Precision FromStr(const std::string& str) {
-        static std::unordered_map<std::string, ePrecision> names = {
+        static const std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
             PRECISION_NAME(Q78),  PRECISION_NAME(BOOL),  PRECISION_NAME(BF16),
-            PRECISION_NAME(I8),   PRECISION_NAME(I16),   PRECISION_NAME(I32),  PRECISION_NAME(I64),
-            PRECISION_NAME(U8),   PRECISION_NAME(U16),   PRECISION_NAME(U32),  PRECISION_NAME(U64),
-            PRECISION_NAME(FP32), PRECISION_NAME(FP16),  PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
+            PRECISION_NAME(I4),   PRECISION_NAME(I8),   PRECISION_NAME(I16),    PRECISION_NAME(I32),  PRECISION_NAME(I64),
+            PRECISION_NAME(U4),   PRECISION_NAME(U8),   PRECISION_NAME(U16),    PRECISION_NAME(U32),  PRECISION_NAME(U64),
+            PRECISION_NAME(FP32), PRECISION_NAME(FP64),  PRECISION_NAME(FP16),  PRECISION_NAME(MIXED),
+            PRECISION_NAME(BIN),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -201,7 +244,7 @@ public:
      */
     size_t size() const {
         if (precisionInfo.bitsSize == 0) {
-            THROW_IE_EXCEPTION << " cannot estimate element if precision is " << precisionInfo.name;
+            IE_THROW() << " cannot estimate element if precision is " << precisionInfo.name;
         }
         return precisionInfo.bitsSize >> 3;
     }
@@ -220,11 +263,12 @@ public:
      */
     bool isSigned() const noexcept {
         return (precisionInfo.value == Precision::UNSPECIFIED) || (precisionInfo.value == Precision::MIXED) ||
-               (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP16) ||
-               (precisionInfo.value == Precision::Q78) || (precisionInfo.value == Precision::I16) ||
-               (precisionInfo.value == Precision::I8) || (precisionInfo.value == Precision::I32) ||
-               (precisionInfo.value == Precision::I64) || (precisionInfo.value == Precision::BIN) ||
-               (precisionInfo.value == Precision::BF16) || (precisionInfo.value == Precision::CUSTOM);
+               (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP64) ||
+               (precisionInfo.value == Precision::FP16) || (precisionInfo.value == Precision::Q78) ||
+               (precisionInfo.value == Precision::I16) || (precisionInfo.value == Precision::I8) ||
+               (precisionInfo.value == Precision::I32) || (precisionInfo.value == Precision::I64) ||
+               (precisionInfo.value == Precision::BIN) || (precisionInfo.value == Precision::BF16) ||
+               (precisionInfo.value == Precision::CUSTOM) || (precisionInfo.value == Precision::I4);
     }
 
 protected:
@@ -256,7 +300,9 @@ protected:
     }
 
     /**
-     * @brief Return PrecisionInfo
+     * @brief Creates PrecisionInfo based on ePrecision
+     * @param v A value of ePrecision emuneration
+     * @return Precision info object
      */
     static PrecisionInfo getPrecisionInfo(ePrecision v) {
 #define CASE(x) \
@@ -264,12 +310,15 @@ protected:
         return makePrecisionInfo<x>(#x);
         switch (v) {
             CASE(FP32);
+            CASE(FP64);
             CASE(FP16);
             CASE(BF16);
+            CASE(I4);
             CASE(I8);
             CASE(I16);
             CASE(I32);
             CASE(I64);
+            CASE(U4);
             CASE(U8);
             CASE(U16);
             CASE(U32);
@@ -295,59 +344,89 @@ struct PrecisionTrait {};
 template <>
 struct PrecisionTrait<Precision::FP32> {
     using value_type = float;
+    enum { is_float = true };
+};
+
+template <>
+struct PrecisionTrait<Precision::FP64> {
+    using value_type = double;
+    enum { is_float = true };
 };
 
 template <>
 struct PrecisionTrait<Precision::FP16> {
     using value_type = int16_t;
+    enum { is_float = true };
 };
 template <>
 struct PrecisionTrait<Precision::BF16> {
     using value_type = int16_t;
+    enum { is_float = true };
 };
 template<>
 struct PrecisionTrait<Precision::Q78> {
     using value_type = uint16_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I16> {
     using value_type = int16_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U16> {
     using value_type = uint16_t;
+    enum { is_float = false };
+};
+template <>
+struct PrecisionTrait<Precision::U4> {
+    using value_type = uint8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U8> {
     using value_type = uint8_t;
+    enum { is_float = false };
+};
+template <>
+struct PrecisionTrait<Precision::I4> {
+    using value_type = int8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I8> {
     using value_type = int8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::BOOL> {
     using value_type = uint8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I32> {
     using value_type = int32_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U32> {
     using value_type = uint32_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I64> {
     using value_type = int64_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U64> {
     using value_type = uint64_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::BIN> {
     using value_type = int8_t;
+    enum { is_float = false };
 };
 
 template <class T>
@@ -358,6 +437,7 @@ inline uint8_t type_size_or_zero() {
 template <>
 struct PrecisionTrait<Precision::UNSPECIFIED> {
     using value_type = void;
+    enum { is_float = false };
 };
 
 template <>
@@ -368,22 +448,6 @@ inline uint8_t type_size_or_zero<void>() {
     return 0;
 }
 
-template <Precision::ePrecision T>
-inline typename std::enable_if<std::is_same<std::integral_constant<Precision::ePrecision, Precision::FP16>,
-                                            std::integral_constant<Precision::ePrecision, T>>::value,
-                               bool>::type
-is_floating() {
-    return true;
-}
-
-template <Precision::ePrecision T>
-inline typename std::enable_if<!std::is_same<std::integral_constant<Precision::ePrecision, Precision::FP16>,
-                                             std::integral_constant<Precision::ePrecision, T>>::value,
-                               bool>::type
-is_floating() {
-    return std::is_floating_point<typename PrecisionTrait<T>::value_type>::value;
-}
-
 template <Precision::ePrecision precision>
 inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
     Precision::PrecisionInfo info;
@@ -391,7 +455,7 @@ inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
 
     size_t nBits = precision == BIN ? 1 : 8;
     info.bitsSize = nBits * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
-    info.isFloat = is_floating<precision>();
+    info.isFloat = PrecisionTrait<precision>::is_float;
     info.value = precision;
     return info;
 }

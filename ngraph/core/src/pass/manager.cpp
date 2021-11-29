@@ -1,23 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 
 #include "itt.hpp"
 #include "ngraph/env_util.hpp"
@@ -30,17 +20,36 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "perf_counters.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+namespace ngraph
+{
+    namespace pass
+    {
+        namespace internal
+        {
+            PerfCounters& perf_counters()
+            {
+                static PerfCounters counters;
+                return counters;
+            }
+        } // namespace internal
+    }     // namespace pass
+} // namespace ngraph
+
 pass::Manager::Manager()
-    : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
-    , m_pass_config(std::make_shared<PassConfig>())
+    : m_pass_config(std::make_shared<PassConfig>())
+    , m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
 {
 }
 
-pass::Manager::~Manager()
+pass::Manager::~Manager() {}
+
+pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config)
+    : m_pass_config(std::move(pass_config))
 {
 }
 
@@ -62,6 +71,10 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             NGRAPH_DEBUG << "Pass " << pass->get_name() << " is disabled";
             continue;
         }
+
+        OV_ITT_SCOPE(FIRST_INFERENCE,
+                     itt::domains::nGraphPass_LT,
+                     pass::internal::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::vector<size_t>> inShapes = {
-        {1, 1, 30, 30},
-};
-
-const std::vector<std::vector<size_t>> targetShapes = {
-        {1, 1, 40, 40},
+        {1, 4, 6, 6},
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
@@ -75,12 +71,18 @@ const std::vector<double> cubeCoefs = {
 };
 
 const std::vector<std::vector<int64_t>> defaultAxes = {
-    {2, 3}
+    {0, 1, 2, 3}
+};
+
+const std::vector<std::vector<size_t>> targetShapes = {
+    {1, 4, 8, 8},
 };
 
 const std::vector<std::vector<float>> defaultScales = {
-    {1.33333f, 1.33333f}
+    {1.f, 1.f, 1.333333f, 1.333333f}
 };
+
+std::map<std::string, std::string> additional_config = {};
 
 const auto interpolateCasesWithoutNearest = ::testing::Combine(
         ::testing::ValuesIn(modesWithoutNearest),
@@ -115,7 +117,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
@@ -127,7 +130,66 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testi
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config)),
+    InterpolateLayerTest::getTestCaseName);
+
+const std::vector<std::vector<size_t>> targetShapesTailTest = {
+        {1, 4, 2, 11},  // cover down sample and tails process code path
+};
+
+const std::vector<std::vector<float>> defaultScalesTailTest = {
+    {1.f, 1.f, 0.333333f, 1.833333f}
+};
+
+const auto interpolateCasesWithoutNearestTail = ::testing::Combine(
+        ::testing::ValuesIn(modesWithoutNearest),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(defaultNearestMode),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScalesTailTest));
+
+const auto interpolateCasesTail = ::testing::Combine(
+        ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScalesTailTest));
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesWithoutNearestTail,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapesTailTest),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config)),
+    InterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesTail,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapesTailTest),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
 } // namespace

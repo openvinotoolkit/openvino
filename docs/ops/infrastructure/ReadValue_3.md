@@ -1,4 +1,4 @@
-## ReadValue <a name="ReadValue"></a> {#openvino_docs_ops_infrastructure_ReadValue_3}
+# ReadValue {#openvino_docs_ops_infrastructure_ReadValue_3}
 
 **Versioned name**: *ReadValue-3*
 
@@ -30,7 +30,7 @@ with the shape and type from the 1 input.
 
 **Outputs**
 
-*   **1**: tensor with the same shape and type as `init_value`
+*   **1**: tensor with the same shape and type as `init_value`.
 
 **Example**
 

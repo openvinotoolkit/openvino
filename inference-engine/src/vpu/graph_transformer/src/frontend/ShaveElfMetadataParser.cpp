@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,7 @@ uint32_t md_parser_t::evaluate_expr(const md_expr_t *expression,
     case md_type_op_xor:
     case md_type_op_shl:
     case md_type_op_lshr:
+      assert(values.size() >= 2);
       uint32_t rhs = values.rbegin()[0];
       uint32_t lhs = values.rbegin()[1];
       values.pop_back();

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 . "$ROOT_DIR/utils.sh"
 
@@ -119,7 +119,7 @@ fi
 if [[ $DISTRO == "macos" ]]; then
     "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 else
-    sudo -E "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+    sudo -E "$pip_binary" install --ignore-installed -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
 
 if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
@@ -164,7 +164,7 @@ done < "$ROOT_DIR/demo_security_barrier_camera.conf"
 printf "${dashes}"
 printf "Build Inference Engine demos\n\n"
 
-demos_path="${INTEL_OPENVINO_DIR}/deployment_tools/inference_engine/demos"
+demos_path="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/demos"
 
 if ! command -v cmake &>/dev/null; then
     printf "\n\nCMAKE is not installed. It is required to build Inference Engine demos. Please install it. ${run_again}"

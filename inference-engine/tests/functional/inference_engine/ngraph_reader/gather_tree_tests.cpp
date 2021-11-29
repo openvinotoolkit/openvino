@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ TEST_F(NGraphReaderTests, ReadGatherTreeNetwork) {
             </output>
         </layer>
         <layer id="3" name="const1" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                 </port>

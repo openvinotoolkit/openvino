@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,33 +11,51 @@
 #include <vector>
 #include <cassert>
 #include "ie_parallel.hpp"
+#include <ngraph/opsets/opset5.hpp>
+
+using namespace MKLDNNPlugin;
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
 class LogSoftmaxImpl: public ExtLayerBase {
-public:
-    explicit LogSoftmaxImpl(const CNNLayer* layer) {
+    bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
         try {
-            if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
+            const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
+            if (!logSoftMax) {
+                errorMessage = "Only opset5 LogSoftmax operation is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
 
-            if (layer->insData.size() != 1)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
+public:
+    explicit LogSoftmaxImpl(const std::shared_ptr<ngraph::Node>& op) {
+        try {
+            std::string errorMessage;
+            if (!isSupportedOperation(op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            if (layer->insData[0].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only FP32 is supported!";
+            errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
+            const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
 
-            SizeVector dims = layer->insData[0].lock()->getTensorDesc().getDims();
+            if (op->get_input_size() != 1 || op->get_output_size() != 1)
+                IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+
+            SizeVector dims = op->get_input_shape(0);
             if (!dims.size())
                 dims = SizeVector(1, 1);
-            int axis = layer->GetParamAsInt("axis", -1);
+            int axis = logSoftMax->get_axis();
             if (axis < 0)
                 axis += dims.size();
 
             if (dims.size() < static_cast<size_t>((size_t)(1) + axis))
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimensions and axis number!";
+                IE_THROW() << errorPrefix << " has incorrect input parameters dimensions and axis number!";
 
             int j;
             for (j = dims.size() - 1; j >= 0; j--) {
@@ -51,8 +69,9 @@ public:
             for (size_t i = (axis + 1); i < dims.size(); i++)
                 reduced_axis_stride *= dims[i];
 
-            addConfig(layer, { { ConfLayout::PLN, false, 0 } }, { { ConfLayout::PLN, false, 0 } });
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                          {{TensorDescCreatorTypes::ncsp, Precision::FP32}});
+        } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
         }
     }
@@ -60,37 +79,41 @@ public:
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
         const float *src_data = inputs[0]->cbuffer().as<float *>() +
             inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        float* dst_data = outputs[0]->cbuffer().as<float *>() +
+        float* dst_data = outputs[0]->buffer().as<float *>() +
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         if (is_last_dim) {
             parallel_for(axis_step, [&](size_t i) {
-                float reduce_prod = 0.0f;
                 const float *src_dataPtr = &src_data[i * reduced_axis_size];
+                float *dst_dataPtr = &dst_data[i * reduced_axis_size];
+
+                float reduce_prod = 0.0f;
+                const float max = *std::max_element(src_dataPtr, src_dataPtr + reduced_axis_size);
                 for (size_t j = 0; j < reduced_axis_size; ++j)
-                    reduce_prod += expf(src_dataPtr[j]);
+                    reduce_prod += expf(src_dataPtr[j] - max);
+
                 reduce_prod = logf(reduce_prod);
-                float *dst_dataPtr = reinterpret_cast<float*>(&dst_data[i * reduced_axis_size]);
                 for (size_t j = 0; j < reduced_axis_size; ++j)
-                    dst_dataPtr[j] = src_dataPtr[j] - reduce_prod;
+                    dst_dataPtr[j] = src_dataPtr[j] - max - reduce_prod;
             });
         } else {
             parallel_for2d(axis_step, reduced_axis_stride, [&](size_t k, size_t i) {
-                float reduce_prod = 0.0f;
                 const float *src_dataPtr = &src_data[k * reduced_axis_stride * reduced_axis_size + i];
+                float *dst_dataPtr = &dst_data[k * reduced_axis_stride * reduced_axis_size + i];
+
+                float reduce_prod = 0.0f;
+                float max = std::numeric_limits<float>::min();
                 for (size_t j = 0; j < reduced_axis_size; ++j) {
-                    reduce_prod += expf((*src_dataPtr));
-                    src_dataPtr += reduced_axis_stride;
+                    if (src_dataPtr[j * reduced_axis_stride] > max)
+                        max = src_dataPtr[j * reduced_axis_stride];
                 }
 
+                for (size_t j = 0; j < reduced_axis_size; ++j)
+                    reduce_prod += expf(src_dataPtr[j * reduced_axis_stride] - max);
+
                 reduce_prod = logf(reduce_prod);
-                src_dataPtr = &src_data[k * reduced_axis_stride * reduced_axis_size + i];
-                float *dst_dataPtr = reinterpret_cast<float*>(&dst_data[k * reduced_axis_stride * reduced_axis_size + i]);
-                for (size_t j = 0; j < reduced_axis_size; ++j) {
-                    (*dst_dataPtr) = (*src_dataPtr) - reduce_prod;
-                    src_dataPtr += reduced_axis_stride;
-                    dst_dataPtr += reduced_axis_stride;
-                }
+                for (size_t j = 0; j < reduced_axis_size; ++j)
+                    dst_dataPtr[j * reduced_axis_stride] = src_dataPtr[j * reduced_axis_stride] - max - reduce_prod;
             });
         }
 
@@ -102,6 +125,8 @@ private:
     size_t reduced_axis_stride = 1;
     size_t axis_step = 1;
     bool is_last_dim = false;
+
+    std::string errorPrefix;
 };
 
 REG_FACTORY_FOR(LogSoftmaxImpl, LogSoftmax);

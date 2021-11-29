@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,14 +32,13 @@ class INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Functio
 CNNNetworkIterator {
     IE_SUPPRESS_DEPRECATED_START
 
-    std::unordered_set<CNNLayer*> visited;
-    std::list<CNNLayerPtr> nextLayersToVisit;
-    InferenceEngine::CNNLayerPtr currentLayer;
+    std::list<CNNLayerPtr> nextLayersToVisit {};
+    InferenceEngine::CNNLayerPtr currentLayer = nullptr;
     const ICNNNetwork* network = nullptr;
 
     void init(const ICNNNetwork* net) {
         network = net;
-        if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
+        if (network == nullptr) IE_THROW() << "ICNNNetwork object is nullptr";
 
         OutputsDataMap outputs;
         network->getOutputsInfo(outputs);
@@ -56,6 +55,7 @@ CNNNetworkIterator {
             }
             return consumers;
         };
+        std::unordered_set<CNNLayer*> visited;
         auto bfs = [&](const CNNLayerPtr& start_node, bool traverse_via_outputs = false) {
             if (!start_node || visited.count(start_node.get())) return;
             std::deque<CNNLayerPtr> q;
@@ -71,7 +71,7 @@ CNNNetworkIterator {
                 for (const auto & input : node->insData) {
                     auto locked_input = input.lock();
                     if (!locked_input) {
-                        THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
+                        IE_THROW() << "insData for " << node->name << " is not valid.";
                     }
                     if (auto next_node = getCreatorLayer(locked_input).lock()) {
                         if (!visited.count(next_node.get())) {
@@ -98,16 +98,31 @@ CNNNetworkIterator {
             }
         };
 
-        // First we run bfs starting from outputs that provides deterministic graph traverse
-        for (const auto & output : outputs) {
-            bfs(getCreatorLayer(output.second).lock());
+        // Find all outputLayers
+        std::vector<CNNLayerPtr> outputLayers;
+        const auto* networkImpl = dynamic_cast<const CNNNetworkImpl*>(network);
+        if (networkImpl) {
+            for (const auto & node : networkImpl->allLayers()) {
+                if (get_consumers(node.second).empty())
+                    outputLayers.emplace_back(node.second);
+            }
+        } else {
+            // For backward compatibility
+            for (const auto& out : outputs) {
+                outputLayers.emplace_back(getCreatorLayer(out.second).lock());
+            }
         }
-
-        // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
-        for (const auto & input : inputs) {
-            const auto data_ptr = input.second->getInputData();
-            for (const auto & consumer : getInputTo(data_ptr))
-                bfs(consumer.second, true);
+        // First we run bfs starting from outputs that provides deterministic graph traverse
+        for (const auto & output : outputLayers) {
+            bfs(output);
+        }
+        if (!networkImpl) {
+            // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
+            for (const auto & input : inputs) {
+                const auto data_ptr = input.second->getInputData();
+                for (const auto & consumer : getInputTo(data_ptr))
+                    bfs(consumer.second, true);
+            }
         }
         currentLayer = nextLayersToVisit.front();
     }
@@ -127,6 +142,7 @@ public:
      * @brief Default constructor
      */
     CNNNetworkIterator() = default;
+
     /**
      * @brief Constructor. Creates an iterator for specified CNNNetwork instance.
      * @param network Network to iterate. Make sure the network object is not destroyed before iterator goes out of
@@ -172,7 +188,7 @@ public:
      */
     const CNNLayerPtr& operator*() const {
         if (nullptr == currentLayer) {
-            THROW_IE_EXCEPTION << "iterator out of bound";
+            IE_THROW() << "iterator out of bound";
         }
         return currentLayer;
     }
@@ -182,7 +198,7 @@ public:
      */
     CNNLayerPtr& operator*() {
         if (nullptr == currentLayer) {
-            THROW_IE_EXCEPTION << "iterator out of bound";
+            IE_THROW() << "iterator out of bound";
         }
         return currentLayer;
     }
@@ -198,7 +214,6 @@ public:
     }
 
 private:
-
     /**
      * @brief implementation based on BFS
      */

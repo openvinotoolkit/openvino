@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
@@ -29,8 +16,6 @@ class ExperimentalDetectronROIFeatureExtractorFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = dict(output_size=onnx_attr(node, 'output_size', 'i', 7),
                      sampling_ratio=onnx_attr(node, 'sampling_ratio', 'i', 2),
-                     distribute_rois_between_levels=onnx_attr(node, 'distribute_rois_between_levels', 'i', 1),
-                     preserve_rois_order=onnx_attr(node, 'preserve_rois_order', 'i', 1),
                      aligned=onnx_attr(node, 'aligned', 'i', 0),
                      num_classes=onnx_attr(node, 'num_classes', 'i', 81),
                      post_nms_count=onnx_attr(node, 'post_nms_count', 'i', 2000),

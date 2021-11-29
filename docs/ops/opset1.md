@@ -1,4 +1,4 @@
-# Operation Set `opset1` Specification {#openvino_docs_ops_opset1}
+# opset1 {#openvino_docs_ops_opset1}
 
 This specification document describes `opset1` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin
@@ -93,7 +93,7 @@ declared in `namespace opset1`.
 * [Result](infrastructure/Result_1.md)
 * [ReverseSequence](movement/ReverseSequence_1.md)
 * [Select](condition/Select_1.md)
-* [Selu](arithmetic/Selu_1.md)
+* [Selu](activation/Selu_1.md)
 * [ShapeOf](shape/ShapeOf_1.md)
 * [Sigmoid](activation/Sigmoid_1.md)
 * [Sign](arithmetic/Sign_1.md)

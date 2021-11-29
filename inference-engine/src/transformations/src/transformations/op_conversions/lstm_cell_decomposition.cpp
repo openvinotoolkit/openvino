@@ -1,13 +1,15 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <memory>
 #include <vector>
 
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
@@ -15,10 +17,12 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LSTMCellDecomposition, "LSTMCellDecomposition", 0);
 
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
-    auto lstm_cell = ngraph::pattern::wrap_type<opset4::LSTMCell>();
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset4::LSTMCell> (m.get_match_root());
-        if (!lstm_cell) {
+    MATCHER_SCOPE(LSTMCellDecomposition);
+    auto any_lstm = pattern::wrap_type<opset1::LSTMCell, opset4::LSTMCell>();
+
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+        auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
+        if (!lstm_cell || transformation_callback(lstm_cell)) {
             return false;
         }
         const Output<Node>& X = lstm_cell->input_value(0);
@@ -82,6 +86,6 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_cell, "LSTMCellDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, matcher_name);
     register_matcher(m, callback);
 }

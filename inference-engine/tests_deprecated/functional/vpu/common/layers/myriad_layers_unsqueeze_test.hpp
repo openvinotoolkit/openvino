@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,9 +138,6 @@ R"V0G0N(
             </edges>
         </net>
 )V0G0N";
-
-    InferenceEngine::StatusCode st = InferenceEngine::OK;
-    InferenceEngine::ResponseDesc resp;
 
     InferenceEngine::TBlob<uint8_t> *weights_raw = new InferenceEngine::TBlob<uint8_t>(
         {InferenceEngine::Precision::U8,

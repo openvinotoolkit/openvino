@@ -35,7 +35,7 @@ To get pb-file from the archive contents, you need to do the following.
 
    
 
-2. Save and run the following script:
+2. Save and run the following Python script in `~/XLNet-Base/xlnet`:
 
 ```python
 from collections import namedtuple
@@ -92,7 +92,6 @@ with tf.Session() as sess:
         writer.flush()
 ```
 
-The script should save into `~/XLNet-Base/xlnet`.
 
 ## Download the Pre-Trained Large XLNet Model
 
@@ -120,7 +119,7 @@ To get pb-file from the archive contents, you need to do the following.
 
 
 
-2. Save and run the following script:
+2. Save and run the following Python script in `~/XLNet-Large/xlnet`:
 
 ```python
 from collections import namedtuple
@@ -184,7 +183,18 @@ The script should save into `~/XLNet-Large/xlnet`.
 ## Convert frozen TensorFlow XLNet Model to IR
 
 To generate the XLNet Intermediate Representation (IR) of the model, run the Model Optimizer with the following parameters:
-```sh
-python3 mo.py --input_model path-to-model/model_frozen.pb  --input "input_mask[50 1],input_ids[50 1],seg_ids[50 1]" --log_level DEBUG --disable_nhwc_to_nchw
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model path-to-model/model_frozen.pb  --input "input_mask[50 1],input_ids[50 1],seg_ids[50 1]" --log_level DEBUG --disable_nhwc_to_nchw --output_dir <OUTPUT_MODEL_DIR>
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model path-to-model/model_frozen.pb  --input "input_mask[50 1],input_ids[50 1],seg_ids[50 1]" --log_level DEBUG --disable_nhwc_to_nchw --output_dir <OUTPUT_MODEL_DIR>
+
+@endsphinxdirective
 

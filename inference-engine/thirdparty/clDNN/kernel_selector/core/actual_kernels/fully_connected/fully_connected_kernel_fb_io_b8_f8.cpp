@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "fully_connected_kernel_fb_io_b8_f8.h"
 #include <algorithm>
@@ -92,20 +81,22 @@ bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params
 KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, const optional_params& optParams) const {
     assert(params.GetType() == KernelType::FULLY_CONNECTED);
     KernelsData res = {};
-    const auto& orgParams = static_cast<const fully_connected_params&>(params);
-
-    float estimated_time = orgParams.inputs[0].GetDType() == Datatype::F16 && orgParams.output.Batch().v >= 16
-                               ? FORCE_PRIORITY_3
-                               : FORCE_PRIORITY_5;
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd =
-            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, estimated_time, static_cast<int>(i));
+            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
     }
 
     return res;
+}
+
+KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const fully_connected_params&>(params);
+
+    return p.inputs[0].GetDType() == Datatype::F16 && p.output.Batch().v >= 16 ? FORCE_PRIORITY_3
+                                                                               : FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -100,7 +87,10 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
     weights_value = np.array(weights_node.value)
     bias_value = np.array(bias_node.value) if has_biases else None
 
-    feature_dim = 3 if graph.graph['layout'] == 'NHWC' else 0
+    # gconv.get_weights_permute.perm contains permutation indices
+    # where feature dimension is set to zero position, so 0 value
+    # in gconv.get_weights_permute.inv indicates original feature dimension index
+    feature_dim = np.where(gconv.get_weights_permute.inv == 0)[0][0]
 
     for conv in conv_nodes[1:]:
         weights_value = np.concatenate((weights_value, conv.in_node(1).value), axis=feature_dim)

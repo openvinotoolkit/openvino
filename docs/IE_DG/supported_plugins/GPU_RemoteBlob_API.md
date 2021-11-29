@@ -4,13 +4,13 @@ Remote Blob API of GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU_Remote
 The GPU plugin implementation of the `RemoteContext` and `RemoteBlob` interfaces supports GPU 
 pipeline developers who need video memory sharing and interoperability with existing native APIs 
 such as OpenCL\*, Microsoft DirectX\*, or VAAPI\*.
-Using these interfaces allows to avoid any memory copy overhead when plugging the OpenVINO™ inference 
+Using these interfaces allows you to avoid any memory copy overhead when plugging the OpenVINO™ inference 
 into an existing GPU pipeline. It also enables OpenCL kernels participating in the pipeline to become 
 native buffer consumers or producers of the OpenVINO™ inference.
 Since the GPU plugin works on top of the clDNN library, the functionality above is also implemented 
 using OpenCL and its sharing extensions provided by Intel®.
 
-There are two interoperability scenarios that are supported for the Remote Blob API:
+There are two interoperability scenarios supported by the Remote Blob API:
 
 * GPU plugin context and memory objects can be constructed from low-level device, display, or memory 
 handles and used to create the OpenVINO™ `ExecutableNetwork` or `Blob` class. 
@@ -44,8 +44,8 @@ To request the internal context of the given `ExecutableNetwork`, use the `GetCo
 
 ## Shared Blob User-Side Wrappers
 
-The classes that implement the `RemoteBlob` interface both are wrappers for native API 
-memory handles (which can be obtained from them at any moment) and act just like regular OpenVINO™ 
+The classes that implement the `RemoteBlob` interface are both wrappers for native API 
+memory handles (which can be obtained from them at any time) and act just like regular OpenVINO™ 
 `Blob` objects.
 
 Once you obtain the context, you can use it to compile a new `ExecutableNetwork` or create `RemoteBlob` 
@@ -102,15 +102,15 @@ Refer to the sections below to see pseudo-code of usage examples.
 
 This example uses the OpenCL context obtained from an executable network object.
 
-@snippet openvino/docs/snippets/GPU_RemoteBlob_API0.cpp part0
+@snippet snippets/GPU_RemoteBlob_API0.cpp part0
 
 ### Running GPU Plugin Inference within User-Supplied Shared Context
 
-@snippet openvino/docs/snippets/GPU_RemoteBlob_API1.cpp part1
+@snippet snippets/GPU_RemoteBlob_API1.cpp part1
 
 ### Direct Consuming of the NV12 VAAPI Video Decoder Surface on Linux
 
-@snippet openvino/docs/snippets/GPU_RemoteBlob_API2.cpp part2
+@snippet snippets/GPU_RemoteBlob_API2.cpp part2
 
 ## See Also
 

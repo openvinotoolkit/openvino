@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
+#include "itt.hpp"
 
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
@@ -31,6 +20,11 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::HardSigmoid::type_info;
 
+op::HardSigmoid::HardSigmoid()
+    : FusedOp()
+{
+}
+
 op::HardSigmoid::HardSigmoid(const Output<Node>& data,
                              const Output<Node>& alpha,
                              const Output<Node>& beta)
@@ -41,6 +35,7 @@ op::HardSigmoid::HardSigmoid(const Output<Node>& data,
 
 bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_HardSigmoid_visit_attributes);
     return true;
 }
 
@@ -75,6 +70,8 @@ void op::HardSigmoid::pre_validate_and_infer_types()
         this,
         data_et == alpha_et && data_et == beta_et,
         "The element types of both alpha and beta inputs must match the data input type.");
+
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 OutputVector op::HardSigmoid::decompose_op() const
@@ -102,6 +99,7 @@ OutputVector op::HardSigmoid::decompose_op() const
 
 shared_ptr<Node> op::HardSigmoid::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_HardSigmoid_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     return make_shared<HardSigmoid>(new_args.at(0), new_args.at(1), new_args.at(2));

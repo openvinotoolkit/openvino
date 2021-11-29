@@ -1,9 +1,7 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
 #include "behavior/version.hpp"
 
 using namespace BehaviorTestsDefinitions;

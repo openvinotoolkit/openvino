@@ -1,33 +1,16 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
-from tests import (xfail_issue_34323,
-                   skip_segfault,
-                   xfail_issue_34327,
-                   xfail_issue_36485,
-                   xfail_issue_36486,
-                   xfail_issue_34314,
-                   xfail_issue_36487)
+from tests import (xfail_issue_36486,
+                   xfail_issue_36487,
+                   xfail_issue_44976)
 
 
-@xfail_issue_34323
 def test_elu_operator_with_scalar_and_array():
     runtime = get_runtime()
 
@@ -59,7 +42,7 @@ def test_elu_operator_with_scalar():
     assert np.allclose(result, expected)
 
 
-@skip_segfault
+@xfail_issue_44976
 def test_fake_quantize():
     runtime = get_runtime()
 
@@ -150,7 +133,6 @@ def test_depth_to_space():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34327
 def test_space_to_batch():
     runtime = get_runtime()
 
@@ -187,7 +169,6 @@ def test_space_to_batch():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34327
 def test_batch_to_space():
     runtime = get_runtime()
 
@@ -225,37 +206,6 @@ def test_batch_to_space():
     assert np.allclose(result, expected)
 
 
-def test_gelu_operator_with_parameters():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
-
-    data_shape = [2, 2]
-    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
-
-    model = ng.gelu(parameter_data)
-    computation = runtime.computation(model, parameter_data)
-
-    result = computation(data_value)
-    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected, 0.007, 0.007)
-
-
-@xfail_issue_34323
-def test_gelu_operator_with_array():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
-
-    model = ng.gelu(data_value)
-    computation = runtime.computation(model)
-
-    result = computation()
-    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-
-    assert np.allclose(result, expected, 0.007, 0.007)
-
-
 def test_clamp_operator():
     runtime = get_runtime()
 
@@ -274,7 +224,6 @@ def test_clamp_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_clamp_operator_with_array():
     runtime = get_runtime()
 
@@ -326,7 +275,6 @@ def test_squared_difference_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_36485
 def test_shuffle_channels_operator():
     runtime = get_runtime()
 
@@ -536,7 +484,6 @@ def test_mvn_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34314
 def test_space_to_depth_operator():
     runtime = get_runtime()
 

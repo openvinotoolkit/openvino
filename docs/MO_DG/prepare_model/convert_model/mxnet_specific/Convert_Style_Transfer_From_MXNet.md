@@ -11,6 +11,8 @@ To use the style transfer sample from OpenVINO&trade;, follow the steps below as
 sudo apt-get install python-tk
 ```
 
+Installing python-tk step is needed only for Linux, as it is included by default in Python\* for Windows\*.
+
 2. Install Python\* requirements:
 ```sh
 pip3 install --user mxnet
@@ -64,32 +66,31 @@ arg_dict.update(args)
 
 6. Use `arg_dict` instead of `args` as a parameter of the `decoder.bind()` function. Replace the line:<br>
 ```py
-self.deco_executor = decoder.bind(ctx=mx.cpu(), args=args, aux_states=auxs)
+self.deco_executor = decoder.bind(ctx=mx.gpu(), args=args, aux_states=auxs)
 ```
 with the following:<br>
 ```py
 self.deco_executor = decoder.bind(ctx=mx.cpu(), args=arg_dict, aux_states=auxs)
 ```
-7. Replace all `mx.gpu` with `mx.cpu` in the `decoder.bind()` function.
-8. To save the result model as a `.json` file, add the following code to the end of the `generate()` function in the `Maker` class:<br>
+7. To save the result model as a `.json` file, add the following code to the end of the `generate()` function in the `Maker` class:<br>
 ```py
 self.vgg_executor._symbol.save('{}-symbol.json'.format('vgg19'))
 self.deco_executor._symbol.save('{}-symbol.json'.format('nst_vgg19'))
 ```
-9. Save and close the `make_image.py` file.
+8. Save and close the `make_image.py` file.
 
-#### 5. Run the sample with a decoder model according to the instructions from the `README.md` file in the cloned repository.
+#### 5. Run the sample with a decoder model according to the instructions from the `README.md` file in the `fast_mrf_cnn` directory of the cloned repository.
 For example, to run the sample with the pre-trained decoder weights from the `models` folder and output shape, use the following code:<br>
 ```py
 import make_image
 maker = make_image.Maker('models/13', (1024, 768))
 maker.generate('output.jpg', '../images/tubingen.jpg')
 ```
-Where `'models/13'` string is composed of the following sub-strings: 
-* `'models/'` - path to the folder that contains .nd files with pre-trained styles weights and `'13'`
-*  Decoder prefix: the repository contains a default decoder, which is the 13_decoder. 
+Where the `models/13` string is composed of the following substrings: 
+* `models/`: path to the folder that contains .nd files with pre-trained styles weights 
+* `13`: prefix pointing to 13_decoder, which is the default decoder for the repository
 
-You can choose any style from [collection of pre-trained weights](https://pan.baidu.com/s/1skMHqYp). The `generate()` function generates `nst_vgg19-symbol.json` and `vgg19-symbol.json` files for the specified shape. In the code, it is [1024 x 768] for a 4:3 ratio, and you can specify another, for example, [224,224] for a square ratio.
+You can choose any style from [collection of pre-trained weights](https://pan.baidu.com/s/1skMHqYp). (On the Chinese-language page, click the down arrow next to a size in megabytes. Then wait for an overlay box to appear, and click the blue button in it to download.) The `generate()` function generates `nst_vgg19-symbol.json` and `vgg19-symbol.json` files for the specified shape. In the code, it is [1024 x 768] for a 4:3 ratio, and you can specify another, for example, [224,224] for a square ratio.
 
 #### 6. Run the Model Optimizer to generate an Intermediate Representation (IR):
 
@@ -108,7 +109,19 @@ cp models/13_decoder_auxs.nd nst_model
 > **NOTE**: Make sure that all the `.params` and `.json` files are in the same directory as the `.nd` files. Otherwise, the conversion process fails.
 
 3. Run the Model Optimizer for MXNet. Use the `--nd_prefix_name` option to specify the decoder prefix and `--input_shape` to specify input shapes in [N,C,W,H] order. For example:<br>
-```sh
-python3 mo.py --input_symbol <path/to/nst_model>/nst_vgg19-symbol.json --framework mxnet --output_dir <path/to/output_dir> --input_shape [1,3,224,224] --nd_prefix_name 13_decoder --pretrained_model <path/to/nst_model>/vgg19-0000.params
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_symbol <path/to/nst_model>/nst_vgg19-symbol.json --framework mxnet --output_dir <path/to/output_dir> --input_shape [1,3,224,224] --nd_prefix_name 13_decoder --pretrained_model <path/to/nst_model>/vgg19-0000.params
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_symbol <path/to/nst_model>/nst_vgg19-symbol.json --framework mxnet --output_dir <path/to/output_dir> --input_shape [1,3,224,224] --nd_prefix_name 13_decoder --pretrained_model <path/to/nst_model>/vgg19-0000.params
+
+@endsphinxdirective
+
 4. The IR is generated (`.bin`, `.xml` and `.mapping` files) in the specified output directory and ready to be consumed by the Inference Engine. 

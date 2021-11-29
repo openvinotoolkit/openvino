@@ -1,4 +1,4 @@
-## LogicalOr <a name="LogicalOr"></a> {#openvino_docs_ops_logical_LogicalOr_1}
+# LogicalOr {#openvino_docs_ops_logical_LogicalOr_1}
 
 **Versioned name**: *LogicalOr-1*
 

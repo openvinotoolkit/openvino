@@ -1,4 +1,4 @@
-## ReorgYolo Layer <a name="ReorgYolo"></a> {#openvino_docs_ops_detection_ReorgYolo_1}
+# ReorgYolo Layer {#openvino_docs_ops_detection_ReorgYolo_1}
 
 **Versioned name**: *ReorgYolo-1*
 
@@ -26,7 +26,7 @@
 
 **Outputs**:
 
-*   **1**: 4D output tensor of the same type as input tensor and shape `[N, C*stride*stride, H/stride, W/stride]`. Required.
+*   **1**: 4D output tensor of the same type as input tensor and shape `[N, C*stride*stride, H/stride, W/stride]`.
 
 **Example**
 

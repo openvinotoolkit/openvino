@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,7 +100,7 @@ std::string MvncTestsCommon::getMyriadFirmwarePath(const deviceDesc_t& in_device
 #else
         const std::string extension = "mvcmd";
 #endif
-        return firmwareDir + std::string("pcie-ma248x.") + extension;
+        return firmwareDir + std::string("pcie-ma2x8x.") + extension;
     }
 
     return getMyriadUSBFirmwarePath(in_deviceDesc.name);

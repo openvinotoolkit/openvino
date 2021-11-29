@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 
 import numpy as np
@@ -26,9 +14,6 @@ from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_35929,
-                   xfail_issue_36476,
-                   xfail_issue_36480)
 
 
 def test_ngraph_function_api():
@@ -59,14 +44,14 @@ def test_ngraph_function_api():
     "dtype",
     [
         np.float32,
-        pytest.param(np.float64, marks=xfail_issue_35929),
+        np.float64,
         np.int8,
         np.int16,
         np.int32,
         np.int64,
         np.uint8,
         np.uint16,
-        pytest.param(np.uint32, marks=xfail_issue_36476),
+        np.uint32,
         np.uint64,
     ],
 )
@@ -82,15 +67,15 @@ def test_simple_computation_on_ndarrays(dtype):
 
     value_a = np.array([[1, 2], [3, 4]], dtype=dtype)
     value_b = np.array([[5, 6], [7, 8]], dtype=dtype)
-    value_c = np.array([[9, 10], [11, 12]], dtype=dtype)
+    value_c = np.array([[2, 3], [4, 5]], dtype=dtype)
     result = computation(value_a, value_b, value_c)
-    assert np.allclose(result, np.array([[54, 80], [110, 144]], dtype=dtype))
+    assert np.allclose(result, np.array([[12, 24], [40, 60]], dtype=dtype))
 
-    value_a = np.array([[13, 14], [15, 16]], dtype=dtype)
-    value_b = np.array([[17, 18], [19, 20]], dtype=dtype)
-    value_c = np.array([[21, 22], [23, 24]], dtype=dtype)
+    value_a = np.array([[9, 10], [11, 12]], dtype=dtype)
+    value_b = np.array([[13, 14], [15, 16]], dtype=dtype)
+    value_c = np.array([[5, 4], [3, 2]], dtype=dtype)
     result = computation(value_a, value_b, value_c)
-    assert np.allclose(result, np.array([[630, 704], [782, 864]], dtype=dtype))
+    assert np.allclose(result, np.array([[110, 96], [78, 56]], dtype=dtype))
 
 
 def test_serialization():
@@ -155,9 +140,9 @@ def test_convert_to_bool(destination_type, input_data):
     "destination_type, rand_range, in_dtype, expected_type",
     [
         pytest.param(np.float32, (-8, 8), np.int32, np.float32),
-        pytest.param(np.float64, (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
+        pytest.param(np.float64, (-16383, 16383), np.int64, np.float64),
         pytest.param("f32", (-8, 8), np.int32, np.float32),
-        pytest.param("f64", (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
+        pytest.param("f64", (-16383, 16383), np.int64, np.float64),
     ],
 )
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
@@ -169,7 +154,6 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -185,14 +169,13 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
 )
 def test_convert_to_int(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = np.ceil(-8 + np.random.rand(2, 3, 4) * 16)
+    input_data = (np.ceil(-8 + np.random.rand(2, 3, 4) * 16)).astype(np.float32)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ng.convert, destination_type)
     assert np.allclose(result, expected)
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -208,7 +191,7 @@ def test_convert_to_int(destination_type, expected_type):
 )
 def test_convert_to_uint(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
+    input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(np.float32)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ng.convert, destination_type)
     assert np.allclose(result, expected)
@@ -268,14 +251,6 @@ def test_constant_get_data_unsigned_integer(data_type):
     node = ng.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
-
-
-@xfail_issue_36480
-def test_backend_config():
-    dummy_config = {"dummy_option": "dummy_value"}
-    # Expect no throw
-    runtime = get_runtime()
-    runtime.set_config(dummy_config)
 
 
 def test_result():
@@ -409,3 +384,44 @@ def test_runtime_info():
     runtime_info_after = relu_node.get_rt_info()
 
     assert runtime_info_after["affinity"] == "test_affinity"
+
+
+def test_mutiple_outputs():
+    input_shape = [4, 4]
+    input_data = np.arange(-8, 8).reshape(input_shape)
+
+    expected_output = np.split(input_data, 2, axis=1)[0]
+    expected_output[expected_output < 0] = 0
+
+    test_param = ng.parameter(input_shape, dtype=np.float32, name="A")
+    split = ng.split(test_param, axis=1, num_splits=2)
+    split_first_output = split.output(0)
+    relu = ng.relu(split_first_output)
+
+    runtime = get_runtime()
+    computation = runtime.computation(relu, test_param)
+    output = computation(input_data)
+
+    assert np.equal(output, expected_output).all()
+
+
+def test_sink_function_ctor():
+    input_data = ng.parameter([2, 2], name="input_data", dtype=np.float32)
+    rv = ng.read_value(input_data, "var_id_667")
+    add = ng.add(rv, input_data, name="MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    function = Function(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
+
+    ordered_ops = function.get_ordered_ops()
+    op_types = [op.get_type_name() for op in ordered_ops]
+    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
+    assert len(function.get_ops()) == 5
+    assert function.get_output_size() == 1
+    assert function.get_output_op(0).get_type_name() == "Result"
+    assert function.get_output_element_type(0) == input_data.get_element_type()
+    assert list(function.get_output_shape(0)) == [2, 2]
+    assert (function.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
+    assert len(function.get_parameters()) == 1
+    assert len(function.get_results()) == 1
+    assert function.get_friendly_name() == "TestFunction"

@@ -1,23 +1,10 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
-import pytest
 
 import ngraph as ng
-from ngraph.impl import Type
+from ngraph.impl import Type, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -76,17 +63,17 @@ def test_reverse_sequence():
         ],
         dtype=np.int32,
     ).reshape([2, 3, 4, 2])
-    seq_lenghts = np.array([1, 2, 1, 2], dtype=np.int32)
+    seq_lengths = np.array([1, 2, 1, 2], dtype=np.int32)
     batch_axis = 2
     sequence_axis = 1
 
     input_param = ng.parameter(input_data.shape, name="input", dtype=np.int32)
-    seq_lengths_param = ng.parameter(seq_lenghts.shape, name="sequence lengths", dtype=np.int32)
+    seq_lengths_param = ng.parameter(seq_lengths.shape, name="sequence lengths", dtype=np.int32)
     model = ng.reverse_sequence(input_param, seq_lengths_param, batch_axis, sequence_axis)
 
     runtime = get_runtime()
     computation = runtime.computation(model, input_param, seq_lengths_param)
-    result = computation(input_data, seq_lenghts)
+    result = computation(input_data, seq_lengths)
 
     expected = np.array(
         [
@@ -167,7 +154,6 @@ def test_pad_edge():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="AssertionError")
 def test_pad_constant():
     input_data = np.arange(1, 13).reshape([3, 4])
     pads_begin = np.array([0, 1], dtype=np.int32)
@@ -212,6 +198,21 @@ def test_gather_nd():
 
     node = ng.gather_nd(data, indices, batch_dims)
     assert node.get_type_name() == "GatherND"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_gather_elements():
+    indices_type = np.int32
+    data_dtype = np.float32
+    data = ng.parameter(Shape([2, 5]), dtype=data_dtype, name="data")
+    indices = ng.parameter(Shape([2, 100]), dtype=indices_type, name="indices")
+    axis = 1
+    expected_shape = [2, 100]
+
+    node = ng.gather_elements(data, indices, axis)
+    assert node.get_type_name() == "GatherElements"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
     assert node.get_output_element_type(0) == Type.f32

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <utility>
 
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 
 #include <vpu/backend/blob_format.hpp>
 #include <vpu/model/data_desc.hpp>

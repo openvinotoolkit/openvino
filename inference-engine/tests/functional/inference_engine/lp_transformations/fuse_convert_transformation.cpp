@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,9 @@
 #include "low_precision/fuse_convert.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/fuse_convert_function.hpp"
+#include "lpt_ngraph_functions/fuse_convert_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -158,6 +158,20 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
             }
         }
     },
+    // Convert with unexpected precision
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        false,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{ ngraph::element::i32 }, {}, {3.f}}
+        },
+        {
+            ngraph::element::f32,
+            {{ ngraph::element::i32 }, {}, {3.f}}
+        }
+    },
 };
 
 TEST_P(FuseConvertTransformation, CompareFunctions) {
@@ -167,7 +181,7 @@ TEST_P(FuseConvertTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-        LPT,
-        FuseConvertTransformation,
-        ::testing::ValuesIn(testValues),
-        FuseConvertTransformation::getTestCaseName);
+    smoke_LPT,
+    FuseConvertTransformation,
+    ::testing::ValuesIn(testValues),
+    FuseConvertTransformation::getTestCaseName);

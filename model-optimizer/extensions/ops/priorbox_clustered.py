@@ -1,23 +1,10 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
-from mo.front.extractor import attr_getter
+from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -34,6 +21,7 @@ class PriorBoxClusteredOp(Op):
             'out_ports_count': 1,
             'infer': self.priorbox_clustered_infer,
             'type_infer': self.type_infer,
+            'clip': True,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -55,9 +43,8 @@ class PriorBoxClusteredOp(Op):
 
     def backend_attrs(self):
         return [
-            'flip',
-            'clip',
-            'img_size',
+            ('clip', lambda node: int(node.clip)),  # We need to convert this boolean attribute value to int to keep
+            # forward compatibility with IE 2021.2
             'img_h',
             'img_w',
             'step',

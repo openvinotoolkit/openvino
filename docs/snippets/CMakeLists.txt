@@ -15,7 +15,12 @@ if(NOT CLDNN__IOCL_ICD_INCDIRS OR TRUE)
 endif()
 
 # remove OpenCV related sources
-find_package(OpenCV QUIET)
+if (ENABLE_OPENCV)
+  find_package(OpenCV QUIET)
+else()
+  set(OpenCV_FOUND FALSE)
+endif()
+
 if(NOT OpenCV_FOUND)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide5.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
@@ -54,4 +59,12 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(${TARGET_NAME} PRIVATE onnx_importer)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api ngraph)
+if(NOT MSVC)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-but-set-variable)
+    endif()
+endif()
+
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api
+    ngraph inference_engine_transformations)

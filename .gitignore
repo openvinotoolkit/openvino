@@ -2,6 +2,8 @@
 _*
 # but ensure we don't skip __init__.py
 !__init__.py
+# and sphinx documentation folders
+!docs/_*
 
 # developer tools
 *.idea

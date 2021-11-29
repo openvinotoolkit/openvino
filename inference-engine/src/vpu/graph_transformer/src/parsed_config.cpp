@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include <map>
 
 #include <debug.h>
-#include <cpp_interfaces/exception2status.hpp>
 #include <ie_plugin_config.hpp>
 
 #include <vpu/utils/string.hpp>
@@ -52,7 +51,7 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_TENSOR_STRIDES,
 
-        ie::MYRIAD_IR_WITH_SCALES_DIRECTORY,
+        ie::MYRIAD_SCALES_PATTERN,
         ie::MYRIAD_DETECT_NETWORK_BATCH,
         ie::MYRIAD_COPY_OPTIMIZATION,
         ie::MYRIAD_HW_INJECT_STAGES,
@@ -68,6 +67,9 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR,
         ie::MYRIAD_DISABLE_CONVERT_STAGES,
         ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS,
+        ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL,
+        ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION,
+        ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM,
 
         //
         // Debug options
@@ -183,9 +185,12 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enableTensorIteratorUnrolling,  switches, config, ie::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING);
     setOption(_compileConfig.forcePureTensorIterator,        switches, config, ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR);
     setOption(_compileConfig.disableConvertStages,           switches, config, ie::MYRIAD_DISABLE_CONVERT_STAGES);
-    setOption(_compileConfig.enableWeightsAnalysis,         switches, config, ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
+    setOption(_compileConfig.enableWeightsAnalysis,          switches, config, ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
+    setOption(_compileConfig.checkPreprocessingInsideModel,  switches, config, ie::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL);
+    setOption(_compileConfig.enableEarlyEltwiseReLUFusion,   switches, config, ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
+    setOption(_compileConfig.enableCustomReshapeParam,       switches, config, ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
 
-    setOption(_compileConfig.irWithVpuScalesDir,                       config, ie::MYRIAD_IR_WITH_SCALES_DIRECTORY);
+    setOption(_compileConfig.VPUScalesOption,                          config, ie::MYRIAD_SCALES_PATTERN);
     setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
     setOption(_compileConfig.hwWhiteList,                              config, ie::MYRIAD_HW_WHITE_LIST, parseStringSet);
     setOption(_compileConfig.hwBlackList,                              config, ie::MYRIAD_HW_BLACK_LIST, parseStringSet);
@@ -221,7 +226,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     if ((_compileConfig.numSHAVEs < 0 && _compileConfig.numCMXSlices >= 0) ||
         (_compileConfig.numSHAVEs >= 0 && _compileConfig.numCMXSlices < 0)) {
-        THROW_IE_EXCEPTION << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
+        IE_THROW() << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
     }
 
     setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);

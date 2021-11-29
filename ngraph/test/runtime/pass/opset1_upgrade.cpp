@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include "opset1_upgrade.hpp"
 
 #include <functional>
@@ -49,40 +38,6 @@ namespace opset1_upgrade
 
     // Default is that we didn nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::Add> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Add, op::v1::Add>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v0::Convolution> node)
-    {
-        auto strides = node->get_window_movement_strides();
-        auto dilations = node->get_window_dilation_strides();
-        auto pads_begin = node->get_padding_below();
-        auto pads_end = node->get_padding_above();
-        auto data_dilation_strides = node->get_data_dilation_strides();
-        auto auto_pad = node->get_pad_type();
-
-        bool is_dds_valid = all_of(data_dilation_strides.begin(),
-                                   data_dilation_strides.end(),
-                                   [](size_t value) { return value == 1; });
-
-        NGRAPH_CHECK(is_dds_valid,
-                     "Unable to convert Convolution:0 to Convolution:1 with data dilation strides "
-                     "other than `1`. Node: ",
-                     *node);
-
-        auto replacement_node = make_shared<op::v1::Convolution>(node->input_value(0),
-                                                                 node->input_value(1),
-                                                                 strides,
-                                                                 pads_begin,
-                                                                 pads_end,
-                                                                 dilations,
-                                                                 auto_pad);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
     {
         auto data_batch_shape = node->get_data_batch_shape();
@@ -115,31 +70,6 @@ namespace opset1_upgrade
             dilations);
         replace_node(node, replacement_node);
         return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Divide> node)
-    {
-        const auto autob = node->get_autob();
-        const bool pydiv = node->is_pythondiv();
-        auto replacement_node =
-            make_shared<op::v1::Divide>(node->input_value(0), node->input_value(1), pydiv, autob);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Equal> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Greater> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Greater, op::v1::Greater>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::GreaterEq> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::GreaterEq, op::v1::GreaterEqual>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v0::GroupConvolution> node)
@@ -236,112 +166,6 @@ namespace opset1_upgrade
             pads_end,
             dilations);
         replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Less> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Less, op::v1::Less>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::LessEq> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::LessEq, op::v1::LessEqual>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Maximum> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Maximum, op::v1::Maximum>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Minimum> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Minimum, op::v1::Minimum>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Multiply> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Multiply, op::v1::Multiply>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::NotEqual> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::NotEqual, op::v1::NotEqual>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Power> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Select> node)
-    {
-        auto replacement_node = make_shared<op::v1::Select>(node->input_value(0),
-                                                            node->input_value(1),
-                                                            node->input_value(2),
-                                                            op::AutoBroadcastSpec());
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Softmax> node)
-    {
-        NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
-                     "axes parameter is expected to be a static constant");
-
-        AxisSet axes = node->get_axes();
-
-        NGRAPH_CHECK(
-            axes.size() == 1,
-            "Unable to convert Softmax:0 to Softmax:1 with zero or more than one axis. Node: ",
-            *node);
-
-        auto replacement_node =
-            make_shared<op::v1::Softmax>(node->input_value(0), axes.to_vector()[0]);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Subtract> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::TopK> node)
-    {
-        NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
-                     "parameter k is expected to be a static constant");
-        NGRAPH_CHECK(op::is_constant(node->input_value(2).get_node()),
-                     "parameter top_k_axis is expected to be a static constant");
-
-        const auto k = node->get_k();
-        const auto axis = node->get_top_k_axis();
-
-        std::string sort;
-        switch (node->get_sort())
-        {
-        case op::TopK::SortType::SORT_INDICES: sort = "index"; break;
-        case op::TopK::SortType::SORT_VALUES: sort = "value"; break;
-        case op::TopK::SortType::NONE: sort = "none"; break;
-        }
-
-        std::string mode;
-        if (node->get_compute_max())
-        {
-            mode = "max";
-        }
-        else
-        {
-            mode = "min";
-        }
-
-        const auto k_constant = op::Constant::create(element::i64, Shape{}, {k});
-        auto replacement_node =
-            make_shared<op::v1::TopK>(node->input_value(0), k_constant, axis, mode, sort);
-
-        // indices output will be 0, values 1
-        vector<int64_t> output_order{1, 0};
-        replace_node(node, replacement_node, output_order);
         return replacement_node;
     }
 

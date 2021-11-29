@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 #include "vpu/private_plugin_config.hpp"
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 
 namespace LayerTestsUtils {
@@ -29,6 +29,7 @@ class DSR_TestsCommon : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     std::unordered_map<std::string, DataShape> m_shapes;
     ngraph::ParameterVector m_parameterVector;
+    ngraph::ResultVector m_additionalResults;
 
     std::shared_ptr<ngraph::opset3::Parameter> createParameter(
             const ngraph::element::Type& element_type,
@@ -58,6 +59,7 @@ protected:
     virtual std::shared_ptr<ngraph::Node> createTestedOp() = 0;
 
     void SetUp() override {
+        // TODO: Replace CONSTANT_FOLDING to INTERPRETER
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
         if (CommonTestUtils::vpu::CheckMyriad2()) {
@@ -69,6 +71,7 @@ protected:
         for (const auto& output : testedOp->outputs()) {
             results.emplace_back(std::make_shared<ngraph::opset3::Result>(output));
         }
+        results.insert(results.end(), m_additionalResults.begin(), m_additionalResults.end());
 
         function = std::make_shared<ngraph::Function>(
                 results,

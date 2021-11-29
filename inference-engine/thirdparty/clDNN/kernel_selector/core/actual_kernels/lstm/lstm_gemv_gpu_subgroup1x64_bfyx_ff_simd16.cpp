@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "lstm_gemv_gpu_subgroup1x64_bfyx_ff_simd16.h"
 #include "kernel_selector_utils.h"
@@ -45,14 +33,21 @@ KernelsData LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16::GetKernelsData(const Par
     // 2) The input size y-x size is 64x1
     const lstm_gemm_params& orgParams = static_cast<const lstm_gemm_params&>(params);
     const auto& input = orgParams.inputs[0];
+    const auto& out = orgParams.output;
 
-    if ((input.Batch().v == 1) && (input.X().v >= 64) && (input.Y().v == 1)) {
-        auto out = orgParams.output;
-
+    if ((input.Batch().v == 1) && (input.X().v >= 64) && (input.Y().v == 1))
         kernel.workGroups.global = {16, out.X().v, out.Batch().v};
-        kernelsData[0].estimatedTime = FORCE_PRIORITY_1;
-    }
 
     return kernelsData;
+}
+
+KernelsPriority LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const lstm_gemm_params& orgParams = static_cast<const lstm_gemm_params&>(params);
+    const auto& input = orgParams.inputs[0];
+
+    if ((input.Batch().v == 1) && (input.X().v >= 64) && (input.Y().v == 1))
+        return FORCE_PRIORITY_1;
+    else
+        return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

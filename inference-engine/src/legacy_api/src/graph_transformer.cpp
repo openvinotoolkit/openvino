@@ -1,7 +1,6 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #include <iterator>
 #include <map>
@@ -65,13 +64,13 @@ static std::vector<DataPtr> get_outputs(details::CNNNetworkImpl* _network) {
 ConstTransformer::ConstTransformer(details::CNNNetworkImpl* _network)
         : network(_network), inputs(get_inputs(_network)), outputs(get_outputs(_network)) {
     if (!_network)
-        THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with null pointer of network";
+        IE_THROW() << "[ERROR]: Failed to init ConstTransformer with null pointer of network";
 }
 
 ConstTransformer::ConstTransformer(std::vector<DataPtr> &_inputs, std::vector<DataPtr> &_outputs)
         : network(nullptr), inputs(_inputs), outputs(_outputs) {
     if (inputs.empty() || outputs.empty())
-        THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with empty list of inputs or outputs";
+        IE_THROW() << "[ERROR]: Failed to init ConstTransformer with empty list of inputs or outputs";
 }
 
 std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std::map<std::string, bool>& constLayers,
@@ -218,6 +217,11 @@ static std::vector<std::string> skipConstInfer = {
     "CumSum",     // Const inference function for CumSum is not implemented
     "Convolution", // Const inference function for Convolution is not implemented
     "Eltwise",  // Const inference function for Eltwise is not implemented
+    "FullyConnected",
+    "Squeeze",
+    "TensorIterator",
+    "LSTMSequence",
+    "MVN"
 };
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
@@ -252,7 +256,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         auto currentLayer = (*rit);
         std::string currentLayerName = currentLayer->name;
         bool isCurrentConst = mapConstLayers.find(currentLayerName) != mapConstLayers.end();
-        for (int i = 0; i < currentLayer->insData.size(); i++) {
+        for (size_t i = 0; i < currentLayer->insData.size(); i++) {
             std::string creatorName;
             if (currentLayer->insData[i].lock() != nullptr) {
                 auto creator = getCreatorLayer(currentLayer->insData[i].lock()).lock();
@@ -295,37 +299,6 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
 const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& constLayers,
                                              const std::vector<CNNLayerPtr>& sortedLayers) {
     BlobMap constData;
-    auto getInputBlobs = [&constData](const std::vector<DataWeakPtr>& insData,
-                                      bool isForShape) -> std::vector<Blob::CPtr> {
-        std::vector<Blob::CPtr> inputBlobs;
-        // special case of Const layers: no inputs, no input blobs
-        if (insData.empty()) {
-            return {};
-        }
-        for (const auto& data : insData) {
-            std::string dataName = data.lock()->getName();
-            if (constData.find(dataName) != constData.end()) {
-                // get blobs, inferred before
-                inputBlobs.push_back(constData.at(dataName));
-            } else {
-                // special case of Shape layer: no input data, but blob contains info about dimensions, layout and
-                // etc...
-                auto blob = make_blob_with_precision(data.lock()->getTensorDesc());
-                inputBlobs.push_back(blob);
-            }
-        }
-        return inputBlobs;
-    };
-
-    auto getOutputBlobs = [](const std::vector<DataPtr>& outData) -> std::vector<Blob::Ptr> {
-        std::vector<Blob::Ptr> outputBlobs;
-        for (const auto& data : outData) {
-            auto blob = make_blob_with_precision(data->getTensorDesc());
-            blob->allocate();
-            outputBlobs.push_back(blob);
-        }
-        return outputBlobs;
-    };
 
     for (const auto& layer : sortedLayers) {
         if (constLayers.find(layer->name) != constLayers.end()) {
@@ -333,13 +306,13 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
             bool isForShape = constLayers.at(layerName);
 
             if (!isForShape && layer->type != "Const")
-                THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + layer->name +
+                IE_THROW() << "Failed to find reference implementation for `" + layer->name +
                                       "` Layer with `" + layer->type + "` Type on constant propagation";
             if (!isForShape) {
                 auto & blobs = layer->blobs;
                 auto it = blobs.find("custom");
                 if (it == blobs.end())
-                    THROW_IE_EXCEPTION << "Missed `custom` blob in Const layer";
+                    IE_THROW() << "Missed `custom` blob in Const layer";
 
                 auto dataName = layer->outData[0]->getName();
                 constData[dataName] = (*it).second;
@@ -361,7 +334,7 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
 
     auto in_data = layer->insData[0].lock();
     if (in_data == nullptr)
-        THROW_IE_EXCEPTION << "Layer '" << layer->name << "' has invalid input data";
+        IE_THROW() << "Layer '" << layer->name << "' has invalid input data";
     auto out_data = layer->outData[0];
 
     auto precision = out_data->getPrecision();

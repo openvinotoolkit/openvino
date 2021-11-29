@@ -1,26 +1,14 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import argparse
 import ast
 import logging as log
 import os
 import re
-import sys
 from collections import OrderedDict
 from itertools import zip_longest
+from distutils.util import strtobool
 
 import numpy as np
 
@@ -266,6 +254,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'and biases are quantized to FP16.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
+    common_group.add_argument('--transform',
+                              help='Apply additional transformations. ' +
+                                   'Usage: "--transform transformation_name1[args],transformation_name2..." ' +
+                                   'where [args] is key=value pairs separated by semicolon. ' +
+                                   'Examples: "--transform LowLatency2" or ' +
+                                   '          "--transform LowLatency2[use_const_initializer=False]" ' +
+                                   'Available transformations: "LowLatency2"',
+                              default="")
     common_group.add_argument('--disable_fusing',
                               help='Turn off fusing of linear operations to Convolution',
                               action=DeprecatedStoreTrue)
@@ -337,6 +333,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--transformations_config',
                           help='Use the configuration file with transformations description.',
                           action=CanonicalizePathCheckExistenceAction)
+    common_group.add_argument('--legacy_ir_generation',
+                              help='Use legacy IR serialization engine',
+                              action=DeprecatedStoreTrue, default=False)
     return parser
 
 
@@ -418,6 +417,15 @@ def get_onnx_cli_options():
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
 
+def get_params_with_paths_list():
+    return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
+            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
+            'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+            'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
+            'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
+            'transformations_config']
+
+
 def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     """
     Specifies cli arguments for Model Optimizer for Caffe*
@@ -440,12 +448,12 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     caffe_group.add_argument('--caffe_parser_path',
                              help='Path to Python Caffe* parser generated from caffe.proto',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'mo', 'front', 'caffe', 'proto'),
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'extensions', 'front', 'caffe',
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions', 'front', 'caffe',
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
@@ -917,44 +925,35 @@ def parse_tuple_pairs(argv_values: str):
     if not argv_values:
         return res
 
-    data_str = argv_values
-    while True:
-        tuples_matches = re.findall(r'[(\[]([0-9., -]+)[)\]]', data_str, re.IGNORECASE)
-        if not tuples_matches :
-            raise Error(
-                "Mean/scale values should be in format: data(1,2,3),info(2,3,4)" +
-                " or just plain set of them without naming any inputs: (1,2,3),(2,3,4). " +
-                refer_to_faq_msg(101), argv_values)
-        tuple_value = tuples_matches[0]
-        matches = data_str.split(tuple_value)
+    matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
 
-        input_name = matches[0][:-1]
-        if not input_name:
-            res = []
-            # check that other values are specified w/o names
-            words_reg = r'([a-zA-Z]+)'
-            for i in range(0, len(matches)):
-                if re.search(words_reg, matches[i]) is not None:
-                    # error - tuple with name is also specified
-                    raise Error(
-                        "Mean/scale values should either contain names of input layers: data(1,2,3),info(2,3,4)" +
-                        " or just plain set of them without naming any inputs: (1,2,3),(2,3,4)." +
-                        refer_to_faq_msg(101), argv_values)
-            for match in tuples_matches:
-                res.append(np.fromstring(match, dtype=float, sep=','))
-            break
+    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets' \
+                'separated by comma, e.g. data(1,2,3),info[2,3,4],egg[255] or data(1,2,3). Or just plain set of ' \
+                'values without names: (1,2,3),(2,3,4) or [1,2,3],[2,3,4].' + refer_to_faq_msg(101)
+    if not matches:
+        raise Error(error_msg, argv_values)
 
-        res[input_name] = np.fromstring(tuple_value, dtype=float, sep=',')
+    name_start_idx = 0
+    name_was_present = False
+    for idx, match in enumerate(matches):
+        input_name = argv_values[name_start_idx:match.start(0)]
+        name_start_idx = match.end(0) + 1
+        tuple_value = np.fromstring(match.groups()[0], dtype=float, sep=',')
 
-        parenthesis = matches[0][-1]
-        sibling = ')' if parenthesis == '(' else ']'
-        pair = '{}{}{}{}'.format(input_name, parenthesis, tuple_value, sibling)
-        idx_substr = data_str.index(pair)
-        data_str = data_str[idx_substr + len(pair) + 1:]
+        if idx != 0 and (name_was_present ^ bool(input_name)):
+            # if node name firstly was specified and then subsequently not or vice versa
+            # e.g. (255),input[127] or input(255),[127]
+            raise Error(error_msg, argv_values)
 
-        if not data_str:
-            break
+        name_was_present = True if input_name != "" else False
+        if name_was_present:
+            res[input_name] = tuple_value
+        else:
+            res[idx] = tuple_value
 
+    if not name_was_present:
+        # return a list instead of a dictionary
+        res = sorted(res.values(), key=lambda v: v[0])
     return res
 
 
@@ -1145,6 +1144,105 @@ def get_absolute_path(path_to_file: str) -> str:
     return file_path
 
 
+def isfloat(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def isbool(value):
+    try:
+        strtobool(value)
+        return True
+    except ValueError:
+        return False
+
+
+def convert_string_to_real_type(value: str):
+    values = value.split(',')
+    for i in range(len(values)):
+        value = values[i]
+        if value.isdigit():
+            values[i] = int(value)
+        elif isfloat(value):
+            values[i] = float(value)
+        elif isbool(value):
+            values[i] = strtobool(value)
+
+    return values[0] if len(values) == 1 else values
+
+
+def parse_transform(transform: str) -> list:
+    transforms = []
+
+    if len(transform) == 0:
+        return transforms
+
+    all_transforms = re.findall(r"([a-zA-Z0-9]+)(\[([^\]]+)\])*(,|$)", transform)
+
+    # Check that all characters were matched otherwise transform key value is invalid
+    key_len = len(transform)
+    for transform in all_transforms:
+        # In regexp we have 4 groups where 1st group - transformation_name,
+        #                                  2nd group - [args],
+        #                                  3rd group - args, <-- nested group
+        #                                  4th group - EOL
+        # And to check that regexp matched all string we decrease total length by the length of matched groups (1,2,4)
+        # In case if no arguments were given to transformation then 2nd and 3rd groups will be empty.
+        if len(transform) != 4:
+            raise Error("Unexpected transform key structure: {}".format(transform))
+        key_len -= len(transform[0]) + len(transform[1]) + len(transform[3])
+
+    if key_len != 0:
+        raise Error("Unexpected transform key structure: {}".format(transform))
+
+    for transform in all_transforms:
+        name = transform[0]
+        args = transform[2]
+
+        args_dict = {}
+
+        if len(args) != 0:
+            for arg in args.split(';'):
+                m = re.match(r"^([_a-zA-Z]+)=(.+)$", arg)
+                if not m:
+                    raise Error("Unrecognized attributes for transform key: {}".format(transform))
+
+                args_dict[m.group(1)] = convert_string_to_real_type(m.group(2))
+
+        transforms.append((name, args_dict))
+
+    return transforms
+
+
+def check_available_transforms(transforms: list, ie_is_available: bool):
+    """
+    This function check that transformations specified by user are available.
+    :param transforms: list of user specified transformations
+    :param ie_is_available: True if IE Python API is available and False if it is not
+    :return: raises an Error if IE or transformation is not available
+    """
+    if not ie_is_available and len(transforms) != 0:
+        raise Error('Can not apply {} transformations due to missing Inference Engine Python API'.format(
+            ','.join([name for name, _ in transforms])))
+
+    from mo.back.offline_transformations import get_available_transformations
+    available_transforms = get_available_transformations()
+
+    missing_transformations = []
+    for name, _ in transforms:
+        if name not in available_transforms.keys():
+            missing_transformations.append(name)
+
+    if len(missing_transformations) != 0:
+        raise Error('Following transformations ({}) are not available. '
+                    'List with available transformations ({})'.format(','.join(missing_transformations),
+                                                                      ','.join(available_transforms.keys())))
+    return True
+
+
 def check_positive(value):
     try:
         int_value = int(value)
@@ -1156,12 +1254,15 @@ def check_positive(value):
     return int_value
 
 
-def depersonalize(value: str):
+def depersonalize(value: str, key: str):
+    dir_keys = [
+        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+    ]
     if not isinstance(value, str):
         return value
     res = []
     for path in value.split(','):
-        if os.path.isdir(path):
+        if os.path.isdir(path) and key in dir_keys:
             res.append('DIR')
         elif os.path.isfile(path):
             res.append(os.path.join('DIR', os.path.split(path)[1]))
@@ -1174,7 +1275,7 @@ def get_meta_info(argv: argparse.Namespace):
     meta_data = {'unset': []}
     for key, value in argv.__dict__.items():
         if value is not None:
-            value = depersonalize(value)
+            value = depersonalize(value, key)
             meta_data[key] = value
         else:
             meta_data['unset'].append(key)
@@ -1183,4 +1284,3 @@ def get_meta_info(argv: argparse.Namespace):
         if key in meta_data:
             meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
     return meta_data
-

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,137 @@ const std::vector<InferenceEngine::Precision> netPrecisionsI32 = {
 const std::vector<InferenceEngine::Precision> netPrecisionsFP16 = {
         InferenceEngine::Precision::FP16,
 };
+
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
+};
+
+const std::vector<std::vector<size_t>> indicesShapes2 = {
+        std::vector<size_t>{2, 2},
+        std::vector<size_t>{2, 2, 2},
+        std::vector<size_t>{2, 4},
+};
+
+const std::vector<std::vector<size_t>> indicesShapes23 = {
+        std::vector<size_t>{2, 3, 2},
+        std::vector<size_t>{2, 3, 4},
+};
+
+const std::vector<std::tuple<int, int>> axis_batch41 = {
+        std::tuple<int, int>(3, 1),
+        std::tuple<int, int>(4, 1),
+};
+
+const std::vector<std::tuple<int, int>> axis_batch42 = {
+        std::tuple<int, int>(3, 2),
+        std::tuple<int, int>(4, 2),
+};
+
+const std::vector<std::vector<size_t>> inputShapesAxes4b1 = {
+        std::vector<size_t>{2, 6, 7, 8, 9},
+        std::vector<size_t>{2, 1, 7, 8, 9},
+        std::vector<size_t>{2, 1, 1, 8, 9},
+        std::vector<size_t>{2, 6, 1, 4, 9},
+        std::vector<size_t>{2, 6, 7, 4, 1},
+        std::vector<size_t>{2, 6, 1, 8, 9},
+        std::vector<size_t>{2, 1, 7, 1, 9},
+        std::vector<size_t>{2, 6, 1, 8, 4},
+        std::vector<size_t>{2, 6, 7, 4, 9},
+        std::vector<size_t>{2, 1, 7, 8, 4},
+        std::vector<size_t>{2, 6, 7, 8, 4},
+};
+
+const std::vector<std::vector<size_t>> inputShapesAxes4b2 = {
+        std::vector<size_t>{2, 3, 7, 8, 9},
+        std::vector<size_t>{2, 3, 7, 6, 9},
+        std::vector<size_t>{2, 3, 9, 8, 9},
+        std::vector<size_t>{2, 3, 9, 4, 9},
+        std::vector<size_t>{2, 3, 7, 4, 2},
+        std::vector<size_t>{2, 3, 5, 8, 9},
+        std::vector<size_t>{2, 3, 7, 2, 9},
+        std::vector<size_t>{2, 3, 9, 8, 4},
+        std::vector<size_t>{2, 3, 7, 4, 9},
+        std::vector<size_t>{2, 3, 7, 5, 4},
+        std::vector<size_t>{2, 3, 7, 8, 4},
+};
+
+const auto GatherAxes4i4b1 = testing::Combine(
+        testing::ValuesIn(inputShapesAxes4b1),
+        testing::ValuesIn(indicesShapes2),
+        testing::ValuesIn(axis_batch41),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(CommonTestUtils::DEVICE_GPU)
+);
+
+const auto GatherAxes4i4b2 = testing::Combine(
+        testing::ValuesIn(inputShapesAxes4b2),
+        testing::ValuesIn(indicesShapes23),
+        testing::ValuesIn(axis_batch42),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(CommonTestUtils::DEVICE_GPU)
+);
+
+const auto GatherAxes4i8b1 = testing::Combine(
+        testing::ValuesIn(inputShapesAxes4b1),
+        testing::ValuesIn(indicesShapes2),
+        testing::ValuesIn(axis_batch41),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(CommonTestUtils::DEVICE_GPU)
+);
+
+const auto GatherAxes4i8b2 = testing::Combine(
+        testing::ValuesIn(inputShapesAxes4b2),
+        testing::ValuesIn(indicesShapes23),
+        testing::ValuesIn(axis_batch42),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(CommonTestUtils::DEVICE_GPU)
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_Gather7Axes4i4b1,
+        Gather7LayerTest,
+        GatherAxes4i4b1,
+        Gather7LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_Gather7Axes4i4b2,
+        Gather7LayerTest,
+        GatherAxes4i4b1,
+        Gather7LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_Gather7Axes4i8b1,
+        Gather7LayerTest,
+        GatherAxes4i8b1,
+        Gather7LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_Gather7Axes4i8b2,
+        Gather7LayerTest,
+        GatherAxes4i8b2,
+        Gather7LayerTest::getTestCaseName
+);
 
 const std::vector<std::vector<int>> indices = {
         std::vector<int>{0, 3, 2, 1},
@@ -197,6 +328,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes2 = {
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{1, 6, 7, 8},
         std::vector<size_t>{5, 1, 7, 8},
@@ -265,6 +397,8 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes1 = {
+        std::vector<size_t>{5, 6},
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{1, 6, 7, 8},
         std::vector<size_t>{5, 6, 1, 8},
@@ -333,6 +467,9 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes0 = {
+        std::vector<size_t>{5},
+        std::vector<size_t>{5, 6},
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{5, 1, 7, 8},
         std::vector<size_t>{5, 6, 1, 8},

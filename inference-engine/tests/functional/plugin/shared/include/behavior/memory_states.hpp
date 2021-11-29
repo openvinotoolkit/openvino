@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ typedef std::tuple<
         std::string>                 // Target device name
         memoryStateParams;
 
-class MemoryStateTest : public CommonTestUtils::TestsCommon,
+class VariableStateTest : public CommonTestUtils::TestsCommon,
                         public testing::WithParamInterface<memoryStateParams> {
 protected:
     InferenceEngine::CNNNetwork net;

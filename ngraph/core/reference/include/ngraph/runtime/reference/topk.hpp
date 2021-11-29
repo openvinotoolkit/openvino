@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -22,8 +10,6 @@
 
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/topk.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -59,16 +45,9 @@ namespace ngraph
             }
 
             template <typename T, typename U>
-            inline bool sort_indices_descending(const std::tuple<T, U>& a,
-                                                const std::tuple<T, U>& b)
-            {
-                return std::get<1>(a) < std::get<1>(b);
-            }
-
-            template <typename T, typename U>
             inline bool sort_indices_ascending(const std::tuple<T, U>& a, const std::tuple<T, U>& b)
             {
-                return std::get<1>(a) > std::get<1>(b);
+                return std::get<1>(a) < std::get<1>(b);
             }
 
             template <typename T, typename U>
@@ -80,7 +59,7 @@ namespace ngraph
                       size_t axis,
                       size_t k,
                       bool compute_max,
-                      op::TopK::SortType sort = op::TopK::SortType::NONE)
+                      op::v1::TopK::SortType sort = op::v1::TopK::SortType::NONE)
             {
                 using namespace std;
                 // reorder source axis visit order and make "axis" inner most
@@ -133,35 +112,18 @@ namespace ngraph
                                     compare_min<T, U>);
                     }
                     // Write temp vector to output
-                    if (compute_max)
+                    switch (sort)
                     {
-                        switch (sort)
-                        {
-                        case op::TopK::SortType::NONE: break;
-                        case op::TopK::SortType::SORT_INDICES:
-                            std::sort(workspace.begin(),
-                                      workspace.begin() + k,
-                                      sort_indices_descending<T, U>);
-                            break;
-                        case op::TopK::SortType::SORT_VALUES:
+                    case op::v1::TopK::SortType::NONE: break;
+                    case op::v1::TopK::SortType::SORT_INDICES:
+                        std::sort(
+                            workspace.begin(), workspace.begin() + k, sort_indices_ascending<T, U>);
+                        break;
+                    case op::v1::TopK::SortType::SORT_VALUES:
+                        if (compute_max)
                             std::sort(workspace.begin(), workspace.begin() + k, compare_max<T, U>);
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        switch (sort)
-                        {
-                        case op::TopK::SortType::NONE: break;
-                        case op::TopK::SortType::SORT_INDICES:
-                            std::sort(workspace.begin(),
-                                      workspace.begin() + k,
-                                      sort_indices_ascending<T, U>);
-                            break;
-                        case op::TopK::SortType::SORT_VALUES:
+                        else
                             std::sort(workspace.begin(), workspace.begin() + k, compare_min<T, U>);
-                            break;
-                        }
                     }
                     for (size_t j = 0; j < k; j++)
                     {
@@ -172,8 +134,6 @@ namespace ngraph
                     }
                 }
             }
-        }
-    }
-}
-
-NGRAPH_SUPPRESS_DEPRECATED_END
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

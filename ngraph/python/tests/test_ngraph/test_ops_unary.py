@@ -1,39 +1,26 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 
 import ngraph as ng
 from ngraph.impl import Shape, Type
+from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35929, xfail_issue_36483
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, range_start, range_end",
     [
         (ng.absolute, np.abs, -1, 1),
         (ng.abs, np.abs, -1, 1),
         (ng.acos, np.arccos, -1, 1),
-        (ng.acosh, np.arccosh, -1, 1),
+        (ng.acosh, np.arccosh, 1, 2),
         (ng.asin, np.arcsin, -1, 1),
         (ng.asinh, np.arcsinh, -1, 1),
         (ng.atan, np.arctan, -100.0, 100.0),
-        (ng.atanh, np.arctanh, -100.0, 100.0),
+        (ng.atanh, np.arctanh, 0.0, 1.0),
         (ng.ceiling, np.ceil, -100.0, 100.0),
         (ng.ceil, np.ceil, -100.0, 100.0),
         (ng.cos, np.cos, -100.0, 100.0),
@@ -52,7 +39,7 @@ from tests import xfail_issue_35929, xfail_issue_36483
 )
 def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
     np.random.seed(133391)
-    input_data = range_start + np.random.rand(2, 3, 4) * (range_end - range_start)
+    input_data = (range_start + np.random.rand(2, 3, 4) * (range_end - range_start)).astype(np.float32)
     expected = numpy_fn(input_data)
 
     result = run_op_node([input_data], ng_api_fn)
@@ -67,8 +54,8 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
         pytest.param(ng.acos, np.arccos, np.float32(-0.5)),
         pytest.param(ng.asin, np.arcsin, np.float32(-0.5)),
         pytest.param(ng.atan, np.arctan, np.float32(-0.5)),
-        pytest.param(ng.ceiling, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
-        pytest.param(ng.ceil, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
+        pytest.param(ng.ceiling, np.ceil, np.float32(1.5)),
+        pytest.param(ng.ceil, np.ceil, np.float32(1.5)),
         pytest.param(ng.cos, np.cos, np.float32(np.pi / 4.0)),
         pytest.param(ng.cosh, np.cosh, np.float32(np.pi / 4.0)),
         pytest.param(ng.exp, np.exp, np.float32(1.5)),
@@ -112,14 +99,13 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip(reason="Wrong results are broadcasted along given axis")
 def test_softmax():
-    axis = 0
+    axis = 1
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
 
     result = run_op_node([input_tensor], ng.softmax, axis)
 
-    expected = [[0.00426978, 0.01160646, 0.03154963], [0.08576079, 0.23312202, 0.6336913]]
+    expected = [[0.09003056, 0.24472842, 0.6652409], [0.09003056, 0.24472842, 0.6652409]]
 
     assert np.allclose(result, expected)
 
@@ -186,3 +172,62 @@ def test_hsigmoid():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_gelu_operator_with_parameters():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    data_shape = [2, 2]
+    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+
+    model = ng.gelu(parameter_data, "erf")
+    computation = runtime.computation(model, parameter_data)
+
+    result = computation(data_value)
+    expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+def test_gelu_operator_with_array():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    model = ng.gelu(data_value, "erf")
+    computation = runtime.computation(model)
+
+    result = computation()
+    expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+def test_gelu_tanh_operator_with_parameters():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    data_shape = [2, 2]
+    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+
+    model = ng.gelu(parameter_data, "tanh")
+    computation = runtime.computation(model, parameter_data)
+
+    result = computation(data_value)
+    expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+def test_gelu_tanh_operator_with_array():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    model = ng.gelu(data_value, "tanh")
+    computation = runtime.computation(model)
+
+    result = computation()
+    expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
+
+    assert np.allclose(result, expected, 1e-6, 1e-6)

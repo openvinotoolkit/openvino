@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@
 
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 class MockIInferRequest : public IInferRequest {
 public:
     MOCK_QUALIFIED_METHOD1(StartAsync, noexcept, StatusCode(ResponseDesc*));
@@ -25,7 +27,6 @@ public:
     MOCK_QUALIFIED_METHOD2(GetUserData, noexcept, StatusCode(void**, ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(SetUserData, noexcept, StatusCode(void*, ResponseDesc*));
     MOCK_QUALIFIED_METHOD1(SetCompletionCallback, noexcept, StatusCode(IInferRequest::CompletionCallback));
-    MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
     MOCK_QUALIFIED_METHOD1(Infer, noexcept, StatusCode(ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(GetPerformanceCounts, const noexcept,
                            StatusCode(std::map<std::string, InferenceEngineProfileInfo> &perfMap, ResponseDesc*));
@@ -34,4 +35,8 @@ public:
     MOCK_QUALIFIED_METHOD3(SetBlob, noexcept, StatusCode(const char*, const Blob::Ptr&, ResponseDesc*));
     MOCK_QUALIFIED_METHOD4(SetBlob, noexcept, StatusCode(const char*, const Blob::Ptr&, const PreProcessInfo&, ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(SetBatch, noexcept, StatusCode(int batch, ResponseDesc*));
+    MOCK_QUALIFIED_METHOD3(QueryState, noexcept, StatusCode(IVariableState::Ptr &, size_t, ResponseDesc *));
+    MOCK_QUALIFIED_METHOD1(Cancel, noexcept, InferenceEngine::StatusCode(ResponseDesc*));
 };
+
+IE_SUPPRESS_DEPRECATED_END

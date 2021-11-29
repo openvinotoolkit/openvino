@@ -1,39 +1,23 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import numpy as np
 
+from extensions.middle.MakeKaldiConstReshapable import create_const_with_batch_from_input
 from extensions.ops.MatMul import FullyConnected
 from extensions.ops.activation_ops import Tanh, Sigmoid
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.split import Split
 from mo.front.caffe.extractors.utils import input_as_const
-from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Node, Graph, Port
+from mo.graph.graph import Node, Graph
 from mo.ops.assign import Assign
-from mo.ops.broadcast import Broadcast
 from mo.ops.clamp import Clamp
-from mo.ops.concat import Concat
 from mo.ops.const import Const
-from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
 from mo.ops.scale_shift import ScaleShiftOp
-from mo.ops.shape import Shape
 
 
 def unique_id(prefix: str = 'id') -> str:
@@ -51,35 +35,6 @@ def unique_id(prefix: str = 'id') -> str:
 
 
 unique_id.names = []
-
-
-def create_zero_value_with_batch_from_input(input_out_port: Port, second_dim, precision = np.float):
-    # create init_graph connected to ReadValue
-    graph = input_out_port.node.graph
-    input_name = input_out_port.node.name
-    shape_of_input = Shape(graph, {'name': 'shape/' + input_name}).create_node()
-    shape_of_input.in_port(0).connect(input_out_port)
-    dim_for_get_batch = Const(graph, {'name': 'dim/crop_batch/'+shape_of_input.name,
-                                      'value': int64_array([1]), 'shape': int64_array([1])}).create_node()
-    get_batch = Crop(graph, {'name': 'crop_batch/' + shape_of_input.name,
-                             'axis': int64_array([0]), 'offset': int64_array([0])
-                             }).create_node()
-    get_batch.in_port(0).connect(shape_of_input.out_port(0))
-    get_batch.in_port(1).connect(dim_for_get_batch.out_port(0))
-    mem_shape_2nd_dim = Const(graph, {'name': 'gifo_r_weights_shape/'+input_name,
-                                      'value': int64_array([second_dim]),
-                                      'shape': int64_array([1])}).create_node()
-    mem_shape = Concat(graph, {'name': 'gather_memory_shape/' + input_name,
-                               'axis': 0, 'in_ports_count': 2}).create_node()
-    mem_shape.in_port(0).connect(get_batch.out_port(0))
-    mem_shape.in_port(1).connect(mem_shape_2nd_dim.out_port(0))
-    fill_value = Const(graph, {'name': 'fill_value/'+input_name,
-                               'value': np.array([0.0], precision), 'shape': int64_array([1])}).create_node()
-    init_value_prev_lstm_output = Broadcast(graph, {'name': 'init_value/'+input_name,
-                                                    }).create_node()
-    init_value_prev_lstm_output.in_port(0).connect(fill_value.out_port(0))
-    init_value_prev_lstm_output.in_port(1).connect(mem_shape.out_port(0))
-    return init_value_prev_lstm_output
 
 
 class ReplaceLSTMNodePattern(FrontReplacementOp):
@@ -122,8 +77,8 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         input_as_const(fc_layer_after_input, fc_layer_after_input_attrs, 1, 'weights', node.gifo_x_weights)
         input_as_const(fc_layer_after_input, fc_layer_after_input_attrs, 2, 'biases', node.gifo_biases)
 
-        init_value_prev_lstm_output = create_zero_value_with_batch_from_input(input_out_port,
-                                                                              node.gifo_r_weights_shape[1])
+        init_value_prev_lstm_output = create_const_with_batch_from_input(input_out_port,
+                                                                         node.gifo_r_weights_shape[1])
         prev_lstm_output = ReadValue(graph, {'name': 'prev_memory_output',
                                              'variable_id': memory_pair_input
                                              }).create_node()
@@ -162,14 +117,8 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         split_joined_input.in_port(0).connect(join_input_prev_state_sum.out_port(0))
         split_joined_input.in_port(1).connect(split_joined_input_axis.out_port(0))
 
-        # prev_lstm_state = Memory(graph, {'name': 'prev_memory_state',
-        #                                 'id': memory_pair_output,
-        #                                 'index': 1,
-        #                                 'size': 2,
-        #                                 'shape': np.array([node.input_gate_weights.shape[0]], dtype=np.int64)
-        #                                 }).create_node()
-        init_value_prev_lstm_state = create_zero_value_with_batch_from_input(split_joined_input.out_port(0),
-                                                                             node.input_gate_weights.shape[0])
+        init_value_prev_lstm_state = create_const_with_batch_from_input(split_joined_input.out_port(0),
+                                                                        node.input_gate_weights.shape[0])
         prev_lstm_state = ReadValue(graph, {'name': 'prev_memory_state',
                                             'variable_id': memory_pair_output}).create_node()
         prev_lstm_state.in_port(0).connect(init_value_prev_lstm_state.out_port(0))

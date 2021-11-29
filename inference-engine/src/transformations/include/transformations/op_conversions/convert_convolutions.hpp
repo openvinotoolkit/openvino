@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,16 +24,6 @@ class TRANSFORMATIONS_API ConvertGroupDeconvolution;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertConvolutions: public ngraph::pass::GraphRewrite {
-public:
-    ConvertConvolutions() {
-        add_matcher<ngraph::pass::ConvertConvolution>();
-        add_matcher<ngraph::pass::ConvertGroupConvolution>();
-        add_matcher<ngraph::pass::ConvertDeconvolution>();
-        add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
-    }
-};
-
 class ngraph::pass::ConvertConvolution: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -56,4 +46,15 @@ class ngraph::pass::ConvertGroupDeconvolution: public ngraph::pass::MatcherPass 
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGroupDeconvolution();
+};
+
+class ngraph::pass::ConvertConvolutions: public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertConvolutions() {
+        add_matcher<ngraph::pass::ConvertConvolution>();
+        add_matcher<ngraph::pass::ConvertGroupConvolution>();
+        add_matcher<ngraph::pass::ConvertDeconvolution>();
+        add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
+    }
 };

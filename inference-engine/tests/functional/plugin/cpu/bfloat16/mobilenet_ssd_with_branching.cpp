@@ -1,6 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "bfloat16_helpers.hpp"
 
 #include <memory>
@@ -24,7 +25,7 @@ protected:
         //                    |
         //                   Conv1 (FP32)
         //                  |           \
-        //               Conv2 (FP32 so far while we have not greedy mode. This must be fixed. Such pattern shouild have Conv2 in BF16)
+        //               Conv2 (BF16)    \
         //                |              |
         //               relu(fused)     |
         //                |          Normalize (not LRN)
@@ -145,22 +146,21 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 0.8f;  // max value in latest tensor is 87.67
+        threshold = 0.85f;  // max value in latest tensor is 87.67
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
         expectedPrecisions["ADD_1"] = "FP32";
         expectedPrecisions["CONV_1"] = "BF16";
-        expectedPrecisions["CONV_2"] = "FP32";
         expectedPrecisions["RELU_2"] = "ndef";
         expectedPrecisions["DW_CONV"] = "BF16";
         expectedPrecisions["RELU_DW"] = "ndef";
-        expectedPrecisions["NORM_1"] = "FP32";
-        expectedPrecisions["CONC_1"] = "FP32";
     }
 };
 
 TEST_P(MobileNet_ssd_with_branching, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 

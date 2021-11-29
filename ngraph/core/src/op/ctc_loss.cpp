@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/ctc_loss.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -54,6 +43,7 @@ op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
 
 void op::v4::CTCLoss::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_CTCLoss_validate_and_infer_types);
     // check types of input tensors
     const auto& logits_type = get_input_element_type(0);
     const auto& logit_length_type = get_input_element_type(1);
@@ -229,6 +219,7 @@ void op::v4::CTCLoss::validate_and_infer_types()
 
 bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_CTCLoss_visit_attributes);
     visitor.on_attribute("preprocess_collapse_repeated", preprocess_collapse_repeated_);
     visitor.on_attribute("ctc_merge_repeated", ctc_merge_repeated_);
     visitor.on_attribute("unique", unique_);
@@ -237,6 +228,7 @@ bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_CTCLoss_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4)
     {

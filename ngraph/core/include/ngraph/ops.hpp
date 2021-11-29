@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 // All op headers
 
@@ -44,14 +32,16 @@
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/cosh.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
+#include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 #include "ngraph/op/ctc_loss.hpp"
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/deformable_convolution.hpp"
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/op/detection_output.hpp"
+#include "ngraph/op/dft.hpp"
 #include "ngraph/op/divide.hpp"
-#include "ngraph/op/dot.hpp"
+#include "ngraph/op/einsum.hpp"
 #include "ngraph/op/elu.hpp"
 #include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
@@ -59,11 +49,17 @@
 #include "ngraph/op/equal.hpp"
 #include "ngraph/op/erf.hpp"
 #include "ngraph/op/exp.hpp"
+#include "ngraph/op/experimental_detectron_detection_output.hpp"
+#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+#include "ngraph/op/experimental_detectron_prior_grid_generator.hpp"
+#include "ngraph/op/experimental_detectron_roi_feature.hpp"
+#include "ngraph/op/experimental_detectron_topkrois.hpp"
 #include "ngraph/op/extractimagepatches.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/floor.hpp"
 #include "ngraph/op/floor_mod.hpp"
 #include "ngraph/op/gather.hpp"
+#include "ngraph/op/gather_elements.hpp"
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/op/gather_tree.hpp"
 #include "ngraph/op/gelu.hpp"
@@ -76,6 +72,7 @@
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/hsigmoid.hpp"
 #include "ngraph/op/hswish.hpp"
+#include "ngraph/op/idft.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
@@ -111,8 +108,6 @@
 #include "ngraph/op/prior_box_clustered.hpp"
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/op/psroi_pooling.hpp"
-#include "ngraph/op/quantize.hpp"
-#include "ngraph/op/quantized_dot.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/reduce_l1.hpp"
@@ -133,6 +128,7 @@
 #include "ngraph/op/rnn_sequence.hpp"
 #include "ngraph/op/roi_align.hpp"
 #include "ngraph/op/roi_pooling.hpp"
+#include "ngraph/op/roll.hpp"
 #include "ngraph/op/round.hpp"
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "ngraph/op/scatter_nd_update.hpp"

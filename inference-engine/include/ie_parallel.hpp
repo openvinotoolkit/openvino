@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,10 @@
 #ifndef TBB_PREVIEW_NUMA_SUPPORT
 # define TBB_PREVIEW_NUMA_SUPPORT 1
 #endif
+#ifndef TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION
+# define TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION 1
+#endif
+
 #include "tbb/blocked_range.h"
 #include "tbb/blocked_range2d.h"
 #include "tbb/blocked_range3d.h"
@@ -58,6 +62,15 @@ inline int parallel_get_env_threads() {
 }
 #if IE_THREAD == IE_THREAD_TBB
 #define PARTITIONING , tbb::static_partitioner()
+
+// The TBB version less than 2018u1 has no static_partitioner argument for
+// tbb::parallel_deterministic_reduce. So will fallback to non deterministic version.
+#if (TBB_INTERFACE_VERSION >= 10001)
+#define _TBB_REDUCE_FUNC tbb::parallel_deterministic_reduce
+#else
+#define _TBB_REDUCE_FUNC tbb::parallel_reduce
+#endif
+
 #else
 #define PARTITIONING
 #endif
@@ -186,7 +199,7 @@ void parallel_sort(I begin, I end, const F& comparator) {
 template <typename T0, typename R, typename F>
 R parallel_sum(const T0& D0, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    return tbb::parallel_deterministic_reduce(
+    return _TBB_REDUCE_FUNC(
         tbb::blocked_range<T0>(0, D0), input,
         [&](const tbb::blocked_range<T0>& r, R init) -> R {
             R sum = init;
@@ -218,7 +231,7 @@ R parallel_sum(const T0& D0, const R& input, const F& func) {
 template <typename T0, typename T1, typename R, typename F>
 R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    return tbb::parallel_deterministic_reduce(
+    return _TBB_REDUCE_FUNC(
         tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), input,
         [&](const tbb::blocked_range2d<T0, T1>& r, R init) -> R {
             R sum = init;
@@ -257,7 +270,7 @@ R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 template <typename T0, typename T1, typename T2, typename R, typename F>
 R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    return tbb::parallel_deterministic_reduce(
+    return _TBB_REDUCE_FUNC(
         tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2), input,
         [&](const tbb::blocked_range3d<T0, T1, T2>& r, R init) -> R {
             R sum = init;

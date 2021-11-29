@@ -1,10 +1,8 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME vpuUnitTests)
-
-disable_deprecated_warnings()
 
 include(${XLINK_DIR}/XLink.cmake)
 
@@ -13,7 +11,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADDITIONAL_SOURCE_DIRS
             # because ngraphFunctions sources need to be compiled with LTO as well
-            "${IE_TESTS_ROOT}/ngraph_functions/src"
+            "${IE_TESTS_ROOT}/ngraph_helpers/ngraph_functions/src"
         INCLUDES
             "${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin"
             "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius"

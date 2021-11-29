@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,6 @@ bool isU8(InferenceEngine::Precision precision);
 bool isFloat(InferenceEngine::Precision precision);
 /* Set FP32 to FP16, all others without changes */
 void setPrecisions(const InferenceEngine::CNNNetwork &network);
-
-std::map<std::string, std::string> parseConfig(const std::string &configName, char comment = '#');
 
 class BitMap {
 private:

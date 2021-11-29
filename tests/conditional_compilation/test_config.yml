@@ -1,0 +1,15 @@
+# Using models from https://github.com/openvinotoolkit/testdata
+# $find models -wholename "*.xml"
+
+- model:
+    path: ${TESTDATA}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml
+- model:
+    path: ${TESTDATA}/models/mobilenet_v2_1.0_224/mobilenet_v2_1.0_224_i8.xml
+- model:
+    path: ${TESTDATA}/models/inception_v3/inception_v3_i8.xml
+- model:
+    path: ${TESTDATA}/models/resnet_v1_50/resnet_v1_50_i8.xml
+- model:
+    path: ${TESTDATA}/models/test_model/test_model_fp16.xml
+- model:
+    path: ${TESTDATA}/models/test_model/test_model_fp32.xml

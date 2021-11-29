@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/model/data_contents/replicated_data_content.hpp>
 #include <vpu/model/data_contents/scaled_content.hpp>
-
+#include <vpu/private_plugin_config.hpp>
 #include <precision_utils.h>
 
 #include <cmath>
@@ -24,11 +24,20 @@
 #include <memory>
 #include <list>
 #include <set>
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 9) && !defined(__clang__) && !defined(IE_GCC_4_8)
+# define IE_GCC_4_8
+#endif
 
+#ifndef IE_GCC_4_8
+# include <regex>
+# define STD_REGEX_SEARCH(SRC, PATTERN) std::regex_search(SRC, std::regex(PATTERN))
+#else
+# define STD_REGEX_SEARCH(SRC, PATTERN) false
+#endif
 namespace vpu {
 
 namespace {
-
+typedef std::map<std::string, float> VPUScaleMap;
 const short largestExp   = 15;
 const short smallestExp  = -15;
 const short exponentBias = 15;
@@ -87,7 +96,12 @@ bool isScalable(const Stage& stage) {
 }
 
 bool checkGrowingOutput(const Model& model) {
-    static const float SCALE_THRESHOLD = 0.125f;
+    const auto& env = CompileEnv::get();
+    if (!env.config.checkPreprocessingInsideModel) {
+        return false;
+    }
+
+    static const float SCALE_THRESHOLD = 0.1f;
 
     for (const auto& stage : model->getStages()) {
         if (stage->type() != StageType::Power &&
@@ -198,6 +212,51 @@ void scaleWeightableStage(const Model& model, const Stage& stage, float factor) 
     stage->attrs().set<float>("scaleFactor", factor);
 }
 
+float getScaleValue(const std::string layerName, const VPUScaleMap& vpuScalemap) {
+    float scaleForAnyLayer = 0.0;
+    for (const auto& pair : vpuScalemap) {
+        if (STD_REGEX_SEARCH(layerName, pair.first)) {
+            return pair.second;
+        }
+    }
+    return scaleForAnyLayer;
+}
+
+VPUScaleMap parseScales(const std::string& scalesStr) {
+    VPUScaleMap vpuScaleMap;
+    #ifdef IE_GCC_4_8
+        VPU_THROW_UNLESS(scalesStr.empty(), "It is not possible to parse the 'scale' value from the config because you are using a gcc version less than 4.9.");
+    #else
+    std::vector<std::string> parsedStrings;
+
+    auto delimiterToken = std::regex(";");
+    auto regexScales =  std::sregex_token_iterator(scalesStr.begin(), scalesStr.end(), delimiterToken, -1);
+    std::sregex_token_iterator end;
+    for ( ; regexScales != end; ++regexScales) {
+        parsedStrings.push_back(*regexScales);
+    }
+
+    for (auto& paramStr : parsedStrings) {
+        paramStr.erase(
+            std::remove_if(paramStr.begin(), paramStr.end(), ::isspace),
+            paramStr.end());
+    }
+
+    parsedStrings.erase(
+        std::remove_if(parsedStrings.begin(), parsedStrings.end(),
+                       [](const std::string& str) { return str.empty(); }),
+        parsedStrings.end());
+    for (const auto vpuScale : parsedStrings) {
+        const auto delimeterPos = vpuScale.find(':');
+        VPU_THROW_UNLESS(delimeterPos != std::string::npos, "Unable to parse string \"{}\"", vpuScale);
+        vpuScaleMap.insert({std::string(vpuScale.substr(0, delimeterPos)),
+                            std::stof(vpuScale.substr(delimeterPos + 1))});
+    }
+
+    #endif
+    return vpuScaleMap;
+}
+
 class PassImpl final : public Pass {
 public:
     void run(const Model& model) override;
@@ -213,15 +272,21 @@ void PassImpl::run(const Model& model) {
     bool firstStage = true;
     int  normalVal  = 0;
     const auto& env = CompileEnv::get();
-
+    #ifdef IE_GCC_4_8
+    VPU_THROW_UNLESS(env.config.VPUScalesOption.empty(),
+                     "It is not possible to set the {} "
+                     "config because it passes regular expression and regex "
+                     "library is not supported by GCC version less than 4.9",
+                     ie::MYRIAD_SCALES_PATTERN);
+    #endif
+    const auto scalesMap = parseScales(env.config.VPUScalesOption);
     for (const auto& stage : model->getStages()) {
         if (!isScalable(stage)) {
             continue;
         }
         IE_ASSERT(stage->origLayer() != nullptr);
-
-        // Get scale from IR, compute if it was absent
-        auto scale = stage->origLayer()->GetParamAsFloat("vpu_scale", 0);
+        // Get scale from config, compute if it was absent
+        auto scale = getScaleValue(stage->origLayerName(), scalesMap);
         if (!scale) {
             auto weights = stage->input(1);
 
@@ -243,19 +308,14 @@ void PassImpl::run(const Model& model) {
                 if (firstStage && shift < 4 && isGrowingOutput && weights->desc().dim(Dim::C) > 1) {
                     normalVal = 5;
                 }
-
                 shift = correctShift(shift, firstStage, stage->origLayer()->type);
                 shift -= normalVal;
             }
 
             firstStage = false;
             scale = 1;
-            if (shift > scaleThreshold) {
+            if (shift >= scaleThreshold) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
-            }
-
-            if (!env.config.irWithVpuScalesDir.empty()) {
-                stage->origLayer()->params["vpu_scale"] = toString(scale);
             }
         }
         scaleWeightableStage(model, stage, scale);

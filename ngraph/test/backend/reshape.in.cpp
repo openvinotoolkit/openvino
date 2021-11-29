@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cinttypes>
@@ -44,7 +32,7 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v_012)
+NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v)
 {
     Shape shape_a{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -67,29 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v_012)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s_012)
-{
-    Shape shape_a{1, 1, 1};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_r{};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
-    auto f = make_shared<Function>(r, ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{6});
-    auto result = backend->create_tensor(element::f32, shape_r);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{6}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s_120)
+NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s)
 {
     Shape shape_a{1, 1, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -356,6 +322,37 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_3D_to_scalar)
     const auto input = make_shared<op::Parameter>(element::f32, input_shape);
     const auto reshape_builder = builder::opset1::reshape(input, Shape{});
     auto function = make_shared<Function>(reshape_builder, ParameterVector{input});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    vector<float> input_values(shape_size(input_shape), 1.f);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{}, vector<float>{1.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_1d_to_same_shape)
+{
+    const Shape input_shape{1};
+    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::i64, {}, std::vector<int64_t>{1}), false);
+    auto function = make_shared<Function>(r, ParameterVector{param});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    vector<float> input_values(shape_size(input_shape), 1.f);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{}, vector<float>{1.f});
+
+    test_case.run();
+}
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_to_same_shape)
+{
+    const Shape input_shape{};
+    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto r = make_shared<op::v1::Reshape>(
+        param, op::Constant::create(element::i64, {}, std::vector<int64_t>{1}), false);
+    auto function = make_shared<Function>(r, ParameterVector{param});
 
     auto test_case = test::TestCase<TestEngine>(function);
     vector<float> input_values(shape_size(input_shape), 1.f);

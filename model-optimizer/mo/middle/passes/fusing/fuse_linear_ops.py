@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -124,6 +111,17 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         weights_port.get_connection().set_source(w_mul.out_port(0))
         w_const.connect(w_mul.in_port(tensor_port.idx))
 
+        fuse_node_in_data = fuse_node.in_node(weights_port.idx)
+        w_const_out_data = w_const.node.out_node(w_const.idx)
+
+        # During this reconnection new data node name is copied from the data node
+        # outgoing from w_const port. Duplicate names of data nodes lead to appearing
+        # of duplicate op node names after constant folding. So we should manually
+        # set a unique name for the new data node.
+        if fuse_node_in_data.soft_get('name') == w_const_out_data.soft_get('name') and \
+                fuse_node_in_data.soft_get('name', None) is not None:
+            fuse_node.in_node(weights_port.idx)['name'] = graph.unique_id(mul_name)
+
         # If we fuse in backward direction we should multiply biases if they exists
         if backward and len(fuse_node.in_ports()) == 3 and not fuse_node.in_port(2).disconnected() and \
                 not fuse_node.has_and_set('shape_input'):
@@ -141,7 +139,9 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         producer_port = tensor_port.get_source()
         tensor_port.disconnect()
         const_port.disconnect()
-        node.out_port(0).get_connection().set_source(producer_port)
+        # as Mul node is added before convolution, output tensor from Convolution node
+        # corresponds to original Mul node
+        node.out_port(0).get_connection().set_source(producer_port, "dest")
 
     return is_fused
 

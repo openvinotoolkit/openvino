@@ -1,0 +1,25 @@
+BasedOnStyle: Google
+IndentWidth: 4
+UseTab: Never
+
+Language: Cpp
+Standard: Cpp11
+
+AccessModifierOffset: -4
+AlignConsecutiveMacros: true
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Empty
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakBeforeMultilineStrings: false
+ColumnLimit: 160
+# Specialize this comment pragma in order to avoid changes in SEA copyrights
+CommentPragmas: '^#'
+DerivePointerAlignment: false
+FixNamespaceComments: true
+IndentCaseLabels: false
+IndentPPDirectives: BeforeHash
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: false

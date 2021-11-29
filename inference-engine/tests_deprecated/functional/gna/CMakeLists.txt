@@ -1,5 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,7 +10,8 @@ file(GLOB TEST_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/ie_class/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/input_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/lstm/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/backward_compatibility/*.cpp)
 
 list(APPEND DEPENDENCIES
         HeteroPlugin
@@ -41,6 +41,7 @@ target_compile_definitions(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
         PRIVATE
             IESharedTests
+            funcTestUtils
         )
 
 target_include_directories(${TARGET_NAME}

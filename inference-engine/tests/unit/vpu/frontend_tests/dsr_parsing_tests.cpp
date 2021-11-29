@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset3.hpp"
+
+IE_SUPPRESS_DEPRECATED_START
 
 namespace vpu {
 

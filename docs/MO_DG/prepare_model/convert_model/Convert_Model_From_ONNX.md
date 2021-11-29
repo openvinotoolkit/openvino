@@ -1,5 +1,19 @@
 # Converting a ONNX* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
+
+@endsphinxdirective
+
 ## Introduction to ONNX
 
 [ONNX*](https://github.com/onnx/onnx) is a representation format for deep learning models. ONNX allows AI developers easily transfer models between different frameworks that helps to choose the best combination for them. Today, PyTorch\*, Caffe2\*, Apache MXNet\*, Microsoft Cognitive Toolkit\* and other tools are developing ONNX support.
@@ -23,18 +37,9 @@
 | VGG19 | [model archive](https://s3.amazonaws.com/download.onnx/models/opset_8/vgg19.tar.gz) |
 | zfnet512 | [model archive](https://s3.amazonaws.com/download.onnx/models/opset_8/zfnet512.tar.gz) |
 | GPT-2 | [model archive](https://github.com/onnx/models/blob/master/text/machine_comprehension/gpt-2/model/gpt2-10.tar.gz) |
+| YOLOv3 | [model archive](https://github.com/onnx/models/blob/master/vision/object_detection_segmentation/yolov3/model/yolov3-10.tar.gz) |
 
-Listed models are built with the operation set version 8 except the GPT-2 model. Models that are upgraded to higher operation set versions may not be supported.
-
-## Supported Pytorch* Models via ONNX Conversion
-Starting from the 2019R4 release, the OpenVINO™ toolkit officially supports public Pytorch* models (from `torchvision` 0.2.1 and `pretrainedmodels` 0.7.4 packages) via ONNX conversion.
-The list of supported topologies is presented below:
-
-|Package Name|Supported Models|
-|:----|:----|
-| [Torchvision Models](https://pytorch.org/docs/stable/torchvision/index.html) | alexnet, densenet121, densenet161, densenet169, densenet201, resnet101, resnet152, resnet18, resnet34, resnet50, vgg11, vgg13, vgg16, vgg19 |
-| [Pretrained Models](https://github.com/Cadene/pretrained-models.pytorch) | alexnet, fbresnet152, resnet101, resnet152, resnet18, resnet34, resnet152, resnet18, resnet34, resnet50, resnext101_32x4d, resnext101_64x4d, vgg11 |
-| [ESPNet Models](https://github.com/sacmehta/ESPNet/tree/master/pretrained) | |
+Listed models are built with the operation set version 8 except the GPT-2 model (which uses version 10). Models that are upgraded to higher operation set versions may not be supported.
 
 ## Supported PaddlePaddle* Models via ONNX Conversion
 Starting from the R5 release, the OpenVINO™ toolkit officially supports public PaddlePaddle* models via ONNX conversion.
@@ -66,15 +71,25 @@ The list of supported topologies from the [models v1.5](https://github.com/Paddl
 ## Convert an ONNX* Model <a name="Convert_From_ONNX"></a>
 The Model Optimizer process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
-To convert an ONNX\* model:
+To convert an ONNX\* model, run Model Optimizer with the path to the input model `.nnet` file and an output directory where you have write permissions:
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` file:
-```sh
-python3 mo.py --input_model <INPUT_MODEL>.onnx
-```
+   .. code-block:: sh
 
-There are no ONNX\* specific parameters, so only [framework-agnostic parameters](Converting_Model_General.md) are available to convert your model.
+      cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+      python3 mo.py --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
+
+@endsphinxdirective
+
+
+There are no ONNX\* specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 
 ## Supported ONNX\* Layers
 Refer to [Supported Framework Layers](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
