@@ -98,6 +98,14 @@ class Gather(Op):
         else:
             node.out_port(0).data.set_shape(out_shape)
 
+        # When 'params' and 'indices' inputs of the operation Gather have output ranks less than 4,
+        # and an output rank of 'Gather' is greater or equal to 4, and a source model is a TF model,
+        # then the generated IR contains Transpose layer after such Gather.
+        #
+        # But this inserted Transpose is not needed in such case, because then TF 'Gather' and OV 'Gather'
+        # gives identical shapes and values.
+        #
+        # To fix it, we need set attribute 'reinterp_shape' of such 'Gather' as True.
         if max(len(data_shape), len(indices_shape)) < 4 and len(out_shape) >= 4:
             node['reinterp_shape'] = True
 
