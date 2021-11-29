@@ -13,7 +13,11 @@ except ImportError:
 logger = get_logger(__name__)
 
 
-def send_event(action, label, telemetry=tm.Telemetry(app_name='pot', app_version=pot_version)):
+def get_tid_telemetry():
+    return 'UA-17808594-29'
+
+
+def send_event(action, label, telemetry=tm.Telemetry(tid=get_tid_telemetry(), app_name='pot', app_version=pot_version)):
     try:
         telemetry.send_event('pot', action, label)
     except Exception as e: # pylint: disable=broad-except
@@ -22,7 +26,7 @@ def send_event(action, label, telemetry=tm.Telemetry(app_name='pot', app_version
 
 def send_configuration(algo_config, engine, interface='API'):
     try:
-        telemetry = tm.Telemetry(app_name='pot', app_version=pot_version)
+        telemetry = tm.Telemetry(tid=get_tid_telemetry(), app_name='pot', app_version=pot_version)
 
         target_device = ','.join(set(algorithm['params'].get('target_device', 'ANY') for algorithm in algo_config))
         algorithms = {f'algorithm_{i}': algorithm['name'] for i, algorithm in enumerate(algo_config)}
@@ -54,7 +58,7 @@ def send_configuration(algo_config, engine, interface='API'):
 
 def start_session_telemetry():
     try:
-        telemetry = tm.Telemetry(app_name='pot', app_version=pot_version)
+        telemetry = tm.Telemetry(tid=get_tid_telemetry(), app_name='pot', app_version=pot_version)
         telemetry.start_session('pot')
         return telemetry
     except Exception as e: # pylint: disable=broad-except

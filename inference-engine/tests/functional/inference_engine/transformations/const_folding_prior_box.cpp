@@ -15,6 +15,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/ops.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include <ngraph/pass/manager.hpp>
 
 using namespace testing;
 
@@ -35,8 +36,10 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
         auto pb = std::make_shared<ngraph::opset3::PriorBox>(layer_shape, image_shape, attrs);
         auto res = std::make_shared<ngraph::opset3::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{in});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -76,8 +79,10 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
         auto pb = std::make_shared<ngraph::opset3::PriorBoxClustered>(layer_shape, image_shape, attrs);
         auto res = std::make_shared<ngraph::opset3::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{in});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -135,8 +140,10 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
         auto pb = std::make_shared<ngraph::opset3::PriorBox>(ss_data, ss_image, attrs);
         auto res = std::make_shared<ngraph::opset3::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{in, in_2});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -185,8 +192,10 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
         auto pb = std::make_shared<ngraph::opset3::PriorBoxClustered>(ss_data, ss_image, attrs);
         auto res = std::make_shared<ngraph::opset3::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{in, in_2});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 

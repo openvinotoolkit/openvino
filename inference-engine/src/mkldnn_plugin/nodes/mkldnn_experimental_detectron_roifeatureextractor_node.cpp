@@ -311,10 +311,6 @@ void reorder_rois(const float *rois, const int* ids, int* mapping, const int roi
 bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                                                                               std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
         if (!roiFeatureExtractor) {
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";

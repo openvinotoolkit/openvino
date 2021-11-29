@@ -20,8 +20,7 @@ if(ENABLE_HETERO)
 endif()
 
 if(ENABLE_MKL_DNN)
-    list(APPEND DEPENDENCIES
-        MKLDNNPlugin)
+    list(APPEND DEPENDENCIES MKLDNNPlugin)
 endif()
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})

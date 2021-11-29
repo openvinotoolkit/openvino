@@ -98,7 +98,7 @@ public:
 
         const auto& stride = primitive->stride;
         const auto& dilation = primitive->dilation;
-        const auto& input_offset = primitive->input_offset;
+        const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
 
@@ -110,17 +110,12 @@ public:
         auto weights_layout = layout(input_layout.data_type, input_layout.format, kernel_size);
         conv_params.weights = convert_weights_tensor(weights_layout);
 
-        const auto additional_offset = tensor::max(input_offset, (tensor) 0);
-        if (additional_offset != (tensor) 0) {
-            conv_params.inputs[0] = convert_data_tensor(input_layout, groups, additional_offset);
-        }
-
         conv_params.inputs.push_back(convert_data_tensor(arg.trans().get_output_layout()));
         conv_params.deformable_groups = deformable_groups;
 
-        conv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
-                               (uint32_t)std::max(-input_offset.spatial[1], 0),
-                               (uint32_t)std::max(-input_offset.spatial[2], 0)};
+        conv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
+                               (uint32_t)std::max(pad.spatial[1], 0),
+                               (uint32_t)std::max(pad.spatial[2], 0)};
 
         conv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
 

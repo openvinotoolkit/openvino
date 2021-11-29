@@ -26,12 +26,10 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  target_compile_options(${TARGET_NAME} PRIVATE -Os)
-endif()
+target_compile_options(${TARGET_NAME} PRIVATE
+    $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
-                                             inference_engine
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
                                              ngraph)
@@ -42,6 +40,11 @@ target_include_directories(${TARGET_NAME} PRIVATE
         ${clDNN_SOURCE_DIR}/api)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+# Workaround to avoid warnings during LTO build
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+endif()
 
 # Failed because of OpenCL
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

@@ -22,6 +22,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 
 std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & data_shape,
@@ -82,9 +84,11 @@ void test(std::shared_ptr<ngraph::Function> f, std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
-    manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
-    ngraph::pass::ConstantFolding().run_on_function(f);
+    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        check_rt_info(f);
+    });
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    ASSERT_NO_THROW(manager.run_passes(f));
 
     auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(f, f_ref);

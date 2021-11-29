@@ -48,7 +48,7 @@ struct convolution : public primitive_base<convolution> {
                 const std::vector<primitive_id>& bias,
                 uint32_t groups,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor output_size,
                 data_types output_type,
@@ -56,7 +56,7 @@ struct convolution : public primitive_base<convolution> {
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
             : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_type}),
-              input_offset(input_offset),
+              pad(pad),
               stride(stride),
               dilation(dilation),
               with_output_size(true),
@@ -83,8 +83,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param bias List of primitive ids containing bias data.
     /// @param w_zero_point List of primitive ids containing weights zero points.
     /// @param a_zero_point List of primitive ids containing activations zero points.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -101,14 +100,14 @@ struct convolution : public primitive_base<convolution> {
                 uint32_t groups,
                 data_types output_data_type,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor output_size,
                 bool grouped_weights_shape,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
             : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_data_type}),
-              input_offset(input_offset),
+              pad(pad),
               stride(stride),
               dilation(dilation),
               with_output_size(true),
@@ -141,8 +140,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param a_zero_point List of primitive ids containing activations zero points.
     /// @param compensation List of primitive ids containing activations precalculated compensations for optimized asymmetric quantization.
     /// It works as bias, but can be skipped by the kernel if it performs direct zero-points subtraction
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -160,14 +158,14 @@ struct convolution : public primitive_base<convolution> {
                 uint32_t groups,
                 data_types output_data_type,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor output_size,
                 bool grouped_weights_shape,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
             : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_data_type}),
-              input_offset(input_offset),
+              pad(pad),
               stride(stride),
               dilation(dilation),
               with_output_size(true),
@@ -196,8 +194,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -210,12 +207,12 @@ struct convolution : public primitive_base<convolution> {
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 tensor stride = {1, 1, 1, 1},
-                tensor input_offset = tensor(0),
+                tensor pad = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(false),
@@ -254,14 +251,14 @@ struct convolution : public primitive_base<convolution> {
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor padding_above,
                 tensor padding_below,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(false),
@@ -302,14 +299,14 @@ struct convolution : public primitive_base<convolution> {
                 const std::vector<primitive_id>& bias,
                 uint32_t groups,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor padding_above,
                 tensor padding_below,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(false),
@@ -334,8 +331,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param weights List of primitive ids containing weights data.
     /// @param groups Number of filter groups.
     /// @param bias List of primitive ids containing bias data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -350,13 +346,13 @@ struct convolution : public primitive_base<convolution> {
                 const std::vector<primitive_id>& bias,
                 uint32_t groups,
                 tensor stride = {1, 1, 1, 1},
-                tensor input_offset = tensor(0),
+                tensor pad = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
                 bool grouped_weights_shape = false,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(false),
@@ -381,8 +377,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -395,13 +390,13 @@ struct convolution : public primitive_base<convolution> {
                 const primitive_id& input,
                 const std::vector<primitive_id>& weights,
                 tensor stride = {1, 1, 1, 1},
-                tensor input_offset = tensor(0),
+                tensor pad = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
                 bool grouped_weights_shape = false,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(false),
@@ -421,8 +416,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -437,14 +431,14 @@ struct convolution : public primitive_base<convolution> {
                 const primitive_id& input,
                 const std::vector<primitive_id>& weights,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor padding_above,
                 tensor padding_below,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(false),
@@ -465,8 +459,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param groups Number of filter groups.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -482,14 +475,14 @@ struct convolution : public primitive_base<convolution> {
                 const std::vector<primitive_id>& weights,
                 uint32_t groups,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor padding_above,
                 tensor padding_below,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(false),
@@ -510,8 +503,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param groups Number of filter groups.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -525,13 +517,13 @@ struct convolution : public primitive_base<convolution> {
                 const std::vector<primitive_id>& weights,
                 uint32_t groups,
                 tensor stride = {1, 1, 1, 1},
-                tensor input_offset = tensor(0),
+                tensor pad = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
                 bool grouped_weights_shape = false,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(false),
@@ -552,8 +544,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -568,13 +559,13 @@ struct convolution : public primitive_base<convolution> {
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor output_size,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(true),
@@ -598,8 +589,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -613,13 +603,13 @@ struct convolution : public primitive_base<convolution> {
                 const primitive_id& input,
                 const std::vector<primitive_id>& weights,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor output_size,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(true),
@@ -643,8 +633,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param weights List of primitive ids containing weights data.
     /// @param groups Number of filter groups.
     /// @param bias List of primitive ids containing bias data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param deformable_groups Defines a number of deformable groups that splits trans input into several parts
     /// by channel dimension.
@@ -662,13 +651,13 @@ struct convolution : public primitive_base<convolution> {
                 uint32_t groups,
                 uint32_t deformable_groups,
                 tensor stride,
-                tensor input_offset,
+                tensor pad,
                 tensor dilation,
                 tensor output_size,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
         : primitive_base(id, {input, trans}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           dilation(dilation),
           with_output_size(true),
@@ -695,8 +684,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -713,7 +701,7 @@ struct convolution : public primitive_base<convolution> {
                                                const std::vector<primitive_id>& bias,
                                                tensor output_size,
                                                tensor stride = {1, 1, 1, 1},
-                                               tensor input_offset = tensor(0),
+                                               tensor pad = tensor(0),
                                                tensor dilation = {1, 1, 1, 1},
                                                const primitive_id& ext_prim_id = "",
                                                const padding& output_padding = padding()) {
@@ -722,7 +710,7 @@ struct convolution : public primitive_base<convolution> {
                            weights,
                            bias,
                            stride,
-                           input_offset,
+                           pad,
                            dilation,
                            output_size,
                            ext_prim_id,
@@ -733,8 +721,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the convolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
     /// k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -750,7 +737,7 @@ struct convolution : public primitive_base<convolution> {
                                                const std::vector<primitive_id>& weights,
                                                tensor output_size,
                                                tensor stride = {1, 1, 1, 1},
-                                               tensor input_offset = tensor(0),
+                                               tensor pad = tensor(0),
                                                tensor dilation = {1, 1, 1, 1},
                                                const primitive_id& ext_prim_id = "",
                                                const padding& output_padding = padding()) {
@@ -758,15 +745,15 @@ struct convolution : public primitive_base<convolution> {
                            input,
                            weights,
                            stride,
-                           input_offset,
+                           pad,
                            dilation,
                            output_size,
                            ext_prim_id,
                            output_padding);
     }
 
-    /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the convolution window should start calculations.
-    tensor input_offset;
+    /// @brief Defines logical pad value added to input tensor.
+    tensor pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     tensor stride;
     /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
@@ -801,7 +788,6 @@ struct convolution : public primitive_base<convolution> {
     /// @brief List of primitive ids containing compensation.
     primitive_id_arr compensation;
 
-
     /// @brief On how many cards split the computation to.
     int32_t split() const { return static_cast<int32_t>(weights.size()); }
 
@@ -827,14 +813,14 @@ struct deformable_interp : public primitive_base<deformable_interp> {
                       uint32_t groups,
                       uint32_t deformable_groups,
                       tensor stride,
-                      tensor input_offset,
+                      tensor pad,
                       tensor dilation,
                       tensor output_size,
                       tensor kernel_size,
                       const primitive_id& ext_prim_id = "",
                       const padding& output_padding = padding())
             : primitive_base(id, {input, trans}, ext_prim_id, output_padding),
-              input_offset(input_offset),
+              pad(pad),
               stride(stride),
               dilation(dilation),
               output_size(output_size),
@@ -844,8 +830,8 @@ struct deformable_interp : public primitive_base<deformable_interp> {
               padding_above(tensor(0)),
               padding_below(tensor(0)) {}
 
-    /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the convolution window should start calculations.
-    tensor input_offset;
+    /// @brief Defines logical pad value added to input tensor.
+    tensor pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     tensor stride;
     /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.

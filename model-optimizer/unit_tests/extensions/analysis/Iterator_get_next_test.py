@@ -26,8 +26,8 @@ class IteratorGetNextAnalysisTest(unittest.TestCase):
         inputs_desc = {}
         message = InputsAnalysis.iterator_get_next_analysis(graph, inputs_desc)
         ref_message = 'It looks like there is IteratorGetNext as input\n' \
-                      'Run the Model Optimizer with:\n\t\t--input "iter_get_next:0[2 2],iter_get_next:1[1 1]"\n' \
-                      'And replace all negative values with positive values'
+                      'Run the Model Optimizer without --input option \n' \
+                      'Otherwise, try to run the Model Optimizer with:\n\t\t--input "iter_get_next:0[2 2],iter_get_next:1[1 1]"\n'
         self.assertEqual(message, ref_message)
 
     def test_negative(self):
