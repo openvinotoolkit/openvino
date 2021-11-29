@@ -249,7 +249,7 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
 int main(int argc, char* argv[]) {
     try {
         // -------- Get OpenVINO runtime version --------
-        slog::info << "OpenVINO Runtime: " << ov::get_openvino_version() << slog::endl;
+        slog::info << ov::get_openvino_version() << slog::endl;
 
         // -------- Parsing and validation of input arguments --------
         if (!ParseAndCheckCommandLine(argc, argv)) {
@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
         runtime::Core core;
 
         slog::info << "Device info: " << slog::endl;
-        std::cout << core.get_versions(FLAGS_d) << std::endl;
+        slog::info << core.get_versions(FLAGS_d) << slog::endl;
 
         // -------- Step 2. Create network using ov::Function --------
 
