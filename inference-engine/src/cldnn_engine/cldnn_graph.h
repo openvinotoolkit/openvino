@@ -56,7 +56,6 @@ public:
     InferenceEngine::SizeVector GetOutputSize(std::string outName) const;
     std::string MapOutputName(std::string outName) const;
     std::string getName() const { return m_networkName; }
-    uint64_t get_mem_footprint() const { return m_footprint; }
     void wait(Stage stage_mask) {
         std::unique_lock<std::mutex> lock(m_infer_mutex);
         m_cv.wait(lock, [&] {
@@ -82,7 +81,6 @@ protected:
 
     std::string m_networkName;
     Config m_config;
-    uint64_t m_footprint = {0};
 
     InferenceEngine::gpu::ClContext::Ptr m_context;
     std::vector<std::shared_ptr<cldnn::network>> m_networks;
@@ -104,7 +102,6 @@ protected:
     void UpdateImplementationsMap();
     std::shared_ptr<ngraph::Function> GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
                                                                        bool filter_const_primitives = true);
-    uint64_t get_current_engine_mem_footprint() const;
 };
 
 }  // namespace CLDNNPlugin

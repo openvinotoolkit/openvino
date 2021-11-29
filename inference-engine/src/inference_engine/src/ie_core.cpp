@@ -563,7 +563,7 @@ public:
                 // let's query the optimal batch size
                 try {
                     std::map<std::string, ie::Parameter> options;
-                    options["MODEL_ADDRESS"] = &network;
+                    options["MODEL_PTR"] = &network;
                     optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameWithoutBatch).getDeviceName())
                                            .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
                                            .as<unsigned int>();

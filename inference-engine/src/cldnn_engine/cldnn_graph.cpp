@@ -46,15 +46,8 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    auto memory_usage_before  = get_current_engine_mem_footprint();
-    std::cout << "mem_used BEFORE: " << memory_usage_before  << std::endl;
-
     m_program = std::make_shared<Program>(network, GetEngine(), m_config);
     Build();
-
-    auto memory_usage_after = get_current_engine_mem_footprint();
-    std::cout << "mem_used After: " << memory_usage_after  << " total: " << GetEngine()->get_device_info().max_alloc_mem_size << std::endl;
-    m_footprint =  memory_usage_after - memory_usage_before;
 }
 
 CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
@@ -64,23 +57,7 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
         , m_config(graph->m_config)
         , m_stream_id(stream_id)
         , m_state(0) {
-    auto memory_usage_before  = get_current_engine_mem_footprint();
-    std::cout << "mem_used BEFORE: " << memory_usage_before  << std::endl;
-
     Build();
-
-    auto memory_usage_after = get_current_engine_mem_footprint();
-    std::cout << "mem_used After: " << memory_usage_after  << std::endl;
-    m_footprint =  memory_usage_after - memory_usage_before;
-}
-
-uint64_t CLDNNGraph::get_current_engine_mem_footprint() const {
-    uint64_t memory_usage {0};
-    auto engine = GetEngine();
-    for (int t = static_cast<int>(cldnn::allocation_type::unknown);
-        static_cast<cldnn::allocation_type>(t) <= cldnn::allocation_type::usm_device; t++)
-        memory_usage += engine->get_used_device_memory(static_cast<cldnn::allocation_type>(t));
-    return memory_usage;
 }
 
 void CLDNNGraph::UpdateLayersMaps() {

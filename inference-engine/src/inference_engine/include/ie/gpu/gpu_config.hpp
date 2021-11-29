@@ -36,12 +36,6 @@ namespace Metrics {
 DECLARE_GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
 
 /**
- * @brief Metric which defines size of memory in bytes available for the device. For iGPU it returns host memory size,
- * for dGPU - dedicated gpu memory size
- */
-DECLARE_GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT, uint64_t);
-
-/**
  * @brief Metric to get microarchitecture identifier in major.minor.revision format
  */
 DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);

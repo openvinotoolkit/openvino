@@ -166,11 +166,6 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
         if (m_config.perfHintsConfig.ovPerfHint != CONFIG_VALUE(LATENCY))
             nr *= 2;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
-    } else if (name == GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT)) {
-        uint64_t f = 0;
-        for (const auto& g : m_graphs)
-            f+= g->get_mem_footprint();
-        IE_SET_METRIC_RETURN(GPU_NETWORK_MEM_FOOTPRINT, f);
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }

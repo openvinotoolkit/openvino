@@ -712,33 +712,27 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         }
         IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
     } else if (name == METRIC_KEY(OPTIMAL_BATCH)) {
-        auto network = options.find("MODEL_ADDRESS")->second.as<InferenceEngine::CNNNetwork const*>();
+        auto network = options.find("MODEL_PTR")->second.as<InferenceEngine::CNNNetwork const*>();
         Config config = _impl->m_configs.GetConfig(device_id);
         auto networkCloned = CloneAndTransformNetwork(*network, config);
-        // DG1
+        // TGL-i7-1185G7
         const float L3_cache_size = 12*1024*1024;
         ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(
                 networkCloned.getFunction(), L3_cache_size);
         unsigned int batch = 1;
         if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
             batch = 4 * pow(2, floor(log(memPressure.max_mem_tolerance)/log(2))); // closest_pow2
-        batch = std::max(4u, batch); //batch 4 is a min
-        batch = std::min(256u, batch); //batch 256 is a max
-        // workaround to emulate the MAX_BATCH
-        auto executableNetworkForDeviceBatch1 = const_cast<clDNNEngine*>(this)->LoadExeNetworkImpl(*network,
-                                                {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, "1"}});
-        uint64_t footprint = executableNetworkForDeviceBatch1->GetMetric(GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT));
         std::cout << "memPressure.max_mem_tolerance: " << memPressure.max_mem_tolerance << std::endl;
         std::cout << "SELECTED BATCH: " << batch << std::endl;
-        std::cout << "!!!!!!!!!!!!!! Original (batch1):" << footprint << std::endl;
-
-        uint64_t total_mem = GetMetric(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE), {{}});
-        total_mem /=2; // WA to accomodate #streams
-        while (total_mem < (footprint * batch)) {
-            batch /= 2;
-        }
-        // TODO: remove this workaround and avoid batching altogether if the network is too big (should happen in IE core)
-        batch = std::max(1u, batch);
+        std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
+        options_for_max_batch["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network->getFunction());
+        auto max_batch_size = GetMetric(GPU_METRIC_KEY(MAX_BATCH_SIZE), options_for_max_batch).as<unsigned int>();
+        std::cout << "MAX_BATCH: " << max_batch_size << std::endl;
+        unsigned int closest = pow(2, floor(log(max_batch_size)/log(2)));
+        std::cout << "!!!!!!!!!!!!!! (CLOSEST):" << closest << std::endl;
+        batch = std::min(closest, batch);
+        batch = std::max(4u, batch); //batch 4 is a min
+        batch = std::min(256u, batch); //batch 256 is a max
         std::cout << "ACTUAL SELECTED BATCH: " << batch << std::endl;
         IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
