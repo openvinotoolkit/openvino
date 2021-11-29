@@ -110,9 +110,7 @@ class Benchmark:
                 else:
                     in_fly.add(idle_id)
                 group_id = data_queue.current_group_id
-                if self.benchmark_mode == 'legacy':
-                    processed_frames += data_queue.batch_sizes[idle_id % data_queue.size]
-                else:
+                if self.benchmark_mode == 'full':
                     requests[idle_id].set_tensors(data_queue.get_next_input())
                 requests.start_async(userdata=group_id)
             iteration += 1
@@ -154,7 +152,10 @@ class Benchmark:
                     group.min = group.times[0]
                     group.max = group.times[-1]
 
-        fps = len(batch_size) * 1000 / median_latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
+        if self.benchmark_mode == 'legacy' and self.api_type == 'async':
+            fps = len(batch_size) * iteration / total_duration_sec
+        else:
+            fps = len(batch_size) * 1000 / median_latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
         if progress_bar:
             progress_bar.finish()
         return fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration
