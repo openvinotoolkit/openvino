@@ -152,26 +152,24 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
     // So we need store as supported either unsupported node sets
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
-    std::vector<ngraph::OpSet> opsets{ ngraph::get_opset1(),
-                                       ngraph::get_opset2(),
-                                       ngraph::get_opset3(),
-                                       ngraph::get_opset4(),
-                                       ngraph::get_opset5(),
-                                       ngraph::get_opset6(),
-                                       ngraph::get_opset7(),
-                                       ngraph::get_opset8() };
-    std::set<ngraph::NodeTypeInfo> op_super_set;
-    for (const auto &opset : opsets) {
-        const auto &type_info_set = opset.get_type_info_set();
-        op_super_set.insert(type_info_set.begin(), type_info_set.end());
-    }
+    ngraph::OpSet op_super_set;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) op_super_set.insert<NAMESPACE::NAME>();
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#undef _OPENVINO_OP_REG
     for (auto &&node: transformedFunction->get_ops()) {
         // Extract transformation history from transformed node as list of nodes
         for (auto &&fusedLayerName: ngraph::getFusedNamesVector(node)) {
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (op_super_set.find(friendlyNameToType[fusedLayerName]) != op_super_set.end()) {
+                if (op_super_set.contains_type(friendlyNameToType[fusedLayerName])) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
