@@ -98,6 +98,9 @@ class Gather(Op):
         else:
             node.out_port(0).data.set_shape(out_shape)
 
+        if max(len(data_shape), len(indices_shape)) < 4 and len(out_shape) >= 4:
+            node['reinterp_shape'] = True
+
 
 class AttributedGather(Op):
     op = 'AttributedGather'
