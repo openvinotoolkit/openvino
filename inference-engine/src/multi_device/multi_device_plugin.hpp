@@ -12,6 +12,7 @@
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "multi_device_exec_network.hpp"
+#include "utils/log_util.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
