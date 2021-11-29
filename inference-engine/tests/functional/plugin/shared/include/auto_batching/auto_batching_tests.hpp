@@ -78,7 +78,7 @@ protected:
                                                     device_name + "(" + std::to_string(num_batch) + ")",
                                                config);
 
-            for (int j = 0; j < num_requests; j++) {
+            for (size_t j = 0; j < num_requests; j++) {
                 outputs.push_back(net.getOutputsInfo().begin()->first); //single output
                 outElementsCount.push_back(
                         std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
