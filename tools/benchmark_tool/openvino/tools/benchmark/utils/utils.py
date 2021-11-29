@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from collections import defaultdict
 import datetime
 from openvino.runtime import Core, Function, PartialShape, Dimension, Layout
 from openvino.runtime.impl import Type
@@ -234,6 +235,18 @@ def get_duration_in_secs(target_device):
     return duration
 
 
+def check_for_static(app_input_info):
+    is_static = True
+    for info in app_input_info:
+        if info.is_dynamic:
+            t_shape = info.shapes[0]
+            for shape in info.shapes:
+                if shape != t_shape:
+                    is_static = False
+                    return is_static
+    return is_static
+
+
 def parse_devices(device_string):
     if device_string in ['MULTI', 'HETERO']:
         return list()
@@ -362,11 +375,15 @@ def get_data_shapes_map(data_shape_string, input_names):
                 shapes = re.findall(r'\[(.*?)\]', match[len(input_name):])
                 if input_name:
                     return_value[input_name] = list(parse_partial_shape(shape_str) for shape_str in shapes)
-                elif len(input_names) == 1:
-                    return_value[input_names[0]] = list(parse_partial_shape(shape_str) for shape_str in shapes)
-                    return return_value
                 else:
-                    raise Exception(f"Model has several inputs, provide input names")
+                    data_shapes = list(parse_partial_shape(shape_str) for shape_str in shapes)
+                    num_inputs, num_shapes = len(input_names), len(data_shapes)
+                    if num_shapes != 1 and num_shapes % num_inputs != 0:
+                        raise Exception(f"Number of provided data_shapes is not a multiple of the number of model inputs!")
+                    return_value = defaultdict(list)
+                    for i in range(max(num_shapes, num_inputs)):
+                        return_value[input_names[i % num_inputs]].append(data_shapes[i % num_shapes])
+                    return return_value
         else:
             raise Exception(f"Can't parse input parameter: {data_shape_string}")
     return return_value

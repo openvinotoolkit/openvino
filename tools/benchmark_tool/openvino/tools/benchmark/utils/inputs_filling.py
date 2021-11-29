@@ -171,14 +171,15 @@ def get_image_tensors(image_paths, info, batch_sizes):
                 image = image.transpose((2, 0, 1))
 
             if process_with_original_shapes:
-                expanded = np.expand_dims(image, 0)
-                p_shape = PartialShape(expanded.shape)
+                if len(info.partial_shape) == 4:
+                    image = np.expand_dims(image, 0)
+                p_shape = PartialShape(image.shape)
                 if info.partial_shape.compatible(p_shape):
                     info.data_shapes.append(p_shape.to_shape())
                 else:
                     raise Exception(f"Data shape '{str(p_shape)}' provided for input '{info.name}' "
                                     f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
-                tensors.append(Tensor(expanded.astype(dtype)))
+                tensors.append(Tensor(image.astype(dtype)))
             else:
                 try:
                     images[b] = image
