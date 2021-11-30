@@ -34,9 +34,9 @@ goto :opencv_done
 :opencv_done
 
 :: Model Optimizer
-if exist %INTEL_OPENVINO_DIR%\tools\mo (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\mo;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\tools\mo;%PATH%"
+if exist %INTEL_OPENVINO_DIR%\tools\model_optimizer (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PATH%"
 )
 
 :: OpenVINO runtime
