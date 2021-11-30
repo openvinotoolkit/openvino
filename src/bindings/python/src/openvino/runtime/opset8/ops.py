@@ -6,23 +6,13 @@ from functools import partial
 from typing import List, Optional
 
 import numpy as np
-from openvino.runtime.impl import Node, Shape
-from openvino.runtime.impl.op import Constant, Parameter
+from openvino.runtime.impl import Node
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.input_validation import (
     check_valid_attributes,
     is_non_negative_value,
     is_positive_value,
-)
-from openvino.runtime.utils.node_factory import NodeFactory
-from openvino.runtime.utils.tensor_iterator_types import (
-    GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
-    TensorIteratorInvariantInputDesc,
-    TensorIteratorBodyOutputDesc,
-    TensorIteratorConcatOutputDesc,
 )
 from openvino.runtime.utils.types import (
     NodeInput,

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino.opset8 as ov
+import openvino.runtime.opset8 as ov
 import pytest
 
 np_types = [np.float32, np.int32]
