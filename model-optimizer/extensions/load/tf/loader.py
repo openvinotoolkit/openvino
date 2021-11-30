@@ -65,8 +65,6 @@ class TFLoader(Loader):
         if argv.tensorboard_logdir:
             tensorboard_util.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
 
-        update_extractors_with_extensions(tf_op_extractors)
-
         try:
             protobuf2nx(graph, graph_def)
         except Exception as e:
@@ -156,3 +154,15 @@ def update_cmd_params_and_layout(graph: Graph):
         graph.graph['cmd_params'].auto_disable_nhwc_to_nchw = True
     if 'layout' in graph.graph:
         graph.graph['layout'] = 'NCHW'
+
+
+class TFExtractor(Loader):
+    id = "TFExtractor"
+    enabled = True
+
+    def run_after(self):
+        return [TFLoader]
+
+    def load(self, graph: Graph):
+        update_extractors_with_extensions(tf_op_extractors)
+        extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
