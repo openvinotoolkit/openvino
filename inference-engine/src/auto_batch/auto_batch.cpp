@@ -465,7 +465,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
     return metaDevice;
 }
 
-RemoteContext::Ptr  AutoBatchInferencePlugin::CreateContext(const InferenceEngine::ParamMap& config) {
+RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine::ParamMap& config) {
     auto cfg = config;
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH));
     if (it == cfg.end())
@@ -474,7 +474,7 @@ RemoteContext::Ptr  AutoBatchInferencePlugin::CreateContext(const InferenceEngin
     auto val = it->second;
     auto metaDevice = ParseMetaDevice(val, {{}});
     cfg.erase(it);
-
+    std::cout << "AutoBatchInferencePlugin::CreateContext" << std::endl;
     return GetCore()->CreateContext(metaDevice.deviceName, cfg);
 }
 
@@ -604,7 +604,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadE
             const InferenceEngine::CNNNetwork& network,
             const std::shared_ptr<InferenceEngine::RemoteContext>& context,
             const std::map<std::string, std::string>& config) {
-        return LoadNetworkImpl(network, context, config);
+    std::cout << "AutoBatchInferencePlugin::LoadExeNetworkImpl with context for " << context-> getDeviceName() << std::endl;
+    return LoadNetworkImpl(network, context, config);
 }
 
 InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
