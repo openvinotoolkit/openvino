@@ -90,9 +90,9 @@ private:
 
 class MKLDNNTensorIteratorNode : public MKLDNNNode {
 public:
-    MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNTensorIteratorNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
@@ -137,12 +137,12 @@ private:
         last_mappers,    /// < Applied once after loop
         before_mappers,  /// < Applied before each iteration
         after_mappers,   /// < Applied after each iteration
-        back_mappers;   /// < Applied before each iteration for dynamic shapes
+        back_mappers;    /// < Applied before each iteration for dynamic shapes
 
     std::shared_ptr<PortChecker>
         trip_count_check,      /// < Perform check of trip count value. value >= -1
-        initial_cond_check,   /// < Perform check of initial continue condition value. value [0, 1]
-        continue_cond_check;  /// < Perform check of continue condition value of body. value [0, 1]
+        initial_cond_check,    /// < Perform check of initial continue condition value. value [0, 1]
+        continue_cond_check;   /// < Perform check of continue condition value of body. value [0, 1]
 
     std::vector<std::shared_ptr<DynamicBuffer>> buffers;
 
