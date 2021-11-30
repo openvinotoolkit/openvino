@@ -135,6 +135,7 @@ class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkTh
                                      public InferenceEngine::ITaskExecutor {
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
+    friend class MultiDeviceAsyncInferRequest;
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
