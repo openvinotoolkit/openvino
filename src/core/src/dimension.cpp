@@ -42,8 +42,7 @@ Dimension Dimension::operator/(const value_type divisor) const {
         return Dimension::dynamic();
 
     else if (is_static() && m_dimension.get_max_val() % divisor)
-        OPENVINO_ASSERT(false,
-                        "Dimension value: ",
+        OPENVINO_UNREACHABLE("Dimension value: ",
                         m_dimension.get_max_val(),
                         " must be a multiple of divisor: ",
                         divisor);
