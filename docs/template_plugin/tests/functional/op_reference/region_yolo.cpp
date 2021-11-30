@@ -9,6 +9,7 @@
 
 #include "openvino/op/region_yolo.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -71,7 +72,7 @@ struct RegionYoloParams {
 public:
     template<typename T>
     inline static std::vector<T> read_binary_file(const std::string& filename) {
-        std::string path = TEST_FILES + filename;
+        std::string path = ov::util::path_join({TEST_FILES, filename});
         std::vector<float> file_content;
         std::vector<T> type_converted_data;
         std::ifstream inputs_fs{path, std::ios::in | std::ios::binary};
@@ -149,15 +150,15 @@ std::vector<RegionYoloParams> generateRegionYoloParams() {
                         1, 125, 13, 13,
                         std::vector<int64_t>{0, 1, 2},
                         IN_ET,
-                        RegionYoloParams::read_binary_file<T>("/region_in_yolov2_caffe.data"),
-                        RegionYoloParams::read_binary_file<T>("/region_out_yolov2_caffe.data"),
+                        RegionYoloParams::read_binary_file<T>("region_in_yolov2_caffe.data"),
+                        RegionYoloParams::read_binary_file<T>("region_out_yolov2_caffe.data"),
                         "region_yolo_v2_caffe"),
         RegionYoloParams(9, 4, 20, false, 1, 3,
                         1, 75, 32, 32,
                         std::vector<int64_t>{0, 1, 2},
                         IN_ET,
-                        RegionYoloParams::read_binary_file<T>("/region_in_yolov3_mxnet.data"),
-                        RegionYoloParams::read_binary_file<T>("/region_out_yolov3_mxnet.data"),
+                        RegionYoloParams::read_binary_file<T>("region_in_yolov3_mxnet.data"),
+                        RegionYoloParams::read_binary_file<T>("region_out_yolov3_mxnet.data"),
                         "region_yolo_v3_mxnet"),
         RegionYoloParams(1, 4, 1, false, 1, 3,
                         1, 8, 2, 2,

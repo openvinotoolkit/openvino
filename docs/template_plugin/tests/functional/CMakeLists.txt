@@ -5,6 +5,8 @@
 # [cmake:functional_tests]
 set(TARGET_NAME templateFuncTests)
 
+add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
