@@ -37,6 +37,7 @@ if sys.platform == "win32":
             else:
                 os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
+
 # Openvino pybind bindings and python extended classes
 from openvino.runtime.impl import Dimension
 from openvino.runtime.impl import Function
