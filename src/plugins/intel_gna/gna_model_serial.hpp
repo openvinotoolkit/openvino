@@ -9,8 +9,7 @@
 #include <utility>
 #include <ie_input_info.hpp>
 
-#include "descriptions/gna_input_desc.hpp"
-#include "descriptions/gna_output_desc.hpp"
+#include "descriptions/gna_desc.hpp"
 #include "gna_plugin_log.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 #if GNA_LIB_VER == 2
@@ -43,12 +42,12 @@ private:
 
     void ImportInputs(std::istream &is,
             void* basePtr,
-            std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
+            std::map<std::string, GNAPluginNS::InputDesc> &inputs,
             InferenceEngine::InputsDataMap& dataMap);
 
     void ImportOutputs(std::istream &is,
             void* basePtr,
-            std::vector<GNAPluginNS::OutputDesc> &desc,
+            std::map<std::string, GNAPluginNS::OutputDesc> &outputs,
             InferenceEngine::OutputsDataMap& dataMap);
 
     void ImportTranspositionInfo(std::istream &is,
@@ -66,18 +65,18 @@ private:
 
     GNAModelSerial(
         Gna2Model * model,
-        const std::shared_ptr<GNAPluginNS::InputDesc> inputDesc,
-        const std::vector<GNAPluginNS::OutputDesc>& outputsDesc,
+        const std::map<std::string, GNAPluginNS::InputDesc> &inputs,
+        const std::map<std::string, GNAPluginNS::OutputDesc> &outputs,
         const InferenceEngine::InputsDataMap& inputsDataMap,
         const InferenceEngine::OutputsDataMap& outputsDataMap) : gna2Model(model),
-            inputs(serializeInputs(inputsDataMap, inputDesc)),
-            outputs(serializeOutputs(outputsDataMap, outputsDesc)) {
-        for (auto const& input : inputsDataMap) {
+            inputs(serializeInputs(inputs)),
+            outputs(serializeOutputs(outputs)) {
+        for (auto const& input : inputs) {
             inputNames.push_back(input.first);
         }
 
-        for (auto const& input : outputsDataMap) {
-            outputNames.push_back(input.first);
+        for (auto const& output : outputs) {
+            outputNames.push_back(output.first);
         }
     }
 
@@ -104,8 +103,8 @@ private:
          const std::vector<GNAPluginNS::OutputDesc>& outputsDesc,
          const InferenceEngine::InputsDataMap& inputsDataMap,
          const InferenceEngine::OutputsDataMap& outputsDataMap) : ptr_nnet(ptr_nnet),
-                                                                  inputs(serializeInputs(inputsDataMap, inputDesc)),
-                                                                  outputs(serializeOutputs(outputsDataMap, outputsDesc)) {
+                                                                  inputs(serializeInputs(inputDesc)),
+                                                                  outputs(serializeOutputs(outputsDesc)) {
      }
 #endif
 
@@ -150,8 +149,8 @@ private:
     void Import(void *basePointer,
                 size_t gnaGraphSize,
                 std::istream & is,
-                std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
-                std::vector<GNAPluginNS::OutputDesc> &desc,
+                std::map<std::string, GNAPluginNS::InputDesc> &inputs,
+                std::map<std::string, GNAPluginNS::OutputDesc> &outputs,
                 InferenceEngine::InputsDataMap& inputsDataMap,
                 InferenceEngine::OutputsDataMap& outputsDataMap,
                 TranspositionInfoMap& inputstranspositionInfo,
@@ -167,12 +166,9 @@ private:
                 size_t gnaGraphSize,
                 std::ostream &os) const;
 
-    static std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
-            const std::vector<GNAPluginNS::OutputDesc>& outputsDesc);
+    static std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> serializeOutputs(const GNAPluginNS::GnaOutputs &outputs);
 
-
-    static std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
-                                                                        const std::shared_ptr<GNAPluginNS::InputDesc>);
+    static std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> serializeInputs(const GNAPluginNS::GnaInputs &inputs);
 
     void setHeader(GNAPluginNS::HeaderLatest::ModelHeader header);
 };

@@ -181,40 +181,6 @@ void GNAPlugin::copyInputData(T *dst,
     }
 }
 
-template <typename T, typename U>
-void GNAPlugin::copyInputDataWithSplit(T *const dst,
-                const U *src,
-                const GNASplitLayer& splitInfo,
-                size_t precision_size,
-                int idx) {
-    if (!dst || !src) {
-        return;
-    }
-    T *dst_ptr = dst;
-    const U *src_ptr = src;
-    precision_size = sizeof(T);
-    // we found split/slice layer connected to Input
-    for (auto&& outputLayer : splitInfo.splitOutputLayers) {
-        uint32_t begin = outputLayer.offset / precision_size;
-        uint32_t end = (outputLayer.offset + outputLayer.pure_size)/precision_size;
-        if (dst_ptr - dst >= end) {
-            // output layer with bind pointer as previous one. Skip
-            continue;
-        }
-        for (uint32_t i = begin; i < end; ++i) {
-            if (!std::is_same<T, U>::value) {
-                *(dst_ptr++) = GNAPluginNS::ConvertFloatToInt16(*(src_ptr++) * inputsDesc->getScaleFactor(idx));
-            } else {
-                *(dst_ptr++) = *(src_ptr++);
-            }
-        }
-        begin = end;
-        end = (outputLayer.offset + ALIGN64(outputLayer.pure_size))/precision_size;
-        std::memset(dst_ptr, 0, (end - begin )* sizeof(uint16_t));
-        dst_ptr += end - begin;
-    }
-}
-
 void GNAPlugin::ExportScores(void *ptr_dst,
                   const void *ptr_src,
                   intel_dnn_orientation_t orientation,
@@ -404,12 +370,12 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
 void GNAPlugin::Init() {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "Init");
     dnn = std::make_shared<backend::AMIntelDNN>(backend::AMIntelDNN());
-    inputsDesc = std::make_shared<GNAPluginNS::InputDesc>(GNAPluginNS::InputDesc());
     gnaFlags = std::make_shared<GNAPluginNS::GNAFlags>(GNAPluginNS::GNAFlags());
+    _inputsPtr = std::make_shared<GNAPluginNS::GnaInputs>(GNAPluginNS::GnaInputs());
 
     graphCompiler.setDNNPtr(dnn);
-    graphCompiler.setInputDescPtr(inputsDesc);
     graphCompiler.setGNAFlagsPtr(gnaFlags);
+    graphCompiler.setInputsPtr(_inputsPtr);
 }
 
 void GNAPlugin::InitGNADevice() {
@@ -465,20 +431,19 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
-            IE_ASSERT(inputsDesc->inputScaleFactors.size() > inputIdx);
 
             if (!config.inputScaleFactors.empty()) {
-                gnalog() << "Scale factor calculated during model quantization (" << scaleInput
-                    << ") will be used instead of user input (" << inputsDesc->inputScaleFactors[inputIdx] << ").\n";
-                if (inputsDesc->inputScaleFactors[inputIdx] < scaleInput) {
-                    gnawarn() << "WARNING: Scale factor calculated based on input values (" << inputsDesc->inputScaleFactors[inputIdx]
+                gnawarn() << "WARNING: Scale factor calculated during model quantization (" << scaleInput
+                    << ") will be used instead of user input (" << (*_inputsPtr)[input.first].scale_factor << ").\n";
+                if ((*_inputsPtr)[input.first].scale_factor < scaleInput) {
+                    gnawarn() << "WARNING: Scale factor calculated based on input values (" << (*_inputsPtr)[input.first].scale_factor
                         << ") is smaller than scale factor used to quantize model (" << scaleInput << "). "
                         << "Input values will be clamped.\n";
                 }
             }
 
             config.inputScaleFactors[inputIdx] = scaleInput;
-            inputsDesc->inputScaleFactors[inputIdx] = scaleInput;
+            (*_inputsPtr)[input.first].scale_factor = scaleInput;
         }
 
         inputIdx++;
@@ -490,42 +455,42 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
 
     // update inputs
     {
-        InputsDataMap inputs = network.getInputsInfo();
-        if (inputsDesc->inputPrecisions.size() != 0) {
-            inputsDesc->inputPrecisions.clear();
-        }
-        for (const auto input : inputs) {
-            inputsDesc->inputPrecisions.push_back(input.second->getPrecision().getPrecVal());
+        InputsDataMap network_inputs = network.getInputsInfo();
+        size_t id = 0;
+        for (const auto input : network_inputs) {
+            (*_inputsPtr)[input.first] = InputDesc(input.second);
+
+            // update scale factor from config
+            if (id < config.inputScaleFactors.size()) {
+                (*_inputsPtr)[input.first].scale_factor = config.inputScaleFactors[id];
+            }
+
+            id++;
         }
     }
 
     // update outputs
     {
         OutputsDataMap outputs = network.getOutputsInfo();
-        outputsDesc.resize(outputs.size());
-
-        size_t outputIdx = 0;
         for (const auto output : outputs) {
-            outputsDesc[outputIdx].precision = output.second->getPrecision().getPrecVal();
-            ++outputIdx;
+            _outputs[output.first] = OutputDesc(output.second);
         }
     }
 }
 
-bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) {
-    auto initOutput = [this, portId, layer]
+bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CNNLayerPtr layer) {
+    auto initOutput = [this, portName, layer]
             (intel_dnn_orientation_t orientation, size_t numBytesPerElem, size_t numElem, void* outputPtr) {
-        auto & desc = outputsDesc[portId];
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
-        desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
-        desc.orientation = orientation;
-        desc.num_bytes_per_element = numBytesPerElem;
-        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
-        desc.num_elements = numElem;
+        _outputs.at(portName).ptrs.resize(gnaFlags->gna_lib_async_threads_num);
+        _outputs.at(portName).orientation = orientation;
+        _outputs.at(portName).num_bytes_per_element = numBytesPerElem;
+        _outputs.at(portName).scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
+        _outputs.at(portName).num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
-        gnamem->bind_ptr(layer, &desc.ptrs.front(), outputPtr);
+        gnamem->bind_ptr(layer, &_outputs.at(portName).ptrs.front(), outputPtr);
     };
 
     // probing gna_primitives
@@ -765,12 +730,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
+    // Set input and output information from orginal network
+    UpdateInputsAndOutputsInfoFromNetwork(network);
+
     if (fake_quantized) {
         UpdateInputScaleFromNetwork(network);
     }
-
-    // Set input and output information from orginal network
-    UpdateInputsAndOutputsInfoFromNetwork(network);
 
     if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
@@ -823,6 +788,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     };
 
     InferenceEngine::CNNNetwork newNet;
+
     if (gnaFlags->sw_fp32) {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             transformLayer(lp, WeightsConverter());
@@ -834,20 +800,20 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         run_passes(newNet, false, gnaFlags->input_low_precision);
     } else if (fake_quantized) {
         ModelQuantizer<FakeQuant> modelQuantizer;
-        newNet = modelQuantizer.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+        newNet = modelQuantizer.quantize(network, run_passes, (*_inputsPtr));
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:
                 ModelQuantizer<QuantI16> q16;
-                newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                newNet = q16.quantize(network, run_passes, (*_inputsPtr));
                 break;
             case Precision::I8:
                 if (gnaFlags->input_low_precision == false) {
                     ModelQuantizer<QuantI8> q8;
-                    newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                    newNet = q8.quantize(network, run_passes, (*_inputsPtr));
                 } else {
                     ModelQuantizer<QuantI8_I8> q8_8;
-                    newNet = q8_8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                    newNet = q8_8.quantize(network, run_passes, (*_inputsPtr));
                 }
                 break;
             default:
@@ -924,7 +890,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     for (auto && input : inputsDataMap) {
-        inputsDesc->getPtrInputsGlobal(input.first).resize(gnaFlags->gna_lib_async_threads_num);
+        _inputsPtr->at(input.first).ptrs.resize(gnaFlags->gna_lib_async_threads_num);
     }
 
     // Creating Layer primitives
@@ -938,8 +904,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     for (auto& inputLayer : inputLayers) {
         auto layerInfo = LayerInfo(inputLayer);
-        if (layerInfo.isInput() && 0 == inputsDesc->bytes_allocated_for_input[inputLayer->name]) {
-            graphCompiler.connectOutput(inputLayer, &inputsDesc->getPtrInputsGlobal(inputLayer->name).front(), 0);
+        if (layerInfo.isInput() && 0 == _inputsPtr->at(inputLayer->name).getAllocatedSize()) {
+            graphCompiler.connectOutput(inputLayer, &_inputsPtr->at(inputLayer->name).ptrs.front(), 0);
         }
     }
 
@@ -971,9 +937,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         gnalog() << "[UFS] searching for : "<< outPort.first << " representation in GNA\n";
         bool stopSearching = false;
 
-        CNNNetDFS(outLayer, [this, &outPort, portId, &stopSearching](CNNLayerPtr layer) {
+        CNNNetDFS(outLayer, [this, &outPort, &stopSearching](CNNLayerPtr layer) {
             gnalog() << "[UFS] from : "<< outPort.first <<" reached: " << layer->name << "\n";
-            stopSearching = TryToInitOutput(portId, layer);
+            stopSearching = TryToInitOutput(outPort.first, layer);
         }, true, [&stopSearching](InferenceEngine::CNNLayer* from) {
             return make_upstream_order(!stopSearching ? from : nullptr);
         });
@@ -986,8 +952,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // TODO: how active list will work in multioutput case
     // make room for active list
-    gnamem->reserve_ptr(nullptr, nullptr,
-        ALIGN64(outputsDesc.front().num_bytes_per_element * outputsDesc.front().num_elements), 64);
+    gnamem->reserve_ptr(nullptr, nullptr, ALIGN64(_outputs.begin()->second.getRequiredSize()), 64);
 
     void *pParallelExecutionData  = nullptr;
 
@@ -1050,13 +1015,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             }
         };
 
-        for (auto &&input : inputsDesc->ptr_inputs_global_storage) {
-            relocate(input[i], input[0]);
+        for (auto &input : *(_inputsPtr)) {
+            relocate(input.second.ptrs[i], input.second.ptrs[0]);
         }
 
         // relocating all output pointers
-        for (int j = 0; j < outputsDesc.size(); ++j) {
-            relocate(outputsDesc[j].ptrs[i], outputsDesc[j].ptrs[0]);
+        for (auto &output : _outputs) {
+            relocate(output.second.ptrs[i], output.second.ptrs[0]);
         }
 
 #if GNA_LIB_VER == 2
@@ -1114,11 +1079,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
             if (orientations.empty()) {
                 // in this case orientation doesn't make a sense
-                inputsDesc->orientation_in[inputLayer->name] = kDnnNonInterleavedOrientation;
+                _inputsPtr->at(inputLayer->name).orientation = kDnnNonInterleavedOrientation;
             } else if (std::adjacent_find(orientations.begin(), orientations.end(),
                            std::not_equal_to<intel_dnn_orientation_t>()) == orientations.end()) {
                 // all orientations are equal
-                inputsDesc->orientation_in[inputLayer->name] = orientations.front();
+                _inputsPtr->at(inputLayer->name).orientation = orientations.front();
             } else {
                 // unsupported case: orientations are different and they are important for these components
                 THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << " cannot be calculated";
@@ -1126,7 +1091,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         }
     } else {
         for (auto &inputLayer : inputLayers) {
-            inputsDesc->orientation_in[inputLayer->name] = kDnnInterleavedOrientation;
+            if (LayerInfo(inputLayer).isInput()) {
+                _inputsPtr->at(inputLayer->name).orientation = kDnnInterleavedOrientation;
+            }
         }
     }
 
@@ -1196,8 +1163,8 @@ void GNAPlugin::DumpXNNToFile() const {
         THROW_GNA_EXCEPTION << "Wrong GNA version for embedded model dump: " << config.dumpXNNGeneration;
     auto dump = gnadevice->dumpXnn(&std::get<0>(nnets.front())->obj, ptr_active_indices, num_active_indices);
     dump.header.rw_region_size = gnamem->getRWBytes();
-    dump.header.input_scaling_factor = inputsDesc->inputScaleFactors.front();
-    dump.header.output_scaling_factor = outputsDesc.front().scale_factor;
+    dump.header.input_scaling_factor = _inputs.begin()->second.scale_factor;
+    dump.header.output_scaling_factor =  _outputs.begin()->second.scale_factor;
     dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(intel_gna_model_header));
     dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.model_size);
 #else
@@ -1205,8 +1172,8 @@ void GNAPlugin::DumpXNNToFile() const {
     if (versionInt == Gna2DeviceVersionEmbedded1_0) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = gnamem->getRWBytes();
-        dump.header.InputScalingFactor = inputsDesc->inputScaleFactors.front();
-        dump.header.OutputScalingFactor = outputsDesc.front().scale_factor;
+        dump.header.InputScalingFactor = _inputsPtr->begin()->second.scale_factor;
+        dump.header.OutputScalingFactor = _outputs.begin()->second.scale_factor;
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
         dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
     } else {
@@ -1257,24 +1224,24 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         auto is1D = input.second->getTensorDesc().getLayout() == Layout::C;
         auto is3D = input.second->getTensorDesc().getLayout() == Layout::CHW;
 
-        if (!inputsDesc->ptr_inputs_global_id.count(input.first)) {
+        if (_inputsPtr->at(input.first).ptrs.empty()) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for " << input.first << " not set";
         }
 
-        if (inputsDesc->getPtrInputsGlobal(input.first)[idx] == nullptr) {
+        if (_inputsPtr->at(input.first).ptrs[idx] == nullptr) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for (" << input.first << " at inferRequest #"
                                 << idx << " not set";
         }
-        const auto inputOrientation = inputsDesc->getOrientation(input.first);
+        const auto inputOrientation = _inputsPtr->at(input.first).orientation;
         if (inputOrientation == kDnnUnknownOrientation) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input orientation for " << input.first << " not set";
         }
 
-        for (auto& outputDesc : outputsDesc) {
-            if (outputDesc.orientation == kDnnUnknownOrientation) {
+        for (auto& output : _outputs) {
+            if (output.second.orientation == kDnnUnknownOrientation) {
                 // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
                 THROW_GNA_EXCEPTION << "network not loaded : output orientation not set";
             }
@@ -1288,16 +1255,16 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : (gnaFlags->input_low_precision ? 1 : 2);
         auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
 
-        if (inputsDesc->bytes_allocated_for_input[input.first] < importedBytes) {
+        if (_inputsPtr->at(input.first).getRequiredSize() < importedBytes) {
             THROW_GNA_EXCEPTION << "Cannot import input frames for :" << input.first
-                                  << ", allocated size: " << inputsDesc->bytes_allocated_for_input[input.first]
+                                  << ", allocated size: " << _inputsPtr->at(input.first).getRequiredSize()
                                   << ", but input blob size: " << importedBytes;
         }
 
-        ImportFrames(inputsDesc->getPtrInputsGlobal(input.first)[idx],
+        ImportFrames(_inputsPtr->at(input.first).ptrs[idx],
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
-                     gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
+                     gnaFlags->sw_fp32 ? 1.0f : _inputsPtr->at(input.first).scale_factor,
                      inputOrientation,
                      importedFrames,
                      targetGroups,
@@ -1316,7 +1283,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                 THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
                                     << ") do not match input buffer length of " << elementsPerBatch;
             }
-            auto input_ptr = reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]);
+            auto input_ptr = reinterpret_cast<uint8_t *>(_inputsPtr->at(input.first).ptrs[idx]);
             ConvertTensorFromNCHWToNHWC(gnadevice ? 2 : 4, batchSize, elementsPerBatch, input_ptr, true, transpose_info->second);
         }
         ++inputNum;
@@ -1393,7 +1360,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     int output_idx = 0;
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
-        auto & outputDesc = outputsDesc[output_idx];
+        auto & outputDesc = _outputs.at(outputBlobIt.first);
         if (outputBlob->getTensorDesc().getLayout() != Layout::C && outputBlob->getTensorDesc().getLayout() != Layout::NC &&
             outputBlob->getTensorDesc().getLayout() != Layout::CN && outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
             outputBlob->getTensorDesc().getLayout() != Layout::CHW && outputBlob->getTensorDesc().getLayout() != Layout::SCALAR) {
@@ -1589,18 +1556,18 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     auto serial = GNAModelSerial(&std::get<0>(nnets.back())->obj, mt);
 #endif
 
-    if (!inputsDesc->inputScaleFactors.empty()) {
-        gnalog() << "[Import Network] Clearing input scale factors defined in configuration. "
-                 << "Scale factors provided in imported model will be used\n";
-        inputsDesc->inputScaleFactors.clear();
-    }
+    // if (!inputsDesc->inputScaleFactors.empty()) {
+    //     gnalog() << "[Import Network] Clearing input scale factors defined in configuration. "
+    //              << "Scale factors provided in imported model will be used\n";
+    //     inputsDesc->inputScaleFactors.clear();
+    // }
 
     serial.setHeader(header);
     serial.Import(basePtr,
             header.gnaMemSize,
             networkModel,
-            inputsDesc,
-            outputsDesc,
+            *(_inputsPtr),
+            _outputs,
             inputsDataMap,
             outputsDataMap,
             transpose_inputs_info,
@@ -1609,12 +1576,15 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     // If scale factors are defined in configuration we still need to use them instead of imported values,
     // for example to change the scale factors for the old models.
     if (!config.inputScaleFactors.empty()) {
-        IE_ASSERT(config.inputScaleFactors.size() <= inputsDesc->inputScaleFactors.size());
-        for (size_t i = 0; i < config.inputScaleFactors.size(); ++i) {
-            if (config.inputScaleFactors[i] != GNAPluginNS::kScaleFactorDefault) {
-                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << i << std::endl;
-                inputsDesc->inputScaleFactors[i] = config.inputScaleFactors[i];
+        IE_ASSERT(config.inputScaleFactors.size() <= _inputsPtr->size());
+        // TODO: config should also uses map of inputs
+        size_t id = 0;
+        for (auto &input : (*_inputsPtr)) {
+            if (config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
+                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << id << std::endl;
+                input.second.scale_factor = config.inputScaleFactors[id];
             }
+            id++;
         }
     }
 
@@ -1632,7 +1602,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 #endif
 
 #if GNA_LIB_VER == 1
-    inputsDesc->orientation_in["input"] = getOrientation(std::get<0>(nnets.back())->obj.pLayers[0]);
+    (*_inputsPtr)["input"].orientation = getOrientation(std::get<0>(nnets.back())->obj.pLayers[0]);
     outputsDesc[0].orientation = getOrientation(std::get<0>(nnets.back())->obj.pLayers[std::get<0>(nnets.back())->obj.nLayers - 1]);
 #endif
 
@@ -1674,12 +1644,12 @@ void GNAPlugin::Export(const std::string &fileName) {
 }
 
 void GNAPlugin::Export(std::ostream &outStream) {
-    if (inputsDesc->ptr_inputs_global_id.empty() || outputsDesc.empty()) {
+    if (_inputsPtr->empty() || _outputs.empty()) {
         THROW_GNA_EXCEPTION << " network not loaded";
     }
 
 #if GNA_LIB_VER == 1
-    if (inputsDesc->ptr_inputs_global_id.size() != 1) {
+    if (_inputs.size() != 1) {
         THROW_GNA_EXCEPTION << " exporting network with multiple inputs not supported";
     }
 #endif
@@ -1698,8 +1668,8 @@ void GNAPlugin::Export(std::ostream &outStream) {
     intel_nnet_type_t* modelToSerial = &std::get<0>(nnets.front())->obj;
 #endif
     auto serial = GNAModelSerial(modelToSerial,
-                                 inputsDesc,
-                                 outputsDesc,
+                                 *(_inputsPtr),
+                                 _outputs,
                                  inputsDataMap,
                                  outputsDataMap)
                     .SetInputRotation(transpose_inputs_info)
@@ -1732,7 +1702,6 @@ void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config_map) 
 }
 
 void GNAPlugin::UpdateFieldsFromConfig() {
-    inputsDesc->inputScaleFactors = config.inputScaleFactors;
     *gnaFlags = config.gnaFlags;
 }
 

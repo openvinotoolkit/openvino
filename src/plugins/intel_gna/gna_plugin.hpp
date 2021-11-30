@@ -16,8 +16,7 @@
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "descriptions/gna_flags.hpp"
-#include "descriptions/gna_input_desc.hpp"
-#include "descriptions/gna_output_desc.hpp"
+#include "descriptions/gna_desc.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
@@ -38,8 +37,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
-    std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc;
-
+    std::shared_ptr<std::map<std::string, GNAPluginNS::InputDesc>> _inputsPtr;
     GNAPluginNS::GNAGraphCompiler graphCompiler;
 
     /**
@@ -64,7 +62,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     uint32_t dnn_dump_write_index = 0;
 
     // index matches iterating order of cnnnetwork outputs info
-    std::vector<GNAPluginNS::OutputDesc> outputsDesc = std::vector<OutputDesc>();
+    std::map<std::string, OutputDesc> _outputs = std::map<std::string, OutputDesc>();
+    // std::map<std::string, InputDesc> _inputs;
 
     intel_dnn_number_type_t output_type = kDnnInt;
 
@@ -80,8 +79,12 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      */
     uint32_t rwSegmentSize = 0;
 
-    InferenceEngine::InputsDataMap inputsDataMap;
-    InferenceEngine::OutputsDataMap outputsDataMap;
+
+    InferenceEngine::InputsDataMap inputsDataMap;    //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap outputsDataMap;  //!< Holds information about network outputs data
+    std::vector<std::shared_ptr<const ov::Node>> netParams;
+    std::vector<std::shared_ptr<const ov::Node>> netResults;
+
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     bool trivialTopology = false;
 
@@ -203,13 +206,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                     intel_dnn_orientation_t orientation,
                     float scaleFactor);
 
-    template <typename T, typename U>
-    void copyInputDataWithSplit(T *const dst,
-                    const U *src,
-                    const GNASplitLayer& splitInfo,
-                    size_t precision_size,
-                    int idx = 0);
-
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
@@ -219,7 +215,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      * @param layer layer pointer
      * @return true if the output is initiated, false otherwise
     */
-    bool TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer);
+    bool TryToInitOutput(const std::string &portName, InferenceEngine::CNNLayerPtr layer);
 
     /**
      * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.

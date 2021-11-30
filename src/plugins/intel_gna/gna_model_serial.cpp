@@ -219,8 +219,8 @@ static const std::map<Gna2OperationType, std::vector<uint32_t>> GnaParamSize{
 void GNAModelSerial::Import(void *basePointer,
         size_t gnaGraphSize,
         std::istream & is,
-        std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
-        std::vector<GNAPluginNS::OutputDesc> &desc,
+        std::map<std::string, GNAPluginNS::InputDesc> &inputs,
+        std::map<std::string, GNAPluginNS::OutputDesc> &outputs,
         InferenceEngine::InputsDataMap& inputsDataMap,
         InferenceEngine::OutputsDataMap& outputsDataMap,
         TranspositionInfoMap& inputsTranspositionInfo,
@@ -252,7 +252,7 @@ void GNAModelSerial::Import(void *basePointer,
             }
         }
     }
-    ImportInputs(is, basePointer, inputsDesc, inputsDataMap);
+    ImportInputs(is, basePointer, inputs, inputsDataMap);
 
     if (modelHeader.version.major == 2) {
         if (modelHeader.version.minor >= 3) {
@@ -265,7 +265,7 @@ void GNAModelSerial::Import(void *basePointer,
             }
         }
     }
-    ImportOutputs(is, basePointer, desc, outputsDataMap);
+    ImportOutputs(is, basePointer, outputs, outputsDataMap);
 
     for (auto operation = gna2Model->Operations; operation != gna2Model->Operations + gna2Model->NumberOfOperations; ++operation) {
         readNBits<32>(operation->Type, is);
@@ -817,87 +817,78 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
 
 #endif
 
-std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
-        const std::vector<GNAPluginNS::OutputDesc>& outputsDesc) {
+std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeOutputs(const GNAPluginNS::GnaOutputs &outputs) {
     std::vector<HeaderLatest::RuntimeEndPoint> endPoints;
-    std::size_t outputIndex = 0;
-    for (auto const &output : outputsDataMap) {
-        auto outputName = output.first;
-        auto outputDims = output.second->getTensorDesc().getDims();
+    for (auto const &output : outputs) {
+        auto outputDims = output.second.dims;
         HeaderLatest::RuntimeEndPoint::Shape outputShape;
         outputShape.NumberOfDimensions = outputDims.size();
         for (size_t i=0; i < outputShape.NumberOfDimensions; ++i) {
-            outputShape.Dimensions[i] = static_cast<uint32_t>(outputDims[i]);
+            outputShape.Dimensions[i] = outputDims[i];
         }
-        uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(outputDims.begin(), outputDims.end()));
-        InferenceEngine::Layout outputLayout = output.second->getLayout();
-        HeaderLatest::RuntimeEndPoint endPoint(outputsDesc[outputIndex].scale_factor,
-                                                 outputsDesc[outputIndex].ptrs[0],
-                                                 outputsDesc[outputIndex].num_bytes_per_element,
-                                                 elementsCount,
+        HeaderLatest::RuntimeEndPoint endPoint(output.second.scale_factor,
+                                                 *output.second.ptrs.begin(),
+                                                 output.second.num_bytes_per_element,
+                                                 output.second.num_elements,
                                                  outputShape,
-                                                 outputLayout,
-                                                 outputsDesc[outputIndex].precision,
-                                                 outputsDesc[outputIndex].orientation);
+                                                 output.second.layout,
+                                                 output.second.blob_precision.getPrecVal(),
+                                                 output.second.orientation);
         endPoints.push_back(endPoint);
-        outputIndex++;
     }
     return endPoints;
 }
 
-std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
-                                                                             std::shared_ptr<GNAPluginNS::InputDesc> inputDesc) {
+std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeInputs(const GNAPluginNS::GnaInputs &inputs) {
     std::vector<HeaderLatest::RuntimeEndPoint> endPoints;
 
-    std::size_t inputIndex = 0;
-    for (auto const& input : inputsDataMap) {
-        auto inputName = input.first;
-        auto inputDims = input.second->getTensorDesc().getDims();
+    for (auto const& input : inputs) {
+        auto inputDims = input.second.dims;
         HeaderLatest::RuntimeEndPoint::Shape inputShape;
         inputShape.NumberOfDimensions = inputDims.size();
         for (size_t i=0; i < inputShape.NumberOfDimensions; ++i) {
-            inputShape.Dimensions[i] = static_cast<uint32_t>(inputDims[i]);
+            inputShape.Dimensions[i] = inputDims[i];
         }
-        double scaleFactor = inputDesc->getScaleFactor(inputIndex);
-        std::vector<void *> descriptor_ptr = inputDesc->getPtrInputsGlobal(inputName);
-        IE_ASSERT(descriptor_ptr.size() > 0);
-        uint32_t element_size = 2u;
-        uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(inputDims.begin(), inputDims.end()));
-        intel_dnn_orientation_t orientation = inputDesc->getOrientation(inputName);
-        InferenceEngine::Layout inputLayout = input.second->getLayout();
-        uint8_t inputPrecision = inputDesc->inputPrecisions.at(inputIndex);
-        HeaderLatest::RuntimeEndPoint endPoint(scaleFactor,
-                                                 descriptor_ptr[0],
-                                                 element_size,
-                                                 elementsCount,
-                                                 inputShape,
-                                                 inputLayout,
-                                                 inputPrecision,
-                                                 orientation);
+
+        HeaderLatest::RuntimeEndPoint endPoint(input.second.scale_factor,
+                                               *input.second.ptrs.begin(),
+                                               input.second.num_bytes_per_element,
+                                               input.second.num_elements,
+                                               inputShape,
+                                               input.second.layout,
+                                               input.second.blob_precision.getPrecVal(),
+                                               input.second.orientation);
         endPoints.push_back(endPoint);
-        inputIndex++;
     }
     return endPoints;
 }
 
 void GNAModelSerial::ImportInputs(std::istream &is,
         void* basePtr,
-        std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
+        std::map<std::string, GNAPluginNS::InputDesc> &inputs,
         InferenceEngine::InputsDataMap& dataMap) {
+    inputs.clear();
     dataMap.clear();
     for (uint32_t inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                 ? inputNames.at(inputIndex) : std::string("input" + std::to_string(inputIndex));
 
         HeaderLatest::RuntimeEndPoint input = ReadEndPoint(is);
-        inputsDesc->getPtrInputsGlobal(name).push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + input.descriptor_offset));
-        inputsDesc->orientation_in[name] = input.orientation;
-        inputsDesc->bytes_allocated_for_input[name] = input.element_size * input.elements_count;
+        inputs[name].ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + input.descriptor_offset));
+        inputs[name].orientation = input.orientation;
+        inputs[name].num_elements = input.elements_count;
+        inputs[name].num_bytes_per_element = input.element_size;
+        inputs[name].scale_factor = input.scaleFactor;
+        inputs[name].precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(input.precision));
+        inputs[name].blob_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(input.precision));
+        inputs[name].layout = static_cast<InferenceEngine::Layout>(input.layout);
+        inputs[name].allocated_size = inputs[name].getRequiredSize();
 
         auto inputDims = InferenceEngine::SizeVector();
         for (auto i = 0; i < input.shape.NumberOfDimensions; ++i) {
             inputDims.push_back(input.shape.Dimensions[i]);
         }
+        inputs[name].dims = inputDims;
         InferenceEngine::Layout inputLayout = static_cast<InferenceEngine::Layout>(input.layout);
         InferenceEngine::Precision inputPresicion = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(input.precision));
         dataMap[name] = std::make_shared<InferenceEngine::InputInfo>();
@@ -906,34 +897,38 @@ void GNAModelSerial::ImportInputs(std::istream &is,
                                                                     inputPresicion,
                                                                     inputDims,
                                                                     inputLayout)));
-        inputsDesc->inputScaleFactors.push_back(input.scaleFactor);
     }
 }
 
 void GNAModelSerial::ImportOutputs(std::istream &is,
         void* basePtr,
-        std::vector<GNAPluginNS::OutputDesc> &desc,
+        std::map<std::string, GNAPluginNS::OutputDesc> &outputs,
         InferenceEngine::OutputsDataMap& dataMap) {
-    desc.clear();
+    outputs.clear();
     dataMap.clear();
-    desc.resize(modelHeader.nOutputs);
 
     for (uint32_t outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                                   ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
 
         HeaderLatest::RuntimeEndPoint output = ReadEndPoint(is);
-        OutputDesc description;
-        description.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + output.descriptor_offset));
-        description.orientation = kDnnInterleavedOrientation;
-        description.orientation = output.orientation;
-        description.num_bytes_per_element = output.element_size;
-        description.scale_factor = output.scaleFactor;
+
+        outputs[name].ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + output.descriptor_offset));
+        outputs[name].orientation = output.orientation;
+        outputs[name].num_elements = output.elements_count;
+        outputs[name].num_bytes_per_element = output.element_size;
+        outputs[name].scale_factor = output.scaleFactor;
+        outputs[name].precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(output.precision));
+        outputs[name].blob_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(output.precision));
+        outputs[name].layout = static_cast<InferenceEngine::Layout>(output.layout);
+        outputs[name].allocated_size = outputs[name].getRequiredSize();
 
         auto outputDims = InferenceEngine::SizeVector();
         for (auto i = 0; i < output.shape.NumberOfDimensions; ++i) {
             outputDims.push_back(output.shape.Dimensions[i]);
         }
+        outputs[name].dims = outputDims;
+
         InferenceEngine::Layout outputLayout = static_cast<InferenceEngine::Layout>(output.layout);
         InferenceEngine::Precision outputPresicion =  InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(output.precision));
         dataMap[name] = std::make_shared<InferenceEngine::Data>(name,
@@ -941,7 +936,6 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
                                                          outputPresicion,
                                                          outputDims,
                                                          outputLayout));
-        desc.at(outputIndex) = description;
     }
 }
 

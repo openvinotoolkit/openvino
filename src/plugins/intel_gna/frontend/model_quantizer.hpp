@@ -9,13 +9,15 @@
 #include <string>
 #include <type_traits>
 
-#include <legacy/layer_transform.hpp>
-#include "gna_graph_tools.hpp"
 #include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/layer_transform.hpp>
+
+#include "gna_graph_tools.hpp"
 #include "layer_quantizer.hpp"
 #include "scale_factor_calc.hpp"
 #include "weights_converter.hpp"
 #include "gna_itt.hpp"
+#include "descriptions/gna_desc.hpp"
 
 namespace GNAPluginNS {
 
@@ -27,7 +29,7 @@ template<class T>
 class ModelQuantizer {
  public:
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, float scaleFactor) const {
-        return quantize(model, [](const InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision){}, std::vector<float>({scaleFactor}));
+        return quantize(model, [](const InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision){}, scaleFactor);
     }
 
     template <class PreQuantisationCb>
@@ -35,12 +37,25 @@ class ModelQuantizer {
         return quantize(model, cb, std::vector<float>({scaleFactor}));
     }
 
-    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, std::vector<float> scaleFactor) const {
-        return quantize(model, [](InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision){}, scaleFactor);
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, std::vector<float> scaleFactors) const {
+        return quantize(model, [](InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision){}, scaleFactors);
     }
 
     template <class PreQuantisationCb>
-    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, const PreQuantisationCb &cb, std::vector<float> scaleFactor) const {
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model,  const PreQuantisationCb &cb, std::vector<float> scaleFactors) const {
+        std::map<std::string, GNAPluginNS::InputDesc> inputs;
+        for (size_t i = 0; i < scaleFactors.size(); ++i) {
+            GNAPluginNS::InputDesc input;
+            input.scale_factor = scaleFactors[i];
+            inputs[std::to_string(i)] = input;
+        }
+        return quantize(model, cb, inputs);
+    }
+
+    template <class PreQuantisationCb>
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model,
+                                         const PreQuantisationCb &cb,
+                                         const std::map<std::string, GNAPluginNS::InputDesc> &inputs) const {
         OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ModelQuantizer::quantize");
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
@@ -57,11 +72,11 @@ class ModelQuantizer {
         // another preprocessing
         cb(copiedNet, false, lowPrecision);
 
-        if (scaleFactor.empty()) {
-            THROW_GNA_EXCEPTION << "Scale factor is empty";
+        if (inputs.empty()) {
+            gnawarn() << "Inputs structure is empty, will be used default scale factor: " << inputs.begin()->second.scale_factor << std::endl;
         }
 
-        LayersQuantizer<T> lc(*scaleFactor.begin());
+        LayersQuantizer<T> lc(inputs.begin()->second.scale_factor);
         auto sortedNewNet = InferenceEngine::details::CNNNetSortTopologically(copiedNet);
         gnalog() << "Sorted layers: " << std::endl;
         for (auto &&layer : sortedNewNet) {
@@ -75,11 +90,11 @@ class ModelQuantizer {
         for (auto &&inputData : dm) {
             auto inputLayer = getCreatorLayer(inputData.second->getInputData()).lock();
             auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
-            if (scaleFactor.size() <= scaleIndex) {
+            if (inputs.size() <= scaleIndex) {
                 THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";
             }
             IE_ASSERT(quantData != nullptr);
-            quantData->_src_quant.SetScale(scaleFactor[scaleIndex]);
+            quantData->_src_quant.SetScale(inputs.at(inputLayer->name).scale_factor);
             scaleIndex++;
         }
 
