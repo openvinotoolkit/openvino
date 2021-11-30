@@ -94,16 +94,18 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
 
 void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, const SoExecutableNetworkInternal& executableNetwork) {
     std::string realDeviceName;
-    if ( device == "CPU_HELP") {
+    if (device == "CPU_HELP") {
         realDeviceName = "CPU";
     } else {
         realDeviceName = device;
     }
     auto itNumRequests = std::find_if(_devicePriorities.cbegin(), _devicePriorities.cend(),
-                                      [&realDeviceName](const DeviceInformation& d){ return d.deviceName == device;});
+                                      [&realDeviceName](const DeviceInformation& d){ return d.deviceName == realDeviceName;});
     unsigned int optimalNum = 0;
     try {
-        optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+        InferenceEngine::Parameter a = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
+        std::cout << "================" << std::endl;
+        optimalNum = a.as<unsigned int>();
     } catch (const InferenceEngine::Exception &iie) {
         IE_THROW()
             << "Every device used with the Multi-Device should "
