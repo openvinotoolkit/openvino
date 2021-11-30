@@ -9,37 +9,42 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-
-//using OpGenerator = std::map<ngraph::NodeTypeInfo, std::function<std::shared_ptr<ov::Function>(const ov::DiscreteTypeInfo& typeInfo)>>;
-
-//OpGenerator getOpGeneratorMap();
-
-std::shared_ptr<ov::Function> generate(const &ngraph::opset1::Add::get_type_info_static() node) {
+namespace {
+std::shared_ptr<ov::Function> generate(const ov::op::Op &node) {
     return nullptr;
 }
 
-std::function<std::shared_ptr<ov::Node>(const std::vector<ov::op::v0::Parameter>& params,
-                                        const ov::DiscreteTypeInfo& typeInfo)>>;
+// util::BinaryElementwiseArithmetic
+std::shared_ptr<ov::Function> generate(const ov::op::v1::Add &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2},
+                                                                              {1, 2}});
+    const auto softMax = std::make_shared<ov::op::v1::Add>(params.front(), params.back());
+    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(softMax)};
+    std::string friendlyName = std::string(node.get_type_info().name) + std::string("_") + node.get_type_info().get_version();
+    return std::make_shared<ngraph::Function>(results, params, friendlyName);
+}
+} // namespace
 
-template<typename T>
-std::shared_ptr<ov::Node> generateInput(const std::vector<ov::op::v0::Parameter>& params, const ov::DiscreteTypeInfo& typeInfo) {
-    return generate(ngraph::as_type_ptr<T>(node), info, port);
+template <typename T>
+std::shared_ptr<ov::Function> generateGraph() {
+    T a;
+    return generate(a);
 }
 
 OpGenerator getOpGeneratorMap() {
-    static OpGenerator a{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
-#include "ngraph/opsets/opset1_tbl.hpp"
-#include "ngraph/opsets/opset2_tbl.hpp"
-#include "ngraph/opsets/opset3_tbl.hpp"
-#include "ngraph/opsets/opset4_tbl.hpp"
-#include "ngraph/opsets/opset5_tbl.hpp"
-#include "ngraph/opsets/opset6_tbl.hpp"
-#include "ngraph/opsets/opset7_tbl.hpp"
-#include "ngraph/opsets/opset8_tbl.hpp"
-#undef NGRAPH_OP
+    static OpGenerator opGeneratorMap{
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateGraph<NAMESPACE::NAME>},
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#undef _OPENVINO_OP_REG
     };
-    return a;
+    return opGeneratorMap;
 }
 
 }  // namespace subgraph

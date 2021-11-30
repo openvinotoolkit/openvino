@@ -17,7 +17,7 @@ namespace test {
 namespace subgraph {
 
 using OpImplParams = std::tuple<
-        std::shared_ptr<ov::Function>,       // Function to check
+        std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>>,       // Function to check
         std::string,                         // Target Device
         std::map<std::string, std::string>>; // Plugin Config
 
@@ -32,6 +32,9 @@ protected:
 
 public:
     void run() {
+        if (!function) {
+            throw std::runtime_error("Function is empty!");
+        }
         auto crashHandler = [](int errCode) {
             auto& s = LayerTestsUtils::Summary::getInstance();
             s.saveReport();
@@ -50,17 +53,20 @@ public:
     }
 
     void SetUp() override {
-       std::tie(function, targetDevice, configuration) = this->GetParam();
+       std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>> funcInfo;
+       std::tie(funcInfo, targetDevice, configuration) = this->GetParam();
+       function = funcInfo.second;
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj) {
-        std::shared_ptr<ov::Function> function;
+        std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>> funcInfo;
         std::string targetDevice;
         std::map<std::string, std::string> config;
-        std::tie(function, targetDevice, config) = obj.param;
+        std::tie(funcInfo, targetDevice, config) = obj.param;
 
         std::ostringstream result;
-        result << "Function=" << function->get_friendly_name() << "_";
+        std::string friendlyName = funcInfo.second ? funcInfo.second->get_friendly_name() : std::string(funcInfo.first.name + funcInfo.first.version);
+                result << "Function=" << friendlyName << "_";
         result << "Device=" << targetDevice << "_";
         result << "Config=(";
         for (const auto& configItem : config) {
@@ -71,7 +77,7 @@ public:
     }
 };
 
-TEST_P(OpImplCheckTest, ) {
+TEST_P(OpImplCheckTest, hell) {
     run();
 }
 

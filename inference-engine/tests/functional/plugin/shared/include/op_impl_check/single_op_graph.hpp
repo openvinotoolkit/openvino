@@ -12,24 +12,24 @@ namespace test {
 namespace subgraph {
 
 
-using OpGenerator = std::map<ngraph::NodeTypeInfo, std::function<std::shared_ptr<ov::Node>(const std::vector<ov::op::v0::Parameter>& params,
-                                                                                           const ov::DiscreteTypeInfo& typeInfo)>>;
+using OpGenerator = std::map<ov::DiscreteTypeInfo, std::function<std::shared_ptr<ov::Function>()>>;
 
 OpGenerator getOpGeneratorMap();
 
-static const std::vector<std::shared_ptr<ov::Function>> createFunctions() {
+static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>>> createFunctions() {
+    std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>>> res;
     auto opsets = LayerTestsUtils::Summary::getInstance().getOpSets();
+    auto opGenerator = getOpGeneratorMap();
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto& opset : opsets) {
         const auto &type_info_set = opset.get_type_info_set();
-        opsInfo.insert(type_info_set.begin(), type_info_set.end());
+        for (const auto& type_info : type_info_set) {
+            auto a = opGenerator.find(type_info)->second();
+            std::cout << a->get_friendly_name();
+//            res.push_back({type_info, opGenerator.find(type_info)->second()});
+        }
     }
-
-    const std::vector<std::shared_ptr<ov::Function>> a = {
-            ngraph::builder::subgraph::makeConvPoolRelu(),
-            ngraph::builder::subgraph::makeConvPoolReluNonZero(),
-    };
-    return a;
+    return res;
 }
 
 }  // namespace subgraph
