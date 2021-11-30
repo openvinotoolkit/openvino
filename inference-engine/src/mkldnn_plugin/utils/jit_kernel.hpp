@@ -19,6 +19,8 @@ struct jit_kernel;
 
 namespace internal {
 
+template<size_t S>
+struct reg_traits_by_size;
 template<typename T>
 struct reg_traits;
 template<typename T, size_t N>
@@ -26,27 +28,53 @@ struct reg_traits<T[N]>;
 template<dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct isa_traits;
 
-template<typename T>
-struct reg_traits {
-    using type = typename std::conditional<
-                            std::is_floating_point<T>::value,
-                            Xbyak::Fpu, Xbyak::Reg64>::type;
-    constexpr static size_t size = std::is_floating_point<T>::value
-                                    ? 10: 8;    // in bytes
+template<>
+struct reg_traits_by_size<1> {
+    using type = Xbyak::Reg8;
+    constexpr static size_t size = 1;           // in bytes
+    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+};
+
+template<>
+struct reg_traits_by_size<2> {
+    using type = Xbyak::Reg16;
+    constexpr static size_t size = 2;           // in bytes
+    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+};
+
+template<>
+struct reg_traits_by_size<4> {
+    using type = Xbyak::Reg32;
+    constexpr static size_t size = 4;           // in bytes
+    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+};
+
+template<>
+struct reg_traits_by_size<8> {
+    using type = Xbyak::Reg64;
+    constexpr static size_t size = 8;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
                         = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
 };
 
 template<typename T>
-struct reg_traits<T[1]> {
-    using type = typename std::conditional<
-                            std::is_floating_point<T>::value,
-                            Xbyak::Fpu, Xbyak::Reg64>::type;
-    constexpr static size_t size = std::is_floating_point<T>::value
-                                    ? 10: 8;    // in bytes
+struct reg_traits : public reg_traits_by_size<sizeof(T)> {};
+
+template<>
+struct reg_traits<float> {
+    using type = Xbyak::Fpu;
+    constexpr static size_t size = 10;          // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
                         = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
 };
+template<>
+struct reg_traits<double> : public reg_traits<float> {};
+
+template<typename T>
+struct reg_traits<T[1]> : public reg_traits<T> {};
 
 template<typename T>
 struct reg_traits<T[4]> {
@@ -156,8 +184,10 @@ struct if_expression {
         : _expr(expr) {}
 
     ~if_expression() {
-        if (!_is_exit_valid)
-            _expr._kernel.assignL(_exit, _else);
+        try {
+            if (!_is_exit_valid)
+                _expr._kernel.assignL(_exit, _else);
+        } catch(...) {}
     }
 
     template<typename F>
@@ -329,6 +359,8 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
     using reg_indices = std::vector<int>;
     template<typename T>
     using reg_traits = internal::reg_traits<T>;
+    template<size_t S>
+    using reg_traits_by_size = internal::reg_traits_by_size<S>;
     template<dnnl::impl::cpu::x64::cpu_isa_t isa>
     using isa_traits = internal::isa_traits<isa>;
     using stack_frame = internal::stack_frame;
@@ -428,7 +460,7 @@ void jit_kernel::copy(const Xbyak::Reg64& dst,
                       const Xbyak::Reg64& src,
                       const Xbyak::Reg64& size) {
     const auto & addr_frame = address_frame(sizeof(T));
-    auto p = reserve<Xbyak::Reg64>();
+    auto p = reserve<typename reg_traits_by_size<sizeof(T)>::type>();
     foreach(0, size, [&](const Xbyak::Reg64& idx) {
         mov(p, addr_frame[src + idx * sizeof(T)]);
         mov(addr_frame[dst + idx * sizeof(T)], p);
@@ -441,7 +473,7 @@ void jit_kernel::copy(const Xbyak::Address& dst,
                       const Xbyak::Reg64& src,
                       const Xbyak::Reg64& size) {
     const auto & addr_frame = address_frame(sizeof(T));
-    auto p = reserve<Xbyak::Reg64>();
+    auto p = reserve<typename reg_traits_by_size<sizeof(T)>::type>();
     auto d = reserve<Xbyak::Reg64>();
     lea(d, dst);
     foreach(0, size, [&](const Xbyak::Reg64& idx) {

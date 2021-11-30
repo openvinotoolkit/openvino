@@ -47,6 +47,39 @@ const registers<Reg64> & x64regs() {
     return _x64regs;
 }
 
+const registers<Reg32> & x32regs() {
+    using namespace Xbyak::util;
+    static const registers<Reg32> _x32regs {{
+        eax,  ecx,  edx,  ebx,
+        esp,  ebp,  esi,  edi,
+        r8d,  r9d,  r10d, r11d,
+        r12d, r13d, r14d, r15d,
+    }};
+    return _x32regs;
+}
+
+const registers<Reg16> & x16regs() {
+    using namespace Xbyak::util;
+    static const registers<Reg16> _x16regs {{
+        ax,   cx,   dx,   bx,
+        sp,   bp,   si,   di,
+        r8w,  r9w,  r10w, r11w,
+        r12w, r13w, r14w, r15w,
+    }};
+    return _x16regs;
+}
+
+const registers<Reg8> & x8regs() {
+    using namespace Xbyak::util;
+    static const registers<Reg8> _x8regs {{
+        al,   cl,   dl,   bl,
+        spl,  bpl,  sil,  dil,
+        r8b,  r9b,  r10b, r11b,
+        r12b, r13b, r14b, r15b,
+    }};
+    return _x8regs;
+}
+
 const registers<Xmm> & xmmregs() {
     static const registers<Xmm> _xmmregs {{
         util::xmm0,  util::xmm1,  util::xmm2,  util::xmm3,
@@ -162,8 +195,38 @@ const Reg64 & jit_kernel::reserve<Reg64>() {
 }
 
 template<>
+const Reg32 & jit_kernel::reserve<Reg32>() {
+    return reserveReg(_free_x64regs, x32regs());
+}
+
+template<>
+const Reg16 & jit_kernel::reserve<Reg16>() {
+    return reserveReg(_free_x64regs, x16regs());
+}
+
+template<>
+const Reg8 & jit_kernel::reserve<Reg8>() {
+    return reserveReg(_free_x64regs, x8regs());
+}
+
+template<>
 void jit_kernel::free<Reg64>(const Reg64 & reg) {
     freeReg(_free_x64regs, x64regs(), reg);
+}
+
+template<>
+void jit_kernel::free<Reg32>(const Reg32 & reg) {
+    freeReg(_free_x64regs, x32regs(), reg);
+}
+
+template<>
+void jit_kernel::free<Reg16>(const Reg16 & reg) {
+    freeReg(_free_x64regs, x16regs(), reg);
+}
+
+template<>
+void jit_kernel::free<Reg8>(const Reg8 & reg) {
+    freeReg(_free_x64regs, x8regs(), reg);
 }
 
 template<>
