@@ -43,9 +43,9 @@ Dimension Dimension::operator/(const value_type divisor) const {
 
     else if (is_static() && m_dimension.get_max_val() % divisor)
         OPENVINO_UNREACHABLE("Dimension value: ",
-                        m_dimension.get_max_val(),
-                        " must be a multiple of divisor: ",
-                        divisor);
+                             m_dimension.get_max_val(),
+                             " must be a multiple of divisor: ",
+                             divisor);
     return Dimension(m_dimension.get_min_val() / divisor, m_dimension.get_max_val() / divisor);
 }
 
