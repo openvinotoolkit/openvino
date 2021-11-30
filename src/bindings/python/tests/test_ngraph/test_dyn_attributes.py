@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import openvino.opset8 as ov
+import openvino.runtime.opset8 as ov
 
 
 @pytest.fixture()
