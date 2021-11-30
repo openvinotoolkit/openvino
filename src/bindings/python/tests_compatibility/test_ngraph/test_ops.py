@@ -543,7 +543,6 @@ def test_select():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_54663
 def test_max_pool():
     # test 1d
     element_type = Type.f32

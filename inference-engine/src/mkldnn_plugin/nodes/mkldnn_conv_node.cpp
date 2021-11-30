@@ -33,7 +33,7 @@ bool MKLDNNConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngr
             return false;
         }
         size_t ndims = op->get_input_partial_shape(0).rank().get_length();
-        if ((ndims < 4) || (ndims > 5)) {
+        if ((ndims < 3) || (ndims > 5)) {
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(ndims);
             return false;
         }
@@ -254,10 +254,10 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             outputDataType = memory::data_type::f32;
         if (eltwisePrecision == Precision::BF16)
             eltwisePrecision = Precision::FP32;
-        in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0),
-                                                     inputDataType, ndims == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0),
-                                                      outputDataType, ndims == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
+        in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType,
+            ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
+        out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType,
+            ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
         inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16
@@ -289,11 +289,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             eltwisePrecision = Precision::FP32;
         }
 
-        if (one_of(ndims, 4, 5)) {
-            memory::format_tag ncsp = ndims == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw;
-            memory::format_tag nspc = ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc;
-            memory::format_tag nCsp16c = ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c;
-            memory::format_tag nCsp8c = ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c;
+        if (one_of(ndims, 3, 4, 5)) {
+            memory::format_tag nspc = ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc);
+            memory::format_tag ncsp = ndims == 3 ? memory::format_tag::ncw : (ndims == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw);
+            memory::format_tag nCsp8c = ndims == 3 ? memory::format_tag::nCw8c : (ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c);
+            memory::format_tag nCsp16c = ndims == 3 ? memory::format_tag::nCw16c : (ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c);
 
             auto inputShape = getInputShapeAtPort(0);
             auto outputShape = getOutputShapeAtPort(0);
@@ -830,7 +830,7 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
 
     if (isDepthWise()) {
         // 1d equivalent cases are painfully slow
-        if (1 == inpDims[inpDims.size() - 2]) {
+        if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
             return false;
         }
     } else {

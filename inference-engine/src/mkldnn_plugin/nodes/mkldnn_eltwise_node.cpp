@@ -1238,18 +1238,18 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 2, 4, 5);
+    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 2, 3, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1, 2, 4, 5);
+        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1, 2, 3, 4, 5);
         isChannelsFirstApplicable = isChannelsFirstApplicable && implication(getInputShapeAtPort(i).getRank() != 1,
                                                                              getOutputShapeAtPort(0).getRank() ==
                                                                                      getInputShapeAtPort(i).getRank());
     }
 
-    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 4, 5);
+    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 3, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto &inShape = getInputShapeAtPort(i);
-        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1, 4, 5);
+        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1, 3, 4, 5);
         isBlockedApplicable = isBlockedApplicable && implication(inShape.getRank() != 1,
                                                                  getOutputShapeAtPort(0).getRank() ==
                                                                  inShape.getRank());
