@@ -10,7 +10,7 @@ Based on that, the declaration of an extension class can look as follows:
 
 @snippet template_extension/old/extension.hpp extension:header
 
-The extension library should contain and export the InferenceEngine::CreateExtension method, which creates an `Extension` class:
+The extension library should use `IE_DEFINE_EXTENSION_CREATE_FUNCTION` macro to export a function, which creates an `Extension` class:
 
 @snippet template_extension/old/extension.cpp extension:CreateExtension
 

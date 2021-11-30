@@ -3,12 +3,12 @@
 
 import numpy as np
 import pytest
-from openvino.pyopenvino import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension
 
-import openvino.opset8 as ov
-import openvino.opset1 as ov_opset1
-import openvino.opset5 as ov_opset5
-from openvino.impl import Type
+import openvino.runtime.opset8 as ov
+import openvino.runtime.opset1 as ov_opset1
+import openvino.runtime.opset5 as ov_opset5
+from openvino.runtime.impl import Type
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -786,7 +786,7 @@ def test_rnn_sequence():
 
 
 def test_loop():
-    from openvino.utils.tensor_iterator_types import (
+    from openvino.runtime.utils.tensor_iterator_types import (
         GraphBody,
         TensorIteratorSliceInputDesc,
         TensorIteratorMergedInputDesc,
@@ -1162,7 +1162,7 @@ def test_proposal(int_dtype, fp_dtype):
 
 
 def test_tensor_iterator():
-    from openvino.utils.tensor_iterator_types import (
+    from openvino.runtime.utils.tensor_iterator_types import (
         GraphBody,
         TensorIteratorSliceInputDesc,
         TensorIteratorMergedInputDesc,

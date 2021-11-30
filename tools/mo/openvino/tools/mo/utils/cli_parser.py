@@ -602,7 +602,8 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           default=None,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--disable_nhwc_to_nchw',
-                          help='Disables default translation from NHWC to NCHW',
+                          help='[DEPRECATED] Disables the default translation from NHWC to NCHW. Since 2022.1 this option '
+                               'is deprecated and used only to maintain backward compatibility with previous releases.',
                           action='store_true')
     return parser
 
