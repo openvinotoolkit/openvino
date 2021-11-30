@@ -65,10 +65,10 @@ if(ENABLE_MKL_DNN)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-if(ENABLE_CLDNN)
-    ie_coverage_extract(INPUT "openvino" OUTPUT "cldnn_engine"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/cldnn_engine/*")
-    ie_coverage_genhtml(INFO_FILE "cldnn_engine"
+if (ENABLE_INTEL_GPU)
+    ie_coverage_extract(INPUT "openvino" OUTPUT "intel_gpu_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gpu/*")
+    ie_coverage_genhtml(INFO_FILE "intel_gpu_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 

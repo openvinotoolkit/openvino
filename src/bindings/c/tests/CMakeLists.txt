@@ -30,7 +30,7 @@ if(ENABLE_MKL_DNN)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)
 endif()
 
-if(ENABLE_CLDNN)
+if(ENABLE_INTEL_GPU)
     add_dependencies(${TARGET_NAME} clDNNPlugin)
 endif()
 
