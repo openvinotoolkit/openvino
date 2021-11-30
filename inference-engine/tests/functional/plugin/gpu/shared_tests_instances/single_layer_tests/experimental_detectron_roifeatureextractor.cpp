@@ -34,36 +34,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_static, ExperimentalDetectronROIF
                                  ::testing::Values(ov::element::Type_t::f32),
                                  ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName);
-
-const std::vector<std::vector<InputShape>> dynamicInputShape = {
-        {
-                {
-                        {{-1, 4}, {{1000, 4}, {1500, 4}, {2000, 4}}},
-                        {{1, 8, -1, -1}, {{1, 8, 200, 336}, {1, 8, 200, 42}, {1, 8, 200, 84}}},
-                        {{1, 8, -1, -1}, {{1, 8, 100, 168}, {1, 8, 100, 336}, {1, 8, 25, 42}}},
-                        {{1, 8, -1, -1}, {{1, 8, 50, 84}, {1, 8, 50, 168}, {1, 8, 100, 336}}},
-                        {{1, 8, -1, -1}, {{1, 8, 25, 42}, {1, 8, 25, 84}, {1, 8, 50, 168}}}
-                }
-        },
-        {
-                {
-                        {{-1, 4}, {{1000, 4}, {1100, 4}, {1200, 4}}},
-                        {{1, {8, 16}, -1, -1}, {{1, 8, 200, 336}, {1, 12, 200, 336}, {1, 16, 200, 336}}},
-                        {{1, {8, 16}, -1, -1}, {{1, 8, 100, 168}, {1, 12, 100, 168}, {1, 16, 100, 168}}},
-                        {{1, {8, 16}, -1, -1}, {{1, 8, 50, 84}, {1, 12, 50, 84}, {1, 16, 50, 84}}},
-                        {{1, {8, 16}, -1, -1}, {{1, 8, 25, 42}, {1, 12, 25, 42}, {1, 16, 25, 42}}}
-                }
-        }
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_dynamic, ExperimentalDetectronROIFeatureExtractorLayerTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(dynamicInputShape),
-                                 ::testing::ValuesIn(outputSize),
-                                 ::testing::ValuesIn(samplingRatio),
-                                 ::testing::ValuesIn(pyramidScales),
-                                 ::testing::Values(false),
-                                 ::testing::Values(ov::element::Type_t::f32),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                         ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName);
 } // namespace
