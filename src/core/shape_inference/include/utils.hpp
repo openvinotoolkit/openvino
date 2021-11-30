@@ -35,6 +35,7 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
     } else {
         NODE_VALIDATION_CHECK(op, false, "Unsupported auto broadcast specification");
     }
+    output_shapes[0] = output_shape;
 }
 
 

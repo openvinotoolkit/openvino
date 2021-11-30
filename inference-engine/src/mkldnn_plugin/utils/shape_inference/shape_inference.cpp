@@ -16,6 +16,7 @@
 #include "convolution_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
 #include "shape_nodes.hpp"
+#include "fake_quantize.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 
 
@@ -65,8 +66,8 @@ void shape_inference(ov::Node* op,
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
             ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) || ov::is_type<ov::op::util::BinaryElementwiseLogical>(op)) {
         eltwise_shape_infer(op, input_shapes, output_shapes);
-    } else if (ov::is_type<ov::opset3::CumSum>(op)) {
-        first_input_passthrough_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::FakeQuantize>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::Reshape>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::opset1::Squeeze>(op)) {
