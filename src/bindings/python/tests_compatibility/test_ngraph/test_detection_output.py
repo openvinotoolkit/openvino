@@ -35,7 +35,6 @@ integral_np_types = [
 )
 def test_detection_output(int_dtype, fp_dtype):
     attributes = {
-        "num_classes": int_dtype(85),
         "keep_top_k": np.array([64], dtype=int_dtype),
         "nms_threshold": fp_dtype(0.645),
     }
@@ -70,7 +69,6 @@ def test_detection_output(int_dtype, fp_dtype):
 )
 def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
     attributes = {
-        "num_classes": int_dtype(85),
         "background_label_id": int_dtype(13),
         "top_k": int_dtype(16),
         "variance_encoded_in_target": True,
@@ -96,7 +94,6 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
 
     node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
 
-    assert node.get_num_classes() == int_dtype(85)
     assert node.get_background_label_id() == int_dtype(13)
     assert node.get_top_k() == int_dtype(16)
     assert node.get_variance_encoded_in_target()
@@ -112,4 +109,3 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
     assert node.get_input_height() == int_dtype(86)
     assert node.get_input_width() == int_dtype(79)
     assert np.isclose(node.get_objectness_score(), fp_dtype(0.77))
-    assert node.get_num_classes() == int_dtype(85)

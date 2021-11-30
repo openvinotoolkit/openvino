@@ -35,7 +35,6 @@ integral_np_types = [
 )
 def test_detection_output(int_dtype, fp_dtype):
     attributes = {
-        "num_classes": int_dtype(85),
         "keep_top_k": np.array([64], dtype=int_dtype),
         "nms_threshold": fp_dtype(0.645),
     }
@@ -70,7 +69,6 @@ def test_detection_output(int_dtype, fp_dtype):
 )
 def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
     attributes = {
-        "num_classes": int_dtype(85),
         "background_label_id": int_dtype(13),
         "top_k": int_dtype(16),
         "variance_encoded_in_target": True,
