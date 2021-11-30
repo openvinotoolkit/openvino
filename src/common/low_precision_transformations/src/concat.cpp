@@ -92,6 +92,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     OutputVector dataNodes;
     NodeVector convertNodes;
     NodeVector subtractNodes;
+    NodeVector subtractConverts;
     NodeVector multiplyNodes;
     for (size_t i = 0; i < layerDequantizations.size(); ++i) {
         const auto& dequantization = layerDequantizations[i];
@@ -114,8 +115,17 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
                 std::make_shared<ngraph::opset1::Constant>(deqPrecision, targetShape, std::vector<float>({ 0.f })) :
                 broadcastElementWiseConst(dequantization.subtractConstant, targetShape);
             if (dequantization.subtractConvert != nullptr) {
-                subtractInput = foldConvert(subtractInput, dequantization.subtractConvert->get_convert_element_type());
-                NetworkHelper::copyInfo(dequantization.subtractConvert, subtractInput);
+                if (subtractNodes.size() == subtractConverts.size()) {
+                    subtractConverts.push_back(dequantization.subtractConvert);
+                } else {
+                    subtractInput = foldConvert(subtractInput, dequantization.subtractConvert->get_convert_element_type());
+                    NetworkHelper::copyInfo(dequantization.subtractConvert, subtractInput);
+                }
+            } else if (subtractNodes.size() == subtractConverts.size()) {
+                for (size_t j = 0; j < subtractNodes.size(); ++j) {
+                    subtractNodes[j] = foldConvert(subtractNodes[j], as_type_ptr<opset1::Convert>(subtractConverts[j])->get_convert_element_type());
+                    NetworkHelper::copyInfo(dequantization.subtractConvert, subtractInput);
+                }
             }
             subtractNodes.push_back(subtractInput);
         }
@@ -140,11 +150,25 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
     // concatenation axis is 1
     if (!subtractNodes.empty()) {
+        std::shared_ptr<ov::Node> subtractNode;
+        if (subtractNodes.size() == subtractConverts.size()) {
+            /*subtractNode = subtractNodes.size() == 1ul ?
+                               subtractConverts[0] :
+                               ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractConverts, 1)->
+                               clone_with_new_inputs({
+                                   ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)});*/
+            subtractNode = subtractNodes.size() == 1ul
+                               ? subtractConverts[0]
+                               : subtractConverts[0]->clone_with_new_inputs(
+                                         {ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)});
+        } else {
+            subtractNode = subtractNodes.size() == 1ul
+                               ? subtractNodes[0]
+                               : ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1);
+        }
         const auto subtract = std::make_shared<opset1::Subtract>(
             lastDequantization,
-            NetworkHelper::toScalarIfPossible(subtractNodes.size() == 1ul ?
-                subtractNodes[0] :
-                ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
+            NetworkHelper::toScalarIfPossible(subtractNode));
 
         NetworkHelper::copyInfo({ concat, subtract }, subtract);
         subtract->set_friendly_name(concat->get_friendly_name() + "/DequantizationSubtract");
