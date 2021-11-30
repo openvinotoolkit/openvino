@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <fstream>
 #include <transformations/utils/utils.hpp>
+#include <transformations/convert_precision.hpp>
+#include <ngraph_functions/utils/ngraph_helpers.hpp>
 
 #ifdef _WIN32
 #include <process.h>
@@ -19,12 +21,15 @@
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
+
+std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
+    os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
+    return os;
+}
 
 void SubgraphBaseTest::run() {
     auto crashHandler = [](int errCode) {
@@ -50,7 +55,7 @@ void SubgraphBaseTest::run() {
             try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
-                    ngraph::helpers::resize_function(functionRefs, targetStaticShapeVec);
+                    init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
                 infer();
@@ -130,7 +135,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
 
 void SubgraphBaseTest::configure_model() {
     // configure input precision
-    ov::preprocess::PrePostProcessor p;
+    ov::preprocess::PrePostProcessor p(function);
     {
         auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
@@ -151,7 +156,7 @@ void SubgraphBaseTest::configure_model() {
             }
         }
     }
-    function = p.build(function);
+    function = p.build();
 }
 
 void SubgraphBaseTest::compile_model() {
@@ -162,6 +167,10 @@ void SubgraphBaseTest::compile_model() {
     executableNetwork = core->compile_model(function, targetDevice, configuration);
 }
 
+void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
+    ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+}
+
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -170,7 +179,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         ov::runtime::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {
             tensor = ov::test::utils::create_and_fill_tensor(
-                funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         }
@@ -187,8 +196,50 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
-    functionRefs->validate_nodes_and_infer_types();
-    return ngraph::helpers::interpretFunction(functionRefs, inputs);
+    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
+
+    auto functionToProcess = ov::clone_function(*functionRefs);
+    //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
+    static const precisions_array precisions = {
+            { ngraph::element::bf16, ngraph::element::f32 },
+            { ngraph::element::f16, ngraph::element::f32}
+    };
+
+    pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.run_passes(functionToProcess);
+    functionToProcess->validate_nodes_and_infer_types();
+
+    ov::preprocess::PrePostProcessor p(functionToProcess);
+    const auto& inputNodes = functionToProcess->inputs();
+    for (size_t i = 0; i < inputNodes.size(); ++i) {
+        auto itr = std::find_if(inputs.begin(), inputs.end(),
+                                [&](const InputsMap::value_type& item) {
+                                    return item.first->get_friendly_name() == inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+                                });
+        if (itr != inputs.end()) {
+            auto elementType = itr->second.get_element_type();
+            if (inputNodes[i].get_element_type() != elementType) {
+                p.input(ov::preprocess::InputInfo(i).tensor(ov::preprocess::InputTensorInfo().set_element_type(elementType)));
+            }
+        } else {
+            std::stringstream errMsg;
+            errMsg << "Couldn't find input with name " << inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+            errMsg << " in the inputs map";
+            throw std::runtime_error(errMsg.str());
+        }
+    }
+
+    const auto& outputs = functionToProcess->outputs();
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
+            p.output(ov::preprocess::OutputInfo(i).tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+        }
+    }
+
+    functionToProcess = p.build();
+
+    return ngraph::helpers::interpretFunction(functionToProcess, inputs);
 }
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_plugin_outputs() {

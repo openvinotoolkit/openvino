@@ -24,7 +24,6 @@ public:
     MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr(void));
     MOCK_METHOD1(Export, void(const std::string &));
     void Export(std::ostream &) override {};
-    MOCK_METHOD0(QueryState, std::vector<IVariableStateInternal::Ptr>(void));
     MOCK_METHOD0(GetExecGraphInfo, std::shared_ptr<ngraph::Function>(void));
 
     MOCK_METHOD1(SetConfig, void(const std::map<std::string, Parameter> &config));

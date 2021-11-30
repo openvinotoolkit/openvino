@@ -41,33 +41,40 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
         output_sizes.push_back(input_layout[x]);
     }
 
-    // calculate batch_size by batch_dims
-    int batch_size = 1;
-    for (uint8_t x = 0; x < batch_dims; x++) {
-        batch_size *= output_sizes[x];
-    }
-
     // create final output shape by batch_dims
     std::vector<tensor::value_type> final_output_sizes;
 
-    if (batch_dims > 0) {
-        final_output_sizes.push_back(batch_size);
+    if (op->batch_merged_output) {
+        // calculate batch_size by batch_dims
+        int batch_size = 1;
+        for (uint8_t x = 0; x < batch_dims; x++) {
+            batch_size *= output_sizes[x];
+        }
+
+        if (batch_dims > 0) {
+            final_output_sizes.push_back(batch_size);
+        }
+
+        for (size_t x = static_cast<size_t>(batch_dims); x < output_sizes.size(); x++) {
+            final_output_sizes.push_back(output_sizes[x]);
+        }
+    } else {
+        for (size_t x = 0; x < output_sizes.size(); x++) {
+            final_output_sizes.push_back(output_sizes[x]);
+        }
     }
 
-    for (size_t x = static_cast<size_t>(batch_dims); x < output_sizes.size(); x++) {
-        final_output_sizes.push_back(output_sizes[x]);
-    }
-
-    auto output_format = cldnn::format::bfyx;
-    if (final_output_sizes.size() >= 6) {
-        output_format = cldnn::format::bfwzyx;
+    auto output_format = cldnn::format::any;
+    if (final_output_sizes.size() <= 4) {
+        output_format = cldnn::format::bfyx;
     } else if (final_output_sizes.size() == 5) {
         output_format = cldnn::format::bfzyx;
+    } else {
+        output_format = cldnn::format::bfwzyx;
     }
 
     auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
     auto padding = op->output_padding;
-
 
     if (node.has_fused_primitives()) {
         input_layout_origin.data_type = node.get_fused_output_layout().data_type;

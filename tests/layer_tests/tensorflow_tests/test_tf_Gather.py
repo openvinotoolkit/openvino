@@ -11,7 +11,7 @@ class TestGather(CommonTFLayerTest):
     def create_indices_constant(self):
         pass
 
-    def create_gather_net(self, data_shape, indices, axis, batch_dims, **kwargs):
+    def create_gather_net(self, data_shape, indices, axis, batch_dims, use_new_frontend, **kwargs):
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -36,9 +36,9 @@ class TestGather(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_gather(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_gather_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_gather_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_nightly = [
         dict(data_shape=[2, 3], axis=1, indices=[0, 2], batch_dims=0),
@@ -56,6 +56,6 @@ class TestGather(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_nightly)
     @pytest.mark.nightly
-    def test_gather_nightly(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_gather_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_gather_nightly(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_gather_net(**params, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

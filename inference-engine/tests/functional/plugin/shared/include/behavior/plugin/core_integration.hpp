@@ -5,6 +5,7 @@
 #pragma once
 
 #include <fstream>
+#include <thread>
 
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"

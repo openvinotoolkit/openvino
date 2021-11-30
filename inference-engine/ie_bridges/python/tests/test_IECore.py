@@ -75,6 +75,7 @@ def test_query_network(device):
     assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
 
 
+@pytest.mark.dynamic_library
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugin():
     ie = IECore()
@@ -86,6 +87,7 @@ def test_register_plugin():
     assert isinstance(exec_net, ExecutableNetwork), "Cannot load the network to the registered plugin with name 'BLA'"
 
 
+@pytest.mark.dynamic_library
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugins():
     ie = IECore()

@@ -41,7 +41,7 @@ After that, you should quantize the model by the [Model Quantizer](@ref omz_tool
 
 ## Inference
 
-The simplest way to infer the model and collect performance counters is the [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
+The simplest way to infer the model and collect performance counters is the [C++ Benchmark Application](../../samples/cpp/benchmark_app/README.md). 
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
