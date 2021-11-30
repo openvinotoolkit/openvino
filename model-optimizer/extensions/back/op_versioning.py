@@ -101,6 +101,7 @@ class OpVersioning(BackReplacementPattern):
         "Select",
         "Selu",
         "ShapeOf",
+        "ShuffleChannels",
         "Sigmoid",
         "Sign",
         "Sin",
