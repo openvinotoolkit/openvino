@@ -156,6 +156,7 @@ std::string ExternalNetworkTool::processTestName(const std::string &network_name
         { "GNA_TARGET_1_0", "gna_10" },
         { "GNA_TARGET_2_0", "gna_20" },
         { "GNA_TARGET_3_0", "gna_30" },
+        { "UNSPECIFIED", "UNSP" },
         // unification patterns
         { "GNA_SW_EXACT", "mode" },
         { "GNA_SW_FP32", "mode" },
@@ -215,9 +216,30 @@ void ExternalNetworkTool::unifyFunctionNames(std::shared_ptr<ngraph::Function> n
     }
 }
 
+template<>
+void ExternalNetworkTool::writeToArkFile<float>(const std::string &fileName, const float *ptrMemory, uint32_t numRows, uint32_t numColumns) {
+    std::ios_base::openmode mode = std::ios::binary;
+    std::ofstream out_file(fileName.c_str(), mode);
+    const std::string &token = "input ";
+    if (out_file.good()) {
+        out_file.write(token.c_str(), token.length());
+        out_file.write("\0", 1);
+        out_file.write("BFM ", 4);
+        out_file.write("\4", 1);
+        out_file.write(reinterpret_cast<char*>(&numRows), sizeof(uint32_t));
+        out_file.write("\4", 1);
+        out_file.write(reinterpret_cast<char*>(&numColumns), sizeof(uint32_t));
+        out_file.write(reinterpret_cast<const char*>(ptrMemory), numRows * numColumns * sizeof(float));
+        out_file.close();
+    } else {
+        throw std::runtime_error(std::string("Failed to open %s for writing in saveArkFile()!\n") + fileName);
+    }
+    printf("Input data dumped to ark file %s\n", fileName.c_str());
+}
+
 void ExternalNetworkTool::saveInputFile(const std::string &network_name,
                                         const InferenceEngine::InputInfo::CPtr &input_info,
-                                        const InferenceEngine::Blob::Ptr &blob,
+                                        const InferenceEngine::Blob::CPtr &blob,
                                         uint32_t id,
                                         std::string extension) {
         const uint32_t utterance = 1;
@@ -255,9 +277,23 @@ void ExternalNetworkTool::saveInputFile(const std::string &network_name,
         // cast to precision
         switch (precision) {
         case InferenceEngine::Precision::FP32:
-            writeToFile(file_name, locked_memory.as<const float *>(), utterance, elements_number, extension);
+            writeDataToFile(file_name, locked_memory.as<const float *>(), utterance, elements_number, extension);
             break;
-        // TODO: add FP16, I16, I8 precisions support
+        case InferenceEngine::Precision::FP16:
+            writeDataToFile(file_name, locked_memory.as<const ngraph::float16 *>(), utterance, elements_number, extension);
+            break;
+        case InferenceEngine::Precision::I16:
+            writeDataToFile(file_name, locked_memory.as<const int16_t *>(), utterance, elements_number, extension);
+            break;
+        case InferenceEngine::Precision::U16:
+            writeDataToFile(file_name, locked_memory.as<const uint16_t *>(), utterance, elements_number, extension);
+            break;
+        case InferenceEngine::Precision::I8:
+            writeDataToFile(file_name, locked_memory.as<const int8_t *>(), utterance, elements_number, extension);
+            break;
+        case InferenceEngine::Precision::U8:
+            writeDataToFile(file_name, locked_memory.as<const uint8_t *>(), utterance, elements_number, extension);
+            break;
         default:
             printf("%s precision not supported\n", precision.name());
             return;
