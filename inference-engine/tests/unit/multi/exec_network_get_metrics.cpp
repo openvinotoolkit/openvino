@@ -1,0 +1,229 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <ie_metric_helpers.hpp>
+#include <common_test_utils/test_constants.hpp>
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
+#include "unit_test_utils/mocks/mock_iinfer_request.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
+#include <ie_core.hpp>
+#include <multi-device/multi_device_config.hpp>
+#include <ngraph_functions/subgraph_builders.hpp>
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include "plugin/mock_multi_device_plugin.hpp"
+#include "cpp/ie_plugin.hpp"
+
+using ::testing::MatcherCast;
+using ::testing::AllOf;
+using ::testing::Throw;
+using ::testing::Matches;
+using ::testing::_;
+using ::testing::StrEq;
+using ::testing::Return;
+using ::testing::Property;
+using ::testing::Eq;
+using ::testing::ReturnRef;
+using ::testing::AtLeast;
+using ::testing::AnyNumber;
+using Config = std::map<std::string, std::string>;
+using namespace MockMultiDevice;
+
+#define IE_SET_METRIC(key, name,  ...)                                                            \
+    typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
+        __VA_ARGS__;
+
+using ConfigParams = std::tuple<
+        unsigned int,                // cpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
+        bool,                        // if cpu sleep, cpu device will load slow
+        unsigned int,                // gpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
+        bool,                        // if gpu sleep, cpu device will load slow
+        unsigned int                 // expect OPTIMAL_NUMBER_OF_INFER_REQUESTS
+        >;
+class ExecNetworkGetMetric : public ::testing::TestWithParam<ConfigParams> {
+public:
+    std::shared_ptr<ngraph::Function>               function;
+    InferenceEngine::CNNNetwork                     cnnNet;
+    std::shared_ptr<MockICore>                      core;
+    std::shared_ptr<MockMultiDeviceInferencePlugin> plugin;
+
+    //mock cpu exeNetwork
+    std::shared_ptr<MockIExecutableNetworkInternal> cpuMockIExeNet;
+    ov::runtime::SoPtr<IExecutableNetworkInternal>  cpuMockExeNetwork;
+    MockIInferencePlugin*                           cpuMockIPlugin;
+    InferenceEngine::InferencePlugin                cpuMockPlugin;
+    //mock gpu exeNetwork
+    std::shared_ptr<MockIExecutableNetworkInternal> gpuMockIExeNet;
+    ov::runtime::SoPtr<IExecutableNetworkInternal>  gpuMockExeNetwork;
+    MockIInferencePlugin*                           gpuMockIPlugin;
+    InferenceEngine::InferencePlugin                gpuMockPlugin;
+    // config for Auto device
+    std::map<std::string, std::string>              config;
+    std::vector<DeviceInformation>                  metaDevices;
+    std::shared_ptr<MockIInferRequestInternal>     inferReqInternal;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+        unsigned int cpuOptimalNum;
+        unsigned int gpuOptimalNum;
+        unsigned int expectOptimalNum;
+        bool cpuSleep;
+        bool gpuSleep;
+        std::tie(cpuOptimalNum, gpuOptimalNum, cpuSleep, gpuSleep, expectOptimalNum) = obj.param;
+        std::ostringstream result;
+        result << "cpuOptimalNum_" << cpuOptimalNum << "gpuOptimalNum_" << gpuOptimalNum;
+        result << "expectOptimalNum_" << expectOptimalNum;
+        if (cpuSleep) {
+            result << "_cpuSleep_" << "true";
+        } else {
+            result << "_cpuSleep_" << "false";
+        }
+
+        if (gpuSleep) {
+            result << "_gpuSleep_" << "true";
+        } else {
+            result << "_gpuSleep_" << "false";
+        }
+
+        return result.str();
+    }
+
+    void TearDown() override {
+        core.reset();
+        plugin.reset();
+        cpuMockIExeNet.reset();
+        cpuMockExeNetwork = {};
+        cpuMockPlugin = {};
+        gpuMockIExeNet.reset();
+        gpuMockExeNetwork = {};
+        gpuMockPlugin = {};
+        config.clear();
+        metaDevices.clear();
+        inferReqInternal.reset();
+    }
+
+    void SetUp() override {
+       // prepare cpuMockExeNetwork
+       cpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
+       auto cpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
+       ON_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(cpuMockIExeNet));
+       cpuMockPlugin = InferenceEngine::InferencePlugin{{}, cpuMockIPluginPtr};
+       // remove annoying ON CALL message
+       EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
+       cpuMockExeNetwork = cpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+
+       // prepare gpuMockExeNetwork
+       gpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
+       auto gpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
+       ON_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(gpuMockIExeNet));
+       gpuMockPlugin = InferenceEngine::InferencePlugin{{}, gpuMockIPluginPtr};
+       // remove annoying ON CALL message
+       EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
+       gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+
+       // prepare mockicore and cnnNetwork for loading
+       core  = std::shared_ptr<MockICore>(new MockICore());
+       auto* origin_plugin = new MockMultiDeviceInferencePlugin();
+       plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
+       function = ngraph::builder::subgraph::makeConvPoolRelu();
+       cnnNet = InferenceEngine::CNNNetwork(function);
+       // replace core with mock Icore
+       plugin->SetCore(core);
+       // mock execNetwork can work
+       inferReqInternal = std::make_shared<MockIInferRequestInternal>();
+       ON_CALL(*cpuMockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
+       ON_CALL(*gpuMockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
+       IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
+       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
+           .WillByDefault(Return(supportConfigs));
+       EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
+
+       metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, -1, ""});
+       DeviceInformation gpuDeviceInfo = {CommonTestUtils::DEVICE_GPU, {}, -1, ""};
+       metaDevices.push_back(gpuDeviceInfo);
+       ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(gpuDeviceInfo));
+       ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+       EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
+       EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(1);
+
+       // test auto plugin
+       config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
+    }
+};
+
+TEST_P(ExecNetworkGetMetric, getMetric) {
+    unsigned int cpuOptimalNum;
+    unsigned int gpuOptimalNum;
+    unsigned int expectOptimalNum;
+    bool cpuSleep;
+    bool gpuSleep;
+    std::tie(cpuOptimalNum, gpuOptimalNum, cpuSleep, gpuSleep, expectOptimalNum) = this->GetParam();;
+
+
+    ON_CALL(*cpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
+        .WillByDefault(Return(cpuOptimalNum));
+
+    ON_CALL(*gpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
+        .WillByDefault(Return(gpuOptimalNum));
+    if (cpuSleep) {
+        ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
+                    ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs[this]() {
+                std::this_thread::sleep_for(std::chronon::milliseconds(1000));
+                return cpuMockExeNetwork;
+                });
+    } else {
+        ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
+                    ::testing::Matcher<const Config&>(_))).WillByDefault(Return(cpuMockExeNetwork));
+    }
+
+    if (gpuSleep) {
+        ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
+                    ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs[this]() {
+                std::this_thread::sleep_for(std::chronon::milliseconds(1000));
+                return gpuMockExeNetwork;
+                });
+    } else {
+        ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
+                    ::testing::Matcher<const Config&>(_))).WillByDefault(Return(gpuMockExeNetwork));
+    }
+
+    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(_),
+                ::testing::Matcher<const Config&>(_))).Times(2);
+
+    EXPECT_CALL(*cpuMockIExeNet.get(), CreateInferRequest()).Times(cpuOptimalNum);
+    EXPECT_CALL(*gpuMockIExeNet.get(), CreateInferRequest()).Times(gpuOptimalNum);
+    auto AutoExecNetwork =  plugin->LoadExeNetworkImpl(cnnNet, config);
+    auto result = AutoExecNetwork->getMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+    EXPECT_EQ(result, expectOptimalNum);
+}
+
+
+// ConfigParams {unsigned int, bool,unsigned int, bool, unsigned int}
+//
+// every element for ConfigParams
+// {cpuOptimalNum, if cpu sleep when load, gpuOptimalNum, if gpu sleep when load, expectOptimalNum of Auto ExecNetwork}
+//
+const std::vector<ConfigParams> testConfigs = {
+                                               ConfigParams {1, true, 2, false, 4},
+                                               ConfigParams {1, true, 8, false, 8},
+                                               ConfigParams {6, true, 2, false, 4},
+                                               ConfigParams {6, true, 8, false, 8},
+                                               ConfigParams {1, false, 2, true, 4},
+                                               ConfigParams {1, false, 8, true, 4},
+                                               ConfigParams {6, false, 2, true, 6},
+                                               ConfigParams {6, false, 8, true, 6}
+                                              };
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetworkGetMetric,
+                ::testing::ValuesIn(testConfigs),
+            ExecNetworkGetMetric::getTestCaseName);
+
