@@ -24,7 +24,7 @@ using namespace ngraph;
 
 TEST_F(TransformationTestsF, RICFusionSimple) {
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 64, 64 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape{ 1, 3, 64, 64 });
         auto relu = std::make_shared<ngraph::opset8::Relu>(input);
         auto conv = std::make_shared<ngraph::opset8::Convolution>(relu, opset8::Constant::create(element::f32, Shape{6, 3, 3, 3}, {0.1}),
                                                                   ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
@@ -38,14 +38,13 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
         p.build();
 
         manager.register_pass<ngraph::pass::Serialize>("/tmp/before.xml", "/tmp/before.bin");
-        manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
         manager.register_pass<ngraph::pass::Serialize>("/tmp/after.xml", "/tmp/after.bin");
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 64, 64 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape{ 1, 3, 64, 64 });
         auto relu = std::make_shared<ngraph::opset8::Relu>(input);
         auto conv = std::make_shared<ngraph::opset8::Convolution>(relu, opset8::Constant::create(element::f32, Shape{6, 3, 3, 3}, {0.1}),
                                                                   ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
@@ -56,10 +55,10 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
 
 TEST_F(TransformationTestsF, RICFusionHard) {
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 64, 64 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape{ -1, 3, -1, -1 });
         auto relu = std::make_shared<ngraph::opset8::Relu>(input);
 
-        auto input2 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 64, 64 });
+        auto input2 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape{ -1, 3, -1, -1 });
         auto eltwise = std::make_shared<ngraph::opset8::Add>(relu, input2);
 
         auto conv = std::make_shared<ngraph::opset8::Convolution>(eltwise, opset8::Constant::create(element::f32, Shape{6, 3, 3, 3}, {0.1}),

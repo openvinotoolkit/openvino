@@ -25,6 +25,8 @@ struct Attribute {
     bool is_final{false};
     bool is_initial{false};
 
+    std::function<void(Input<Node>)> callback = [](Input<Node>) {};
+
     Attribute() {
         can_be_fused = std::make_shared<bool>(true);
     }
@@ -43,18 +45,25 @@ struct Attribute {
 };
 
 namespace {
-void set(Output<Node> output, const std::vector<Attribute> & ric_attrs) {
-    auto & attrs = output.get_rt_info();
+
+template <typename T>
+using is_port = typename std::enable_if<!std::is_convertible<T, std::shared_ptr<Node>>::value>::type;
+
+template <typename T, typename = is_port<T>>
+void set(T port, const std::vector<Attribute> & ric_attrs) {
+    auto & attrs = port.get_rt_info();
     attrs["reverse_input_channel_index"] = ric_attrs;
 }
 
-void set(Output<Node> output, bool is_final = false, bool is_initial = false) {
+template <typename T, typename = is_port<T>>
+void set(T port, bool is_final = false, bool is_initial = false) {
     Attribute attr;
     attr.is_final = is_final;
     attr.is_initial = is_initial;
-    set(output, {attr});
+    set(port, {attr});
 }
 
+// Available only for output ports
 void init(Output<Node> output) {
     set(output, false, true);
 }
@@ -68,28 +77,29 @@ void init(Output<Node> output) {
 //    return false;
 //}
 
-std::vector<Attribute> get(const Output<Node> & output) {
-    const auto & attrs = output.get_rt_info();
+template <typename T, typename = is_port<T>>
+std::vector<Attribute> get(const T & port) {
+    const auto & attrs = port.get_rt_info();
     auto res = attrs.find("reverse_input_channel_index");
     if (res != attrs.end()) {
-        return res->second.as<std::vector<Attribute>>();
+        return res->second.template as<std::vector<Attribute>>();
     }
     return {};
 }
 
-std::vector<Attribute> propagate(const Output<Node> & output) {
-    auto ric_attrs = get(output);
-
+template <typename T, typename = is_port<T>>
+std::vector<Attribute> propagate(const T & port) {
+    auto ric_attrs = get(port);
     std::vector<Attribute> new_attrs;
     std::for_each(ric_attrs.begin(), ric_attrs.end(), [&](Attribute & attr) {
         new_attrs.push_back(attr.propagate());
     });
-
     return new_attrs;
 }
 
-void erase(Output<Node> output) {
-    auto & rt_info = output.get_rt_info();
+template <typename T, typename = is_port<T>>
+void erase(T port) {
+    auto & rt_info = port.get_rt_info();
     rt_info.erase("reverse_input_channel_index");
 }
 }// namespace
@@ -146,14 +156,16 @@ class Gather : public ngraph::pass::MatcherPass {
 public:
     Gather() {
         MATCHER_SCOPE(Gather);
-        auto indices_p = pattern::wrap_type<opset8::Constant>();
+        auto indices_p = pattern::any_input();
         auto axis_p = pattern::wrap_type<opset8::Constant>();
         auto gather_p = pattern::wrap_type<opset8::Gather>({pattern::any_input(), indices_p, axis_p});
 
         auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_map();
-            if (!op::util::has_constant_value(pattern_map.at(axis_p), std::vector<int64_t>{1}) ||
-                !op::util::has_constant_value(pattern_map.at(indices_p), std::vector<int64_t>{2, 1, 0})) {
+            auto value = ov::get_constant_from_source(pattern_map.at(indices_p));
+            if (!op::util::has_constant_value(pattern_map.at(axis_p), 1) ||
+                !op::util::has_constant_value(ov::get_constant_from_source(pattern_map.at(indices_p)),
+                                             std::vector<int64_t>{2, 1, 0})) {
                 return false;
             }
 
@@ -181,8 +193,15 @@ public:
             auto ric_attrs = ric_attr::propagate(conv->input_value(0));
             std::for_each(ric_attrs.begin(), ric_attrs.end(), [](ric_attr::Attribute & attr) {
                 attr.is_final = true;
+                attr.callback = [](Input<Node> input) {
+                    auto weights = input.get_source_output();
+                    auto gather = std::make_shared<opset8::Gather>(weights, opset8::Constant::create(element::i64, Shape{3}, {2, 1, 0}),
+                                                                   opset8::Constant::create(element::i64, Shape{}, {1}));
+                    input.replace_source_output(gather);
+                    // TODO: copy runtime info from RIC sub-graph
+                };
             });
-            ric_attr::set(conv->input_value(1), ric_attrs);
+            ric_attr::set(conv->input(1), ric_attrs);
             return true;
         };
 
@@ -211,13 +230,21 @@ public:
                 auto insert_ric_attrs = new_attrs;
                 std::for_each(insert_ric_attrs.begin(), insert_ric_attrs.end(), [](ric_attr::Attribute & attr) {
                     attr.is_final = true;
+                    attr.callback = [](Input<Node> input) {
+                        // TODO: check eltwise before insertion
+                        auto output = input.get_source_output();
+                        auto gather = std::make_shared<opset8::Gather>(output, opset8::Constant::create(element::i64, Shape{3}, {2, 1, 0}),
+                                                                       opset8::Constant::create(element::i64, Shape{}, {1}));
+                        input.replace_source_output(gather);
+                        // TODO: copy runtime info from RIC sub-graph
+                    };
                 });
 
-                auto input = lhs_ric.empty() ? root->input_value(0) : root->input_value(1);
+                auto input = lhs_ric.empty() ? root->input(0) : root->input(1);
                 ric_attr::set(input, insert_ric_attrs);
             }
 
-            ric_attr::set(root, new_attrs);
+            ric_attr::set(root->output(0), new_attrs);
             return true;
         };
 
@@ -234,7 +261,7 @@ public:
 
         auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
-            ric_attr::set(root, ric_attr::propagate(root->input_value(0)));
+            ric_attr::set(root->output(0), ric_attr::propagate(root->input_value(0)));
             return true;
         };
 
@@ -267,14 +294,14 @@ public:
 
 namespace fuse {
 namespace {
-bool can_be_fused(Output<Node> output) {
+bool need_to_insert_ric(Input<Node> output) {
     const auto & ric_attrs = ric_attr::get(output);
     return !ric_attrs.empty() && std::all_of(ric_attrs.cbegin(), ric_attrs.cend(), [](const ric_attr::Attribute & attr) {
         return attr.is_final && *attr.can_be_fused;
     });
 }
 
-bool can_be_erased(Output<Node> output) {
+bool need_to_erase_ric(Output<Node> output) {
     const auto & ric_attrs = ric_attr::get(output);
     return !ric_attrs.empty() && std::all_of(ric_attrs.cbegin(), ric_attrs.cend(), [](const ric_attr::Attribute & attr) {
         return attr.is_initial && *attr.can_be_fused;
@@ -282,23 +309,24 @@ bool can_be_erased(Output<Node> output) {
 }
 }// namespace
 
-class Convolution : public ngraph::pass::MatcherPass {
+class InsertReverseInputChannel : public ngraph::pass::MatcherPass {
 public:
-    Convolution() {
-        MATCHER_SCOPE(Convolution);
-        auto conv_p = pattern::wrap_type<opset8::Convolution>({pattern::any_input(),
-                                                                      pattern::any_input(can_be_fused)});
-        auto callback = [=](pattern::Matcher& m) {
-            const auto & conv = m.get_match_root();
-            const auto & weights = conv->input_value(1);
-            auto gather = std::make_shared<opset8::Gather>(weights, opset8::Constant::create(element::i64, Shape{3}, {2, 1, 0}),
-                                                           opset8::Constant::create(element::i64, Shape{}, {1}));
-            conv->input(1).replace_source_output(gather);
-            ric_attr::erase(weights);
-            return true;
+    InsertReverseInputChannel() {
+        MATCHER_SCOPE(InsertReverseInputChannel);
+        auto output = pattern::any_input();
+
+        auto callback = [](pattern::Matcher& m) {
+            const auto & node = m.get_match_root();
+            for (auto && input : node->inputs()) {
+                if (need_to_insert_ric(input)) {
+                    auto attrs = ric_attr::get(input);
+                    attrs[0].callback(input);
+                }
+            }
+            return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(conv_p, matcher_name);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(output, matcher_name);
         this->register_matcher(m, callback);
     }
 };
@@ -309,7 +337,7 @@ public:
         MATCHER_SCOPE(EraseSplitConcat);
         auto input_p = pattern::any_input();
         auto split_p = pattern::wrap_type<opset8::Split>({input_p, pattern::any_input()});
-        auto concat_p = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p}, can_be_erased);
+        auto concat_p = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
 
         auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
@@ -329,10 +357,9 @@ public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
         auto input_p = pattern::any_input();
-        auto indices_p = pattern::wrap_type<opset8::Constant>();
-        auto axis_p = pattern::wrap_type<opset8::Constant>();
-        auto gather_p = pattern::wrap_type<opset8::Gather>({input_p, indices_p, axis_p}, can_be_erased);
-
+        auto gather_p = pattern::wrap_type<opset8::Gather>({input_p, pattern::any_input(),
+                                                                            pattern::any_input()},
+                                                           need_to_erase_ric);
         auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(gather_p);
@@ -365,7 +392,7 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_function(std::shared_ptr<F
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
     auto ric_fuse = m.register_pass<GraphRewrite>();
-    ric_fuse->add_matcher<fuse::Convolution>();
+    ric_fuse->add_matcher<fuse::InsertReverseInputChannel>();
     ric_fuse->add_matcher<fuse::EraseSplitConcat>();
     ric_fuse->add_matcher<fuse::EraseGather>();
 
