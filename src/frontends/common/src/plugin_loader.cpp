@@ -26,6 +26,26 @@
 using namespace ov;
 using namespace ov::frontend;
 
+#ifdef OPENVINO_STATIC_LIBRARY
+
+#    include "ov_frontends.hpp"
+
+namespace {
+
+std::vector<PluginData> load_static_plugins() {
+    std::vector<PluginData> res;
+    for (const auto& frontend : getStaticFrontendsRegistry()) {
+        PluginHandle fakeGuard([]() {});
+        std::unique_ptr<FrontEndPluginInfo> fact{reinterpret_cast<FrontEndPluginInfo*>(frontend.m_dataFunc())};
+        res.emplace_back(std::move(fakeGuard), std::move(*fact));
+    }
+    return res;
+}
+
+}  // namespace
+
+#endif  // OPENVINO_STATIC_LIBRARY
+
 #ifdef WIN32
 #    define DLOPEN(file_str) LoadLibrary(TEXT(file_str.c_str()))
 #    define DLSYM(obj, func) GetProcAddress(obj, func)
@@ -43,8 +63,8 @@ static std::vector<std::string> list_files(const std::string& path) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
-        auto prefix = std::string(FRONTEND_LIB_PREFIX);
-        auto suffix = std::string(FRONTEND_LIB_SUFFIX);
+        const auto prefix = std::string(FRONTEND_LIB_PREFIX);
+        const auto suffix = std::string(FRONTEND_LIB_SUFFIX);
         ov::util::iterate_files(
             path,
             [&res, &prefix, &suffix](const std::string& file_path, bool is_dir) {
@@ -55,12 +75,7 @@ static std::vector<std::string> list_files(const std::string& path) {
                     res.push_back(file_path);
                 }
             },
-            // ilavreno: this is current solution for static runtime
-            // since frontends are still dynamic libraries and they are located in
-            // a different folder with compare to frontend_common one (in ./lib)
-            // we are trying to use recursive search. Can be reverted back in future
-            // once the frontends are static too.
-            true,
+            false,
             true);
     } catch (...) {
         // Ignore exceptions
@@ -69,10 +84,9 @@ static std::vector<std::string> list_files(const std::string& path) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) {
-    auto files = list_files(dir_name);
+static std::vector<PluginData> load_dynamic_plugins(const std::string& dir_name) {
     std::vector<PluginData> res;
-    for (const auto& file : files) {
+    for (const auto& file : list_files(dir_name)) {
         auto shared_object = DLOPEN(file);
         if (!shared_object) {
             NGRAPH_DEBUG << "Error loading FrontEnd " << file << " " << DLERROR() << std::endl;
@@ -102,6 +116,22 @@ std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) 
         std::unique_ptr<FrontEndPluginInfo> fact{reinterpret_cast<FrontEndPluginInfo*>(creator_addr())};
 
         res.push_back(PluginData(std::move(guard), std::move(*fact)));
+    }
+    return res;
+}
+
+std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) {
+    std::vector<PluginData> res;
+#ifdef OPENVINO_STATIC_LIBRARY
+    res = load_static_plugins();
+#endif  // OPENVINO_STATIC_LIBRARY
+    for (auto&& fe : load_dynamic_plugins(dir_name)) {
+        // if frontend is registered as static one, skip dynamic version
+        if (std::find_if(res.begin(), res.end(), [&fe](const PluginData& pd) {
+                return pd.m_plugin_info.m_name == fe.m_plugin_info.m_name;
+            }) == res.end()) {
+            res.emplace_back(std::move(fe));
+        }
     }
     return res;
 }
