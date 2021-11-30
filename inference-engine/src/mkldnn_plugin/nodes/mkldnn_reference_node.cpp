@@ -22,6 +22,13 @@ MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op
     }
     setType(Reference);
     setTypeStr("Reference");
+
+    // RandomUniform should generate new sequence each run even if all inputs are constants. So that method MKLDNNNode::IsConstant()
+    // doesn't return 'True' for RandomUniform with all constant inputs and the node generates new values for each inference,
+    // we set 'NoConst' value for 'ConstantType' in ctor
+    if (ov::is_type<ngraph::op::v8::RandomUniform>(ngraphOp)) {
+        constant = ConstantType::NoConst;
+    }
 }
 
 void MKLDNNReferenceNode::getSupportedDescriptors() {}
@@ -97,4 +104,8 @@ void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {
 
 bool MKLDNNReferenceNode::created() const {
     return getType() == Reference;
+}
+
+bool MKLDNNReferenceNode::needShapeInfer() const {
+    return true;
 }

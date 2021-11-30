@@ -50,7 +50,7 @@
 #include <vpu/configuration/options/number_of_shaves.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 
 namespace vpu {
 
@@ -172,11 +172,6 @@ CompiledGraph::Ptr compileImpl(const ie::CNNNetwork& network, const std::shared_
     });
 
     middleEnd->run(model);
-
-    if (!env.config.get<IRWithScalesDirectoryOption>().empty()) {
-        network.serialize(env.config.get<IRWithScalesDirectoryOption>() + "/" + network.getName() + "_scales.xml",
-                          env.config.get<IRWithScalesDirectoryOption>() + "/" + network.getName() + "_scales.bin");
-    }
 
     return backEnd->build(model, frontEnd->origLayers());
 }

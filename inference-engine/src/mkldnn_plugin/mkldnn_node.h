@@ -388,7 +388,8 @@ public:
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                return srcDescs[i]->isCompatible(*selectedDescs[i].desc);
+                if (!srcDescs[i]->isCompatible(*selectedDescs[i].desc))
+                    return false;
             }
             return true;
         };
@@ -706,6 +707,8 @@ protected:
     bool isDynamic = false;
 
     bool inputShapesDefined() const;
+    bool outputShapesDefined() const;
+    bool shapesDefined() const;
     void updateLastInputDims();
 
     bool inputShapesModified() const;
@@ -725,7 +728,6 @@ protected:
     }
 
     std::vector<VectorDims> lastInputDims = {};
-
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
 private:
@@ -782,8 +784,7 @@ class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
                                                         const mkldnn::engine &,
                                                         MKLDNNWeightsSharing::Ptr &)> {
 public:
-    NodesFactory()
-        : Factory("NodesFactory") {}
+    NodesFactory();
 
     MKLDNNNode* create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
@@ -797,15 +798,6 @@ struct MKLDNNNodeImpl : public MKLDNNNodeType {
     }
 };
 
-#define REG_MKLDNN_CONCAT3_(X, Y, Z) X ## Y ## Z
-#define REG_MKLDNN_CONCAT3(X, Y, Z) REG_MKLDNN_CONCAT3_(X, Y, Z)
-
-#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                                 \
-static struct REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__) {                            \
-    REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__)() {                                    \
-        MKLDNNNode::factory()                                                               \
-            .registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>);  \
-    }                                                                                       \
-} REG_MKLDNN_CONCAT3(_reg_, __prim, __LINE__);
-
 }  // namespace MKLDNNPlugin
+
+#define REG_MKLDNN_PRIM_FOR(__prim, __type)

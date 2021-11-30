@@ -450,10 +450,7 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 
 CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : IInferRequestInternal(networkInputs, networkOutputs)
-        , m_useProfiling(false)
-        , m_useStreams(false)
-        , m_useExternalQueue(false) {
+        : IInferRequestInternal(networkInputs, networkOutputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
@@ -461,9 +458,7 @@ CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap
 CLDNNInferRequest::CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : IInferRequestInternal(inputs, outputs)
-        , m_useProfiling(false)
-        , m_useStreams(false) {
+        : IInferRequestInternal(inputs, outputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
@@ -760,6 +755,21 @@ void CLDNNInferRequest::copy_input_data(std::shared_ptr<cldnn::network> network,
     }
 }
 
+Blob::Ptr CLDNNInferRequest::host_blob_from_device_blob(Blob::Ptr blobPtr) {
+    uint8_t* bufferMem = nullptr;
+    auto clblobPtr = std::dynamic_pointer_cast<InferenceEngine::gpu::ClBlob>(blobPtr);
+    if (clblobPtr) {
+        const auto memPtr = getBlobImpl(clblobPtr.get())->getMemory();
+        if (memPtr->get_allocation_type() == cldnn::allocation_type::usm_host) {
+            bufferMem = reinterpret_cast<uint8_t*>(memPtr->get_internal_params().mem);
+        }
+    }
+    Blob::Ptr hostBlob = create_host_blob(blobPtr->getTensorDesc(), bufferMem);
+    hostBlob->allocate();
+
+    return hostBlob;
+}
+
 void CLDNNInferRequest::allocate_inputs() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::allocate_inputs");
     auto inputLayouts = m_graph->GetInputLayouts();
@@ -791,7 +801,7 @@ void CLDNNInferRequest::allocate_inputs() {
             } else {
                 auto blobPtr = create_device_blob(desc, litr->second);
                 _deviceInputs[name] = blobPtr;
-                _inputs[name] = blobPtr;
+                _inputs[name] = host_blob_from_device_blob(blobPtr);
             }
         }
     }
@@ -837,7 +847,7 @@ void CLDNNInferRequest::allocate_outputs() {
         }
         auto blobPtr = create_device_blob(desc, output_layout);
         _deviceOutputs[no.first] = blobPtr;
-        _outputs[no.first] = blobPtr;
+        _outputs[no.first] = host_blob_from_device_blob(blobPtr);
         outputsMap[no.first] = outputID;
     }
 }
@@ -956,9 +966,25 @@ void CLDNNInferRequest::prepare_output(const cldnn::primitive_id& outputName, Bl
 }
 
 InferenceEngine::Blob::Ptr CLDNNInferRequest::create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout) {
-    auto blobPtr = std::make_shared<CLDNNRemoteCLbuffer>(m_graph->GetContext(), m_graph->GetNetwork()->get_stream(), desc, layout);
-    getBlobImpl(blobPtr.get())->allocate();
-    return blobPtr;
+    if (m_graph->GetEngine()->use_unified_shared_memory()) {
+        auto blobPtr = std::make_shared<CLDNNRemoteUSMbuffer>(m_graph->GetContext(),
+                                                              m_graph->GetNetwork()->get_stream(),
+                                                              desc,
+                                                              layout,
+                                                              nullptr,
+                                                              0,
+                                                              0,
+                                                              CLDNNRemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
+        getBlobImpl(blobPtr.get())->allocate();
+        return blobPtr;
+    } else {
+        auto blobPtr = std::make_shared<CLDNNRemoteCLbuffer>(m_graph->GetContext(),
+                                                             m_graph->GetNetwork()->get_stream(),
+                                                             desc,
+                                                             layout);
+        getBlobImpl(blobPtr.get())->allocate();
+        return blobPtr;
+    }
 }
 
 }  // namespace CLDNNPlugin

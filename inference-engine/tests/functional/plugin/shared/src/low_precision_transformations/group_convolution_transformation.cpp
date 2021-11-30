@@ -24,15 +24,17 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
     ngraph::element::Type netPrecision;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
+    std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
-    std::tie(netPrecision, targetDevice, params, param, addPrecisionPreserved) = obj.param;
+    std::tie(netPrecision, targetDevice, params, inputShapes, param, addPrecisionPreserved) = obj.param;
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(netPrecision, param.inputShape, targetDevice, params) << "_" <<
-        param.inputShape << "_" <<
-        param.outputShape << "_" <<
+        getTestCaseNameByParams(netPrecision, inputShapes.first, targetDevice, params) << "_" <<
+        inputShapes.first.rank().get_length() << "D_" <<
+        inputShapes.first << "_" <<
+        inputShapes.second << "_" <<
         param.group << "_" <<
         param.groupCalculationDimention << "_" <<
         param.fakeQuantizeOnData << "_" <<
@@ -46,14 +48,18 @@ void GroupConvolutionTransformation::SetUp() {
 
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
+    std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
-    std::tie(netPrecision, targetDevice, params, param, addPrecisionPreserved) = this->GetParam();
+    std::tie(netPrecision, targetDevice, params, inputShapes, param, addPrecisionPreserved) = this->GetParam();
 
+    while (param.fakeQuantizeOnData.constantShape.size() > inputShapes.first.size()) {
+        param.fakeQuantizeOnData.constantShape.pop_back();
+    }
     function = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
         netPrecision,
-        param.inputShape,
-        param.outputShape,
+        inputShapes.first,
+        inputShapes.second,
         param.group,
         param.groupCalculationDimention,
         param.fakeQuantizeOnData,
@@ -64,7 +70,7 @@ void GroupConvolutionTransformation::SetUp() {
 void GroupConvolutionTransformation::Run() {
     LayerTestsCommon::Run();
 
-    const auto param = std::get<3>(GetParam());
+    const auto param = std::get<4>(GetParam());
     if (!param.layerName.empty()) {
         const auto actualPrecision = getRuntimePrecisionByType(param.layerName);
         auto expectedPrecision = param.expectedKernelType;

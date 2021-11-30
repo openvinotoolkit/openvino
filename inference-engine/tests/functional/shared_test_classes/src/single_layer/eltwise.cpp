@@ -40,6 +40,9 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     results << "InType=" << inType << "_";
     results << "OutType=" << outType << "_";
     results << "trgDev=" << targetName;
+    for (auto const& configItem : additional_config) {
+        results << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return results.str();
 }
 

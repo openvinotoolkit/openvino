@@ -33,6 +33,29 @@ struct typed_program_node;
 class json_composite;
 class xml_composite;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+enum class onednn_post_op_type : uint32_t {
+    eltwise_act,
+    eltwise_clip,
+    eltwise_linear,
+    eltwise_round,
+    binary_mul,
+    binary_add,
+    binary_max,
+    binary_min,
+    scale,
+    sum,
+    optimized,
+    optimized_eltwise,
+    optimized_sum
+};
+
+struct fused_primitive_desc_onednn {
+    onednn_post_op_type op_type; // onednn post-operation type
+    size_t mem_offset;           // index of a memory buffer for current post-operation
+    size_t mem_dep;              // memory dependency for working with fused node
+};
+#endif // ENABLE_ONEDNN_FOR_GPU
 
 struct fused_primitive_desc {
     std::shared_ptr<program_node> node;
@@ -57,7 +80,7 @@ struct fused_primitive_desc {
     to API level where all primitives store only ids of related ones.
 */
 struct program_node {
-    friend struct program;                     // to be removed when possible
+    friend struct program;                          // to be removed when possible
     friend class compile_graph;                     // to be removed when possible
     friend class graph_initializations;             // to be removed when possible
     friend class pre_replace_deconv;                // to be removed when possible
@@ -293,6 +316,16 @@ public:
     const std::vector<fused_primitive_desc>& get_fused_primitives() const { return fused_prims; }
     std::vector<fused_primitive_desc>& get_fused_primitives() { return fused_prims; }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const { return onednn_attrs; }
+    std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() { return onednn_attrs; }
+
+    const std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return fused_prims_onednn; }
+    std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() { return fused_prims_onednn; }
+
+    void init_onednn_primitive_attributes();
+#endif // ENABLE_ONEDNN_FOR_GPU
+
     size_t get_fused_inputs_count() const {
         size_t count = 0;
         for (auto& fp : get_fused_primitives()) {
@@ -360,7 +393,26 @@ protected:
 
     std::vector<fused_activation_params> fused_activations;
     std::vector<fused_primitive_desc> fused_prims;
+
     void invalidate_users() const;
+
+private:
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<fused_primitive_desc_onednn> fused_prims_onednn;
+    std::shared_ptr<dnnl::primitive_attr> onednn_attrs;
+
+    void add_onednn_fused_primitives(std::vector<fused_primitive_desc_onednn> descs) {
+        fused_prims_onednn.erase(fused_prims_onednn.begin(), fused_prims_onednn.end());
+        fused_prims_onednn.insert(fused_prims_onednn.end(), descs.begin(), descs.end());
+    }
+
+    void add_onednn_attrs(std::shared_ptr<dnnl::primitive_attr> attrs) {
+        onednn_attrs = attrs;
+    }
+
+    bool has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr);
+    dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
+#endif // ENABLE_ONEDNN_FOR_GPU
 };
 
 /*
