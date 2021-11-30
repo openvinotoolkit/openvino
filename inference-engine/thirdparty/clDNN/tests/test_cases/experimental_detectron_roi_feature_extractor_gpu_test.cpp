@@ -30,6 +30,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
     const int output_dim = 3;
     const std::vector<int64_t> pyramid_scales = {4};
     const int sampling_ratio = 2;
+    const bool aligned = false;
 
     topology topology;
     topology.add(input_layout("InputRois", roi_input->get_layout()));
@@ -41,7 +42,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
                                                      output_dim,
                                                      pyramid_scales,
                                                      sampling_ratio,
-                                                     false)
+                                                     aligned)
     );
 
     network network(engine, topology);
@@ -91,6 +92,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
     const int output_dim = 3;
     const std::vector<int64_t> pyramid_scales = {4, 224};
     const int sampling_ratio = 2;
+    const bool aligned = false;
 
     topology topology;
     topology.add(input_layout("InputRois", roi_input->get_layout()));
@@ -103,7 +105,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
                                                      output_dim,
                                                      pyramid_scales,
                                                      sampling_ratio,
-                                                     false)
+                                                     aligned)
     );
 
     network network(engine, topology);
