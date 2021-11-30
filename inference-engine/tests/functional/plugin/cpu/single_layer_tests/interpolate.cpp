@@ -136,8 +136,7 @@ public:
                     continue;
                 }
                 if (inType != ov::element::Type_t::undefined) {
-                    p.input(ov::preprocess::InputInfo(i)
-                            .tensor(ov::preprocess::InputTensorInfo().set_element_type(inType)));
+                    p.input(i).tensor().set_element_type(inType);
                 }
             }
         }
@@ -145,8 +144,7 @@ public:
             auto results = function->get_results();
             for (size_t i = 0; i < results.size(); i++) {
                 if (outType != ov::element::Type_t::undefined) {
-                    p.output(ov::preprocess::OutputInfo(i)
-                                 .tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+                    p.output(i).tensor().set_element_type(outType);
                 }
             }
         }
