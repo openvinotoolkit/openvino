@@ -59,7 +59,7 @@ struct jit_uni_def_conv_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_def_conv_kernel(jit_def_conv_params jcp) : ker_(nullptr), jcp_(std::move(jcp)) {}
+    explicit jit_uni_def_conv_kernel(const jit_def_conv_params& jcp) : ker_(nullptr), jcp_(jcp) {}
     virtual ~jit_uni_def_conv_kernel() {}
 
     virtual void create_ker() = 0;
