@@ -30,7 +30,6 @@ from .algorithms.quantization.weight_bias_correction.algorithm import (
 from .algorithms.sparsity.magnitude_sparsity.algorithm import MagnitudeSparsity
 from .algorithms.sparsity.default.algorithm import WeightSparsity
 from .algorithms.sparsity.default.base_algorithm import BaseWeightSparsity
-from .optimization.tpe.base_algorithm import Tpe
 from .algorithms.quantization.overflow_correction.algorithm import OverflowCorrection
 from .algorithms.quantization.ranger.algorithm import Ranger
 
