@@ -38,14 +38,14 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "preprocessing"
 ie_coverage_genhtml(INFO_FILE "preprocessing"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_transformations"
+ie_coverage_extract(INPUT "openvino" OUTPUT "transformations"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/common/transformations/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_transformations"
+ie_coverage_genhtml(INFO_FILE "transformations"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_snippets"
+ie_coverage_extract(INPUT "openvino" OUTPUT "snippets"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/common/snippets/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_snippets"
+ie_coverage_genhtml(INFO_FILE "snippets"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "low_precision_transformations"
