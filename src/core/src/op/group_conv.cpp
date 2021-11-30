@@ -9,10 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/builder/split.hpp"
-#include "ngraph/op/concat.hpp"
 #include "ngraph/op/convolution.hpp"
-#include "ngraph/op/reshape.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
