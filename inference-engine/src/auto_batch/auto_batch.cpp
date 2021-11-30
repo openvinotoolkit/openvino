@@ -465,6 +465,19 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
     return metaDevice;
 }
 
+RemoteContext::Ptr  AutoBatchInferencePlugin::CreateContext(const InferenceEngine::ParamMap& config) {
+    auto cfg = config;
+    auto it = cfg.find(CONFIG_KEY(AUTO_BATCH));
+    if (it == cfg.end())
+        IE_THROW() <<"Value for KEY_AUTO_BATCH is not set";
+
+    auto val = it->second;
+    auto metaDevice = ParseMetaDevice(val, {{}});
+    cfg.erase(it);
+
+    return GetCore()->CreateContext(metaDevice.deviceName, cfg);
+}
+
 Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
         const std::map<std::string, Parameter> & options) const {
     if (name == CONFIG_KEY(AUTO_BATCH)) {
@@ -510,8 +523,16 @@ InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(const std::string
     }
 }
 
+
 IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&network,
-                                                                              const std::map<std::string, std::string>& config) {
+                                                                                 const std::map<std::string, std::string>& config) {
+    return LoadNetworkImpl(network, nullptr, config);
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadNetworkImpl(
+        const InferenceEngine::CNNNetwork& network,
+        const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
+        const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
     }
@@ -528,7 +549,9 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
     const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
     const bool enablePerfCounters = (fullConfig.end() != perfConfig) && (perfConfig->second == PluginConfigParams::YES);
 
-    auto executableNetworkWithoutBatch = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+    auto executableNetworkWithoutBatch = ctx
+            ? GetCore()->LoadNetwork(network, ctx, deviceConfig)
+            : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
     // device settings + auto-batch settings
     std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
     networkConfig.insert(*device_batch);
@@ -556,8 +579,9 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
             }
             std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
             clonedNetwork.reshape(shapes);
-            executableNetworkWithBatch = GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
-            IE_ASSERT(executableNetworkWithoutBatch->GetContext() == executableNetworkWithBatch->GetContext());
+            executableNetworkWithBatch = ctx
+                                         ? GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, ctx, deviceConfig)
+                                         : GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
         } catch (...) {
             // reload the network with smaller batch
             executableNetworkWithBatch = {nullptr, nullptr};
@@ -567,7 +591,7 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
     } while (!executableNetworkWithBatch && (metaDevice.batchForDevice));
     if (executableNetworkWithBatch == nullptr)
             IE_THROW(NetworkNotLoaded) << "Failed to load Executable network to the device " << deviceName
-                << "that the BATCH device is initialized to work with";
+                << " that the BATCH device is initialized to work with";
 
     return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkWithBatch,
                                                         executableNetworkWithoutBatch,
@@ -576,10 +600,24 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
                                                         enablePerfCounters);
 }
 
+InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(
+            const InferenceEngine::CNNNetwork& network,
+            const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+            const std::map<std::string, std::string>& config) {
+        return LoadNetworkImpl(network, context, config);
+}
+
 InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                               const std::map<std::string, std::string>& config) const {
-//    IE_THROW(NotImplemented);
-    const std::map<std::string, std::string> cfg;
-    return GetCore()->QueryNetwork(network, "CPU", cfg);
+    auto cfg = config;
+    for (auto c : cfg) {
+        if (c.first == CONFIG_KEY(AUTO_BATCH)) {
+            auto val = c.second;
+            cfg.erase(c.first);
+            auto metaDevice = ParseMetaDevice(val, cfg);
+            return GetCore()->QueryNetwork(network, metaDevice.deviceName, cfg);
+        }
+    }
+    IE_THROW() <<"Value for KEY_AUTO_BATCH is not set";
 }
 }  // namespace AutoBatchPlugin

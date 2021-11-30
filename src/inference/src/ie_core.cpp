@@ -486,12 +486,18 @@ public:
 
     ov::runtime::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
                                                                    const std::shared_ptr<ie::RemoteContext>& context,
-                                                                   const std::map<std::string, std::string>& config) {
+                                                                   const std::map<std::string, std::string>& config)
+                                                                   override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
             IE_THROW() << "Remote context is null";
         }
         auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
+        std::string& deviceName = parsed._deviceName;
+        std::map<std::string, std::string>& config_with_batch = parsed._config;
+        // if auto-batching is applicable, the below function will patch the device name and config accordingly:
+        ApplyAutoBatching(network, deviceName, config_with_batch);
+
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::runtime::SoPtr<ie::IExecutableNetworkInternal> res;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
@@ -509,13 +515,10 @@ public:
         return res;
     }
 
-    ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
-                                                const std::string& deviceNameOrig,
-                                                const std::map<std::string, std::string>& config) override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
-        std::string deviceName = deviceNameOrig, deviceNameWithBatchSize;
-        std::map<std::string, std::string> config_with_batch = config;
-
+    void ApplyAutoBatching (const ie::CNNNetwork& network,
+                            std::string& deviceName,
+                            std::map<std::string, std::string>& config_with_batch) {
+        std::string deviceNameWithBatchSize;
         if (deviceName.find("BATCH") != std::string::npos) {
             auto pos = deviceName.find_first_of(":");
             if (pos != std::string::npos) {
@@ -527,8 +530,8 @@ public:
         const auto& batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
         if (batch_mode != config_with_batch.end() && batch_mode->second == CONFIG_VALUE(YES)) {
             auto deviceNameWithoutBatch = !deviceNameWithBatchSize.empty()
-                                              ? DeviceIDParser::getBatchDevice(deviceNameWithBatchSize)
-                                              : deviceNameOrig;
+                                          ? DeviceIDParser::getBatchDevice(deviceNameWithBatchSize)
+                                          : deviceName;
             unsigned int requests = 0;
             unsigned int optimalBatchSize = 0;
             if (deviceNameWithBatchSize.empty()) {
@@ -538,13 +541,13 @@ public:
                     std::map<std::string, ie::Parameter> options;
                     options["MODEL_PTR"] = &network;
                     optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameWithoutBatch).getDeviceName())
-                                           .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
-                                           .as<unsigned int>();
+                            .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
+                            .as<unsigned int>();
                     auto res =
-                        GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+                            GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
                     requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-                    const auto& reqs = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-                    if (reqs != config.end())
+                    const auto& reqs = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+                    if (reqs != config_with_batch.end())
                         requests = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
                     if (requests) {
                         std::cout << "!!!!!!!!!!!!!!!Detected reqs_limitation: " << requests << std::endl;
@@ -567,7 +570,7 @@ public:
                 if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
                     (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
                     node->get_rt_info()["affinity"] =
-                        std::make_shared<ngraph::VariantWrapper<std::string>>(deviceNameWithoutBatch);
+                            std::make_shared<ngraph::VariantWrapper<std::string>>(deviceNameWithoutBatch);
                     std::cout << "!!! AFF !!! type: " << node->get_type_info().name
                               << ", name: " << node->get_friendly_name() << std::endl;
                     bDetectionOutput = true;
@@ -577,8 +580,8 @@ public:
             }
             if (optimalBatchSize > 1 || !deviceNameWithBatchSize.empty()) {
                 auto batchConfig = deviceNameWithBatchSize.empty()
-                                       ? deviceNameWithoutBatch + "(" + std::to_string(optimalBatchSize) + ")"
-                                       : deviceNameWithBatchSize;
+                                   ? deviceNameWithoutBatch + "(" + std::to_string(optimalBatchSize) + ")"
+                                   : deviceNameWithBatchSize;
                 if (bDetectionOutput) {
                     deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
                     std::cout << "HETERO code path!!!!" << std::endl;
@@ -590,6 +593,17 @@ public:
             }
             config_with_batch.erase(batch_mode);
         }
+    }
+
+    ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
+                                                const std::string& deviceNameOrig,
+                                                const std::map<std::string, std::string>& config) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+        std::string deviceName = deviceNameOrig;
+        std::map<std::string, std::string> config_with_batch = config;
+        // if auto-batching is applicable, the below function will patch the device name and config accordingly:
+        ApplyAutoBatching(network, deviceName, config_with_batch);
+
         bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
         if (forceDisableCache) {
@@ -806,6 +820,19 @@ public:
 
         return devices;
     }
+
+    /**
+     * @brief Create a new shared context object on specified accelerator device
+     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
+     * @param deviceName Name of a device to create new shared context on.
+     * @param params Map of device-specific shared context parameters.
+     * @return A shared pointer to a created remote context.
+     */
+     InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
+                                                                  const InferenceEngine::ParamMap& params) override {
+            auto parsed = ov::runtime::parseDeviceNameIntoConfig(deviceName, params);
+            return GetCPPPluginByName(parsed._deviceName).create_context(parsed._config)._ptr;
+     }
 
     /**
      * @brief Returns reference to CPP plugin wrapper by a device name
@@ -1311,18 +1338,7 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
-    if (deviceName.find("HETERO") == 0) {
-        IE_THROW() << "HETERO device does not support remote context";
-    }
-    if (deviceName.find("MULTI") == 0) {
-        IE_THROW() << "MULTI device does not support remote context";
-    }
-    if (deviceName.find("AUTO") == 0) {
-        IE_THROW() << "AUTO device does not support remote context";
-    }
-
-    auto parsed = ov::runtime::parseDeviceNameIntoConfig(deviceName, params);
-    return _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config)._ptr;
+    return _impl->CreateContext(deviceName, params);
 }
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {

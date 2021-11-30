@@ -120,6 +120,10 @@ public:
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                                                        const std::map<std::string, std::string>& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
+                                                            const InferenceEngine::CNNNetwork& network,
+                                                            const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+                                                            const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name,
@@ -131,10 +135,15 @@ public:
 
     DeviceInformation ParseMetaDevice(const std::string & devicesBatchCfg,
                                                   const std::map<std::string, std::string> & config) const;
+    InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap&) override;
 
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
                                                           const DeviceName & deviceName) const;
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(
+            const InferenceEngine::CNNNetwork& network,
+            const std::shared_ptr<InferenceEngine::RemoteContext> context,
+            const std::map<std::string, std::string>& config);
 };
 
 }  // namespace AutoBatchPlugin

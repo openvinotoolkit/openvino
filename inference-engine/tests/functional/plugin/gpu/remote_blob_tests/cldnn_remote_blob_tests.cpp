@@ -171,7 +171,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
 
     // inference using remote blob
     auto ocl_instance = std::make_shared<OpenCL>();
-    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());
+    auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_context.get());
     auto exec_net_shared = ie->LoadNetwork(net, remote_context);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
     inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
@@ -224,7 +224,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
-    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_queue.get());
+    auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
     auto exec_net_shared = ie->LoadNetwork(net, remote_context);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
@@ -317,7 +317,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
-    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_queue.get());
+    auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
     auto exec_net_shared = ie->LoadNetwork(net, remote_context);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
