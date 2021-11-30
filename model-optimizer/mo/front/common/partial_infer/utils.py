@@ -24,6 +24,15 @@ def shape_array(value, dtype=np.int64):
     return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
 
 
+def undefined_shape_of_rank(rank: int):
+    """
+    Create a shape of specified rank with all dynamic dimensions.
+    :param rank: requested rank of the output shape
+    :return: shape array
+    """
+    return shape_array([dynamic_dimension_value] * rank)
+
+
 def compatible_dims(dim1, dim2):
     """
     Compare if dim1 is equal to dim2 or any of them is dynamic
