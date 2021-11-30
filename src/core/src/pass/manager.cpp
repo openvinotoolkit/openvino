@@ -23,6 +23,10 @@
 #include "openvino/util/env_util.hpp"
 #include "perf_counters.hpp"
 
+#include <assert.h>
+
+#define EMUTEX_TRACE_ENABLED 1
+
 using namespace std;
 
 namespace ov {
@@ -33,6 +37,106 @@ PerfCounters& perf_counters() {
     return counters;
 }
 }  // namespace
+
+#ifdef EMUTEX_TRACE_ENABLED
+using Graph = std::unordered_map<std::string, std::unordered_set<std::string>>;
+
+template <typename GraphFunctionT>
+class FunctionTracer
+{
+public:
+    FunctionTracer(GraphFunctionT);
+    void OnNextPassReturn(const std::string& pass_name, GraphFunctionT);
+private:
+    Graph m_graph;
+};
+
+namespace {
+
+//---------------------------------------------------------------------------------------
+
+using Graph = std::unordered_map<std::string, std::unordered_set<std::string>>;
+
+Graph BuildGraph(std::shared_ptr<Function> function)
+{
+    Graph graph;
+
+    for (const shared_ptr<Node>& node : function->get_ops())
+    {
+        std::string node_name = node->get_name();
+
+        for (auto output : node->outputs())
+        {
+            for (auto input : output.get_target_inputs())
+            {
+                std::string child_node_name = input.get_node()->get_name();
+                graph[node_name].insert(child_node_name);
+                graph[child_node_name].insert(node_name);
+            }
+        }
+    }
+
+    return graph;
+}
+
+//---------------------------------------------------------------------------------------
+
+/**
+ * @brief find layers that exist in dst_graph but don't exist in src_graph
+ * 
+ * @param src_graph 
+ * @param dst_graph 
+ * @return std::vector<std::string> 
+ */
+std::vector<std::string> FindNewLayers(const Graph & src_graph, const Graph & dst_graph)
+{
+    std::vector<std::string> found_layers;
+
+    for (auto graph_it : dst_graph)
+    {
+        const std::string & layer_name = graph_it.first;
+        if (src_graph.find(layer_name) == src_graph.end())
+            found_layers.push_back(layer_name);
+    }
+
+    return found_layers;
+}
+
+//---------------------------------------------------------------------------------------
+
+} // namespace
+
+template <typename GraphFunctionT>
+FunctionTracer<GraphFunctionT>::FunctionTracer(GraphFunctionT function)
+    : m_graph(BuildGraph(function))
+{
+}
+
+template <typename GraphFunctionT>
+void FunctionTracer<GraphFunctionT>::OnNextPassReturn(const std::string& pass_name, GraphFunctionT function)
+{
+    Graph new_graph = BuildGraph(function);
+
+    std::vector<std::string> add_layers_list = FindNewLayers(m_graph, new_graph);
+
+    for (const std::string& name: add_layers_list)
+    {
+        std::cout << "EMUTEX DEBUG [" << pass_name << "] add layer " << name << std::endl;
+    }
+
+    std::vector<std::string> removed_layers_list = FindNewLayers(new_graph, m_graph);
+
+    for (const std::string& name: removed_layers_list)
+    {
+        std::cout << "EMUTEX DEBUG [" << pass_name << "] remove layer " << name << std::endl;
+    }
+
+     m_graph = new_graph;
+
+}
+#endif // EMUTEX_TRACE_ENABLED
+//---------------------------------------------------------------------------------------
+
 }  // namespace pass
 }  // namespace ov
 
@@ -55,6 +159,10 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
 
     static bool profile_enabled =
         ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
+
+#ifdef EMUTEX_TRACE_ENABLED
+    FunctionTracer<shared_ptr<ov::Function>> func_tracer(func);
+#endif
 
     size_t index = 0;
     ngraph::stopwatch pass_timer;
@@ -82,6 +190,9 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
             function_changed = GraphRewrite(matcher_pass).run_on_model(func);
+#ifdef EMUTEX_TRACE_ENABLED
+            func_tracer.OnNextPassReturn(pass->get_name(), func);
+#endif
         } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
@@ -95,6 +206,9 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                 if (function_changed) {
                     function_pass->run_on_model(func);
                     function_changed = false;
+#ifdef EMUTEX_TRACE_ENABLED
+                    func_tracer.OnNextPassReturn(pass->get_name(), func);
+#endif
                 }
             } else {
                 function_changed = function_pass->run_on_model(func);
@@ -108,6 +222,9 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             for (const shared_ptr<Node>& n : func->get_ops()) {
                 function_changed |= node_pass->run_on_node(n);
             }
+#ifdef EMUTEX_TRACE_ENABLED
+            func_tracer.OnNextPassReturn(pass->get_name(), func);
+#endif
         }
 
         if (m_visualize) {
