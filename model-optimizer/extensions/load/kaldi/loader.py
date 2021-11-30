@@ -26,8 +26,6 @@ class KaldiLoader(Loader):
         graph.graph['layout'] = 'NCHW'
         graph.graph['fw'] = 'kaldi'
 
-        extract_node_attrs(graph, lambda node: kaldi_extractor(node))
-
         send_op_names_info('kaldi', graph)
         send_shapes_info('kaldi', graph)
 

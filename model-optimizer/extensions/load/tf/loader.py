@@ -98,7 +98,6 @@ class TFLoader(Loader):
         remove_control_dependency_inputs(graph)
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
-        extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
 
         # try to detect layout from the nodes of the graph. If there are no convolution nodes in N(D)HWC layout then we
         # consider that the graph is in NCHW layout and no layout conversion should be performed

@@ -58,7 +58,6 @@ class ONNXLoader(Loader):
             graph.graph['fw_opset_version'] = None
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
-        extract_node_attrs(graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))
         send_op_names_info('onnx', graph)
         send_shapes_info('onnx', graph)
 

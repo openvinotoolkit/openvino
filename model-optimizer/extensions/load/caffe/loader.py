@@ -43,7 +43,6 @@ class CaffeLoader(Loader):
             argv.disable_omitting_optional if hasattr(argv, 'disable_omitting_optional') else False,
             argv.enable_flattening_nested_params if hasattr(argv, 'enable_flattening_nested_params') else False
         )
-        extract_node_attrs(graph, lambda node: caffe_extractor(node, check_for_duplicates(caffe_type_extractors)))
         send_op_names_info('caffe', graph)
         send_shapes_info('caffe', graph)
 
