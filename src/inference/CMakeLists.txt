@@ -239,6 +239,12 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+# Enable tests
+if(ENABLE_TESTS)
+    add_subdirectory(tests_deprecated)
+    add_subdirectory(tests)
+endif()
+
 # Export for build tree
 
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
