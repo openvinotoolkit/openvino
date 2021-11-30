@@ -102,7 +102,7 @@ from ngraph.opset1.ops import pad
 from ngraph.opset1.ops import parameter
 from ngraph.opset1.ops import power
 from ngraph.opset1.ops import prelu
-from ngraph.opset1.ops import prior_box
+from ngraph.opset8.ops import prior_box
 from ngraph.opset1.ops import prior_box_clustered
 from ngraph.opset1.ops import psroi_pooling
 from ngraph.opset4.ops import proposal
