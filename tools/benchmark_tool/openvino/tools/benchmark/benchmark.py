@@ -79,70 +79,124 @@ class Benchmark:
             requests.wait_all()
             return requests[id].latency
 
-    def infer(self, requests, data_queue, batch_size, latency_percentile, progress_bar, pcseq):
-        progress_count = 0
+    def update_progress_bar(self, progress_bar, exec_time, progress_count):
+        if self.duration_seconds:
+            # calculate how many progress intervals are covered by current iteration.
+            # depends on the current iteration time and time of each progress interval.
+            # Previously covered progress intervals must be skipped.
+            progress_interval_time = self.duration_seconds / progress_bar.total_num
+            new_progress = int(exec_time / progress_interval_time - progress_count)
+            progress_bar.add_progress(new_progress)
+            progress_count += new_progress
+        elif self.niter:
+            progress_bar.add_progress(1)
+        return progress_count
 
-        start_time = datetime.utcnow()
+    def sync_inference(self, request, data_queue, progress_bar):
+        progress_count = 0
         exec_time = 0
         iteration = 0
-        processed_frames = 0
-
         times = []
-        in_fly = set()
-        # Start inference & calculate performance
-        # to align number if iterations to guarantee that last infer requests are executed in the same conditions **/
+        start_time = datetime.utcnow()
         while (self.niter and iteration < self.niter) or \
-              (self.duration_seconds and exec_time < self.duration_seconds) or \
-              (self.api_type == 'async' and iteration % self.nireq):
+              (self.duration_seconds and exec_time < self.duration_seconds):
             if self.inference_only == False:
-                processed_frames += data_queue.get_next_batch_size()
-            if self.api_type == 'sync':
-                if self.inference_only == False:
-                    requests[0].set_input_tensors(data_queue.get_next_input())
-                requests[0].infer()
-                times.append(requests[0].latency)
-            else:
-                idle_id = requests.get_idle_request_id()
-                if idle_id in in_fly:
-                    times.append(requests[idle_id].latency)
-                    if pcseq:
-                        self.latency_groups[requests.userdata[idle_id]].times.append(requests[idle_id].latency)
-                else:
-                    in_fly.add(idle_id)
-                group_id = data_queue.current_group_id
-                if self.inference_only == False:
-                    requests[idle_id].set_input_tensors(data_queue.get_next_input())
-                requests.start_async(userdata=group_id)
+                request.set_input_tensors(data_queue.get_next_input())
+            request.infer()
+            times.append(request.latency)
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
 
             if progress_bar:
-              if self.duration_seconds:
-                  # calculate how many progress intervals are covered by current iteration.
-                  # depends on the current iteration time and time of each progress interval.
-                  # Previously covered progress intervals must be skipped.
-                  progress_interval_time = self.duration_seconds / progress_bar.total_num
-                  new_progress = int(exec_time / progress_interval_time - progress_count)
-                  progress_bar.add_progress(new_progress)
-                  progress_count += new_progress
-              elif self.niter:
-                  progress_bar.add_progress(1)
-
-        # wait the latest inference executions
-        if self.api_type == 'async':
-            requests.wait_all()
+                progress_count = self.update_progress_bar(progress_bar, exec_time, progress_count)
 
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        return sorted(times), total_duration_sec, iteration
+
+    def async_inference_only(self, infer_queue, progress_bar):
+        progress_count = 0
+        exec_time = 0
+        iteration = 0
+        times = []
+        in_fly = set()
+        start_time = datetime.utcnow()
+        while (self.niter and iteration < self.niter) or \
+              (self.duration_seconds and exec_time < self.duration_seconds) or \
+              (iteration % self.nireq):
+            idle_id = infer_queue.get_idle_request_id()
+            if idle_id in in_fly:
+                times.append(infer_queue[idle_id].latency)
+            else:
+                in_fly.add(idle_id)
+            infer_queue.start_async()
+            iteration += 1
+
+            exec_time = (datetime.utcnow() - start_time).total_seconds()
+
+            if progress_bar:
+                progress_count = self.update_progress_bar(progress_bar, exec_time, progress_count)
+
+        infer_queue.wait_all()
+        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         for infer_request_id in in_fly:
-            times.append(requests[infer_request_id].latency)
-            if pcseq:
-                self.latency_groups[requests.userdata[infer_request_id]].times.append(requests[infer_request_id].latency)
-        times.sort()
+            times.append(infer_queue[infer_request_id].latency)
+        return sorted(times), total_duration_sec, iteration
+
+    def async_inference_full_mode(self, infer_queue, data_queue, progress_bar, pcseq):
+        progress_count = 0
+        processed_frames = 0
+        exec_time = 0
+        iteration = 0
+        times = []
+        num_groups = len(self.latency_groups)
+        in_fly = set()
+        start_time = datetime.utcnow()
+        while (self.niter and iteration < self.niter) or \
+              (self.duration_seconds and exec_time < self.duration_seconds) or \
+              (iteration % num_groups) or \
+              (iteration % self.nireq):
+            processed_frames += data_queue.get_next_batch_size()
+            idle_id = infer_queue.get_idle_request_id()
+            if idle_id in in_fly:
+                times.append(infer_queue[idle_id].latency)
+                if pcseq:
+                    self.latency_groups[infer_queue.userdata[idle_id]].times.append(infer_queue[idle_id].latency)
+            else:
+                in_fly.add(idle_id)
+            group_id = data_queue.current_group_id
+            infer_queue[idle_id].set_input_tensors(data_queue.get_next_input())
+            infer_queue.start_async(userdata=group_id)
+            iteration += 1
+
+            exec_time = (datetime.utcnow() - start_time).total_seconds()
+
+            if progress_bar:
+                progress_count = self.update_progress_bar(progress_bar, exec_time, progress_count)
+
+        infer_queue.wait_all()
+        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        for infer_request_id in in_fly:
+            times.append(infer_queue[infer_request_id].latency)
+        return sorted(times), total_duration_sec, processed_frames, iteration
+
+    def main_loop(self, requests, data_queue, batch_size, latency_percentile, progress_bar, pcseq):
+        if self.api_type == 'sync':
+            times, total_duration_sec, iteration = self.sync_inference(requests[0], data_queue, progress_bar)
+        elif self.inference_only:
+            times, total_duration_sec, iteration = self.async_inference_only(requests, progress_bar)
+            fps = len(batch_size) * iteration / total_duration_sec
+        else:
+            times, total_duration_sec, processed_frames, iteration = self.async_inference_full_mode(requests, data_queue, progress_bar, pcseq)
+            fps = processed_frames / total_duration_sec
+
         median_latency_ms = percentile(times, latency_percentile)
         avg_latency_ms = sum(times) / len(times)
         min_latency_ms = times[0]
         max_latency_ms = times[-1]
+
+        if self.api_type == 'sync':
+            fps = len(batch_size) * 1000 / median_latency_ms
 
         if pcseq:
             for group in self.latency_groups:
@@ -152,10 +206,6 @@ class Benchmark:
                     group.min = group.times[0]
                     group.max = group.times[-1]
 
-        if self.inference_only and self.api_type == 'async':
-            fps = len(batch_size) * iteration / total_duration_sec
-        else:
-            fps = len(batch_size) * 1000 / median_latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
         if progress_bar:
             progress_bar.finish()
         return fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration

@@ -239,11 +239,7 @@ def check_for_static(app_input_info):
     is_static = True
     for info in app_input_info:
         if info.is_dynamic:
-            t_shape = info.shapes[0]
-            for shape in info.shapes:
-                if shape != t_shape:
-                    is_static = False
-                    return is_static
+            return False
     return is_static
 
 
