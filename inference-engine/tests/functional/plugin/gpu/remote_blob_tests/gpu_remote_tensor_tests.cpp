@@ -30,6 +30,28 @@ protected:
     }
 };
 
+class OVRemoteTensor_TestsWithContext : public OVRemoteTensor_Test, public testing::WithParamInterface<bool> {
+protected:
+    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::string deviceName;
+    std::map<std::string, std::string> config;
+
+public:
+    void SetUp() override {
+        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        deviceName = CommonTestUtils::DEVICE_GPU;
+        auto with_auto_batching = this->GetParam();
+        if (with_auto_batching) { // BATCH:GPU
+            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
+            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
+        }
+    }
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        auto with_auto_batch = obj.param;
+        return std::string("RemoteBlob_Test") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
+    }
+};
+
 enum class RemoteTensorSharingType {
     USER_CL_TENSOR = 0,
     PLUGIN_CL_TENSOR = 1,
@@ -254,7 +276,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                                  RemoteTensorSharingType::PLUGIN_HOST_TENSOR}),
         OVRemoteTensorInputBlob_Test::getTestCaseName);
 
-TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
+TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContext) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
@@ -264,7 +286,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
                            .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
             .build();
 
-    auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function, deviceName);
     auto input = function->get_parameters().at(0);
     auto output = function->get_results().at(0);
 
@@ -280,7 +302,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
     auto ocl_instance = std::make_shared<OpenCL>();
 
     auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_context.get());
-    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto exec_net_shared = ie.compile_model(function, remote_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
 
@@ -298,7 +320,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
     }
 }
 
-TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContextWithMultipleDevices) {
+TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContextWithMultipleDevices) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
@@ -308,7 +330,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContextWithMultipleDevices) {
                            .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
             .build();
 
-    auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function, deviceName);
     auto input = function->get_parameters().at(0);
     auto output = function->get_results().at(0);
 
@@ -329,7 +351,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContextWithMultipleDevices) {
     auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_context.get(), 1);
 
     ASSERT_EQ(remote_context.get_device_name(), "GPU.0");
-    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto exec_net_shared = ie.compile_model(function, remote_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
 
@@ -347,7 +369,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContextWithMultipleDevices) {
     }
 }
 
-TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_out_of_order) {
+TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_out_of_order) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
@@ -357,7 +379,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_out_of_order) {
                            .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
             .build();
 
-    auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function, deviceName);
     auto input = function->get_parameters().at(0);
     auto output = function->get_results().at(0);
 
@@ -427,7 +449,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_out_of_order) {
     }
 }
 
-TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_in_order) {
+TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_in_order) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
@@ -437,7 +459,7 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_in_order) {
                            .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
             .build();
 
-    auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function, deviceName);
     auto input = function->get_parameters().at(0);
     auto output = function->get_results().at(0);
 
@@ -502,6 +524,10 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_in_order) {
         FuncTestUtils::compare_tensor(output_tensor_regular, out_tensor, thr);
     }
 }
+
+std::vector<bool> ov_with_auto_batching {true, false};
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensor_TestsWithContext, ::testing::ValuesIn(ov_with_auto_batching),
+                         OVRemoteTensor_TestsWithContext::getTestCaseName);
 
 class OVRemoteTensorBatched_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
