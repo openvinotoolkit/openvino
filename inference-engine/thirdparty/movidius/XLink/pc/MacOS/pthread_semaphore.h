@@ -17,6 +17,7 @@ int pthread_sem_destroy(pthread_sem_t *psem);
 int pthread_sem_post(pthread_sem_t *psem);
 int pthread_sem_post_broadcast(pthread_sem_t *psem);
 int pthread_sem_wait(pthread_sem_t *psem);
+int pthread_sem_trywait(pthread_sem_t *psem);
 int pthread_sem_timedwait(pthread_sem_t *psem, const struct timespec *abstime);
 # ifdef __cplusplus
 }
@@ -36,6 +37,7 @@ int sem_init(sem_t *psem, int pshared, unsigned int value);
 int sem_destroy(sem_t *psem);
 int sem_post(sem_t *psem);
 int sem_wait(sem_t *psem);
+int sem_trywait(sem_t *psem);
 int sem_timedwait(sem_t *psem, const struct timespec *abstime);
 
 #  ifdef __cplusplus

@@ -6,39 +6,34 @@
 
 #include "behavior/infer_request/io_blob.hpp"
 #include "ie_plugin_config.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
+using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 using namespace ConformanceTests;
-
-const std::vector<std::map<std::string, std::string>> configsIOBlob = {
-        {},
-};
-
-const std::vector<std::map<std::string, std::string>> MulticonfigsIOBlob = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}
-};
-
-const std::vector<std::map<std::string, std::string>> AutoconfigsIOBlob = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice}}
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(configsIOBlob)),
+                                ::testing::ValuesIn(emptyConfig)),
                          InferRequestIOBBlobTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestIOBBlobTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(MulticonfigsIOBlob)),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestIOBBlobTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestIOBBlobTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoconfigsIOBlob)),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                         InferRequestIOBBlobTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestIOBBlobTest,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestIOBBlobTest::getTestCaseName);
 }  // namespace

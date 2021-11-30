@@ -18,7 +18,8 @@ file(GLOB
         inference_engine_tests/*.cpp
         )
 
-if (ENABLE_GNA)
+# TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
+if (ENABLE_GNA AND BUILD_SHARED_LIBS)
     file(GLOB
             GNA_TESTS
             engines/gna/*cpp
@@ -141,5 +142,12 @@ install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
+
+if(TARGET libGNAStubs)
+    install(TARGETS libGNAStubs
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
 
 add_dependencies(${TARGET_NAME} mock_engine)

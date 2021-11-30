@@ -46,13 +46,16 @@ void MKLDNNNonZeroNode::getSupportedDescriptors() {
 void MKLDNNNonZeroNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    const Precision precs[6] = { Precision::FP32, Precision::BF16, Precision::I32,
-                                     Precision::U32, Precision::I8,  Precision::U8 };
-    for (const auto prec : precs) {
-        addSupportedPrimDesc({{LayoutType::ncsp, prec}},
-                             {{LayoutType::ncsp, Precision::I32}},
-                             impl_desc_type::ref);
+
+    const auto &inPrc = getOriginalInputPrecisionAtPort(0);
+    if (!one_of(inPrc, Precision::FP32, Precision::BF16, Precision::I32, Precision::U32, Precision::I8,  Precision::U8)) {
+        IE_THROW() << "Can't create primitive descriptor for NonZero layer with name: " << getName() << " doesn't support "
+                   << inPrc.name() << " precision on 0 port";
     }
+
+    addSupportedPrimDesc({{LayoutType::ncsp}},
+                         {{LayoutType::ncsp, Precision::I32}},
+                         impl_desc_type::ref);
 }
 
 template <typename T>

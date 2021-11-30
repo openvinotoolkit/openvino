@@ -19,10 +19,7 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         return false;
     }
 
-    // this check needed to avoid inserting unnecessary reorders if the memory is used in place and the batch size is equal to 1
-    size_t skipAxis = this->getShape().getRank() > 0 && this->getShape().getDims().front() == 1 ? 0 :
-            Shape::UNDEFINED_DIM; //ignore batch axis if batch size == 1
-    if (!dimsEqualWeak(this->getStrides(), rhs.getStrides(), skipAxis)) {
+    if (!dimsEqualWeak(this->getStrides(), rhs.getStrides())) {
         return false;
     }
 
@@ -31,4 +28,30 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
     }
 
     return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
+}
+
+std::string BlockedMemoryDesc::serializeFormat() const {
+    std::stringstream result;
+    char startLetter = 'a';
+    std::unordered_set<size_t> blockedAxis;
+    const auto& order = getOrder();
+    const auto& shape = getShape();
+    for (size_t i = shape.getRank(); i < order.size(); ++i) {
+        blockedAxis.insert(order[i]);
+    }
+
+    for (size_t i = 0; i < shape.getRank(); ++i) {
+        char nextLetter = startLetter + order[i];
+        if (blockedAxis.count(i)) {
+            nextLetter = toupper(nextLetter);
+        }
+        result << nextLetter;
+    }
+
+    const auto& blkDims = getBlockDims();
+    for (size_t i = shape.getRank(); i < order.size(); ++i) {
+        result << blkDims[i] << char(startLetter + order[i]);
+    }
+
+    return result.str();
 }

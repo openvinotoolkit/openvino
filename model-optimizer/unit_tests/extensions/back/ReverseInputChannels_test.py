@@ -3,12 +3,14 @@
 
 import unittest
 
+import numpy as np
+
 from extensions.back.ReverseInputChannels import ReverseChannelsPropagationUp, ReverseChannelsPropagationDown, \
     InsertReverseChannels
 from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.graph.graph import Node, Graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.runtime_info import OldAPIMap, RTInfo
+from mo.utils.runtime_info import OldAPIMapOrder, RTInfo
 from unit_tests.utils.graph import build_graph, result, connect, regular_op_with_shaped_data, valued_const_with_data
 
 nodes = {
@@ -16,14 +18,13 @@ nodes = {
     **regular_op_with_shaped_data('placeholder2', [1, 1, 1, 1], {'type': 'Parameter'}),
 
     **regular_op_with_shaped_data('mul', [1, 3, 10, 10], {'type': 'Multiply'}),
-    **regular_op_with_shaped_data('reverse_channels', [1, 3, 10, 10], {'type': 'ReverseChannels', 'axis': 1}),
-
+    **regular_op_with_shaped_data('reverse_channels', [1, 3, 10, 10],
+                                  {'type': 'ReverseChannels', 'axis': int64_array(1)}),
 
     **regular_op_with_shaped_data('pad', [1, 3, 10, 10], {'type': 'Pad'}),
 
     **result('result'),
 }
-
 
 nodes2 = {
     **regular_op_with_shaped_data('placeholder', [1, 3, 10, 10], {'type': 'Parameter'}),
@@ -33,7 +34,8 @@ nodes2 = {
     **valued_const_with_data('pad_const_1', int64_array([0, 0, 0, 0])),
     **valued_const_with_data('pad_const_2', int64_array([0, 0, 1, 1])),
     **regular_op_with_shaped_data('pad', [1, 3, 10, 10], {'type': 'Pad'}),
-    **regular_op_with_shaped_data('reverse_channels', [1, 3, 10, 10], {'type': 'ReverseChannels', 'axis': 1}),
+    **regular_op_with_shaped_data('reverse_channels', [1, 3, 10, 10],
+                                  {'type': 'ReverseChannels', 'axis': int64_array(1)}),
     **result('result'),
     **result('result2'),
 }
@@ -42,8 +44,10 @@ nodes3 = {
     **regular_op_with_shaped_data('placeholder', [1, 3, 10, 10], {'type': 'Parameter'}),
     **regular_op_with_shaped_data('transpose', [1, 3, 10, 10], {'type': 'Transpose'}),
     **valued_const_with_data('transpose_order', int64_array([0, 3, 1, 2])),
-    **regular_op_with_shaped_data('reverse_channels_up', [1, 3, 10, 10], {'type': 'ReverseChannels', 'axis': 3}),
-    **regular_op_with_shaped_data('reverse_channels_down', [1, 3, 10, 10], {'type': 'ReverseChannels', 'axis': 1}),
+    **regular_op_with_shaped_data('reverse_channels_up', [1, 3, 10, 10],
+                                  {'type': 'ReverseChannels', 'axis': int64_array(3)}),
+    **regular_op_with_shaped_data('reverse_channels_down', [1, 3, 10, 10],
+                                  {'type': 'ReverseChannels', 'axis': int64_array(1)}),
     **result('result'),
     **result('result2'),
 }
@@ -89,7 +93,8 @@ class ReverseInputChannelsTest(unittest.TestCase):
         node = Node(graph, 'pad')
         reverse_channels = Node(graph, 'reverse_channels')
 
-        keep_moving_up, new_reverses = ReverseChannelsPropagationUp.lift_up_through_zero_port_only(node, reverse_channels)
+        keep_moving_up, new_reverses = ReverseChannelsPropagationUp.lift_up_through_zero_port_only(node,
+                                                                                                   reverse_channels)
         self.assertTrue(keep_moving_up is True)
         self.assertTrue(len(new_reverses) == 1)
         self.check_graph_attrs(graph, ['placeholder'])
@@ -98,20 +103,22 @@ class ReverseInputChannelsTest(unittest.TestCase):
         graph = build_graph(nodes2, [*connect('placeholder', '0:mul'), *connect('mul_const', '1:mul'),
                                      *connect('mul', '0:pad'), *connect('pad_const_1', '1:pad'),
                                      *connect('pad_const_2', '2:pad'), *connect('pad', 'reverse_channels'),
-                                     *connect('reverse_channels:0', '0:result'),  *connect('reverse_channels:0', '0:result2')])
+                                     *connect('reverse_channels:0', '0:result'),
+                                     *connect('reverse_channels:0', '0:result2')])
         self.set_graph_attrs(graph, ['placeholder'])
 
         node = Node(graph, 'pad')
         reverse_channels = Node(graph, 'reverse_channels')
 
-        keep_moving_up, new_reverses = ReverseChannelsPropagationUp.lift_up_through_zero_port_only(node, reverse_channels)
+        keep_moving_up, new_reverses = ReverseChannelsPropagationUp.lift_up_through_zero_port_only(node,
+                                                                                                   reverse_channels)
         self.assertTrue(keep_moving_up is True)
         self.assertTrue(len(new_reverses) == 1)
         self.check_graph_attrs(graph, ['placeholder'])
 
     def test_pass_rc_through(self):
         graph = build_graph(nodes2, [*connect('placeholder', '0:mul'), *connect('mul_const', '1:mul'),
-                                     *connect('mul', 'reverse_channels'),  *connect('reverse_channels', '0:pad'),
+                                     *connect('mul', 'reverse_channels'), *connect('reverse_channels', '0:pad'),
                                      *connect('pad_const_1', '1:pad'), *connect('pad_const_2', '2:pad'),
                                      *connect('pad', 'result')])
         self.set_graph_attrs(graph, ['placeholder'])
@@ -144,6 +151,7 @@ class ReverseInputChannelsTest(unittest.TestCase):
 
         reverse_channels = Node(graph, 'reverse_channels_down')
         self.assertTrue(reverse_channels.axis == 3)
+        self.assertTrue(type(reverse_channels.axis) == np.ndarray)
 
     def test_lift_down_through_transpose(self):
         graph = build_graph(nodes3, [*connect('placeholder', 'reverse_channels_up'),
@@ -168,6 +176,7 @@ class ReverseInputChannelsTest(unittest.TestCase):
 
         reverse_channels = Node(graph, 'reverse_channels_down')
         self.assertTrue(reverse_channels.axis == 1)
+        self.assertTrue(type(reverse_channels.axis) == np.ndarray)
 
     def test_lift_up_through_transpose_negative_axis(self):
         graph = build_graph(nodes3, [*connect('placeholder', '0:transpose'), *connect('transpose_order', '1:transpose'),
@@ -181,7 +190,7 @@ class ReverseInputChannelsTest(unittest.TestCase):
 
         node = Node(graph, 'transpose')
         reverse_channels = Node(graph, 'reverse_channels_down')
-        reverse_channels.axis = -3
+        reverse_channels.axis = int64_array(-3)
 
         keep_moving_up, new_reverses = ReverseChannelsPropagationUp.lift_up_through_transpose(node, reverse_channels)
         self.assertTrue(keep_moving_up is True)
@@ -192,6 +201,7 @@ class ReverseInputChannelsTest(unittest.TestCase):
 
         reverse_channels = Node(graph, 'reverse_channels_down')
         self.assertTrue(reverse_channels.axis == 3)
+        self.assertTrue(type(reverse_channels.axis) == np.ndarray)
 
     def test_lift_down_through_transpose_negative_axis(self):
         graph = build_graph(nodes3, [*connect('placeholder', 'reverse_channels_up'),
@@ -206,7 +216,7 @@ class ReverseInputChannelsTest(unittest.TestCase):
 
         node = Node(graph, 'transpose')
         reverse_channels = Node(graph, 'reverse_channels_up')
-        reverse_channels.axis = -1
+        reverse_channels.axis = int64_array(-1)
 
         keep_moving_down = ReverseChannelsPropagationDown.pass_rc_through_transpose(node, reverse_channels)
 
@@ -217,16 +227,17 @@ class ReverseInputChannelsTest(unittest.TestCase):
 
         reverse_channels = Node(graph, 'reverse_channels_down')
         self.assertTrue(reverse_channels.axis == 1)
+        self.assertTrue(type(reverse_channels.axis) == np.ndarray)
 
     def test_get_fw_index(self):
         graph = build_graph(nodes, [*connect('placeholder1', 'result')])
         node = Node(graph, 'placeholder1')
-        old_api_map = OldAPIMap(version=0)
-        node.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
-        node.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_transpose_parameter([0, 2, 3, 1])
+        old_api_map = OldAPIMapOrder(version=0)
+        node.rt_info.info[('old_api_map_order', old_api_map.get_version())] = old_api_map
+        node.rt_info.info[('old_api_map_order', old_api_map.get_version())].old_api_transpose_parameter([0, 2, 3, 1])
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 0) == 0)
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 1) == 3)
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 2) == 1)
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 3) == 2)
         self.assertTrue(InsertReverseChannels.get_fw_index(node, -2) == 1)
-
+        self.assertTrue(type(InsertReverseChannels.get_fw_index(node, 0)) == int)
