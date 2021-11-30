@@ -23,8 +23,9 @@ set(LIBRARY_SOURCES_ALL
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
 
-target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                 "${INCLUDE_DIR}")
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${INCLUDE_DIR}>)
 
 target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
@@ -54,5 +55,3 @@ elseif((NOT ANDROID) AND (UNIX))
 endif()
 
 ov_install_static_lib(${TARGET_NAME} gpu)
-
-# ======================================================================================================

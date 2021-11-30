@@ -5,5 +5,7 @@
 add_library(rapidjson INTERFACE)
 
 set_target_properties(rapidjson PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/rapidjson"
+    INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/rapidjson>
 )
+
+ov_install_static_lib(rapidjson gpu)

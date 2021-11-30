@@ -52,14 +52,14 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${PRIM_DB}"
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${CODEGEN_CACHE_SOURCES})
 
-target_include_directories(${TARGET_NAME} PUBLIC "${INCLUDE_DIR}"
-                                                 "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                 "${CMAKE_CURRENT_SOURCE_DIR}/core/"
-                                                 "${CMAKE_CURRENT_SOURCE_DIR}/core/common/"
-                                                 "${CMAKE_CURRENT_SOURCE_DIR}/core/actual_kernels/"
-                                                 "${CMAKE_CURRENT_SOURCE_DIR}/core/cache/"
-                                                 "${CMAKE_CURRENT_SOURCE_DIR}/common/"
-                                                 "${CODEGEN_INCDIR}")
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${INCLUDE_DIR}>
+                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/>
+                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/common/>
+                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/actual_kernels/>
+                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/cache/>
+                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/>
+                                                 $<BUILD_INTERFACE:${CODEGEN_INCDIR}>)
 
 target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)

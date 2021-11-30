@@ -25,10 +25,10 @@ endif()
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC})
 
 target_include_directories(${TARGET_NAME} PUBLIC
-                                          "${MAIN_DIR}"
-                                          "${INCLUDE_DIR}"
-                                          "${CMAKE_CURRENT_SOURCE_DIR}"
-                                          "${CMAKE_CURRENT_SOURCE_DIR}/include/")
+                                          $<BUILD_INTERFACE:${MAIN_DIR}>
+                                          $<BUILD_INTERFACE:${INCLUDE_DIR}>
+                                          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                                          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
 
 target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
