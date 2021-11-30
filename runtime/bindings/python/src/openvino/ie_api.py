@@ -48,10 +48,9 @@ class InferRequest(InferRequestBase):
         """Infer wrapper for InferRequest."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         res = super().infer(inputs)
-
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
-        return {output : copy.deepcopy(tensor.data) for output, tensor in res}
+        return res
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for InferRequest."""
@@ -72,7 +71,7 @@ class ExecutableNetwork(ExecutableNetworkBase):
         res = super().infer_new_request(inputs)
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
-        return {output : copy.deepcopy(tensor.data) for output, tensor in res}
+        return res
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
