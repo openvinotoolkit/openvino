@@ -5,6 +5,7 @@ import numpy as np
 import openvino.opset8 as ov
 import pytest
 
+import openvino.runtime.opset8 as ov
 
 @pytest.fixture()
 def _proposal_node():
