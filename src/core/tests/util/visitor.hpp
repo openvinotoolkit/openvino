@@ -297,13 +297,11 @@ public:
                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
             m_values.insert_vector(name, a->get());
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
             m_values.insert_vector(name, a->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                ov::PartialShape>>(&adapter)) {
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             m_values.insert_vector(name, a->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                ov::Dimension>>(&adapter)) {
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
             m_values.insert(name, a->get());
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
