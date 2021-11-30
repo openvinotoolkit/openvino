@@ -108,6 +108,7 @@
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "nodes/mkldnn_normalize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
+#include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -475,6 +476,14 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
+    });
+
+    postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
+    postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+        if (node->get_input_size() >= 2) {
+            return node->get_input_element_type(1) == ngraph::element::i8 || node->get_input_element_type(1) == ngraph::element::u8;
+        }
+        return false;
     });
 
     postLPTPassManager.run_passes(nGraphFunc);
