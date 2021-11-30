@@ -16,34 +16,23 @@ namespace preprocess {
 ///
 /// Example of usage of network 'layout':
 /// Support network has input parameter with shape {1, 3, 224, 224} and user needs to resize input image to network's
-/// dimensions It can be done like this
+/// dimensions. It can be done like this
 ///
 /// \code{.cpp}
 /// <network has input parameter with shape {1, 3, 224, 224}>
-/// auto proc =
-/// PrePostProcessor(function)
-///     .input(InputInfo()
-///            .tensor(<input tensor info>)
-///            .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
-///            .network(InputNetworkInfo()
-///                    .set_layout("NCHW"))
-///     );
+/// auto proc = PrePostProcessor(function);
+/// proc.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+/// proc.input().network().set_layout("NCHW");
 /// \endcode
 class OPENVINO_API InputNetworkInfo final {
     class InputNetworkInfoImpl;
     std::unique_ptr<InputNetworkInfoImpl> m_impl;
     friend class InputInfo;
 
-public:
     /// \brief Default empty constructor
     InputNetworkInfo();
 
-    /// \brief Default move constructor
-    InputNetworkInfo(InputNetworkInfo&&) noexcept;
-
-    /// \brief Default move assignment
-    InputNetworkInfo& operator=(InputNetworkInfo&&) noexcept;
-
+public:
     /// \brief Default destructor
     ~InputNetworkInfo();
 
@@ -53,15 +42,7 @@ public:
     /// \param layout Layout for network's input tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputNetworkInfo& set_layout(const ov::Layout& layout) &;
-
-    /// \brief Set layout for network's input tensor
-    /// This version allows chaining for Rvalue objects
-    ///
-    /// \param layout Layout for network's input tensor.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputNetworkInfo&& set_layout(const ov::Layout& layout) &&;
+    InputNetworkInfo& set_layout(const ov::Layout& layout);
 };
 
 }  // namespace preprocess
