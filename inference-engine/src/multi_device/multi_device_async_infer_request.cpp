@@ -96,9 +96,9 @@ MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {
     StopAndWait();
     --(_multiDeviceExecutableNetwork->_numRequestsCreated);
     //TODO release the extra idle worker requests
-    /*auto idlerequests = _multiDeviceExecutableNetwork->_idleWorkerRequests;
+    auto* idleRequestsPtr = &(_multiDeviceExecutableNetwork->_idleWorkerRequests);
     std::vector<MultiDeviceExecutableNetwork::WorkerInferRequest*> tempvec;
-    for (auto&& idleWorker : idlerequests) {
+    for (auto&& idleWorker : *idleRequestsPtr) {
         MultiDeviceExecutableNetwork::WorkerInferRequest* workerRequestPtr = nullptr;
         while (idleWorker.second.try_pop(workerRequestPtr)) {
             auto it = std::find(tempvec.begin(), tempvec.end(), workerRequestPtr);
@@ -112,6 +112,6 @@ MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {
             idleWorker.second.try_push(workerRequestPtr);
             tempvec.push_back(workerRequestPtr);
         }
-    }*/
+    }
 }
 }  // namespace MultiDevicePlugin
