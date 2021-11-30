@@ -518,6 +518,7 @@ def detection_output(
         name: Optional[str] = None,
 ) -> Node:
     """Generate the detection output using information on location and confidence predictions.
+
     @param  box_logits:         The 2D input tensor with box logits.
     @param  class_preds:        The 2D input tensor with class predictions.
     @param  proposals:          The 3D input tensor with proposals.
