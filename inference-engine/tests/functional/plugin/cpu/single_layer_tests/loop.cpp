@@ -255,9 +255,9 @@ std::vector<bool> is_body_condition_const{true};
 std::vector<bool> body_condition{true, false}; // works only if is_body_condition_const == true
 std::vector<int64_t> trip_count{1, 5}; // -1 means infinity
 std::vector<InputShape> inputs = {
-        {{-1, 1, -1}, {{10, 1, 10}, {1, 1, 1}, {5, 1, 3}}},
-        {{-1, 1, -1}, {{1, 1, 1}, {5, 1, 2}, {5, 1, 3}}},
-        {{-1, 1, -1}, {{10, 1, 10}, {5, 1, 2}, {5, 1, 3}}}
+        {{-1, 1, -1}, {{10, 1, 10}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}},
+        {{-1, 1, -1}, {{1, 1, 1}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}},
+        {{-1, 1, -1}, {{10, 1, 10}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}}
 };
 std::vector<LOOP_IN_TYPE> types = {
         LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::MERGED
