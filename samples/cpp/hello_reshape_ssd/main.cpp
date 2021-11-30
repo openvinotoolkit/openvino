@@ -95,30 +95,28 @@ int main(int argc, char* argv[]) {
         const ov::Layout tensor_layout{"NHWC"};
 
         // clang-format off
-        model = PrePostProcessor(model).
-            // 1) InputInfo() with no args assumes a model has a single input
-            input(InputInfo().
-                // 2) Set input tensor information:
-                // - precision of tensor is supposed to be 'u8'
-                // - layout of data is 'NHWC'
-                // - set static spatial dimensions to input tensor to resize from
-                tensor(InputTensorInfo().
-                    set_element_type(ov::element::u8).
-                    set_layout(tensor_layout)).
-                // 3) Adding explicit preprocessing steps:
-                // - convert u8 to f32
-                // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
-                preprocess(PreProcessSteps().
-                    convert_element_type(ov::element::f32).
-                    convert_layout("NCHW")).
-                // 4) Here we suppose model has 'NCHW' layout for input
-                network(InputNetworkInfo().
-                    set_layout("NCHW"))).
-            output(OutputInfo().
-                tensor(OutputTensorInfo().
-                    set_element_type(ov::element::f32))).
+        auto proc = ov::preprocess::PrePostProcessor(model);
+        // 1) InputInfo() with no args assumes a model has a single input
+        auto& input_info = proc.input();
+        // 2) Set input tensor information:
+        // - precision of tensor is supposed to be 'u8'
+        // - layout of data is 'NHWC'
+        // - set static spatial dimensions to input tensor to resize from
+        input_info.tensor().
+              set_element_type(ov::element::u8).
+              set_layout(tensor_layout);
+        // 3) Adding explicit preprocessing steps:
+        // - convert u8 to f32
+        // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
+        proc.input().preprocess().
+            convert_element_type(ov::element::f32).
+            convert_layout("NCHW");
+        // 4) Here we suppose model has 'NCHW' layout for input
+        input_info.network().set_layout("NCHW");
+        auto& output_info = proc.output();
+        output_info.tensor().set_element_type(ov::element::f32);
         // 6) Apply preprocessing modifing the original 'model'
-        build();
+        model = proc.build();
         // clang-format on
 
         // Step 5. Loading a model to the device
