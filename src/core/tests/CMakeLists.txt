@@ -271,6 +271,7 @@ set(SRC
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
     visitors/partial_shape.cpp
+    visitors/dimension.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
     visitors/op/acos.cpp
