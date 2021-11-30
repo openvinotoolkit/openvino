@@ -17,6 +17,7 @@
 #include <utility>
 #include <limits>
 
+#include <ie_common.h>
 #include <legacy/graph_tools.hpp>
 #include <legacy/net_pass.h>
 #include <debug.h>
@@ -524,7 +525,7 @@ bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) 
         desc.num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
-        gnamem->bind_ptr(&desc.ptrs.front(), outputPtr);
+        gnamem->bind_ptr(layer, &desc.ptrs.front(), outputPtr);
     };
 
     // probing gna_primitives
@@ -927,7 +928,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // Creating Layer primitives
+    uint16_t id = 0;
     for (auto & layer : sortedNoMem) {
+        IE_SUPPRESS_DEPRECATED_START
+        layer->userValue.v_int = id++;
+        IE_SUPPRESS_DEPRECATED_END
         graphCompiler.CreateLayerPrimitive(layer);
     }
 
@@ -981,7 +986,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // TODO: how active list will work in multioutput case
     // make room for active list
-    gnamem->reserve_ptr(nullptr,
+    gnamem->reserve_ptr(nullptr, nullptr,
         ALIGN64(outputsDesc.front().num_bytes_per_element * outputsDesc.front().num_elements), 64);
 
     void *pParallelExecutionData  = nullptr;
@@ -989,10 +994,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
     if (gnaFlags->gna_lib_async_threads_num > 1) {
-        gnamem->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
+        gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
-    gnamem->commit();
+    gnamem->commit(gnaFlags->compact_mode);
 
     dnn->Init(gnamem->getBasePtr(),
              gnamem->getTotalBytes(),
@@ -1569,7 +1574,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     graphCompiler.setGNAMemoryPtr(gnamem);
     void *basePtr = nullptr;
-    gnamem->reserve_ptr(&basePtr, header.gnaMemSize);
+    gnamem->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
     gnamem->commit();
 #if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(header.layersCount)));
