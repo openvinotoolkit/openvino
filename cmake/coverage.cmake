@@ -15,17 +15,17 @@ ie_coverage_capture(INFO_FILE "openvino"
 ie_coverage_extract(INPUT "openvino" OUTPUT "inference"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/inference/*")
 
-ie_coverage_genhtml(INFO_FILE "inference_engine"
+ie_coverage_genhtml(INFO_FILE "inference"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_legacy"
+ie_coverage_extract(INPUT "openvino" OUTPUT "legacy"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/common/legacy/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_legacy"
+ie_coverage_genhtml(INFO_FILE "legacy"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "hetero_plugin"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/hetero_plugin/*")
-ie_coverage_genhtml(INFO_FILE "hetero_plugin"
+ie_coverage_extract(INPUT "openvino" OUTPUT "ov_hetero_plugin"
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/hetero/*")
+ie_coverage_genhtml(INFO_FILE "ov_hetero_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "multi_device"
@@ -38,14 +38,14 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "preprocessing"
 ie_coverage_genhtml(INFO_FILE "preprocessing"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_transformations"
+ie_coverage_extract(INPUT "openvino" OUTPUT "transformations"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/common/transformations/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_transformations"
+ie_coverage_genhtml(INFO_FILE "transformations"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_snippets"
+ie_coverage_extract(INPUT "openvino" OUTPUT "snippets"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/common/snippets/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_snippets"
+ie_coverage_genhtml(INFO_FILE "snippets"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "low_precision_transformations"
