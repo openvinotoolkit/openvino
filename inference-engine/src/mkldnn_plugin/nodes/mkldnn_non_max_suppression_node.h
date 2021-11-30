@@ -4,17 +4,61 @@
 
 #pragma once
 
-#include "common/nms_kernel.h"
-
 #include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
 #include <memory>
 #include <vector>
 
+#define BOX_COORD_NUM 4
+
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
+
+enum class NMSBoxEncodeType {
+    CORNER,
+    CENTER
+};
+
+enum NMSCandidateStatus {
+    SUPPRESSED = 0,
+    SELECTED = 1,
+    UPDATED = 2
+};
+
+struct jit_nms_config_params {
+    NMSBoxEncodeType box_encode_type;
+    bool is_soft_suppressed_by_iou;
+};
+
+struct jit_nms_args {
+    const void* selected_boxes_coord[BOX_COORD_NUM];
+    size_t selected_boxes_num;
+    const void* candidate_box;
+    const void* iou_threshold;
+    void* candidate_status;
+    // for soft suppression, score *= scale * iou * iou;
+    const void* score_threshold;
+    const void* scale;
+    void* score;
+};
+
+struct jit_uni_nms_kernel {
+    void (*ker_)(const jit_nms_args *);
+
+    void operator()(const jit_nms_args *args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    explicit jit_uni_nms_kernel(jit_nms_config_params jcp_) : ker_(nullptr), jcp(jcp_) {}
+    virtual ~jit_uni_nms_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_nms_config_params jcp;
+};
 
 class MKLDNNNonMaxSuppressionNode : public MKLDNNNode {
 public:
@@ -101,7 +145,6 @@ private:
 
     void createJitKernel();
     std::shared_ptr<jit_uni_nms_kernel> nms_kernel;
-    int eltsInVmm = 0;
 };
 
 }  // namespace MKLDNNPlugin
