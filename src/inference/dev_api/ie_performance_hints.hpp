@@ -26,8 +26,6 @@ struct PerfHintsConfig {
             ovPerfHint = StrictlyCheckPerformanceHintValue(value);
         } else if (PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS == key) {
             ovPerfHintNumRequests = StrictlyCheckPerformanceHintRequestValue(value);
-        } else {
-            IE_THROW() << "Unsupported Performance Hint config: " << key << std::endl;
         }
     }
 
