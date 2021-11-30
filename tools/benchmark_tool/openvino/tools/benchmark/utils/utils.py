@@ -294,7 +294,7 @@ def process_help_inference_string(benchmark_app, device_number_streams):
         if device_ss:
             output_string += ' using ' + device_ss
 
-    output_string += f', benchmarking mode: {benchmark_app.benchmark_mode}'
+    output_string += f', inference only: {benchmark_app.inference_only}'
 
     limits = ''
 

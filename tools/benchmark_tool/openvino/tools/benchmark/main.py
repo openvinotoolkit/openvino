@@ -61,14 +61,8 @@ def run(args):
         # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
         next_step(step_id=2)
 
-        benchmark_mode = None
-        if args.legacy_mode:
-            benchmark_mode = 'legacy'
-        if args.full_mode:
-            benchmark_mode = 'full'
-
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
-                              args.number_iterations, args.time, args.api_type, benchmark_mode)
+                              args.number_iterations, args.time, args.api_type, args.inference_only)
 
         ## CPU (MKLDNN) extensions
         if CPU_DEVICE_NAME in device_name and args.path_to_extension:
@@ -363,13 +357,13 @@ def run(args):
             raise Exception("Benchmarking of the model with dynamic shapes is available for async API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior.")
 
-        if benchmark.benchmark_mode == None:
+        if benchmark.inference_only == None:
             if static_mode:
-                benchmark.benchmark_mode = 'legacy'
+                benchmark.inference_only = True
             else:
-                benchmark.benchmark_mode = 'full'
-        elif benchmark.benchmark_mode == 'legacy' and not static_mode:
-            raise Exception("Benchmarking dynamic model available in full mode only!")
+                benchmark.inference_only = False
+        elif benchmark.inference_only and not static_mode:
+            raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
 
         benchmark.latency_groups = get_latency_groups(app_inputs_info)
 
@@ -395,7 +389,7 @@ def run(args):
                                           ('topology', topology_name),
                                           ('target device', device_name),
                                           ('API', args.api_type),
-                                          ('Benchmark mode', benchmark.benchmark_mode),
+                                          ('inference_only', benchmark.inference_only),
                                           ('precision', "UNSPECIFIED"),
                                           ('batch size', str(batch_size)),
                                           ('number of iterations', str(benchmark.niter)),

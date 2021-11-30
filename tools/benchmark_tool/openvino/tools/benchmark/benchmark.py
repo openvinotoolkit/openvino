@@ -17,14 +17,14 @@ def percentile(values, percent):
 
 class Benchmark:
     def __init__(self, device: str, number_infer_requests: int = 0, number_iterations: int = None,
-                 duration_seconds: int = None, api_type: str = 'async', benchmark_mode = None):
+                 duration_seconds: int = None, api_type: str = 'async', inference_only = None):
         self.device = device
         self.core = Core()
         self.nireq = number_infer_requests if api_type == 'async' else 1
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
         self.api_type = api_type
-        self.benchmark_mode = benchmark_mode
+        self.inference_only = inference_only
         self.latency_groups = []
 
     def __del__(self):
@@ -94,10 +94,10 @@ class Benchmark:
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (self.api_type == 'async' and iteration % self.nireq):
-            if self.benchmark_mode == 'full':
+            if self.inference_only == False:
                 processed_frames += data_queue.get_next_batch_size()
             if self.api_type == 'sync':
-                if self.benchmark_mode == 'full':
+                if self.inference_only == False:
                     requests[0].set_input_tensors(data_queue.get_next_input())
                 requests[0].infer()
                 times.append(requests[0].latency)
@@ -110,7 +110,7 @@ class Benchmark:
                 else:
                     in_fly.add(idle_id)
                 group_id = data_queue.current_group_id
-                if self.benchmark_mode == 'full':
+                if self.inference_only == False:
                     requests[idle_id].set_input_tensors(data_queue.get_next_input())
                 requests.start_async(userdata=group_id)
             iteration += 1
@@ -152,7 +152,7 @@ class Benchmark:
                     group.min = group.times[0]
                     group.max = group.times[-1]
 
-        if self.benchmark_mode == 'legacy' and self.api_type == 'async':
+        if self.inference_only and self.api_type == 'async':
             fps = len(batch_size) * iteration / total_duration_sec
         else:
             fps = len(batch_size) * 1000 / median_latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
