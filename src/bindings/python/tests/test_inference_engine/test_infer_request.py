@@ -7,8 +7,8 @@ import pytest
 import datetime
 import time
 
-import openvino.opset8 as ops
-from openvino import Core, AsyncInferQueue, Tensor, ProfilingInfo, Function
+import openvino.runtime.opset8 as ops
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Function
 
 from ..conftest import model_path, read_image
 
@@ -275,8 +275,8 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
         if core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin")
 
-    from openvino import Tensor
-    from openvino.utils.types import get_dtype
+    from openvino.runtime import Tensor
+    from openvino.runtime.utils.types import get_dtype
 
     function = create_function_with_memory(input_shape, data_type)
     exec_net = core.compile_model(model=function, device_name=device)

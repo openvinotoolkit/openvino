@@ -3,8 +3,8 @@
 
 import numpy as np
 
-import openvino.opset8 as ov
-from openvino.impl import Dimension, Function, PartialShape, Shape
+import openvino.runtime.opset8 as ov
+from openvino.runtime.impl import Dimension, Function, PartialShape, Shape
 
 
 def test_dimension():

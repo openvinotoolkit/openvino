@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.descriptor import Tensor
-from openvino.impl import Type, PartialShape
+from openvino.runtime.impl import Type, PartialShape
 
 
 def test_tensor_descriptor_api():

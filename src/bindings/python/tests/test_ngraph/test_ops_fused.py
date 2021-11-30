@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import openvino.opset8 as ov
+import openvino.runtime.opset8 as ov
 from tests.runtime import get_runtime
 from tests import xfail_issue_36486
 

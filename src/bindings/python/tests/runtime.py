@@ -8,11 +8,11 @@ from typing import Dict, List, Union
 
 import numpy as np
 
-from openvino import Core
+from openvino.runtime import Core
 
-from openvino.exceptions import UserInputError
-from openvino.impl import Function, Node, PartialShape, Type
-from openvino.utils.types import NumericData, get_shape, get_dtype
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.impl import Function, Node, PartialShape, Type
+from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
 
 import tests
 

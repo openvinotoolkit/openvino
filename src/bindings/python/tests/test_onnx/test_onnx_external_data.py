@@ -4,7 +4,7 @@
 import os
 
 import numpy as np
-from openvino import Core
+from openvino.runtime import Core
 
 from tests.runtime import get_runtime
 

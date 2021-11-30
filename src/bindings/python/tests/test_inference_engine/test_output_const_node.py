@@ -4,9 +4,9 @@
 import os
 
 from ..conftest import model_path
-from openvino.impl import ConstOutput, Shape, PartialShape, Type
+from openvino.runtime.impl import ConstOutput, Shape, PartialShape, Type
 
-from openvino import Core
+from openvino.runtime import Core
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)

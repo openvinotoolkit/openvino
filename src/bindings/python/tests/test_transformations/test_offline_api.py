@@ -8,8 +8,8 @@ from openvino.offline_transformations_pybind import apply_moc_transformations, a
     apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation, \
     compress_model_transformation, serialize
 
-from openvino import Function, PartialShape, Core
-import openvino as ov
+from openvino.runtime import Function, PartialShape, Core
+import openvino.runtime as ov
 
 
 def get_test_function():

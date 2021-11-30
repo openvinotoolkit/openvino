@@ -4,8 +4,8 @@
 import numpy as np
 import pytest
 
-from openvino.exceptions import UserInputError
-from openvino.utils.input_validation import (
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.utils.input_validation import (
     _check_value,
     check_valid_attribute,
     check_valid_attributes,

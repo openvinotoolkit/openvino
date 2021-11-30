@@ -5,8 +5,7 @@ import numpy as np
 import onnx
 from onnx.mapping import NP_TYPE_TO_TENSOR_TYPE
 
-from openvino import Core, Tensor
-from openvino.impl import Function
+from openvino.runtime import Core, Tensor, Function
 
 
 def np_dtype_to_tensor_type(data_type: np.dtype) -> int:
