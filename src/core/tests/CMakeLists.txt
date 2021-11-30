@@ -565,7 +565,7 @@ add_dependencies(unit-test template_extension)
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
-get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
+get_target_property(NGRAPH_SRC_DIR ngraph_obj SOURCE_DIR)
 target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 
 target_compile_definitions(unit-test
