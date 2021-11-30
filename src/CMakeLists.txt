@@ -44,10 +44,23 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static
+                                             openvino::itt
+                                             openvino::util
+                                             ngraph_reference
+                                             ngraph_builders
+                                             ov_shape_inference
+                                             ${CMAKE_DL_LIBS}
+                                             Threads::Threads)
+if (TBBBIND_2_5_FOUND)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
+endif()
+
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 ie_mark_target_as_cc(${TARGET_NAME})
+set_ie_threading_interface_for(ov_runtime)
 
 # TODO: Fix Wall for core, frontends, tests and  c binding
 add_subdirectory(core)
