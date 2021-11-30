@@ -918,12 +918,8 @@ def add_removed_converts(graph: Graph):
                                   'stop_value_propagation': True}).create_node()
 
         # Insert Convert operation after Const operation
-        consumer_ports = const_op.out_port(0).get_connection().get_destinations()
-        for consumer_port in consumer_ports:
-            convert_op.out_port(0).connect(consumer_port)
-
-        const_op.out_port(0).disconnect()
-        const_op.out_port(0).connect(convert_op.in_port(0))
+        const_op.out_port(0).get_connection().insert_node(convert_op)
+        convert_op.out_node().value = None
 
         # Convert Const value to FP16 to make types in graph consistent
         const_op.value, _, _ = convert_blob(const_op.value, np.float16)
