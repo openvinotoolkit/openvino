@@ -33,7 +33,8 @@ def test_get_profiling_info(device):
     exec_net = core.compile_model(func, device)
     img = read_image()
     request = exec_net.create_infer_request()
-    request.infer({0: img})
+    tensor_name = exec_net.input("data").any_name
+    request.infer({tensor_name: img})
     assert request.latency > 0
     prof_info = request.get_profiling_info()
     soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
