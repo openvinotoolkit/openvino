@@ -37,6 +37,8 @@ private:
     void DropDoubleReorders(MKLDNNGraph& graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
+    void FuseConvertAndEltwise(MKLDNNGraph &graph);
+    void FuseEltwiseAndConvert(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
     void FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph &graph);
     void FuseClampAndFakeQuantize(MKLDNNGraph &graph);

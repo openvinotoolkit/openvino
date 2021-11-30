@@ -146,6 +146,14 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseEltwiseAndSimple(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndConvert");
+    FuseConvertAndEltwise(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndConvert");
+    FuseEltwiseAndConvert(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "reshapeRnnSeq");
     reshapeRnnSeq(graph);
     graph.RemoveDroppedNodes();
@@ -1520,6 +1528,98 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
         } else {
             graph.DropNode(childNode);
         }
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseEltwiseAndConvert(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](const MKLDNNNodePtr& node) {
+        return node->getType() == Eltwise && node->getChildEdges().size() == 1;
+    };
+
+    auto isSuitableChildNode = [](const MKLDNNNodePtr& node) {
+        return node->getType() == Convert;
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSuitableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!isSuitableChildNode(childNode)) {
+            parent++;
+            continue;
+        }
+
+        childNode->fuseInto(parentNode);
+
+        auto parentEdges = childNode->parentEdges;
+        for (auto &parentEdge : parentEdges) {
+            auto p_edge = parentEdge.lock();
+            if (p_edge == nullptr)
+                IE_THROW() << "Cannot get parent edge " << childNode->getName();
+            if (p_edge->getParent()->getType() == Eltwise)
+                continue;
+
+            graph.RemoveEdge(p_edge);
+        }
+
+        graph.DropNode(childNode);
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseConvertAndEltwise(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](const MKLDNNNodePtr& node) {
+        return node->getType() == Convert && node->getChildEdges().size() == 1;
+    };
+
+    auto isSuitableChildNode = [](const MKLDNNNodePtr& node) {
+        return node->getType() == Eltwise;
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSuitableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!isSuitableChildNode(childNode)) {
+            parent++;
+            continue;
+        }
+
+        // auto parentEdges = childNode->parentEdges;
+        // for (auto &parentEdge : parentEdges) {
+        //     auto p_edge = parentEdge.lock();
+        //     if (p_edge == nullptr)
+        //         IE_THROW() << "Cannot get parent edge " << childNode->getName();
+        //     if (p_edge->getParent()->getType() == Convert)
+        //         continue;
+
+        //     graph.RemoveEdge(p_edge);
+        // }
+
+        int childPort = 0;
+        for (; childPort < childNode->getParentEdges().size(); childPort++) {
+            if (childNode->getParentEdgeAt(childPort)->getParent() == parentNode)
+                break;
+        }
+
+        const auto inputPrecision = parentNode->getOriginalInputPrecisionAtPort(0);
+        childNode->setOriginalInputPrecisionAtPort(childPort, inputPrecision);
+
+        graph.DropNode(parentNode);
+        parent++;
     }
 }
 
