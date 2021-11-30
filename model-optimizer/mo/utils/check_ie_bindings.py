@@ -57,7 +57,6 @@ def import_core_modules(silent: bool, path_to_module: str):
         from openvino.runtime import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
         from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
 
-        import openvino  # pylint: disable=import-error,no-name-in-module
         import openvino.frontend  # pylint: disable=import-error,no-name-in-module
 
         if silent:
