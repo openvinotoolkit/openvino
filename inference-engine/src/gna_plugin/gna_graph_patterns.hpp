@@ -13,8 +13,62 @@
 namespace GNAPluginNS {
 
 /**
- * @brief searchs for a pattern: Permute(0,3,1,2) -> ... -> Convolution -> ... -> Permute(0,2,3,1) or
- *        Reshape -> ... -> Convolution -> ... -> Permute(0,2,3,1) if Convolution has only one input dimension not equal to 1
+ * @brief checks if it's a reshape from 4d to 3d tensor inserted after convolution
+ * @param layer Non-functional layer
+ */
+inline bool IsReshapeFrom4dTo3d(InferenceEngine::CNNLayerPtr layer) {
+    if (!LayerInfo(layer).isNonFunctional()) {
+        return false;
+    }
+
+    auto input_dims = layer->insData[0].lock()->getDims();
+    auto output_dims = layer->outData[0]->getDims();
+    // If H input dimension is not 1, it can't be just skipped during reshape to 3d
+    size_t h_dim = input_dims[2];
+    if (input_dims.size() != 4 || output_dims.size() != 3 || h_dim != 1) {
+        return false;
+    }
+
+    input_dims.erase(std::begin(input_dims) + 2);
+    if (input_dims != output_dims) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief checks if it's a reshape from 3d to 4d tensor inserted before convolution
+ * @param layer Non-functional layer
+ */
+inline bool IsReshapeFrom3dTo4d(InferenceEngine::CNNLayerPtr layer) {
+    if (!LayerInfo(layer).isNonFunctional()) {
+        return false;
+    }
+
+    auto input_dims = layer->insData[0].lock()->getDims();
+    auto output_dims = layer->outData[0]->getDims();
+    if (input_dims.size() != 3 || output_dims.size() != 4) {
+        return false;
+    }
+
+    input_dims.insert(std::begin(input_dims) + 2, 1);
+    if (input_dims != output_dims) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief searchs for a pattern: Permute(NHWC->NCHW) -> ... -> Convolution -> ... -> Permute(NCHW->NHWC) or
+ * Reshape(NHWC->NCHW) -> ... -> Convolution -> ... -> Reshape(NCHW->NHWC) if Convolution has only one input/output
+ * dimension not equal to 1,
+ * if the original convolution layout is 3d, 3d->4d/4d->3d reshapes will be inserted before/after the convolution,
+ * so the possible patterns will be:
+ * Permute(NWC->NCW) -> ... -> Reshape(NCW ->NCHW) -> Convolution -> Reshape(NCHW->NCW) ... -> Permute(NCW->NWC) or
+ * Reshape(NWC->NCW) -> ... -> Reshape(NCW ->NCHW) -> Convolution -> Reshape(NCHW->NCW) ... -> Reshape(NCW->NWC)
+ * if Convolution has only one input/output dimension not equal to 1.
  * @param layer convolution layer
  * @return the found permutations before and after convolution
  */
@@ -35,8 +89,10 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
 
     auto next = getInputTo(layer->outData.front()).begin()->second;
     // Permute is inserted before Reshape by MO in NHWC models, so we need to find either permute, or reshape, or output
-    while (!LayerInfo(next).isPermute() && !LayerInfo(next).isNonFunctional() && !LayerInfo(next).isOutput() &&
-           next->outData.size() == 1) {
+    while (!LayerInfo(next).isPermute() && !LayerInfo(next).isOutput() && next->outData.size() == 1) {
+        if (LayerInfo(next).isNonFunctional() && !IsReshapeFrom4dTo3d(next) && !IsReshapeFrom3dTo4d(next)) {
+            break;
+        }
         auto input_to = getInputTo(next->outData.front());
         if (input_to.size() != 1) break;
         next = input_to.begin()->second;
@@ -44,8 +100,11 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
 
     // Check if the found layer is NCHW to NHWC permute or has 1D data, if it's not just skip this convolution
     if (LayerInfo(next).isPermute()) {
-        if (next->outData[0]->getLayout() != InferenceEngine::Layout::NCHW ||
-            next->GetParamAsInts("order") != GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) {
+        const auto layout = next->outData[0]->getLayout();
+        const auto order = next->GetParamAsInts("order");
+        if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
+            order != GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
+            order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */) {
             return std::make_pair(nullptr, nullptr);
         }
     } else if (LayerInfo(next).isReshape()) {
@@ -54,9 +113,11 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         }
         // Check if reshape is expected for this pattern:
         // the next layer has the both, height and width dimensions > 1
-        if (next->outData[0]->getDims().size() != 4 ||
-            GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::H) != 1 ||
-            GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::W) != 1) {
+        auto in_dim_size = next->insData[0].lock()->getDims().size();
+        IE_ASSERT(in_dim_size == 3 || in_dim_size == 4);
+        size_t height = in_dim_size == 3 ? 1 : GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::H);
+        size_t width = GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::W);
+        if (next->outData[0]->getDims().size() < 3 || height != 1 || width != 1) {
             return std::make_pair(nullptr, nullptr);
         }
     } else {
@@ -66,14 +127,19 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
     // Permute is inserted after Reshape by MO in NHWC models, so we need to find either permute, or reshape, or input
     auto parent = InferenceEngine::CNNNetPrevLayer(layer);
     auto prev = parent;
-    while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isNonFunctional() && !LayerInfo(prev).isInput() &&
-           InferenceEngine::CNNNetHasPrevLayer(prev.get())) {
+    while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isInput() && InferenceEngine::CNNNetHasPrevLayer(prev.get())) {
+        if (LayerInfo(prev).isNonFunctional() && !IsReshapeFrom4dTo3d(prev) && !IsReshapeFrom3dTo4d(prev)) {
+            break;
+        }
         prev = InferenceEngine::CNNNetPrevLayer(prev);
     }
     // Check if the found layer is NHWC to NCHW permute or has 1D data, if it's not just skip this convolution
     if (LayerInfo(prev).isPermute()) {
-        if (prev->outData[0]->getLayout() != InferenceEngine::Layout::NCHW ||
-            prev->GetParamAsInts("order") != GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)) {
+        const auto layout = prev->outData[0]->getLayout();
+        const auto order = prev->GetParamAsInts("order");
+        if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
+            order != GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
+            order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */) {
             return std::make_pair(nullptr, nullptr);
         }
     } else if (LayerInfo(prev).isReshape())  {
@@ -82,10 +148,12 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         }
         // Check if reshape is expected for this pattern:
         // the previous layer has number of channels > 1 and one of height/width dimensions is also > 1
-        if (parent->insData[0].lock()->getDims().size() != 4 ||
-            GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::C) != 1 &&
-            (GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H) != 1 ||
-             GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::W) != 1)) {
+        size_t out_dims_size = parent->outData[0]->getDims().size();
+        IE_ASSERT(out_dims_size == 3 || out_dims_size == 4);
+        size_t channels = GetDataDimSize(parent->outData[0], out_dims_size - 1);
+        size_t height = out_dims_size == 3 ? 1 : GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H);
+        size_t width = GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::W);
+        if (parent->insData[0].lock()->getDims().size() < 3 || channels != 1 && (height != 1 || width != 1)) {
             return std::make_pair(nullptr, nullptr);
         }
     } else {
