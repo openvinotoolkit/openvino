@@ -55,9 +55,9 @@ private:
     bool evaluate_pwl(const std::tuple<T2, Types2...>& args2,
                       const HostTensorVector& outputs,
                       const HostTensorVector& inputs) const {
-        return inputs[0]->get_element_type() == T1::value &&
-               inputs[1]->get_element_type() == T2::value &&
-               evaluate<T1, T2>(outputs, inputs, shape_size(get_input_shape(0)), shape_size(get_input_shape(1))) ||
+        return inputs[1]->get_element_type() == T1::value &&
+               inputs[0]->get_element_type() == T2::value &&
+               evaluate<T1, T2>(outputs, inputs) ||
                evaluate_pwl<T1, Types2...>(std::tuple<Types2...>(), outputs, inputs);
     }
 
@@ -65,16 +65,14 @@ private:
     bool evaluate_pwl(const std::tuple<T2>& args2,
                       const HostTensorVector& outputs,
                       const HostTensorVector& inputs) const {
-        return inputs[0]->get_element_type() == T1::value &&
-               inputs[1]->get_element_type() == T2::value &&
-               evaluate<T1, T2>(outputs, inputs, shape_size(get_input_shape(0)), shape_size(get_input_shape(1)));
+        return inputs[1]->get_element_type() == T1::value &&
+               inputs[0]->get_element_type() == T2::value &&
+               evaluate<T1, T2>(outputs, inputs);
     }
 
     template <typename T1, typename T2>
     bool evaluate(const HostTensorVector& outputs,
-                  const HostTensorVector& inputs,
-                  size_t count,
-                  size_t segments_number) const;
+                  const HostTensorVector& inputs) const;
 };
 }  // namespace v0
 }  // namespace op

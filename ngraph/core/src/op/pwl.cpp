@@ -35,20 +35,18 @@ void op::v0::Pwl::validate_and_infer_types() {
 
 template <typename T1, typename T2>
 bool op::v0::Pwl::evaluate(const HostTensorVector& outputs,
-                           const HostTensorVector& inputs,
-                           size_t count,
-                           size_t segments_number) const {
+                           const HostTensorVector& inputs) const {
     outputs[0]->set_unary(inputs[0]);
     OV_SCOPE(ngraph_op, OV_PP_CAT4(region, _, T1, T2)) {
         using A1 = typename element_type_traits<T1::value>::value_type;
         using A2 = typename element_type_traits<T2::value>::value_type;
         ngraph::runtime::reference::pwl(inputs[0]->get_data_ptr<A2>(),
                                         outputs[0]->get_data_ptr<A2>(),
-                                        count,
+                                        shape_size(get_input_shape(0)),
                                         inputs[1]->get_data_ptr<A1>(),
                                         inputs[2]->get_data_ptr<A1>(),
-                                        segments_number,
-                                        inputs[3]->get_data_ptr<A1>());
+                                        inputs[3]->get_data_ptr<A1>(),
+                                        shape_size(get_input_shape(1)));
         return true;
     }
     return false;
