@@ -654,6 +654,8 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 THROW_GNA_EXCEPTION << data->getName() <<
                     " unexpected dimensions size in Permute - Conv - Permute pattern";
             }
+            // HWC layout enum is used here as the only available in CNNNetwork for 3D vectors,
+            // but the real layout is NCW and it's the one used in order vector later
             return dims_size == 4 ? Layout::NHWC : Layout::HWC;
         };
 
@@ -664,9 +666,12 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             auto current_layer = getCreatorLayer(data).lock();
             if (LayerInfo(current_layer).isConcat()) {
                 auto concat_layer = dynamic_cast<InferenceEngine::ConcatLayer*> (current_layer.get());
-                concat_layer->_axis = GetPermuteOrder(Layout::NHWC, Layout::NCHW)[concat_layer->_axis];
+                auto dims_size = data->getDims().size();
+                concat_layer->_axis = (dims_size == 4 ? GetPermuteOrder(Layout::NHWC, Layout::NCHW) :
+                    std::vector<int32_t>{0, 2, 1})[concat_layer->_axis];
             }
 
+            // NWC->NCW layouts are used here for order vector, see comments a few lines above
             auto dims = data->getDims();
             auto order = dims.size() == 4 ? GetPermuteOrder(Layout::NCHW, Layout::NHWC) :
                 std::vector<int32_t>{0, 2, 1};
@@ -982,8 +987,8 @@ void FlattenTrivialConcatPass::run() {
     // axis are all ones then concat can be changed to 2D for example, let's say all inputs have the same shape equal to:
     // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
     // but for shape 2, 1, 5, 3 only axis 0 is valid and in such case inputs will be reshaped to 1, 30
-    // TODO: detection of trivial cases could be moved to one common place when all transformations are migrated to ngraph
-    // see as well
+    // TODO: detection of trivial cases could be moved to one common place when all transformations are migrated to ngraph.
+    // See as well code for detection of unsupported concat
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
 
     auto getLayerByIndex = [](int idx, ConcatLayer* concatLayer) {

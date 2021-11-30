@@ -283,9 +283,9 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
             auto dims = concat_layer->insData[0].lock()->getDims();
             std::ostringstream in_dims_oss;
             std::copy(dims.begin(), dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
-            errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
+            errMessage = "[ WARNING ] Topology with layer: " + layer->name + ", type: " + layer->type +
                 ", and concatenation axis(" + std::to_string(concat_layer->_axis) +
-                ") for input dimensions(" + in_dims_oss.str() + ") not supported";
+                ") for input dimensions(" + in_dims_oss.str() + ") not supported\n";
             return false;
         }
     }
@@ -343,7 +343,7 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
     return true;
 }
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning) {
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
     InferenceEngine::CNNLayerPtr startLayer;
@@ -372,7 +372,6 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
         startLayer = secondLayers.begin()->second;
     }
     auto batch_size = network.getBatchSize();
-
     bool check_result = true;
     InferenceEngine::details::UnorderedDFS(allLayers,
                                            startLayer,
@@ -395,7 +394,9 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                                        check_result = false;
                                                    }
                                                } else if (info.isConcat()) {
-                                                   check_result = ValidateConcatAxis(layer, errMessage);
+                                                   if (!ValidateConcatAxis(layer, errMessage) && userWarning) {
+                                                       std::cout << errMessage;
+                                                   }
                                                }
                                            }, false);
     return check_result;

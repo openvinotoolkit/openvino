@@ -230,16 +230,13 @@ using ConvConcatNHWCRestrictionsNeg = ConcatRestrictions<ConvConcatNHWCAxis>;
 using ConvConcatNHWCRestrictionsPos = ConcatRestrictions<ConvConcatNHWCAxis>;
 
 TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
-    std::string what;
-    try {
-        LoadNetwork();
-    }
-    catch (const std::exception& e) {
-        what.assign(e.what());
-    }
-    EXPECT_TRUE(what.find(getMatch()) != std::string::npos);
+    std::stringstream what;
+    std::streambuf* sbuf = std::cout.rdbuf();
+    std::cout.rdbuf(what.rdbuf());
+    LoadNetwork();
+    EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
+    std::cout.rdbuf(sbuf);
 };
-
 
 // TODO: this test is left for future when GNA plugin handles const tranposition required for concats with interleaved layers
 //TEST_P(ReLUConcatRestrictionsPos, CompareWithRefImpl) {
@@ -247,14 +244,12 @@ TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
 //};
 
 TEST_P(MatMulConcatRestrictionsNeg, CompareWithRefImpl) {
-    std::string what;
-    try {
-        LoadNetwork();
-    }
-    catch (const std::exception& e) {
-        what.assign(e.what());
-    }
-    EXPECT_TRUE(what.find(getMatch()) != std::string::npos);
+    std::stringstream what;
+    std::streambuf* sbuf = std::cout.rdbuf();
+    std::cout.rdbuf(what.rdbuf());
+    LoadNetwork();
+    EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
+    std::cout.rdbuf(sbuf);
 };
 
 TEST_P(MatMulConcatRestrictionsPos, CompareWithRefImpl) {
@@ -277,14 +272,12 @@ TEST_P(ConvNCHWConcatRestrictionsPos, CompareWithRefImpl) {
 };
 
 TEST_P(ConvNHWCConcatRestrictionsNeg, CompareWithRefImpl) {
-    std::string what;
-    try {
-        LoadNetwork();
-    }
-    catch (const std::exception& e) {
-        what.assign(e.what());
-    }
-    EXPECT_TRUE(what.find(getMatch()) != std::string::npos);
+    std::stringstream what;
+    std::streambuf* sbuf = std::cout.rdbuf();
+    std::cout.rdbuf(what.rdbuf());
+    LoadNetwork();
+    EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
+    std::cout.rdbuf(sbuf);
 };
 
 TEST_P(ConvNHWCConcatRestrictionsPos, CompareWithRefImpl) {
@@ -292,14 +285,12 @@ TEST_P(ConvNHWCConcatRestrictionsPos, CompareWithRefImpl) {
 };
 
 TEST_P(ConvConcatNHWCRestrictionsNeg, CompareWithRefImpl) {
-    std::string what;
-    try {
-        LoadNetwork();
-    }
-    catch (const std::exception& e) {
-        what.assign(e.what());
-    }
-    EXPECT_TRUE(what.find(getMatch()) != std::string::npos);
+    std::stringstream what;
+    std::streambuf* sbuf = std::cout.rdbuf();
+    std::cout.rdbuf(what.rdbuf());
+    LoadNetwork();
+    EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
+    std::cout.rdbuf(sbuf);
 };
 
 TEST_P(ConvConcatNHWCRestrictionsPos, CompareWithRefImpl) {
@@ -308,7 +299,10 @@ TEST_P(ConvConcatNHWCRestrictionsPos, CompareWithRefImpl) {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+        {"LOG_LEVEL", "LOG_WARNING"}
+    }
 };
 
 // Negative 4D MatMul cases
@@ -378,7 +372,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_matmul_2d, MatMulConcatRestri
 
 // Positive 2D MatMul cases
 const std::vector<std::vector<size_t>> inputShapesMatMul2D_pos = {{8, 64}};
-
 const std::vector<unsigned int> concatAxisMatMul2D_pos = {1};
 
 INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions_matmul_2d, MatMulConcatRestrictionsPos,

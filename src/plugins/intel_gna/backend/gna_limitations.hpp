@@ -139,7 +139,7 @@ public:
 };
 } // namespace Cnn2D
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning);
 
 inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
