@@ -109,21 +109,14 @@ TEST_P(BucketizeLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-/*
 const std::vector<ov::test::InputShape> dataShapesDynamic = {
     {{ngraph::Dimension(1, 10), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
      {{1, 20, 20}, {3, 16, 16}, {10, 16, 16}}},
-    {{ngraph::Dimension(1, 10), 3, 50, 50}, {{2, 3, 50, 50}, {2, 3, 50, 50}, {2, 3, 50, 50}}}};
+    {{ngraph::Dimension(1, 10), 3, 50, 50}, {{1, 3, 50, 50}, {2, 3, 50, 50}, {10, 3, 50, 50}}}};
 
 const std::vector<ov::test::InputShape> bucketsShapesDynamic = {{{ngraph::Dimension::dynamic()}, {{5}, {20}, {100}}}};
-*/
 
-const std::vector<ov::test::InputShape> dataShapesDynamic =
-    ov::test::static_shapes_to_test_representation({ov::Shape{1, 10}});
-const std::vector<ov::test::InputShape> bucketsShapesDynamic =
-    ov::test::static_shapes_to_test_representation({ov::Shape{5}});
-const std::vector<ov::test::ElementType> inPrc = {ov::element::i64, ov::element::i32};
-
+const std::vector<ov::test::ElementType> inPrc = {ov::element::f32, ov::element::i64, ov::element::i32};
 const std::vector<ov::test::ElementType> outPrc = {ov::element::i64, ov::element::i32};
 
 const auto test_Bucketize_right_edge_Dynamic = ::testing::Combine(::testing::ValuesIn(dataShapesDynamic),
