@@ -16,7 +16,8 @@ public:
 
 protected:
     void SetUp() override;
-    void runModel(const char* model, const std::unordered_map<std::string, ngraph::element::Type_t>& expected_layer_types);
+    using LayerInputTypes = std::unordered_map<std::string, std::vector<ngraph::element::Type_t>>;
+    void runModel(const char* model, const LayerInputTypes& expected_layer_input_types, float thr);
 };
 
 } // namespace ONNXTestsDefinitions

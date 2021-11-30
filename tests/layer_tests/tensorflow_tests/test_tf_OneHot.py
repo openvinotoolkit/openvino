@@ -4,12 +4,12 @@
 import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
-from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc
+from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestOneHot(CommonTFLayerTest):
     @staticmethod
-    def create_one_hot_net(shape, depth, on_value, off_value, axis, ir_version):
+    def create_one_hot_net(shape, depth, on_value, off_value, axis, ir_version, use_new_frontend):
         """
             Tensorflow net
 
@@ -53,13 +53,6 @@ class TestOneHot(CommonTFLayerTest):
         #   Create reference IR net
         #
 
-        if on_value is None:
-            on_value = 1.0
-        if off_value is None:
-            off_value = 0.0
-
-        axis = len(shape) if axis is None else axis
-
         ref_net = None
 
         return tf_net, ref_net
@@ -71,9 +64,9 @@ class TestOneHot(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_OneHot_1D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_one_hot_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_OneHot_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_one_hot_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_2D = [
         dict(shape=[5, 6], depth=7, on_value=None, off_value=None, axis=None),
@@ -90,9 +83,9 @@ class TestOneHot(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_OneHot_2D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_one_hot_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_OneHot_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_one_hot_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_3D = [
         dict(shape=[5, 6, 7], depth=8, on_value=None, off_value=None, axis=None),
@@ -110,9 +103,9 @@ class TestOneHot(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_OneHot_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_one_hot_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_OneHot_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_one_hot_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_4D = [
         dict(shape=[5, 6, 7, 8], depth=9, on_value=None, off_value=None, axis=None),
@@ -132,9 +125,9 @@ class TestOneHot(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_OneHot_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_one_hot_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_OneHot_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_one_hot_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_5D = [
         dict(shape=[4, 5, 6, 7, 8], depth=9, on_value=None, off_value=None, axis=None),
@@ -154,6 +147,6 @@ class TestOneHot(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_OneHot_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_one_hot_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_OneHot_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_one_hot_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

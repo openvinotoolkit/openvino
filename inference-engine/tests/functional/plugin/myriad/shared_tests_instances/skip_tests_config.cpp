@@ -15,6 +15,15 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Sigmoid.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Relu.*netPRC=FP32.*",
+        // Not supported dynamic shapes without upper bound
+        ".*InferDynamicNetworkWithGetTensor2times.function.*",
+        ".*InferFullyDynamicNetworkWithGetTensor.function.*",
+        ".*InferDynamicNetworkWithGetTensor.function.*",
+        ".*InferDynamicNetworkWithoutSetShape.function.*",
+        ".*InferFullyDynamicNetworkWithSetTensor/function.*",
+        ".*InferDynamicNetworkWithSetTensor2times.*",
+        ".*InferRequestDynamicTests.GetSameTensor2times.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
@@ -40,11 +49,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 57108
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
         R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
-        // TODO: Issue 58162
-        R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)",
-        // TODO: Issue 58621
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
@@ -54,7 +58,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
         R"(.*CoreThreadingTestsWithIterations.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
+        // TODO: Issue: CVS-69640
+        R"(.*EltwiseLayerTest.*OpType=Prod.*)",
+        R"(.*EltwiseLayerTest.*OpType=SqDiff.*PARAMETER.*SCALAR.*)",
+        R"(.*EltwiseLayerTest.*TS=\(\(16\.16\.96\)_\(96\)_\).*OpType=SqDiff.*)",
+        R"(.*EltwiseLayerTest.*TS=\(\(52\.1\.52\.3\.2\)_\(2\)_\).*OpType=SqDiff.*)",
     };
 }

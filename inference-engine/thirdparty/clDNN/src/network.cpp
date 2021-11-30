@@ -368,7 +368,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
-        auto& cand = candidates.top();
+        auto cand = candidates.top();
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
         if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
@@ -466,6 +466,10 @@ std::string network::get_primitive_info(const primitive_id& id) const {
     return node.type()->to_string(node);
 }
 
+std::string network::get_implementation_info(const primitive_id& id) const {
+    return _program->get_implementation_info(id);
+}
+
 memory::ptr network::get_output_memory(const primitive_id& output_id) {
     return get_primitive(output_id)->output_memory_ptr();
 }
@@ -496,6 +500,9 @@ void network::allocate_primitives() {
                     auto& eltw_in = node->get_dependency(fused_op.dep_start_idx);
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = node->get_output_layout();
+
+                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                        continue;
 
                     if (eltw_in_layout.size == out_layout.size &&
                         eltw_in_layout.format == out_layout.format &&
@@ -615,7 +622,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Execute " << inst->id() << std::endl;
+            GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
+                           << inst->output_memory().get_allocation_type() << std::endl;
         }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed
@@ -819,6 +827,10 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << node.id() << ": constant]" << std::endl;
+        }
         _memory_pool->release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }

@@ -73,10 +73,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto proposal0Op = ngraph::as_type_ptr<const ngraph::op::v0::Proposal>(op);
         const auto proposal4Op = ngraph::as_type_ptr<const ngraph::op::v4::Proposal>(op);
         if (!proposal0Op && !proposal4Op) {

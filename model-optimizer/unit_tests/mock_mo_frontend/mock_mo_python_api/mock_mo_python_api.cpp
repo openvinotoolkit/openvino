@@ -5,11 +5,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../mock_mo_ngraph_frontend/mock_mo_frontend.hpp"
+#include "../mock_mo_ov_frontend/mock_mo_frontend.hpp"
 
 namespace py = pybind11;
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 static void register_mock_frontend_stat(py::module m)
 {

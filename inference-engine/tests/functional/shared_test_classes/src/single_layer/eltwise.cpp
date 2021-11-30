@@ -40,6 +40,9 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     results << "InType=" << inType << "_";
     results << "OutType=" << outType << "_";
     results << "trgDev=" << targetName;
+    for (auto const& configItem : additional_config) {
+        results << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return results.str();
 }
 
@@ -68,7 +71,11 @@ void EltwiseLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetI
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 6, -3);
                 break;
             default:
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                if (funcInput.get_element_type().is_real()) {
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                } else {
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                }
                 break;
         }
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});

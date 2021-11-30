@@ -21,6 +21,8 @@
 #include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 using namespace ngraph;
 
@@ -36,10 +38,14 @@ TEST(TransformationTests, ConvReshapeTest1) {
         auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, w, strides, dilations, pads_begin, pads_end, ngraph::element::f32, 1);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::Reshape1DOps().run_on_function(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::Reshape1DOps>();
+        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+            check_rt_info(f);
+        });
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
     }
 
     std::vector<size_t> ref_shape{1, 6, 1, 62};
@@ -69,10 +75,14 @@ TEST(TransformationTests, ConvBiasReshapeTest1) {
         auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, w, b, strides, dilations, pads_begin, pads_end, ngraph::element::f32, 1);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::Reshape1DOps().run_on_function(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::Reshape1DOps>();
+        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+            check_rt_info(f);
+        });
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
     }
 
     std::vector<size_t> ref_shape{1, 6, 1, 62};

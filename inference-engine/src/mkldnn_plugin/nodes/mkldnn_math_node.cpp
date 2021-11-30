@@ -16,10 +16,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (initializers.find(op->get_type_info()) == initializers.end()) {
             errorMessage = "Unsupported Math layer type.";
             return false;
@@ -61,6 +57,10 @@ void MKLDNNMathNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
+}
+
+std::vector<VectorDims> MKLDNNMathNode::shapeInfer() const {
+    return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 void MKLDNNMathNode::execute(mkldnn::stream strm) {
