@@ -22,6 +22,10 @@ A summary of the steps for optimizing and deploying a model trained with Paddle\
 |OCRNET| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.1). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.1/docs/model_export.md#)|
 |Yolo v3| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.1). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.1/deploy/EXPORT_MODEL.md#).|
 |ppyolo| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.1). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.1/deploy/EXPORT_MODEL.md#).|
+|MobileNetv3-SSD| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.2). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.2/deploy/EXPORT_MODEL.md#).|
+|U-Net| semantic segmentation| Models are exported from [PaddleSeg](https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.3). Refer to [model_export.md](https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.3/docs/model_export.md#)|
+|BERT| language representation| Models are exported from [PaddleNLP](https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1). Refer to [README.md](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme)|
+|ernie| language representation| Models are exported from [PaddleNLP](https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1). Refer to [README.md](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme)|
 
 > **NOTE:** The verified models are exported from the repository of branch release/2.1.
 

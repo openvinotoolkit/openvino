@@ -5,7 +5,7 @@
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it
-set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
+set_temp_directory(TEMP "${CMAKE_BINARY_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
@@ -265,7 +265,7 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake)
+include(${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake)
 
 if(ENABLE_GNA)
     reset_deps_cache(
