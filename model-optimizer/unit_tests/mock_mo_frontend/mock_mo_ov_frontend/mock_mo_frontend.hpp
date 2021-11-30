@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "frontend_manager/frontend_manager.hpp"
-#include "frontend_manager/frontend_manager_defs.hpp"
+#include "common/frontend_defs.hpp"
+#include "manager.hpp"
 #include "ngraph/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
@@ -165,7 +165,7 @@ public:
         m_stat.m_get_output_port++;
         m_stat.m_lastArgInt = -1;
         m_stat.m_lastArgString = outputName;
-        return std::make_shared<PlaceMockPy>();
+        return std::make_shared<PlaceMockPy>(outputName);
     }
 
     Place::Ptr get_output_port(const std::string& outputName, int outputPortIndex) const override
@@ -199,6 +199,8 @@ public:
 
     bool is_equal_data(Ptr another) const override
     {
+        if (m_is_op)
+            throw "Not implemented";
         m_stat.m_is_equal_data++;
         m_stat.m_lastArgPlace = another;
         std::shared_ptr<PlaceMockPy> mock = std::dynamic_pointer_cast<PlaceMockPy>(another);
@@ -212,7 +214,7 @@ public:
                 return true;
             }
         }
-        return mock->m_is_op == m_is_op;
+        return !mock->m_is_op && m_name == mock->m_name;
     }
 
     //---------------Stat--------------------
@@ -284,7 +286,7 @@ class MOCK_API InputModelMockPy : public InputModel
                                        "tensor",
                                        "tensor:0",
                                        "0:tensor",
-                                       "tensorAndOp",
+                                       "tensorAndOp:0",
                                        "conv2d:0",
                                        "0:conv2d",
                                        "mock_input1",
