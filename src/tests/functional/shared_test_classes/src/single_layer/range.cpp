@@ -25,7 +25,9 @@ std::string RangeLayerTest::getTestCaseName(const testing::TestParamInfo<RangePa
     result << "inL=" << inLayout << separator;
     result << "outL=" << outLayout << separator;
     result << "trgDev=" << targetDevice;
-    return result.str();
+    auto str = result.str();
+    replace(str.begin(), str.end(), '.', '_');
+    return str;
 }
 
 void RangeLayerTest::Infer() {
