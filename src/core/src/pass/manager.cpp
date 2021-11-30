@@ -121,14 +121,14 @@ void FunctionTracer<GraphFunctionT>::OnNextPassReturn(const std::string& pass_na
 
     for (const std::string& name: add_layers_list)
     {
-        std::cout << "EMUTEX DEBUG [" << pass_name << "] add layer " << name << std::endl;
+        std::cout << "EMUTEX DEBUG ngraph [" << pass_name << "] add layer " << name << std::endl;
     }
 
     std::vector<std::string> removed_layers_list = FindNewLayers(new_graph, m_graph);
 
     for (const std::string& name: removed_layers_list)
     {
-        std::cout << "EMUTEX DEBUG [" << pass_name << "] remove layer " << name << std::endl;
+        std::cout << "EMUTEX DEBUG ngraph [" << pass_name << "] remove layer " << name << std::endl;
     }
 
      m_graph = new_graph;

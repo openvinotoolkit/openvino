@@ -43,6 +43,8 @@
 #include "gna_itt.hpp"
 #include "backend/gna_limitations.hpp"
 
+#define EMUTEX_TRACE_ENABLED 1
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
@@ -2413,6 +2415,104 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
     }
 }
 
+//---------------------------------------------------------------------------------------
+
+#ifdef EMUTEX_TRACE_ENABLED
+
+namespace {
+
+using Graph = std::unordered_map<std::string, std::unordered_set<std::string>>;
+
+template <typename GraphFunctionT>
+class FunctionTracer
+{
+public:
+    FunctionTracer(GraphFunctionT);
+    void OnNextPassReturn(const std::string& pass_name, GraphFunctionT);
+private:
+    Graph m_graph;
+};
+
+Graph BuildGraph(InferenceEngine::CNNNetwork network)
+{
+    Graph graph;
+
+    for (const auto& layer : details::CNNNetSortTopologically(network))
+    {
+        std::string node_name = layer->name;
+
+        for (int i = 0; i != layer->outData.size(); i++) {
+            for (auto it : getInputTo(layer->outData[i]))
+            {
+                auto child_layer = it.second;
+                std::string child_node_name = child_layer->name;
+                graph[node_name].insert(child_node_name);
+                graph[child_node_name].insert(node_name);
+            }
+        }
+    }
+
+    return graph;
+}
+
+//---------------------------------------------------------------------------------------
+
+/**
+ * @brief find layers that exist in dst_graph but don't exist in src_graph
+ * 
+ * @param src_graph 
+ * @param dst_graph 
+ * @return std::vector<std::string> 
+ */
+std::vector<std::string> FindNewLayers(const Graph & src_graph, const Graph & dst_graph)
+{
+    std::vector<std::string> found_layers;
+
+    for (auto graph_it : dst_graph)
+    {
+        const std::string & layer_name = graph_it.first;
+        if (src_graph.find(layer_name) == src_graph.end())
+            found_layers.push_back(layer_name);
+    }
+
+    return found_layers;
+}
+
+//---------------------------------------------------------------------------------------
+
+template <typename GraphFunctionT>
+FunctionTracer<GraphFunctionT>::FunctionTracer(GraphFunctionT function)
+    : m_graph(BuildGraph(function))
+{
+}
+
+template <typename GraphFunctionT>
+void FunctionTracer<GraphFunctionT>::OnNextPassReturn(const std::string& pass_name, GraphFunctionT function)
+{
+    Graph new_graph = BuildGraph(function);
+
+    std::vector<std::string> add_layers_list = FindNewLayers(m_graph, new_graph);
+
+    for (const std::string& name: add_layers_list)
+    {
+        std::cout << "EMUTEX DEBUG CNNNetwork [" << pass_name << "] add layer " << name << std::endl;
+    }
+
+    std::vector<std::string> removed_layers_list = FindNewLayers(new_graph, m_graph);
+
+    for (const std::string& name: removed_layers_list)
+    {
+        std::cout << "EMUTEX DEBUG CNNNetwork [" << pass_name << "] remove layer " << name << std::endl;
+    }
+
+     m_graph = new_graph;
+
+}
+#endif // EMUTEX_TRACE_ENABLED
+
+} // namespace
+
+
 int PassManager::run(int index) {
 #if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
@@ -2431,6 +2531,10 @@ int PassManager::run(int index) {
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};
 #endif
 
+#ifdef EMUTEX_TRACE_ENABLED
+    FunctionTracer<InferenceEngine::CNNNetwork> func_tracer(network);
+#endif
+
     for (auto && pass : passes) {
         if (settings.runBeforeCopy != pass->runBeforeCopyPass()) {
             continue;
@@ -2440,6 +2544,9 @@ int PassManager::run(int index) {
         gnalog() << "PASS: " << ++index << "/" << passes.size() << ":" << pass->getName() << "\n";
         pass->run();
         dumpNetworkAfterPass(pass);
+#ifdef EMUTEX_TRACE_ENABLED
+        func_tracer.OnNextPassReturn(pass->getName(), network);
+#endif
     }
     return index;
 }
