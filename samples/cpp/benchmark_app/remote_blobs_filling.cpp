@@ -121,6 +121,7 @@ void fillRemoteBlobs(const std::vector<std::string>& inputFiles,
         }
 
         InferenceEngine::Blob::Ptr sharedBlob = InferenceEngine::gpu::make_shared_blob(desc, context, sharedBuffer);
+        sharedBlob->allocate();
 
         requests.at(requestId)->setBlob(name, sharedBlob);
     };

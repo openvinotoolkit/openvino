@@ -326,6 +326,7 @@ DECLARE_CONFIG_KEY(PERF_COUNT);
  * >0 - Direct value of limit. Batch size to process is min(new batch_limit, original_batch)
  */
 DECLARE_CONFIG_KEY(DYN_BATCH_LIMIT);
+
 /**
  * @brief The key checks whether dynamic batch is enabled.
  */
