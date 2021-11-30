@@ -275,10 +275,6 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::isSupportedOperation
             (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
         if (!proposalOp) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
@@ -322,6 +318,12 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::initSupportedP
                          {{LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
+}
+
+void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
 }
 
 void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
@@ -429,6 +431,10 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
 
 bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::created() const {
     return getType() == ExperimentalDetectronGenerateProposalsSingleImage;
+}
+
+bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::needPrepareParams() const {
+    return false;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode, ExperimentalDetectronGenerateProposalsSingleImage)
