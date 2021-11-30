@@ -170,16 +170,6 @@ class OutputNetworkInfo::OutputNetworkInfoImpl : public NetworkInfoImpl {};
 /// \brief InputInfoImpl - internal data structure
 struct InputInfo::InputInfoImpl {
     InputInfoImpl() = default;
-    explicit InputInfoImpl(size_t idx) : m_has_index(true), m_index(idx) {}
-    explicit InputInfoImpl(std::string name) : m_has_name(true), m_name(std::move(name)) {}
-
-    bool has_index() const {
-        return m_has_index;
-    }
-
-    bool has_name() const {
-        return m_has_name;
-    }
 
     std::unique_ptr<InputTensorInfo::InputTensorInfoImpl>& get_tensor_data() {
         return m_tensor_info.m_impl;
@@ -193,10 +183,6 @@ struct InputInfo::InputInfoImpl {
         return m_network_data.m_impl;
     }
 
-    bool m_has_index = false;
-    size_t m_index = 0;
-    bool m_has_name = false;
-    std::string m_name;
     InputTensorInfo m_tensor_info;
     PreProcessSteps m_preprocess;
     InputNetworkInfo m_network_data;
@@ -206,16 +192,6 @@ struct InputInfo::InputInfoImpl {
 /// \brief OutputInfoImpl - internal data structure
 struct OutputInfo::OutputInfoImpl {
     OutputInfoImpl() = default;
-    explicit OutputInfoImpl(size_t idx) : m_has_index(true), m_index(idx) {}
-    explicit OutputInfoImpl(std::string name) : m_has_name(true), m_name(std::move(name)) {}
-
-    bool has_index() const {
-        return m_has_index;
-    }
-
-    bool has_name() const {
-        return m_has_name;
-    }
 
     std::unique_ptr<OutputTensorInfo::OutputTensorInfoImpl>& get_tensor_data() {
         return m_tensor_info.m_impl;
@@ -229,28 +205,18 @@ struct OutputInfo::OutputInfoImpl {
         return m_network_info.m_impl;
     }
 
-    bool m_has_index = false;
-    size_t m_index = 0;
-    bool m_has_name = false;
-    std::string m_name;
     OutputTensorInfo m_tensor_info;
     PostProcessSteps m_postprocess;
     OutputNetworkInfo m_network_info;
+    ov::Output<ov::Node> m_output_node;
 };
 
 //-------------- InputInfo ------------------
 InputInfo::InputInfo() : m_impl(std::unique_ptr<InputInfoImpl>(new InputInfoImpl)) {}
-InputInfo::InputInfo(size_t input_index) : m_impl(std::unique_ptr<InputInfoImpl>(new InputInfoImpl(input_index))) {}
-InputInfo::InputInfo(const std::string& input_tensor_name)
-    : m_impl(std::unique_ptr<InputInfoImpl>(new InputInfoImpl(input_tensor_name))) {}
-InputInfo::InputInfo(InputInfo&&) noexcept = default;
-InputInfo& InputInfo::operator=(InputInfo&&) noexcept = default;
-InputInfo::~InputInfo() = default;
+InputInfo::InputInfo(InputInfo&& other) noexcept = default;
+InputInfo& InputInfo::operator=(InputInfo&& other) noexcept = default;
 
-InputInfo& InputInfo::tensor(InputTensorInfo&& builder) & {
-    m_impl->m_tensor_info = std::move(builder);
-    return *this;
-}
+InputInfo::~InputInfo() = default;
 
 InputTensorInfo& InputInfo::tensor() {
     return m_impl->m_tensor_info;
@@ -264,40 +230,10 @@ InputNetworkInfo& InputInfo::network() {
     return m_impl->m_network_data;
 }
 
-InputInfo&& InputInfo::tensor(InputTensorInfo&& builder) && {
-    m_impl->m_tensor_info = std::move(builder);
-    return std::move(*this);
-}
-
-InputInfo&& InputInfo::preprocess(PreProcessSteps&& builder) && {
-    m_impl->m_preprocess = std::move(builder);
-    return std::move(*this);
-}
-
-InputInfo& InputInfo::preprocess(PreProcessSteps&& builder) & {
-    m_impl->m_preprocess = std::move(builder);
-    return *this;
-}
-
-InputInfo& InputInfo::network(InputNetworkInfo&& builder) & {
-    m_impl->m_network_data = std::move(builder);
-    return *this;
-}
-
-InputInfo&& InputInfo::network(InputNetworkInfo&& builder) && {
-    m_impl->m_network_data = std::move(builder);
-    return std::move(*this);
-}
-
 //-------------- OutputInfo ------------------
 OutputInfo::OutputInfo() : m_impl(std::unique_ptr<OutputInfoImpl>(new OutputInfoImpl)) {}
-OutputInfo::OutputInfo(size_t output_index)
-    : m_impl(std::unique_ptr<OutputInfoImpl>(new OutputInfoImpl(output_index))) {}
-OutputInfo::OutputInfo(const std::string& output_tensor_name)
-    : m_impl(std::unique_ptr<OutputInfoImpl>(new OutputInfoImpl(output_tensor_name))) {}
-
-OutputInfo::OutputInfo(OutputInfo&&) noexcept = default;
-OutputInfo& OutputInfo::operator=(OutputInfo&&) noexcept = default;
+OutputInfo::OutputInfo(OutputInfo&& other) noexcept = default;
+OutputInfo& OutputInfo::operator=(OutputInfo&& other) noexcept = default;
 OutputInfo::~OutputInfo() = default;
 
 OutputNetworkInfo& OutputInfo::network() {
@@ -312,106 +248,44 @@ OutputTensorInfo& OutputInfo::tensor() {
     return m_impl->m_tensor_info;
 }
 
-// TODO: remove this in future
-OutputInfo& OutputInfo::tensor(OutputTensorInfo&& builder) & {
-    m_impl->m_tensor_info = std::move(builder);
-    return *this;
-}
-
-// TODO: remove this in future
-OutputInfo&& OutputInfo::tensor(OutputTensorInfo&& builder) && {
-    m_impl->m_tensor_info = std::move(builder);
-    return std::move(*this);
-}
-
-// TODO: remove this in future
-OutputInfo&& OutputInfo::postprocess(PostProcessSteps&& builder) && {
-    m_impl->m_postprocess = std::move(builder);
-    return std::move(*this);
-}
-
-// TODO: remove this in future
-OutputInfo& OutputInfo::postprocess(PostProcessSteps&& builder) & {
-    m_impl->m_postprocess = std::move(builder);
-    return *this;
-}
-
-// TODO: remove this in future
-OutputInfo& OutputInfo::network(OutputNetworkInfo&& builder) & {
-    m_impl->m_network_info = std::move(builder);
-    return *this;
-}
-
-// TODO: remove this in future
-OutputInfo&& OutputInfo::network(OutputNetworkInfo&& builder) && {
-    m_impl->m_network_info = std::move(builder);
-    return std::move(*this);
-}
-
 // ------------------------ PrePostProcessor --------------------
 struct PrePostProcessor::PrePostProcessorImpl {
 public:
     PrePostProcessorImpl() = default;
     explicit PrePostProcessorImpl(const std::shared_ptr<ov::Function>& f) : m_function(f) {
         OPENVINO_ASSERT(f, "Function can't be nullptr for PrePostProcessor");
-        m_inputs.reserve(m_function->inputs().size());
-        for (size_t i = 0; i < m_function->inputs().size(); i++) {
-            m_inputs.emplace_back(i);
+        for (size_t i = 0; i < m_function->inputs().size(); ++i) {
+            auto info = InputInfo();
+            info.m_impl->m_resolved_param = m_function->get_parameters()[i];
+            m_inputs.push_back(std::move(info));
         }
-
-        m_outputs.reserve(m_function->outputs().size());
-        for (size_t i = 0; i < m_function->outputs().size(); i++) {
-            m_outputs.emplace_back(i);
+        for (size_t i = 0; i < m_function->outputs().size(); ++i) {
+            auto info = OutputInfo();
+            info.m_impl->m_output_node = m_function->output(i);
+            m_outputs.push_back(std::move(info));
         }
     }
-    size_t find_input_index(const std::string& tensor_name) {
+
+    InputInfo& find_input(const std::string& tensor_name) {
         size_t index;
         for (index = 0; index < m_function->inputs().size(); index++) {
-            if (m_function->input(index).get_names().count(tensor_name)) {
-                break;
+            if (m_function->input(index).get_tensor().get_names().count(tensor_name)) {
+                return m_inputs[index];
             }
         }
-        OPENVINO_ASSERT(index < m_inputs.size(), "Function doesn't have input with name ", tensor_name);
-        return index;
+        OPENVINO_ASSERT(false, "Function doesn't have input with name ", tensor_name);
     }
-    size_t find_output_index(const std::string& tensor_name) {
+
+    OutputInfo& find_output(const std::string& tensor_name) {
         size_t index;
         for (index = 0; index < m_function->outputs().size(); index++) {
-            if (m_function->output(index).get_names().count(tensor_name)) {
-                break;
+            if (m_function->output(index).get_tensor().get_names().count(tensor_name)) {
+                return m_outputs[index];
             }
         }
-        OPENVINO_ASSERT(index < m_outputs.size(), "Function doesn't have output with name ", tensor_name);
-        return index;
+        OPENVINO_ASSERT(false, "Function doesn't have output with name ", tensor_name);
     }
 
-    // TODO: this is created for compatibility, consider to remove
-    void add_input_info(InputInfo&& builder) {
-        if (builder.m_impl->m_has_index) {
-            OPENVINO_ASSERT(builder.m_impl->m_index < m_inputs.size(), "Index is out of range");
-            m_inputs[builder.m_impl->m_index] = std::move(builder);
-        } else if (builder.m_impl->m_has_name) {
-            size_t index = find_input_index(builder.m_impl->m_name);
-            m_inputs[index] = std::move(builder);
-        } else {
-            OPENVINO_ASSERT(1 == m_inputs.size(), "Function shall have only one input");
-            m_inputs[0] = std::move(builder);
-        }
-    }
-
-    // TODO: this is created for compatibility, consider to remove
-    void add_output_info(OutputInfo&& builder) {
-        if (builder.m_impl->m_has_index) {
-            OPENVINO_ASSERT(builder.m_impl->m_index < m_inputs.size(), "Output index is out of range");
-            m_outputs[builder.m_impl->m_index] = std::move(builder);
-        } else if (builder.m_impl->m_has_name) {
-            size_t index = find_output_index(builder.m_impl->m_name);
-            m_outputs[index] = std::move(builder);
-        } else {
-            OPENVINO_ASSERT(1 == m_inputs.size(), "Function shall have only one output");
-            m_outputs[0] = std::move(builder);
-        }
-    }
     std::vector<InputInfo> m_inputs;
     std::vector<OutputInfo> m_outputs;
     std::shared_ptr<Function> m_function = nullptr;
@@ -440,8 +314,7 @@ InputInfo& PrePostProcessor::input(size_t input_index) {
 }
 
 InputInfo& PrePostProcessor::input(const std::string& tensor_name) {
-    size_t index = m_impl->find_input_index(tensor_name);
-    return m_impl->m_inputs[index];
+    return m_impl->find_input(tensor_name);
 }
 
 OutputInfo& PrePostProcessor::output() {
@@ -461,32 +334,7 @@ OutputInfo& PrePostProcessor::output(size_t output_index) {
 }
 
 OutputInfo& PrePostProcessor::output(const std::string& tensor_name) {
-    size_t index = m_impl->find_output_index(tensor_name);
-    return m_impl->m_outputs[index];
-}
-
-// TODO: consider to remove
-PrePostProcessor& PrePostProcessor::input(InputInfo&& builder) & {
-    m_impl->add_input_info(std::move(builder));
-    return *this;
-}
-
-// TODO: consider to remove
-PrePostProcessor&& PrePostProcessor::input(InputInfo&& builder) && {
-    m_impl->add_input_info(std::move(builder));
-    return std::move(*this);
-}
-
-// TODO: consider remove
-PrePostProcessor& PrePostProcessor::output(OutputInfo&& builder) & {
-    m_impl->add_output_info(std::move(builder));
-    return *this;
-}
-
-// TODO: consider remove
-PrePostProcessor&& PrePostProcessor::output(OutputInfo&& builder) && {
-    m_impl->add_output_info(std::move(builder));
-    return std::move(*this);
+    return m_impl->find_output(tensor_name);
 }
 
 std::shared_ptr<Function> PrePostProcessor::build() {
@@ -496,22 +344,10 @@ std::shared_ptr<Function> PrePostProcessor::build() {
     bool tensor_data_updated = false;
     for (const auto& input_info : m_impl->m_inputs) {
         auto& input = input_info.m_impl;
-        std::shared_ptr<op::v0::Parameter> param;
-        Output<Node> node;
-        OPENVINO_ASSERT(input, "Internal error: Invalid preprocessing input, please report a problem");
-        if (input->has_index()) {
-            node = function->input(input->m_index);
-        } else if (input->has_name()) {
-            node = function->input(input->m_name);
-        } else {
-            node = function->input();
-        }
-        param = std::dynamic_pointer_cast<op::v0::Parameter>(node.get_node_shared_ptr());
         // Set parameter layout from 'network' information
-        if (input->get_network()->is_layout_set() && param->get_layout().empty()) {
-            param->set_layout(input->get_network()->get_layout());
+        if (input->get_network()->is_layout_set() && input->m_resolved_param->get_layout().empty()) {
+            input->m_resolved_param->set_layout(input->get_network()->get_layout());
         }
-        input->m_resolved_param = param;
     }
     auto results = function->get_results();
     auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
@@ -690,15 +526,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
     for (const auto& output_info : m_impl->m_outputs) {
         const auto& output = output_info.m_impl;
         std::shared_ptr<op::v0::Result> result;
-        Output<Node> node;
-        OPENVINO_ASSERT(output, "Internal error: Invalid postprocessing output, please report a problem");
-        if (output->has_index()) {
-            node = function->output(output->m_index);
-        } else if (output->has_name()) {
-            node = function->output(output->m_name);
-        } else {
-            node = function->output();
-        }
+        Output<Node> node = output->m_output_node;
         auto start_out_node_names = node.get_tensor().get_names();
         node.get_tensor().set_names({});
         result = std::dynamic_pointer_cast<op::v0::Result>(node.get_node_shared_ptr());
@@ -773,145 +601,79 @@ std::shared_ptr<Function> PrePostProcessor::build() {
 
 // --------------------- InputTensorInfo ------------------
 InputTensorInfo::InputTensorInfo() : m_impl(std::unique_ptr<InputTensorInfoImpl>(new InputTensorInfoImpl())) {}
-InputTensorInfo::InputTensorInfo(InputTensorInfo&&) noexcept = default;
-InputTensorInfo& InputTensorInfo::operator=(InputTensorInfo&&) noexcept = default;
 InputTensorInfo::~InputTensorInfo() = default;
 
-InputTensorInfo& InputTensorInfo::set_element_type(const element::Type& type) & {
+InputTensorInfo& InputTensorInfo::set_element_type(const element::Type& type) {
     m_impl->set_element_type(type);
     return *this;
 }
 
-InputTensorInfo&& InputTensorInfo::set_element_type(const element::Type& type) && {
-    m_impl->set_element_type(type);
-    return std::move(*this);
-}
-
-InputTensorInfo& InputTensorInfo::set_layout(const Layout& layout) & {
+InputTensorInfo& InputTensorInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
     return *this;
 }
 
-InputTensorInfo&& InputTensorInfo::set_layout(const Layout& layout) && {
-    m_impl->set_layout(layout);
-    return std::move(*this);
-}
-
-InputTensorInfo& InputTensorInfo::set_spatial_dynamic_shape() & {
+InputTensorInfo& InputTensorInfo::set_spatial_dynamic_shape() {
     m_impl->set_spatial_dynamic_shape();
     return *this;
 }
 
-InputTensorInfo&& InputTensorInfo::set_spatial_dynamic_shape() && {
-    m_impl->set_spatial_dynamic_shape();
-    return std::move(*this);
-}
-
-InputTensorInfo& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) & {
+InputTensorInfo& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) {
     m_impl->set_spatial_static_shape(height, width);
     return *this;
-}
-
-InputTensorInfo&& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) && {
-    m_impl->set_spatial_static_shape(height, width);
-    return std::move(*this);
 }
 
 // --------------------- InputNetworkInfo ------------------
 InputNetworkInfo::InputNetworkInfo() : m_impl(std::unique_ptr<InputNetworkInfoImpl>(new InputNetworkInfoImpl())) {}
-InputNetworkInfo::InputNetworkInfo(InputNetworkInfo&&) noexcept = default;
-InputNetworkInfo& InputNetworkInfo::operator=(InputNetworkInfo&&) noexcept = default;
 InputNetworkInfo::~InputNetworkInfo() = default;
 
-InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) & {
+InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
     return *this;
-}
-
-InputNetworkInfo&& InputNetworkInfo::set_layout(const Layout& layout) && {
-    m_impl->set_layout(layout);
-    return std::move(*this);
 }
 
 InputTensorInfo& InputTensorInfo::set_color_format(const ov::preprocess::ColorFormat& format,
-                                                   const std::vector<std::string>& sub_names) & {
+                                                   const std::vector<std::string>& sub_names) {
     m_impl->set_color_format(format, sub_names);
     return *this;
 }
 
-InputTensorInfo&& InputTensorInfo::set_color_format(const ov::preprocess::ColorFormat& format,
-                                                    const std::vector<std::string>& sub_names) && {
-    m_impl->set_color_format(format, sub_names);
-    return std::move(*this);
-}
-
-InputTensorInfo& InputTensorInfo::set_memory_type(const std::string& memory_type) & {
+InputTensorInfo& InputTensorInfo::set_memory_type(const std::string& memory_type) {
     m_impl->set_memory_type(memory_type);
     return *this;
-}
-InputTensorInfo&& InputTensorInfo::set_memory_type(const std::string& memory_type) && {
-    m_impl->set_memory_type(memory_type);
-    return std::move(*this);
 }
 
 // --------------------- PreProcessSteps ------------------
 
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
-PreProcessSteps::PreProcessSteps(PreProcessSteps&&) noexcept = default;
-PreProcessSteps& PreProcessSteps::operator=(PreProcessSteps&&) noexcept = default;
 PreProcessSteps::~PreProcessSteps() = default;
 
-PreProcessSteps& PreProcessSteps::scale(float value) & {
+PreProcessSteps& PreProcessSteps::scale(float value) {
     m_impl->add_scale_impl(std::vector<float>{value});
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::scale(float value) && {
-    m_impl->add_scale_impl(std::vector<float>{value});
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::scale(const std::vector<float>& values) & {
+PreProcessSteps& PreProcessSteps::scale(const std::vector<float>& values) {
     m_impl->add_scale_impl(values);
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::scale(const std::vector<float>& values) && {
-    m_impl->add_scale_impl(values);
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::mean(float value) & {
+PreProcessSteps& PreProcessSteps::mean(float value) {
     m_impl->add_mean_impl(std::vector<float>{value});
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::mean(float value) && {
-    m_impl->add_mean_impl(std::vector<float>{value});
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::mean(const std::vector<float>& values) & {
+PreProcessSteps& PreProcessSteps::mean(const std::vector<float>& values) {
     m_impl->add_mean_impl(values);
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::mean(const std::vector<float>& values) && {
-    m_impl->add_mean_impl(values);
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::convert_element_type(const element::Type& type) & {
+PreProcessSteps& PreProcessSteps::convert_element_type(const element::Type& type) {
     m_impl->add_convert_impl(type);
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::convert_element_type(const element::Type& type) && {
-    m_impl->add_convert_impl(type);
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) & {
+PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) {
     OPENVINO_ASSERT(dst_height <= std::numeric_limits<int>::max() && dst_width <= std::numeric_limits<int>::max(),
                     "Resize: Width/Height dimensions cannot be greater than ",
                     std::to_string(std::numeric_limits<int>::max()));
@@ -919,55 +681,27 @@ PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height,
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) && {
-    OPENVINO_ASSERT(dst_height <= std::numeric_limits<int>::max() && dst_width <= std::numeric_limits<int>::max(),
-                    "Resize: Width/Height dimensions cannot be greater than ",
-                    std::to_string(std::numeric_limits<int>::max()));
-    m_impl->add_resize_impl(alg, static_cast<int>(dst_height), static_cast<int>(dst_width));
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) & {
+PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) {
     m_impl->add_resize_impl(alg, -1, -1);
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg) && {
-    m_impl->add_resize_impl(alg, -1, -1);
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::convert_layout(const Layout& dst_layout) & {
+PreProcessSteps& PreProcessSteps::convert_layout(const Layout& dst_layout) {
     m_impl->add_convert_layout_impl(dst_layout);
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::convert_layout(const Layout& dst_layout) && {
-    m_impl->add_convert_layout_impl(dst_layout);
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::convert_layout(const std::vector<uint64_t>& dims) & {
+PreProcessSteps& PreProcessSteps::convert_layout(const std::vector<uint64_t>& dims) {
     m_impl->add_convert_layout_impl(dims);
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::convert_layout(const std::vector<uint64_t>& dims) && {
-    m_impl->add_convert_layout_impl(dims);
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorFormat& dst_format) & {
+PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorFormat& dst_format) {
     m_impl->add_convert_color_impl(dst_format);
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::convert_color(const ov::preprocess::ColorFormat& dst_format) && {
-    m_impl->add_convert_color_impl(dst_format);
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) & {
+PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back([preprocess_cb](const std::vector<Output<Node>>& nodes,
                                                    const std::shared_ptr<ov::Function>&,
@@ -980,122 +714,60 @@ PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) && {
-    // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
-    m_impl->actions().emplace_back([preprocess_cb](const std::vector<Output<Node>>& nodes,
-                                                   const std::shared_ptr<ov::Function>&,
-                                                   PreprocessingContext&) {
-        OPENVINO_ASSERT(nodes.size() == 1,
-                        "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
-                        "current image to RGB/BGR color format using 'convert_color'");
-        return std::make_tuple(std::vector<Output<Node>>{preprocess_cb(nodes[0])}, true);
-    });
-    return std::move(*this);
-}
-
-PreProcessSteps& PreProcessSteps::reverse_channels() & {
+PreProcessSteps& PreProcessSteps::reverse_channels() {
     m_impl->add_reverse_channels();
     return *this;
-}
-
-PreProcessSteps&& PreProcessSteps::reverse_channels() && {
-    m_impl->add_reverse_channels();
-    return std::move(*this);
 }
 
 // --------------------- OutputTensorInfo ------------------
 OutputTensorInfo::OutputTensorInfo() : m_impl(std::unique_ptr<OutputTensorInfoImpl>(new OutputTensorInfoImpl())) {}
-OutputTensorInfo::OutputTensorInfo(OutputTensorInfo&&) noexcept = default;
-OutputTensorInfo& OutputTensorInfo::operator=(OutputTensorInfo&&) noexcept = default;
 OutputTensorInfo::~OutputTensorInfo() = default;
 
-OutputTensorInfo& OutputTensorInfo::set_element_type(const element::Type& type) & {
+OutputTensorInfo& OutputTensorInfo::set_element_type(const element::Type& type) {
     m_impl->set_element_type(type);
     return *this;
 }
 
-OutputTensorInfo&& OutputTensorInfo::set_element_type(const element::Type& type) && {
-    m_impl->set_element_type(type);
-    return std::move(*this);
-}
-
-OutputTensorInfo& OutputTensorInfo::set_layout(const Layout& layout) & {
+OutputTensorInfo& OutputTensorInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
     return *this;
-}
-
-OutputTensorInfo&& OutputTensorInfo::set_layout(const Layout& layout) && {
-    m_impl->set_layout(layout);
-    return std::move(*this);
 }
 
 // --------------------- OutputNetworkInfo ------------------
 OutputNetworkInfo::OutputNetworkInfo() : m_impl(std::unique_ptr<OutputNetworkInfoImpl>(new OutputNetworkInfoImpl())) {}
-OutputNetworkInfo::OutputNetworkInfo(OutputNetworkInfo&&) noexcept = default;
-OutputNetworkInfo& OutputNetworkInfo::operator=(OutputNetworkInfo&&) noexcept = default;
 OutputNetworkInfo::~OutputNetworkInfo() = default;
 
-OutputNetworkInfo& OutputNetworkInfo::set_layout(const Layout& layout) & {
+OutputNetworkInfo& OutputNetworkInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
     return *this;
-}
-
-OutputNetworkInfo&& OutputNetworkInfo::set_layout(const Layout& layout) && {
-    m_impl->set_layout(layout);
-    return std::move(*this);
 }
 
 // --------------------- PostProcessSteps ------------------
 
 PostProcessSteps::PostProcessSteps() : m_impl(std::unique_ptr<PostProcessStepsImpl>(new PostProcessStepsImpl())) {}
-PostProcessSteps::PostProcessSteps(PostProcessSteps&&) noexcept = default;
-PostProcessSteps& PostProcessSteps::operator=(PostProcessSteps&&) noexcept = default;
 PostProcessSteps::~PostProcessSteps() = default;
 
-PostProcessSteps& PostProcessSteps::convert_element_type(const element::Type& type) & {
+PostProcessSteps& PostProcessSteps::convert_element_type(const element::Type& type) {
     m_impl->add_convert_impl(type);
     return *this;
 }
 
-PostProcessSteps&& PostProcessSteps::convert_element_type(const element::Type& type) && {
-    m_impl->add_convert_impl(type);
-    return std::move(*this);
-}
-
-PostProcessSteps& PostProcessSteps::convert_layout(const Layout& dst_layout) & {
+PostProcessSteps& PostProcessSteps::convert_layout(const Layout& dst_layout) {
     m_impl->add_convert_layout_impl(dst_layout);
     return *this;
 }
 
-PostProcessSteps&& PostProcessSteps::convert_layout(const Layout& dst_layout) && {
-    m_impl->add_convert_layout_impl(dst_layout);
-    return std::move(*this);
-}
-
-PostProcessSteps& PostProcessSteps::convert_layout(const std::vector<uint64_t>& dims) & {
+PostProcessSteps& PostProcessSteps::convert_layout(const std::vector<uint64_t>& dims) {
     m_impl->add_convert_layout_impl(dims);
     return *this;
 }
 
-PostProcessSteps&& PostProcessSteps::convert_layout(const std::vector<uint64_t>& dims) && {
-    m_impl->add_convert_layout_impl(dims);
-    return std::move(*this);
-}
-
-PostProcessSteps& PostProcessSteps::custom(const CustomPostprocessOp& postprocess_cb) & {
+PostProcessSteps& PostProcessSteps::custom(const CustomPostprocessOp& postprocess_cb) {
     // 'true' indicates that custom postprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back([postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
         return std::make_tuple(postprocess_cb(node), true);
     });
     return *this;
-}
-
-PostProcessSteps&& PostProcessSteps::custom(const CustomPostprocessOp& postprocess_cb) && {
-    // 'true' indicates that custom postprocessing step will trigger validate_and_infer_types
-    m_impl->actions().emplace_back([postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
-        return std::make_tuple(postprocess_cb(node), true);
-    });
-    return std::move(*this);
 }
 
 }  // namespace preprocess

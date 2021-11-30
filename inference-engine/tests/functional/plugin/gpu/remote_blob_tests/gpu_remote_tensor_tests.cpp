@@ -76,12 +76,11 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
-    auto function = PrePostProcessor(fn_ptr)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_element_type(ov::element::i8))
-                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
-            .build();
+    auto p = PrePostProcessor(fn_ptr);
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
 
+    auto function = p.build();
     auto exec_net = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
 
     RemoteTensorSharingType sharing_type = GetParam();
@@ -258,11 +257,10 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
-    auto function = PrePostProcessor(fn_ptr)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_element_type(ov::element::i8))
-                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
-            .build();
+    auto p = PrePostProcessor(fn_ptr);
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
 
     auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
     auto input = function->get_parameters().at(0);
@@ -302,11 +300,10 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContextWithMultipleDevices) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
-    auto function = PrePostProcessor(fn_ptr)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_element_type(ov::element::i8))
-                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
-            .build();
+    auto p = PrePostProcessor(fn_ptr);
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
 
     auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
     auto input = function->get_parameters().at(0);
@@ -351,11 +348,10 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_out_of_order) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
-    auto function = PrePostProcessor(fn_ptr)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_element_type(ov::element::i8))
-                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
-            .build();
+    auto p = PrePostProcessor(fn_ptr);
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
 
     auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
     auto input = function->get_parameters().at(0);
@@ -431,11 +427,10 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_in_order) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
-    auto function = PrePostProcessor(fn_ptr)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_element_type(ov::element::i8))
-                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
-            .build();
+    auto p = PrePostProcessor(fn_ptr);
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
 
     auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
     auto input = function->get_parameters().at(0);
@@ -541,11 +536,10 @@ TEST_P(OVRemoteTensorBatched_Test, DISABLED_canInputNV12) {
     auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
 
     using namespace ov::preprocess;
-    auto function = PrePostProcessor(fn_ptr_remote)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_element_type(ov::element::i8).set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES))
-                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
-            .build();
+    auto p = PrePostProcessor(fn_ptr_remote);
+    p.input().tensor().set_element_type(ov::element::i8).set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
 
     auto exec_net_b = ie.compile_model(fn_ptr_remote, CommonTestUtils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
