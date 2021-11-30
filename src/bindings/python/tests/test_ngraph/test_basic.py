@@ -11,11 +11,11 @@ import openvino.runtime as ov
 
 from openvino.pyopenvino import VariantInt, VariantString
 
-from openvino.exceptions import UserInputError
-from openvino.impl import Function, PartialShape, Shape, Type, layout_helpers
-from openvino import Tensor
-from openvino import descriptor
-from openvino.impl.op import Parameter
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime import Tensor
+from openvino.pyopenvino import DescriptorTensor
+from openvino.runtime.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -408,8 +408,8 @@ def test_node_input_tensor():
     inputTensor1 = node.get_input_tensor(0)
     inputTensor2 = node.get_input_tensor(1)
 
-    assert(isinstance(inputTensor1, descriptor.Tensor))
-    assert(isinstance(inputTensor2, descriptor.Tensor))
+    assert(isinstance(inputTensor1, DescriptorTensor))
+    assert(isinstance(inputTensor2, DescriptorTensor))
     assert np.equal(inputTensor1.get_shape(), data1.shape).all()
     assert np.equal(inputTensor2.get_shape(), data2.shape).all()
 
