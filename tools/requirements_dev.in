@@ -1,0 +1,1 @@
+openvino-dev${EXTRAS}==${WHEEL_VERSION}

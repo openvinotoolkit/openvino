@@ -26,6 +26,28 @@ install(DIRECTORY deployment_manager
         COMPONENT deployment_manager
         USE_SOURCE_PERMISSIONS)
 
+# outbound requirements.txt files for openvino-dev package
+set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
+set(EXTRAS_LIST _ caffe caffe2 kaldi mxnet onnx pytorch tensorflow tensorflow2)
+
+foreach(EXTRAS ${EXTRAS_LIST})
+    if(${EXTRAS} STREQUAL "_")
+        set(REQUIREMENTS_OUT "requirements.txt")
+        set(EXTRAS "")
+    else()
+        set(REQUIREMENTS_OUT "requirements_${EXTRAS}.txt")
+        set(EXTRAS "[${EXTRAS}]")
+    endif()
+    configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
+
+    install(FILES ${REQUIREMENTS_OUT}
+        DESTINATION tools
+        COMPONENT openvino_dev_req_files
+        EXCLUDE_FROM_ALL)
+endforeach()
+
+ie_cpack_add_component(openvino_dev_req_files)
+
 if(ENABLE_PYTHON)
     find_package(PythonInterp 3 REQUIRED)
     set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
