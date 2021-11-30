@@ -4,10 +4,10 @@
 import numpy as np
 import pytest
 
-import openvino.opset8 as ops
+import openvino.runtime.opset8 as ops
 
-from openvino import Function, Tensor
-from openvino.impl import Type, PartialShape, Shape
+from openvino.runtime import Function, Tensor
+from openvino.runtime.impl import Type, PartialShape, Shape
 
 
 def test_test_descriptor_tensor():

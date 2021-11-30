@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino as ov
-from openvino.impl import Shape
+import openvino.runtime as ov
+from openvino.runtime.impl import Shape
 
 
 def test_get_constant_from_source_success():

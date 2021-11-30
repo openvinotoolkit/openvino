@@ -5,9 +5,9 @@
 
 import numpy as np
 
-import openvino.opset8 as ov
-from openvino.impl import AxisSet, Function, Shape, Type
-from openvino.impl.op import Constant, Parameter
+import openvino.runtime.opset8 as ov
+from openvino.runtime.impl import AxisSet, Function, Shape, Type
+from openvino.runtime.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
 
 from tests import xfail_issue_54663
