@@ -36,7 +36,7 @@ std::string join(const Container& c, const char* glue = ", ") {
 }
 
 std::string dimension_to_str(const Dimension& dim) {
-    if (dim.is_dynamic() and !dim.get_interval().has_upper_bound() and dim.get_min_length() == 0)
+    if (dim.is_dynamic() && !dim.get_interval().has_upper_bound() && (dim.get_min_length() == 0))
         return "?";
     if (dim.is_static()) {
         return std::to_string(dim.get_length());

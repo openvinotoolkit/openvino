@@ -842,7 +842,7 @@ struct Get<ov::Dimension, void> {
     static std::string value(const ov::Dimension& attrs) {
         std::stringstream oss;
 
-        if (attrs.is_dynamic() and !attrs.get_interval().has_upper_bound() and attrs.get_min_length() == 0)
+        if (attrs.is_dynamic() && !attrs.get_interval().has_upper_bound() && (attrs.get_min_length() == 0))
             return "[dynamic_dim]";
         if (attrs.is_static()) {
             return "[" + std::to_string(attrs.get_length()) + "]";
