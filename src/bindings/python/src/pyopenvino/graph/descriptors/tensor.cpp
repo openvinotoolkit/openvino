@@ -22,11 +22,6 @@ void regclass_graph_descriptor_Tensor(py::module m) {
 
     tensor.doc() = "openvino.descriptor.Tensor wraps ov::descriptor::Tensor";
 
-    tensor.def(py::init<const ov::element::Type, const ov::PartialShape, const std::string>(),
-               py::arg("element_type"),
-               py::arg("partial_shape"),
-               py::arg("name"));
-
     tensor.def("get_shape",
                &ov::descriptor::Tensor::get_shape,
                R"(
