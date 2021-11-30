@@ -522,7 +522,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
                           PoolingLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes5D_int8 = {
-       /* { {}, {{1, 4, 16, 16, 16}} },
+        { {}, {{1, 4, 16, 16, 16}} },
         { {}, {{2, 8, 8, 8, 8}} },
         { {}, {{2, 16, 12, 16, 20}} },
         { {}, {{1, 19, 16, 20, 8}} },
@@ -536,7 +536,7 @@ const std::vector<InputShape> inputShapes5D_int8 = {
                 {1, 32, 16, 20, 8},
                 {1, 32, 16, 16, 16}
             }
-        },*/
+        },
         {
             // dynamic
             {{1, 5}, 16, {1, 64}, {1, 64}, {1, 25}},
