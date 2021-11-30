@@ -913,3 +913,107 @@ ov::Output<ov::Node> ov::Function::add_output(const ov::Output<ov::Node>& port) 
     add_results({result});
     return result->output(0);
 }
+
+namespace util {
+    static int64_t get_batch(const ov::Layout& layout, const ov::PartialShape & shape) {
+        auto batch_idx = ov::layout::batch_idx(layout);
+        if (batch_idx < 0) {
+            batch_idx += static_cast<int64_t>(shape.rank().get_length());
+        }
+        return batch_idx;
+    }
+
+    static void dump_parameter(std::ostream& stream, const std::shared_ptr<const ov::Function>& f, size_t index) {
+        const auto &p = f->get_parameters()[index];
+        const auto &node = f->input(index);
+        stream << index << ": { ";
+        stream << "name='" << node.get_tensor().get_any_name() << "'";
+        stream << ", shape=" << node.get_partial_shape();
+        if (node.get_partial_shape().rank().is_static()) {
+            stream << ", layout=" << p->get_layout().to_string();
+            if (!ov::layout::has_batch(p->get_layout())) {
+                stream << ", no batch specified";
+            } else {
+                stream << ", batch=" << ::util::get_batch(p->get_layout(), node.get_partial_shape());
+            }
+            stream << " }" << std::endl;
+        }
+    }
+} // namespace util
+
+ov::Dimension ov::util::get_batch_size(const std::shared_ptr<const ov::Function>& f) {
+    bool batch_initialized = false;
+    auto batch_size = ov::Dimension();
+    std::vector<size_t> merged_indexes;
+    merged_indexes.reserve(f->inputs().size());
+    for (size_t i = 0; i < f->get_parameters().size(); ++i) {
+        const auto &param = f->get_parameters()[i];
+        const auto &layout = param->get_layout();
+        if (!ov::layout::has_batch(layout))
+            continue;
+        const auto &pshape = param->get_partial_shape();
+        if (pshape.rank().is_dynamic()) {
+            continue; // Parameter with fully dynamic rank can't conflict
+        }
+        auto batch_idx = ::util::get_batch(layout, pshape);
+        if (!Dimension::merge(batch_size, batch_size, pshape[batch_idx])) {
+            merged_indexes.push_back(i);
+            // Not all dimensions can be merged
+            auto stream = std::stringstream();
+            stream << "Get original batch size fails due to conflicting batch values for inputs:" << std::endl;
+            for (size_t j = 0; j < merged_indexes.size(); ++j) {
+                ::util::dump_parameter(stream, f, j);
+            }
+            stream << "---" << std::endl;
+            stream << "Please ensure that N(Batch) dimension is set correctly for listed parameters";
+            OPENVINO_ASSERT(false, stream.str());
+        } else {
+            merged_indexes.push_back(i);
+        }
+        batch_initialized = true;
+    }
+    if (!batch_initialized) {
+        // Create graceful message to set layout for some parameters
+        std::stringstream stream;
+        stream << "Get original batch size fails due to batch is not set in any layout for any input. ";
+        stream << "Available inputs:" << std::endl;
+        for (size_t i = 0; i < f->get_parameters().size(); ++i) {
+            ::util::dump_parameter(stream, f, i);
+        }
+        stream << "---" << std::endl;
+        stream << "Please use 'set_layout' API to set layout with batch dimension, e.g. `Function->get_parameters()[index]->set_layout(\"NCHW\");`";
+
+        OPENVINO_ASSERT(false, stream.str());
+    }
+    return batch_size;
+}
+
+void ov::util::set_batch_size(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size) {
+    get_batch_size(f); // Ensure that function's batch size is valid and can be changed
+    // Now batch size can be set for all needed parameters
+    for (const auto& param : f->get_parameters()) {
+        const auto &layout = param->get_layout();
+        if (layout.empty() || !ov::layout::has_batch(layout))
+            continue;
+        const auto &pshape = param->get_partial_shape();
+        if (pshape.rank().is_dynamic()) {
+            continue; // Parameter with fully dynamic rank can be left as is
+        }
+        auto batch_idx = ::util::get_batch(layout, pshape);
+        param->get_partial_shape()[batch_idx] = batch_size;
+    }
+    try {
+        f->validate_nodes_and_infer_types();
+    } catch (const std::exception& e) {
+        std::stringstream stream;
+        stream << "Validation fails after set_batch_size. Possible reasons are:" << std::endl;
+        stream << "    1) Ensure that all inputs have valid layout set with batch dimension" << std::endl;
+        stream << "    2) Check model's documentation if batch size can be set to it at all" << std::endl;
+        stream << "Available inputs:" << std::endl;
+        for (size_t i = 0; i < f->get_parameters().size(); ++i) {
+            ::util::dump_parameter(stream, f, i);
+        }
+        stream << "---" << std::endl;
+        stream << "Original error message is: " << e.what();
+    }
+}
