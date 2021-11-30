@@ -16,7 +16,10 @@
 #include <vector>
 
 #include "ie_plugin_config.hpp"
+#include "openvino/core/extension.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/op/op.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -147,9 +150,79 @@ public:
 
     /**
      * @brief Registers extension
+     * @deprecated This method is deprecated. Please use other add_extension methods
      * @param extension Pointer to already loaded extension
      */
+    OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
     void add_extension(const std::shared_ptr<ie::IExtension>& extension);
+    /**
+     * @brief Registers extension
+     * @param library_path path to library with ov::Extension
+     */
+    void add_extension(const std::string& library_path);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Registers extension
+     * @param library_path path to library with ov::Extension
+     */
+    void add_extension(const std::wstring& library_path);
+#endif
+    /**
+     * @brief Registers extension
+     * @param extension Pointer to base extension
+     */
+    void add_extension(const std::shared_ptr<ov::Extension>& extension);
+    /**
+     * @brief Registers extensions
+     * @param extensions Vector of loaded base extensions
+     */
+    void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
+
+    /**
+     * @brief Registers extension
+     * @param extension Extension class which is inherited from ov::Extension class
+     */
+    template <class T, typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
+    void add_extension(const T& extension) {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
+        add_extension(ext);
+    }
+
+    /**
+     * @brief Registers extensions
+     * @param extension Extension class which is inherited from ov::Extension class
+     * @param args list of extensions
+     */
+    template <class T,
+              class... Targs,
+              typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
+    void add_extension(const T& extension, Targs... args) {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
+        add_extension(ext);
+        add_extension(args...);
+    }
+
+    /**
+     * @brief Registers custom operation
+     */
+    template <class T, typename std::enable_if<std::is_base_of<ov::op::Op, T>::value, bool>::type = true>
+    void add_extension() {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<ov::OpExtension<T>>();
+        add_extension(ext);
+    }
+
+    /**
+     * @brief Registers custom operations
+     */
+    template <class T,
+              class... Targs,
+              typename std::enable_if<std::is_base_of<ov::op::Op, T>::value && sizeof...(Targs), bool>::type = true>
+    void add_extension() {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<ov::OpExtension<T>>();
+        add_extension(ext);
+        if (sizeof...(Targs) > 0)
+            add_extension<Targs...>();
+    }
 
     /**
      * @brief Creates an executable network from a previously exported network

@@ -13,8 +13,8 @@
 
 #include "onnx_common/onnx_model_validator.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 using VariantString = VariantWrapper<std::string>;
 using VariantWString = VariantWrapper<std::wstring>;
@@ -71,7 +71,7 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) c
 }
 
 void FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const {
-    onnx_import::detail::convert_decoded_function(partially_converted);
+    ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
 std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) const {
@@ -123,14 +123,14 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
 #endif
     if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
-        const bool is_valid_model = onnx_common::is_valid_model(model_stream);
+        const bool is_valid_model = ngraph::onnx_common::is_valid_model(model_stream);
         model_stream.close();
         return is_valid_model;
     }
     if (ov::is_type<VariantIstreamPtr>(variants[0])) {
         const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
         StreamRewinder rwd{*stream};
-        return onnx_common::is_valid_model(*stream);
+        return ngraph::onnx_common::is_valid_model(*stream);
     }
     return false;
 }

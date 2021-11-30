@@ -173,18 +173,21 @@ def convert_inputs_of_specific_ops(graph: Graph):
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
                     mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None,
-                    use_temporary_path=False):
+                    use_temporary_path=False, used_by_ir_reader=False):
     if input_names is None:
         input_names = []
     if meta_info is None:
         meta_info = {}
     graph.strict_mode = False
 
-    # convert Parameter data types
-    convert_data_type.convert_parameters_data_type(graph, data_type)
-    # convert blobs (usually weights and biases)
-    for sub_graph in [graph] + collect_sub_graphs(graph):
-        convert_data_type.convert_blobs(sub_graph, data_type)
+    # temporary disable new FP16 generation
+    # if not used_by_ir_reader:
+    if True:
+        # convert Parameter data types
+        convert_data_type.convert_parameters_data_type(graph, data_type)
+        # convert blobs (usually weights and biases)
+        for sub_graph in [graph] + collect_sub_graphs(graph):
+            convert_data_type.convert_blobs(sub_graph, data_type)
 
     # restore data type for specific inputs/outputs of specific ops to the data types required by nGraph
     for_graph_and_each_sub_graph_recursively(graph, convert_inputs_of_specific_ops)

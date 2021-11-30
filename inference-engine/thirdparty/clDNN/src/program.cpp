@@ -47,6 +47,7 @@
 #include "lstm_gemm_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
+#include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
 #include "proposal_inst.h"
@@ -522,13 +523,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, options.get<build_option_type::optimize_data>()->enabled());
 
-    if (options.get<build_option_type::optimize_data>()->enabled() && get_engine().configuration().n_streams == 1) {
-        // Fuse conv + eltw after padding preparations
-        apply_opt_pass<prepare_conv_eltw_fusing>(lo, lo.get_optimization_attributes().b_fs_yx_fsv16_network);
-
-        apply_opt_pass<prepare_conv_eltw_read_write_opt>();
-    }
-
     if (!is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
@@ -541,6 +535,9 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
+
+    // add optimization attributes for onednn primitives
+    apply_opt_pass<add_onednn_optimization_attributes>();
 }
 
 void program::post_optimize_graph(bool is_internal) {
@@ -777,18 +774,18 @@ void program::add_intermediate(program_node& node,
 }
 
 void program::add_intermediate(std::shared_ptr<primitive> prim,
-                                    program_node& next,
-                                    size_t prev_idx,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               size_t prev_idx,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     add_intermediate(get_or_create(prim), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
 void program::add_intermediate(program_node& node,
-                                    program_node& next,
-                                    program_node& prev,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               program_node& prev,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     bool node_found = false;
     size_t idx = 0;
     for (size_t i = 0; i < next.get_dependencies().size(); i++) {
@@ -1299,6 +1296,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::border::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
             prim.type() != cldnn::scale::type_id() &&

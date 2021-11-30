@@ -269,6 +269,10 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
                             const std::vector<std::vector<std::uint8_t>> &inputs,
                             const std::vector<ngraph::element::Type> &inputTypes = {});
 
+std::vector<ov::runtime::Tensor>
+interpretFunction(const std::shared_ptr<Function> &function,
+                  const std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>& inputs);
+
 //
 // This function compares two nGraph functions and requires them to have exactly one output
 // Check nodes types
@@ -315,6 +319,8 @@ std::ostream& operator<<(std::ostream & os, TensorIteratorBody type);
 std::ostream& operator<<(std::ostream & os, SequenceTestsMode type);
 
 std::ostream& operator<<(std::ostream & os, MemoryTransformation type);
+
+void resize_function(std::shared_ptr<ov::Function> function, const std::vector<ov::Shape>& targetInputStaticShapes);
 
 }  // namespace helpers
 }  // namespace ngraph

@@ -42,7 +42,7 @@ bool WeightableLayerTransformation::canConvolutionBeTransformed(const Transforma
     if (dequantization.empty()) {
         const auto fqOnWeights = getFakeQuantizeOnWeights(layer);
         const auto dataPrecision = getDataPrecisionOnWeights(layer);
-        if (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision)) {
+        if ((dataPrecision.precision == ngraph::element::undefined) || (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision))) {
             return false;
         }
     } else {
@@ -223,7 +223,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     return true;
 }
 
-bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) noexcept {
+bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) {
     FakeQuantizeDequantization dequantizationOnWeights;
     if (reshapeIsRequired) {
         const auto reshape = layer->get_input_node_shared_ptr(1);
@@ -361,6 +361,9 @@ std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuan
 DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) {
     const auto fq = getFakeQuantizeOnWeights(node);
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
+    if (quantizationDetails.empty()) {
+        return DataPrecision();
+    }
 
     const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fq);
     const auto precisions = precisionsAttribute == nullptr ?
@@ -380,11 +383,15 @@ bool WeightableLayerTransformation::isAsymmetricOnWeights(const std::shared_ptr<
 
     if (dequantization.empty()) {
         const auto dataPrecision = WeightableLayerTransformation::getDataPrecisionOnWeights(n);
+        if (dataPrecision.empty()) {
+            return false;
+        }
+
         if (dataPrecision.hasZeroPoint) {
             return true;
         }
     } else {
-        if (dequantization.subtract != nullptr) {
+        if ((dequantization.subtract != nullptr) && (NetworkHelper::optimizeSubtract(dequantization.subtract) != nullptr)) {
             return true;
         }
     }

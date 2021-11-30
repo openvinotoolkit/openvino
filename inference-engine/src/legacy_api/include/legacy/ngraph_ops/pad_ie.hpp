@@ -23,6 +23,8 @@ public:
 
     explicit PadIE(const std::shared_ptr<op::v1::Pad>& pad);
 
+    PadIE(const Output<ngraph::Node>& input, PadMode pad_mode, CoordinateDiff pads_begin, CoordinateDiff pads_end, Shape output_shape, float pad_value);
+
     size_t get_version() const override { return 1; }
 
     void validate_and_infer_types() override;

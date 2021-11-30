@@ -9,6 +9,7 @@
 #include "ie_system_conf.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <exec_graph_info.hpp>
+#include <openvino/runtime/executable_network.hpp>
 #include "ie_system_conf.h"
 
 namespace CPUTestUtils {
@@ -126,15 +127,20 @@ public:
     static CPUInfo makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
                                std::vector<cpu_memory_format_t> outFmts,
                                std::vector<std::string> priority);
+   //TODO: change to setter method
+    static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,
                                                          ngraph::ParameterVector &params,
                                                          const std::shared_ptr<ngraph::Node> &lastNode,
-                                                         std::string name) const;
+                                                         std::string name);
+
+    void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
+    void CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &execNet, std::string nodeType) const;
 
 protected:
-    virtual void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
+    virtual void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const;
     /**
      * @brief This function modifies the initial single layer test graph to add any necessary modifications that are specific to the cpu test scope.
      * @param ngPrc Graph precision.
@@ -144,7 +150,7 @@ protected:
      */
     virtual std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
                                                       ngraph::ParameterVector &params,
-                                                      const std::shared_ptr<ngraph::Node> &lastNode) const;
+                                                      const std::shared_ptr<ngraph::Node> &lastNode);
 
 protected:
     std::string getPrimitiveType() const;
@@ -153,7 +159,12 @@ protected:
     std::string selectedType;
 };
 
+// common parameters
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
+const std::map<std::string, std::string> cpuEmptyPluginConfig;
+const std::map<std::string, std::string> cpuBF16PluginConfig =
+        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
+
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);

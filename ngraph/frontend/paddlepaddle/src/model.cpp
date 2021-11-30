@@ -3,7 +3,7 @@
 //
 
 #include <fstream>
-#include <ngraph/opsets/opset7.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 #include <paddlepaddle_frontend/model.hpp>
 #include <paddlepaddle_frontend/place.hpp>
@@ -19,7 +19,7 @@
 #    include <locale>
 #endif
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 using namespace paddle::framework::proto;
 
@@ -463,4 +463,4 @@ void InputModelPDPD::set_tensor_value(Place::Ptr place, const void* value) {
 }
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

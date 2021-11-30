@@ -7,9 +7,13 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
 endif()
 
-add_subdirectory(preprocessing)
+add_subdirectory(transformations)
 
-add_subdirectory(legacy_api)
+add_subdirectory(low_precision_transformations)
+
+add_subdirectory(offline_transformations)
+
+add_subdirectory(snippets)
 
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
@@ -37,15 +41,11 @@ endif()
 
 add_subdirectory(inference_engine)
 
-add_subdirectory(transformations)
+add_subdirectory(legacy_api)
 
 add_subdirectory(readers)
 
-add_subdirectory(low_precision_transformations)
-
-add_subdirectory(offline_transformations)
-
-add_subdirectory(snippets)
+add_subdirectory(preprocessing)
 
 # add a custom target to build all Inference Engine Core libraries
 
@@ -59,17 +59,21 @@ if(ENABLE_IR_V7_READER)
 endif()
 
 if(NGRAPH_IR_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries ir_ngraph_frontend)
+    if(BUILD_SHARED_LIBS)
+        add_dependencies(ie_libraries ir_ov_frontend)
+    endif()
+    # use this one once CVS-69781 is fixed
+    # add_dependencies(inference_engine ir_ov_frontend)
 endif()
 
 if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries onnx_ngraph_frontend)
+    add_dependencies(inference_engine onnx_ov_frontend)
 endif()
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries paddlepaddle_ngraph_frontend)
+    add_dependencies(inference_engine paddlepaddle_ov_frontend)
 endif()
 
 if(NGRAPH_TF_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries tensorflow_ngraph_frontend)
+    add_dependencies(inference_engine tensorflow_ov_frontend)
 endif()

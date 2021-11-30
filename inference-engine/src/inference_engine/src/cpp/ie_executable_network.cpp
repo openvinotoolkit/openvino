@@ -65,16 +65,6 @@ ExecutableNetwork::operator IExecutableNetwork::Ptr() {
     return std::make_shared<ExecutableNetworkBase>(_impl);
 }
 
-std::vector<VariableState> ExecutableNetwork::QueryState() {
-    std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT({
-        for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState{_so, state});
-        }
-    });
-    return controller;
-}
-
 InferRequest ExecutableNetwork::CreateInferRequest() {
     EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
 }

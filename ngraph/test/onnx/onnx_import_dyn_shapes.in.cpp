@@ -15,9 +15,9 @@
 #include <iterator>
 #include <numeric>
 
+#include "default_opset.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
-#include "default_opset.hpp"
 #include "onnx_import/onnx.hpp"
 #include "engines_util/test_engines.hpp"
 #include "engines_util/test_case.hpp"
@@ -333,10 +333,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
                                        25.f, 25.f, 23.f, 24.f, 25.f, 25.f, 25.f, 23.f, 24.f, 25.f, 25.f, 25.f};
     test_case.add_expected_output<float>(Shape{1, 1, 5, 5}, expected_values);
 
-    // indices output is not supported and is ingored in current implementation
-    // std::vector<int64_t> expected_indices{12, 13, 14, 14, 14, 17, 18, 19, 19, 19, 22, 23, 24, 24,
-    // 24, 22, 23, 24, 24, 24, 22, 23, 24, 24, 24};
-    // test_case.add_expected_output<float>(Shape{1, 1, 5, 5}, expected_indices);
+    std::vector<int64_t> expected_indices{12, 13, 14, 14, 14, 17, 18, 19, 19, 19, 22, 23, 24,
+                                          24, 24, 22, 23, 24, 24, 24, 22, 23, 24, 24, 24};
+    test_case.add_expected_output<int64_t>(Shape{1, 1, 5, 5}, expected_indices);
     test_case.run();
 }
 
@@ -988,7 +987,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
     test_case.add_expected_output<float>(Shape{1, 1, 1}, {9});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_10_the_same_output_same) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_the_same_out_shape.onnx"));
 

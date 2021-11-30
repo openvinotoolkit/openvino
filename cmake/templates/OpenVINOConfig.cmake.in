@@ -160,7 +160,19 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
                               ${_tbb_dir}
                         NO_CMAKE_FIND_ROOT_PATH
                         NO_DEFAULT_PATH)
+
+    set(install_tbbbind "@install_tbbbind@")
+    if(install_tbbbind)
+        set_and_check(_tbb_bind_dir "@PACKAGE_IE_TBBBIND_DIR@")
+        _ov_find_dependency(TBBBIND_2_5
+                            PATHS ${_tbb_bind_dir}
+                            NO_CMAKE_FIND_ROOT_PATH
+                            NO_DEFAULT_PATH)
+        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES IMPORTED_GLOBAL ON)
+    endif()
 endif()
+
+_ov_find_dependency(Threads)
 
 if(NOT TARGET inference_engine)
     set(_ov_as_external_package ON)

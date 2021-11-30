@@ -10,13 +10,11 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 
-#ifdef OPENVINO_OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
 #    define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #    include <codecvt>
 #    include <functional_test_utils/skip_tests_config.hpp>
-
-
 #endif
 
 namespace ov {
@@ -114,6 +112,9 @@ TEST_P(OVClassBasicTestP, registerExistingPluginThrows) {
     ASSERT_THROW(ie.register_plugin(pluginName, deviceName), ov::Exception);
 }
 
+// TODO: CVS-68982
+#ifndef OPENVINO_STATIC_LIBRARY
+
 TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
     ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.register_plugin(pluginName, "NEW_DEVICE_NAME"));
@@ -150,7 +151,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 #endif
 
-#ifdef OPENVINO_OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     std::string pluginXML{"mock_engine_valid.xml"};
@@ -196,7 +197,8 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     CommonTestUtils::removeFile(pluginXML);
 }
 
-#endif  // OPENVINO_OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#endif // !OPENVINO_STATIC_LIBRARY
 
 //
 // GetVersions()

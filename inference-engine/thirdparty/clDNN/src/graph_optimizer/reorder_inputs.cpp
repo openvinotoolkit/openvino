@@ -334,7 +334,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
 }
 
 template <direction_e dir>
-void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, program_node* node) {
+void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
     auto fmt = fmt_map.at(node);
 
     auto next_cpy = travel_direction_wrapper<dir>::next_nodes(node);
@@ -354,9 +354,16 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
         travel_direction_wrapper<dir>::first(in_layout, out_layout).format = fmt;
 
+        // When the input is fed into different convolutions, create separate cache entry
+        bool needs_split_reorder = false;
+        bool use_onednn_impls = lo.get_optimization_attributes().use_onednn_impls;
+        if (node->is_type<convolution>() && use_onednn_impls)
+            needs_split_reorder = node->as<convolution>().get_primitive()->needs_onednn_bfyx_to_fsv16(in_layout.format, out_layout.format,
+                                                                                                      in_layout, current_layout);
+
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
-                                           out_layout);
+                                           out_layout, needs_split_reorder);
         auto reorder = reorder_pair.first;
 
         if (reorder) {
@@ -369,7 +376,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
     }
 }
 
-void insert_reorders(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf) {
+void insert_reorders(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo) {
     auto fwd_it = p.get_processing_order().begin();
     while (fwd_it != p.get_processing_order().end()) {
         auto node = *(fwd_it++);
@@ -381,7 +388,7 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
         if (fmt == format::any || format::is_image(fmt))
             continue;
 
-        insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, node);
+        insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, lo, node);
     }
 
     auto bwd_it = p.get_processing_order().rbegin();
@@ -395,7 +402,7 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
         if (fmt == format::any || format::is_image(fmt))
             continue;
 
-        insert_reorders_in_dir<direction_e::backwards>(p, fmt_map, rf, node);
+        insert_reorders_in_dir<direction_e::backwards>(p, fmt_map, rf, lo, node);
     }
 }
 
@@ -462,7 +469,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     }
 #endif
 
-    insert_reorders(p, fmt_map, rf);
+    insert_reorders(p, fmt_map, rf, lo);
 
     for (auto n : p.get_processing_order()) {
         n->recalc_output_layout(true);

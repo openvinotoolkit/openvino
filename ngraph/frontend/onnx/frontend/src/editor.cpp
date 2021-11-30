@@ -17,8 +17,8 @@
 #include "onnx_common/utils.hpp"
 #include "utils/onnx_internal.hpp"
 
-using namespace ngraph;
-using namespace ngraph::onnx_editor;
+using namespace ov;
+using namespace ov::onnx_editor;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -57,27 +57,37 @@ TensorProto* find_graph_initializer(GraphProto& graph, const std::string& name) 
     return nullptr;
 }
 
+ValueInfoProto* find_graph_value_info(GraphProto& graph, const std::string& name) {
+    for (int i = 0; i < graph.value_info_size(); ++i) {
+        auto value_info = graph.mutable_value_info(i);
+        if (value_info->name() == name) {
+            return value_info;
+        }
+    }
+    return nullptr;
+}
+
 void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_type) {
     if (!onnx_input.has_type()) {
-        throw ngraph_error("The input is malformed - it doesn't contain the 'type' field. Cannot change the "
-                           "data type. Input name: " +
-                           onnx_input.name());
+        throw ov::Exception("The input is malformed - it doesn't contain the 'type' field. Cannot change the "
+                            "data type. Input name: " +
+                            onnx_input.name());
     }
 
     auto* type_proto = onnx_input.mutable_type();
     if (!type_proto->has_tensor_type()) {
-        throw ngraph_error("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
-                           "change the data type. Input name: " +
-                           onnx_input.name());
+        throw ov::Exception("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                            "change the data type. Input name: " +
+                            onnx_input.name());
     }
 
     auto* tensor_type = type_proto->mutable_tensor_type();
 
-    if (onnx_common::is_supported_ng_type(elem_type)) {
-        tensor_type->set_elem_type(onnx_common::ng_to_onnx_data_type(elem_type));
+    if (ngraph::onnx_common::is_supported_ng_type(elem_type)) {
+        tensor_type->set_elem_type(ngraph::onnx_common::ng_to_onnx_data_type(elem_type));
     } else {
-        throw ngraph_error("The input type for input '" + onnx_input.name() + "' cannot be set to: " +
-                           element::Type(elem_type).get_type_name() + ". This type is not allowed in ONNX.");
+        throw ov::Exception("The input type for input '" + onnx_input.name() + "' cannot be set to: " +
+                            element::Type(elem_type).get_type_name() + ". This type is not allowed in ONNX.");
     }
 }
 
@@ -96,16 +106,16 @@ void add_dim_to_onnx_shape(const Dimension& dim, ONNX_NAMESPACE::TensorShapeProt
 
 void modify_input_shape(ValueInfoProto& onnx_input, const PartialShape& new_shape) {
     if (!onnx_input.has_type()) {
-        throw ngraph_error("The input is malformed - it doesn't contain the 'type' field. Cannot change the "
-                           "input shape. Input name: " +
-                           onnx_input.name());
+        throw ov::Exception("The input is malformed - it doesn't contain the 'type' field. Cannot change the "
+                            "input shape. Input name: " +
+                            onnx_input.name());
     }
 
     auto* type_proto = onnx_input.mutable_type();
     if (!type_proto->has_tensor_type()) {
-        throw ngraph_error("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
-                           "change the input shape. Input name: " +
-                           onnx_input.name());
+        throw ov::Exception("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                            "change the input shape. Input name: " +
+                            onnx_input.name());
     }
 
     auto* tensor_type = type_proto->mutable_tensor_type();
@@ -134,22 +144,22 @@ void modify_initializer(TensorProto& initializer,
                         const std::shared_ptr<ngraph::op::Constant> values,
                         ValueInfoProto* input) {
     const auto elem_type = values->get_element_type();
-    if (!onnx_common::is_supported_ng_type(elem_type)) {
-        throw ngraph_error("Initializer '" + name + "' type cannot be set to: " +
-                           element::Type(elem_type).get_type_name() + ". This type is not allowed in ONNX.");
+    if (!ngraph::onnx_common::is_supported_ng_type(elem_type)) {
+        throw ov::Exception("Initializer '" + name + "' type cannot be set to: " +
+                            element::Type(elem_type).get_type_name() + ". This type is not allowed in ONNX.");
     }
 
     initializer.Clear();
 
     initializer.set_name(name);
-    initializer.set_data_type(onnx_common::ng_to_onnx_data_type(values->get_element_type()));
+    initializer.set_data_type(ngraph::onnx_common::ng_to_onnx_data_type(values->get_element_type()));
 
     for (const auto& dim : values->get_shape()) {
         initializer.add_dims(dim);
     }
 
     const auto data_size_in_bytes =
-        shape_size(values->get_shape()) * onnx_common::get_onnx_data_size(initializer.data_type());
+        shape_size(values->get_shape()) * ngraph::onnx_common::get_onnx_data_size(initializer.data_type());
     initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
 
     // update input with type and shape of initializer
@@ -173,8 +183,11 @@ public:
         m_infer_shapes_was_run = true;
     }
     ~InferShapesAutoRelease() {
-        if (m_infer_shapes_was_run) {
-            m_model_proto->mutable_graph()->clear_value_info();
+        try {
+            if (m_infer_shapes_was_run) {
+                m_model_proto->mutable_graph()->clear_value_info();
+            }
+        } catch (...) {
         }
     }
 
@@ -193,14 +206,17 @@ struct onnx_editor::ONNXModelEditor::Impl {
     Impl() = delete;
 
     Impl(const std::string& model_path)
-        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_file(model_path))} {}
+        : m_model_proto{
+              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))} {}
 
     Impl(std::istream& model_stream)
-        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(model_stream))} {}
+        : m_model_proto{
+              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_istream(model_stream))} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     Impl(const std::wstring& model_path)
-        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_file(model_path))} {}
+        : m_model_proto{
+              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))} {}
 #endif
 };
 
@@ -212,7 +228,7 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path)
-    : m_model_path{file_util::wstring_to_string(model_path)},
+    : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -232,11 +248,11 @@ void onnx_editor::ONNXModelEditor::serialize(const std::string& out_file_path) c
     std::ofstream out_file{out_file_path, std::ios::out | std::ios::binary};
 
     if (!out_file.is_open()) {
-        throw ngraph_error("Could not open the file: " + out_file_path);
+        throw ov::Exception("Could not open the file: " + out_file_path);
     };
 
     if (!m_pimpl->m_model_proto->SerializeToOstream(&out_file)) {
-        throw ngraph_error("Could not serialize the model to: " + out_file_path);
+        throw ov::Exception("Could not serialize the model to: " + out_file_path);
     } else {
         out_file.close();
     }
@@ -250,8 +266,8 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
         if (onnx_input != nullptr) {
             modify_input_type(*onnx_input, input_desc.second);
         } else {
-            throw ngraph_error("Could not set a custom element type for input: " + input_desc.first +
-                               ". Such input was not found in the original ONNX model.");
+            throw ov::Exception("Could not set a custom element type for input: " + input_desc.first +
+                                ". Such input was not found in the original ONNX model.");
         }
     }
 }
@@ -264,20 +280,25 @@ void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, 
         if (onnx_input != nullptr) {
             modify_input_shape(*onnx_input, input_desc.second);
         } else {
-            throw ngraph_error("Could not set custom shape for input: " + input_desc.first +
-                               ". Such input was not found in the original ONNX model.");
+            throw ov::Exception("Could not set custom shape for input: " + input_desc.first +
+                                ". Such input was not found in the original ONNX model.");
         }
     }
 }
 
 PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& tensor_name) const {
     const ValueInfoProto* value_info = nullptr;
-    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    const TensorProto* tensor = nullptr;
+    const auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
     InferShapesAutoRelease onnx_shapes(m_pimpl->m_model_proto);
-    if (const auto* input = find_graph_input(*onnx_graph, tensor_name)) {
+    if (const auto input = find_graph_input(*onnx_graph, tensor_name)) {
         value_info = input;
-    } else if (const auto* output = find_graph_output(*onnx_graph, tensor_name)) {
+    } else if (const auto output = find_graph_output(*onnx_graph, tensor_name)) {
         value_info = output;
+    } else if (const auto val_info = find_graph_value_info(*onnx_graph, tensor_name)) {
+        value_info = val_info;
+    } else if (const auto initializer = find_graph_initializer(*onnx_graph, tensor_name)) {
+        tensor = initializer;
     } else {
         try {
             onnx_shapes.infer_shapes();
@@ -297,12 +318,14 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     if (value_info != nullptr) {
         const auto& onnx_tensor_type = value_info->type().tensor_type();
         if (onnx_tensor_type.has_shape()) {
-            return onnx_common::to_ng_shape(onnx_tensor_type.shape());
+            return ngraph::onnx_common::to_ng_shape(onnx_tensor_type.shape());
         } else {
             return PartialShape::dynamic();
         }
+    } else if (tensor) {
+        return PartialShape{Shape{tensor->dims().cbegin(), tensor->dims().cend()}};
     } else {
-        throw ngraph_error("The tensor: " + tensor_name + " was not found in the graph");
+        throw ov::Exception("The tensor: " + tensor_name + " was not found in the graph");
     }
 }
 
@@ -385,7 +408,7 @@ std::string onnx_editor::ONNXModelEditor::model_string() const {
 }
 
 std::shared_ptr<Function> onnx_editor::ONNXModelEditor::get_function() const {
-    return onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto, m_model_path);
+    return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto, m_model_path);
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
@@ -410,6 +433,105 @@ void onnx_editor::ONNXModelEditor::set_input_values(
 
         modify_initializer(*onnx_initializer, name, values, onnx_input);
     }
+}
+
+void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_name, const std::string& new_name) {
+    OPENVINO_ASSERT(!new_name.empty(), "New name must not be empty.");
+
+    const auto graph = m_pimpl->m_model_proto->mutable_graph();
+
+    OPENVINO_ASSERT(!(find_graph_input(*graph, new_name) || find_graph_output(*graph, new_name) ||
+                      find_graph_initializer(*graph, new_name) || find_graph_value_info(*graph, new_name) ||
+                      m_pimpl->m_edge_mapper.is_correct_tensor_name(new_name)),
+                    "The name '",
+                    new_name,
+                    "' is already used by another tensor.");
+
+    m_pimpl->m_is_mapper_updated = false;
+
+    // the same tensor can be multiplied in any or all of below arrays
+    if (const auto initializer = find_graph_initializer(*graph, current_name))
+        *initializer->mutable_name() = new_name;
+    if (const auto input = find_graph_input(*graph, current_name))
+        *input->mutable_name() = new_name;
+    if (const auto output = find_graph_output(*graph, current_name))
+        *output->mutable_name() = new_name;
+    if (const auto value_info = find_graph_value_info(*graph, current_name))
+        *value_info->mutable_name() = new_name;
+
+    for (size_t i = 0; i < graph->node().size(); ++i) {
+        const auto node = graph->mutable_node(i);
+
+        bool output_found = false;
+        for (size_t j = 0; j < node->output().size(); ++j)
+            if (node->output(j) == current_name) {
+                *node->mutable_output(j) = new_name;
+                output_found = true;
+                break;
+            }
+        if (output_found)
+            continue;
+
+        for (size_t j = 0; j < node->input().size(); ++j)
+            if (node->input(j) == current_name)
+                *node->mutable_input(j) = new_name;
+    }
+}
+
+void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const std::string& new_name) {
+    const auto node_idx = m_pimpl->m_edge_mapper.get_node_index(node);
+    const auto graph = m_pimpl->m_model_proto->mutable_graph();
+
+    m_pimpl->m_is_mapper_updated = false;
+
+    *graph->mutable_node(node_idx)->mutable_name() = new_name;
+}
+
+void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
+    const auto graph = m_pimpl->m_model_proto->mutable_graph();
+
+    m_pimpl->m_is_mapper_updated = false;
+
+    for (size_t i = 0; i < graph->node().size(); ++i) {
+        const auto node = graph->mutable_node(i);
+        if (node->has_name() && node->name() == name)
+            node->clear_name();
+    }
+}
+
+void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& node_name,
+                                                          size_t shape_dim_index,
+                                                          const std::string& dim_name) {
+    OPENVINO_ASSERT(!dim_name.empty(), "Dimension name must not be empty.");
+
+    const auto graph = m_pimpl->m_model_proto->mutable_graph();
+
+    OPENVINO_ASSERT(!find_graph_initializer(*graph, node_name), "ONNX initializer shape dimension cannot be dynamic.");
+
+    // the same tensor can be multiplied in any or all of below arrays
+    const auto input = find_graph_input(*graph, node_name);
+    const auto output = find_graph_output(*graph, node_name);
+    const auto value_info = find_graph_value_info(*graph, node_name);
+    OPENVINO_ASSERT(input || output || value_info, "There is no tensor named '", node_name, "' in the graph.");
+
+    const auto set_dim_param = [&shape_dim_index, &dim_name](ValueInfoProto* tensor) {
+        const auto shape = tensor->mutable_type()->mutable_tensor_type()->mutable_shape();
+        auto shape_dim_size = shape->dim_size();
+
+        for (; shape_dim_size <= shape_dim_index; ++shape_dim_size)
+            add_dim_to_onnx_shape(Dimension::dynamic(), *shape);
+
+        shape->mutable_dim(shape_dim_index)->set_dim_param(dim_name.c_str());
+    };
+
+    m_pimpl->m_is_mapper_updated = false;
+
+    if (input)
+        set_dim_param(input);
+    if (output)
+        set_dim_param(output);
+    if (value_info)
+        set_dim_param(value_info);
 }
 
 void onnx_editor::ONNXModelEditor::update_mapper_if_needed() const {
@@ -465,5 +587,5 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
 }
 
 std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode() {
-    return onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path);
+    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path);
 }

@@ -18,27 +18,50 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-private:
-    size_t _dataRank;
-    size_t _sliceRank;
-    size_t _blockSize;
-    size_t _batchDims;
-    size_t _batchNum;
-    size_t _batchStep;
-    size_t _dataTypeSize;
-    const size_t _dataIndex = 0;
-    const size_t _indicesIndex = 1;
-    std::string _errorPrefix;
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    void prepareParams() override;
 
-    template <typename dataType>
-    void gatherElementwise();
-    void gatherBlocks();
+private:
+    struct GatherNDAttributes {
+        size_t batchDims = 0lu;
+        size_t dataSize = 1lu;
+        size_t dstSize = 0lu;
+        size_t sliceRank = 0lu;
+
+        VectorDims srcDims;
+        VectorDims srcStrides;
+    } attrs;
+
+    struct GatherNDExecutor {
+        GatherNDExecutor(const GatherNDAttributes& attrs);
+        ~GatherNDExecutor() = default;
+        void exec(const uint8_t* srcData, const int32_t* indices, uint8_t* dstData);
+
+    private:
+        size_t batchSize = 1lu;
+        size_t cycles = 1lu;
+        size_t dataLength = 1lu;
+
+        size_t srcBatchStride = 1lu;
+        size_t idxBatchStride = 1lu;
+        size_t dstBatchStride = 1lu;
+        VectorDims srcShifts;
+
+        GatherNDAttributes attrs;
+    };
+
+    static constexpr size_t GATHERND_DATA = 0lu;
+    static constexpr size_t GATHERND_INDEXES = 1lu;
+
+    using executorPtr = std::shared_ptr<GatherNDExecutor>;
+    executorPtr execPtr = nullptr;
 };
 
 }  // namespace MKLDNNPlugin

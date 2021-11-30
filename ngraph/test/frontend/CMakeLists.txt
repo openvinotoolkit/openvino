@@ -16,17 +16,24 @@ if (NGRAPH_TF_FRONTEND_ENABLE)
 endif()
 
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
-add_library(mock1_ngraph_frontend SHARED ${SRC})
+set(MOCK1_FE_NAME mock1_ov_frontend)
+add_library(${MOCK1_FE_NAME} SHARED ${SRC})
 
-target_compile_definitions(mock1_ngraph_frontend PRIVATE "-DMOCK_VARIANT=\"1\"")
+target_compile_definitions(${MOCK1_FE_NAME} PRIVATE "-DMOCK_VARIANT=\"1\"")
 
-target_include_directories(mock1_ngraph_frontend PRIVATE ".")
+target_include_directories(${MOCK1_FE_NAME} PRIVATE ".")
 
-target_link_libraries(mock1_ngraph_frontend PRIVATE frontend_manager)
-add_dependencies(unit-test mock1_ngraph_frontend)
+target_link_libraries(${MOCK1_FE_NAME} PRIVATE frontend_manager)
+add_dependencies(unit-test ${MOCK1_FE_NAME})
 
-add_clang_format_target(mock1_ngraph_frontend_clang FOR_TARGETS mock1_ngraph_frontend)
+add_clang_format_target(${MOCK1_FE_NAME}_clang FOR_TARGETS ${MOCK1_FE_NAME})
 
-install(TARGETS mock1_ngraph_frontend
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+if(BUILD_SHARED_LIBS OR NOT WIN32)
+    install(TARGETS ${MOCK1_FE_NAME}
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+else()
+    install(TARGETS ${MOCK1_FE_NAME}
+            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+endif()

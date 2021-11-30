@@ -270,7 +270,8 @@ void GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna
         IE_ASSERT(gnaOp.Parameters != nullptr || gnaOp.NumberOfParameters == 0);
         if (gnaOp.Type == Gna2OperationTypeConvolution && inputShape.NumberOfDimensions == 2 &&
             gnaOp.NumberOfParameters >= PoolStrideParamIdx &&
-            gnaOp.Parameters[PoolWinParamIdx]!= nullptr &&
+            gnaOp.Parameters != nullptr &&
+            gnaOp.Parameters[PoolWinParamIdx] != nullptr &&
             gnaOp.Parameters[PoolStrideParamIdx] != nullptr) {
             IE_ASSERT(gnaOp.Operands[OutOpIdx] != nullptr);
             IE_ASSERT(gnaOp.Operands[FilterOpIdx] != nullptr);

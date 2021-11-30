@@ -15,7 +15,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 using TestEngine = test::IE_CPU_Engine;
 
 std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<FuzzyOpTestParam>& obj) {

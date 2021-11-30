@@ -8,42 +8,42 @@
 #include <string>
 
 #include "frontend_manager_defs.hpp"
-#include "ngraph/check.hpp"
+#include "openvino/core/except.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
-class FRONTEND_API GeneralFailure : public CheckFailure {
+class FRONTEND_API GeneralFailure : public AssertFailure {
 public:
     GeneralFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
-        : CheckFailure(check_loc_info, "FrontEnd API failed with GeneralFailure: " + context, explanation) {}
+        : AssertFailure(check_loc_info, "FrontEnd API failed with GeneralFailure: " + context, explanation) {}
 };
 
-class FRONTEND_API InitializationFailure : public CheckFailure {
+class FRONTEND_API InitializationFailure : public AssertFailure {
 public:
     InitializationFailure(const CheckLocInfo& check_loc_info,
                           const std::string& context,
                           const std::string& explanation)
-        : CheckFailure(check_loc_info, "FrontEnd API failed with InitializationFailure: " + context, explanation) {}
+        : AssertFailure(check_loc_info, "FrontEnd API failed with InitializationFailure: " + context, explanation) {}
 };
 
-class FRONTEND_API OpValidationFailure : public CheckFailure {
+class FRONTEND_API OpValidationFailure : public AssertFailure {
 public:
     OpValidationFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
-        : CheckFailure(check_loc_info, "FrontEnd API failed with OpValidationFailure: " + context, explanation) {}
+        : AssertFailure(check_loc_info, "FrontEnd API failed with OpValidationFailure: " + context, explanation) {}
 };
 
-class FRONTEND_API OpConversionFailure : public CheckFailure {
+class FRONTEND_API OpConversionFailure : public AssertFailure {
 public:
     OpConversionFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
-        : CheckFailure(check_loc_info, "FrontEnd API failed with OpConversionFailure: " + context, explanation) {}
+        : AssertFailure(check_loc_info, "FrontEnd API failed with OpConversionFailure: " + context, explanation) {}
 };
 
-class FRONTEND_API NotImplementedFailure : public CheckFailure {
+class FRONTEND_API NotImplementedFailure : public AssertFailure {
 public:
     NotImplementedFailure(const CheckLocInfo& check_loc_info,
                           const std::string& context,
                           const std::string& explanation)
-        : CheckFailure(check_loc_info, "FrontEnd API failed with NotImplementedFailure: " + context, explanation) {}
+        : AssertFailure(check_loc_info, "FrontEnd API failed with NotImplementedFailure: " + context, explanation) {}
 };
 
 /// \brief Macro to check whether a boolean condition holds.
@@ -51,39 +51,39 @@ public:
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
-/// \throws ::ngraph::frontend::GeneralFailure if `cond` is false.
-#define FRONT_END_GENERAL_CHECK(...) NGRAPH_CHECK_HELPER(::ngraph::frontend::GeneralFailure, "", __VA_ARGS__)
+/// \throws ::ov::frontend::GeneralFailure if `cond` is false.
+#define FRONT_END_GENERAL_CHECK(...) OPENVINO_ASSERT_HELPER(::ov::frontend::GeneralFailure, "", __VA_ARGS__)
 
 /// \brief Macro to check whether a boolean condition holds.
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
-/// \throws ::ngraph::frontend::InitializationFailure if `cond` is false.
+/// \throws ::ov::frontend::InitializationFailure if `cond` is false.
 #define FRONT_END_INITIALIZATION_CHECK(...) \
-    NGRAPH_CHECK_HELPER(::ngraph::frontend::InitializationFailure, "", __VA_ARGS__)
+    OPENVINO_ASSERT_HELPER(::ov::frontend::InitializationFailure, "", __VA_ARGS__)
 
 /// \brief Macro to check whether a boolean condition holds.
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
-/// \throws ::ngraph::frontend::OpConversionFailure if `cond` is false.
-#define FRONT_END_OP_CONVERSION_CHECK(...) NGRAPH_CHECK_HELPER(::ngraph::frontend::OpConversionFailure, "", __VA_ARGS__)
+/// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
+#define FRONT_END_OP_CONVERSION_CHECK(...) OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", __VA_ARGS__)
 
 /// \brief Assert macro.
 /// \param NAME Name of the function that is not implemented
-/// \throws ::ngraph::frontend::NotImplementedFailure
-#define FRONT_END_NOT_IMPLEMENTED(NAME)                            \
-    NGRAPH_CHECK_HELPER(::ngraph::frontend::NotImplementedFailure, \
-                        "",                                        \
-                        false,                                     \
-                        #NAME " is not implemented for this FrontEnd class")
+/// \throws ::ov::frontend::NotImplementedFailure
+#define FRONT_END_NOT_IMPLEMENTED(NAME)                           \
+    OPENVINO_ASSERT_HELPER(::ov::frontend::NotImplementedFailure, \
+                           "",                                    \
+                           false,                                 \
+                           #NAME " is not implemented for this FrontEnd class")
 
 /// \brief Assert macro.
 /// \param MSG Error message
-/// \throws ::ngraph::frontend::GeneralFailure
+/// \throws ::ov::frontend::GeneralFailure
 #define FRONT_END_THROW(MSG) FRONT_END_GENERAL_CHECK(false, MSG)
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

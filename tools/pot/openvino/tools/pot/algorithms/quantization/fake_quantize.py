@@ -441,7 +441,33 @@ def unify_fq_scales(model, config):
 def create_renamed_layers_mapping(model, stats_layout):
     changed_names_map = {}
     for layer_name in stats_layout:
-        node = get_node_by_name(model, layer_name)
+        node_name = layer_name
+        port_id = None
+        if isinstance(layer_name, tuple):
+            node_name, port_id = layer_name
+        node = get_node_by_name(model, node_name)
         if node is not None and 'orig_node_name' in node:
-            changed_names_map[node.name] = node['orig_node_name']
+            name_change_to = node['orig_node_name'] if port_id is None else (node['orig_node_name'], port_id)
+            changed_names_map[layer_name] = name_change_to
     return changed_names_map
+
+
+def get_num_levels(x: np.ndarray) -> int:
+    """
+        Calculates the number of discret levels of the values
+        in the input NumPy tensor x
+        :param x: the input tensor
+        :return the number of discret value levels in the input tensor x
+    """
+    NUM_BINS = 256
+    x = x.flatten()
+    hist, _ = np.histogram(x, NUM_BINS)
+    non_empty_bins = [i for i, v in enumerate(hist) if v > 0]
+    deltas = [non_empty_bins[i]-non_empty_bins[i-1] for i in range(1, len(non_empty_bins))]
+    if deltas == []:
+        return 0
+    d = min(deltas)
+    if d == 1:
+        return -1
+
+    return round(NUM_BINS / d)

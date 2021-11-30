@@ -8,160 +8,124 @@ from sys import platform
 from pathlib import Path
 
 import openvino.opset8 as ov
-from openvino import Core, IENetwork, ExecutableNetwork, blob_from_file
-from openvino.impl import Function, Shape, Type
-from openvino.impl.op import Parameter
-from openvino import TensorDesc, Blob
+from openvino import Function, Core, ExecutableNetwork, Tensor, tensor_from_file, compile_model
 
-from ..conftest import model_path, model_onnx_path, plugins_path
+from ..conftest import model_path, model_onnx_path, plugins_path, read_image
+
 
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
-def test_blobs():
-    input_shape = [1, 3, 4, 4]
-    input_data_float32 = (np.random.rand(*input_shape) - 0.5).astype(np.float32)
+def test_compact_api_xml():
+    img = read_image()
 
-    td = TensorDesc("FP32", input_shape, "NCHW")
-
-    input_blob_float32 = Blob(td, input_data_float32)
-
-    assert np.all(np.equal(input_blob_float32.buffer, input_data_float32))
-
-    input_data_int16 = (np.random.rand(*input_shape) + 0.5).astype(np.int16)
-
-    td = TensorDesc("I16", input_shape, "NCHW")
-
-    input_blob_i16 = Blob(td, input_data_int16)
-
-    assert np.all(np.equal(input_blob_i16.buffer, input_data_int16))
+    model = compile_model(test_net_xml)
+    assert(isinstance(model, ExecutableNetwork))
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results) == 2
 
 
-@pytest.mark.skip(reason="Fix")
-def test_ie_core_class():
+def test_compact_api_onnx():
+    img = read_image()
+
+    model = compile_model(test_net_onnx)
+    assert(isinstance(model, ExecutableNetwork))
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results) == 2
+
+
+def test_core_class():
     input_shape = [1, 3, 4, 4]
     param = ov.parameter(input_shape, np.float32, name="parameter")
     relu = ov.relu(param, name="relu")
     func = Function([relu], [param], "test")
     func.get_ordered_ops()[2].friendly_name = "friendly"
 
-    cnn_network = IENetwork(func)
+    core = Core()
+    model = core.compile_model(func, "CPU", {})
 
-    ie_core = Core()
-    ie_core.set_config({}, device_name="CPU")
-    executable_network = ie_core.load_network(cnn_network, "CPU", {})
-
-    td = TensorDesc("FP32", input_shape, "NCHW")
-
-    # from IPython import embed; embed()
-
-    request = executable_network.create_infer_request()
-    input_data = np.random.rand(*input_shape) - 0.5
+    request = model.create_infer_request()
+    input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
 
     expected_output = np.maximum(0.0, input_data)
 
-    input_blob = Blob(td, input_data)
+    input_tensor = Tensor(input_data)
+    results = request.infer({"parameter": input_tensor})
 
-    request.set_input({"parameter": input_blob})
-    request.infer()
-
-    result = request.get_blob("relu").buffer
-
-    assert np.allclose(result, expected_output)
+    assert np.allclose(results, expected_output)
 
 
-def test_load_network(device):
+def test_compile_model(device):
     ie = Core()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.load_network(net, device)
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.compile_model(func, device)
     assert isinstance(exec_net, ExecutableNetwork)
 
 
-def test_read_network():
-    ie_core = Core()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    assert isinstance(net, IENetwork)
+def test_read_model_from_ir():
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(func, Function)
 
-    net = ie_core.read_network(model=test_net_xml)
-    assert isinstance(net, IENetwork)
+    func = core.read_model(model=test_net_xml)
+    assert isinstance(func, Function)
 
 
-def test_read_network_from_blob():
-    ie_core = Core()
+def test_read_model_from_tensor():
+    core = Core()
     model = open(test_net_xml).read()
-    blob = blob_from_file(test_net_bin)
-    net = ie_core.read_network(model=model, blob=blob)
-    assert isinstance(net, IENetwork)
+    tensor = tensor_from_file(test_net_bin)
+    func = core.read_model(model=model, weights=tensor)
+    assert isinstance(func, Function)
 
 
-def test_read_network_from_blob_valid():
-    ie_core = Core()
-    model = open(test_net_xml).read()
-    blob = blob_from_file(test_net_bin)
-    net = ie_core.read_network(model=model, blob=blob)
-    ref_net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.name == ref_net.name
-    assert net.batch_size == ref_net.batch_size
-    ii_net = net.input_info
-    ii_net2 = ref_net.input_info
-    o_net = net.outputs
-    o_net2 = ref_net.outputs
-    assert ii_net.keys() == ii_net2.keys()
-    assert o_net.keys() == o_net2.keys()
+def test_read_model_as_path():
+    core = Core()
+    func = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
+    assert isinstance(func, Function)
+
+    func = core.read_model(model=test_net_xml, weights=Path(test_net_bin))
+    assert isinstance(func, Function)
+
+    func = core.read_model(model=Path(test_net_xml))
+    assert isinstance(func, Function)
 
 
-def test_read_network_as_path():
-    ie_core = Core()
-    net = ie_core.read_network(model=Path(test_net_xml), weights=Path(test_net_bin))
-    assert isinstance(net, IENetwork)
-
-    net = ie_core.read_network(model=test_net_xml, weights=Path(test_net_bin))
-    assert isinstance(net, IENetwork)
-
-    net = ie_core.read_network(model=Path(test_net_xml))
-    assert isinstance(net, IENetwork)
+def test_read_model_from_onnx():
+    core = Core()
+    func = core.read_model(model=test_net_onnx)
+    assert isinstance(func, Function)
 
 
-def test_read_network_from_onnx():
-    ie_core = Core()
-    net = ie_core.read_network(model=test_net_onnx)
-    assert isinstance(net, IENetwork)
-
-
-def test_read_network_from_onnx_as_path():
-    ie_core = Core()
-    net = ie_core.read_network(model=Path(test_net_onnx))
-    assert isinstance(net, IENetwork)
+def test_read_model_from_onnx_as_path():
+    core = Core()
+    func = core.read_model(model=Path(test_net_onnx))
+    assert isinstance(func, Function)
 
 
 def test_read_net_from_buffer():
-    ie_core = Core()
+    core = Core()
     with open(test_net_bin, "rb") as f:
         bin = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    net = ie_core.read_network(model=xml, weights=bin)
-    assert isinstance(net, IENetwork)
+    func = core.read_model(model=xml, weights=bin)
+    assert isinstance(func, Function)
 
 
 def test_net_from_buffer_valid():
-    ie_core = Core()
+    core = Core()
     with open(test_net_bin, "rb") as f:
         bin = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    net = ie_core.read_network(model=xml, weights=bin)
-    ref_net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.name == ref_net.name
-    assert net.batch_size == ref_net.batch_size
-    ii_net = net.input_info
-    ii_net2 = ref_net.input_info
-    o_net = net.outputs
-    o_net2 = ref_net.outputs
-    assert ii_net.keys() == ii_net2.keys()
-    assert o_net.keys() == o_net2.keys()
+    func = core.read_model(model=xml, weights=bin)
+    ref_func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert func.get_parameters() == ref_func.get_parameters()
+    assert func.get_results() == ref_func.get_results()
+    assert func.get_ordered_ops() == ref_func.get_ordered_ops()
 
 
 def test_get_version(device):
@@ -230,28 +194,29 @@ def test_get_metric_str():
                                    f"metric must be string but {type(param)} is returned"
 
 
-def test_query_network(device):
+def test_query_model(device):
     ie = Core()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    query_res = ie.query_network(network=net, device_name=device)
-    func_net = net.get_function()
-    ops_net = func_net.get_ordered_ops()
-    ops_net_names = [op.friendly_name for op in ops_net]
-    assert [key for key in query_res.keys() if key not in ops_net_names] == [], \
-        "Not all network layers present in query_network results"
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    query_res = ie.query_model(model=func, device_name=device)
+    ops_func = func.get_ordered_ops()
+    ops_func_names = [op.friendly_name for op in ops_func]
+    assert [key for key in query_res.keys() if key not in ops_func_names] == [], \
+        "Not all network layers present in query_model results"
     assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
 
 
+@pytest.mark.dynamic_library
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
     ie = Core()
     ie.register_plugin("MKLDNNPlugin", "BLA")
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.load_network(net, "BLA")
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.compile_model(func, "BLA")
     assert isinstance(exec_net, ExecutableNetwork), \
         "Cannot load the network to the registered plugin with name 'BLA'"
 
 
+@pytest.mark.dynamic_library
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugins():
     ie = Core()
@@ -262,21 +227,157 @@ def test_register_plugins():
     elif platform == "win32":
         ie.register_plugins(plugins_win_xml)
 
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.load_network(net, "CUSTOM")
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.compile_model(func, "CUSTOM")
     assert isinstance(exec_net,
                       ExecutableNetwork), "Cannot load the network to " \
                                           "the registered plugin with name 'CUSTOM' " \
-                                          "registred in the XML file"
+                                          "registered in the XML file"
 
 
-def test_create_IENetwork_from_nGraph():
-    element_type = Type.f32
-    param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = ov.relu(param)
-    func = Function([relu], [param], "test")
-    cnnNetwork = IENetwork(func)
-    assert cnnNetwork is not None
-    func2 = cnnNetwork.get_function()
-    assert func2 is not None
-    assert len(func2.get_ops()) == 3
+@pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
+def test_unregister_plugin(device):
+    ie = Core()
+    ie.unload_plugin(device)
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    with pytest.raises(RuntimeError) as e:
+        ie.load_network(func, device)
+    assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
+
+
+@pytest.mark.skip(reason="dlSym cannot locate method 'create_extensions': libtemplate_extension.so")
+@pytest.mark.template_extension
+def test_add_extension(device):
+    model = bytes(b"""<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="2,2,2,1"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="operation" id="1" type="Template" version="custom_opset">
+            <data  add="11"/>
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>""")
+
+    core = Core()
+    if platform == "win32":
+        core.add_extension(library_path="template_extension.dll")
+    else:
+        core.add_extension(library_path="libtemplate_extension.so")
+    func = core.read_model(model=model, init_from_buffer=True)
+    assert isinstance(func, Function)
+
+    # input_blob = next(iter(network.input_info))
+    # n, c, h, w = network.input_info[input_blob].input_data.shape
+
+    # input_values = np.ndarray(buffer=np.array([1, 2, 3, 4, 5, 6, 7, 8]), shape = (n, c, h, w), dtype=int)
+    # expected = np.ndarray(buffer=np.array([12, 13, 14, 15, 16, 17, 18, 19]),
+    # shape = (n, c, h, w), dtype=int)
+    #
+    # exec_network = core.compile_model(func, device)
+    # computed = exec_network.infer_new_request(inputs={input_blob : input_values})
+    # output_blob = next(iter(network.outputs))
+    # assert np.allclose(expected, computed[output_blob], atol=1e-2, rtol=1e-2)
+
+
+def test_read_model_from_buffer_no_weights(device):
+    model = bytes(b"""<net name="add_model" version="10">
+    <layers>
+    <layer id="0" name="x" type="Parameter" version="opset1">
+        <data element_type="f32" shape="3,4,5"/>
+        <output>
+            <port id="0" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="1" name="y" type="Parameter" version="opset1">
+        <data element_type="f32" shape="3,4,5"/>
+        <output>
+            <port id="0" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="2" name="sum" type="Add" version="opset1">
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+            <port id="1">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </input>
+        <output>
+            <port id="2" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="3" name="sum/sink_port_0" type="Result" version="opset1">
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </input>
+    </layer>
+    </layers>
+    <edges>
+    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+    <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+    <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
+</net>""")
+    core = Core()
+    func = core.read_model(model=model)
+    assert isinstance(func, Function)

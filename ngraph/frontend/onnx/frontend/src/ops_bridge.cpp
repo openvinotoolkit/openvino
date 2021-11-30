@@ -31,6 +31,7 @@
 #include "op/cast_like.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
+#include "op/com.microsoft/attention.hpp"
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
@@ -116,6 +117,8 @@
 #include "op/qlinear_conv.hpp"
 #include "op/qlinear_matmul.hpp"
 #include "op/quantize_linear.hpp"
+#include "op/random_normal.hpp"
+#include "op/random_normal_like.hpp"
 #include "op/random_uniform.hpp"
 #include "op/random_uniform_like.hpp"
 #include "op/range.hpp"
@@ -359,6 +362,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
     REGISTER_OPERATOR("MatMul", 1, matmul);
     REGISTER_OPERATOR("MaxPool", 1, max_pool);
+    REGISTER_OPERATOR("MaxPool", 8, max_pool);
     REGISTER_OPERATOR("Max", 1, max);
     REGISTER_OPERATOR("Max", 8, max);
     REGISTER_OPERATOR("Mean", 1, mean);
@@ -384,6 +388,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);
+    REGISTER_OPERATOR("RandomNormal", 1, random_normal);
+    REGISTER_OPERATOR("RandomNormalLike", 1, random_normal_like);
     REGISTER_OPERATOR("RandomUniform", 1, random_uniform);
     REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
@@ -485,6 +491,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBoxClustered", 1, prior_box_clustered);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
 
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);

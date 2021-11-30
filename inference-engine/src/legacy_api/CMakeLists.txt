@@ -26,7 +26,7 @@ endif()
 
 file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
 
-add_library(${TARGET_NAME}_obj OBJECT
+add_library(${TARGET_NAME}_obj OBJECT EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -39,7 +39,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src # For CNNNetworkNGraphImpl
+    $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src # For CNNNetworkNGraphImpl
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
@@ -53,7 +53,7 @@ add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create library
 
-add_library(${TARGET_NAME}
+add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
@@ -64,7 +64,8 @@ target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
                                      PRIVATE pugixml::static openvino::itt
                                              ngraph inference_engine_transformations)
 
-target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -79,6 +80,10 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 # install
 
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+else()
+    ov_install_static_lib(${TARGET_NAME} core)
+endif()

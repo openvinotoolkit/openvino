@@ -787,7 +787,7 @@ private:
     }
 };
 
-std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> MKLDNNEltwiseNode::initializers = {
+const std::map<const ngraph::DiscreteTypeInfo, MKLDNNEltwiseNode::Initializer> MKLDNNEltwiseNode::initializers = {
     {ngraph::op::v1::Add::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseAdd;
     }},
@@ -985,7 +985,7 @@ MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, co
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    initializers[op->get_type_info()](op, *this);
+    initializers.at(op->get_type_info())(op, *this);
 }
 
 size_t MKLDNNEltwiseNode::getOpInputsNum() const {
@@ -1181,7 +1181,20 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
             portConfig.constant = false;
 
-            portConfig.desc = createMemoryDesc(getInputShapeAtPort(i), inputPrecisions[i], offset);
+            const auto &srcShape = getInputShapeAtPort(i);
+            portConfig.desc = createMemoryDesc(srcShape, inputPrecisions[i], offset);
+            if (!isDynamicNode() && srcShape.getDims()[0] == 1) {
+                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                auto strides = denseDesc->getStrides();
+                strides[0] = Shape::UNDEFINED_DIM;
+                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                                                                         denseDesc->getShape(),
+                                                                         denseDesc->getBlockDims(),
+                                                                         denseDesc->getOrder(),
+                                                                         denseDesc->getOffsetPadding(),
+                                                                         denseDesc->getOffsetPaddingToData(),
+                                                                         strides);
+            }
 
             config.inConfs.push_back(portConfig);
         }
@@ -1190,7 +1203,20 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         portConfig.inPlace = -1;
         portConfig.constant = false;
 
-        portConfig.desc = createMemoryDesc(getOutputShapeAtPort(0), outputPrecision, offset);
+        const auto &dstShape = getOutputShapeAtPort(0);
+        portConfig.desc = createMemoryDesc(dstShape, outputPrecision, offset);
+        if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
+            const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+            auto strides = denseDesc->getStrides();
+            strides[0] = Shape::UNDEFINED_DIM;
+            portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                                                                     denseDesc->getShape(),
+                                                                     denseDesc->getBlockDims(),
+                                                                     denseDesc->getOrder(),
+                                                                     denseDesc->getOffsetPadding(),
+                                                                     denseDesc->getOffsetPaddingToData(),
+                                                                     strides);
+        }
 
         config.outConfs.push_back(portConfig);
 

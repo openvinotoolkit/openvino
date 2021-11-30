@@ -10,6 +10,7 @@
 #include "cldnn_custom_layer.h"
 #include <ie_performance_hints.hpp>
 #include <cldnn/graph/network.hpp>
+#include <threading/ie_cpu_streams_executor.hpp>
 
 namespace CLDNNPlugin {
 
@@ -32,7 +33,14 @@ struct Config {
                                           graph_dumps_dir(""),
                                           sources_dumps_dir(""),
                                           kernels_cache_dir(""),
-                                          n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())),
+                                          task_exec_config({"GPU plugin internal task executor",                        // name
+                                                    std::max(1, static_cast<int>(std::thread::hardware_concurrency())), // # of streams
+                                                    1,                                                                  // # of threads per streams
+                                                    InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE, // thread binding type
+                                                    1,                                                                  // thread binding step
+                                                    0,                                                                  // thread binding offset
+                                                    1,                                                                  // # of threads
+                                                    InferenceEngine::IStreamsExecutor::Config::ANY}),                   // preferred core type
                                           enable_loop_unrolling(true) {
         adjustKeyMapValues();
     }
@@ -58,7 +66,8 @@ struct Config {
     std::string graph_dumps_dir;
     std::string sources_dumps_dir;
     std::string kernels_cache_dir;
-    size_t n_threads;
+    InferenceEngine::IStreamsExecutor::Config task_exec_config;
+
     bool enable_loop_unrolling;
 
     std::map<std::string, std::string> key_config_map;

@@ -220,8 +220,10 @@ bool evaluate_maxpool(const HostTensorPtr& data,
     switch (indices->get_element_type()) {
     case element::Type_t::i32: {
         switch (data->get_element_type()) {
+            EVAL_MAX_POOL_8(i8, i32);
             EVAL_MAX_POOL_8(i32, i32);
             EVAL_MAX_POOL_8(i64, i32);
+            EVAL_MAX_POOL_8(u8, i32);
             EVAL_MAX_POOL_8(u32, i32);
             EVAL_MAX_POOL_8(u64, i32);
             EVAL_MAX_POOL_8(f16, i32);
@@ -233,8 +235,10 @@ bool evaluate_maxpool(const HostTensorPtr& data,
     } break;
     case element::Type_t::i64: {
         switch (data->get_element_type()) {
+            EVAL_MAX_POOL_8(i8, i64);
             EVAL_MAX_POOL_8(i32, i64);
             EVAL_MAX_POOL_8(i64, i64);
+            EVAL_MAX_POOL_8(u8, i64);
             EVAL_MAX_POOL_8(u32, i64);
             EVAL_MAX_POOL_8(u64, i64);
             EVAL_MAX_POOL_8(f16, i64);
@@ -319,8 +323,10 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
 bool op::v8::MaxPool::has_evaluate() const {
     NGRAPH_OP_SCOPE(v8_MaxPool_has_evaluate);
     switch (get_input_element_type(0)) {
+    case ngraph::element::i8:
     case ngraph::element::i32:
     case ngraph::element::i64:
+    case ngraph::element::u8:
     case ngraph::element::u32:
     case ngraph::element::u64:
     case ngraph::element::f16:

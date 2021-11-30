@@ -475,6 +475,13 @@ void network::allocate_primitives() {
     for (auto node : _program->get_processing_order()) {
         nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
     }
+
+    std::sort(nodes_to_allocate.begin(),
+              nodes_to_allocate.end(),
+              [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
+                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+              });
+
     for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
     }
@@ -489,6 +496,9 @@ void network::allocate_primitives() {
                     auto& eltw_in = node->get_dependency(fused_op.dep_start_idx);
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = node->get_output_layout();
+
+                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                        continue;
 
                     if (eltw_in_layout.size == out_layout.size &&
                         eltw_in_layout.format == out_layout.format &&
@@ -530,6 +540,11 @@ void network::allocate_primitives() {
                 }
             }
         }
+    }
+    // allocate intermediate buffers
+    for (auto const& node : _program->get_processing_order()) {
+        auto prim = _primitives[node->id()];
+        prim->allocate_internal_buffers();
     }
 }
 
@@ -603,7 +618,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Execute " << inst->id() << std::endl;
+            GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
+                           << inst->output_memory().get_allocation_type() << std::endl;
         }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed

@@ -70,6 +70,7 @@ public:
         }
         m_cv.notify_one();
     }
+    std::mutex& get_mutex() { return m_infer_mutex; }
 
     bool use_external_queue() const;
 

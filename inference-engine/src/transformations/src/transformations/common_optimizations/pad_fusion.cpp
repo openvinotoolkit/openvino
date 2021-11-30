@@ -132,48 +132,6 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::PadFusionMaxPool, "PadFusionMaxPool", 0);
-
-pass::PadFusionMaxPool::PadFusionMaxPool() {
-    MATCHER_SCOPE(PadFusionMaxPool);
-    auto data_pattern = pattern::any_input();
-    auto pads_begin_pattern = pattern::wrap_type<opset5::Constant>();
-    auto pads_end_pattern = pattern::wrap_type<opset5::Constant>();
-    auto pad_value_pattern = pattern::wrap_type<opset5::Constant>();
-    auto pad_node_pattern = pattern::wrap_type<opset5::Pad>({data_pattern, pads_begin_pattern,
-                                                             pads_end_pattern, pad_value_pattern},
-                                                             pattern::consumers_count(1));
-    auto max_pool_pattern = pattern::wrap_type<opset5::MaxPool>({pad_node_pattern});
-
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto pattern_map = m.get_pattern_value_map();
-        auto data = pattern_map[data_pattern];
-        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node_shared_ptr());
-        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node_shared_ptr());
-        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
-        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto max_pool = std::dynamic_pointer_cast<opset5::MaxPool>(pattern_map[max_pool_pattern].get_node_shared_ptr());
-        if (!can_be_fused(pad, max_pool, pad_value_const, pads_begin, pads_end))
-            return false;
-
-        Shape new_pads_begin, new_pads_end;
-        std::tie(new_pads_begin, new_pads_end) = new_pooling_pad_values(pads_begin, pads_end, max_pool);
-        auto new_max_pool = std::make_shared<opset5::MaxPool>(data, max_pool->get_strides(),
-                                                              new_pads_begin, new_pads_end,
-                                                              max_pool->get_kernel(), max_pool->get_rounding_type(),
-                                                              op::PadType::EXPLICIT);
-        new_max_pool->set_friendly_name(max_pool->get_friendly_name());
-
-        copy_runtime_info({pad, max_pool}, new_max_pool);
-        replace_node(max_pool, new_max_pool);
-
-        return true;
-    };
-
-    auto m = std::make_shared<pattern::Matcher>(max_pool_pattern, matcher_name);
-    this->register_matcher(m, callback);
-}
-
 template <typename T>
 static std::tuple<CoordinateDiff, CoordinateDiff> new_conv_pad_values(const std::shared_ptr<opset5::Constant>& pads_begin,
                                                                       const std::shared_ptr<opset5::Constant>& pads_end,

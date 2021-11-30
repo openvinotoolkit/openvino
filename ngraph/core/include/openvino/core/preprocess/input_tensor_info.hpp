@@ -18,7 +18,7 @@ namespace preprocess {
 ///
 /// \code{.cpp}
 /// auto proc =
-/// PrePostProcessor()
+/// PrePostProcessor(function)
 ///     .input(InputInfo()
 ///            .tensor(InputTensorInfo()
 ///                    .set_element_type(ov::element::u8))

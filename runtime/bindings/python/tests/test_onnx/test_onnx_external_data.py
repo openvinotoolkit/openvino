@@ -12,9 +12,7 @@ from tests.runtime import get_runtime
 def test_import_onnx_with_external_data():
     model_path = os.path.join(os.path.dirname(__file__), "models/external_data.onnx")
     ie = Core()
-    network = ie.read_network(model=model_path)
-
-    ng_function = network.get_function()
+    func = ie.read_model(model=model_path)
 
     dtype = np.float32
     value_a = np.array([1.0, 3.0, 5.0], dtype=dtype)
@@ -22,6 +20,6 @@ def test_import_onnx_with_external_data():
     # third input [5.0, 1.0, 3.0] read from external file
 
     runtime = get_runtime()
-    computation = runtime.computation(ng_function)
+    computation = runtime.computation(func)
     result = computation(value_a, value_b)
     assert np.allclose(result, np.array([3.0, 3.0, 3.0], dtype=dtype))

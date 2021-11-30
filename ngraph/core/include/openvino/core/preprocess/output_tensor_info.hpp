@@ -16,13 +16,11 @@ namespace preprocess {
 /// 'element_type') according to application's data and specify appropriate conversions in post-processing steps
 ///
 /// \code{.cpp}
-/// auto proc =
-/// PrePostProcessor()
-///     .output(OutputInfo()
-///            .postprocess(<add steps + conversion to user's output element type>)
-///            .tensor(OutputTensorInfo()
-///                    .set_element_type(ov::element::u8))
-///     );
+///     auto proc = PrePostProcessor(function);
+///     auto& output = proc.output();
+///     output.postprocess().<add steps + conversion to user's output element type>;
+///     output.tensor().set_element_type(ov::element::u8);
+///     function = proc.build();
 /// \endcode
 class OPENVINO_API OutputTensorInfo final {
     class OutputTensorInfoImpl;
@@ -31,6 +29,8 @@ class OPENVINO_API OutputTensorInfo final {
 
 public:
     /// \brief Default empty constructor
+    ///
+    /// \todo Consider making this private to not allow user to create standalone object
     OutputTensorInfo();
 
     /// \brief Default move constructor

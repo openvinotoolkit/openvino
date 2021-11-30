@@ -41,7 +41,7 @@ public:
     /// - partial layout specialization:
     ///   - "NC?" defines 3 dimensional layout, first two NC, 3rd one is not defined
     ///   - "N...C" defines layout with dynamic rank where 1st dimension is N, last one is C
-    ///   - "N...C" defines layout with dynamic rank where first two are NC, others are not
+    ///   - "NC..." defines layout with dynamic rank where first two are NC, others are not
     ///   defined
     /// - only order of dimensions "adbc" (0312)
     /// - Advanced syntax can be used for multi-character names like "[N,C,H,W,...,CustomName]"
@@ -147,14 +147,11 @@ OPENVINO_API std::int64_t width_idx(const Layout& layout);
 template <>
 class OPENVINO_API AttributeAdapter<Layout> : public ValueAccessor<std::string> {
 public:
+    OPENVINO_RTTI("AttributeAdapter<Layout>");
     explicit AttributeAdapter(Layout& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Layout>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
     explicit operator Layout&() {
         return m_ref;
     }

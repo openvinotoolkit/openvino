@@ -14,7 +14,7 @@ static const char FileSeparator[] = "/";
 static const char PathSeparator[] = ":";
 #endif  // _WIN32
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 /// Plugin library handle wrapper. On destruction calls internal function which frees
 /// library handle
@@ -51,4 +51,4 @@ struct PluginData {
 std::vector<PluginData> load_plugins(const std::string& dir_name);
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

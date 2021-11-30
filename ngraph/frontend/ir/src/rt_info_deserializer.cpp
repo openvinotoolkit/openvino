@@ -9,12 +9,12 @@
 
 using namespace ov;
 
-void RTInfoDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
+void RTInfoDeserializer::on_adapter(const std::string& name, ValueAccessor<void>& adapter) {
     check_attribute_name(name);
     std::string val;
     if (!getStrAttribute(m_node, name, val))
         return;
-    if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::set<std::string>>>(&adapter)) {
+    if (auto a = as_type<AttributeAdapter<std::set<std::string>>>(&adapter)) {
         std::set<std::string> ss;
         str_to_container(val, ss);
         a->set(ss);

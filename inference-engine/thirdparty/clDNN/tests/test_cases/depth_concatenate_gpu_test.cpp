@@ -117,7 +117,7 @@ void concat_basic_with_reorder() {
     auto& engine = get_test_engine();
     auto input1 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 1, 1}});
     auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 3, 1, 1}});
-    auto outs = {3.0f, 4.0f, 0.0f, 1.0f, 1.0f, 4.0f, -4.0f, -8.0f, 0.0f, 0.0f};
+    auto outs = {2.0f, 3.0f, 0.0f, 1.0f, 1.0f, 4.0f, -4.0f, -7.0f, 0.0f, 0.0f};
     set_values(input1, {2.5f, 3.7f, 0.2f, 1.4f});
     set_values(input2, {1.0f, 4.1f, -4.3f, -7.5f, 0.0f, -0.2f});
 

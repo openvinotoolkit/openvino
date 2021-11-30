@@ -35,7 +35,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLU
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inference_engine_plugin_api
-                                             inference_engine_legacy inference_engine pugixml::static openvino::itt)
+                                             inference_engine_legacy pugixml::static openvino::itt)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -47,11 +47,15 @@ endif()
 
 if(NOT BUILD_SHARED_LIBS)
     target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 endif()
 
 # code style
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+# Install rules
 
 # for ieFuncTests
 install(TARGETS ${TARGET_NAME}
@@ -65,3 +69,5 @@ else()
     install(TARGETS ${TARGET_NAME}
             LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
+
+ov_install_static_lib(${TARGET_NAME} core)

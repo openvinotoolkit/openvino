@@ -21,6 +21,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include "multi_itt.hpp"
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
@@ -159,7 +160,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = strDevices;
 
     std::vector<DeviceInformation> needLoadDevices;
-
+    std::string profilingTask = "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode";
     // check if have cpu device
     const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
                                       [=](const DeviceInformation& d)->bool{return d.deviceName.find("CPU") != std::string::npos;});
@@ -168,6 +169,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _config.insert(_cpuDevice.config.begin(), _cpuDevice.config.end());
         needLoadDevices.push_back(_cpuDevice);
         _cpuFuture = _cpuPromise.get_future();
+        profilingTask += _cpuDevice.deviceName;
     }
 
     // get accelerator device, like GPU
@@ -179,8 +181,9 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _config.insert(_acceleratorDevice.config.begin(), _acceleratorDevice.config.end());
         needLoadDevices.push_back(_acceleratorDevice);
         _acceleratorFuture = _acceleratorPromise.get_future();
+        profilingTask += _acceleratorDevice.deviceName;
     }
-
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, openvino::itt::handle(profilingTask));
     if (needLoadDevices.size() == 0) {
         IE_THROW() << "No device set";
     }
@@ -191,7 +194,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
             static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-            1 /*single thread per stream*/,
+            0 /*default threads per stream, workaround for ticket 62376*/,
             IStreamsExecutor::ThreadBindingType::NONE});
 
     for (auto& p : needLoadDevices) {
@@ -254,6 +257,7 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
 void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
     // Maybe different API will call this function, so add call once here
     // for every MultiDeviceExecutableNetwork instance
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::WaitActualNetworkReady");
     std::call_once(_oc, [&] () {
             if (_acceleratorFuture.valid()) {
                 _networkActualNeeded = _acceleratorFuture.get();
@@ -350,7 +354,6 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
         WaitActualNetworkReady();
         return _networkActualNeeded->GetContext();
     }
-
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_mutex);
         return _devicePriorities;
@@ -380,6 +383,13 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
 
     if (_workModeIsAUTO) {
+        if (!_networkFirstReady && _networkActualNeeded) {
+            auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
+            if (num < dev_requests.size()) {
+                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            }
+        }
+        // if user creates more infer request than the device optimal value, fall back to default memory
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
     }
 
@@ -403,6 +413,13 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
 
     if (_workModeIsAUTO) {
+        if (!_networkFirstReady && _networkActualNeeded) {
+            auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
+            if (num < dev_requests.size()) {
+                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            }
+        }
+        // if user creates more infer request than the device optimal value, fall back to default memory
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
     }
 

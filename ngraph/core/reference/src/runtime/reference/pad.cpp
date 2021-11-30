@@ -95,7 +95,7 @@ struct ConstPad : PadBase {
         for (size_t i = 0; i != coord.size(); ++i) {
             const auto sc = static_cast<std::ptrdiff_t>(out_coord[i]);
 
-            const auto cc = sc - padding_begin[i];
+            const auto cc = sc - padding_begin.at(i);
             if (0 <= cc && cc < static_cast<std::ptrdiff_t>(data_shape[i])) {
                 coord[i] = cc;
             } else {
@@ -115,7 +115,7 @@ struct EdgePad : PadBase {
         for (size_t i = 0; i != coord.size(); ++i) {
             const auto sc = static_cast<std::ptrdiff_t>(out_coord[i]);
 
-            const auto cc = sc - padding_begin[i];
+            const auto cc = sc - padding_begin.at(i);
             coord[i] = clamp<std::ptrdiff_t>(cc, 0, data_shape[i] - 1);
         }
         return std::addressof(coord);
@@ -142,7 +142,7 @@ struct SymmetricAndReflectPad : PadBase {
             const auto shape_dim = static_cast<std::ptrdiff_t>(data_shape[i]);
             const auto sc = static_cast<std::ptrdiff_t>(out_coord[i]);
 
-            const auto cc = sc - padding_begin[i];
+            const auto cc = sc - padding_begin.at(i);
             const auto rollfront_cc = cc >= 0 ? cc : -cc - axis_correction;
             const auto rollback_cc = shape_dim - (rollfront_cc + 2 - shape_dim) + axis_correction;
             coord[i] = rollfront_cc < shape_dim ? rollfront_cc : rollback_cc;
@@ -154,9 +154,9 @@ struct SymmetricAndReflectPad : PadBase {
     void check_inputs() const override {
         for (size_t i = 0; i != padding_begin.size(); ++i) {
             const auto axis_size = static_cast<std::ptrdiff_t>(data_shape[i]);
-            NGRAPH_CHECK(padding_begin[i] - axis_correction < axis_size,
+            NGRAPH_CHECK(padding_begin.at(i) - axis_correction < axis_size,
                          "padding below should be less than data shape");
-            NGRAPH_CHECK(padding_end[i] - axis_correction < axis_size, "padding  should be less than data shape");
+            NGRAPH_CHECK(padding_end.at(i) - axis_correction < axis_size, "padding  should be less than data shape");
         }
     }
 

@@ -17,9 +17,9 @@ public:
     std::string m_feName;
     std::string m_pathToModels;
     std::string m_modelFile;
-    ngraph::frontend::FrontEndManager m_fem;
-    ngraph::frontend::FrontEnd::Ptr m_frontEnd;
-    ngraph::frontend::InputModel::Ptr m_inputModel;
+    ov::frontend::FrontEndManager m_fem;
+    ov::frontend::FrontEnd::Ptr m_frontEnd;
+    ov::frontend::InputModel::Ptr m_inputModel;
 
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertParam>& obj);
 

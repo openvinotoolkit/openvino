@@ -12,6 +12,7 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -63,10 +64,20 @@ void op::v1::Convolution::validate_and_infer_types() {
                           result_et.is_real() || result_et.is_integral_number(),
                           "Element types must be numeric. Got: ",
                           result_et);
+    auto& data_shape = get_input_partial_shape(0);
+    auto& filter_shape = get_input_partial_shape(1);
 
+    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 2);
+    update_and_validate_attributes(this);
+
+    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
-    shape_infer(this, input_shapes, output_shapes);
+
+    if (m_num_spatial != -1) {
+        resolve_auto_pad_for_shape(this, m_pads_begin, m_pads_end, input_shapes, 2, 2);
+        shape_infer(this, m_pads_begin, m_pads_end, input_shapes, output_shapes);
+    }
+
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -107,6 +118,7 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
       m_pads_end(pads_end),
       m_auto_pad(auto_pad),
       m_output_padding(output_padding) {
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 

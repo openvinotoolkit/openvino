@@ -1,51 +1,23 @@
-
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pyopenvino/core/containers.hpp"
 
-#include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-PYBIND11_MAKE_OPAQUE(Containers::PyInputsDataMap);
-PYBIND11_MAKE_OPAQUE(Containers::PyConstInputsDataMap);
-PYBIND11_MAKE_OPAQUE(Containers::PyOutputsDataMap);
-PYBIND11_MAKE_OPAQUE(Containers::PyResults);
+PYBIND11_MAKE_OPAQUE(Containers::TensorIndexMap);
+PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
 
 namespace py = pybind11;
 
 namespace Containers {
 
-void regclass_PyInputsDataMap(py::module m) {
-    auto py_inputs_data_map = py::bind_map<PyInputsDataMap>(m, "PyInputsDataMap");
-
-    py_inputs_data_map.def("keys", [](PyInputsDataMap& self) {
-        return py::make_key_iterator(self.begin(), self.end());
-    });
+void regclass_TensorIndexMap(py::module m) {
+    py::bind_map<TensorIndexMap>(m, "TensorIndexMap");
 }
 
-void regclass_PyConstInputsDataMap(py::module m) {
-    auto py_const_inputs_data_map = py::bind_map<PyConstInputsDataMap>(m, "PyConstInputsDataMap");
-
-    py_const_inputs_data_map.def("keys", [](PyConstInputsDataMap& self) {
-        return py::make_key_iterator(self.begin(), self.end());
-    });
-}
-
-void regclass_PyOutputsDataMap(py::module m) {
-    auto py_outputs_data_map = py::bind_map<PyOutputsDataMap>(m, "PyOutputsDataMap");
-
-    py_outputs_data_map.def("keys", [](PyOutputsDataMap& self) {
-        return py::make_key_iterator(self.begin(), self.end());
-    });
-}
-
-void regclass_PyResults(py::module m) {
-    auto py_results = py::bind_map<PyResults>(m, "PyResults");
-
-    py_results.def("keys", [](PyResults& self) {
-        return py::make_key_iterator(self.begin(), self.end());
-    });
+void regclass_TensorNameMap(py::module m) {
+    py::bind_map<TensorNameMap>(m, "TensorNameMap");
 }
 }  // namespace Containers

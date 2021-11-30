@@ -396,6 +396,8 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
          */
         if (layer->type == "TensorIterator") {
             auto ti = dynamic_cast<TensorIterator*>(layer.get());
+            if (!ti)
+                IE_THROW() << "Failed to cast to 'TensorIterator'";
             for (auto &in_map_rule : ti->input_port_map) {
                 auto exter_data = ti->insData[in_map_rule.from].lock();
                 auto inter_data = ti->body.inputs[in_map_rule.to];

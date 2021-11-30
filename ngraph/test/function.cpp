@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <shared_node_info.hpp>
+#include <test_common.hpp>
+
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/opsets/opset8.hpp"
 
@@ -965,4 +968,263 @@ TEST(function, add_output_port_to_result) {
 
     EXPECT_NO_THROW(f->add_output(result->output(0)));
     EXPECT_EQ(f->get_results().size(), 1);
+}
+
+namespace {
+bool all_ops_have_same_info(const std::shared_ptr<ov::Function>& f) {
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    for (auto&& op : f->get_ordered_ops()) {
+        if (std::set<std::shared_ptr<ov::SharedRTInfo>>({shared_info}) != ov::NodeAccessor(op).get_shared_info()) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
+TEST(function, topological_sort_caching_basic) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    // Check that after function creation which call get_ordered_ops
+    // cache is set to true value
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    // Check that nodes contains the same shared info after function creation
+    ASSERT_EQ(ov::NodeAccessor(arg0).get_shared_info().size(), 1);
+    ASSERT_TRUE(ov::NodeAccessor(arg0).get_shared_info().count(shared_info));
+
+    ASSERT_EQ(ov::NodeAccessor(relu1).get_shared_info().size(), 1);
+    ASSERT_TRUE(ov::NodeAccessor(relu1).get_shared_info().count(shared_info));
+
+    ASSERT_EQ(ov::NodeAccessor(relu2).get_shared_info().size(), 1);
+    ASSERT_TRUE(ov::NodeAccessor(relu2).get_shared_info().count(shared_info));
+
+    ASSERT_EQ(ov::NodeAccessor(result).get_shared_info().size(), 1);
+    ASSERT_TRUE(ov::NodeAccessor(result).get_shared_info().count(shared_info));
+
+    ASSERT_EQ(f->get_ordered_ops().size(), 4);
+}
+
+TEST(function, topological_sort_caching_replace_node) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    auto new_relu = std::make_shared<ov::opset8::Relu>(relu1);
+    ov::replace_node(relu2, new_relu);
+
+    // Function has changed so cache must be updated
+    ASSERT_FALSE(shared_info->get_use_topological_cache());
+
+    // Before get_ordered_ops, new_node shouldn't have shared_info, but after
+    // it will be set to the function shared_info and cache will be used.
+    ASSERT_FALSE(ov::NodeAccessor(new_relu).get_shared_info().count(shared_info));
+    ASSERT_EQ(f->get_ordered_ops().size(), 4);
+    ASSERT_TRUE(ov::NodeAccessor(new_relu).get_shared_info().count(shared_info));
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+    ASSERT_TRUE(all_ops_have_same_info(f));
+}
+
+TEST(function, topological_sort_caching_replace_source_output) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    relu2->input(0).replace_source_output(relu1);
+
+    // Function has changed so cache must be updated
+    ASSERT_FALSE(shared_info->get_use_topological_cache());
+
+    ASSERT_EQ(f->get_ordered_ops().size(), 4);
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+    ASSERT_TRUE(all_ops_have_same_info(f));
+}
+
+TEST(function, topological_sort_caching_dangling_node) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    auto new_relu = std::make_shared<ov::opset8::Relu>(relu1);
+
+    // Function has not changed so cache mustn't be updated
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+    // Dangling node is not in Function
+    ASSERT_EQ(f->get_ordered_ops().size(), 4);
+}
+
+TEST(function, topological_sort_caching_replace_output) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    auto new_relu = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->output(0).replace(new_relu);
+
+    // Function has changed so cache must be updated
+    ASSERT_FALSE(shared_info->get_use_topological_cache());
+    ASSERT_EQ(f->get_ordered_ops().size(), 4);
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+    ASSERT_TRUE(all_ops_have_same_info(f));
+}
+
+TEST(function, topological_sort_caching_set_argument) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    relu2->set_argument(0, arg0);
+
+    // Function has changed so cache must be updated
+    ASSERT_FALSE(shared_info->get_use_topological_cache());
+    ASSERT_EQ(f->get_ordered_ops().size(), 3);
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+    ASSERT_TRUE(all_ops_have_same_info(f));
+}
+
+TEST(function, topological_sort_caching_set_arguments) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    relu2->set_arguments({arg0->output(0)});
+
+    // Function has changed so cache must be updated
+    ASSERT_FALSE(shared_info->get_use_topological_cache());
+    ASSERT_EQ(f->get_ordered_ops().size(), 3);
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+    ASSERT_TRUE(all_ops_have_same_info(f));
+}
+
+TEST(function, topological_sort_caching_add_cf) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    relu2->add_control_dependency(arg0);
+
+    // Function has changed so cache must be updated
+    ASSERT_FALSE(shared_info->get_use_topological_cache());
+    ASSERT_EQ(f->get_ordered_ops().size(), 4);
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+    ASSERT_TRUE(all_ops_have_same_info(f));
+}
+
+TEST(function, topological_sort_caching_result_parameter_sink) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+
+    auto check_caching_status = [=](int64_t expected_number_of_ops) {
+        ASSERT_FALSE(shared_info->get_use_topological_cache());
+        ASSERT_EQ(f->get_ordered_ops().size(), expected_number_of_ops);
+        ASSERT_TRUE(shared_info->get_use_topological_cache());
+        ASSERT_TRUE(all_ops_have_same_info(f));
+    };
+
+    auto result2 = std::make_shared<ov::opset8::Result>(relu2);
+    f->add_results({result2});
+    check_caching_status(5);
+
+    f->remove_result(result2);
+    check_caching_status(4);
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>();
+    f->add_parameters({arg1});
+    check_caching_status(5);
+
+    f->remove_parameter(arg1);
+    check_caching_status(4);
+
+    auto assign = std::make_shared<ov::opset8::Assign>();
+    f->add_sinks({assign});
+    check_caching_status(5);
+
+    f->remove_sink(assign);
+    check_caching_status(4);
+}
+
+TEST(function, topological_sort_caching_multiple_components) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu0 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result0 = std::make_shared<ov::opset8::Result>(relu0);
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg1);
+    auto result1 = std::make_shared<ov::opset8::Result>(relu1);
+
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result0, result1}, ov::ParameterVector{arg0, arg1});
+
+    auto shared_info = ov::FunctionAccessor(f).get_shared_info();
+    ASSERT_TRUE(shared_info->get_use_topological_cache());
+    ASSERT_TRUE(all_ops_have_same_info(f));
+}
+
+TEST(function, topological_sort_caching_shared_nodes) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu0 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result0 = std::make_shared<ov::opset8::Result>(relu0);
+
+    auto f1 = std::make_shared<ov::Function>(ov::ResultVector{result0}, ov::ParameterVector{arg0});
+    auto f2 = std::make_shared<ov::Function>(ov::ResultVector{result0}, ov::ParameterVector{arg0});
+
+    auto f1_shared_info = ov::FunctionAccessor(f1).get_shared_info();
+    auto f2_shared_info = ov::FunctionAccessor(f2).get_shared_info();
+
+    for (auto&& node : f1->get_ordered_ops()) {
+        auto node_info = ov::NodeAccessor(node).get_shared_info();
+        // As two Functions owns the same node so node will have two shared_info objects
+        ASSERT_EQ(node_info.size(), 2);
+        ASSERT_TRUE(node_info.count(f1_shared_info));
+        ASSERT_TRUE(node_info.count(f2_shared_info));
+    }
+
+    relu0->add_control_dependency(arg0);  // simply drop cache
+    ASSERT_FALSE(f1_shared_info->get_use_topological_cache());
+    ASSERT_FALSE(f2_shared_info->get_use_topological_cache());
 }

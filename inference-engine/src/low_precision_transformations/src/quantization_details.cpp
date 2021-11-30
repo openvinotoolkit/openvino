@@ -91,6 +91,10 @@ void QuantizationDetails::getOutputIntervals(
 }
 
 QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<opset1::FakeQuantize> quantize) {
+    if (!QuantizationDetails::outputLayoutIsSupported(quantize)) {
+        return QuantizationDetails();
+    }
+
     const std::vector<float> inputLowValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(1))->cast_vector<float>();
     const std::vector<float> inputHighValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(2))->cast_vector<float>();
 
@@ -153,8 +157,12 @@ std::vector<float> QuantizationDetails::getBlobValue(std::shared_ptr<Node> const
     return ov::as_type_ptr<opset1::Constant>(constantLayer)->cast_vector<float>();
 }
 
+bool QuantizationDetails::empty() const noexcept {
+    return (levels == 0ul) && inputLowValues.empty() && inputHighValues.empty() && outputLowValues.empty() && outputHighValues.empty();
+}
+
 bool QuantizationDetails::isSupportedLevel(const size_t level) {
-    static const std::unordered_set<size_t> supported_levels = { 255, 256, 65536, 65535, static_cast<size_t>(4294967296), 4294967295 };
+    static const std::unordered_set<size_t> supported_levels = { 16, 255, 256, 65536, 65535, static_cast<size_t>(4294967296), 4294967295 };
     return supported_levels.find(level) != supported_levels.end();
 }
 

@@ -54,7 +54,7 @@ class GraphTransformer:
         self.fq_optimization.find_and_replace_pattern(graph)
         graph.clean_up()
 
-        self.fq_propagation.find_nodes_fq_int(graph)
+        self.fq_propagation.delete_fq_non_quantizable_node_precision(graph)
         graph.clean_up()
 
         self.fq_name_swapper.rename_fqs_in_the_end(graph)

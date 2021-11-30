@@ -28,7 +28,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
     const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
-    auto memLimitedFactor = [&](int size_data_moved, int datatype_size = 4) -> float {
+    auto memLimitedFactor = [&](int size_data_moved, int datatype_size) -> float {
         return (L2_cache_size * 1.0f /*util factor, tbd */
                 / (size_data_moved * datatype_size));
     };

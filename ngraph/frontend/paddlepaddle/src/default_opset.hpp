@@ -4,7 +4,7 @@
 
 #include "ngraph/opsets/opset8.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -13,4 +13,4 @@ namespace default_opset = ngraph::opset8;
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

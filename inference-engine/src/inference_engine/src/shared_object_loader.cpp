@@ -10,47 +10,33 @@
 namespace InferenceEngine {
 namespace details {
 
-struct SharedObjectLoader::Impl {
-    std::shared_ptr<void> shared_object = nullptr;
-
-    explicit Impl(const std::shared_ptr<void>& shared_object_) : shared_object{shared_object_} {}
-
-    explicit Impl(const char* pluginName) : shared_object{ov::util::load_shared_object(pluginName)} {}
+SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& so) : _so(so) {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName) : Impl(ov::util::wstring_to_string(pluginName).c_str()) {}
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-    void* get_symbol(const char* symbolName) const {
-        return ov::util::get_symbol(shared_object, symbolName);
-    }
-};
-
-SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& shared_object) {
-    _impl.reset(new Impl(shared_object));
-}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
-    _impl.reset(new Impl(pluginName));
-}
+SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName)
+    : SharedObjectLoader(ov::util::wstring_to_string(pluginName).c_str()) {}
 #endif
 
-SharedObjectLoader::SharedObjectLoader(const char* pluginName) {
-    _impl.reset(new Impl(pluginName));
+SharedObjectLoader::SharedObjectLoader(const char* pluginName) : _so{nullptr} {
+    try {
+        _so = ov::util::load_shared_object(pluginName);
+    } catch (const std::runtime_error& ex) {
+        IE_THROW(GeneralError) << ex.what();
+    }
 }
 
 SharedObjectLoader::~SharedObjectLoader() {}
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
-    if (_impl == nullptr) {
-        IE_THROW(NotAllocated) << "SharedObjectLoader is not initialized";
+    try {
+        return ov::util::get_symbol(_so, symbolName);
+    } catch (const std::runtime_error& ex) {
+        IE_THROW(NotFound) << ex.what();
     }
-    return _impl->get_symbol(symbolName);
 }
 
 std::shared_ptr<void> SharedObjectLoader::get() const {
-    return _impl->shared_object;
+    return _so;
 }
 
 }  // namespace details

@@ -18,7 +18,7 @@ namespace preprocess {
 /// \brief Preprocessing steps. Each step typically intends adding of some operation to input parameter
 /// User application can specify sequence of preprocessing steps in a builder-like manner
 /// \code{.cpp}
-/// auto proc = PrePostProcessor()
+/// auto proc = PrePostProcessor(function)
 ///     .input(InputInfo()
 ///            .preprocess(PreProcessSteps()
 ///                        .mean(0.2f)     // Subtract 0.2 from each element
@@ -207,7 +207,7 @@ public:
     /// planar input image ('NCHW', [1, 3, 224, 224]). Preprocessing may look like this:
     ///
     /// \code{.cpp} auto proc =
-    /// PrePostProcessor()
+    /// PrePostProcessor(function)
     ///     .input(InputInfo()
     ///            .tensor(InputTensorInfo().set_layout("NHWC")) // User data is NHWC
     ///            .preprocess(PreProcessSteps()
@@ -228,7 +228,7 @@ public:
     /// planar input image ('NCHW', [1, 3, 480, 640]). Preprocessing may look like this:
     ///
     /// \code{.cpp} auto proc =
-    /// PrePostProcessor()
+    /// PrePostProcessor(function)
     ///     .input(InputInfo()
     ///            .preprocess(PreProcessSteps()
     ///                        .convert_layout({0, 3, 1, 2})
@@ -249,7 +249,7 @@ public:
     /// BGR planes order. Preprocessing may look like this:
     ///
     /// \code{.cpp} auto proc =
-    /// PrePostProcessor()
+    /// PrePostProcessor(function)
     ///     .input(InputInfo()
     ///            .tensor(InputTensorInfo().set_layout("NCHW")) // User data is NCHW
     ///            .preprocess(PreProcessSteps()

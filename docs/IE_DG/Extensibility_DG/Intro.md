@@ -45,4 +45,4 @@ The following pages describe how to integrate custom _kernels_ into the Inferenc
 
 * [Build an extension library using CMake*](Building.md)
 * [Using Inference Engine Samples](../Samples_Overview.md)
-* [Hello Shape Infer SSD sample](../../../inference-engine/samples/hello_reshape_ssd/README.md)
+* [Hello Shape Infer SSD sample](../../../samples/cpp/hello_reshape_ssd/README.md)

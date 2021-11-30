@@ -22,7 +22,7 @@ OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "../../..
 # Change current working directory to runtime/bindings/python
 os.chdir(PYTHON_API_ROOT_DIR)
 
-NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend", "openvino"]
+NGRAPH_LIBS = ["ngraph", "onnx_ov_frontend", "openvino"]
 
 packages = [
     "ngraph",
@@ -41,6 +41,8 @@ packages = [
     "ngraph.impl.passes",
     "ngraph.frontend",
     "openvino",
+    # TODO: change the module name according to the description in 69196
+    "openvino.offline_transformations_pybind",
     "openvino.opset1",
     "openvino.opset2",
     "openvino.opset3",
@@ -168,13 +170,13 @@ class BuildCMakeExt(build_ext):
         bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("OpenVINO_DIR") is not None:
             root_dir = PYTHON_API_ROOT_DIR
-            bin_dir = build_dir
 
         self.announce("Configuring cmake project", level=3)
         ext_args = self.cmake_args.split() if self.cmake_args else []
+        ov_build_dir = os.path.join(OPENVINO_ROOT_DIR, "build")
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     f"-DCMAKE_BUILD_TYPE={self.config}",
-                    f"-DInferenceEngine_DIR={os.path.join(OPENVINO_ROOT_DIR, 'build')}",
+                    f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
                     "-DENABLE_PYTHON=ON",
                     "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
 

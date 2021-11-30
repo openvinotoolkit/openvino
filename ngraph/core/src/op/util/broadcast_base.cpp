@@ -14,6 +14,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 
@@ -24,13 +25,17 @@ ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
                                            const Output<Node>& axes_mapping,
                                            const BroadcastModeSpec& broadcast_mode)
     : Op({arg, target_shape, axes_mapping}),
-      m_mode{broadcast_mode} {}
+      m_mode{broadcast_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+}
 
 ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
                                            const Output<Node>& target_shape,
                                            const BroadcastModeSpec& broadcast_mode)
     : Op({arg, target_shape}),
-      m_mode{broadcast_mode} {}
+      m_mode{broadcast_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+}
 
 ov::PartialShape ov::op::util::BroadcastBase::get_result_shape_pdpd(const PartialShape& arg0_shape,
                                                                     const PartialShape& target_pshape,

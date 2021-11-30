@@ -80,7 +80,7 @@ class StatisticGraphBuilder:
         abs_node = Abs(node.graph, {"name": type_stat + node_name}).create_node()
         abs_node.in_port(0).connect(node.out_port(0))
         max_op = create_op_node_with_second_input(node.graph, ReduceMax, int64_array(axis_const),
-                                                  dict(name='abs_max_' + node.name))
+                                                  dict(name='abs_max_' + node_name))
         abs_node.out_port(0).connect(max_op.in_port(0))
         self.insert_result(node, max_op, type_stat)
         return None

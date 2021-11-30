@@ -210,6 +210,11 @@ public:
 
     static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 
+    static void insertDequantizationAfter(
+        const std::shared_ptr<Node>& originalNode,
+        const std::shared_ptr<Node>& dequantization,
+        const std::shared_ptr<Node>& newNode);
+
     static void replaceAttributeInNodes(
         std::shared_ptr<ngraph::Function> f,
         const std::string& name,

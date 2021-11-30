@@ -359,7 +359,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     NodeSet prevResults;
     size_t subgraphTopoSortsStep = 0;
     do {
-        IE_ASSERT(subgraphTopoSortsStep++ < subgraphs.size());
+        IE_ASSERT(subgraphTopoSortsStep < subgraphs.size());
+        ++subgraphTopoSortsStep;
         std::vector<Subgraph> nextSubgraphs;
         auto IsNextSubGraph = [&] (const Subgraph& subgraph) {
             auto& parameters = subgraph._parameters;

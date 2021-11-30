@@ -160,7 +160,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         lastDequantization = multiply;
     }
 
-    replace_node(concat, lastDequantization);
+    NetworkHelper::insertDequantizationAfter(concat, lastDequantization, newConcat);
     NetworkHelper::copyInfo(concat, newConcat);
     updateOutput(context, lastDequantization, newConcat);
     return true;

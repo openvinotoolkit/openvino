@@ -66,6 +66,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Squeeze", Reshape },
         { "Unsqueeze", Reshape },
         { "ShapeOf", ShapeOf },
+        { "NonZero", NonZero },
         { "Softmax", Softmax },
         { "Reorder", Reorder },
         { "BatchToSpace", BatchToSpace },
@@ -228,6 +229,8 @@ std::string NameFromType(const Type type) {
             return "Reshape";
         case ShapeOf:
             return "ShapeOf";
+        case NonZero:
+            return "NonZero";
         case Tile:
             return "Tile";
         case ROIAlign:

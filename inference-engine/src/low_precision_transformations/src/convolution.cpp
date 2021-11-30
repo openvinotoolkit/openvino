@@ -43,11 +43,11 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
     this->register_matcher(m, callback);
 }
 
-bool ConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool ConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
     return ConvolutionTransformation::isQuantizedStatic(layer);
 }
 
-bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, false);
 }
 
@@ -81,6 +81,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     convolution = NetworkHelper::separateInStandaloneBranch(convolution);
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
 
+    std::shared_ptr<Node> newMultiplyAfter;
     {
         std::shared_ptr<opset1::Subtract> subtract;
         if (dequantization.subtract != nullptr) {
@@ -172,13 +173,13 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
-        std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
             ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
 
-        replace_node(convolution, newMultiplyAfter);
+        NetworkHelper::insertDequantizationAfter(convolution, newMultiplyAfter, relaxedNewConvolution);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
 
         if (ov::is_type<opset1::Convert>(convolution->get_input_node_ptr(0))) {
@@ -242,7 +243,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             });
             NetworkHelper::copyInfo(convolution, newConvolution);
 
-            auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
+            newMultiplyAfter = std::make_shared<opset1::Multiply>(
                 newConvolution,
                 foldConvert(
                     fold_reshape<opset1::Reshape>(
@@ -250,7 +251,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                         std::make_shared<opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
                         false),
                     convolution->get_output_element_type(0)));
-            replace_node(convolution, newMultiplyAfter);
+            NetworkHelper::insertDequantizationAfter(convolution, newMultiplyAfter, newConvolution);
             convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
         }
 
@@ -308,8 +309,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
     }
 
-    std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
-        convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
+    const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 

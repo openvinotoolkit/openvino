@@ -328,7 +328,7 @@ static std::string get_ov_library_path_a() {
 #elif defined(__APPLE__) || defined(__linux__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::util::get_ov_lib_path), &info);
-    std::string result = get_path_name(std::string(info.dli_fname)).c_str();
+    std::string result = get_path_name(ov::util::get_absolute_file_path(info.dli_fname)).c_str();
     if (!ov::util::ends_with(result, "/lib") && !ov::util::ends_with(result, "/lib/"))
         result = ov::util::path_join({result, "lib"});
     return result;

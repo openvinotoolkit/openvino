@@ -20,17 +20,19 @@ endif()
 #
 # ie_add_plugin(NAME <targetName>
 #               DEVICE_NAME <deviceName>
-#               [PSEUDO]
+#               [PSEUDO_PLUGIN_FOR <actual_device>]
+#               [AS_EXTENSION]
 #               [DEFAULT_CONFIG <key:value;...>]
 #               [SOURCES <sources>]
 #               [OBJECT_LIBRARIES <object_libs>]
 #               [VERSION_DEFINES_FOR <source>]
 #               [SKIP_INSTALL]
+#               [ADD_CLANG_FORMAT]
 #               )
 #
 function(ie_add_plugin)
-    set(options SKIP_INSTALL ADD_CLANG_FORMAT PSEUDO_PLUGIN)
-    set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR)
+    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION)
+    set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -44,7 +46,7 @@ function(ie_add_plugin)
 
     # create and configure target
 
-    if(NOT IE_PLUGIN_PSEUDO_PLUGIN)
+    if(NOT IE_PLUGIN_PSEUDO_PLUGIN_FOR)
         if(IE_PLUGIN_VERSION_DEFINES_FOR)
             addVersionDefines(${IE_PLUGIN_VERSION_DEFINES_FOR} CI_BUILD_NUMBER)
         endif()
@@ -68,6 +70,13 @@ function(ie_add_plugin)
             # to distinguish functions creating plugin objects
             target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
                 IE_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME})
+            if(IE_PLUGIN_AS_EXTENSION)
+                # to distinguish functions creating extensions objects
+                target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
+                    IE_CREATE_EXTENSION=CreateExtensionShared${IE_PLUGIN_DEVICE_NAME})
+            endif()
+            # install static plugins
+            ov_install_static_lib(${IE_PLUGIN_NAME} core)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
@@ -106,17 +115,20 @@ function(ie_add_plugin)
         # fake dependencies to build in the following order:
         # IE -> IE readers -> IE inference plugins -> IE-based apps
         if(BUILD_SHARED_LIBS)
-            if(TARGET ir_ngraph_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ir_ngraph_frontend)
+            if(TARGET ir_ov_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} ir_ov_frontend)
             endif()
             if(TARGET inference_engine_ir_v7_reader)
                 add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
             endif()
-            if(TARGET onnx_ngraph_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} onnx_ngraph_frontend)
+            if(TARGET onnx_ov_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} onnx_ov_frontend)
             endif()
-            if(TARGET paddlepaddle_ngraph_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} paddlepaddle_ngraph_frontend)
+            if(TARGET paddlepaddle_ov_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} paddlepaddle_ov_frontend)
+            endif()
+            if(TARGET tensorflow_ov_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} tensorflow_ov_frontend)
             endif()
         endif()
 
@@ -148,6 +160,8 @@ function(ie_add_plugin)
     list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
     set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
     set(${IE_PLUGIN_DEVICE_NAME}_CONFIG "${IE_PLUGIN_DEFAULT_CONFIG}" CACHE INTERNAL "" FORCE)
+    set(${IE_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${IE_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
+    set(${IE_PLUGIN_DEVICE_NAME}_AS_EXTENSION "${IE_PLUGIN_AS_EXTENSION}" CACHE INTERNAL "" FORCE)
 endfunction()
 
 #
@@ -164,8 +178,9 @@ macro(ie_register_plugins_dynamic)
         message(FATAL_ERROR "Please, define MAIN_TARGET")
     endif()
 
+    # Unregister <device_name>.xml files for plugins from current build tree
+
     set(plugins_to_remove ${IE_REGISTER_POSSIBLE_PLUGINS})
-    set(plugin_files_local)
     set(config_output_file "$<TARGET_FILE_DIR:${IE_REGISTER_MAIN_TARGET}>/plugins.xml")
 
     foreach(plugin IN LISTS plugins_to_remove)
@@ -181,6 +196,9 @@ macro(ie_register_plugins_dynamic)
                   VERBATIM)
     endforeach()
 
+    # Generate <device_name>.xml files
+
+    set(plugin_files_local)
     foreach(name IN LISTS PLUGIN_FILES)
         string(REPLACE ":" ";" name "${name}")
         list(LENGTH name length)
@@ -208,6 +226,8 @@ macro(ie_register_plugins_dynamic)
         list(APPEND plugin_files_local "${config_file_name}")
     endforeach()
 
+    # Combine all <device_name>.xml files into plugins.xml
+
     add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
                       COMMAND
                         "${CMAKE_COMMAND}"
@@ -220,17 +240,17 @@ macro(ie_register_plugins_dynamic)
                       VERBATIM)
 endmacro()
 
-#
-# ie_register_plugins_static(MAIN_TARGET <main target name>
-#                            POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
-#
-macro(ie_register_plugins_static)
-    set(options)
-    set(oneValueArgs MAIN_TARGET)
-    set(multiValueArgs POSSIBLE_PLUGINS)
-    cmake_parse_arguments(IE_REGISTER "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+macro(ie_register_plugins)
+    if(BUILD_SHARED_LIBS)
+        ie_register_plugins_dynamic(${ARGN})
+    endif()
+endmacro()
 
-    set(device_names)
+function(ie_target_link_plugins TARGET_NAME)
+    if(BUILD_SHARED_LIBS)
+        return()
+    endif()
+
     foreach(name IN LISTS PLUGIN_FILES)
         string(REPLACE ":" ";" name "${name}")
         list(LENGTH name length)
@@ -238,22 +258,66 @@ macro(ie_register_plugins_static)
             message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
         endif()
 
-        list(GET name 0 device_name)
-        list(APPEND device_names ${device_name})
-
+        # link plugin to ${TARGET_NAME} static version
         list(GET name 1 plugin_name)
-        target_link_libraries(${IE_REGISTER_MAIN_TARGET} PRIVATE ${plugin_name})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${plugin_name})
+    endforeach()
+endfunction()
+
+#
+# ie_generate_plugins_hpp()
+#
+function(ie_generate_plugins_hpp)
+    if(BUILD_SHARED_LIBS)
+        return()
+    endif()
+
+    set(device_mapping)
+    set(device_configs)
+    set(as_extension)
+    foreach(name IN LISTS PLUGIN_FILES)
+        string(REPLACE ":" ";" name "${name}")
+        list(LENGTH name length)
+        if(NOT ${length} EQUAL 2)
+            message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
+        endif()
+
+        # create device mapping: preudo device => actual device
+        list(GET name 0 device_name)
+        if(${device_name}_PSEUDO_PLUGIN_FOR)
+            list(APPEND device_mapping "${device_name}:${${device_name}_PSEUDO_PLUGIN_FOR}")
+        else()
+            list(APPEND device_mapping "${device_name}:${device_name}")
+        endif()
+
+        # register plugin as extension
+        if(${device_name}_AS_EXTENSION)
+            list(APPEND as_extension -D "${device_name}_AS_EXTENSION=ON")
+        endif()
+
+        # add default plugin config options
+        if(${device_name}_CONFIG)
+            list(APPEND device_configs -D "${device_name}_CONFIG=${${device_name}_CONFIG}")
+        endif()
     endforeach()
 
-    set(ie_plugins_hpp "${CMAKE_CURRENT_BINARY_DIR}/ie_plugins.hpp")
+    # add plugins to libraries including ie_plugins.hpp
+    ie_target_link_plugins(inference_engine)
+    if(TARGET inference_engine_s)
+        ie_target_link_plugins(inference_engine_s)
+    endif()
+
+    set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/inference-engine/src/inference_engine/ie_plugins.hpp")
     set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
 
     add_custom_command(OUTPUT "${ie_plugins_hpp}"
                        COMMAND
                         "${CMAKE_COMMAND}"
-                        -D "IE_DEVICE_NAMES=${device_names}"
+                        -D "IE_DEVICE_MAPPING=${device_mapping}"
                         -D "IE_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
                         -D "IE_PLUGINS_HPP_HEADER=${ie_plugins_hpp}"
+                        ${device_configs}
+                        ${as_extension}
                         -P "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        DEPENDS
                          "${plugins_hpp_in}"
@@ -262,30 +326,25 @@ macro(ie_register_plugins_static)
                          "Generate ie_plugins.hpp for static build"
                        VERBATIM)
 
+    # for some reason dependency on source files does not work
+    # so, we have to use explicit target and make it dependency for inference_engine
+    add_custom_target(ie_generate_hpp DEPENDS ${ie_plugins_hpp})
+    add_dependencies(inference_engine ie_generate_hpp)
+
     # add dependency for object files
-    get_target_property(sources ${IE_REGISTER_MAIN_TARGET} SOURCES)
+    get_target_property(sources inference_engine SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library
             set(obj_library ${CMAKE_MATCH_1})
             get_target_property(obj_sources ${obj_library} SOURCES)
-            list(APPEND patched_sources ${obj_sources})
+            list(APPEND all_sources ${obj_sources})
         else()
             # usual source
-            list(APPEND patched_sources ${source})
+            list(APPEND all_sources ${source})
         endif()
     endforeach()
-    set_source_files_properties(${patched_sources} PROPERTIES OBJECT_DEPENDS ${ie_plugins_hpp})
-endmacro()
 
-#
-# ie_register_plugins(MAIN_TARGET <main target name>
-#                     POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
-#
-macro(ie_register_plugins)
-    if(BUILD_SHARED_LIBS)
-        ie_register_plugins_dynamic(${ARGN})
-    else()
-        ie_register_plugins_static(${ARGN})
-    endif()
-endmacro()
+    # add dependency on header file generation for all inference_engine source files
+    set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ie_plugins_hpp})
+endfunction()

@@ -13,6 +13,7 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -22,6 +23,7 @@ BWDCMP_RTTI_DEFINITION(op::v0::Interpolate);
 op::v0::Interpolate::Interpolate(const Output<Node>& image, const Output<Node>& output_shape, const Attributes& attrs)
     : Op({image, output_shape}),
       m_attrs(attrs) {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
@@ -99,6 +101,8 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     : Op({image, output_shape, scales, axes}),
       m_attrs(attrs) {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -294,9 +298,20 @@ std::vector<int64_t> get_axes_vector(const HostTensorVector& args) {
     std::vector<int64_t> axes;
 
     if (num_of_inputs == max_num_of_ports) {
-        int64_t* axes_data_ptr = args[axes_port]->get_data_ptr<int64_t>();
+        auto axes_arg = args[axes_port];
         size_t num_of_axes = args[axes_port]->get_shape()[0];
-        axes.insert(axes.end(), axes_data_ptr, axes_data_ptr + num_of_axes);
+        axes.reserve(num_of_axes);
+
+        if (axes_arg->get_element_type() == ngraph::element::i64) {
+            int64_t* axes_ptr = axes_arg->get_data_ptr<int64_t>();
+            axes.insert(axes.end(), axes_ptr, axes_ptr + num_of_axes);
+        } else if (axes_arg->get_element_type() == ngraph::element::i32) {
+            int32_t* axes_ptr = axes_arg->get_data_ptr<int32_t>();
+            for (size_t i = 0; i < num_of_axes; ++i)
+                axes.push_back(axes_ptr[i]);
+        } else {
+            OPENVINO_ASSERT(false, "Failed to process ", axes_arg->get_element_type());
+        }
     } else {
         for (size_t i = 0; i < input_rank; ++i) {
             axes.push_back(i);
@@ -308,9 +323,19 @@ std::vector<int64_t> get_axes_vector(const HostTensorVector& args) {
 
 std::vector<int64_t> get_target_shape_vector(const HostTensorVector& args, size_t num_of_axes) {
     std::vector<int64_t> target_shape;
+    target_shape.reserve(num_of_axes);
 
-    int64_t* target_shape_ptr = args[target_shape_port]->get_data_ptr<int64_t>();
-    target_shape.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
+    auto target_shape_arg = args[target_shape_port];
+    if (target_shape_arg->get_element_type() == ngraph::element::i64) {
+        int64_t* target_shape_ptr = target_shape_arg->get_data_ptr<int64_t>();
+        target_shape.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
+    } else if (target_shape_arg->get_element_type() == ngraph::element::i32) {
+        int32_t* target_shape_ptr = target_shape_arg->get_data_ptr<int32_t>();
+        for (size_t i = 0; i < num_of_axes; ++i)
+            target_shape.push_back(target_shape_ptr[i]);
+    } else {
+        OPENVINO_ASSERT(false, "Failed to process ", target_shape_arg->get_element_type());
+    }
 
     return target_shape;
 }

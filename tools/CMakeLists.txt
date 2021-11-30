@@ -63,4 +63,9 @@ if(ENABLE_PYTHON)
             COMPONENT python_tools_${PYTHON_VERSION})
 
     ie_cpack(python_tools python_tools_${PYTHON_VERSION})
+
+    if(ENABLE_WHEEL)
+        add_subdirectory(openvino_dev)
+    endif()
+
 endif()

@@ -32,7 +32,7 @@ graph {
   }
   initializer {
     data_type: 7
-    dims: 2
+    dims: 1
     int64_data: 1
     name: "axes"
   }

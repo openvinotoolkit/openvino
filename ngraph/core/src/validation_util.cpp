@@ -847,6 +847,23 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
+void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+    const auto& min_value = -tensor_rank;
+    const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;
+    transform(axes.begin(), axes.end(), axes.begin(), [=](int64_t& axis) {
+        NODE_VALIDATION_CHECK(node,
+                              ((axis >= min_value) && (axis <= max_value)),
+                              " Parameter axis ",
+                              axis,
+                              " out of the tensor rank range [",
+                              min_value,
+                              ", ",
+                              max_value,
+                              "].");
+        return axis < 0 ? axis + tensor_rank : axis;
+    });
+}
+
 std::vector<size_t> ov::normalize_axes(const std::string& node_description,
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank) {
@@ -1346,6 +1363,37 @@ shared_ptr<op::Constant> ngraph::get_constant_min_of_type(element::Type_t t) {
         NGRAPH_TYPE_TO_MIN_CONST(element::u16);
         NGRAPH_TYPE_TO_MIN_CONST(element::u32);
         NGRAPH_TYPE_TO_MIN_CONST(element::u64);
+
+    case element::undefined:
+    case element::dynamic:
+    default:
+        return nullptr;
+    }
+}
+
+std::shared_ptr<op::Constant> ngraph::get_constant_lowest_of_type(element::Type_t t) {
+#define NGRAPH_TYPE_TO_LOWEST_CONST(t)                                                                             \
+    case t:                                                                                                        \
+        return op::Constant::create(t,                                                                             \
+                                    {},                                                                            \
+                                    {std::numeric_limits<typename element_type_traits<t>::value_type>::lowest()}); \
+        break
+
+    switch (t) {
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::boolean);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::bf16);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::f16);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::f32);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::f64);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::i8);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::i16);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::i32);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::i64);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u1);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u8);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u16);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u32);
+        NGRAPH_TYPE_TO_LOWEST_CONST(element::u64);
 
     case element::undefined:
     case element::dynamic:

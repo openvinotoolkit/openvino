@@ -40,11 +40,12 @@ from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.telemetry_utils import send_params_info, send_framework_info
-from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
+from mo.utils.version import get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+from mo.utils.telemetry_utils import get_tid
 
 # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEndManager, FrontEnd
+from ngraph.frontend import FrontEndManager
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -204,6 +205,13 @@ def arguments_post_parsing(argv: argparse.Namespace):
     except Exception as e:
         raise_ie_not_found()
 
+    # temporary disable new FP16 generation
+    if False and 'data_type' in argv and argv.data_type in ['FP16', 'half']:
+        argv.data_type = 'FP32'
+        argv.compress_fp16 = True
+    else:
+        argv.compress_fp16 = False
+
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
 
@@ -354,10 +362,15 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
             if not argv.legacy_ir_generation:
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
-                status = subprocess.run([sys.executable, path_to_offline_transformations,
+                cmd = [sys.executable, path_to_offline_transformations,
                                          "--input_model", orig_model_name,
                                          "--framework", argv.framework,
-                                         "--transform", argv.transform], env=os.environ)
+                                         "--transform", argv.transform]
+                if "compress_fp16" in argv and argv.compress_fp16:
+                    cmd += ["--compress_fp16"]
+                    # restore data_type cmd parameter
+                    argv.data_type = 'FP16'
+                status = subprocess.run(cmd, env=os.environ)
                 return_code = status.returncode
         except Exception as e:
             return_code = "failed"
@@ -425,7 +438,7 @@ def driver(argv: argparse.Namespace):
 
 
 def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
-    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:

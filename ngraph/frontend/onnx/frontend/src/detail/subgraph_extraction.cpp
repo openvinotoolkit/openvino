@@ -11,7 +11,7 @@
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph::onnx_editor;
+using namespace ov::onnx_editor;
 
 enum class PortType { InputPort, OutputPort };
 
@@ -78,6 +78,10 @@ bool is_graph_initializer(const ONNX_NAMESPACE::GraphProto& graph, const std::st
 int find_source_node_idx(const ONNX_NAMESPACE::GraphProto& graph,
                          const int current_node_idx,
                          const std::string& input_name) {
+    // Some operators (e.g. Clip) have optional inputs
+    if (input_name.empty())
+        return -1;
+
     for (int i = current_node_idx - 1; i >= 0; --i) {
         const auto& outputs = graph.node(i).output();
         const auto output_found = std::any_of(std::begin(outputs), std::end(outputs), is_equal_to(input_name));
@@ -329,11 +333,11 @@ void SubgraphExtractor::extract_subgraph(std::vector<OutputEdge> subgraph_output
 SubgraphExtractor::SubgraphComponents SubgraphExtractor::discover_output_contributors(
     const OutputEdge& output_edge,
     const SubgraphComponents& already_collected) const {
-    const auto already_visited = [&already_collected](const int node_index) {
-        return already_collected.nodes.count(node_index) > 0;
+    SubgraphComponents output_contributors;
+    const auto already_visited = [&already_collected, &output_contributors](const int node_index) {
+        return already_collected.nodes.count(node_index) > 0 || output_contributors.nodes.count(node_index) > 0;
     };
 
-    SubgraphComponents output_contributors;
     const auto tensor_name = get_output_tensor_name(m_onnx_graph, output_edge);
     output_contributors.outputs.insert(tensor_name);
 
@@ -357,7 +361,7 @@ SubgraphExtractor::SubgraphComponents SubgraphExtractor::discover_output_contrib
         // and/or keep looking for more contributors further up in the graph
 
         // when an input or initializer is reached, the visitor stops the lookup
-        const auto n_inputs = m_node_inputs[n];
+        const auto& n_inputs = m_node_inputs[n];
         for (auto& input_name : n_inputs) {
             if (is_graph_input(m_onnx_graph, input_name)) {
                 output_contributors.inputs.insert(input_name);
@@ -371,7 +375,9 @@ SubgraphExtractor::SubgraphComponents SubgraphExtractor::discover_output_contrib
             } else {
                 // if an edge points to another node (source node) it should be visited
                 // in one of the future iterations
-                nodes_to_visit.push(find_source_node_idx(m_onnx_graph, n, input_name));
+                const auto node_idx = find_source_node_idx(m_onnx_graph, n, input_name);
+                if (node_idx >= 0)
+                    nodes_to_visit.push(node_idx);
             }
         }
     }
@@ -391,6 +397,7 @@ std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const {
 
     for (const auto& graph_output : m_onnx_graph.output()) {
         const auto node_index = find_source_node_idx(m_onnx_graph, m_onnx_graph.node_size(), graph_output.name());
+        OPENVINO_ASSERT(node_index >= 0);
         const auto& node_outputs = m_onnx_graph.node(node_index).output();
         const auto output_port_it = std::find(std::begin(node_outputs), std::end(node_outputs), graph_output.name());
         all_outputs.emplace_back(node_index, output_port_it - std::begin(node_outputs));

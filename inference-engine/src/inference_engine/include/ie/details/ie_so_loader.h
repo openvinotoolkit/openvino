@@ -20,14 +20,13 @@ namespace details {
  * @brief This class provides an OS shared module abstraction
  */
 class INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
-    class Impl;
-    std::shared_ptr<Impl> _impl;
+    std::shared_ptr<void> _so;
 
 public:
     /**
      * @brief Constructs from existing object
      */
-    SharedObjectLoader(const std::shared_ptr<void>& impl);
+    SharedObjectLoader(const std::shared_ptr<void>& so);
 
     /**
      * @brief Default constructor

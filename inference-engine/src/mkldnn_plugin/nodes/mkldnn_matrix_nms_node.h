@@ -13,7 +13,7 @@
 
 namespace MKLDNNPlugin {
 
-enum MatrixNmsSortResultType {
+enum class MatrixNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
     SCORE,    // sort selected boxes by score (descending) in each batch element
     NONE      // do not guarantee the order in each batch element

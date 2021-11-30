@@ -6,7 +6,7 @@
 
 #include "default_opset.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -175,4 +175,4 @@ NamedOutputs bicubic_interp_v2(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

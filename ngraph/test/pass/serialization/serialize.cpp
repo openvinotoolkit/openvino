@@ -74,7 +74,8 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple("conv_with_rt_info.xml", ""),
                     std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin"),
                     std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin"),
-                    std::make_tuple("if_diff_case.xml", "if_diff_case.bin")));
+                    std::make_tuple("if_diff_case.xml", "if_diff_case.bin"),
+                    std::make_tuple("if_body_without_parameters.xml", "if_body_without_parameters.bin")));
 
 #ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 

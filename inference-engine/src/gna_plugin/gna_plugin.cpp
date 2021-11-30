@@ -42,7 +42,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
@@ -71,6 +70,7 @@
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/broadcast_const.hpp"
+#include "transformations/substitute_softsign.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -687,8 +687,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
-        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-        manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
@@ -716,6 +714,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
+        manager.register_pass<SubstituteSoftsign>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -784,6 +783,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         }
 
+        if (fake_quantized)
+            passes->registerPass<SubstituteSoftSignPass>();
+
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
@@ -791,7 +793,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();
-        passes->registerPass<SubstituteSoftSignPass>();
 
         passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<EltwiseSplitOverChannelsPass>();

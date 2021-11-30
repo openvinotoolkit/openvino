@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "op_table.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -13,12 +13,12 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateExpandDimsOp(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0);
-    std::vector<int64_t> dims;
-    GetStaticInputVector(node, 1, &dims);
-    auto ng_dims = ConstructNgNode<Constant>(node.get_name(), element::i64, ov::Shape{dims.size()}, dims);
-    return {ConstructNgNode<Unsqueeze>(node.get_name(), ng_input, ng_dims)};
+OutputVector translate_expand_dims_op(const NodeContext& node) {
+    auto input = node.get_input(0);
+    auto dims = node.get_input(1);
+    auto res = make_shared<Unsqueeze>(input, dims);
+    set_node_name(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

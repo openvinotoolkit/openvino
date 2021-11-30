@@ -19,13 +19,11 @@ int run_tests(int argc, char** argv);
 
 std::string get_current_executable_path();
 
-inline std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr> load_from_file(
-    ngraph::frontend::FrontEndManager& fem,
-    const std::string& frontend_name,
-    const std::string& model_file) {
+inline std::tuple<ov::frontend::FrontEnd::Ptr, ov::frontend::InputModel::Ptr>
+load_from_file(ov::frontend::FrontEndManager& fem, const std::string& frontend_name, const std::string& model_file) {
     auto frontend = fem.load_by_framework(frontend_name);
     auto inputModel = frontend->load(model_file);
-    return std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr>{frontend, inputModel};
+    return std::tuple<ov::frontend::FrontEnd::Ptr, ov::frontend::InputModel::Ptr>{frontend, inputModel};
 }
 
 inline std::string fileToTestName(const std::string& fileName) {

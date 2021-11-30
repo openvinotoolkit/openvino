@@ -90,27 +90,6 @@ TEST_F(TransformationTestsF, PadFusionAvgPoolDontExcludePad) {
     }
 }
 
-TEST_F(TransformationTestsF, PadFusionMaxPool) {
-    Shape data_shape{1, 3, 14, 14};
-    {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
-        auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-        auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-        auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        auto max_pool = std::make_shared<opset5::MaxPool>(pad, Strides{1, 1},
-                                                          Shape{0, 0}, Shape{1, 1}, Shape{4, 4});
-        function = std::make_shared<Function>(NodeVector{max_pool}, ParameterVector{data});
-        manager.register_pass<pass::PadFusion>();
-    }
-    {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
-        auto max_pool = std::make_shared<opset5::MaxPool>(data, Strides{1, 1},
-                                                          Shape{1, 1}, Shape{3, 3}, Shape{4, 4},
-                                                          op::RoundingType::FLOOR, op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Function>(NodeVector{max_pool}, ParameterVector{data});
-    }
-}
-
 TEST_F(TransformationTestsF, PadFusionConvolution) {
     Shape data_shape{1, 3, 14, 14};
     {

@@ -18,10 +18,6 @@ namespace preprocess {
 ///    - Preprocessing steps applied to user's input (InputInfo::preprocess)
 ///    - Network's input info, which is a final info after preprocessing (InputInfo::network)
 ///
-/// API has Builder-like style to allow chaining calls in client's code, like
-/// \code{.cpp}
-/// auto proc = PrePostProcessor().input(InputInfo().tensor(...).preprocess(...).network(...);
-/// \endcode
 class OPENVINO_API InputInfo final {
     class InputInfoImpl;
     std::unique_ptr<InputInfoImpl> m_impl;
@@ -29,14 +25,20 @@ class OPENVINO_API InputInfo final {
 
 public:
     /// \brief Empty constructor. Should be used only if network will have only one input
+    ///
+    /// \todo Consider remove it (don't allow user to create standalone objects)
     InputInfo();
 
     /// \brief Constructor for particular input index of model
+    ///
+    /// \todo Consider remove it (don't allow user to create standalone objects)
     ///
     /// \param input_index Index to address specified input parameter of model
     explicit InputInfo(size_t input_index);
 
     /// \brief Constructor for particular output of model addressed by it's input name
+    ///
+    /// \todo Consider remove it (don't allow user to create standalone objects)
     ///
     /// \param input_tensor_name Name of input tensor name
     explicit InputInfo(const std::string& input_tensor_name);
@@ -50,7 +52,24 @@ public:
     /// \brief Default destructor
     ~InputInfo();
 
+    /// \brief Get current input tensor information with ability to change specific data
+    ///
+    /// \return Reference to current input tensor structure
+    InputTensorInfo& tensor();
+
+    /// \brief Get current input preprocess information with ability to add more preprocessing steps
+    ///
+    /// \return Reference to current preprocess steps structure
+    PreProcessSteps& preprocess();
+
+    /// \brief Get current input network/model information with ability to change original network's input data
+    ///
+    /// \return Reference to current network's input information structure
+    InputNetworkInfo& network();
+
     /// \brief Set input tensor information for input - Lvalue version
+    ///
+    /// \todo Consider removing it in future
     ///
     /// \param builder Input tensor information.
     ///
@@ -59,6 +78,8 @@ public:
 
     /// \brief Set input tensor information for input - Rvalue version
     ///
+    /// \todo Consider removing it in future
+    ///
     /// \param builder Input tensor information.
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
@@ -66,12 +87,16 @@ public:
 
     /// \brief Set preprocessing operations for input - Lvalue version
     ///
+    /// \todo Consider removing it in future
+    ///
     /// \param builder Preprocessing operations.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     InputInfo& preprocess(PreProcessSteps&& builder) &;
 
     /// \brief Set preprocessing operations for input - Rvalue version
+    ///
+    /// \todo Consider removing it in future
     ///
     /// \param builder Preprocessing operations.
     ///
@@ -81,12 +106,16 @@ public:
 
     /// \brief Set network's tensor information for input - Lvalue version
     ///
+    /// \todo Consider removing it in future
+    ///
     /// \param builder Input network tensor information.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     InputInfo& network(InputNetworkInfo&& builder) &;
 
     /// \brief Set input tensor information for input - Rvalue version
+    ///
+    /// \todo Consider removing it in future
     ///
     /// \param builder Input network tensor information.
     ///

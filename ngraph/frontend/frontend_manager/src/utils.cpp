@@ -42,7 +42,7 @@ static std::string _get_frontend_library_path() {
     CHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
     if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            reinterpret_cast<LPSTR>(ngraph::frontend::get_frontend_library_path),
+                            reinterpret_cast<LPSTR>(ov::frontend::get_frontend_library_path),
                             &hm)) {
         FRONT_END_INITIALIZATION_CHECK(false, "GetModuleHandle returned ", GetLastError());
     }
@@ -50,13 +50,13 @@ static std::string _get_frontend_library_path() {
     return get_path_name(std::string(ie_library_path));
 #elif defined(__APPLE__) || defined(__linux__)
     Dl_info info;
-    dladdr(reinterpret_cast<void*>(ngraph::frontend::get_frontend_library_path), &info);
+    dladdr(reinterpret_cast<void*>(ov::frontend::get_frontend_library_path), &info);
     return get_path_name(std::string(info.dli_fname)).c_str();
 #else
 #    error "Unsupported OS"
 #endif  // _WIN32
 }
 
-std::string ngraph::frontend::get_frontend_library_path() {
+std::string ov::frontend::get_frontend_library_path() {
     return _get_frontend_library_path();
 }

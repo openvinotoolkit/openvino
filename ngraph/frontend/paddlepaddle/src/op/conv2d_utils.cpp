@@ -4,11 +4,11 @@
 
 #include "conv2d_utils.hpp"
 
-#include <ngraph/opsets/opset6.hpp>
+#include <openvino/opsets/opset6.hpp>
 
 #include "node_context.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -93,4 +93,4 @@ std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, const int
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -638,7 +638,7 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
         outDescs.emplace_back(outConf.desc);
     createDescriptor(inDescs, outDescs);
 
-    std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
+    AttrPtr attr = initPrimitiveAttr();
 
     NodeConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -957,14 +957,14 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 }
 
 MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getInputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getOutputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));

@@ -216,7 +216,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         jump_split_concat_ops: jump_over_split_concat
     }
 
-    def find_nodes_fq_int(self, graph):
+    def delete_fq_non_quantizable_node_precision(self, graph):
         type_infer(graph)
         fq_removal = RemoveFakeQuantize()
         fq_removal.quantize_agnostic_operations = self.quantize_agnostic_operations
@@ -227,7 +227,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
             fq = fq_queue.popleft()
             if fq.in_port(0).get_source() is not None and fq.in_port(0).get_source().is_data_type_defined():
                 type_node = fq.in_port(0).get_source().get_data_type()
-                if type_node in (np.int32, np.int64):
+                if type_node in (np.int32, np.int64, bool):
                     node_int_fq.append(fq.name)
                     fq_removal.find_and_remove_node(graph, fq.name)
 
@@ -649,12 +649,20 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
         def change_names(_, match):
             fq_node = match['fq']
             input_node = get_node_input(fq_node, 0)
+            new_fq_name = copy(input_node.name)
+            if 'orig_node_name' in input_node:
+                new_fq_name = copy(input_node['orig_node_name'])
+
+            input_node_outputs = get_all_node_outputs(input_node)
+            if all([op.type == 'FakeQuantize' for op in input_node_outputs]):
+                new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
             fq_node['orig_fq_name'] = copy(fq_node.name)
-            fq_node.name = copy(input_node.name)
+            fq_node.name = copy(new_fq_name)
 
-            input_node['orig_node_name'] = copy(input_node.name)
-            input_node.name = '{original_name}/pre_fq_input'.format(original_name=input_node.name)
+            if 'orig_node_name' not in input_node:
+                input_node['orig_node_name'] = copy(input_node.name)
+                input_node.name = '{original_name}/pre_fq_input'.format(original_name=input_node.name)
 
         pattern = get_fq_result_pattern()
         apply_pattern(

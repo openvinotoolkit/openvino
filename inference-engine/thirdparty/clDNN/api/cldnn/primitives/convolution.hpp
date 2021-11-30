@@ -801,9 +801,22 @@ struct convolution : public primitive_base<convolution> {
     /// @brief List of primitive ids containing compensation.
     primitive_id_arr compensation;
 
-
     /// @brief On how many cards split the computation to.
     int32_t split() const { return static_cast<int32_t>(weights.size()); }
+
+    /// @brief Validates if this convolution satisfies condition to support mixed format execution from bfyx to blocked fsv16.
+    /// This validation is used by selecting onednn type as preferred impl and handling reorders at reorder_inputs and remove_redundant_reorders.
+    /// As an example, if a reorder has 2 reorder users that each reorder has a convolution user, then merge is not done when those 2 convolutions
+    /// have different result from this function.
+    /// Currently, if an input channel of the first onednn conv is 1, then ref kernel is selected.
+    bool needs_onednn_bfyx_to_fsv16(format fmt_prev, format fmt_next, layout& prev_output_layout, layout& next_output_layout) const {
+        if (fmt_prev == format::bfyx && (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
+            next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4 && prev_output_layout.size.feature[0] >= 2 &&
+            activations_zero_points.empty() && weights_zero_points.empty())
+            return true;
+
+        return false;
+    }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
