@@ -79,8 +79,8 @@ template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    explicit jit_uni_eltwise_generic(jit_eltwise_params jep, MKLDNNEltwiseNode& eltwiseNode) :
-        jit_uni_eltwise_kernel(std::move(jep), eltwiseNode), jit_generator() {}
+    explicit jit_uni_eltwise_generic(const jit_eltwise_params& jep, MKLDNNEltwiseNode& eltwiseNode) :
+        jit_uni_eltwise_kernel(jep, eltwiseNode), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1398,7 +1398,7 @@ void MKLDNNEltwiseNode::prepareParams() {
                 break;
 
             for (int j = 1; j < dims_in.size(); j++) {
-                if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+                if (dims_in[j].back() != dims_in[0].back()) {
                     hasDifferentDims = true;
                 }
             }
@@ -1410,11 +1410,6 @@ void MKLDNNEltwiseNode::prepareParams() {
             bool canCollapse = true;
             for (int i = 0; i < dims_in.size(); i++) {
                 if (dims_in[i][dims_in[i].size() - 2] != 1) {
-                    if (dims_in[i][dims_in[i].size() - 1] == 1) {
-                        canCollapse = false;
-                        break;
-                    }
-
                     if (hasDifferentDims) {
                         canCollapse = false;
                         break;

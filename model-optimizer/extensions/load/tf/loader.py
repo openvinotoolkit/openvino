@@ -23,6 +23,7 @@ from mo.front.extractor import restore_edges, extract_node_attrs, remove_control
 from mo.front.tf.extractor import get_tf_edges, create_tf_edge, tf_op_extractor, tf_op_extractors
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph, Node
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
 from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, send_framework_info
@@ -64,6 +65,7 @@ class TFLoader(Loader):
         if argv.tensorboard_logdir:
             tensorboard_util.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
 
+        update_extractors_with_extensions(tf_op_extractors)
 
         try:
             protobuf2nx(graph, graph_def)
@@ -102,10 +104,10 @@ class TFLoader(Loader):
 
         # try to detect layout from the nodes of the graph. If there are no convolution nodes in N(D)HWC layout then we
         # consider that the graph is in NCHW layout and no layout conversion should be performed
-        if not argv.disable_nhwc_to_nchw and not argv.silent and not graph_or_sub_graph_has_nhwc_ops(graph):
-            log.error('The TensorFlow model does not contain Convolution operations with N(D)HWC layout. Most likely '
-                      'the model should be converted using additional "--disable_nhwc_to_nchw" command line parameter '
-                      'which disables model layout conversion inside the Model Optimizer.', extra={'is_warning': True})
+        if not argv.disable_nhwc_to_nchw and not graph_or_sub_graph_has_nhwc_ops(graph):
+            if not argv.silent:
+                log.debug('disable_nhwc_to_nchw" was automatically enabled.')
+            for_graph_and_each_sub_graph_recursively(graph, update_cmd_params_and_layout)
 
         send_op_names_info(framework, graph)
         send_shapes_info(framework, graph)
@@ -144,13 +146,13 @@ def graph_or_sub_graph_has_nhwc_ops(graph: Graph):
     return NHWC_conv_detected
 
 
-class TFExtractor(Loader):
-    id = "TFExtractor"
-    enabled = True
-
-    def run_after(self):
-        return [TFLoader]
-
-    def load(self, graph: Graph):
-        update_extractors_with_extensions(tf_op_extractors)
-        extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+def update_cmd_params_and_layout(graph: Graph):
+    """
+    Updates "cmd_params" and "layout" attribute as the model has only NCHW layout operations.
+    :param graph: graph to update attributes
+    :return: Nones
+    """
+    if 'cmd_params' in graph.graph:
+        graph.graph['cmd_params'].auto_disable_nhwc_to_nchw = True
+    if 'layout' in graph.graph:
+        graph.graph['layout'] = 'NCHW'

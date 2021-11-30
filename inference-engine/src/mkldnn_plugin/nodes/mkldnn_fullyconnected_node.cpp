@@ -261,6 +261,15 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
             impl_desc_type::jit_sse42,
             impl_desc_type::ref,
     };
+
+    // WA: brgemm kernel contains bug that may lead to segfault in case of added post-ops and unaligned number of channels
+    size_t simdWidth = 16;
+    auto inputDims = inputShapes[0].getDims();
+    if (inputDims.back() != Shape::UNDEFINED_DIM && inputDims.back() % simdWidth == 0) {
+        priorities.insert(priorities.begin() + 1, impl_desc_type::brgemm_avx512_amx);
+        priorities.insert(priorities.begin() + 2, impl_desc_type::brgemm_avx512);
+    }
+
     for (const auto& impl : priorities) {
         if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
             implPriorities.push_back(impl);

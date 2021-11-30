@@ -266,11 +266,11 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
 
     if (!inFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
+                std::make_shared<ngraph::MLKDNNInputMemoryFormats>(fmts2str(inFmts, "cpu:"))});
     }
     if (!outFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
+                std::make_shared<ngraph::MLKDNNOutputMemoryFormats>(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
