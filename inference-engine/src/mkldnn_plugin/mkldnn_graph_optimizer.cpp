@@ -157,7 +157,7 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
 void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &graph) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations");
 
-    DropDoubleReorders(graph);
+    DropRedundantReorders(graph);
     graph.RemoveDroppedNodes();
 
     MergeTransposeAndReorder(graph);
@@ -1523,12 +1523,16 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
     }
 }
 
-void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
+void MKLDNNGraphOptimizer::DropRedundantReorders(MKLDNNGraph &graph) {
     std::set<MKLDNNNodePtr> processed;
+    auto& graphEdges = graph.GetEdges();
     int graphNodesSize = graph.GetNodes().size();
     for (int i = 0; i < graphNodesSize; i++) {
         MKLDNNNodePtr& node = graph.GetNodes()[i];
-        if (processed.find(node) == processed.end() && node->getType() == Reorder
+        if (processed.find(node) != processed.end()) {
+            continue;
+        }
+        if (node->getType() == Reorder
             && node->getChildEdges().size() == 1
             && node->getChildEdgeAt(0)->getChild()->getType() == Reorder ) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
@@ -1561,6 +1565,96 @@ void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
             std::string layerName = edge->getParent()->getName() + "_ScaleReorder_" + edge->getChild()->getName();
             graph.InsertReorder(edge, layerName, n->getInput(), nn->getOutput(), false);
             graph.GetEdges().erase(std::remove(graph.GetEdges().begin(), graph.GetEdges().end(), edge), graph.GetEdges().end());
+        }
+        // Handle case when node has multiple output edges with (equivalent) reorders, e.g.:
+        //              +---------+
+        //              |  node1  |
+        //              +---------+
+        //                 |   |
+        //          -------    -------
+        //          |                |
+        //          v                v
+        //    +-----------+    +-----------+
+        //    |  reorder  |    |  reorder  |
+        //    +-----------+    +-----------+
+        //          |                |
+        //          v                v
+        //     +---------+      +---------+
+        //     |  node2  |      |  node3  |
+        //     +---------+      +---------+
+        //
+        // gets converted to:
+        //              +---------+
+        //              |  node1  |
+        //              +---------+
+        //                   |
+        //                   v
+        //             +-----------+
+        //             |  reorder  |
+        //             +-----------+
+        //                 |   |
+        //          -------    -------
+        //          |                |
+        //          v                v
+        //     +---------+      +---------+
+        //     |  node2  |      |  node3  |
+        //     +---------+      +---------+
+        if (node->getChildEdges().size() > 1) {
+            // map where key is built from reorder input format, reorder output format and reorder input port id
+            // map value is a list of node edges indices that point to the redundant reorders
+            std::unordered_map<std::string, std::vector<size_t>> reorders;
+            auto childEdges = node->getChildEdges();
+            for (size_t edgeId = 0; edgeId < childEdges.size(); edgeId++) {
+                const auto edge = childEdges[edgeId].lock();
+                if (edge->getChild()->getType() != Reorder)
+                    continue;
+                const auto reorder = edge->getChild();
+                if (!reorder->isExecutable())
+                    continue;
+
+                auto key = MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), reorder->getChildEdgeAt(0)->getOutputDesc());
+                key += "_port_" + std::to_string(edge->parent_port);
+                if (reorders.count(key) > 0)
+                    reorders[key].push_back(edgeId);
+                else
+                    reorders[key] = {edgeId};
+            }
+            for (auto it : reorders) {
+                const auto& edges = it.second;
+                if (edges.size() == 1)
+                    continue;
+
+                auto firstReorderEdge = childEdges[edges[0]].lock();
+                auto firstReorder = firstReorderEdge->getChild();
+                const auto& firstReorderOutputDesc = firstReorder->getChildEdgeAt(0)->getOutputDesc();
+                for (size_t j = 1; j < edges.size(); j++) {
+                    auto edgeId = edges[j];
+                    auto reorderEdge = childEdges[edgeId].lock();
+                    auto reorderNode = reorderEdge->getChild();
+                    bool canRemove = true;
+                    for (auto childEdge : reorderNode->getChildEdges()) {
+                        auto reorderChildEdge = childEdge.lock();
+                        auto reorderChild = reorderChildEdge->getChild();
+                        if (!firstReorderOutputDesc.isCompatible(reorderChildEdge->getOutputDesc()) ||
+                            !reorderChild->isExecutable()) {
+                            canRemove = false;
+                            continue;
+                        }
+                        reorderChild->removeEdge(childEdge);
+                        MKLDNNEdgePtr newEdge(new MKLDNNEdge(firstReorder, reorderChild, 0, reorderChildEdge->child_port));
+                        firstReorder->addEdge(newEdge);
+                        graphEdges.push_back(newEdge);
+                        graph.RemoveEdge(reorderChildEdge);
+                    }
+                    if (canRemove) {
+                        node->removeEdge(reorderEdge);
+                        graph.RemoveEdge(reorderEdge);
+                        graph.DropNode(reorderNode);
+                        processed.insert(reorderNode);
+                    }
+                }
+            }
+            processed.insert(node);
         }
     }
 }

@@ -100,6 +100,7 @@ private:
     MKLDNNEdgePtr getBaseEdge(int look = LOOK_BOTH);
     bool inPlace(LOOK look = LOOK_BOTH);
     friend class MKLDNNGraph;
+    friend class MKLDNNGraphOptimizer;
 };
 
 }  // namespace MKLDNNPlugin
