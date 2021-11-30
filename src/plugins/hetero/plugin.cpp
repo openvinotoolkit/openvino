@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include "ie_metric_helpers.hpp"
-#include "hetero_plugin.hpp"
+#include "plugin.hpp"
 #include <memory>
 #include <vector>
 #include <map>
@@ -12,8 +13,9 @@
 #include <fstream>
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
-#include "hetero_executable_network.hpp"
+#include "executable_network.hpp"
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+// clang-format on
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
@@ -28,18 +30,17 @@ Engine::Engine() {
 
 namespace {
 
-Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs & local) {
-    for (auto && kvp : local) {
+Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs& local) {
+    for (auto&& kvp : local) {
         config[kvp.first] = kvp.second;
     }
     return config;
 }
 
-const std::vector<std::string> & getSupportedConfigKeys() {
-    static const std::vector<std::string> supported_configKeys = {
-        HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
-        "TARGET_FALLBACK",
-        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) };
+const std::vector<std::string>& getSupportedConfigKeys() {
+    static const std::vector<std::string> supported_configKeys = {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
+                                                                  "TARGET_FALLBACK",
+                                                                  CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
 
     return supported_configKeys;
 }
@@ -47,7 +48,7 @@ const std::vector<std::string> & getSupportedConfigKeys() {
 }  // namespace
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                                                                            const Configs&                     config) {
+                                                                            const Configs& config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
@@ -66,11 +67,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
     return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& heteroModel, const std::map<std::string, std::string>& config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
+    std::istream& heteroModel,
+    const std::map<std::string, std::string>& config) {
     return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this);
 }
 
-Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string & deviceName) const {
+Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string& deviceName) const {
     std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
     Engine::Configs supportedConfig;
     for (auto&& key : supportedConfigKeys) {
@@ -83,8 +86,8 @@ Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const 
 }
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
-                                                          const Configs & localConfig) const {
-    auto getDeviceConfig = [&](const std::string & deviceWithID) {
+                                                          const Configs& localConfig) const {
+    auto getDeviceConfig = [&](const std::string& deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
         std::string deviceName = deviceParser.getDeviceName();
         Configs tconfig = mergeConfigs(_config, localConfig);
@@ -109,10 +112,10 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
     return metaDevices;
 }
 
-void Engine::SetConfig(const Configs &configs) {
-    for (auto && kvp : configs) {
+void Engine::SetConfig(const Configs& configs) {
+    for (auto&& kvp : configs) {
         const auto& name = kvp.first;
-        const auto & supported_configKeys = getSupportedConfigKeys();
+        const auto& supported_configKeys = getSupportedConfigKeys();
         if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             _config[name] = kvp.second;
         else
@@ -120,7 +123,7 @@ void Engine::SetConfig(const Configs &configs) {
     }
 }
 
-QueryNetworkResult Engine::QueryNetwork(const CNNNetwork &network, const Configs& config) const {
+QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs& config) const {
     QueryNetworkResult qr;
 
     if (GetCore() == nullptr) {
@@ -164,12 +167,12 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork &network, const Configs
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(FULL_DEVICE_NAME),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(DEVICE_ARCHITECTURE),
-            METRIC_KEY(IMPORT_EXPORT_SUPPORT)});
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
+                             std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
+                                                      METRIC_KEY(FULL_DEVICE_NAME),
+                                                      METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                      METRIC_KEY(DEVICE_ARCHITECTURE),
+                                                      METRIC_KEY(IMPORT_EXPORT_SUPPORT)});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, getSupportedConfigKeys());
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
@@ -195,29 +198,29 @@ std::string Engine::DeviceArchitecture(const std::string& targetFallback) const 
     for (const auto& device : fallbackDevices) {
         InferenceEngine::DeviceIDParser parser(device);
 
-        std::vector<std::string> supportedMetricKeys = GetCore()->GetMetric(
-                parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS));
-        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
-                            METRIC_KEY(DEVICE_ARCHITECTURE));
-        auto arch = (it != supportedMetricKeys.end()) ?
-                GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>() : parser.getDeviceName();
+        std::vector<std::string> supportedMetricKeys =
+            GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS));
+        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
+        auto arch = (it != supportedMetricKeys.end())
+                        ? GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>()
+                        : parser.getDeviceName();
         resArch += " " + arch;
     }
     return resArch;
 }
 
-Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter> & /*options*/) const {
+Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
     if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
         auto it = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
         IE_ASSERT(it != _config.end());
         bool dump = it->second == YES;
-        return { dump };
+        return {dump};
     } else if (name == "TARGET_FALLBACK") {
         auto it = _config.find("TARGET_FALLBACK");
         if (it == _config.end()) {
             IE_THROW() << "Value for TARGET_FALLBACK is not set";
         } else {
-            return { it->second };
+            return {it->second};
         }
     } else {
         IE_THROW() << "Unsupported config key: " << name;
@@ -225,9 +228,9 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 }
 
 static Version heteroPluginDescription = {
-        {2, 1},  // plugin API version
-        CI_BUILD_NUMBER,
-        "heteroPlugin"  // plugin description message
+    {2, 1},  // plugin API version
+    CI_BUILD_NUMBER,
+    "heteroPlugin"  // plugin description message
 };
 
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, heteroPluginDescription)

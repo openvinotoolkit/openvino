@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <vector>
+
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
-#include "hetero_infer_request.hpp"
+#include "infer_request.hpp"
 
 namespace HeteroPlugin {
 
@@ -15,14 +16,13 @@ class HeteroAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadS
 public:
     using Ptr = std::shared_ptr<HeteroAsyncInferRequest>;
     HeteroAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr& request,
-                            const InferenceEngine::ITaskExecutor::Ptr&        taskExecutor,
-                            const InferenceEngine::ITaskExecutor::Ptr&        callbackExecutor);
+                            const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
+                            const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
     ~HeteroAsyncInferRequest();
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;
 
 private:
-    HeteroInferRequest::Ptr                     _heteroInferRequest;
+    HeteroInferRequest::Ptr _heteroInferRequest;
 };
 
 }  // namespace HeteroPlugin
-
