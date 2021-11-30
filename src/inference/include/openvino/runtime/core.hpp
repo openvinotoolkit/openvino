@@ -155,23 +155,29 @@ public:
      */
     OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
     void add_extension(const std::shared_ptr<ie::IExtension>& extension);
+
     /**
      * @brief Registers extension
      * @param library_path path to library with ov::Extension
+     * @note Use ov::Core::add_extension(const std::shared_ptr<ie::IExtension>&) to load OpenVINO 1.0 extensions
      */
     void add_extension(const std::string& library_path);
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Registers extension
      * @param library_path path to library with ov::Extension
+     * @note Use ov::Core::add_extension(const std::shared_ptr<ie::IExtension>&) to load OpenVINO 1.0 extensions
      */
     void add_extension(const std::wstring& library_path);
 #endif
+
     /**
      * @brief Registers extension
      * @param extension Pointer to base extension
      */
     void add_extension(const std::shared_ptr<ov::Extension>& extension);
+
     /**
      * @brief Registers extensions
      * @param extensions Vector of loaded base extensions

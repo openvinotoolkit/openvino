@@ -245,7 +245,6 @@ def test_unregister_plugin(device):
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
 
-@pytest.mark.skip(reason="dlSym cannot locate method 'create_extensions': libtemplate_extension.so")
 @pytest.mark.template_extension
 def test_add_extension(device):
     model = bytes(b"""<net name="Network" version="10">
@@ -261,7 +260,7 @@ def test_add_extension(device):
                 </port>
             </output>
         </layer>
-        <layer name="operation" id="1" type="Template" version="custom_opset">
+        <layer name="operation" id="1" type="Identity" version="extension">
             <data  add="11"/>
             <input>
                 <port id="1" precision="FP32">
@@ -299,10 +298,10 @@ def test_add_extension(device):
 
     core = Core()
     if platform == "win32":
-        core.add_extension(library_path="template_extension.dll")
+        core.add_extension(library_path="template_ov_extension.dll")
     else:
-        core.add_extension(library_path="libtemplate_extension.so")
-    func = core.read_model(model=model, init_from_buffer=True)
+        core.add_extension(library_path="libtemplate_ov_extension.so")
+    func = core.read_model(model=model)
     assert isinstance(func, Function)
 
     # input_blob = next(iter(network.input_info))
