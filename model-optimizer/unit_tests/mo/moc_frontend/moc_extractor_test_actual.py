@@ -52,17 +52,6 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 1
-        assert node
-
-    # Mock model has 'operation' operation place
-    @mock_needed
-    def test_decode_name_with_port_op(self):
-        node = decode_name_with_port(self.model, "operation")
-        model_stat = get_model_statistic()
-
-        assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 1
         assert node
 
     # pylint: disable=wrong-spelling-in-comment
@@ -73,20 +62,20 @@ class TestMainFrontend(unittest.TestCase):
             decode_name_with_port(self.model, 'mocknoname')
         model_stat = get_model_statistic()
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 1
 
-    # Mock model has both tensor and operation with same name and non-equal data
+    # Mock model has both tensor and tensor:0 places with non equal data
     # Collision is expected
     @mock_needed
-    def test_decode_name_with_port_collision_op_tensor(self):
+    def test_decode_name_with_port_collision(self):
         with self.assertRaisesRegex(Error, 'Name\\ collision.*tensorAndOp*'):
-            decode_name_with_port(self.model, 'tensorAndOp')
+            decode_name_with_port(self.model, 'tensorAndOp:0')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
         assert model_stat.get_place_by_operation_name == 1
         assert place_stat.is_equal_data > 0
+
 
     # Mock model has 'operation' and output port up to 10
     @mock_needed
@@ -96,7 +85,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_output_port == 1
         assert place_stat.lastArgInt == 7
         assert node
@@ -109,38 +98,10 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_input_port == 1
         assert place_stat.lastArgInt == 7
         assert node
-
-    # Mock model has 'operation' and 'operation:0' op places, collision is expected
-    @mock_needed
-    def test_decode_name_with_port_delim_op_collision_out(self):
-        with self.assertRaisesRegex(Error, 'Name\\ collision(?!.*Tensor.*).*operation\\:0*'):
-            decode_name_with_port(self.model, 'operation:0')
-        model_stat = get_model_statistic()
-        place_stat = get_place_statistic()
-
-        assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
-        assert place_stat.is_equal_data > 0
-        assert place_stat.get_output_port == 1
-        assert place_stat.lastArgInt == 0
-
-    # Mock model has 'operation' and '0:operation' op places, collision is expected
-    @mock_needed
-    def test_decode_name_with_port_delim_op_collision_in(self):
-        with self.assertRaisesRegex(Error, 'Name\\ collision(?!.*Tensor.*).*0\\:operation*'):
-            decode_name_with_port(self.model, '0:operation')
-        model_stat = get_model_statistic()
-        place_stat = get_place_statistic()
-
-        assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
-        assert place_stat.is_equal_data > 0
-        assert place_stat.get_input_port == 1
-        assert place_stat.lastArgInt == 0
 
     # Mock model has 'tensor' and 'tensor:0' tensor places, no collision is expected
     @mock_needed
@@ -150,7 +111,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_output_port == 0
         assert node
 
@@ -162,7 +123,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_input_port == 0
         assert node
 
@@ -175,7 +136,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_output_port == 1
         assert place_stat.lastArgInt == 1234
 
@@ -188,7 +149,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_input_port == 1
         assert place_stat.lastArgInt == 1234
 
@@ -203,7 +164,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_output_port == 1
         assert place_stat.is_equal_data > 0
         assert node
@@ -219,7 +180,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_input_port == 1
         assert place_stat.is_equal_data > 0
         assert node
@@ -238,7 +199,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 3
+        assert model_stat.get_place_by_operation_name == 2
         assert place_stat.get_input_port == 1
         assert place_stat.get_output_port == 1
         # At least 3 comparisons of places are expected

@@ -12,9 +12,10 @@
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
+#include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>
-#include "frontend_manager/frontend_manager.hpp"
+#include "manager.hpp"
 
 using namespace ngraph;
 
@@ -185,6 +186,9 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
         auto result = std::make_shared<ov::opset8::Result>(add);
         result->set_layout("????");
         function = std::make_shared<ngraph::Function>(ResultVector{result}, ParameterVector{data});
+        auto p = ov::preprocess::PrePostProcessor(function);
+        p.input().tensor().set_memory_type("test_memory_type");
+        function = p.build();
     }
 
     pass::Manager m;
@@ -210,6 +214,9 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);
     EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NCHW");
+    auto var0 = std::dynamic_pointer_cast<ov::preprocess::TensorInfoMemoryType>(
+            f->input(0).get_rt_info()[ov::preprocess::TensorInfoMemoryType::get_type_info_static()]);
+    EXPECT_EQ(var0->get(), "test_memory_type");
     EXPECT_EQ(f->get_results()[0]->get_layout(), "????");
     check_info(add->get_rt_info());
     check_info(add->input(0).get_rt_info());

@@ -57,7 +57,9 @@ static std::shared_ptr<Function> create_simple_function_yuv(const PartialShape& 
 
 TEST_F(ReferencePreprocessLegacyTest, mean) {
     function = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-    function = PrePostProcessor(function).input(InputInfo().preprocess(PreProcessSteps().mean(1.f))).build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().mean(1.f);
+    p.build();
 
     auto f2 = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     legacy_network = InferenceEngine::CNNNetwork(f2);
@@ -75,7 +77,9 @@ TEST_F(ReferencePreprocessLegacyTest, mean) {
 
 TEST_F(ReferencePreprocessLegacyTest, mean_scale) {
     function = create_simple_function(element::f32, Shape{1, 3, 20, 20});
-    function = PrePostProcessor(function).input(InputInfo().preprocess(PreProcessSteps().scale(2.f))).build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().scale(2.f);
+    p.build();
 
     auto f2 = create_simple_function(element::f32, Shape{1, 3, 20, 20});
     legacy_network = InferenceEngine::CNNNetwork(f2);
@@ -96,14 +100,74 @@ TEST_F(ReferencePreprocessLegacyTest, resize) {
     auto f2 = create_simple_function(element::f32, Shape{1, 3, 5, 5});
     legacy_network = InferenceEngine::CNNNetwork(f2);
 
-    function = PrePostProcessor(function).input(InputInfo()
-            .tensor(InputTensorInfo().set_layout("NCHW").set_spatial_static_shape(42, 30))
-            .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
-            .network(InputNetworkInfo().set_layout("NCHW")))
-                    .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_layout("NCHW").set_spatial_static_shape(42, 30);
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().network().set_layout("NCHW");
+    p.build();
 
     auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
+    Exec();
+}
+
+TEST_F(ReferencePreprocessLegacyTest, bgrx_to_bgr) {
+    const int h = 160;
+    const int w = 160;
+    auto rgbx_input = std::vector<uint8_t>(h * w * 4, 0);
+    for (auto i = 0; i < h * w * 4; i++) {
+        rgbx_input[i] = i % 256;
+    }
+    function = create_simple_function(element::f32, Shape{1, 3, h, w});
+    auto f2 = create_simple_function(element::f32, Shape{1, 3, h, w});
+    legacy_network = InferenceEngine::CNNNetwork(f2);
+
+    auto p = PrePostProcessor(function);
+    auto& input = p.input();
+    input.tensor().set_color_format(ColorFormat::BGRX).set_element_type(element::u8);
+    input.preprocess().convert_color(ColorFormat::BGR);
+    input.network().set_layout("NCHW");
+    function = p.build();
+    inputData.emplace_back(element::u8, Shape{1, h, w, 4}, rgbx_input.data());
+
+    InferenceEngine::TensorDesc rgbx_plane_desc(InferenceEngine::Precision::U8,
+                                                {1, 4, h, w},
+                                                InferenceEngine::Layout::NHWC);
+    legacy_network.getInputsInfo().begin()->second->setLayout(InferenceEngine::NHWC);
+    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setColorFormat(InferenceEngine::ColorFormat::BGRX);
+    legacy_input_blobs["input1"] = InferenceEngine::make_shared_blob<uint8_t>(rgbx_plane_desc, rgbx_input.data());
+
+    Exec();
+}
+
+TEST_F(ReferencePreprocessLegacyTest, rgbx_to_bgr) {
+    const int h = 160;
+    const int w = 160;
+    auto rgbx_input = std::vector<uint8_t>(h * w * 4, 0);
+    for (auto i = 0; i < h * w * 4; i++) {
+        rgbx_input[i] = i % 256;
+    }
+    function = create_simple_function(element::f32, Shape{1, 3, h, w});
+    auto f2 = create_simple_function(element::f32, Shape{1, 3, h, w});
+    legacy_network = InferenceEngine::CNNNetwork(f2);
+
+    auto p = PrePostProcessor(function);
+    auto& input = p.input();
+    input.tensor().set_color_format(ColorFormat::RGBX).set_element_type(element::u8);
+    input.preprocess().convert_color(ColorFormat::BGR);
+    input.network().set_layout("NCHW");
+    function = p.build();
+    inputData.emplace_back(element::u8, Shape{1, h, w, 4}, rgbx_input.data());
+
+    InferenceEngine::TensorDesc rgbx_plane_desc(InferenceEngine::Precision::U8,
+                                                {1, 4, h, w},
+                                                InferenceEngine::Layout::NHWC);
+    legacy_network.getInputsInfo().begin()->second->setLayout(InferenceEngine::NHWC);
+    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setColorFormat(InferenceEngine::ColorFormat::RGBX);
+    legacy_input_blobs["input1"] = InferenceEngine::make_shared_blob<uint8_t>(rgbx_plane_desc, rgbx_input.data());
+
     Exec();
 }
 
@@ -117,12 +181,11 @@ public:
         inputData.clear();
         legacy_input_blobs.clear();
 
-        function = PrePostProcessor(function).input(InputInfo()
-                                                    .tensor(InputTensorInfo().set_color_format(
-                                                            ColorFormat::NV12_SINGLE_PLANE))
-                                                    .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))
-                                                    .network(InputNetworkInfo().set_layout("NCHW")))
-                .build();
+        auto p = PrePostProcessor(function);
+        p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
+        p.input().preprocess().convert_color(ColorFormat::BGR);
+        p.input().network().set_layout("NCHW");
+        p.build();
 
         const auto &param = function->get_parameters()[0];
         inputData.emplace_back(param->get_element_type(), param->get_shape(), ov20_input_yuv.data());

@@ -8,6 +8,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "gna_plugin_log.hpp"
+
 namespace GNAPluginNS {
 namespace memory {
 
@@ -26,6 +28,45 @@ enum rRegion {
     REGION_AUTO,
 };
 
+#ifdef GNA_HEAP_PROFILER
+inline const char* rRegionToStr(uint8_t region) {
+   const char* strRegion = "UNKNOWN";
+   switch (region) {
+      case REGION_RO:
+        strRegion = "REGION_RO";
+        break;
+      case REGION_RW:
+        strRegion = "REGION_RW";
+        break;
+      case REGION_AUTO:
+        strRegion = "REGION_AUTO";
+        break;
+   }
+   return strRegion;
+}
+
+inline const char* rTypeToStr(uint8_t type) {
+   const char* strType = "UNKNOWN";
+   switch (type) {
+      case REQUEST_STORE:
+        strType = "REQUEST_STORE";
+        break;
+      case REQUEST_ALLOCATE:
+        strType = "REQUEST_ALLOCATE";
+        break;
+      case REQUEST_BIND:
+        strType = "REQUEST_BIND";
+        break;
+      case REQUEST_INITIALIZER | REQUEST_STORE:
+      case REQUEST_INITIALIZER | REQUEST_ALLOCATE:
+      case REQUEST_INITIALIZER | REQUEST_BIND:
+        strType = "INITIALIZER";
+        break;
+   }
+   return strType;
+}
+#endif
+
 struct MemRequest {
     rRegion  _region;
     uint8_t   _type;
@@ -40,6 +81,10 @@ struct MemRequest {
     size_t _offset = 0;
     // expansion in bytes due to large depended layers
     size_t _padding = 0;
+
+    // fields to sort regions by execution availability
+    std::pair<uint16_t, uint16_t> _life_limits{0, UINT16_MAX};
+
     MemRequest(rRegion region,
                 rType req,
                 void *ptr_out,
@@ -79,7 +124,8 @@ struct MemRequest {
         _data.resize(sizeof(T));
         std::copy(reinterpret_cast<uint8_t *>(&element), reinterpret_cast<uint8_t *>(&element) + sizeof(T), _data.begin());
     }
-/**
+
+    /**
      * Store initializer request
      * @param req
      * @param ptr_out

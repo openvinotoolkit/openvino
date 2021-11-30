@@ -223,6 +223,7 @@ public:
      */
     void show() {
         /** Print the result iterating over each batch **/
+        std::ios::fmtflags fmt(std::cout.flags());
         std::cout << std::endl << "Top " << _nTop << " results:" << std::endl << std::endl;
         for (unsigned int image_id = 0; image_id < _batchSize; ++image_id) {
             std::wstring out(_imageNames[image_id].begin(), _imageNames[image_id].end());
@@ -248,10 +249,12 @@ public:
             }
             std::cout << std::endl;
         }
+        std::cout.flags(fmt);
     }
 
     void print() {
         /** Print the result iterating over each batch **/
+        std::ios::fmtflags fmt(std::cout.flags());
         std::cout << std::endl << "Top " << _nTop << " results:" << std::endl << std::endl;
         for (unsigned int image_id = 0; image_id < _batchSize; ++image_id) {
             std::wstring out(_imageNames[image_id].begin(), _imageNames[image_id].end());
@@ -287,6 +290,7 @@ public:
             }
             std::cout << std::endl;
         }
+        std::cout.flags(fmt);
     }
 
     /**
