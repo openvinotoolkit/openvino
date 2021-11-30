@@ -35,6 +35,8 @@ protected:
             int& weightsIdx,
             bool& withWeights) = 0;
 
+    void prepareParams(const VectorDims& indexStaticShape);
+
     template<typename T>
     void processData(const T* srcData, const T* weightsData, T* dstData,
                      const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims);
