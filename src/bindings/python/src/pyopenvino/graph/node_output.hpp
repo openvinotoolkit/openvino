@@ -44,7 +44,8 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def("get_any_name",
                &ov::Output<VT>::get_any_name,
                R"(
-                Any tensor names associated with this output.
+                One of the tensor names associated with this output.
+                Note: first name in lexicographical order.
 
                 Returns
                 ----------
