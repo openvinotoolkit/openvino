@@ -14,7 +14,7 @@ add_subdirectory(ittapi)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
-if(ENABLE_CLDNN)
+if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
 endif()
 
