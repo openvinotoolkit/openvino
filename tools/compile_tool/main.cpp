@@ -81,8 +81,8 @@ static constexpr char ioml_message[] =
 "                                             Overwrites layout from il and ol options for specified layers.";
 
 static constexpr char legacy_message[] =
-                                             "Optional. Compile model to legacy format (layouts, data elements and\n"
-"                                             names of input/outputs can be changed).";
+                                             "Optional. Compile model to legacy format for usage in Inference Engine API,\n"
+"                                             by default compiles to OV 2.0 API";
 
 // MYRIAD-specific
 static constexpr char number_of_shaves_message[] =
@@ -138,7 +138,7 @@ static void showUsage() {
     std::cout << "    -iml                         <value>     "   << inputs_model_layout_message  << std::endl;
     std::cout << "    -oml                         <value>     "   << outputs_model_layout_message << std::endl;
     std::cout << "    -ioml                       \"<value>\"    "   << ioml_message               << std::endl;
-    std::cout << "    -legacy                     \"<value>\"    "   << legacy_message             << std::endl;
+    std::cout << "    -compile_to_legacy                       "   << legacy_message               << std::endl;
     std::cout                                                                                      << std::endl;
     std::cout << " MYRIAD-specific options:                    "                                   << std::endl;
     std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message     << std::endl;
