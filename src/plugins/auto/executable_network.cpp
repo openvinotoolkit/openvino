@@ -93,8 +93,14 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
 }
 
 void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, const SoExecutableNetworkInternal& executableNetwork) {
+    std::string realDeviceName;
+    if ( device == "CPU_HELP") {
+        realDeviceName = "CPU";
+    } else {
+        realDeviceName = device;
+    }
     auto itNumRequests = std::find_if(_devicePriorities.cbegin(), _devicePriorities.cend(),
-                                      [&device](const DeviceInformation& d){ return d.deviceName == device;});
+                                      [&realDeviceName](const DeviceInformation& d){ return d.deviceName == device;});
     unsigned int optimalNum = 0;
     try {
         optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
@@ -253,6 +259,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         }
         _idleWorkerRequests["CPU_HELP"];
         _workerRequests["CPU_HELP"];
+        _inferPipelineTasksDeviceSpecific["CPU_HELP"] = nullptr;
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
     } else {
