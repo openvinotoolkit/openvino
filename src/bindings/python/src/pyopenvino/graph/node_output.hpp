@@ -41,6 +41,26 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 get_index : int
                     Index value as integer.
                )");
+    output.def("get_any_name",
+               &ov::Output<VT>::get_any_name,
+               R"(
+                Any tensor names associated with this output.
+
+                Returns
+                ----------
+                get_any_name : str
+                    Tensor name as string.
+               )");
+    output.def("get_names",
+               &ov::Output<VT>::get_names,
+               R"(
+                The tensor names associated with this output.
+
+                Returns
+                ----------
+                get_names : set
+                    Set of tensor names.
+               )");
     output.def("get_element_type",
                &ov::Output<VT>::get_element_type,
                R"(
