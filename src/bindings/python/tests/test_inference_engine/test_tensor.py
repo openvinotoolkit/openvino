@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 
 from ..conftest import read_image
-from openvino import Tensor
-import openvino as ov
+from openvino.runtime import Tensor
+import openvino.runtime as ov
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
