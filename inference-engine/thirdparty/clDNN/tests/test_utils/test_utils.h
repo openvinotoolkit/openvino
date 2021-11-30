@@ -32,7 +32,7 @@
 #include "float16.h"
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
-#include <src/include/to_string_utils.h>
+#include "to_string_utils.h"
 
 #include <iostream>
 #include <limits>

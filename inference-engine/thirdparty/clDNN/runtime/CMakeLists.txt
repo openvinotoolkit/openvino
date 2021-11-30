@@ -2,81 +2,57 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# =================================== Name / Output settings from parent ===============================
+set(TARGET_NAME "ov_intel_gpu_runtime")
 
-set(CLDNN_BUILD__PROJ             "cldnn_runtime")
-set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
-
-# ========================================= Source/Header files ========================================
-
-set(__CLDNN_Directory__main           "${CMAKE_CURRENT_SOURCE_DIR}")
-set(__CLDNN_Label__main                "")
-file(GLOB __CLDNN_Sources__main
-    "${__CLDNN_Directory__main}/*.h"
-    "${__CLDNN_Directory__main}/*.hpp"
-    "${__CLDNN_Directory__main}/*.cpp"
+file(GLOB LIBRARY_SOURCES_MAIN
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
   )
 
-file(GLOB __CLDNN_Sources__ocl
-    "${__CLDNN_Directory__main}/ocl/*.h"
-    "${__CLDNN_Directory__main}/ocl/*.hpp"
-    "${__CLDNN_Directory__main}/ocl/*.cpp"
+file(GLOB LIBRARY_SOURCES_OCL
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
 )
 
-set(__CLDNN_AllSources
-    ${__CLDNN_Sources__main}
-    ${__CLDNN_Sources__ocl}
+set(LIBRARY_SOURCES_ALL
+    ${LIBRARY_SOURCES_MAIN}
+    ${LIBRARY_SOURCES_OCL}
   )
 
-# =============================================== Filters ==============================================
+add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
 
-source_group("${__CLDNN_Label__main}"             FILES ${__CLDNN_Sources__main})
+target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                 "${INCLUDE_DIR}")
 
-# ===================================== Include/Link directories =======================================
-
-include_directories(
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    "${__CLDNN_Directory__main}"
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-  )
-
-# =================================== Link targets and dependencies ====================================
-
-# Main static library.
-add_library("${CLDNN_BUILD__PROJ}" STATIC
-    ${__CLDNN_AllSources}
-  )
-
-target_compile_options("${CLDNN_BUILD__PROJ}" PRIVATE
+target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
-
 if(COMMAND add_cpplint_target)
-  add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
+  add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
 
 if(COMMAND set_ie_threading_interface_for)
-  set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
+  set_ie_threading_interface_for(${TARGET_NAME})
 endif()
 
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
+target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL
     openvino::itt
+    inference_engine_plugin_api
   )
 
 if(ENABLE_ONEDNN_FOR_GPU)
-  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu_tgt)
+  target_link_libraries(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
 endif()
 
 if(WIN32)
-  target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
+  target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))
-  target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
+  target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE inference_engine)
-
-ov_install_static_lib("${CLDNN_BUILD__PROJ}" gpu)
+ov_install_static_lib(${TARGET_NAME} gpu)
 
 # ======================================================================================================
