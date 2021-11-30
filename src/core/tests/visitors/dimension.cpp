@@ -27,20 +27,17 @@ TEST(attributes, dimension) {
     loader.on_attribute("dyn", g_dyn);
     EXPECT_EQ(dyn, g_dyn);
 
-
     Dimension scalar = Dimension(10);
     saver.on_attribute("scalar", dyn);
     Dimension g_scalar;
     loader.on_attribute("scalar", g_dyn);
     EXPECT_EQ(dyn, g_dyn);
 
-
     Dimension boundaries1 = Dimension(2, 100);
     saver.on_attribute("boundaries1", dyn);
     Dimension g_boundaries1;
     loader.on_attribute("boundaries1", g_dyn);
     EXPECT_EQ(dyn, g_dyn);
-
 
     Dimension boundaries2 = Dimension(-1, 100);
     saver.on_attribute("boundaries2", dyn);
