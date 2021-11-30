@@ -38,6 +38,7 @@
 #include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
+#include <transformations/op_conversions/convert_slice_to_strided_slice.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
@@ -72,6 +73,7 @@
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/smart_reshape/matmul_sr.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -315,7 +317,35 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     const auto outputs = node->get_output_target_inputs(i);
                     for (const auto &out : outputs) {
-                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::get_type_info_static()) {
+                        if (!ngraph::op::is_output(out.get_node())) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
+    pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(
+            [](const_node_ptr &node) -> bool {
+                for (size_t i = 0; i < node->get_output_size(); i++) {
+                    const auto outputs = node->get_output_target_inputs(i);
+                    for (const auto &out : outputs) {
+                        if (!ngraph::op::is_output(out.get_node())) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
+    pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(
+            [](const_node_ptr &node) -> bool {
+                for (size_t i = 0; i < node->get_output_size(); i++) {
+                    const auto outputs = node->get_output_target_inputs(i);
+                    for (const auto &out : outputs) {
+                        if (!ngraph::op::is_output(out.get_node())) {
                             return false;
                         }
                     }
@@ -341,6 +371,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::ConvertBroadcastToTiles>();
     pass_config->disable<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
+    pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
+    pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
+    pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
+    pass_config->disable<ngraph::pass::SliceToStridedSlice>();
 
     pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();

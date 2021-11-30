@@ -28,7 +28,7 @@ public:
         return false;
     }
 
-    void prepareParams() override;;
+    void prepareParams() override;
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
