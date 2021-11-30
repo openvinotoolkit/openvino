@@ -124,6 +124,7 @@ extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
 extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
+extensions/front/deduce_parameter_pshape.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/eltwise_n.py
@@ -182,7 +183,6 @@ extensions/front/mxnet/cumsum.py
 extensions/front/mxnet/cumsum_ext.py
 extensions/front/mxnet/custom.py
 extensions/front/mxnet/custom_rpn_proposal.py
-extensions/front/mxnet/deduce_parameter_shape.py
 extensions/front/mxnet/deformable_conv_ext.py
 extensions/front/mxnet/deformable_psroi_pooling_ext.py
 extensions/front/mxnet/dropout_ext.py

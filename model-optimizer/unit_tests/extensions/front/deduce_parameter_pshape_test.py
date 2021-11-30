@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.deduce_parameter_shape import DeduceParameterShape
+from extensions.front.deduce_parameter_pshape import DeduceParameterShape
 from mo.front.common.partial_infer.utils import dynamic_dimension, strict_compare_tensors, undefined_shape_of_rank
 from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
