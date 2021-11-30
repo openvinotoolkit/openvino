@@ -712,6 +712,42 @@ inline void update_output_tensors(ov::runtime::TensorVector& output_values, cons
         }
     }
 }
+
+// from function.cpp
+inline ov::runtime::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor) {
+    if (tensor->get_partial_shape().is_static()) {
+        ov::Shape shape = tensor->get_shape();
+        return std::move(ov::runtime::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr()));
+    } else {
+        if (tensor->get_element_type().is_dynamic()) {
+            return std::move(ov::runtime::Tensor());
+        } else {
+            return std::move(ov::runtime::Tensor(tensor->get_element_type(), {0}));
+        }
+    }
+}
+
+inline ov::runtime::TensorVector create_tmp_tensors(const ngraph::HostTensorVector& tensors) {
+    ov::runtime::TensorVector result;
+    result.reserve(tensors.size());
+    for (const auto& tensor : tensors) {
+        result.emplace_back(create_tmp_tensor(tensor));
+    }
+    return std::move(result);
+}
+
+inline void update_output_tensors(const ngraph::HostTensorVector& output_values,
+                                  const ov::runtime::TensorVector& outputs) {
+    OPENVINO_ASSERT(output_values.size(), outputs.size());
+    for (size_t i = 0; i < outputs.size(); i++) {
+        const auto& tensor = output_values[i];
+        tensor->set_element_type(outputs[i].get_element_type());
+        tensor->set_shape(outputs[i].get_shape());
+        void* dst_data = tensor->get_data_ptr();
+        memcpy(dst_data, outputs[i].data(), tensor->get_size_in_bytes());
+    }
+}
+
 }  // namespace
 
 bool ov::Node::evaluate(ov::runtime::TensorVector& output_values, const ov::runtime::TensorVector& input_values) const {
@@ -810,6 +846,16 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
             output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
         }
         return true;
+    } else {
+        std::vector<ov::runtime::Tensor> ov_tensor_inputs = create_tmp_tensors(input_tensors);
+        std::vector<ov::runtime::Tensor> ov_tensor_outputs = create_tmp_tensors(output_tensors);
+        if (evaluate(ov_tensor_outputs, ov_tensor_inputs)) {
+            update_output_tensors(output_tensors, ov_tensor_outputs);
+            for (size_t i = 0; i < output_tensors.size(); ++i) {
+                output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
+            }
+            return true;
+        }
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
