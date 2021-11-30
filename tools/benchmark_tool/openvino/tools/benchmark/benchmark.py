@@ -98,7 +98,7 @@ class Benchmark:
                 processed_frames += data_queue.get_next_batch_size()
             if self.api_type == 'sync':
                 if self.benchmark_mode == 'full':
-                    requests[0].set_tensors(data_queue.get_next_input())
+                    requests[0].set_input_tensors(data_queue.get_next_input())
                 requests[0].infer()
                 times.append(requests[0].latency)
             else:
@@ -111,7 +111,7 @@ class Benchmark:
                     in_fly.add(idle_id)
                 group_id = data_queue.current_group_id
                 if self.benchmark_mode == 'full':
-                    requests[idle_id].set_tensors(data_queue.get_next_input())
+                    requests[idle_id].set_input_tensors(data_queue.get_next_input())
                 requests.start_async(userdata=group_id)
             iteration += 1
 

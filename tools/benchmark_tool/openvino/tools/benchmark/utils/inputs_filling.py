@@ -106,21 +106,21 @@ def get_input_data(paths_to_input, app_input_info):
                 raise Exception(f"Input {info.name} is dynamic. Provide data shapes!")
 
     data = {}
-    for info in app_input_info:
+    for port, info in enumerate(app_input_info):
         if info.name in image_mapping:
-            data[info.name] = get_image_tensors(image_mapping[info.name][:images_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
+            data[port] = get_image_tensors(image_mapping[info.name][:images_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
         elif info.name in binary_mapping:
-            data[info.name] = get_binary_tensors(binary_mapping[info.name][:binaries_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
+            data[port] = get_binary_tensors(binary_mapping[info.name][:binaries_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
         elif info.is_image_info and len(image_sizes) == 1:
             image_size = image_sizes[0]
             logger.info(f"Create input tensors for input '{info.name}' with image sizes: {image_size}")
-            data[info.name] = get_image_info_tensors(image_size, info)
+            data[port] = get_image_info_tensors(image_size, info)
 
         else:
             logger.info(f"Fill input '{info.name}' with random values ")
-            data[info.name] = fill_tensors_with_random(info)
+            data[port] = fill_tensors_with_random(info)
 
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 

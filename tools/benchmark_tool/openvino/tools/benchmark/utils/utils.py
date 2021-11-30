@@ -113,8 +113,8 @@ def pre_post_processing(function: Function, app_inputs_info, input_precision: st
                 app_inputs_info[i].element_type = inputs[i].get_element_type()
 
     # set layout for model input
-    for info in app_inputs_info:
-        pre_post_processor.input(info.name).network().set_layout(info.layout)
+    for port, info in enumerate(app_inputs_info):
+        pre_post_processor.input(port).network().set_layout(info.layout)
 
     function = pre_post_processor.build()
 
@@ -360,7 +360,7 @@ def get_command_line_arguments(argv):
 
 
 def get_input_output_names(nodes):
-    return [node.friendly_name for node in nodes] # get_friendly_name() or get_name() ?
+    return [node.friendly_name for node in nodes]
 
 
 def get_data_shapes_map(data_shape_string, input_names):
@@ -551,7 +551,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
     input_info = []
     for i in range(len(parameters)):
         info = AppInputInfo()
-        # Name
+        # Input name
         info.name = input_names[i]
         # Shape
         if info.name in shape_map.keys():
