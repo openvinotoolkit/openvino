@@ -7,9 +7,9 @@ set(TARGET_NAME subgraphsDumperTests)
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS ${OpenVINO_SOURCE_DIR}/inference-engine/tests/functional/plugin/conformance/subgraphs_dumper/src/matchers
+        ADDITIONAL_SOURCE_DIRS ${OpenVINO_SOURCE_DIR}/src/inference/tests/functional/plugin/conformance/subgraphs_dumper/src/matchers
         INCLUDES
-            ${OpenVINO_SOURCE_DIR}/inference-engine/tests/functional/plugin/conformance/subgraphs_dumper/include
+            ${OpenVINO_SOURCE_DIR}/src/inference/tests/functional/plugin/conformance/subgraphs_dumper/include
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         LINK_LIBRARIES
             PRIVATE

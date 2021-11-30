@@ -21,11 +21,17 @@ struct MemBandwidthPressure {
     static constexpr float LIMITED = 0.5f;  // conservatively assume 1/2 utilization of the cache
 };
 
-static MemBandwidthPressure MemBandwidthPressureTolerance(
+MemBandwidthPressure MemBandwidthPressureTolerance(
     const std::shared_ptr<ngraph::Function> nGraphFunc,
     const float L2_cache_size,
     const float L3_cache_size,
-    const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED) {
+    const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED);
+
+MemBandwidthPressure MemBandwidthPressureTolerance(
+    const std::shared_ptr<ngraph::Function> nGraphFunc,
+    const float L2_cache_size,
+    const float L3_cache_size,
+    const float memThresholdAssumeLimited) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
     auto memLimitedFactor = [&](int size_data_moved, int datatype_size) -> float {

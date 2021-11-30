@@ -13,7 +13,6 @@
 namespace FuncTestUtils {
 namespace PrecisionUtils {
 
-// Copied from inference-engine/src/inference_engine/src/ie_ngraph_utils.hpp
 inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precision& precision) {
     InferenceEngine::Precision::ePrecision pType = precision;
     switch (pType) {
