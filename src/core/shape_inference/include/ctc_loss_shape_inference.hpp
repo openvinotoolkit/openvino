@@ -11,16 +11,6 @@ namespace op {
 namespace v4 {
 
 template <class T>
-inline void dynamic_inference(T& output_shape) {
-    OPENVINO_UNREACHABLE("This code should be executed only for PartialShape class");
-}
-
-template <>
-inline void dynamic_inference<ov::PartialShape>(ov::PartialShape& output_shape) {
-    output_shape = ov::PartialShape{Dimension::dynamic()};
-}
-
-template <class T>
 void shape_infer(const CTCLoss* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 4 || input_shapes.size() == 5) && output_shapes.size() == 1);
@@ -61,33 +51,29 @@ void shape_infer(const CTCLoss* op, const std::vector<T>& input_shapes, std::vec
     }
 
     // check shapes of input tensors
-    size_t batch_size = 1;
+    DimType batch_size = 1;
     bool is_batch_size_set = false;
-    size_t time_steps = 1;
+    DimType time_steps = 1;
     bool is_time_steps_set = false;
 
     if (logits_pshape.rank().is_static()) {
-        if (logits_pshape[0].is_static()) {
-            batch_size = logits_pshape[0].get_length();
-            is_batch_size_set = true;
-        }
-        if (logits_pshape[1].is_static()) {
-            time_steps = logits_pshape[1].get_length();
-            is_time_steps_set = true;
-        }
+        batch_size = logits_pshape[0];
+        is_batch_size_set = true;
+        time_steps = logits_pshape[1];
+        is_time_steps_set = true;
     }
 
-    if (logit_length_pshape.is_static()) {
+    if (logit_length_pshape.rank().is_static()) {
         if (is_batch_size_set) {
             NODE_VALIDATION_CHECK(op,
-                                  logit_length_pshape[0].compatible(batch_size),
+                                  DimType::merge(batch_size, batch_size, logit_length_pshape[0]),
                                   "The first dimension of logit length must be equal to the first dimension ",
                                   "of the logits. Got: ",
                                   logit_length_pshape[0],
                                   " and: ",
                                   batch_size);
         } else {
-            batch_size = logit_length_pshape[0].get_length();
+            batch_size = logit_length_pshape[0];
             is_batch_size_set = true;
         }
     }
@@ -95,20 +81,20 @@ void shape_infer(const CTCLoss* op, const std::vector<T>& input_shapes, std::vec
     if (labels_pshape.rank().is_static()) {
         if (is_batch_size_set) {
             NODE_VALIDATION_CHECK(op,
-                                  labels_pshape[0].compatible(batch_size),
+                                  DimType::merge(batch_size, batch_size, labels_pshape[0]),
                                   "The first dimension of labels must be equal to the first dimension ",
                                   "of the logits and the logit length. Got: ",
                                   labels_pshape[0],
                                   " and: ",
                                   batch_size);
-        } else if (labels_pshape[0].is_static()) {
-            batch_size = labels_pshape[0].get_length();
+        } else {
+            batch_size = labels_pshape[0];
             is_batch_size_set = true;
         }
 
         if (is_time_steps_set) {
             NODE_VALIDATION_CHECK(op,
-                                  labels_pshape[1].compatible(time_steps),
+                                  DimType::merge(time_steps, time_steps, labels_pshape[1]),
                                   "The second dimension of labels must be equal to the second dimension ",
                                   "of logits. Got: ",
                                   labels_pshape[1],
@@ -117,18 +103,19 @@ void shape_infer(const CTCLoss* op, const std::vector<T>& input_shapes, std::vec
         }
     }
 
-    if (label_length_pshape.is_static()) {
-        if (!is_batch_size_set && label_length_pshape[0].is_static()) {
-            batch_size = label_length_pshape[0].get_length();
+    if (label_length_pshape.rank().is_static()) {
+        if (is_batch_size_set) {
+            NODE_VALIDATION_CHECK(op,
+                                  DimType::merge(batch_size, batch_size, label_length_pshape[0]),
+                                  "The first dimension of label length must be equal to the first dimension ",
+                                  "of the logits, the logit length and labels. Got: ",
+                                  label_length_pshape[0],
+                                  " and: ",
+                                  batch_size);
+        } else {
+            batch_size = label_length_pshape[0];
             is_batch_size_set = true;
         }
-        NODE_VALIDATION_CHECK(op,
-                              label_length_pshape[0].compatible(batch_size),
-                              "The first dimension of label length must be equal to the first dimension ",
-                              "of the logits, the logit length and labels. Got: ",
-                              label_length_pshape[0],
-                              " and: ",
-                              batch_size);
     }
 
     auto& output_shape = output_shapes[0];
@@ -137,7 +124,7 @@ void shape_infer(const CTCLoss* op, const std::vector<T>& input_shapes, std::vec
     if (is_batch_size_set) {
         output_shape[0] = batch_size;
     } else {
-        dynamic_inference(output_shape);
+        output_shape[0] = Dimension::dynamic();
     }
 }
 
