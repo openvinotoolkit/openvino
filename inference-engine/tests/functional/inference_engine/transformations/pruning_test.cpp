@@ -20,6 +20,7 @@
 using namespace testing;
 using namespace ngraph;
 
+namespace {
 void compare_masks(const Mask & mask, const Mask & ref_mask) {
     ASSERT_EQ(mask.size(), ref_mask.size());
     ASSERT_EQ(mask, ref_mask);
@@ -45,6 +46,7 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
     }
     return std::make_shared<opset5::Constant>(element::f32, shape, values);
 }
+}// namespace
 
 TEST(TransformationTests, InitMasksOI) {
     Shape weights_shape{6, 3, 3, 3};
