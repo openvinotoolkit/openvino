@@ -41,11 +41,6 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp APPEND PRO
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
-ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    INCLUDE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
-                    ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
-
 add_library(${TARGET_NAME} INTERFACE)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
@@ -53,6 +48,11 @@ add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
 add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
+
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
+                    ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Installation rules for shared version only
 
