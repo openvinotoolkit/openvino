@@ -15,7 +15,7 @@ import onnx
 from onnx.backend.base import Backend, BackendRep
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 
-from openvino import Function
+from openvino.runtime import Function
 from tests.runtime import get_runtime
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model, np_dtype_to_tensor_type
 
