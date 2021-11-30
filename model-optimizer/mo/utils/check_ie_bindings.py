@@ -102,7 +102,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         return True
     except Exception as e:
         # Do not print a warning if module wasn't found or silent mode is on
-        if "No module named 'openvino'" not in str(e):
+        if "No module named 'openvino" not in str(e):
             print("[ WARNING ] Failed to import Inference Engine Python API in: {}".format(path_to_module))
             print("[ WARNING ] {}".format(e))
 

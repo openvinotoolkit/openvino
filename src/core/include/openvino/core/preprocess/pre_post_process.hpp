@@ -94,44 +94,6 @@ public:
     ///
     /// \return Function with added pre/post-processing operations
     std::shared_ptr<Function> build();
-
-    //------------------ TODO: consider removal of rest --------
-
-    /// \brief Adds pre-processing information and steps to input of model.
-    ///
-    /// \todo TODO: Consider remove this in sake of `InputInfo& input(...)` version
-    ///
-    /// \param builder Pre-processing data for input tensor of model.
-    ///
-    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    PrePostProcessor& input(InputInfo&& builder) &;
-
-    /// \brief Adds pre-processing information and steps to input of model - Rvalue version.
-    ///
-    /// \todo TODO: Consider remove this in sake of `InputInfo& input(...)` version
-    ///
-    /// \param builder Pre-processing data for input tensor of model.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    PrePostProcessor&& input(InputInfo&& builder) &&;
-
-    /// \brief Adds post-processing information and steps to output of model.
-    ///
-    /// \todo TODO: Consider remove this in sake of `OutputInfo& output(...)` version
-    ///
-    /// \param builder Post-processing data for output tensor of model.
-    ///
-    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    PrePostProcessor& output(OutputInfo&& builder) &;
-
-    /// \brief Adds pre-processing information and steps to input of model - Rvalue version.
-    ///
-    /// \todo TODO: Consider remove this in sake of `OutputInfo& output(...)` version
-    ///
-    /// \param builder Post-processing data for output tensor of model.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    PrePostProcessor&& output(OutputInfo&& builder) &&;
 };
 
 }  // namespace preprocess
