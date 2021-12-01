@@ -2025,7 +2025,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
             if (!ptr) {
                 Layout layout = TensorDesc::getLayoutByDims(dims);
-                if (outName.rfind("Convolution_", 0, 12) != std::string::npos)
+                if (outName.find("gna_convolution") != std::string::npos)
                     layout = Layout::NHWC;
                 ptr.reset(new Data(outName,
                                    {details::convertPrecision(layer->get_output_element_type(i)), dims,

@@ -641,7 +641,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 #endif
 
 //#undef DEBUG_USE_NEW_PASS
-//#undef DEBUG_USE_NEW_PASS_TRANSPOSE_SINK 1
+//#undef DEBUG_USE_NEW_PASS_TRANSPOSE_SINK
 
 #define DEBUG_USE_NEW_PASS 1
 #define DEBUG_USE_NEW_PASS_TRANSPOSE_SINK 1
@@ -714,7 +714,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/ngraph_before_transpose_sinking.png"); // DEBUG
         manager.register_pass<ngraph::pass::TransposeSinking>();
 #endif // DEBUG_USE_NEW_PASS_TRANSPOSE_SINK
-        manager.register_pass<TransposeNCHW>();
         manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/ngraph_after.png"); // DEBUG
 #endif // DEBUG_USE_NEW_PASS
 
@@ -830,11 +829,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
-#ifndef DEBUG_USE_NEW_PASS
+#ifdef DEBUG_USE_NEW_PASS
         if (!isNgraphPassesUsed) {
 #endif // DEBUG_USE_NEW_PASS
             passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
-#ifndef DEBUG_USE_NEW_PASS
+#ifdef DEBUG_USE_NEW_PASS
         }
 #endif // DEBUG_USE_NEW_PASS
         passes->registerPass<InsertIdentityLayerPass>();
