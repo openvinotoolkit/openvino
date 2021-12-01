@@ -23,7 +23,7 @@ class PlaceholderFrontExtractor(FrontExtractorOp):
 
         # Extract output shape from `_output_shapes` attribute if it is possible
         extracted_output_shapes = node.pb.attr["_output_shapes"].list.shape
-        if len(extracted_output_shapes) > 0:
+        if len(extracted_output_shapes) == 1:   # check if attribute not empty
             extracted_output_shapes = tf_tensor_shape(extracted_output_shapes[0])
 
         # Check equality of extracted shapes. We know some cases then Placeholder operation has empty `shape` attribute
