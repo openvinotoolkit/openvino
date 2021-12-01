@@ -1,9 +1,9 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.impl.op import Parameter
-from openvino.impl import Function, Shape, Type
-import openvino.opset8 as ops
+from openvino.runtime.impl.op import Parameter
+from openvino.runtime.impl import Function, Shape, Type
+import openvino.runtime.opset8 as ops
 
 
 def get_test_function():
