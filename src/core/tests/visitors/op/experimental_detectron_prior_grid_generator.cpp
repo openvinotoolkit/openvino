@@ -15,7 +15,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-using ExperimentalGenerator= opset6::ExperimentalDetectronPriorGridGenerator;
+using ExperimentalGenerator = opset6::ExperimentalDetectronPriorGridGenerator;
 using Attrs = opset6::ExperimentalDetectronPriorGridGenerator::Attributes;
 
 TEST(attributes, detectron_prior_grid_generator) {
