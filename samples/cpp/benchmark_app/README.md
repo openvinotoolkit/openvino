@@ -86,7 +86,7 @@ Options:
                                 Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
                                 Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin.
                                 Use "-d GPU.X" format to specify device id for GPU devices.
-    The application looks for a suitable plugin for the specified device.
+                                The application looks for a suitable plugin for the specified device.
     -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
@@ -105,17 +105,19 @@ Options:
     -shape                      Optional. Set shape for network input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
                                 This parameter affect model input shape and can be dynamic. For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?].
                                 For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].
-    -tensor_shape               Optional if network shapes are all static (original ones or set by -shape.
-                                Required if at least one input shape is dynamic. Set shape for input blobs.
+    -data_shape                 Required for networks with dynamic shapes. Set shape for input blobs.
                                 For example, "[1,3,224,224]" or "input1[1,3,224,224],input2[1,4]" in case of
                                 one input size. In case of several input sizes provide the same number for
                                 each input (except cases with 1 shape for 1 input): "[1,3,128,128][3,3,128,128][1,3,320,320]",
                                 "input1[1,1,128,128][1,1,256,256],input2[80,1]" or "input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]"
+                                If network shapes are all static option will be ignored.
     -layout                     Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
     -cache_dir "<path>"         Optional. Enables caching of loaded models to specified directory.
     -load_from_file             Optional. Loads model from file directly without ReadNetwork.
     -latency_percentile         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
-    -legacy_mode                Optional. Enable legacy scenario with inputs filling only once before measurements for static models.
+    -inference_only             Optional. Measure only inference stage. Default option for static models.
+                                Dynamic models are measured in full mode which includes inputs setting stage.
+                                To enable full mode for static models pass \"false\" value to this argument: ex. -inference_only=false".
 
   CPU-specific performance options:
     -nstreams "<integer>"       Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
@@ -129,16 +131,20 @@ Options:
     -enforcebf16="<true/false>" Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
     -pin "YES"/"HYBRID_AWARE"/"NUMA"/"NO"
                                 Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
-                           enabling threads->cores pinning ("YES", which is already default for a conventional CPU),
-                             letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
-                             threads->(NUMA)nodes ("NUMA") or
-                              completely disable ("NO") CPU inference threads pinning.
+                                enabling threads->cores pinning ("YES", which is already default for a conventional CPU),
+                                letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
+                                threads->(NUMA)nodes ("NUMA") or
+                                completely disable ("NO") CPU inference threads pinning.
     -ip "U8"/"FP16"/"FP32"      Optional. Specifies precision for all input layers of the network.
     -op "U8"/"FP16"/"FP32"      Optional. Specifies precision for all output layers of the network.
-    -iop                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
+    -iop                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required.
+                                Overwrites precision from ip and op options for specified layers.
 
   Statistics dumping options:
-    -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
+    -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.
+                                "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network.
+                                "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters
+                                and latency for each executed infer request.
     -report_folder              Optional. Path to a folder where statistics report is stored.
     -exec_graph_path            Optional. Path to a file where to store executable graph information serialized.
     -pc                         Optional. Report performance counters.
@@ -219,7 +225,7 @@ Below are fragments of sample output for CPU and GPU devices:
    Count:      102515 iterations
    Duration:   120007.38 ms
    Latency:    5.84 ms
-   Throughput: 854.24 FP
+   Throughput: 854.24 FPS
    ```
 
 ## See Also
