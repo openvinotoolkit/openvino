@@ -71,7 +71,7 @@ public:
     const int64_t& get_axis() const {
         return m_axis;
     }
-    void set_axis(const int64_t axis) {
+    void set_axis(const int64_t& axis) {
         m_axis = axis;
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
