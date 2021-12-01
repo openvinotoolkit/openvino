@@ -107,7 +107,6 @@ add_library(openvino::core ALIAS ngraph)
 
 target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
 
-
 # TODO: remove this
 install(TARGETS ngraph EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph

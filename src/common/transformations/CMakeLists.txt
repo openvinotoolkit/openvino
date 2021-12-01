@@ -38,6 +38,10 @@ ie_mark_target_as_cc(${TARGET_NAME}_obj)
 
 set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
 add_library(${TARGET_NAME} INTERFACE)
 
 target_include_directories(${TARGET_NAME} INTERFACE

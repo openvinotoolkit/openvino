@@ -35,6 +35,10 @@ target_include_directories(${TARGET_NAME}_obj
         ${CMAKE_CURRENT_BINARY_DIR}/src)
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
 target_link_libraries(${TARGET_NAME}_obj PRIVATE ${CMAKE_DL_LIBS} openvino::util)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp APPEND PROPERTY COMPILE_DEFINITIONS
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
