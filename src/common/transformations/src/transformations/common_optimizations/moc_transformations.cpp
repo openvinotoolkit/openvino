@@ -48,6 +48,8 @@
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
+#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
@@ -80,6 +82,15 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     if (!m_use_shapes) {
         manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     }
+    // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams
+    // should be performed before first ConstantFolding call.
+    // The passes can deteach graph branches where zero dimesion is calculated.
+    // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
+    // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
+    // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
+    manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+    manager.register_pass<ov::pass::Validate>();
+    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::Validate>();
