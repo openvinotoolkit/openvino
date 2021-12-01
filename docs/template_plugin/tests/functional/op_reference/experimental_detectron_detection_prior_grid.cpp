@@ -41,6 +41,11 @@ struct ExperimentalPGGParams {
               std::vector<IT> imageSizeInfoValues(shape_size(imageSizeInfoShape.get_shape()));
               std::iota(imageSizeInfoValues.begin(), imageSizeInfoValues.end(), 0);
               imageSizeInfoData = CreateTensor(iType, imageSizeInfoValues);
+
+              if (shape_size(outRefShape) > refValues.size())
+                  actualComparisonSize = refValues.size();
+              else
+                  actualComparisonSize = 0;
           }
 
     Attrs attrs;
@@ -48,6 +53,7 @@ struct ExperimentalPGGParams {
     PartialShape featureMapShape;
     PartialShape imageSizeInfoShape;
     Shape outRefShape;
+    size_t actualComparisonSize;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::runtime::Tensor priorsData;
@@ -64,6 +70,9 @@ public:
         function = CreateFunction(params);
         inputData = {params.priorsData, params.featureMapData, params.imageSizeInfoData};
         refOutData = {params.refData};
+
+        if (params.actualComparisonSize > 0)
+            actual_comparision_size = params.actualComparisonSize;
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalPGGParams>& obj) {
         auto param = obj.param;

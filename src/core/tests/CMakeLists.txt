@@ -318,6 +318,7 @@ set(SRC
     visitors/op/exp.cpp
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
@@ -489,7 +490,6 @@ set(MULTI_TEST_SRC
     backend/builder_reduce_ops_opset1.in.cpp
     backend/dyn_reshape.in.cpp
     backend/dynamic.in.cpp
-    backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
     backend/interpolate.in.cpp
     backend/multiple_backends.in.cpp
