@@ -14,6 +14,9 @@
 
 namespace CLDNNPlugin {
 
+// fixme: this value should be deduced from the #command-streamers, and presumably queried from the plugin
+const uint32_t default_num_streams_for_tput = 2;
+
 struct Config {
     Config(std::string device_id = "0") : device_id(device_id),
                                           throughput_streams(1),

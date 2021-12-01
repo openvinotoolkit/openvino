@@ -303,7 +303,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                 t.first->_inferRequest->CopyInputsIfNeeded();
                             }
                             workerRequestPtr->_inferRequest->StartAsync();
-                            std::cout << "BATCH" << std::endl;
+                            // std::cout << "BATCH" << std::endl;
                         } else if ((status == std::cv_status::timeout) && sz) {
                             // timeout to collect the batch is over, have to execute the requests in the batch1 mode
                             auto start = std::chrono::high_resolution_clock::now();
@@ -549,15 +549,27 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
     const bool enablePerfCounters = (fullConfig.end() != perfConfig) && (perfConfig->second == PluginConfigParams::YES);
 
+    auto report_footprint = [] (std::shared_ptr<ICore> pCore, std::string device, std::string message) -> size_t {
+        size_t footprint  = 0;
+        const auto stats = pCore->GetMetric(device, GPU_METRIC_KEY(MEMORY_STATISTICS)).as<std::map<std::string, uint64_t>>();
+        for (auto s : stats)
+            footprint += s.second;
+        std::cout << "!!!!!!!!!!!!!! (FOOTPRINT) " << message << " : " << footprint/1024 << " MB" << std::endl;
+        return  footprint;
+    };
+
+    if (deviceName.find("GPU") != std::string::npos)
+        report_footprint(GetCore(), deviceName, "Before Batch1");
     auto executableNetworkWithoutBatch = ctx
             ? GetCore()->LoadNetwork(network, ctx, deviceConfig)
             : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+    if (deviceName.find("GPU") != std::string::npos)
+        report_footprint(GetCore(), deviceName, "After Batch1");
     // device settings + auto-batch settings
     std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
     networkConfig.insert(*device_batch);
     networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
 
-    // TODO: remove this experimental code that does loop rather than use the batch1 footprint only
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
     do {
         try {
@@ -582,6 +594,14 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             executableNetworkWithBatch = ctx
                                          ? GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, ctx, deviceConfig)
                                          : GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
+            if (deviceName.find("GPU") != std::string::npos) {
+                const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+                const size_t footprint = report_footprint(GetCore(), deviceName, "After BATCHED");
+                if (footprint > total_mem) {  // WA for inaccurate footprint estimations
+                    std::cout << "!!!! Total on-device mem is " << total_mem << " less than :" << footprint << std::endl;
+                    throw NETWORK_NOT_LOADED;
+                }
+            }
         } catch (...) {
             // reload the network with smaller batch
             executableNetworkWithBatch = {nullptr, nullptr};

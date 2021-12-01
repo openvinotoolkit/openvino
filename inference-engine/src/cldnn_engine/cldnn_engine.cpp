@@ -726,6 +726,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         std::cout << "SELECTED BATCH: " << batch << std::endl;
         std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
         options_for_max_batch["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network->getFunction());
+        options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = static_cast<uint32_t>(default_num_streams_for_tput);
         auto max_batch_size = GetMetric(GPU_METRIC_KEY(MAX_BATCH_SIZE), options_for_max_batch).as<unsigned int>();
         std::cout << "MAX_BATCH: " << max_batch_size << std::endl;
         unsigned int closest = pow(2, floor(log(max_batch_size)/log(2)));
