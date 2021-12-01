@@ -20,5 +20,4 @@ void regclass_TensorIndexMap(py::module m) {
 void regclass_TensorNameMap(py::module m) {
     py::bind_map<TensorNameMap>(m, "TensorNameMap");
 }
-
 }  // namespace Containers
