@@ -54,7 +54,7 @@ def send_shapes_info(framework: str, graph: Graph):
         shape_str = ""
         is_partially_defined = "0"
         for shape in shapes:
-            shape_str += np.array2string(int64_array(unmask_shape(shape))) + ","
+            shape_str += (np.array2string(int64_array(unmask_shape(shape))) if shape is not None else "Undefined") + ","
             if not is_fully_defined(shape):
                 is_partially_defined = "1"
         message_str = "{fw:" + framework + ",shape:\"" + shape_str[:-1] + "\"}"
