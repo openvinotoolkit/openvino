@@ -62,16 +62,13 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     ov::Shape data_shape = data->get_shape();
     auto data_rank = data_shape.size();
     auto output_rank = std::max(data_rank, repeats_rank);
-
-    // expand data shape and repeats to output rank
-    data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
     repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
 
-    ov::Shape output_shape(output_rank);
-    for (size_t i = 0; i < output_rank; i++) {
-        output_shape[i] = data_shape[i] * repeats_val[i];
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {data_shape, repeats_val};
+    shape_infer(this, input_shapes, output_shapes);
 
+    const auto& output_shape = output_shapes[0].to_shape();
     if (!output->get_is_allocated()) {
         output->set_shape(output_shape);
     }
