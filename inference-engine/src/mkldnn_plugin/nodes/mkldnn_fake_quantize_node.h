@@ -129,13 +129,13 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    enum Policy {
+    enum BroadcastingPolicy {
         PerChannel, // all FQ operations are per channel
         PerTensor,  // all FQ operations are per tensor
         Mixed,      // some per channel, some per tensor
     };
 
-    Policy getPolicy() const { return policy; }
+    BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
     MKLDNNMemoryPtr cropLowMemory;
     MKLDNNMemoryPtr cropHighMemory;
@@ -208,7 +208,7 @@ private:
 
     std::string errorPrefix;
 
-    Policy policy;
+    BroadcastingPolicy broadcastingPolicy;
 };
 
 }  // namespace MKLDNNPlugin

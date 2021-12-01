@@ -1066,11 +1066,11 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
             outputShiftSize = outputShift.size();
 
             if (everyone_is(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
-                policy = PerTensor;
+                broadcastingPolicy = PerTensor;
             else if (one_of(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
-                policy = Mixed;
+                broadcastingPolicy = Mixed;
             else
-                policy = PerChannel;
+                broadcastingPolicy = PerChannel;
 
             bool quantizationOnly = true;
 

@@ -202,9 +202,8 @@ std::vector<CPUSpecificParams> filterSpecificParams() {
 
 const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
-                auto pShape = inpNode->get_output_partial_shape(0);
-                size_t dim = pShape.rbegin()->get_length();
-                auto bias = builder::makeConstant(ngPrc, Shape{dim}, std::vector<float>{}, true);
+                size_t last_dim = inpNode->get_output_partial_shape(0).rbegin()->get_length();
+                auto bias = builder::makeConstant(ngPrc, Shape{last_dim}, std::vector<float>{}, true);
                 return std::make_shared<opset1::Add>(inpNode, bias);
             }, "fusingBias"}}), {"Add"}};
 
@@ -238,6 +237,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D {
         fusingBias,
         fusingRelu,
         fusingMultiplyPerChannel,
+        fusingScaleShift, // EltwiseMulAdd fusing
         fusingPReluPerTensor,
         fusingFakeQuantizePerChannelRelu,
         fusingFakeQuantizePerTensorRelu,
@@ -405,7 +405,9 @@ const std::vector<ShapeRelatedParams> IS = {
     {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, false}},
     {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
     {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
+};
 
+const std::vector<ShapeRelatedParams> IS_Dynamic = {
     {
         { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
             {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
@@ -580,7 +582,70 @@ const auto testParams = ::testing::Combine(matMulParams,
                                            ::testing::ValuesIn(matmulFusingParams),
                                            ::testing::ValuesIn(filterSpecificParams()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_MM, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Static, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
+
+
+const auto matMulParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynamic),
+                                             ::testing::ValuesIn(netPRCs),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                             ::testing::ValuesIn(additionalConfig));
+
+const auto testParamsDynamic = ::testing::Combine(matMulParamsDynamic,
+                                           ::testing::Values(MatMulNodeType::MatMul),
+                                           ::testing::Values(emptyFusingSpec),
+                                           ::testing::ValuesIn(filterSpecificParams()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic, MatMulLayerCPUTest, testParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
+
+
+const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1}, {{16, 12}, {33, 7}}}, // input 0
+            {{-1, 33}, {{12, 33}, {7, 33}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
+            {{-1, 5}, {{60, 5}, {30, 5}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
+            {{-1, -1, -1, 25}, {{3, 7, 60, 25}, {3, 7, 30, 25}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{-1, -1, 5}, {{10, 10, 5}, {5, 5, 5}}}  // input 1
+        },
+        {false, false}
+    },
+};
+
+const auto matMulParamsDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
+                                                        ::testing::ValuesIn(netPRCs),
+                                                        ::testing::Values(ElementType::undefined),
+                                                        ::testing::Values(ElementType::undefined),
+                                                        ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                        ::testing::ValuesIn(additionalConfig));
+
+const auto testParamsDynamicFusing = ::testing::Combine(matMulParamsDynamicFusing,
+                                                  ::testing::Values(MatMulNodeType::MatMul),
+                                                  ::testing::ValuesIn(matmulFusingParams),
+                                                  ::testing::ValuesIn(filterSpecificParams()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic_Fusing, MatMulLayerCPUTest, testParamsDynamicFusing, MatMulLayerCPUTest::getTestCaseName);
 
 } // namespace matmul
 

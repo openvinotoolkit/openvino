@@ -183,7 +183,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
     auto getBinPostOpShape = [&](){
         const size_t binaryShapeRank = getOutputShapeAtPort(0).getRank() == 3 ? 2 : getOutputShapeAtPort(0).getRank();
         VectorDims binaryShape(binaryShapeRank, 1);
-        const size_t channelAxis = getChannelAxis();
+        const size_t channelAxis = getFusingAxis();
         // always use 1 as channelAxis for binary Shape, since oneDNN primitive is actually always 2D
         binaryShape[1] = getOutputShapeAtPort(0).getStaticDims()[channelAxis];
 

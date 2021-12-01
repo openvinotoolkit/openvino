@@ -192,7 +192,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionMatMulAndBias(MKLDNNGraph &graph) {
         if (parentOutDims.size() != biasDims.size() || biasDims.size() < 2)
             return false;
 
-        const auto channelAxis = parentNode->getChannelAxis();
+        const auto channelAxis = parentNode->getFusingAxis();
         if (!dimsEqualStrong(biasDims[channelAxis], parentOutDims[channelAxis]))
             return false;
 
@@ -269,7 +269,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionMatMulAndBias(MKLDNNGraph &graph) {
                 graphEdges.push_back(newEdge);
                 parent->addEdge(newEdge);
 
-                auto partialShape = { parentEltwise->outputShapes[0].toPartialShape()[parentEltwise->getChannelAxis()] };
+                auto partialShape = { parentEltwise->outputShapes[0].toPartialShape()[parentEltwise->getFusingAxis()] };
                 parent->outputShapes[inNum] = Shape(partialShape);
                 parentEltwise->inputShapes.push_back(parent->outputShapes[0]);
             }

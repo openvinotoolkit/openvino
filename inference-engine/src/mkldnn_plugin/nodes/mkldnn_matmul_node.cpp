@@ -65,8 +65,8 @@ MKLDNNMatMulNode::MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, cons
     const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
 
     if (!matMul) {
-        IE_THROW(NotImplemented) << "Operation with name " << op->get_friendly_name() << ":" << op->get_type_name();
-        " is not an instance of MatMul from opset1";
+        IE_THROW(NotImplemented) << "Operation with name " << op->get_friendly_name() << ":" << op->get_type_name() <<
+            " is not an instance of MatMul from opset1";
     }
 
     transposeIn[0] = matMul->get_transpose_a();
@@ -79,11 +79,11 @@ bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
         if (const auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             if (one_of(eltwiseNode->getAlgorithm(),
                        EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd, EltwisePowerStatic) &&
-                eltwiseNode->getPolicy() != MKLDNNEltwiseNode::PerTensor) {
+                eltwiseNode->getBroadcastingPolicy() != MKLDNNEltwiseNode::PerTensor) {
                 return false;
             }
         } else if (const auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
-            if (fakeQuantizeNode->getPolicy() != MKLDNNFakeQuantizeNode::PerTensor) {
+            if (fakeQuantizeNode->getBroadcastingPolicy() != MKLDNNFakeQuantizeNode::PerTensor) {
                 return false;
             }
         }
@@ -97,7 +97,7 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
 
     auto getBinPostOpShape = [&](){
         const auto outShapeRank = dims.size();
-        const auto chIdx = getChannelAxis();
+        const auto chIdx = getFusingAxis();
         std::vector<size_t> binaryShape(outShapeRank, 1);
         binaryShape[chIdx] = dims[chIdx];
         return binaryShape;
@@ -169,7 +169,7 @@ mkldnn::memory::desc MKLDNNMatMulNode::getBiasDescFrom(const DnnlMemoryDescCPtr 
     // oneDNN matmul requires shape for bias desc to be the same rank
     VectorDims biasDims(outMemDesc->getShape().getRank(), 1);
     const auto outDims = outMemDesc->getShape().getStaticDims();
-    const auto chIdx = getChannelAxis();
+    const auto chIdx = getFusingAxis();
     biasDims[chIdx] = outDims[chIdx];
     const auto bdt = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
 
@@ -365,10 +365,7 @@ void MKLDNNMatMulNode::prepareParams() {
     AttrPtr attr;
 
     if (isDynamicNode()) {
-        if (!pAttr) {
-            pAttr = initPrimitiveAttr(src0MemPtr->getStaticDims());
-        }
-        attr = pAttr;
+        attr = initPrimitiveAttr(dstMemPtr->getStaticDims());
 
         const auto& src0Desc = src0MemPtr->getDesc();
         const auto& src1Desc = src1MemPtr->getDesc();
@@ -418,13 +415,11 @@ void MKLDNNMatMulNode::prepareParams() {
 
     prim.reset(new matmul(prim_desc));
 
-    auto getBias = [&](){ return getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();};
-
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
     if (withBiases)
-        primArgs[DNNL_ARG_BIAS] = getBias();
+        primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
 
     appendPostOpArgs(*attr);
 }

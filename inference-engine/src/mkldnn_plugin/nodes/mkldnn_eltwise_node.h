@@ -98,13 +98,13 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
-    enum Policy {
+    enum BroadcastingPolicy {
         PerChannel,
         PerTensor,
         Undefined,
     };
 
-    Policy getPolicy() const { return policy; }
+    BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -140,7 +140,7 @@ private:
         size_t fullWorkAmount = 0;
     };
 
-    Policy policy;
+    BroadcastingPolicy broadcastingPolicy;
 
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
@@ -169,7 +169,7 @@ private:
     using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
     static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
 
-    static Policy determinePolicy(const std::shared_ptr<ngraph::Node>& op);
+    static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
 
     void executeOptimized6D(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
                             const VectorDims &dims_out) const;

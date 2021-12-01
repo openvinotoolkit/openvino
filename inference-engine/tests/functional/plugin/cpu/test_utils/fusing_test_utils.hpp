@@ -76,8 +76,8 @@ protected:
     bool checkFusingPosition = true;
 };
 
-static size_t getChannelAxis(const std::shared_ptr<ngraph::Node>& node) {
-    if (std::dynamic_pointer_cast<ngraph::op::MatMul>(node))
+static size_t getFusingAxis(const std::shared_ptr<ngraph::Node>& node) {
+    if (std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(node))
         return node->get_output_partial_shape(0).size() - 1; // last dimension
     else
         return 1; // second dimension
@@ -88,7 +88,7 @@ static ngraph::Shape generatePerChannelShape(const std::shared_ptr<ngraph::Node>
     if (shape.size() == 1)
         IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
     ngraph::Shape perChannelShape(shape.size(), 1);
-    const auto channelAxis = getChannelAxis(node);
+    const auto channelAxis = getFusingAxis(node);
     perChannelShape[channelAxis] = shape[channelAxis].get_length();
 
     return perChannelShape;

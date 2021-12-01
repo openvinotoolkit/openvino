@@ -271,7 +271,7 @@ void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     auto getBinPostOpShape = [&](){
         const auto outShape = getOutputShapeAtPort(0).getStaticDims();
         const auto outShapeRank = getOutputShapeAtPort(0).getRank();
-        const auto chIdx = getChannelAxis();
+        const auto chIdx = getFusingAxis();
         std::vector<size_t> binaryShape(outShapeRank, 1);
         binaryShape[chIdx] = outShape[chIdx];
         return binaryShape;

@@ -26,7 +26,7 @@ public:
         return false;
     }
 
-    size_t getChannelAxis() const override {
+    size_t getFusingAxis() const override {
         return getOutputShapeAtPort(0).getRank() == 3 ? 2 : 1;
     }
 
