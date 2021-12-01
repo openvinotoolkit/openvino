@@ -3,6 +3,7 @@
 //
 
 #include "experimental_detectron_roi_feature_extractor_kernel_ref.h"
+#include "kernel_selector_utils.h"
 #include <algorithm>
 #include <string>
 
@@ -10,17 +11,16 @@ namespace kernel_selector {
 namespace {
     ExperimentalDetectronROIFeatureExtractorRef::DispatchData SetDefault(const experimental_detectron_roi_feature_extractor_params& params) {
         ExperimentalDetectronROIFeatureExtractorRef::DispatchData dispatch_data;
+        auto in_layout = params.inputs[0].GetLayout();
+        auto out_layout = params.output.GetLayout();
 
-        dispatch_data.gws[0] = params.output.LogicalSize();
-        dispatch_data.gws[1] = 1;
-        dispatch_data.gws[2] = 1;
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
+                                                                         { Tensor::DataChannelName::FEATURE },
+                                                                         { Tensor::DataChannelName::BATCH }};
 
-        dispatch_data.lws[0] = std::min(std::max(dispatch_data.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
-        while (dispatch_data.gws[0] % dispatch_data.lws[0] != 0) {
-            --dispatch_data.lws[0];
-        }
-        dispatch_data.lws[1] = 1;
-        dispatch_data.lws[2] = 1;
+        dispatch_data.gws = {params.output.X().v * params.output.Y().v, params.output.Feature().v, params.output.Batch().v};
+
+        dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
         return dispatch_data;
     }

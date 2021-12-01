@@ -31,12 +31,12 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
                                                          INPUT_LEVEL_PARAMS,
                                                          __global OUTPUT_TYPE* dst_data)
 {
-    const size_t i = get_global_id(0);
+    const size_t oxy = get_global_id(0);
 
-    const uint x = i % POOLED_WIDTH;
-    const uint y = i / POOLED_WIDTH % POOLED_HEIGHT;
-    const uint c = i / POOLED_WIDTH / POOLED_HEIGHT % OUTPUT_FEATURE_NUM;
-    const uint r = i / POOLED_WIDTH / POOLED_HEIGHT / OUTPUT_FEATURE_NUM % OUTPUT_BATCH_NUM;
+    const uint x = oxy % POOLED_WIDTH;
+    const uint y = oxy / POOLED_WIDTH;
+    const uint c = get_global_id(1);
+    const uint r = get_global_id(2);
 
     const __global INPUT0_TYPE* current_roi_ptr = &src_rois[r * INPUT0_BATCH_PITCH];
 
@@ -66,7 +66,7 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
     const uint level_w = LEVEL_SIZES[3 * level + 1];
     const uint level_offset = LEVEL_SIZES[3 * level + 2];
 
-    INPUT1_TYPE output_val = 0.0;
+    INPUT0_TYPE output_val = 0.0;
     const __global INPUT1_TYPE* data = current_level_ptr + level_offset + c * level_h * level_w;
 
     INPUT0_TYPE current_bin_start_h = roi_start_h + y * bin_height;
@@ -125,5 +125,6 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
         }
     }
     output_val /= TO_INPUT0_TYPE(roi_bin_grid_h * roi_bin_grid_w);
-    dst_data[i] = output_val;
+    const uint output_offset = OUTPUT_OFFSET + x * OUTPUT_X_PITCH + y * OUTPUT_Y_PITCH + c * OUTPUT_FEATURE_PITCH + r * OUTPUT_BATCH_PITCH;
+    dst_data[output_offset] = output_val;
 }
