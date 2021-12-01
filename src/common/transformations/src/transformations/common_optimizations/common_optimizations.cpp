@@ -51,6 +51,7 @@
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/interpolate_sequence_fusion.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -148,6 +149,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
+    decomp->add_matcher<ngraph::pass::TransposeReshapeEliminationForMatmul>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
