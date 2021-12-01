@@ -17,7 +17,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
 
-add_library(${TARGET_NAME}_obj ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 ie_faster_build(${TARGET_NAME}_obj
     UNITY
