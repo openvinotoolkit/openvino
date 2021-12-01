@@ -1,7 +1,7 @@
 import numpy as np
 import openvino.runtime.opset8 as ov
 import pytest
-from openvino.utils.tensor_iterator_types import (
+from openvino.runtime.utils.tensor_iterator_types import (
     GraphBody,
     TensorIteratorInvariantInputDesc,
     TensorIteratorBodyOutputDesc,
