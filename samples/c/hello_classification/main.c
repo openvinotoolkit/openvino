@@ -122,15 +122,19 @@ int main(int argc, char** argv) {
     // -------------------------------------
 
     IEStatusCode status = ie_core_create("", &core);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_create status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin
     // files) or ONNX (.onnx file) format
     status = ie_core_read_network(core, input_model, NULL, &network);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_read_network status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // check the network topology
     status = ie_network_get_inputs_number(network, &network_input_size);
     if (status != OK || network_input_size != 1) {
@@ -140,7 +144,7 @@ int main(int argc, char** argv) {
 
     status = ie_network_get_outputs_number(network, &network_output_size);
     if (status != OK || network_output_size != 1) {
-        printf("Sample supports topologies with 1 output only\n");
+        fprintf(stderr, "Sample supports topologies with 1 output only\n");
         goto err;
     }
     // -----------------------------------------------------------------------------------------------------
@@ -151,8 +155,10 @@ int main(int argc, char** argv) {
     // -----------------------------------------------------
 
     status = ie_network_get_input_name(network, 0, &input_name);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_get_input_name status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     /* Mark input as resizable by setting of a resize algorithm.
      * In this case we will be able to set an input blob of any shape to an infer
      * request. Resize and layout conversions are executed automatically during
@@ -160,15 +166,19 @@ int main(int argc, char** argv) {
     status |= ie_network_set_input_resize_algorithm(network, input_name, RESIZE_BILINEAR);
     status |= ie_network_set_input_layout(network, input_name, NHWC);
     status |= ie_network_set_input_precision(network, input_name, U8);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_set_input_* status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     // --------------------------- Prepare output blobs
     // ----------------------------------------------------
     status |= ie_network_get_output_name(network, 0, &output_name);
     status |= ie_network_set_output_precision(network, output_name, FP32);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_get_output_* status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     // -----------------------------------------------------------------------------------------------------
 
@@ -176,15 +186,19 @@ int main(int argc, char** argv) {
     // ------------------------------------------
     ie_config_t config = {NULL, NULL, NULL};
     status = ie_core_load_network(core, network, device_name, &config, &exe_network);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_load_network status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 5. Create infer request
     // -------------------------------------------------
     status = ie_exec_network_create_infer_request(exe_network, &infer_request);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_exec_network_create_infer_request status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 6. Prepare input
@@ -201,28 +215,34 @@ int main(int argc, char** argv) {
     // memory
     status = ie_blob_make_memory_from_preallocated(&tensorDesc, img.mat_data, size, &imgBlob);
     if (status != OK) {
+        fprintf(stderr, "ERROR ie_blob_make_memory_from_preallocated status %d, line %d\n", status, __LINE__);
         image_free(&img);
         goto err;
     }
     // infer_request accepts input blob of any size
 
     status = ie_infer_request_set_blob(infer_request, input_name, imgBlob);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_set_blob status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 7. Do inference
     // --------------------------------------------------------
     /* Running the request synchronously */
     status = ie_infer_request_infer(infer_request);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_infer status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 8. Process output
     // ------------------------------------------------------
     status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
     if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_get_blob status %d, line %d\n", status, __LINE__);
         image_free(&img);
         goto err;
     }

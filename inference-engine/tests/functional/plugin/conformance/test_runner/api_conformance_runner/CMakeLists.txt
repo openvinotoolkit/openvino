@@ -10,6 +10,9 @@ addIeTargetTest(
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
+        INCLUDES
+            PRIVATE
+                "${CMAKE_CURRENT_SOURCE_DIR}/include"
         LINK_LIBRARIES
             PUBLIC
                 conformanceShared

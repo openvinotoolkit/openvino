@@ -16,12 +16,11 @@ file(GLOB TEST_SRC
 list(APPEND DEPENDENCIES GNAPlugin)
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES HeteroPlugin)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
 if(ENABLE_MKL_DNN)
-    list(APPEND DEPENDENCIES
-        MKLDNNPlugin)
+    list(APPEND DEPENDENCIES MKLDNNPlugin)
 endif()
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})

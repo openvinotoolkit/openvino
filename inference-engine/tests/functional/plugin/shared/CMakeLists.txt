@@ -9,7 +9,7 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(DEPENDENCIES mock_engine)
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES HeteroPlugin)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
 if(ENABLE_MULTI)
@@ -18,7 +18,7 @@ endif()
 
 # remove once CVS-69781 is fixed
 if(NGRAPH_IR_FRONTEND_ENABLE)
-    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+    list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
@@ -51,11 +51,16 @@ addIeTarget(
                 lptNgraphFunctions
                 sharedTestClasses
             PRIVATE
+                inference_engine_legacy # CVS-55376
                 openvino::util
                 inference_engine_transformations
         DEPENDENCIES
             ${DEPENDENCIES}
 )
+
+if(ENABLE_GAPI_PREPROCESSING)
+    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
+endif()
 
 # CVS-55376
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/low_precision_transformations/layer_transformation.cpp"

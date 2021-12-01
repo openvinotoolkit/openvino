@@ -223,13 +223,10 @@ public:
         network.execute();
 
         if (compare_implementation.compare) {
-            std::string exec_impl;
-            for (auto& info : network.get_primitives_info()) {
-                if (info.original_id == "conv") {
-                    exec_impl = info.kernel_id;
-                    break;
-                }
-            }
+            std::string exec_impl = network.get_implementation_info("conv");
+            auto precision_pos = exec_impl.find("__");
+            exec_impl = exec_impl.substr(0, precision_pos);
+
             if (compare_implementation.not_equal) {
                 EXPECT_NE(exec_impl, compare_implementation.value);
             } else {

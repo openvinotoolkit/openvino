@@ -96,6 +96,7 @@ void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
 
 void LayerTestsCommon::QueryNetwork() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
     cnnNetwork = InferenceEngine::CNNNetwork(function);
 
     auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, targetDevice);
@@ -344,6 +345,7 @@ void LayerTestsCommon::LoadNetwork() {
     CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+    inferRequest = executableNetwork.CreateInferRequest();
 }
 
 void LayerTestsCommon::GenerateInputs() {
@@ -361,8 +363,6 @@ void LayerTestsCommon::GenerateInputs() {
 }
 
 void LayerTestsCommon::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     const auto& functionParams = function->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {

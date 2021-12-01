@@ -165,7 +165,7 @@ def main():
         precision = model_rec.attrib["precision"]
 
         info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
-        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
+        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=python_executable,
                                                                                info_dumper_path=info_dumper_path,
                                                                                model_name=model_name)
         try:

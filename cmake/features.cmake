@@ -13,6 +13,18 @@ ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
+ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for inference engine on Intel GPU" ON "ENABLE_CLDNN" OFF)
+
+if (NOT ENABLE_CLDNN OR ANDROID OR
+    (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and android builds for now, so we'll
+    # build GPU plugin without oneDNN
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
+else()
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "ENABLE_ONEDNN_FOR_GPU_DEFAULT" OFF)
 
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
@@ -44,8 +56,6 @@ ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FO
 
 ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86_64" OFF)
 
-ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
-
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
@@ -61,6 +71,15 @@ if (NOT THREADING STREQUAL "TBB" AND
     NOT THREADING STREQUAL "SEQ")
     message(FATAL_ERROR "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is ${THREADING_DEFAULT}")
 endif()
+
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
+    (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))
+    set(ENABLE_TBBBIND_2_5_DEFAULT ON)
+else()
+    set(ENABLE_TBBBIND_2_5_DEFAULT OFF)
+endif()
+
+ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ON "ENABLE_TBBBIND_2_5_DEFAULT" OFF)
 
 if (ENABLE_GNA)
     if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
@@ -86,9 +105,13 @@ endif()
 
 ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
 
+ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
+
 ie_option (ENABLE_MULTI "Enables Multi Device Plugin" ON)
 
 ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
+
+ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
 ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
@@ -96,7 +119,7 @@ ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine"
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_MYRIAD" OFF)
 
-ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_TESTS" OFF)
+ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_GAPI_PREPROCESSING;ENABLE_TESTS" OFF)
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
 
@@ -118,7 +141,7 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-ie_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
+ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 
@@ -137,12 +160,18 @@ ie_dependent_option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" O
 ie_option(NGRAPH_IR_FRONTEND_ENABLE "Enable IR FrontEnd" ON)
 ie_dependent_option(NGRAPH_TF_FRONTEND_ENABLE "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system protobuf" OFF
-    "NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE" OFF)
+    "NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE;BUILD_SHARED_LIBS" OFF)
 ie_dependent_option(NGRAPH_UNIT_TEST_ENABLE "Enables ngraph unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
 ie_dependent_option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON
     "NGRAPH_UNIT_TEST_ENABLE" OFF)
 ie_option(OPENVINO_DEBUG_ENABLE "Enable output for OPENVINO_DEBUG statements" OFF)
 ie_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
+
+if(NOT BUILD_SHARED_LIBS AND NGRAPH_TF_FRONTEND_ENABLE)
+    set(FORCE_FRONTENDS_USE_PROTOBUF ON)
+else()
+    set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
+endif()
 
 # WA for ngraph python build on Windows debug
 list(REMOVE_ITEM IE_OPTIONS NGRAPH_UNIT_TEST_ENABLE NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
@@ -167,8 +196,8 @@ if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_MYRIAD )
     add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
 endif()
 
-if (ENABLE_CLDNN)
-    add_definitions(-DENABLE_CLDNN=1)
+if (ENABLE_INTEL_GPU)
+    add_definitions(-DENABLE_INTEL_GPU=1)
 endif()
 
 if (ENABLE_MKL_DNN)

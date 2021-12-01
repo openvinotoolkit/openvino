@@ -17,6 +17,7 @@
 #include <utility>
 #include <limits>
 
+#include <ie_common.h>
 #include <legacy/graph_tools.hpp>
 #include <legacy/net_pass.h>
 #include <debug.h>
@@ -70,6 +71,9 @@
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/broadcast_const.hpp"
+#include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
+#include "transformations/decompose_mvn.hpp"
+#include "transformations/substitute_softsign.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -521,7 +525,7 @@ bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) 
         desc.num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
-        gnamem->bind_ptr(&desc.ptrs.front(), outputPtr);
+        gnamem->bind_ptr(layer, &desc.ptrs.front(), outputPtr);
     };
 
     // probing gna_primitives
@@ -686,6 +690,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
+        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<DecomposeMVN>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
@@ -706,6 +712,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<InsertReshapeAroundMatmulWithFq>();
         manager.register_pass<InsertReshapeAroundMatmulWithAdd>();
         manager.register_pass<InsertReshapeAroundMatmul>();
+        manager.register_pass<SwapInputMatMulWithTrailingTranspose>();
+        manager.register_pass<SwapInputMatMulWithAct>();
         manager.register_pass<SwapInputMatMulWithFq>();
         manager.register_pass<SwapInputMatMulWithBias>();
         manager.register_pass<SwapInputMatMul>();
@@ -713,6 +721,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
+        manager.register_pass<SubstituteSoftsign>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -781,6 +790,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         }
 
+        if (fake_quantized)
+            passes->registerPass<SubstituteSoftSignPass>();
+
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
@@ -788,7 +800,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();
-        passes->registerPass<SubstituteSoftSignPass>();
 
         passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<EltwiseSplitOverChannelsPass>();
@@ -917,7 +928,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // Creating Layer primitives
+    uint16_t id = 0;
     for (auto & layer : sortedNoMem) {
+        IE_SUPPRESS_DEPRECATED_START
+        layer->userValue.v_int = id++;
+        IE_SUPPRESS_DEPRECATED_END
         graphCompiler.CreateLayerPrimitive(layer);
     }
 
@@ -971,7 +986,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // TODO: how active list will work in multioutput case
     // make room for active list
-    gnamem->reserve_ptr(nullptr,
+    gnamem->reserve_ptr(nullptr, nullptr,
         ALIGN64(outputsDesc.front().num_bytes_per_element * outputsDesc.front().num_elements), 64);
 
     void *pParallelExecutionData  = nullptr;
@@ -979,10 +994,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
     if (gnaFlags->gna_lib_async_threads_num > 1) {
-        gnamem->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
+        gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
-    gnamem->commit();
+    gnamem->commit(gnaFlags->compact_mode);
 
     dnn->Init(gnamem->getBasePtr(),
              gnamem->getTotalBytes(),
@@ -1559,7 +1574,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     graphCompiler.setGNAMemoryPtr(gnamem);
     void *basePtr = nullptr;
-    gnamem->reserve_ptr(&basePtr, header.gnaMemSize);
+    gnamem->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
     gnamem->commit();
 #if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(header.layersCount)));
