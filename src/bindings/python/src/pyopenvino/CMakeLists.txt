@@ -24,6 +24,26 @@ if(OpenVINO_SOURCE_DIR)
     set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 endif()
 
+# compile options
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # disable warning: This operator was deprecated and will be removed with v0 operation.
+    add_compile_options(/wd4996)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    add_link_options(-stdlib=libc++)
+    add_compile_options(-Wno-unused-value -Wno-range-loop-analysis)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
+    add_compile_options(-Wno-error=attributes)
+endif()
+
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # for proper fix need to update pybind to version which does not use PyEval_InitThreads()
+    add_compile_options(-Wno-deprecated-declarations -Wno-undef)
+endif()
+
 # create target
 
 file(GLOB_RECURSE SOURCES *.cpp)
@@ -37,7 +57,7 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB} openvino::frontend::common)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
