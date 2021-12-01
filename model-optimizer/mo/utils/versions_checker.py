@@ -250,16 +250,14 @@ def check_requirements(framework=None):
     :param framework: framework name
     :return: exit code (0 - execution successful, 1 - error)
     """
+    framework_suffix = "_{}".format(framework)
     env_setup = get_environment_setup(framework)
     if framework is None:
         framework_suffix = ""
     elif framework == "tf":
-        if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.0.0"):
-            framework_suffix = "_tf2"
-        else:
-            framework_suffix = "_tf"
-    else:
-        framework_suffix = "_{}".format(framework)
+        if "tensorflow" in env_setup and env_setup["tensorflow"] < LooseVersion("2.0.0"):
+            log.error('\t\nTensorFlow1 usage detected. Since OV 2022.1 release it`s usage is deprecated.\n',
+                      extra={'is_warning': True})
 
     file_name = "requirements{}.txt".format(framework_suffix)
     requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, file_name))
