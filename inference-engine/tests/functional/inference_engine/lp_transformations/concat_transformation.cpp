@@ -975,7 +975,21 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {},
             {},
             ngraph::element::u8,
-            { ngraph::element::f32, {{0, 0, 0, 127, 127, 127 }}, { 0.01f } }
+            {
+                ngraph::element::f32,
+                {
+                    { 0, 0, 0, 127, 127, 127 },
+                    element::f32,
+                    {1, 6, 1, 1},
+                    false,
+                    1ul,
+                    ngraph::element::u8,
+                    true,
+                    {},
+                    {}
+                },
+                { 0.01f }
+            }
         }
     },
     // U8: concat multi channels with subtract convert
@@ -1031,7 +1045,19 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {},
             {},
             ngraph::element::u8,
-            { ngraph::element::f32, {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}}, {{ 0.01f , 0.01f, 0.01f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }} }
+            {
+                ngraph::element::f32,
+                {
+                    {0.f, 0.f, 0.f, 128.f, 128.f, 128.f},
+                    element::f32,
+                    {1, 6, 1, 1},
+                    false,
+                    1ul,
+                    ngraph::element::u8,
+                    true
+                },
+                {{ 0.01f , 0.01f, 0.01f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }}
+            }
         }
     },
     // U8: concat multi channels with subtract convert on both branches
