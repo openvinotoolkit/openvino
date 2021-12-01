@@ -18,7 +18,5 @@ class Parameter_extender(Extender):
             op.shape = int64_array([])
         else:
             Extender.attr_to_list(op, 'shape')
-            for i, dim in enumerate(op.shape):
-                if dim == -1 or (isinstance(dim, str) and ".." in dim):
-                    op.shape[i] = -1
-            op.shape = shape_array([d if d != -1 else dynamic_dimension_value for d in op.shape])
+            if -1 in op.shape:
+                op.shape = shape_array([d if d != -1 else dynamic_dimension_value for d in op.shape])
