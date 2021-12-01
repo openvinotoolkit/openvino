@@ -41,6 +41,27 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 get_index : int
                     Index value as integer.
                )");
+    output.def("get_any_name",
+               &ov::Output<VT>::get_any_name,
+               R"(
+                One of the tensor names associated with this output.
+                Note: first name in lexicographical order.
+
+                Returns
+                ----------
+                get_any_name : str
+                    Tensor name as string.
+               )");
+    output.def("get_names",
+               &ov::Output<VT>::get_names,
+               R"(
+                The tensor names associated with this output.
+
+                Returns
+                ----------
+                get_names : set
+                    Set of tensor names.
+               )");
     output.def("get_element_type",
                &ov::Output<VT>::get_element_type,
                R"(
@@ -94,4 +115,14 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 get_tensor : descriptor.Tensor
                     Tensor of the output.
                )");
+
+    output.def_property_readonly("node", &ov::Output<VT>::get_node);
+    output.def_property_readonly("index", &ov::Output<VT>::get_index);
+    output.def_property_readonly("any_name", &ov::Output<VT>::get_any_name);
+    output.def_property_readonly("names", &ov::Output<VT>::get_names);
+    output.def_property_readonly("element_type", &ov::Output<VT>::get_element_type);
+    output.def_property_readonly("shape", &ov::Output<VT>::get_shape);
+    output.def_property_readonly("partial_shape", &ov::Output<VT>::get_partial_shape);
+    output.def_property_readonly("target_inputs", &ov::Output<VT>::get_target_inputs);
+    output.def_property_readonly("tensor", &ov::Output<VT>::get_tensor);
 }

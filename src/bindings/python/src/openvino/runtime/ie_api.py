@@ -38,7 +38,7 @@ def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
 
 def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
     """Get all precisions from object inputs."""
-    return {i.get_node().get_friendly_name(): i.get_node().get_element_type() for i in obj.inputs}
+    return {i.get_any_name(): i.get_element_type() for i in obj.inputs}
 
 
 class InferRequest(InferRequestBase):
