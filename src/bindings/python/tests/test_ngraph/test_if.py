@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.opset8 as ov
+import openvino.runtime.opset8 as ov
 import pytest
 from openvino.utils.tensor_iterator_types import (
     GraphBody,
