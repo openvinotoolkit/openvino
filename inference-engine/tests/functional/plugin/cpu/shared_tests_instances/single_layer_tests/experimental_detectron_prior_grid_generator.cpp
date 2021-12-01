@@ -16,10 +16,11 @@ const std::vector<ov::test::subgraph::ExperimentalDetectronPriorGridGeneratorTes
         {true, 0, 0, 4.0f, 4.0f},
         ov::test::static_shapes_to_test_representation({{3, 4}, {1, 16, 4, 5}, {1, 3, 100, 200}})
     },
-    {
-        {true, 3, 6, 64.0f, 64.0f},
-        ov::test::static_shapes_to_test_representation({{3, 4}, {1, 16, 100, 100}, {1, 3, 100, 200}})
-    },
+    // task #72587
+    //{
+    //    {true, 3, 6, 64.0f, 64.0f},
+    //    ov::test::static_shapes_to_test_representation({{3, 4}, {1, 16, 100, 100}, {1, 3, 100, 200}})
+    //},
     {
         {true, 0, 0, 4.0f, 4.0f},
         {
@@ -36,10 +37,11 @@ const std::vector<ov::test::subgraph::ExperimentalDetectronPriorGridGeneratorTes
         {false, 0, 0, 8.0f, 8.0f},
         ov::test::static_shapes_to_test_representation({{3, 4}, {1, 16, 3, 7}, {1, 3, 100, 200}})
     },
-    {
-        {false, 5, 3, 32.0f, 32.0f},
-        ov::test::static_shapes_to_test_representation({{3, 4}, {1, 16, 100, 100}, {1, 3, 100, 200}})
-    },
+    // task #72587
+    //{
+    //    {false, 5, 3, 32.0f, 32.0f},
+    //    ov::test::static_shapes_to_test_representation({{3, 4}, {1, 16, 100, 100}, {1, 3, 100, 200}})
+    //},
     {
         {false, 0, 0, 8.0f, 8.0f},
         {
@@ -53,13 +55,51 @@ const std::vector<ov::test::subgraph::ExperimentalDetectronPriorGridGeneratorTes
     }
 };
 
-const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTensors = {};
+std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTensors = {
+    {
+        "test#1",
+        {
+            ExperimentalDetectronPriorGridGeneratorLayerTest::createTensor<float>(
+                    ov::element::f32,
+                    ov::Shape{3, 4},
+                    {-24.5, -12.5, 24.5, 12.5, -16.5, -16.5, 16.5, 16.5, -12.5, -24.5, 12.5, 24.5})
+        }
+    },
+    {
+        "test#2",
+        {
+            ExperimentalDetectronPriorGridGeneratorLayerTest::createTensor<float>(
+                    ov::element::f32,
+                    ov::Shape{3, 4},
+                    {-44.5, -24.5, 44.5, 24.5, -32.5, -32.5, 32.5, 32.5, -24.5, -44.5, 24.5, 44.5})
+        }
+    },
+    {
+        "test#3",
+        {
+            ExperimentalDetectronPriorGridGeneratorLayerTest::createTensor<float>(
+                    ov::element::f32,
+                    ov::Shape{3, 4},
+                    {-364.5, -184.5, 364.5, 184.5, -256.5, -256.5, 256.5, 256.5, -180.5, -360.5, 180.5, 360.5})
+        }
+    },
+    {
+        "test#4",
+        {
+            ExperimentalDetectronPriorGridGeneratorLayerTest::createTensor<float>(
+                    ov::element::f32,
+                    ov::Shape{3, 4},
+                    {-180.5, -88.5, 180.5, 88.5, -128.5, -128.5, 128.5, 128.5, -92.5, -184.5, 92.5, 184.5})
+        }
+    }
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronPriorGridGenerator, ExperimentalDetectronPriorGridGeneratorLayerTest,
      ::testing::Combine(
         ::testing::ValuesIn(params),
-         ::testing::Values(ov::element::Type_t::f32),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(inputTensors),
+        ::testing::Values(ov::element::Type_t::f32),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
      ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName);
 
 } // namespace

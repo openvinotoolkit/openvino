@@ -88,17 +88,17 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
         "ExperimentalDetectronGenerateProposalsSingleImage");
 }
 
-namespace {
-} // namespace
-
 void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
     auto inputTensors = std::get<5>(GetParam());
 
     inputs.clear();
     const auto& funcInputs = function->inputs();
     for (auto i = 0ul; i < funcInputs.size(); ++i) {
-        const auto &funcInput = funcInputs[i];
-        inputs.insert({funcInput.get_node_shared_ptr(), inputTensors.second[i]});
+        if (targetInputStaticShapes[i] != inputTensors.second[i].get_shape()) {
+            throw Exception("input shape is different from tensor shape");
+        }
+
+        inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});
     }
 }
 

@@ -26,9 +26,10 @@ std::ostream& operator <<(
 std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
         const testing::TestParamInfo<ExperimentalDetectronPriorGridGeneratorTestParams>& obj) {
     ExperimentalDetectronPriorGridGeneratorTestParam param;
+    std::pair<std::string, std::vector<ov::runtime::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
-    std::tie(param, netPrecision, targetName) = obj.param;
+    std::tie(param, inputTensors, netPrecision, targetName) = obj.param;
 
     std::ostringstream result;
     using ov::test::operator<<;
@@ -38,6 +39,7 @@ std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
 
     using ov::test::subgraph::operator<<;
     result << "attributes=" << param.attributes << "_";
+    result << "priorValues=" << inputTensors.first << "_";
     result << "netPRC=" << netPrecision << "_";
     result << "trgDev=" << targetName;
     return result.str();
@@ -45,9 +47,10 @@ std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
 
 void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
     ExperimentalDetectronPriorGridGeneratorTestParam param;
+    std::pair<std::string, std::vector<ov::runtime::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
-    std::tie(param, netPrecision, targetName) = this->GetParam();
+    std::tie(param, inputTensors, netPrecision, targetName) = this->GetParam();
 
     inType = outType = netPrecision;
     targetDevice = targetName;
@@ -65,6 +68,32 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
             ov::OutputVector{experimentalDetectron->output(0)},
             "ExperimentalDetectronPriorGridGenerator");
 }
+
+void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+    auto inputTensors = std::get<1>(GetParam());
+
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+
+    auto i = 0ul;
+    for (; i < inputTensors.second.size(); ++i) {
+        if (targetInputStaticShapes[i] != inputTensors.second[i].get_shape()) {
+            throw Exception("input shape is different from tensor shape");
+        }
+
+        inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});
+    }
+
+    for (auto j = i; j < funcInputs.size(); ++j) {
+        ov::runtime::Tensor inputTensor = createTensor<float>(
+            ov::element::f32,
+            targetInputStaticShapes[j],
+            std::vector<float>(0.f, shape_size(targetInputStaticShapes[j])));
+
+        inputs.insert({funcInputs[j].get_node_shared_ptr(), inputTensor});
+    }
+}
+
 } // namespace subgraph
 } // namespace test
 } // namespace ov

@@ -18,6 +18,7 @@ public:
 
 typedef std::tuple<
     ExperimentalDetectronPriorGridGeneratorTestParam,
+    std::pair<std::string, std::vector<ov::runtime::Tensor>>,
     ElementType,                // Network precision
     std::string                 // Device name>;
 > ExperimentalDetectronPriorGridGeneratorTestParams;
@@ -27,9 +28,22 @@ class ExperimentalDetectronPriorGridGeneratorLayerTest :
         virtual public SubgraphBaseTest {
 protected:
     void SetUp() override;
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalDetectronPriorGridGeneratorTestParams>& obj);
+
+    template <class T>
+    static ov::runtime::Tensor createTensor(
+            const ov::element::Type& element_type,
+            const Shape& shape,
+            const std::vector<T>& values,
+            const size_t size = 0) {
+        const size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
+        ov::runtime::Tensor tensor { element_type, shape };
+        std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
+        return tensor;
+    }
 };
 } // namespace subgraph
 } // namespace test
