@@ -3,7 +3,7 @@
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import Callable, Iterable, List, Optional, Set, Union, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 from openvino.runtime.impl import Node
