@@ -7,13 +7,10 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <utility>
 
 #include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
 
 #include <openvino/runtime/tensor.hpp>
-#include <openvino/core/node_output.hpp>
 
 namespace py = pybind11;
 
