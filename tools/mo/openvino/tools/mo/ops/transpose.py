@@ -5,7 +5,7 @@ import numpy as np
 
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op
-
+from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank
 
 class Transpose(Op):
     op = 'Transpose'
@@ -17,6 +17,7 @@ class Transpose(Op):
             'op': self.op,
             'version': 'opset1',
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'force_precision_in_ports': {1: 'int64'},
             'in_ports_count': 2,
             'out_ports_count': 1,
@@ -49,4 +50,8 @@ class Transpose(Op):
         else:
             node.out_port(0).data.set_shape(input_shape[order])
 
-
+    @staticmethod
+    def reverse_infer(node):
+        order = node.in_port(1).data.get_value()
+        if order is not None and node.in_port(0).data.get_value() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(len(order)))
