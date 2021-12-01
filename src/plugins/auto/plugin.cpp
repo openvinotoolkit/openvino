@@ -160,8 +160,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             uniqueName = fullDeviceName + "_" + deviceid;
         }
 
-        // is it right to use deviceNameWithID as deviceName in DeviceInformation?
-        // if GetCore()->GetMetric(deviceNameWithID) is ok ?
         // create meta device
         metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
     }
