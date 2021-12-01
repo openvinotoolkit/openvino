@@ -154,8 +154,7 @@ class Benchmark:
         start_time = datetime.utcnow()
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
-              (iteration % num_groups) or \
-              (iteration % self.nireq):
+              (iteration % num_groups):
             processed_frames += data_queue.get_next_batch_size()
             idle_id = infer_queue.get_idle_request_id()
             if idle_id in in_fly:
