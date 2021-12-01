@@ -172,10 +172,9 @@ void regclass_InferRequest(py::module m) {
         return self._request.get_output_tensor();
     });
 
-    cls.def(
-        "get_results",
-        [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self._outputs, self._request);;
+    cls.def("get_results", [](InferRequestWrapper& self) {
+        return Common::outputs_to_dict(self._outputs, self._request);
+        ;
     });
 
     cls.def(
