@@ -93,8 +93,8 @@ public:
         }
 
         if (output_layout.format == format::winograd_2x3_s1_data) {
-            reorder_params.winograd_input_offset_x = arg.get_input_offset().spatial[0];
-            reorder_params.winograd_input_offset_y = arg.get_input_offset().spatial[1];
+            reorder_params.winograd_input_offset_x = 0;
+            reorder_params.winograd_input_offset_y = 0;
             reorder_params.winograd_nr_tiles_x = ceil_div(output_layout.size.spatial[0], 4);
         }
 

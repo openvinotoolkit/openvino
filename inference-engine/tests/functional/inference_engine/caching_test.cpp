@@ -14,7 +14,6 @@
 
 #include "ie_core.hpp"
 #include "ngraph/function.hpp"
-#include "details/ie_so_loader.h"
 #include "ie_metric_helpers.hpp"
 #include "openvino/op/logical_not.hpp"
 
@@ -168,7 +167,7 @@ public:
 
 class CachingTest : public ::testing::TestWithParam<std::tuple<TestParam, std::string>> {
 public:
-    std::unique_ptr<SharedObjectLoader> sharedObjectLoader;
+    std::shared_ptr<void> sharedObjectLoader;
     std::function<void(IInferencePlugin*)> injectProxyEngine;
     std::string modelName = "Caching_test.xml";
     std::string weightsName = "Caching_test.bin";
@@ -270,7 +269,7 @@ public:
         mockPlugin = std::make_shared<MockCachingInferencePlugin>();
         setupMock(*mockPlugin);
         std::string libraryName = get_mock_engine_name();
-        sharedObjectLoader.reset(new SharedObjectLoader(libraryName.c_str()));
+        sharedObjectLoader = ov::util::load_shared_object(libraryName.c_str());
         injectProxyEngine = make_std_function<void(IInferencePlugin*)>("InjectProxyEngine");
 
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
@@ -337,7 +336,8 @@ public:
 private:
     template <class T>
     std::function<T> make_std_function(const std::string& functionName) {
-        std::function <T> ptr(reinterpret_cast<T*>(sharedObjectLoader->get_symbol(functionName.c_str())));
+        std::function <T> ptr(reinterpret_cast<T*>(
+            ov::util::get_symbol(sharedObjectLoader, functionName.c_str())));
         return ptr;
     }
 
@@ -360,7 +360,9 @@ private:
         }));
 
         ON_CALL(plugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).
-                WillByDefault(Return("mock"));
+                        WillByDefault(Invoke([&](const std::string &, const std::map<std::string, Parameter> &) {
+            return "mock";
+        }));
 
         ON_CALL(plugin, ImportNetwork(_, _, _)).
                 WillByDefault(Invoke([&](std::istream &istr, const RemoteContext::Ptr&,
