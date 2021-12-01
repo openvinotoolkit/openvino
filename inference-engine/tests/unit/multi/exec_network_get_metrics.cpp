@@ -266,8 +266,8 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
 //               unsigned int, int, bool, unsigned int}
 //
 // every element for ConfigParams
-// {cpuOptimalNum, if cpu sleep when load, customer hope for cpu infer requset num,
-//  gpuOptimalNum, if gpu sleep when load, customer hope for gpu infer requset num,
+// {cpuOptimalNum, customer hope for cpu infer requset num, if cpu sleep when load,
+//  gpuOptimalNum, customer hope for gpu infer requset num, if gpu sleep when load,
 //  expectOptimalNum of Auto ExecNetwork}
 //
 const std::vector<ConfigParams> testConfigs = {
