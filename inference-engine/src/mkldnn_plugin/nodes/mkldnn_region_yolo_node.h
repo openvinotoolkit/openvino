@@ -49,6 +49,10 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+protected:
+    bool needPrepareParams() const override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
 private:
     int classes;
     int coords;
