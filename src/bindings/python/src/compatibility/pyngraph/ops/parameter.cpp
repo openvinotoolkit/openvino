@@ -38,6 +38,4 @@ void regclass_pyngraph_op_Parameter(py::module m) {
     parameter.def("get_partial_shape",
                   (ngraph::PartialShape & (ngraph::op::Parameter::*)()) & ngraph::op::Parameter::get_partial_shape);
     parameter.def("set_partial_shape", &ngraph::op::Parameter::set_partial_shape);
-    parameter.def("set_layout", &ngraph::op::Parameter::set_layout);
-    parameter.def("get_layout", &ngraph::op::Parameter::get_layout);
 }
