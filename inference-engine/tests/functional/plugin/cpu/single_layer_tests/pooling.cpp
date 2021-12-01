@@ -223,6 +223,34 @@ const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 const std::vector<CPUSpecificParams> vecCpuConfigs = {ref, sse42, avx, avx512};
 const std::vector<ElementType> inpOutPrecision = {ElementType::f32/*, ElementType::bf16*/};
 
+const std::vector<InputShape> inputShapes3D = {
+        { {}, {{3, 4, 64}} },
+        { {}, {{2, 8, 12}} },
+        { {}, {{1, 16, 12}} },
+        { {}, {{1, 21, 4}} },
+        { {}, {{1, 32, 8}} },
+        {
+            // dynamic
+            {-1, -1, -1},
+            // target
+            {
+                {1, 32, 8},
+                {1, 21, 4},
+                {2, 8, 12}
+            }
+        },
+        {
+            // dynamic
+            {{1, 5}, {4, 32}, {1, 64}},
+            // target
+            {
+                {3, 4, 64},
+                {1, 16, 12},
+                {1, 32, 8}
+            }
+        }
+};
+
 const std::vector<InputShape> inputShapes4D = {
         { {}, {{3, 4, 64, 64}} },
         { {}, {{2, 8, 8, 12}} },
@@ -279,6 +307,61 @@ const std::vector<InputShape> inputShapes5D = {
         }
 };
 
+/* ============= Pooling (1D) ============= */
+const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax3D = {
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2}, {2}, {0}, {0},
+                            ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {4}, {2}, {0}, {0},
+                            ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2}, {1}, {0}, {0},
+                            ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
+};
+
+const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg3D = {
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {3}, {1}, {1}, {0},
+                            ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER, false },
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {3}, {1}, {1}, {0},
+                            ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true },
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {4}, {4}, {2}, {2},
+                            ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, true },
+};
+
+const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg3D_RefOnly = {
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2}, {2}, {2}, {2},
+                            ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMax3D),
+                                 ::testing::ValuesIn(inputShapes3D),
+                                 ::testing::ValuesIn(inpOutPrecision),
+                                 ::testing::Values(false),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                                 ::testing::Values(emptyFusingSpec)),
+                         PoolingLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsAvg3D),
+                                 ::testing::ValuesIn(inputShapes3D),
+                                 ::testing::ValuesIn(inpOutPrecision),
+                                 ::testing::Values(false),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                                 ::testing::Values(emptyFusingSpec)),
+                         PoolingLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_NotOptimized, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsAvg3D_RefOnly),
+                                 ::testing::ValuesIn(inputShapes3D),
+                                 ::testing::ValuesIn(inpOutPrecision),
+                                 ::testing::Values(false),
+                                 ::testing::Values(ref),
+                                 ::testing::Values(emptyFusingSpec)),
+                         PoolingLayerCPUTest::getTestCaseName);
+
+/* ============= Pooling (2D) ============= */
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax4D = {
         LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 2}, {2, 2}, {0, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, false },
@@ -370,6 +453,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
+/* ============= Pooling (3D) ============= */
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax5D = {
         LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 2, 2}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, false },

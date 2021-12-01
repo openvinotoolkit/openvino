@@ -95,7 +95,7 @@ std::vector<memory::format_tag> MKLDNNPoolingNode::getAvailableFormatsForDims(co
     else if (dims.getRank() == 2)
         return {memory::format_tag::nc};
     else if (dims.getRank() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc};
+        return { memory::format_tag::nCw8c, memory::format_tag::nCw16c, memory::format_tag::nwc, memory::format_tag::ncw};
     else if (dims.getRank() == 4)
         return {memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc, memory::format_tag::nchw};
     else if (dims.getRank() == 5)
@@ -160,8 +160,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     const auto &childShape = getOutputShapeAtPort(0);
     const size_t inputRank = getInputShapeAtPort(0).getRank();
 
-    if ((inputRank < 4) || (inputRank > 5))
-        IE_THROW() << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
+    if ((inputRank < 3) || (inputRank > 5))
+        IE_THROW() << "Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.";
 
     initEffectiveAttributes(MemoryDescUtils::makeDummyShape(parentShape),
                             MemoryDescUtils::makeDummyShape(childShape));
@@ -171,17 +171,17 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         if (outputDataType == memory::data_type::bf16)
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
-        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 5 ?
-                                                                                   memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 5 ?
-                                                                                    memory::format_tag::ndhwc : memory::format_tag::nhwc);
+        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 3 ?
+                                  memory::format_tag::nwc : (inputRank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
+        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 3 ?
+                                   memory::format_tag::nwc : (inputRank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
         createDescriptor({ in_candidate }, { out_candidate });
-    } else if ((inputRank == 4 || inputRank == 5) && parentShape.getDims()[1] == 1) {
+    } else if ((inputRank == 3 || inputRank == 4 || inputRank == 5) && parentShape.getDims()[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 5 ?
-                                                                                   memory::format_tag::ncdhw : memory::format_tag::nchw);
-        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 5 ?
-                                                                                    memory::format_tag::ncdhw : memory::format_tag::nchw);
+        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 3 ?
+                                  memory::format_tag::ncw : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
+        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 3 ?
+                                   memory::format_tag::ncw : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
         if (inputDataType != memory::data_type::bf16) {

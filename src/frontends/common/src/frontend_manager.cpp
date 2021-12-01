@@ -149,6 +149,7 @@ void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    // Left unimplemented intentionally.
     // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
 }
 
