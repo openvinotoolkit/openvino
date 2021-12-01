@@ -158,7 +158,7 @@ private:
             if (prew_inc == 0 || prew_inc > _jep.scheduler_dims[dim]) {
                 h->mov(amount, _jep.scheduler_dims[dim]);
             // The prew tile has done all the work
-            } else if (prew_inc == _jep.scheduler_dims[dim]) {
+            } else if (_jep.scheduler_dims[dim] % prew_inc == 0) {
                 return;
             }// else: the prew tile has already set a proper work amount
             h->cmp(amount, inc);
