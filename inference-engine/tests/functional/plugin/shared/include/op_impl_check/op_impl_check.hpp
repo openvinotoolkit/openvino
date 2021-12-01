@@ -31,55 +31,10 @@ protected:
     std::map<std::string, std::string> configuration;
 
 public:
-    void run() {
-        if (!function) {
-            throw std::runtime_error("Function is empty!");
-        }
-        auto crashHandler = [](int errCode) {
-            auto& s = LayerTestsUtils::Summary::getInstance();
-            s.saveReport();
-            std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
-            std::abort();
-        };
-        signal(SIGSEGV, crashHandler);
-
-        summary.setDeviceName(targetDevice);
-        try {
-            auto executableNetwork = core->compile_model(function, targetDevice, configuration);
-            summary.updateOPsImplStatus(function, true);
-        } catch (...) {
-            summary.updateOPsImplStatus(function, false);
-        }
-    }
-
-    void SetUp() override {
-       std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>> funcInfo;
-       std::tie(funcInfo, targetDevice, configuration) = this->GetParam();
-       function = funcInfo.second;
-    }
-
-    static std::string getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj) {
-        std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>> funcInfo;
-        std::string targetDevice;
-        std::map<std::string, std::string> config;
-        std::tie(funcInfo, targetDevice, config) = obj.param;
-
-        std::ostringstream result;
-        std::string friendlyName = funcInfo.second ? funcInfo.second->get_friendly_name() : std::string(funcInfo.first.name + funcInfo.first.version);
-                result << "Function=" << friendlyName << "_";
-        result << "Device=" << targetDevice << "_";
-        result << "Config=(";
-        for (const auto& configItem : config) {
-            result << configItem.first << "=" << configItem.second << "_";
-        }
-        result << ")";
-        return result.str();
-    }
+    void run();
+    void SetUp() override;
+    static std::string getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj);
 };
-
-TEST_P(OpImplCheckTest, hell) {
-    run();
-}
 
 }   // namespace subgraph
 }   // namespace test

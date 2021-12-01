@@ -23,11 +23,12 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Fun
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto& opset : opsets) {
         const auto &type_info_set = opset.get_type_info_set();
-        for (const auto& type_info : type_info_set) {
-            auto a = opGenerator.find(type_info)->second();
-            std::cout << a->get_friendly_name();
-//            res.push_back({type_info, opGenerator.find(type_info)->second()});
-        }
+        opsInfo.insert(type_info_set.begin(), type_info_set.end());
+    }
+
+    for (const auto& type_info : opsInfo) {
+        auto a = opGenerator.find(type_info)->second();
+        res.push_back({type_info, opGenerator.find(type_info)->second()});
     }
     return res;
 }
