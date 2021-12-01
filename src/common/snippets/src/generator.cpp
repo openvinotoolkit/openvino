@@ -82,11 +82,11 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     auto tile = std::make_shared<ngraph::snippets::op::Tile>(lowered);
     tile->compile_params = compile_params;
     tiles1D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-                                   std::make_pair(std::vector<size_t>({target->get_lanes(), nptrs, 0}), std::vector<size_t>{})));
+                                   std::make_pair(std::vector<size_t>({target->get_lanes(), 0, nptrs, 1}), std::vector<size_t>{})));
     tile = std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered);
     tile->compile_params = compile_params;
     tiles1D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-                    std::make_pair(std::vector<size_t>{{1, nptrs, 0}}, std::vector<size_t>{})));
+                    std::make_pair(std::vector<size_t>{{1, target->get_lanes(), nptrs, 1}}, std::vector<size_t>{})));
 
     OV_ITT_TASK_NEXT(GENERATE, "::Tiles2D")
     // wrapping into tiles2D
@@ -94,7 +94,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     tile = std::make_shared<ngraph::snippets::op::Tile>(tiles1D);
     tile->compile_params = compile_params;
     tiles2D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(tile),
-                                     std::make_pair(std::vector<size_t>({1, nptrs, 1}), std::vector<size_t>{})));
+                                     std::make_pair(std::vector<size_t>({1, 0, nptrs, 0}), std::vector<size_t>{})));
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     // emission

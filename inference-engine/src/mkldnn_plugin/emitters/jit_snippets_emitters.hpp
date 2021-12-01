@@ -97,10 +97,6 @@ private:
             init_ptrs_with_offsets(regs[i], &_jep.data_offsets[i * harness_num_dims]);
         }
 
-        // external amount
-        Reg64 amount = Reg64(reg64_tmp_start + num_params);
-        h->mov(amount, _jep.scheduler_dims[0]);
-
         for (auto& c : code) {
             c.first->emit_code(c.second.first, c.second.second, pool, gpr);
         }
@@ -138,8 +134,9 @@ private:
                    const std::vector<size_t>& gpr,
                    const MKLDNNPlugin::emitter_context *emit_context) const override {
         const size_t inc = in[0];
-        const size_t num_params = in[1];
-        const size_t dim = in[2]; // number of tile dimension
+        const size_t prew_inc = in[1]; // increment of a prew tile in the same dim (0 if the first tile in the dim)
+        const size_t num_params = in[2];
+        const size_t dim = in[3]; // tile dimension: 0 - outer, 1 - inner
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
         Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
         std::array<Label, 2> for_body;
@@ -147,36 +144,46 @@ private:
         // todo: Do we need explicitly check that code contains ScalarEmitter?
         std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
         std::vector<Reg64> regs(num_params);
-        for (auto i = 0; dim > 0 && i < num_params; i++)
+        for (auto i = 0; dim == 0 && i < num_params; i++)
             regs[i] = Reg64(reg64_tmp_start + i);
 
-        // internal full tile should to have new full work amount after every iteration of external tile
-        if (dim == 0 && inc != 1)
-            h->mov(amount, _jep.scheduler_dims[1]);
-
-        h->cmp(amount, inc);
-        h->jl(for_body[1], CodeGenerator::T_NEAR);
-
-        h->L(for_body[0]); {
-            h->push(amount);
+        if (inc > _jep.scheduler_dims[dim]) {
+            return;
+        } else if (inc == _jep.scheduler_dims[dim]) {
             for (auto& c : code) {
                 c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
             }
-            h->pop(amount);
+        } else {
+            // The prew tile has done nothing, all the work is ours
+            if (prew_inc == 0 || prew_inc > _jep.scheduler_dims[dim]) {
+                h->mov(amount, _jep.scheduler_dims[dim]);
+            // The prew tile has done all the work
+            } else if (prew_inc == _jep.scheduler_dims[dim]) {
+                return;
+            }// else: the prew tile has already set a proper work amount
+            h->cmp(amount, inc);
+            h->jl(for_body[0], CodeGenerator::T_NEAR);
 
-            // we need to add offset for ptrs only in external tiles because stores and loaders in internal tiles have default offsets
-            for (auto i = 0; dim > 0 && i < num_params; i++) {
-                if (_jep.scheduler_offsets[i] != 0) {
-                    h->add(regs[i], _jep.scheduler_offsets[i]);
+            h->L(for_body[1]);
+            {
+                h->push(amount);
+                for (auto& c : code) {
+                    c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
                 }
+                h->pop(amount);
+                // we need to add offset for ptrs only in external tiles because stores and loaders in internal tiles have default offsets
+                for (auto i = 0; dim == 0 && i < num_params; i++) {
+                    if (_jep.scheduler_offsets[i] != 0) {
+                        h->add(regs[i], _jep.scheduler_offsets[i]);
+                    }
+                }
+                    h->sub(amount, inc);
+                    h->cmp(amount, inc);
+                    h->jge(for_body[1], CodeGenerator::T_NEAR);
             }
 
-            h->sub(amount, inc);
-            h->cmp(amount, inc);
-            h->jge(for_body[0], CodeGenerator::T_NEAR);
+            h->L(for_body[0]);
         }
-
-        h->L(for_body[1]);
     }
 
     // A = <42, 17>
