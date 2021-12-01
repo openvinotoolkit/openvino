@@ -316,4 +316,19 @@ void jit_kernel::uni_vpermps(const Zmm& z1, const int *mask, const Operand& op) 
     free(mptr);
 }
 
+void jit_kernel::uni_vblendps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, uint16_t mask) {
+    blendps(x1, x2, mask);
+}
+
+void jit_kernel::uni_vblendps(const Xbyak::Ymm& y1, const Xbyak::Ymm& y2, uint16_t mask) {
+    vblendps(y1, y1, y2, static_cast<uint8_t>(mask));
+}
+
+void jit_kernel::uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16_t mask) {
+    auto r16 = var<uint16_t>();
+    mov(r16, mask);
+    kmovw(Opmask(1), r16);
+    vblendmps(z1, z1, z2);
+}
+
 }   // namespace MKLDNNPlugin

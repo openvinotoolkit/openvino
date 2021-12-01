@@ -329,6 +329,16 @@ public:
     variable(jit_kernel & krnl);
     variable(jit_kernel & krnl, const reg_type & reg);
 
+    const variable & operator = (const reg_type & rhs) const {
+        base::kernel.uni_vmovups(base::_reg, rhs);
+        return *this;
+    }
+
+    const variable & blend(const reg_type & rhs, uint16_t mask) const {
+        base::kernel.uni_vblendps(base::_reg, rhs, mask);
+        return *this;
+    }
+
     // TODO: implement vector arithmetic
 };
 
@@ -441,6 +451,9 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
     void uni_vpermps(const Xbyak::Xmm& x1, const int *mask, const Xbyak::Operand& op);
     void uni_vpermps(const Xbyak::Ymm& y1, const int *mask, const Xbyak::Operand& op);
     void uni_vpermps(const Xbyak::Zmm& z1, const int *mask, const Xbyak::Operand& op);
+    void uni_vblendps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, uint16_t mask);
+    void uni_vblendps(const Xbyak::Ymm& y1, const Xbyak::Ymm& y2, uint16_t mask);
+    void uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16_t mask);
 
     void postamble();
 

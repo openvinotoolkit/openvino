@@ -315,27 +315,17 @@ void jit_uni_converter_impl<T, isa>::generate() {
         uni_vpermps(g, permutationMask4g.data(), g);
         uni_vpermps(b, permutationMask4b.data(), b);
 
-        auto blendWithMask = [&](int offset, const reg_type & result) {
-            static const int blendMasks[2][18] = {
-                { 0, ~0,  0, 0, ~0,  0, 0, ~0,  0, 0, ~0,  0, 0, ~0,  0, 0, ~0,  0 },
-                { 0,  0, ~0, 0,  0, ~0, 0,  0, ~0, 0,  0, ~0, 0,  0, ~0, 0,  0, ~0 }
+        auto blendWithMask = [&](int offset, const variable<float[reg_capacity]> & result) {
+            static const uint32_t blendMasks[2] = {
+                0x92492492,
+                0x24924924
             };
-            const int *mask0 = blendMasks[0] + (offset * reg_capacity) % 3;
-            const int *mask1 = blendMasks[1] + (offset * reg_capacity) % 3;
+            const uint16_t mask0 = static_cast<const uint16_t>(blendMasks[0] >> ((offset * reg_capacity) % 3));
+            const uint16_t mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * reg_capacity) % 3));
 
-            auto tmp = reserve<reg_type>();
-            auto mask = reserve<Reg64>();
-
-            mov(mask, (size_t)mask0);
-            uni_vmovdqu(tmp, ptr[mask]);
-            uni_vblendvps(result, r, g, tmp);
-
-            mov(mask, (size_t)mask1);
-            uni_vmovdqu(tmp, ptr[mask]);
-            uni_vblendvps(result, result, b, tmp);
-
-            free(tmp);
-            free(mask);
+            result = r;
+            result.blend(g, mask0);
+            result.blend(b, mask1);
         };
 
         blendWithMask(0, c);
