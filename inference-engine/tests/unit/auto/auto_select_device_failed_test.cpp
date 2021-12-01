@@ -17,6 +17,7 @@
 #include <gmock/gmock.h>
 #include "plugin/mock_auto_device_plugin.hpp"
 #include "cpp/ie_plugin.hpp"
+#include "mock_common.hpp"
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;
@@ -32,10 +33,6 @@ using ::testing::AtLeast;
 using ::testing::AnyNumber;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
-
-#define IE_SET_METRIC(key, name,  ...)                                                            \
-    typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
-        __VA_ARGS__;
 
 using DeviceParams = std::tuple<std::string, bool>;
 

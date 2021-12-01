@@ -19,6 +19,7 @@
 #include "cpp/ie_plugin.hpp"
 #include <chrono>
 #include <thread>
+#include "mock_common.hpp"
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;
@@ -35,26 +36,6 @@ using ::testing::AnyNumber;
 using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
-
-#define IE_SET_METRIC(key, name,  ...)                                                            \
-    typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
-        __VA_ARGS__;
-
-#define RETURN_MOCK_VALUE(value) \
-    InvokeWithoutArgs([value](){return value;})
-
-
-//  getMetric will return a fake ov::Any, gmock will call ostreamer << ov::Any
-//  it will cause core dump, so add this special implemented
-namespace testing {
-namespace internal {
-    template<>
-    void PrintTo<ov::Any>(const ov::Any& a, std::ostream* os) {
-        *os << "using custom PrintTo ov::Any";
-    }
-}
-}
-
 
 using ConfigParams = std::tuple<
         unsigned int,                // cpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
@@ -167,8 +148,6 @@ public:
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(supportConfigs));
        EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
-
-
 
        // test auto plugin
        config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
@@ -288,4 +267,3 @@ const std::vector<ConfigParams> testConfigs = {
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetworkGetMetric,
                 ::testing::ValuesIn(testConfigs),
             ExecNetworkGetMetric::getTestCaseName);
-
