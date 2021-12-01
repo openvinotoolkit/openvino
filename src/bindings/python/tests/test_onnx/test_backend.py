@@ -266,12 +266,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_unsqueeze_unsorted_axes_cpu",
     ),
     (
-        xfail_issue_44956,
-        "OnnxBackendNodeModelTest.test_loop11_cpu",
-        "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_expanded_cpu",
-    ),
-    (
         xfail_issue_44965,
         "OnnxBackendNodeModelTest.test_loop13_seq_cpu",
         "OnnxBackendNodeModelTest.test_sequence_insert_at_back_cpu",
