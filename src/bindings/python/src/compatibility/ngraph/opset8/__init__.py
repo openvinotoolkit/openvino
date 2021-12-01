@@ -69,6 +69,7 @@ from ngraph.opset1.ops import hard_sigmoid
 from ngraph.opset5.ops import hsigmoid
 from ngraph.opset4.ops import hswish
 from ngraph.opset7.ops import idft
+from ngraph.opset8.ops import if_op
 from ngraph.opset1.ops import interpolate
 from ngraph.opset1.ops import less
 from ngraph.opset1.ops import less_equal
@@ -102,7 +103,7 @@ from ngraph.opset1.ops import pad
 from ngraph.opset1.ops import parameter
 from ngraph.opset1.ops import power
 from ngraph.opset1.ops import prelu
-from ngraph.opset1.ops import prior_box
+from ngraph.opset8.ops import prior_box
 from ngraph.opset1.ops import prior_box_clustered
 from ngraph.opset1.ops import psroi_pooling
 from ngraph.opset4.ops import proposal

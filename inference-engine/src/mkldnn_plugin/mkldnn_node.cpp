@@ -491,7 +491,8 @@ std::vector<memory::format_tag> MKLDNNNode::getAvailableFormatsForDims(const Sha
     else if (dims.getRank() == 2)
         return {memory::format_tag::nc};
     else if (dims.getRank() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc};
+        return {memory::format_tag::tnc, memory::format_tag::ntc,
+                memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
     else if (dims.getRank() == 4)
         return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c};
     else if (dims.getRank() == 5)
@@ -524,10 +525,17 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
     }
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto edges = getChildEdgesAtPort(i);
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShapes[i]);
+
+        // avoid 0D shape incompatible
+        auto newOutputShape = newOutputShapes[i];
+        if (newOutputShape.empty()) {
+            newOutputShape.push_back(1);
+        }
+
+        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
 
         const auto &currDesc = edges[0]->getMemory().getDesc();
-        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShapes[i])
+        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
             continue;
 
         // this path neccesary if there are several edges per one port
@@ -1294,6 +1302,19 @@ bool MKLDNNNode::inputShapesDefined() const {
             return false;
     }
     return true;
+}
+
+bool MKLDNNNode::outputShapesDefined() const {
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        if (!getChildEdgesAtPort(i)[0]->getMemory().getDesc().isDefined()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MKLDNNNode::shapesDefined() const {
+    return inputShapesDefined() && outputShapesDefined();
 }
 
 bool MKLDNNNode::needPrepareParams() const {

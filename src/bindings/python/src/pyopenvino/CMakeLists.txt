@@ -68,10 +68,7 @@ if(OpenVINO_SOURCE_DIR)
 endif()
 
 if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
-    if(COMMAND ie_python_minimal_api)
-        ie_python_minimal_api(${PROJECT_NAME})
-    endif()
-
+    ie_python_minimal_api(${PROJECT_NAME})
     add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
     ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
@@ -84,8 +81,6 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     install(TARGETS ${PROJECT_NAME}
             DESTINATION python/${PYTHON_VERSION}/openvino
             COMPONENT pyopenvino_${PYTHON_VERSION})
-
-    ie_cpack(pyopenvino_${PYTHON_VERSION})
 endif()
 
 if(TARGET ie_wheel)
