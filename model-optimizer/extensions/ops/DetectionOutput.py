@@ -35,7 +35,7 @@ class DetectionOutput(Op):
         }, attrs)
 
     def supported_attrs(self):
-        return [
+        supported_attrs = [
             'background_label_id',
             ('clip_after_nms', lambda node: bool_to_str(node, 'clip_after_nms')),
             ('clip_before_nms', lambda node: bool_to_str(node, 'clip_before_nms')),
@@ -52,6 +52,10 @@ class DetectionOutput(Op):
             ('variance_encoded_in_target', lambda node: bool_to_str(node, 'variance_encoded_in_target')),
             'objectness_score',
         ]
+        opset = self.get_opset()
+        if opset == 'opset1':
+            supported_attrs += ['num_classes']
+        return supported_attrs
 
     @staticmethod
     def type_infer(node: Node):
