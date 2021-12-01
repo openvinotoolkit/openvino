@@ -277,7 +277,7 @@ Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& 
 std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank, const Layout& dst) {
     auto check_trivial = [](std::vector<int64_t>& res) -> std::vector<int64_t>& {
         size_t i = 0;
-        while (res[i] == i && i < res.size()) {
+        while (i < res.size() && res[i] == i) {
             i++;
         }
         if (i == res.size()) {

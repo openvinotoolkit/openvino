@@ -675,6 +675,23 @@ TEST(pre_post_process, preprocess_convert_layout_default) {
     EXPECT_EQ(f->get_parameters()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
 }
 
+TEST(pre_post_process, preprocess_convert_layout_same_various) {
+    for (size_t i = 1; i < 100; i++) {
+        auto f = create_simple_function(element::f32, PartialShape::dynamic(static_cast<int64_t>(i)));
+        auto p = PrePostProcessor(f);
+        std::stringstream stream;
+        stream << "[0";
+        for (auto j = 1; j < i; j++) {
+            stream << "," << std::to_string(j);
+        }
+        stream << "]";
+        auto l = stream.str();
+        p.input().tensor().set_layout(ov::Layout(l));
+        p.input().network().set_layout(ov::Layout(std::string(i, '?')));
+        EXPECT_NO_THROW(p.build());
+    }
+}
+
 TEST(pre_post_process, preprocess_convert_layout_same) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     auto size_old = f->get_ordered_ops().size();
