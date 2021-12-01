@@ -14,6 +14,11 @@ from ngraph.utils.input_validation import (
     is_non_negative_value,
     is_positive_value,
 )
+from ngraph.utils.tensor_iterator_types import (
+    GraphBody,
+    TensorIteratorInvariantInputDesc,
+    TensorIteratorBodyOutputDesc,
+)
 from ngraph.utils.types import (
     NodeInput,
     TensorShape,

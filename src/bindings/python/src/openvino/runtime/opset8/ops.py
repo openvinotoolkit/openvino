@@ -14,6 +14,11 @@ from openvino.runtime.utils.input_validation import (
     is_non_negative_value,
     is_positive_value,
 )
+from openvino.runtime.utils.tensor_iterator_types import (
+    GraphBody,
+    TensorIteratorInvariantInputDesc,
+    TensorIteratorBodyOutputDesc,
+)
 from openvino.runtime.utils.types import (
     NodeInput,
     TensorShape,
