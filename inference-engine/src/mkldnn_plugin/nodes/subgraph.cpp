@@ -220,7 +220,7 @@ void MKLDNNSnippetNode::createPrimitive() {
 }
 
 void MKLDNNSnippetNode::execute(dnnl::stream strm) {
-    if (schedule.ptr == nullptr) {
+    if (schedule.ptr == nullptr || !canUseOptimizedImpl) {
         interpret();
         return;
     }
@@ -231,11 +231,10 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
         const_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
 
-    if (tensorRank == rank6D && canUseOptimizedImpl) {
+    if (tensorRank == rank6D) {
         schedule_6d(const_args);
-        return;
     } else {
-         IE_THROW() << "The node can't be scheduled as a 6d tensor";
+        schedule_nt(const_args);
     }
 }
 
@@ -442,8 +441,10 @@ void MKLDNNSnippetNode::define_schedule() {
         sch_offsets_out.resize(offsets_out.size(), 0);
         sch_dims.resize(maxTileRank, 1);
         sch_dims[maxTileRank-1] = dims_out[max_rank_out_desc_idx].back();
+        schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx].back();
         if (tileRank > 1) {
             sch_dims[maxTileRank - tileRank] = dims_out[max_rank_out_desc_idx][tensorRank - 2];
+            schedulerWorkAmount /= dims_out[max_rank_out_desc_idx][tensorRank - 2];
             dims_out[max_rank_out_desc_idx][tensorRank - 2] = 1;
 
             // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts
@@ -472,7 +473,6 @@ void MKLDNNSnippetNode::define_schedule() {
 
     const int collapsedDims = find_dims_to_collapse();
     batchDimIdx = tensorRank - outBlockingDesc_maxRank->getBlockDims().size() + collapsedDims;
-    schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx].back();
 
     initOffsets(tensorRank);
     initSchedulingInfo(tensorRank);
@@ -543,6 +543,25 @@ void MKLDNNSnippetNode::schedule_6d(const jit_snippets_const_args& const_args) c
             int64_t indexes[] = {d0, d1, d2, d3, d4};
             schedule.get_callable<kernel>()(indexes, &const_args);
         });
+}
+
+void MKLDNNSnippetNode::schedule_nt(const jit_snippets_const_args& const_args) const {
+    const auto& work_size = dims_out[max_rank_out_desc_idx];
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(schedulerWorkAmount, nthr, ithr, start, end);
+
+        std::vector<int64_t> indexes(work_size.size() - 1, 0);
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            size_t tmp = iwork;
+            for (ptrdiff_t j = work_size.size() - 2; j >= 0; j--) {
+                indexes[j] = tmp % work_size[j];
+                tmp /= work_size[j];
+            }
+
+            schedule.get_callable<kernel>()(indexes.data(), &const_args);
+        }
+    });
 }
 
 void MKLDNNSnippetNode::interpret() const {
