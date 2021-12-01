@@ -48,6 +48,7 @@
 #include "ngraph/op/sign.hpp"
 #include "ngraph/op/sin.hpp"
 #include "ngraph/op/sinh.hpp"
+#include "ngraph/op/softmax.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/tan.hpp"
@@ -1786,4 +1787,21 @@ TEST(eval, evaluate_dynamic_scatter_update_one_elem_i32) {
     auto cval = read_vector<int32_t>(result_tensor);
     vector<int32_t> out{0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0};
     ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_softmax_8) {
+    const Shape data_shape{1, 2};
+    auto arg = std::make_shared<ngraph::op::Parameter>(element::f32, PartialShape::dynamic());
+    auto softmax = std::make_shared<ngraph::op::v8::Softmax>(arg, -1);
+    auto fun = std::make_shared<Function>(OutputVector{softmax}, ParameterVector{arg});
+    auto result_tensor = std::make_shared<HostTensor>();
+
+    ASSERT_TRUE(
+            fun->evaluate({result_tensor},
+                          {make_host_tensor<element::Type_t::f32>(data_shape, {1, 1})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{1, 2}));
+    auto val = read_vector<float>(result_tensor);
+    vector<float> out{0.5, 0.5};
+    ASSERT_EQ(val, out);
 }

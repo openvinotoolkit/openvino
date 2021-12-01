@@ -68,7 +68,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    int64_t get_axis() const {
+    const int64_t& get_axis() const {
         return m_axis;
     }
     void set_axis(const int64_t axis) {

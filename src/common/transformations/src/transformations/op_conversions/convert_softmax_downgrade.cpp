@@ -7,6 +7,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftmax8ToSoftmax1, "ConvertSoftmax8ToSoftmax1", 0);
@@ -23,8 +24,8 @@ ngraph::pass::ConvertSoftmax8ToSoftmax1::ConvertSoftmax8ToSoftmax1() {
             return false;
 
         auto v8_axis = softmax_v8_node->get_axis();
-        size_t rank = static_cast<size_t>(softmax_v8_node->get_input_partial_shape(0).rank().get_length());
-        size_t v1_axis = v8_axis < 0 ? static_cast<size_t>(rank + v8_axis) : static_cast<size_t>(v8_axis);
+        auto rank = softmax_v8_node->get_input_partial_shape(0).rank().get_length();
+        auto v1_axis = ov::normalize_axis(softmax_v8_node->description(), v8_axis, rank);
 
         auto softmax_v1_node = std::make_shared<opset1::Softmax>(softmax_v8_node->input_value(0), v1_axis);
         softmax_v1_node->set_friendly_name(softmax_v8_node->get_friendly_name());

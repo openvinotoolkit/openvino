@@ -114,9 +114,9 @@ bool op::v8::Softmax::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v8::Softmax::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_Softmax_validate_and_infer_types);
-    auto input_shape = get_input_partial_shape(0);
+    const auto& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static()) {
-        int64_t rank = static_cast<int64_t>(input_shape.rank().get_length());
+        auto rank = static_cast<int64_t>(input_shape.size());
         NODE_VALIDATION_CHECK(this,
                               -rank <= m_axis && m_axis < rank,
                               "Reduction axis (",
@@ -146,7 +146,7 @@ bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
                  ") is out of bounds (argument shape: ",
                  inputs[0]->get_shape(),
                  ").");
-    size_t axis = m_axis < 0 ? static_cast<size_t>(rank + m_axis) : static_cast<size_t>(m_axis);
+    size_t axis = static_cast<size_t>(ov::normalize_axis(this->description(), m_axis, rank));
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{axis});
 }
 
