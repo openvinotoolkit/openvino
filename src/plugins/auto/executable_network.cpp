@@ -103,7 +103,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                                       [&realDeviceName](const DeviceInformation& d){ return d.deviceName == realDeviceName;});
     unsigned int optimalNum = 0;
     try {
-        optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
+        optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
     } catch (const InferenceEngine::Exception &iie) {
         IE_THROW()
             << "Every device used with the Multi-Device should "
@@ -358,7 +358,6 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                if (_loadContext[ACTUALDEVICE].future.valid()) {
                    _loadContext[ACTUALDEVICE].future.get();
                }
-
                // if _loadContext[ACTUALDEVICE] load failed,  fall back to _loadContext[CPU]
                if (!_loadContext[ACTUALDEVICE].isAlready) {
                    _loadContext[ACTUALDEVICE].executableNetwork = _loadContext[CPU].executableNetwork;
@@ -637,7 +636,6 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         if (_loadContext[ACTUALDEVICE].isAlready) {
             return _loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
         }
-
         return _loadContext[CPU].executableNetwork->GetMetric(name);
     }
 
