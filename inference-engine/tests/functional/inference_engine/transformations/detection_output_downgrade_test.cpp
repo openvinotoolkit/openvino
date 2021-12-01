@@ -60,8 +60,9 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
   Dimension num_classes = 23;
 
   create_attributes_vectors(attrs_v1_vector, attrs_v8_vector);
-  for (size_t ind = 0;
-       ind < attrs_v1_vector.size() && ind < attrs_v8_vector.size(); ++ind) {
+  ASSERT_TRUE(attrs_v1_vector.size() == attrs_v8_vector.size())
+      << "Sizes of attribute test vectors must be equal";
+  for (size_t ind = 0; ind < attrs_v1_vector.size(); ++ind) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     // this case covers deducing a number of classes value
     // since this value is not saved in attributes
@@ -133,8 +134,9 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
   Dimension num_classes = 23;
 
   create_attributes_vectors(attrs_v1_vector, attrs_v8_vector);
-  for (size_t ind = 0;
-       ind < attrs_v1_vector.size() && ind < attrs_v8_vector.size(); ++ind) {
+  ASSERT_TRUE(attrs_v1_vector.size() == attrs_v8_vector.size())
+      << "Sizes of attribute test vectors must be equal";
+  for (size_t ind = 0; ind < attrs_v1_vector.size(); ++ind) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
     opset1::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];

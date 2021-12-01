@@ -20,9 +20,8 @@ class TRANSFORMATIONS_API ConvertDetectionOutput1ToDetectionOutput8;
  * @brief ConvertDetectionOutput1ToDetectionOutput8 converts v0::DetectionOutput
  * into v8::DetectionOutput.
  */
-class ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8
-    : public ngraph::pass::MatcherPass {
- public:
-  NGRAPH_RTTI_DECLARATION;
-  ConvertDetectionOutput1ToDetectionOutput8();
+class ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8 : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertDetectionOutput1ToDetectionOutput8();
 };
