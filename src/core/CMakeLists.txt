@@ -114,6 +114,9 @@ install(TARGETS ngraph EXPORT OpenVINOTargets
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph
         INCLUDES DESTINATION runtime/include)
+
+export(TARGETS ngraph NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
 #-----------------------------------------------------------------------------------------------

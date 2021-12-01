@@ -211,6 +211,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
                              # TODO: remove later once samples are updated
                              runtime/include/ie)
 
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 
