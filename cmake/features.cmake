@@ -50,6 +50,11 @@ ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "PYTHONL
 find_package(PythonInterp 3 QUIET)
 ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)
 
+# this option should not be a part of InferenceEngineDeveloperPackage
+# since wheels can be built only together with main OV build
+cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" OFF
+    "PYTHONINTERP_FOUND;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR" OFF)
+
 #
 # Inference Engine specific options
 #

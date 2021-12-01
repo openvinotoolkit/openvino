@@ -122,6 +122,9 @@ export(TARGETS ngraph NAMESPACE openvino::
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
+ie_cpack_add_component(ngraph REQUIRED)
+ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
+
 install(TARGETS ngraph EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
