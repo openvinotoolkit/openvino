@@ -994,28 +994,38 @@ ov::Dimension ov::util::get_batch_size(const std::shared_ptr<const ov::Function>
 
 void ov::util::set_batch_size(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size) {
     get_batch_size(f);  // Ensure that function's batch size is valid and can be changed
+    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes_map;
     // Now batch size can be set for all needed parameters
-    for (const auto& param : f->get_parameters()) {
+    for (size_t i = 0; i < f->get_parameters().size(); ++i) {
+        const auto& param = f->get_parameters()[i];
         const auto& layout = param->get_layout();
-        if (layout.empty() || !ov::layout::has_batch(layout))
+        if (!ov::layout::has_batch(layout))
             continue;
         const auto& pshape = param->get_partial_shape();
         if (pshape.rank().is_dynamic()) {
             continue;  // Parameter with fully dynamic rank can be left as is
         }
         auto batch_idx = bs_util::get_batch(layout, pshape);
-        param->get_partial_shape()[batch_idx] = batch_size;
+        auto new_shape = param->get_partial_shape();
+        new_shape[batch_idx] = batch_size;
+        new_shapes_map[f->input(i)] = new_shape;
     }
     try {
-        f->validate_nodes_and_infer_types();
+        f->reshape(new_shapes_map);
     } catch (const std::exception& e) {
         std::stringstream stream;
-        stream << "Validation fails after set_batch_size. Possible reasons are:" << std::endl;
+        stream << "Failed to set batch size to " << batch_size << ". Possible reasons are:" << std::endl;
         stream << "    1) Ensure that all inputs have valid layout set with batch dimension" << std::endl;
         stream << "    2) Check model's documentation if batch size can be set to it at all" << std::endl;
-        stream << "Available inputs after set_batch_size:" << std::endl;
+        stream << "Available inputs:" << std::endl;
         for (size_t i = 0; i < f->get_parameters().size(); ++i) {
             bs_util::dump_parameter(stream, f, i);
+            if (new_shapes_map.count(f->input(i))) {
+                stream << i << ": Tried reshape " << f->input(i).get_partial_shape() << " to "
+                       << new_shapes_map[f->input(i)] << std::endl;
+            } else {
+                stream << i << ": No reshape has been applied" << std::endl;
+            }
         }
         stream << "---" << std::endl;
         stream << "Original error message is: " << e.what();

@@ -1427,8 +1427,8 @@ TEST(function, set_batch_size_validation_throw) {
         ov::util::set_batch_size(f, 42);
         FAIL() << "set_batch_size shall throw";
     } catch (const ov::Exception& err) {
-        // Verify error message contains 'Validation fails'
-        EXPECT_TRUE(std::string(err.what()).find("Validation fail") != std::string::npos) << err.what();
+        // Verify error message contains possible reasons
+        EXPECT_TRUE(std::string(err.what()).find("Possible reasons") != std::string::npos) << err.what();
         // Verify error message contains all layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout().to_string()) != std::string::npos) << err.what();

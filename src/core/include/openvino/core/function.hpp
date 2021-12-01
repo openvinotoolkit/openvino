@@ -362,7 +362,7 @@ namespace util {
 /// \throws ::ov::AssertFailure with details in case of error. Possible errors are:
 /// * There is no parameter with layout set. Function shall have at least one parameter with layout with 'N' dimension.
 /// Recommended fix is to use `Parameter::set_layout` API, e.g.
-/// `function->get_parameters[some_index]->set_layout("NCHW");`
+/// `function->get_parameters()[some_index]->set_layout("NCHW");`
 /// * Several parameters have conflicting N dimension, e.g. param1 NCHW{1,3,224,224} and param2 NCHW{2,3,224,224}. This
 /// is ambiguous, most probably first dimension is incorrectly marked as 'batch' (N) in some layout. User shall
 ///// fix it before using of 'set_batch_size' (in example above correct layout for param2 from 'NCHW' to 'CHWN')
@@ -379,7 +379,7 @@ OPENVINO_API ov::Dimension get_batch_size(const std::shared_ptr<const ov::Functi
 /// \throws ::ov::AssertFailure with details in case of error. Possible errors are:
 /// * There is no parameter with N dimension in layout. Function shall have at least one parameter with layout with 'N'
 /// dimension. Recommended fix is to use `Parameter::set_layout` API, e.g.
-/// `function->get_parameters[some_index]->set_layout("NCHW");`
+/// `function->get_parameters()[some_index]->set_layout("NCHW");`
 /// * Several parameters have conflicting N dimension, e.g. param1 NCHW{1,3,224,224} and param2 NCHW{3,224,224,1}. This
 /// is ambiguous (1 != 3), most probably some dimension is incorrectly marked as 'batch' (N) in some layout. User shall
 /// fix it before using of 'set_batch_size' (in example above correct layout for param2 from 'NCHW' to 'CHWN')
