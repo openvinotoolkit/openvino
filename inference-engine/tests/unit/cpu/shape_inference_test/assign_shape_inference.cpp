@@ -5,8 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <assign_shape_inference.hpp>
-#include <openvino/core/coordinate_diff.hpp>
-#include <openvino/op/convolution.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
 #include "utils/shape_inference/static_shape.hpp"
@@ -18,7 +16,6 @@ std::shared_ptr<T> constructGraph();
 template <>
 std::shared_ptr<op::v3::Assign> constructGraph() {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    std::shared_ptr<op::v3::Assign> assign;
     auto read_value = std::make_shared<op::v3::ReadValue>(input, "variable_id");
     return std::make_shared<op::v3::Assign>(read_value, "variable_id");
 }
@@ -26,7 +23,6 @@ std::shared_ptr<op::v3::Assign> constructGraph() {
 template <>
 std::shared_ptr<op::v6::Assign> constructGraph() {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    std::shared_ptr<op::v6::Assign> assign;
     auto variable = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "ID"});
     auto read_value = std::make_shared<op::v6::Assign>(input, variable);

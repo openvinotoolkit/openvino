@@ -26,14 +26,9 @@ void lstm_shape_infer(const OpsType* op,
 
     // If rank is dynamic, then output_shape is undefined
     for (size_t i = 0; i < input_shapes.size(); i++) {
-        if (input_shapes[i].rank().is_static()) {
-            input_rank_static[i] = true;
-            all_rank_dynamic &= false;
-            all_rank_static &= true;
-        } else {
-            all_rank_dynamic &= true;
-            all_rank_static &= false;
-        }
+        input_rank_static[i] = input_shapes[i].rank().is_static();
+        all_rank_dynamic &= !input_rank_static[i];
+        all_rank_static &= input_rank_static[i];
     }
 
     if (all_rank_dynamic) {
@@ -55,9 +50,9 @@ void lstm_shape_infer(const OpsType* op,
             if (i == X || i == initial_cell_state || i == initial_hidden_state) {
                 NODE_VALIDATION_CHECK(op,
                                       (input.size() == 2),
-                                      "LSTMCell input tensor dimension is not correct for ",
+                                      "LSTMCell input rank is not correct for ",
                                       i,
-                                      " input parameter. Current input length: ",
+                                      " input parameter. Current rank: ",
                                       input.size(),
                                       ", expected: 2.");
                 if (!is_batch_init) {
@@ -94,12 +89,12 @@ void lstm_shape_infer(const OpsType* op,
                                           ", expected: 1.");
                     if (input[0].is_static()) {
                         if (!is_hidden_init) {
-                            output_hidden_size = input[0].get_length() / 4;
+                            output_hidden_size = input[0].get_length() / gates_count;
                             is_hidden_init = true;
                         } else {
                             NODE_VALIDATION_CHECK(
                                 op,
-                                DimType::merge(output_hidden_size, output_hidden_size, input[0].get_length() / 4),
+                                DimType::merge(output_hidden_size, output_hidden_size, input[0].get_length() / gates_count),
                                 "Parameter hidden_size not matched for W, R, B, initial_hidden_state and "
                                 "initial_cell_state "
                                 "inputs.");
@@ -108,19 +103,19 @@ void lstm_shape_infer(const OpsType* op,
                 } else {
                     NODE_VALIDATION_CHECK(op,
                                           (input.size() == 2),
-                                          "LSTMCell input tensor dimension is not correct for ",
+                                          "LSTMCell input rank is not correct for ",
                                           i,
-                                          " input parameter. Current input length: ",
+                                          " input parameter. Current rank: ",
                                           input.size(),
                                           ", expected: 2.");
                     if (input[0].is_static()) {
                         if (!is_hidden_init) {
-                            output_hidden_size = input[0].get_length() / 4;
+                            output_hidden_size = input[0].get_length() / gates_count;
                             is_hidden_init = true;
                         } else {
                             NODE_VALIDATION_CHECK(
                                 op,
-                                DimType::merge(output_hidden_size, output_hidden_size, input[0].get_length() / 4),
+                                DimType::merge(output_hidden_size, output_hidden_size, input[0].get_length() / gates_count),
                                 "Parameter hidden_size not matched for W, R, B, initial_hidden_state and "
                                 "initial_cell_state "
                                 "inputs.");
@@ -145,9 +140,8 @@ void lstm_shape_infer(const OpsType* op,
     // Check peepholes
     if (input_shapes.size() == 7) {
         const auto& p_pshape = input_shapes[6];
-        NODE_VALIDATION_CHECK(op, (p_pshape.rank().is_static()), "LSTMCell input tensor P shall have static rank.");
         NODE_VALIDATION_CHECK(op,
-                              (p_pshape.rank().get_length() == 1),
+                              (p_pshape.rank().compatible(1)),
                               "LSTMCell input tensor P shall have dimension 1D.");
     }
 
@@ -173,7 +167,7 @@ void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::ve
 
     lstm_shape_infer(op, input_shapes, output_shapes, op->s_gates_count);
     const auto& hidden_size = output_shapes[0][1];
-    if (p_pshape[0].is_static() && output_shapes[0][0].is_static()) {
+    if (p_pshape[0].is_static() && hidden_size.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               p_pshape[0].compatible(hidden_size * op->s_peepholes_count),
                               "Parameter hidden_size mistmatched in P input. Current value is: ",

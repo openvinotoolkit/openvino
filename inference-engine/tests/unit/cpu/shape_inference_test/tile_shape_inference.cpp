@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <tile_shape_inference.hpp>
-#include <openvino/core/coordinate_diff.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
 
@@ -35,4 +34,34 @@ TEST(StaticShapeInferenceTest, TileTest) {
                              wrong_static_input_shapes,
                              wrong_static_output_shapes),
                  ov::AssertFailure);
+}
+
+TEST(StaticShapeInferenceTest, TileFewRepeatsTest) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto param1 = ov::op::v0::Constant::create(element::i64, Shape{2}, {4, 1});
+    auto tile = std::make_shared<op::v0::Tile>(param0, param1);
+    std::vector<PartialShape> input_shapes = {PartialShape{6, 8, 10}, PartialShape{2}},
+                              output_shapes = {PartialShape{}};
+    shape_infer(tile.get(), input_shapes, output_shapes);
+    ASSERT_EQ(output_shapes[0], PartialShape({6, 32, 10}));
+    //Test Static Shape
+    std::vector<StaticShape> static_input_shapes = {StaticShape{6, 8, 10}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+    shape_infer(tile.get(), static_input_shapes, static_output_shapes);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({6, 32, 10}));
+}
+
+TEST(StaticShapeInferenceTest, TileSmallDataRankTest) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
+    auto param1 = ov::op::v0::Constant::create(element::i64, Shape{3}, {3, 4, 1});
+    auto tile = std::make_shared<op::v0::Tile>(param0, param1);
+    std::vector<PartialShape> input_shapes = {PartialShape{8, 10}, PartialShape{3}},
+                              output_shapes = {PartialShape{}};
+    shape_infer(tile.get(), input_shapes, output_shapes);
+    ASSERT_EQ(output_shapes[0], PartialShape({3, 32, 10}));
+    //Test Static Shape
+    std::vector<StaticShape> static_input_shapes = {StaticShape{8, 10}, StaticShape{3}},
+                             static_output_shapes = {StaticShape{}};
+    shape_infer(tile.get(), static_input_shapes, static_output_shapes);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 32, 10}));
 }

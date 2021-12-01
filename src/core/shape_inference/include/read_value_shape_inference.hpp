@@ -7,8 +7,8 @@
 namespace ov {
 namespace op {
 
-template <class T1, class T2>
-void read_value_shape_infer(const T1* op, const std::vector<T2>& input_shapes, std::vector<T2>& output_shapes) {
+template <class OpType, class ShapeType>
+void read_value_shape_infer(const OpType* op, const std::vector<ShapeType>& input_shapes, std::vector<ShapeType>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
     ShapeInfer::copy_shape(input_shapes[0], output_shapes[0]);
 }

@@ -40,3 +40,24 @@ TEST(StaticShapeInferenceTest, PriorGridGenerator) {
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({200, 336, 3, 4}));
 }
+
+TEST(StaticShapeInferenceTest, PriorGridGeneratorDynamic) {
+    op::v6::ExperimentalDetectronPriorGridGenerator::Attributes attrs;
+    attrs.flatten = false;
+    attrs.h = 0;
+    attrs.w = 0;
+    attrs.stride_x = 4.0f;
+    attrs.stride_y = 4.0f;
+
+    auto priors = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
+    auto feature_map = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto im_data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+    auto grid_gen = std::make_shared<ov::op::v6::ExperimentalDetectronPriorGridGenerator>(priors, feature_map, im_data, attrs);
+
+    std::vector<PartialShape> input_shapes = {PartialShape{-1, -1}, PartialShape{1, 256, 200, 336},
+                                              PartialShape{1, 3, 800, 1344}},
+                              output_shapes = {PartialShape{}};
+    shape_infer(grid_gen.get(), input_shapes, output_shapes);
+    ASSERT_EQ(output_shapes[0], PartialShape({200, 336, -1, 4}));
+}

@@ -44,4 +44,6 @@ TEST(StaticShapeInferenceTest, LstmCellTest) {
                                                     StaticShape{gates_count * hidden_size}},
                              static_output_shapes = {StaticShape{}, StaticShape{}};
     shape_infer(lstm_cell.get(), static_input_shapes, static_output_shapes);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({batch_size, hidden_size}));
+    ASSERT_EQ(static_output_shapes[1], StaticShape({batch_size, hidden_size}));
 }

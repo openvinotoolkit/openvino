@@ -23,46 +23,51 @@ void shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
     output_shape.resize(output_size);
     output_shape[output_size - 1] = 4;
 
-    if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
-        return;
+    bool prior_rank_static = priors_shape.rank().is_static();
+    bool featmap_rank_static = featmap_shape.rank().is_static();
+    bool im_data_rank_static = im_data_shape.rank().is_static();
+
+    if (prior_rank_static) {
+        NODE_VALIDATION_CHECK(op, priors_shape.size() == 2, "Priors rank must be equal to 2.");
+        NODE_VALIDATION_CHECK(op,
+                              priors_shape[1].compatible(4),
+                              "The last dimension of the 'priors' input must be equal to 4. Got: ",
+                              priors_shape[1]);
     }
 
-    NODE_VALIDATION_CHECK(op, priors_shape.size() == 2, "Priors rank must be equal to 2.");
-
-    NODE_VALIDATION_CHECK(op,
-                          priors_shape[1].compatible(4),
-                          "The last dimension of the 'priors' input must be equal to 4. Got: ",
-                          priors_shape[1]);
-
-    NODE_VALIDATION_CHECK(op, featmap_shape.size() == 4, "Feature_map rank must be equal to 4.");
-
-    if (im_data_shape.rank().is_dynamic()) {
-        return;
+    if (featmap_rank_static) {
+        NODE_VALIDATION_CHECK(op, featmap_shape.size() == 4, "Feature_map rank must be equal to 4.");
     }
 
-    NODE_VALIDATION_CHECK(op, im_data_shape.size() == 4, "Im_data rank must be equal to 4.");
+    if (im_data_rank_static) {
+        NODE_VALIDATION_CHECK(op, im_data_shape.size() == 4, "Im_data rank must be equal to 4.");
+    }
 
-    const auto num_batches_featmap = featmap_shape[0];
-    const auto num_batches_im_data = im_data_shape[0];
+    if (featmap_rank_static && im_data_rank_static) {
+        const auto& num_batches_featmap = featmap_shape[0];
+        const auto& num_batches_im_data = im_data_shape[0];
 
-    NODE_VALIDATION_CHECK(op,
-                          num_batches_featmap.compatible(num_batches_im_data),
-                          "The first dimension of both 'feature_map' and 'im_data' must match. "
-                          "Feature_map: ",
-                          num_batches_featmap,
-                          "; Im_data: ",
-                          num_batches_im_data);
-
-    auto num_priors = priors_shape[0];
-    auto featmap_height = featmap_shape[2];
-    auto featmap_width = featmap_shape[3];
+        NODE_VALIDATION_CHECK(op,
+                              num_batches_featmap.compatible(num_batches_im_data),
+                              "The first dimension of both 'feature_map' and 'im_data' must match. "
+                              "Feature_map: ",
+                              num_batches_featmap,
+                              "; Im_data: ",
+                              num_batches_im_data);
+    }
 
     if (op->m_attrs.flatten) {
-        output_shape[0] = featmap_height * featmap_width * num_priors;
+        if (prior_rank_static && featmap_rank_static) {
+            output_shape[0] = featmap_shape[2] * featmap_shape[3] * priors_shape[0];
+        }
     } else {
-        output_shape[0] = featmap_height;
-        output_shape[1] = featmap_width;
-        output_shape[2] = num_priors;
+        if (featmap_rank_static) {
+            output_shape[0] = featmap_shape[2];
+            output_shape[1] = featmap_shape[3];
+        }
+        if (prior_rank_static) {
+            output_shape[2] = priors_shape[0];
+        }
     }
 }
 

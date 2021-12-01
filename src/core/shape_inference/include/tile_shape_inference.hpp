@@ -33,16 +33,18 @@ void shape_infer(const Tile* op,
         output_shape.resize(output_rank);
         //if have constant axes, compute new axes
         if (axes_are_known) {
+            auto remain_arg = output_rank - data_rank;
+            auto remain_axes = output_rank - repeats_rank;
             for (size_t i = 0; i < output_rank; i++) {
-                auto data_tmp = i < output_rank - data_rank ? DimType(1) : arg_shape[i - (output_rank - data_rank)];
+                auto data_tmp = i < remain_arg ? DimType(1) : arg_shape[i - (remain_arg)];
                 auto repeat_tmp =
-                    i < output_rank - repeats_rank ? DimType(1) : axes_val[i - (output_rank - repeats_rank)];
+                    i < remain_axes ? DimType(1) : axes_val[i - remain_axes];
                 output_shape[i] = data_tmp * repeat_tmp;
             }
         }
     } else {
         //can't deduce shape, set default value
-        ShapeInfer::default_work(output_shape);
+        output_shape = PartialShape::dynamic();
     }
 }
 }  // namespace v0
