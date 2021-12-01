@@ -937,7 +937,7 @@ static void dump_parameter(std::ostream& stream, const std::shared_ptr<const ov:
             stream << ", no batch specified";
         } else {
             stream << ", batch="
-                   << node.get_partial_shape()[::util::get_batch(p->get_layout(), node.get_partial_shape())];
+                   << node.get_partial_shape()[bs_util::get_batch(p->get_layout(), node.get_partial_shape())];
         }
         stream << " }" << std::endl;
     }
@@ -962,7 +962,7 @@ ov::Dimension ov::util::get_batch_size(const std::shared_ptr<const ov::Function>
         if (!Dimension::merge(batch_size, batch_size, pshape[batch_idx])) {
             merged_indexes.push_back(i);
             // Not all dimensions can be merged
-            auto stream = std::stringstream();
+            std::stringstream stream;
             stream << "Get original batch size fails due to conflicting batch values for inputs:" << std::endl;
             for (size_t j = 0; j < merged_indexes.size(); ++j) {
                 bs_util::dump_parameter(stream, f, merged_indexes[j]);
@@ -1015,7 +1015,7 @@ void ov::util::set_batch_size(const std::shared_ptr<ov::Function>& f, ov::Dimens
         stream << "    2) Check model's documentation if batch size can be set to it at all" << std::endl;
         stream << "Available inputs after set_batch_size:" << std::endl;
         for (size_t i = 0; i < f->get_parameters().size(); ++i) {
-            ::util::dump_parameter(stream, f, i);
+            bs_util::dump_parameter(stream, f, i);
         }
         stream << "---" << std::endl;
         stream << "Original error message is: " << e.what();
