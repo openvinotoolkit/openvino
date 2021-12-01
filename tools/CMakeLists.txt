@@ -59,6 +59,8 @@ if(ENABLE_PYTHON)
             EXCLUDE_FROM_ALL)
 endif()
 
+add_subdirectory(mo)
+
 # build and install openvino-dev wheel
 
 if(ENABLE_WHEEL)

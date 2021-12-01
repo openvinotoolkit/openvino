@@ -33,6 +33,12 @@ goto :opencv_done
 )
 :opencv_done
 
+:: Model Optimizer
+if exist %INTEL_OPENVINO_DIR%\tools\mo (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\mo;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\tools\mo;%PATH%"
+)
+
 :: OpenVINO runtime
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
