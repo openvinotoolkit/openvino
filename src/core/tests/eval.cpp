@@ -1796,9 +1796,7 @@ TEST(eval, evaluate_softmax_8) {
     auto fun = std::make_shared<Function>(OutputVector{softmax}, ParameterVector{arg});
     auto result_tensor = std::make_shared<HostTensor>();
 
-    ASSERT_TRUE(
-            fun->evaluate({result_tensor},
-                          {make_host_tensor<element::Type_t::f32>(data_shape, {1, 1})}));
+    ASSERT_TRUE(fun->evaluate({result_tensor}, {make_host_tensor<element::Type_t::f32>(data_shape, {1, 1})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{1, 2}));
     auto val = read_vector<float>(result_tensor);
