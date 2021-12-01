@@ -175,6 +175,7 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
         if (!status)
             return status;
     }
+    return status;
 }
 }  // namespace
 }  // namespace divide
