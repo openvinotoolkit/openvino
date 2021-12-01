@@ -19,6 +19,3 @@ endif()
 if(NGRAPH_TF_FRONTEND_ENABLE)
     add_subdirectory(tensorflow)
 endif()
-
-# used for static build
-ov_generate_frontends_hpp()
