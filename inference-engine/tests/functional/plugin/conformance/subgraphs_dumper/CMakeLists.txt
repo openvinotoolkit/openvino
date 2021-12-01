@@ -12,9 +12,9 @@ addIeTargetTest(
         LINK_LIBRARIES
             PRIVATE
                 gflags
-                inference_engine
                 commonTestUtils
                 pugixml::static
+                inference_engine
         ADD_CPPLINT
 )
 
