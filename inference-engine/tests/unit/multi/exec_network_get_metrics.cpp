@@ -44,11 +44,13 @@ using namespace MockMultiDevice;
     InvokeWithoutArgs([value](){return value;})
 
 
+//  getMetric will return a fake ov::Any, gmock will call ostreamer << ov::Any
+//  it will cause core dump, so add this special implemented
 namespace testing {
 namespace internal {
     template<>
     void PrintTo<ov::Any>(const ov::Any& a, std::ostream* os) {
-        *os << "using Customer PrintTo ov::Any";
+        *os << "using custom PrintTo ov::Any";
     }
 }
 }
@@ -56,10 +58,10 @@ namespace internal {
 
 using ConfigParams = std::tuple<
         unsigned int,                // cpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
-        int,                // cpu customer infer requet num
+        int,                         // cpu infer requet num of customer want
         bool,                        // if cpu sleep, cpu device will load slow
         unsigned int,                // gpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
-        int,                // gpu customer infer requet num
+        int,                         // gpu infer requet num of customer want
         bool,                        // if gpu sleep, cpu device will load slow
         unsigned int                 // expect OPTIMAL_NUMBER_OF_INFER_REQUESTS
         >;
@@ -260,24 +262,27 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
 }
 
 
-// ConfigParams {unsigned int, bool,unsigned int, bool, unsigned int}
+// ConfigParams {unsigned int, int, bool,
+//               unsigned int, int, bool, unsigned int}
 //
 // every element for ConfigParams
-// {cpuOptimalNum, if cpu sleep when load, gpuOptimalNum, if gpu sleep when load, expectOptimalNum of Auto ExecNetwork}
+// {cpuOptimalNum, if cpu sleep when load, customer hope for cpu infer requset num,
+//  gpuOptimalNum, if gpu sleep when load, customer hope for gpu infer requset num,
+//  expectOptimalNum of Auto ExecNetwork}
 //
 const std::vector<ConfigParams> testConfigs = {
-                                               ConfigParams {1, -1, false, 2, -1, true, 4},
-                                               ConfigParams {1, -1, false, 8, -1, true, 4},
-                                               ConfigParams {6, -1, false, 2, -1, true, 6},
-                                               ConfigParams {6, -1, false, 8, -1, true, 6},
-                                               ConfigParams {1, -1, true, 2, -1, false, 4},
-                                               ConfigParams {1, -1, true, 8, -1, false, 8},
-                                               ConfigParams {6, -1, true, 2, -1, false, 4},
-                                               ConfigParams {6, -1, true, 8, -1, false, 8},
-                                               ConfigParams {6, 4, false, 2, 3, true, 6},
-                                               ConfigParams {6, 4, false, 8, 3, true, 6},
-                                               ConfigParams {1, 4, true, 2, 3, false, 4},
-                                               ConfigParams {1, 4, true, 8, 3, false, 8}
+                                               ConfigParams {1, -1, false, 2, -1, true, 8},
+                                               ConfigParams {1, -1, false, 10, -1, true, 8},
+                                               ConfigParams {12, -1, false, 2, -1, true, 12},
+                                               ConfigParams {12, -1, false, 10, -1, true, 12},
+                                               ConfigParams {1, -1, true, 2, -1, false, 8},
+                                               ConfigParams {1, -1, true, 10, -1, false, 10},
+                                               ConfigParams {6, -1, true, 2, -1, false, 8},
+                                               ConfigParams {6, -1, true, 10, -1, false, 10},
+                                               ConfigParams {6, 4, false, 2, 3, true, 8},
+                                               ConfigParams {6, 4, false, 10, 3, true, 8},
+                                               ConfigParams {1, 4, true, 2, 3, false, 8},
+                                               ConfigParams {1, 4, true, 10, 3, false, 10}
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetworkGetMetric,

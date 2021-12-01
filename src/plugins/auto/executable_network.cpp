@@ -630,7 +630,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 real = _loadContext[CPU].
                     executableNetwork->GetMetric(name).as<unsigned int>();
             }
-            unsigned int res = std::max(4u, real);
+            unsigned int res = std::max(8u, real);
             IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
         }
 
