@@ -7,8 +7,8 @@ import os
 from sys import platform
 from pathlib import Path
 
-import openvino.opset8 as ov
-from openvino import Function, Core, ExecutableNetwork, Tensor, tensor_from_file, compile_model
+import openvino.runtime.opset8 as ov
+from openvino.runtime import Function, Core, ExecutableNetwork, Tensor, tensor_from_file, compile_model
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
