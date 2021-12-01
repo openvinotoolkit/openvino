@@ -16,15 +16,14 @@ if(ENABLE_GPU_DEBUG_CAPS)
   add_definitions(-DGPU_DEBUG_CONFIG=1)
 endif()
 
-file(GLOB_RECURSE MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.h)
 
-addVersionDefines(cldnn_engine.cpp CI_BUILD_NUMBER CLDNN_VERSION)
+addVersionDefines(src/plugin/cldnn_engine.cpp CI_BUILD_NUMBER CLDNN_VERSION)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
-              SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
-              VERSION_DEFINES_FOR cldnn_engine.cpp)
+              SOURCES ${PLUGIN_SOURCES}
+              VERSION_DEFINES_FOR src/plugin/cldnn_engine.cpp)
 
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
@@ -35,7 +34,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
                                              ngraph)
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
         ${clDNN_SOURCE_DIR}/api)
 

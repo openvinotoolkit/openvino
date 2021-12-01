@@ -5,6 +5,7 @@
 #pragma once
 
 #include "common/frontend.hpp"
+#include "common/telemetry_extension.hpp"
 #include "openvino/core/variant.hpp"
 #include "utility.hpp"
 
@@ -44,6 +45,7 @@ protected:
 private:
     std::vector<std::shared_ptr<void>> shared_objects;
     std::vector<ov::Extension::Ptr> extensions;
+    std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
 }  // namespace frontend
