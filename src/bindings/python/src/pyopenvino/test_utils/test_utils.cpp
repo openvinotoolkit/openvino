@@ -13,7 +13,7 @@
 namespace py = pybind11;
 
 void regmodule_test_utils(py::module m) {
-    py::module m_test_utils = m.def_submodule("test_utils", "test_utils module");
+    py::module m_test_utils = m.def_submodule("test_utils_api", "test_utils module");
 
     m_test_utils.def(
         "compare_functions",
