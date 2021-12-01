@@ -60,7 +60,9 @@ class Select(Op):
                          "But instead got: cond_shape={}, then_shape={}, else_shape={}".format(
                             node_name, condition_shape, a_shape, b_shape)
 
-                assert condition_shape[0] == output_shape[0], msg_tf
+                # check equality only if both values non-dynamic
+                if is_fully_defined(condition_shape[0]) and is_fully_defined(output_shape[0]):
+                    assert condition_shape[0] == output_shape[0], msg_tf
                 condition_shape = np.concatenate((condition_shape, np.ones(len(output_shape) - 1)))
 
             output_shape = bi_directional_shape_broadcasting(output_shape, condition_shape)
