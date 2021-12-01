@@ -249,11 +249,10 @@ const std::vector<ElementType> inputPrecisions = {
         ElementType::i8
 };
 
-// without clip values increase rapidly, so use only seq_lengths = 2
 std::vector<bool> execute_first_iteration{true};
 std::vector<bool> is_body_condition_const{true};
 std::vector<bool> body_condition{true, false}; // works only if is_body_condition_const == true
-std::vector<int64_t> trip_count{1, 5}; // -1 means infinity
+std::vector<int64_t> trip_count{1, 5};
 std::vector<InputShape> inputs = {
         {{-1, 1, -1}, {{10, 1, 10}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}},
         {{-1, 1, -1}, {{1, 1, 1}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}},

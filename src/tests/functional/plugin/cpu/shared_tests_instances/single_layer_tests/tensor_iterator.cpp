@@ -10,14 +10,14 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    std::vector<bool> should_decompose = {/*true, */false};
+    std::vector<bool> should_decompose = {true, false};
     // output values increase rapidly without clip, so use only seq_lengths = 2
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
-    std::vector<size_t> batch{/*1, */10};
-    std::vector<size_t> hidden_size{/*1, */10};
+    std::vector<size_t> batch{1, 10};
+    std::vector<size_t> hidden_size{1, 10};
     // std::vector<size_t> input_size{10};
-    std::vector<size_t> sequence_axis{/*0, */1};
+    std::vector<size_t> sequence_axis{0, 1};
     std::vector<ngraph::helpers::TensorIteratorBody> body_type
         = {ngraph::helpers::TensorIteratorBody::LSTM, ngraph::helpers::TensorIteratorBody::RNN,
            ngraph::helpers::TensorIteratorBody::GRU};

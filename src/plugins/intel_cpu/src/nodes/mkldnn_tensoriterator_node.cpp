@@ -334,7 +334,7 @@ int MKLDNNTensorIteratorNode::getNumIteration(const std::vector<PortMap>& inputP
     };
 
 
-    int numIterations = -1;
+    int numIterations = 1;
     bool isDefault = true;
     for (const auto& rule : inputPortMap) {
         const auto& dims = getParentEdgesAtPort(rule.from)[0]->getMemoryPtr()->GetShape().getDims();
