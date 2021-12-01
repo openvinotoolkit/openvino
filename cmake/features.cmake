@@ -13,6 +13,7 @@ ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
+ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for inference engine on Intel GPU" ON "ENABLE_CLDNN" OFF)
 
 if (NOT ENABLE_CLDNN OR ANDROID OR
     (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
@@ -54,8 +55,6 @@ ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FO
 #
 
 ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86_64" OFF)
-
-ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
@@ -197,8 +196,8 @@ if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_MYRIAD )
     add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
 endif()
 
-if (ENABLE_CLDNN)
-    add_definitions(-DENABLE_CLDNN=1)
+if (ENABLE_INTEL_GPU)
+    add_definitions(-DENABLE_INTEL_GPU=1)
 endif()
 
 if (ENABLE_MKL_DNN)
