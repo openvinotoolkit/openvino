@@ -6,9 +6,9 @@ import pytest
 import numpy as np
 
 from ..conftest import model_path, read_image
-from openvino.impl import Function, ConstOutput, Shape
+from openvino.runtime.impl import Function, ConstOutput, Shape
 
-from openvino import Core, Tensor
+from openvino.runtime import Core, Tensor
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)

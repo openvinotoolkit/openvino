@@ -2,7 +2,7 @@
 
 Inference Engine Extensibility API enables you to add support of custom operations to the Inference Engine.
 Extension should contain operation sets with custom operations and execution kernels for custom operations.
-Physically, an extension library can be represented as a dynamic library exporting the single `CreateExtension` function
+Physically, an extension library can be represented as a dynamic library exporting the single function
 that creates a new extension instance.
 
 To load the Extensibility library to the `InferenceEngine::Core` object, use the
