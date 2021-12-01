@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_library(interpreter_backend SHARED int_backend.cpp int_executable.cpp evaluates_map.cpp)
+add_library(interpreter_backend SHARED int_backend.cpp int_executable.cpp evaluates_map.cpp
+                                       $<TARGET_OBJECTS:ngraph_obj>)
 
 ie_faster_build(interpreter_backend UNITY)
 
