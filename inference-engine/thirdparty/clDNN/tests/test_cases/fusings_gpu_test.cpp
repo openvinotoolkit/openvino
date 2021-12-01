@@ -8749,13 +8749,23 @@ public:
 class gather_nd_quantize : public GatherNDPrimitiveFusingTest {};
 TEST_P(gather_nd_quantize, basic) {
     auto p = GetParam();
+
+    auto input_rank = 0;
+    if (p.input_format == format::bfyx) {
+        input_rank = 4;
+    } else if (p.input_format == format::bfzyx) {
+        input_rank = 5;
+    } else if (p.input_format == format::bfwzyx) {
+        input_rank = 6;
+    }
+
     create_topologies(input_layout("input", get_input_layout(p)),
         data("gather_nd_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        gather_nd("gather_nd_prim", "input", "gather_nd_indices", p.indices_rank, p.batch_dims),
+        gather_nd("gather_nd_prim", "input", "gather_nd_indices", input_rank, p.indices_rank, p.batch_dims),
         quantize("quantize", "gather_nd_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -8802,11 +8812,20 @@ class gather_nd_activation_scale_eltwise : public GatherNDPrimitiveFusingTest {}
 TEST_P(gather_nd_activation_scale_eltwise, basic) {
     auto p = GetParam();
 
+    auto input_rank = 0;
+    if (p.input_format == format::bfyx) {
+        input_rank = 4;
+    } else if (p.input_format == format::bfzyx) {
+        input_rank = 5;
+    } else if (p.input_format == format::bfwzyx) {
+        input_rank = 6;
+    }
+
     create_topologies(input_layout("input", get_input_layout(p)),
         data("gather_nd_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
-        gather_nd("gather_nd_prim", "input", "gather_nd_indices", p.indices_rank, p.batch_dims),
+        gather_nd("gather_nd_prim", "input", "gather_nd_indices", input_rank, p.indices_rank, p.batch_dims),
         activation("activation", "gather_nd_prim", activation_func::abs),
         scale("scale", "activation", "scale_data"),
         eltwise("eltwise", { "scale", "eltwise_data" }, eltwise_mode::sum, p.data_type),
