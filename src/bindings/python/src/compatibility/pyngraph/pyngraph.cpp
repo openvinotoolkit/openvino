@@ -50,6 +50,8 @@ PYBIND11_MODULE(_pyngraph, m) {
     regclass_pyngraph_NotImplementedFailureFrontEnd(m);
     regclass_pyngraph_FrontEndManager(m);
     regclass_pyngraph_FrontEnd(m);
+    regclass_pyngraph_Extension(m);
+    regclass_pyngraph_TelemetryExtension(m);
     regclass_pyngraph_InputModel(m);
     regclass_pyngraph_Input(m);
     regclass_pyngraph_Output(m);

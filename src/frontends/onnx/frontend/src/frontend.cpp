@@ -3,6 +3,7 @@
 //
 
 #include <common/frontend_exceptions.hpp>
+#include <common/telemetry_extension.hpp>
 #include <fstream>
 #include <input_model.hpp>
 #include <manager.hpp>
@@ -39,27 +40,27 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
     }
     if (ov::is_type<VariantString>(variants[0])) {
         const auto path = ov::as_type_ptr<VariantString>(variants[0])->get();
-        return std::make_shared<InputModelONNX>(path);
+        return std::make_shared<InputModelONNX>(path, m_telemetry);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (ov::is_type<VariantWString>(variants[0])) {
         const auto path = ov::as_type_ptr<VariantWString>(variants[0])->get();
-        return std::make_shared<InputModelONNX>(path);
+        return std::make_shared<InputModelONNX>(path, m_telemetry);
     }
 #endif
     if (ov::is_type<VariantIstreamPtr>(variants[0])) {
         const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
         if (variants.size() > 1 && ov::is_type<VariantString>(variants[1])) {
             const auto path = ov::as_type_ptr<VariantString>(variants[1])->get();
-            return std::make_shared<InputModelONNX>(*stream, path);
+            return std::make_shared<InputModelONNX>(*stream, path, m_telemetry);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         if (variants.size() > 1 && ov::is_type<VariantWString>(variants[1])) {
             const auto path = ov::as_type_ptr<VariantWString>(variants[1])->get();
-            return std::make_shared<InputModelONNX>(*stream, path);
+            return std::make_shared<InputModelONNX>(*stream, path, m_telemetry);
         }
 #endif
-        return std::make_shared<InputModelONNX>(*stream);
+        return std::make_shared<InputModelONNX>(*stream, m_telemetry);
     }
     return nullptr;
 }
@@ -133,4 +134,10 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         return ngraph::onnx_common::is_valid_model(*stream);
     }
     return false;
+}
+
+void FrontEndONNX::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+        m_telemetry = telemetry;
+    }
 }

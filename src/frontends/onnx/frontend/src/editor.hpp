@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <common/telemetry_extension.hpp>
 #include <istream>
 #include <map>
 #include <memory>
@@ -28,9 +29,11 @@ public:
     ///        is parsed and loaded into the m_model_proto member variable.
     ///
     /// \param model_path Path to the file containing the model.
-    ONNXModelEditor(const std::string& model_path);
+    ONNXModelEditor(const std::string& model_path,
+                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ONNXModelEditor(const std::wstring& model_path);
+    ONNXModelEditor(const std::wstring& model_path,
+                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded
@@ -39,7 +42,9 @@ public:
     /// \param model_stream The stream containing the model.
     /// \param model_path Path to the file containing the model. This information can be used
     ///                   for ONNX external weights feature support.
-    ONNXModelEditor(std::istream& model_stream, const std::string& path = "");
+    ONNXModelEditor(std::istream& model_stream,
+                    const std::string& path = "",
+                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -269,6 +274,7 @@ public:
 private:
     void update_mapper_if_needed() const;
 
+    std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
     const std::string m_model_path;
 
     struct Impl;

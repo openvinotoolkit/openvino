@@ -295,11 +295,12 @@ ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::share
             std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
             if (ov::util::ends_with(model_path, suffix.c_str())) {
                 return std::make_shared<InputModelTF>(
-                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path));
+                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path),
+                    m_telemetry);
             }
         } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
             auto graph_iterator = ov::as_type_ptr<VariantWrapper<GraphIterator::Ptr>>(variants[0])->get();
-            return std::make_shared<InputModelTF>(graph_iterator);
+            return std::make_shared<InputModelTF>(graph_iterator, m_telemetry);
         }
     }
     return nullptr;
@@ -347,4 +348,10 @@ void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
     ov::pass::Manager manager;
     manager.register_pass<ov::frontend::tf::pass::TransposeSinkingOVTF>();
     manager.run_passes(function);
+}
+
+void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+        m_telemetry = telemetry;
+    }
 }
