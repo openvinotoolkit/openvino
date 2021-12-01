@@ -83,6 +83,7 @@ private:
     std::vector<std::vector<int64_t>> dims_in = {};
     std::vector<std::vector<int64_t>> offsets_in = {};
     std::vector<ptrdiff_t> start_offset_in = {};
+    std::vector<ptrdiff_t> start_offset_out = {};
 
     std::vector<std::vector<int64_t>> dims_out = {};
     std::vector<std::vector<int64_t>> offsets_out = {};

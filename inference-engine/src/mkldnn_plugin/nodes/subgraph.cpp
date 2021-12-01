@@ -226,10 +226,10 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     }
     jit_snippets_const_args const_args;
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        const_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetPtr());
+        const_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
 
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        const_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetPtr());
+        const_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
 
     if (tensorRank == rank6D && canUseOptimizedImpl) {
         schedule_6d(const_args);
@@ -363,6 +363,14 @@ void MKLDNNSnippetNode::define_schedule() {
             }
         }
 
+        start_offset_in.resize(inputNum);
+        srcMemPtrs.resize(inputNum);
+        for (size_t i = 0; i < inputNum; i++) {
+            const auto memPtr = getParentEdgeAt(i)->getMemoryPtr();
+            srcMemPtrs[i] = memPtr;
+            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize;
+        }
+
         const size_t outputNum = config.outConfs.size();
         offsets_out.resize(outputNum);
         for (size_t i = 0; i < outputNum; i++) {
@@ -371,6 +379,14 @@ void MKLDNNSnippetNode::define_schedule() {
             for (size_t j = 0; j < tensorRank; j++) {
                 offsets_out[i][j] *= dataSize;
             }
+        }
+
+        start_offset_out.resize(outputNum);
+        dstMemPtrs.resize(outputNum);
+        for (size_t i = 0; i < outputNum; i++) {
+            const auto memPtr = getChildEdgeAt(i)->getMemoryPtr();
+            dstMemPtrs[i] = memPtr;
+            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize;
         }
     };
 
@@ -515,12 +531,6 @@ void MKLDNNSnippetNode::generate() {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto b = offsets_out[i].begin();
         std::copy(b, b + harness_num_dims, &jep.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
-    }
-    if (srcMemPtrs.empty() || dstMemPtrs.empty()) {
-        for (auto i = 0; i < inputShapes.size(); i++)
-            srcMemPtrs.push_back(getParentEdgeAt(i)->getMemoryPtr());
-        for (auto i = 0; i < outputShapes.size(); i++)
-            dstMemPtrs.push_back(getChildEdgeAt(i)->getMemoryPtr());
     }
     schedule = snippet->generate(output_shapes, input_shapes, reinterpret_cast<void*>(&jep));
 }
