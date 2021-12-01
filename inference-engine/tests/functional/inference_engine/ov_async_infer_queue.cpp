@@ -153,7 +153,7 @@ TEST(AsyncInferQueueOVTests, AccessRequestOutsideCallbackTest) {
     ASSERT_THAT(results, UnorderedElementsAreArray(expected_results));
 }
 
-TEST(AsyncInferQueueOVTests, AccessInferRequestInLoop) {
+TEST(AsyncInferQueueOVTests, AccessInferRequestInLoopTest) {
     size_t num_of_runs = 4;
     ov::Shape input_shape{1};
     std::vector<float> results;
