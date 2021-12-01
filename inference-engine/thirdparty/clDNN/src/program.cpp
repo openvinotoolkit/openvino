@@ -1194,6 +1194,7 @@ program::primitives_info program::get_current_stage_info() const {
             }
         }
 
+        p->get_output_layout(false);
         primitive_info pi(p->id(),
                           type_to_str(p->get_primitive()),
                           dependencies,
