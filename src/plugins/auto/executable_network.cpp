@@ -103,9 +103,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                                       [&realDeviceName](const DeviceInformation& d){ return d.deviceName == realDeviceName;});
     unsigned int optimalNum = 0;
     try {
-        InferenceEngine::Parameter a = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        std::cout << "================" << std::endl;
-        optimalNum = a.as<unsigned int>();
+        optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
     } catch (const InferenceEngine::Exception &iie) {
         IE_THROW()
             << "Every device used with the Multi-Device should "
