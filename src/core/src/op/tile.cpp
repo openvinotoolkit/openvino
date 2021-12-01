@@ -65,8 +65,8 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {data_shape, repeats_val};
-    shape_infer(this, input_shapes, output_shapes);
+    std::vector<ov::PartialShape> input_shapes = {data_shape, axis->get_shape()};
+    shape_infer(this, input_shapes, output_shapes, {{1, axis}});
 
     const auto& output_shape = output_shapes[0].to_shape();
     if (!output->get_is_allocated()) {
