@@ -55,9 +55,10 @@ void op::RegionYolo::validate_and_infer_types() {
                           "Type of input is expected to be a floating point type. Got: ",
                           input_et);
 
-    if (get_input_partial_shape(0).is_static()) {
-        ov::Shape input_shape = get_input_partial_shape(0).to_shape();
-        ov::Shape output_shape;
+    const auto& input_partial_shape = get_input_partial_shape(0);
+    if (input_partial_shape.rank().is_static()) {
+        ov::PartialShape input_shape = get_input_partial_shape(0);
+        ov::PartialShape output_shape;
         int end_axis = m_end_axis;
         if (m_end_axis < 0) {
             m_end_axis += input_shape.size();
@@ -69,7 +70,11 @@ void op::RegionYolo::validate_and_infer_types() {
                 output_shape.push_back(input_shape[i]);
             }
             for (int64_t i = m_axis; i < end_axis + 1; i++) {
-                flat_dim *= input_shape[i];
+                if (input_shape[i].is_dynamic()) {
+                    flat_dim = -1;
+                    break;
+                }
+                flat_dim *= input_shape[i].get_length();
             }
             output_shape.push_back(flat_dim);
             for (size_t i = end_axis + 1; i < input_shape.size(); i++) {
@@ -77,7 +82,7 @@ void op::RegionYolo::validate_and_infer_types() {
             }
         } else {
             output_shape = {input_shape[0],
-                            (m_num_classes + m_num_coords + 1) * m_mask.size(),
+                            ov::Dimension((m_num_classes + m_num_coords + 1) * m_mask.size()),
                             input_shape[2],
                             input_shape[3]};
         }
