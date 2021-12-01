@@ -9,7 +9,7 @@
 #include <utility>
 #include <limits>
 #include <string>
-#include <map>
+#include <tuple>
 
 #include <legacy/ie_layers.h>
 #include "gna_upstream_iterator.hpp"
