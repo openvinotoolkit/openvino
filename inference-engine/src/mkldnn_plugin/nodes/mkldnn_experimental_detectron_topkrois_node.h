@@ -19,6 +19,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    bool needShapeInfer() const override { return false; };
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); };
 

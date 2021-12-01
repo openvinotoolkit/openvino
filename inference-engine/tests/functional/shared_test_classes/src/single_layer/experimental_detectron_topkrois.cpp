@@ -48,7 +48,7 @@ void ExperimentalDetectronTopKROIsLayerTest::SetUp() {
     inType = outType = netPrecision;
     targetDevice = targetName;
 
-    init_input_shapes({ inputShapes });
+    init_input_shapes(inputShapes);
 
     auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
