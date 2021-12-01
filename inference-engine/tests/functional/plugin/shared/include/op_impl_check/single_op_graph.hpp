@@ -11,9 +11,7 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-
 using OpGenerator = std::map<ov::DiscreteTypeInfo, std::function<std::shared_ptr<ov::Function>()>>;
-
 OpGenerator getOpGeneratorMap();
 
 static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>>> createFunctions() {
@@ -27,7 +25,6 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Fun
     }
 
     for (const auto& type_info : opsInfo) {
-        auto a = opGenerator.find(type_info)->second();
         res.push_back({type_info, opGenerator.find(type_info)->second()});
     }
     return res;

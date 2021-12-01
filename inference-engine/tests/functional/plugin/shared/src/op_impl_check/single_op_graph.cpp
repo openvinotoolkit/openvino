@@ -10,25 +10,48 @@ namespace test {
 namespace subgraph {
 
 namespace {
-std::shared_ptr<ov::Function> generate(const ov::op::Op &node) {
+std::shared_ptr<ov::Function> generate(const std::shared_ptr<ov::op::Op> &node) {
     return nullptr;
 }
 
-// util::BinaryElementwiseArithmetic
-std::shared_ptr<ov::Function> generate(const ov::op::v1::Add &node) {
+std::shared_ptr<ov::Function> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2},
                                                                               {1, 2}});
-    const auto softMax = std::make_shared<ov::op::v1::Add>(params.front(), params.back());
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(softMax)};
-    std::string friendlyName = std::string(node.get_type_info().name) + std::string("_") + node.get_type_info().get_version();
-    return std::make_shared<ngraph::Function>(results, params, friendlyName);
+    std::shared_ptr<ov::Node> eltwiseNode;
+    if (ov::is_type<ov::op::v0::SquaredDifference>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v0::SquaredDifference>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v1::Add>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v1::Add>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v1::Divide>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v1::Divide>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v1::FloorMod>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v1::FloorMod>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v1::Maximum>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v1::Maximum>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v1::Minimum>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v1::Minimum>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v1::Multiply>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v1::Multiply>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v1::Power>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v1::Power>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v1::Subtract>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v1::Subtract>(params.front(), params.back());
+    } else {
+        return nullptr;
+    }
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwiseNode)};
+    return std::make_shared<ngraph::Function>(results, params, "BinaryEltwiseGraph");
 }
 } // namespace
 
 template <typename T>
 std::shared_ptr<ov::Function> generateGraph() {
-    T a;
-    return generate(a);
+        std::shared_ptr<T> node = std::shared_ptr<T>(new T);
+    if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node)) {
+        return generateBinaryEltwise(node);
+    }
+    return generate(node);
 }
 
 OpGenerator getOpGeneratorMap() {

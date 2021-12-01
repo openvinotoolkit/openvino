@@ -26,6 +26,7 @@ void OpImplCheckTest::run() {
         summary.updateOPsImplStatus(function, true);
     } catch (...) {
         summary.updateOPsImplStatus(function, false);
+        GTEST_FAIL();
     }
 }
 
