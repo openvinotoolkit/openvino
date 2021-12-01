@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,8 @@ std::string experimental_detectron_roi_feature_extractor_inst::to_string(experim
 
     json_composite experimental_detectron_info;
     experimental_detectron_info.add("output_size", desc->output_dim);
+    experimental_detectron_info.add("pooled_height", desc->pooled_height);
+    experimental_detectron_info.add("pooled_width", desc->pooled_width);
     experimental_detectron_info.add("sampling_ratio", desc->sampling_ratio);
     for (std::size_t i = 0; i < desc->pyramid_scales.size(); i++) {
         experimental_detectron_info.add("pyramid_scales[" + std::to_string(i) + "]", desc->pyramid_scales[i]);

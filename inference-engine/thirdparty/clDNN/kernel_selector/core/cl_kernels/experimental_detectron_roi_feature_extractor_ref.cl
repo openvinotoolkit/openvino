@@ -1,11 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/data_types.cl"
-
-#define DST_C OUTPUT_FEATURE_NUM
 
 DEFINE_SPATIAL_SCALES;
 DEFINE_LEVEL_SIZES;
@@ -37,8 +35,8 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
 
     const uint x = i % POOLED_WIDTH;
     const uint y = i / POOLED_WIDTH % POOLED_HEIGHT;
-    const uint c = i / POOLED_WIDTH / POOLED_HEIGHT % DST_C;
-    const uint r = i / POOLED_WIDTH / POOLED_HEIGHT / DST_C % OUTPUT_BATCH_NUM;
+    const uint c = i / POOLED_WIDTH / POOLED_HEIGHT % OUTPUT_FEATURE_NUM;
+    const uint r = i / POOLED_WIDTH / POOLED_HEIGHT / OUTPUT_FEATURE_NUM % OUTPUT_BATCH_NUM;
 
     const __global INPUT0_TYPE* current_roi_ptr = &src_rois[r * INPUT0_BATCH_PITCH];
 

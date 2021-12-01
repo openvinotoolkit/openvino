@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,17 +16,16 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op) + ".0";
 
-    std::vector<cldnn::memory::ptr> shared_memory;
     cldnn::layout mutableLayout = cldnn::layout(
         DataTypeFromPrecision(op->get_output_element_type(1)),
         DefaultFormatForDims(op->get_output_shape(1).size()),
         CldnnTensorFromIEDims(op->get_output_shape(1)));
 
-    shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayout));
+    cldnn::memory::ptr shared_memory {p.GetEngine().allocate_memory(mutableLayout)};
 
     cldnn::primitive_id experimental_detectron_mutable_id_w = layer_type_name_ID(op) + "_md_write";
     cldnn::mutable_data experimenta_detectron_mutable_prim(experimental_detectron_mutable_id_w,
-                                                           shared_memory[0],
+                                                           shared_memory,
                                                            op->get_friendly_name());
     p.primitiveIDs[experimental_detectron_mutable_id_w] = experimental_detectron_mutable_id_w;
     p.AddPrimitive(experimenta_detectron_mutable_prim);
@@ -45,7 +44,7 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
     cldnn::primitive_id experimental_detectron_mutable_id_r = layer_type_name_ID(op) + ".1";
     cldnn::mutable_data experimental_detectron_mutable_prim_r(experimental_detectron_mutable_id_r,
                                                               {layerName},
-                                                              shared_memory[0],
+                                                              shared_memory,
                                                               op->get_friendly_name());
     p.primitiveIDs[experimental_detectron_mutable_id_r] = experimental_detectron_mutable_id_r;
     p.AddPrimitive(experimental_detectron_mutable_prim_r);

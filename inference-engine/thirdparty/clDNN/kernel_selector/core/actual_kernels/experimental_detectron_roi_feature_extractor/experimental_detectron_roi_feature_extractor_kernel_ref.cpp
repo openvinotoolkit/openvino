@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,10 +27,10 @@ namespace {
 
     const std::string common_level_name = "level_";
 
-    std::string GetInputLevelParams(std::size_t levels_num) {
+    std::string GetInputLevelParams(size_t levels_num) {
         std::string result = "const __global INPUT1_TYPE* " + common_level_name + "1";
         std::string idx = "";
-        for (std::size_t i = 1; i < levels_num; i++) {
+        for (size_t i = 1; i < levels_num; i++) {
             idx = std::to_string(i + 1);
             result += ", const __global INPUT" + idx + "_TYPE* " + common_level_name + idx;
         }
@@ -39,9 +39,9 @@ namespace {
 
     const std::string level_ptrs = "level_ptrs";
 
-    std::string GetDefinedLevelPtrs(std::size_t levels_num) {
+    std::string GetDefinedLevelPtrs(size_t levels_num) {
         std::string result = "const __global INPUT1_TYPE* " + level_ptrs + "[" + std::to_string(levels_num) + "] = {" + common_level_name + "1";
-        for (std::size_t i = 1; i < levels_num; i++) {
+        for (size_t i = 1; i < levels_num; i++) {
             result += ", " + common_level_name + std::to_string(i + 1);
         }
         result += "}";
@@ -50,9 +50,9 @@ namespace {
 
     const std::string spatial_scales = "spatial_scales";
 
-    std::string GetDefinedSpatialScales(const std::vector<int64_t>& scales, std::size_t levels_num) {
+    std::string GetDefinedSpatialScales(const std::vector<int64_t>& scales, size_t levels_num) {
         std::string result = "__constant float " + spatial_scales + "[" + std::to_string(levels_num) + "] = {" + std::to_string(1.0f / scales[0]);
-        for (std::size_t i = 1; i < levels_num; i++) {
+        for (size_t i = 1; i < levels_num; i++) {
             result += ", " + std::to_string(1.0f / scales[i]);
         }
         result += "}";
@@ -61,21 +61,21 @@ namespace {
 
     const std::string level_sizes = "level_sizes";
 
-    std::string GetDefinedLevelSizes(std::size_t levels_num) {
-    std::string result = "__constant int " + level_sizes + "[" + std::to_string(3 * levels_num) +"] = {INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
-    std::string idx = "";
-    for (std::size_t i = 1; i < levels_num; i++) {
-        idx = std::to_string(i + 1);
-        result += " ,INPUT" + idx + "_SIZE_Y, INPUT" + idx + "_SIZE_X, INPUT" + idx + "_OFFSET";
+    std::string GetDefinedLevelSizes(size_t levels_num) {
+        std::string result = "__constant int " + level_sizes + "[" + std::to_string(3 * levels_num) +"] = {INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
+        std::string idx = "";
+        for (size_t i = 1; i < levels_num; i++) {
+            idx = std::to_string(i + 1);
+            result += " ,INPUT" + idx + "_SIZE_Y, INPUT" + idx + "_SIZE_X, INPUT" + idx + "_OFFSET";
+        }
+        result += "}";
+        return result;
     }
-    result += "}";
-    return result;
-}
 }  // namespace
 
 JitConstants ExperimentalDetectronROIFeatureExtractorRef::GetJitConstants(const experimental_detectron_roi_feature_extractor_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    const std::size_t levels_num = params.number_of_inputs - 1;
+    const size_t levels_num = params.number_of_inputs - 1;
 
     jit.AddConstants({MakeJitConstant("POOLED_HEIGHT", params.pooled_height),
                       MakeJitConstant("POOLED_WIDTH", params.pooled_width),
