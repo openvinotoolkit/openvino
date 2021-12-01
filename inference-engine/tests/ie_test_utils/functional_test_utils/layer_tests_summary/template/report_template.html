@@ -130,8 +130,12 @@
                 <td class="value {{ d }}" passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
                     skipped="{{ results[d][op].skipped }}" crashed="{{ results[d][op].crashed }}"
                     value="{{ results[d][op].passrate }}">
+                     {% if results[d][op].implemented == 'true' -%}
+                        <span class="green" title="Plugin implementation status">IMPLEMENTED</span>
+                    {% else -%}
+                        <span class="red" title="Plugin implementation status">NOT IMPLEMENTED</span>
+                    {% endif -%} <br />
                     {{ results[d][op].passrate }} %<br />
-<!--                    <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>-->
                     <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>
                     <span class="red" title="Failed">F:{{ results[d][op].failed }}</span>
                     <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>

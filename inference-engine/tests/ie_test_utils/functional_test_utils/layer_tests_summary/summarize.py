@@ -69,6 +69,9 @@ def merge_xmls(xml_paths: list):
                         for attr_name in device_results.find(op_result.tag).attrib:
                             if attr_name == "passrate":
                                 continue
+                            # TODO
+                            if attr_name == "implemented":
+                                continue
                             total_tests_count_xml += int(op_result.attrib.get(attr_name))
                             total_tests_count_summary += int(current_op_res.attrib.get(attr_name))
                         if total_tests_count_xml > total_tests_count_summary:
@@ -123,7 +126,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
                 op_res.update({op: {device.tag: device_general_test_count}})
         pass_rate_avg[device.tag] /= len(results[device.tag])
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
-        general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
+        general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
         trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100 / len(results[device.tag])), 1)
 
