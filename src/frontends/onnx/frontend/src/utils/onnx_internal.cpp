@@ -81,16 +81,19 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
 }
 
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                            const std::string& model_path) {
+                                            const std::string& model_path,
+                                            const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
     apply_transformations(*model_proto, model_path);
-    Graph graph{model_proto};
+    Graph graph{model_proto, telemetry};
     return graph.convert();
 }
 
-std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                                    const std::string& model_path) {
+std::shared_ptr<Function> decode_to_framework_nodes(
+    std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+    const std::string& model_path,
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
     apply_transformations(*model_proto, model_path);
-    auto graph = std::make_shared<Graph>(model_proto);
+    auto graph = std::make_shared<Graph>(model_proto, telemetry);
     return graph->decode();
 }
 }  // namespace detail
