@@ -120,8 +120,6 @@ private:
     void prepareInitialCond();
     void prepareTripCount();
 
-    int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap);
-
     /* Dynamic support */
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(mkldnn::stream strm, const mkldnn::engine& eng);
