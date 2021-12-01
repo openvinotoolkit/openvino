@@ -24,6 +24,7 @@ class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::v
 public:
     OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);
     static std::vector<ngraph::element::Type> defaultPrecisions;
+    static std::mutex defaultPrecisions_guard;
     PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions = defaultPrecisions);
 
     static ov::Any create(

@@ -303,5 +303,6 @@ bool ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
 }
 
 void ngraph::pass::low_precision::LowPrecision::setDefaultPrecisions(const std::vector<element::Type>& precisions) {
+    std::lock_guard<std::mutex> lock(PrecisionsAttribute::defaultPrecisions_guard);
     ngraph::PrecisionsAttribute::defaultPrecisions = precisions;
 }
