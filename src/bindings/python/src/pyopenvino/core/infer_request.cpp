@@ -66,8 +66,7 @@ void regclass_InferRequest(py::module m) {
             self._request.infer();
             self._end_time = Time::now();
 
-            py::dict res = Common::outputs_to_dict(self._outputs, self._request);
-            return res;
+            return Common::outputs_to_dict(self._outputs, self._request);
         },
         py::arg("inputs"));
 
@@ -174,7 +173,6 @@ void regclass_InferRequest(py::module m) {
 
     cls.def("get_results", [](InferRequestWrapper& self) {
         return Common::outputs_to_dict(self._outputs, self._request);
-        ;
     });
 
     cls.def(

@@ -36,8 +36,7 @@ void regclass_ExecutableNetwork(py::module m) {
             // Update inputs if there are any
             Common::set_request_tensors(request, inputs);
             request.infer();
-            py::dict res = Common::outputs_to_dict(self.outputs(), request);
-            return res;
+            return Common::outputs_to_dict(self.outputs(), request);
         },
         py::arg("inputs"));
 
