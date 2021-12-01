@@ -433,6 +433,10 @@ bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::created() cons
     return getType() == ExperimentalDetectronGenerateProposalsSingleImage;
 }
 
+bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::needShapeInfer() const {
+    return false;
+}
+
 bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::needPrepareParams() const {
     return false;
 }

@@ -55,7 +55,7 @@ const std::vector<ov::test::subgraph::ExperimentalDetectronPriorGridGeneratorTes
 
 const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTensors = {};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_static, ExperimentalDetectronPriorGridGeneratorLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronPriorGridGenerator, ExperimentalDetectronPriorGridGeneratorLayerTest,
      ::testing::Combine(
         ::testing::ValuesIn(params),
          ::testing::Values(ov::element::Type_t::f32),

@@ -110,7 +110,7 @@ ov::runtime::Tensor createTensor(
 } // namespace
 
 void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    std::vector<ov::runtime::Tensor> inputTensors = {
+    static const std::vector<ov::runtime::Tensor> inputTensors = {
         // 16 x 4 = 64
         createTensor<float>(ov::element::f32, Shape{16, 4}, {
             1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -144,8 +144,11 @@ void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::v
     inputs.clear();
     const auto& funcInputs = function->inputs();
     for (auto i = 0ul; i < funcInputs.size(); ++i) {
-        const auto &funcInput = funcInputs[i];
-        inputs.insert({funcInput.get_node_shared_ptr(), inputTensors[i]});
+        if (targetInputStaticShapes[i] != inputTensors[i].get_shape()) {
+            throw Exception("input shape is different from tensor shape");
+        }
+
+        inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors[i]});
     }
 }
 

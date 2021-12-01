@@ -215,6 +215,10 @@ static void nms_cf(const float* conf_data,
     detections = (post_nms_topn == -1 ? detections : (std::min)(post_nms_topn, detections));
 }
 
+bool MKLDNNExperimentalDetectronDetectionOutputNode::needShapeInfer() const {
+    return false;
+}
+
 bool MKLDNNExperimentalDetectronDetectionOutputNode::needPrepareParams() const {
     return false;
 }
