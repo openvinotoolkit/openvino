@@ -117,6 +117,7 @@ JitConstants GatherNDKernelRef::GetJitConstants(const gather_nd_params& params) 
 
     jit.AddConstant(MakeJitConstant("INDICES_RANK", params.indices_rank));
     jit.AddConstant(MakeJitConstant("BATCH_DIMS", params.batch_dims));
+    jit.AddConstant(MakeJitConstant("BATCH_MERGED_OUTPUT", params.batch_merged_output));
     jit.AddConstant(MakeJitConstant("WI_SLICE_SIZE", GetSliceSize(params)));
     jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", GetIndicesLastDim(params)));
 

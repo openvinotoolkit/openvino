@@ -39,10 +39,11 @@ endif()
 # "mvnc" must be the first library in the link list
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        mvnc inference_engine inference_engine_legacy vpu_graph_transformer)
+        mvnc inference_engine_legacy vpu_graph_transformer)
 
 # MyriadPlugin is not safe to unload it at runtime
-if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
+if((LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
+   OR ARM)
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_OPTIONS "-Wl,-z,nodelete")
 endif()
 

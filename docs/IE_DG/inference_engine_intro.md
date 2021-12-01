@@ -45,13 +45,13 @@ This library contains the classes to:
 
 Starting from 2022.1 release, OpenVINO Runtime introduced a concept of frontend plugins. Such plugins can be automatically dynamically loaded by OpenVINO Runtime dynamically depending on file format:
 * Unix* OS:
-    - `libir_ngraph_frontend.so` to read a network from IR
-    - `libpaddlepaddle_ngraph_frontend.so` to read a network from PaddlePaddle model format
-    - `libonnx_ngraph_frontend.so` to read a network from ONNX model format
+    - `libir_ov_frontend.so` to read a network from IR
+    - `libpaddlepaddle_ov_frontend.so` to read a network from PaddlePaddle model format
+    - `libonnx_ov_frontend.so` to read a network from ONNX model format
 * Windows* OS:
-    - `ir_ngraph_frontend.dll` to read a network from IR
-    - `paddlepaddle_ngraph_frontend.dll` to read a network from PaddlePaddle model format
-    - `onnx_ngraph_frontend.dll` to read a network from ONNX model format
+    - `ir_ov_frontend.dll` to read a network from IR
+    - `paddlepaddle_ov_frontend.dll` to read a network from PaddlePaddle model format
+    - `onnx_ov_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###
 
@@ -75,7 +75,7 @@ The table below shows the plugin libraries and additional dependencies for Linux
 | MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.so`      | `libusb.dylib`                              |
 | HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
 | GNA    | `libGNAPlugin.so`           | `libgna.so`,                                                | `GNAPlugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |
-| HETERO | `libHeteroPlugin.so`        | Same as for selected plugins                                | `HeteroPlugin.dll`       | Same as for selected plugins                                                                           | `libHeteroPlugin.so`      |  Same as for selected plugins               |
+| HETERO | `libov_hetero_plugin.so`        | Same as for selected plugins                                | `ov_hetero_plugin.dll`       | Same as for selected plugins                                                                           | `libov_hetero_plugin.so`      |  Same as for selected plugins               |
 | MULTI  | `libMultiDevicePlugin.so`   | Same as for selected plugins                                | `MultiDevicePlugin.dll`  | Same as for selected plugins                                                                           | `libMultiDevicePlugin.so` |  Same as for selected plugins               |
 
 > **NOTE**: All plugin libraries also depend on core Inference Engine libraries.

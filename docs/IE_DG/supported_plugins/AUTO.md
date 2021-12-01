@@ -48,7 +48,7 @@ Auto-device supports query device optimization capabilities in metric;
 ### Enumerating Available Devices
 
 Inference Engine now features a dedicated API to enumerate devices and their capabilities. 
-See [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md).
+See [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md).
 This is the example output from the sample (truncated to the devices' names only):
 
 ```sh

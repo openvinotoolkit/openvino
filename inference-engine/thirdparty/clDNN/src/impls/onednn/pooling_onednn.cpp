@@ -32,7 +32,7 @@ protected:
 
         auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
         auto kernel = onednn::convert_spatials(prim->size, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->input_offset, spatials_rank);
+        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
         auto pad_r = onednn::convert_spatials(prim->pad_end, spatials_rank);
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
@@ -44,7 +44,6 @@ protected:
         }
 
         for (size_t i = 0; i < kernel.size(); i++) {
-            pad_l[i] = -pad_l[i];
             pad_r[i] = (output_md.dims()[2 + i] - 1) * stride[i] - input_md.dims()[2 + i] + kernel[i] - pad_l[i];
         }
 

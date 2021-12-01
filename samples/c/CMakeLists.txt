@@ -2,4 +2,4 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include("${InferenceEngine_SOURCE_DIR}/samples/CMakeLists.txt")
+include("${OpenVINO_SOURCE_DIR}/samples/cpp/CMakeLists.txt")
