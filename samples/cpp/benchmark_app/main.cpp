@@ -616,7 +616,7 @@ int main(int argc, char* argv[]) {
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
         if (isFlagSetInCommandLine("use_device_mem")) {
-            if (device_name.find("GPU") != std::string::npos)
+            if (device_name.find("GPU") == 0)
                 ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, exeNetwork);
             else if (device_name.find("CPU") == 0)
                 fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
