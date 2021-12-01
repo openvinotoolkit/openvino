@@ -10,6 +10,6 @@ if (ENABLE_MYRIAD)
     add_subdirectory(vpu)
 endif()
 
-if (ENABLE_GNA)
+if (ENABLE_INTEL_GNA)
     add_subdirectory(gna)
 endif()

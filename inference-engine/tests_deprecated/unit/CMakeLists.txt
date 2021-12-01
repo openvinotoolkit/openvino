@@ -19,7 +19,7 @@ file(GLOB
         )
 
 # TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
-if (ENABLE_GNA AND BUILD_SHARED_LIBS)
+if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
     file(GLOB
             GNA_TESTS
             engines/gna/*cpp
