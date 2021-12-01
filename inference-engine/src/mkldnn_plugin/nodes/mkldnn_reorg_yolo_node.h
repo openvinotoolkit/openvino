@@ -18,6 +18,10 @@ public:
     void createPrimitive() override {};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+    bool needPrepareParams() const override { return false; }
+    void executeDynamicImpl(mkldnn::stream strm) override {
+        execute(strm);
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

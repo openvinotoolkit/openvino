@@ -13,7 +13,7 @@ namespace vpu {
 // ConvIm2ColWeightsContent
 //
 
-ConvIm2ColWeightsContent::ConvIm2ColWeightsContent(const DataContent::Ptr& origContent, DataDesc desc) :
+ConvIm2ColWeightsContent::ConvIm2ColWeightsContent(const DataContent::Ptr& origContent, const DataDesc& desc) :
         _origContent(origContent), _desc(desc) {}
 
 size_t ConvIm2ColWeightsContent::byteSize() const {
@@ -30,7 +30,7 @@ void ConvIm2ColWeightsContent::fillTempBuf(void* tempBuf) const {
 // Conv3x3WeightsContent
 //
 
-Conv3x3WeightsContent::Conv3x3WeightsContent(const DataContent::Ptr& origContent, DataDesc desc) :
+Conv3x3WeightsContent::Conv3x3WeightsContent(const DataContent::Ptr& origContent, const DataDesc& desc) :
         _origContent(origContent), _desc(desc) {
 }
 
@@ -48,7 +48,7 @@ void Conv3x3WeightsContent::fillTempBuf(void* tempBuf) const {
 // ConvCHWWeightsContent
 //
 
-ConvCHWWeightsContent::ConvCHWWeightsContent(const DataContent::Ptr& origContent, DataDesc desc) :
+ConvCHWWeightsContent::ConvCHWWeightsContent(const DataContent::Ptr& origContent, const DataDesc& desc) :
         _origContent(origContent), _desc(desc) {
 }
 
