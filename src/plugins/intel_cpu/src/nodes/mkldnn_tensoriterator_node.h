@@ -78,8 +78,8 @@ private:
     void move_data(mkldnn::stream strm, const mkldnn::engine& eng);
 
     size_t elem_size = 0lu;
-    ptrdiff_t chunk_stride_in_byte = 0;
     ptrdiff_t chunk_offset_in_byte = 0;
+    ptrdiff_t buffer_offset_in_byte = 0;
 
     MKLDNNMemoryPtr from;
     MKLDNNMemoryPtr to;

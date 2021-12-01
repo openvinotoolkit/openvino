@@ -212,7 +212,7 @@ void DynamicBuffer::execute(mkldnn::stream strm, const mkldnn::engine& eng, cons
 
 void DynamicBuffer::init(mkldnn::stream strm, const mkldnn::engine& eng) {
     chunk_offset_in_byte = 0;
-    chunk_stride_in_byte = 0;
+    buffer_offset_in_byte = 0;
 
     auto src_mem = from->GetPrimitive();
     auto src_desc = src_mem.get_desc();
@@ -237,12 +237,14 @@ std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engin
     dims[map_rule.axis] += from->getStaticDims()[map_rule.axis];
     mkldnn::memory::desc new_buffer_desc(dims, old_desc.data_type(), MKLDNNExtensionUtils::GetPlainFormatByRank(dims.size()));
 
-    const auto axis = map_rule.stride;
+    const auto axis = map_rule.axis;
     const auto stride = map_rule.stride;
     const auto abs_stride = std::abs(stride);
-    const auto sign_of_stride = stride < 0.0f ? -1 : 1;
-    chunk_stride_in_byte += sign_of_stride * new_buffer_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
-    chunk_offset_in_byte = sign_of_stride < 0 ? labs(chunk_stride_in_byte) : 0;
+    if (stride > 0.0f) {
+        chunk_offset_in_byte += new_buffer_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+    } else {
+        buffer_offset_in_byte = from->GetPrimitive().get_desc().data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+    }
 
     return std::make_shared<mkldnn::memory>(new_buffer_desc, eng);
 }
@@ -258,7 +260,7 @@ void DynamicBuffer::move_buffer(mkldnn::stream strm, const mkldnn::engine& eng, 
 
     const auto new_mem_handler = new_buffer->get_data_handle();
     mkldnn::memory chunk_mem(chunk_desc, eng, new_mem_handler);
-    chunk_mem.set_data_handle(static_cast<uint8_t *>(new_buffer->get_data_handle()) + chunk_offset_in_byte);
+    chunk_mem.set_data_handle(static_cast<uint8_t *>(new_buffer->get_data_handle()) + buffer_offset_in_byte);
 
     copy(strm, *mem_holder_buffer.get(), chunk_mem);
     mem_holder_buffer = new_buffer;
@@ -276,7 +278,7 @@ void DynamicBuffer::move_data(mkldnn::stream strm, const mkldnn::engine& eng) {
 
     const auto new_mem_handler = mem_holder_buffer->get_data_handle();
     mkldnn::memory chunk_mem = { chunk_desc, eng, new_mem_handler };
-    chunk_mem.set_data_handle(static_cast<uint8_t*>(mem_holder_buffer->get_data_handle()) + chunk_stride_in_byte);
+    chunk_mem.set_data_handle(static_cast<uint8_t*>(mem_holder_buffer->get_data_handle()) + chunk_offset_in_byte);
 
     copy(strm, src_mem, chunk_mem);
 }
@@ -364,7 +366,9 @@ int MKLDNNTensorIteratorNode::getNumIteration(const std::vector<PortMap>& inputP
         }
 
         if (dims[rule.axis] == Shape::UNDEFINED_DIM)
-            THROW_ERROR << ": Concat by axis of dynamic dim isn't supported";
+            continue;
+            // TODO: Should we know which output shapes to get num iterations? Internal dynamism inside body? Shape inference for body?
+            // THROW_ERROR << ": Concat by axis of dynamic dim isn't supported";
 
         if (rule.from < 0 || rule.from >= static_cast<int64_t>(outputShapes.size())) {
             THROW_ERROR << ": Invalid \"from\" value: \"from\" = " << rule.from
@@ -390,16 +394,6 @@ bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const 
                     ov::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
-        }
-
-        if (auto tiOp = ov::as_type_ptr<const ov::op::v0::TensorIterator>(op)) {
-            const auto ops = tiOp->get_body()->get_ops();
-            for (const auto body_op : ops) {
-                if (isDynamicNgraphNode(body_op)) {
-                    errorMessage = "Contains op that doesn't support dynamic shapes";
-                    return false;
-                }
-            }
         }
     } catch (...) {
         return false;
@@ -729,11 +723,15 @@ void MKLDNNTensorIteratorNode::reshapeSubgraphInput() {
         auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &to_mem = input_mem[map_rule.to];
 
+        auto new_dims = from_mem->getStaticDims();
+        if (map_rule.axis != -1)
+            new_dims[map_rule.axis] = abs(map_rule.stride);
+
         const auto &currDesc = to_mem->getDesc();
-        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == from_mem->getStaticDims())
+        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == new_dims)
             continue;
 
-        const auto memDesc = getBaseMemDescAtInputPort(map_rule.from)->cloneWithNewDims(from_mem->getStaticDims());
+        const auto memDesc = std::make_shared<CpuBlockedMemoryDesc>(currDesc.getPrecision(), Shape(new_dims));
         to_mem->redefineDesc(*memDesc);
     }
 }
