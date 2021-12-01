@@ -26,8 +26,16 @@ NamedOutputs elementwise_ops(const NodeContext& node) {
     if ((axis == -1) || (axis == x_rank - 1) || (x_rank == y_rank)) {
         return node.default_single_output_mapping({std::make_shared<T>(x, y)}, {"Out"});
     } else {
-        ov::op::AutoBroadcastSpec pdpd_broadcast(ov::op::AutoBroadcastType::PDPD, axis);
-        return node.default_single_output_mapping({std::make_shared<T>(x, y, pdpd_broadcast)}, {"Out"});
+        std::vector<int64_t> indices;
+        for (int64_t i = 0; i < axis; i++)
+            indices.push_back(i);
+        for (int64_t i = y_rank + axis; i < x_rank; i++)
+            indices.push_back(i);
+
+        auto indices_node =
+            default_opset::Constant::create(ngraph::element::i64, ngraph::Shape{indices.size()}, indices);
+        auto y_node = std::make_shared<default_opset::Unsqueeze>(y, indices_node);
+        return node.default_single_output_mapping({std::make_shared<T>(x, y_node)}, {"Out"});
     }
 }
 
