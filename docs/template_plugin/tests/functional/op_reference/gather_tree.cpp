@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/gather_tree.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -12,17 +12,21 @@ using namespace ov;
 
 namespace {
 struct GatherTreeParams {
-    template <class IN_ET>
-    GatherTreeParams(const ov::Shape inShape, std::vector<IN_ET> stepIds, const std::vector<IN_ET> parentIds,
-        const std::vector<IN_ET> maxSeqLen, const std::vector<IN_ET> endToken, std::vector<IN_ET> output) :
-        stepIdsTensor(inShape, element::from<IN_ET>(), stepIds), parentIdsTensor(inShape, element::from<IN_ET>(), parentIds),
-        maxSeqLenTensor(ov::Shape{inShape[1]}, element::from<IN_ET>(), maxSeqLen), endTokenTensor(ov::Shape{}, element::from<IN_ET>(), endToken),
-        expectedTensor(inShape, element::from<IN_ET>(), output) {}
-    Tensor stepIdsTensor;
-    Tensor parentIdsTensor;
-    Tensor maxSeqLenTensor;
-    Tensor endTokenTensor;
-    Tensor expectedTensor;
+    Tensor stepIds;
+    Tensor parentIdx;
+    Tensor maxSeqLen;
+    Tensor endToken;
+    Tensor finalIdx;
+    std::string testcaseName;
+};
+
+struct Builder : ParamsBuilder<GatherTreeParams> {
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, stepIds);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, parentIdx);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, maxSeqLen);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, endToken);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, finalIdx);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, testcaseName);
 };
 
 class ReferenceGatherTreeTest : public testing::TestWithParam<GatherTreeParams>, public CommonReferenceTest {
@@ -30,25 +34,40 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.stepIdsTensor.data, params.parentIdsTensor.data, params.maxSeqLenTensor.data, params.endTokenTensor.data};
-        refOutData = {params.expectedTensor.data};
+        inputData = {params.stepIds.data, params.parentIdx.data, params.maxSeqLen.data, params.endToken.data};
+        refOutData = {params.finalIdx.data};
     }
+
     static std::string getTestCaseName(const testing::TestParamInfo<GatherTreeParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "iType=" << param.stepIdsTensor.type << "_";
-        result << "iShape=" << param.stepIdsTensor.shape;
+        result << "sType=" << param.stepIds.type;
+        result << "_sShape=" << param.stepIds.shape;
+        result << "_pType=" << param.parentIdx.type;
+        result << "_pShape=" << param.parentIdx.shape;
+        result << "_mType=" << param.maxSeqLen.type;
+        result << "_mShape=" << param.maxSeqLen.shape;
+        result << "_eType=" << param.endToken.type;
+        result << "_eShape=" << param.endToken.shape;
+        result << "_fType=" << param.finalIdx.type;
+        if (param.testcaseName != "") {
+            result << "_fShape=" << param.finalIdx.shape;
+            result << "_=" << param.testcaseName;
+        } else {
+            result << "_fShape=" << param.finalIdx.shape;
+        }
         return result.str();
     }
 
 private:
     static std::shared_ptr<Function> CreateFunction(const GatherTreeParams& params) {
-        const auto stepIds = std::make_shared<op::v0::Parameter>(params.stepIdsTensor.type, params.stepIdsTensor.shape);
-        const auto parentIds = std::make_shared<op::v0::Parameter>(params.parentIdsTensor.type, params.parentIdsTensor.shape);
-        const auto maxSeqLen = std::make_shared<op::v0::Parameter>(params.maxSeqLenTensor.type, params.maxSeqLenTensor.shape);
-        const auto endToken = std::make_shared<op::v0::Parameter>(params.endTokenTensor.type, params.endTokenTensor.shape);
-        const auto gatherTree = std::make_shared<op::v1::GatherTree>(stepIds, parentIds, maxSeqLen, endToken);
-        return std::make_shared<ov::Function>(NodeVector {gatherTree}, ParameterVector {stepIds, parentIds, maxSeqLen, endToken});
+        const auto step_ids = std::make_shared<opset1::Parameter>(params.stepIds.type, params.stepIds.shape);
+        const auto parent_idx = std::make_shared<opset1::Parameter>(params.parentIdx.type, params.parentIdx.shape);
+        const auto max_seq_len = std::make_shared<opset1::Parameter>(params.maxSeqLen.type, params.maxSeqLen.shape);
+        const auto end_token = std::make_shared<opset1::Parameter>(params.endToken.type, params.endToken.shape);
+        const auto gather_tree = std::make_shared<opset1::GatherTree>(step_ids, parent_idx, max_seq_len, end_token);
+        const auto f = std::make_shared<Function>(gather_tree, ParameterVector{step_ids, parent_idx, max_seq_len, end_token});
+        return f;
     }
 };
 
@@ -56,38 +75,38 @@ TEST_P(ReferenceGatherTreeTest, CompareWithRefs) {
     Exec();
 }
 
-template <element::Type_t IN_ET>
-std::vector<GatherTreeParams> generateGatherTreeParams() {
-    using T = typename element_type_traits<IN_ET>::value_type;
-    std::vector<GatherTreeParams> gatherTreeParams {
-        GatherTreeParams(Shape{4, 1, 3},
-                         std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1},
-                         std::vector<T>{0, 0, 0, 0, 1, 1, 2, 1, 2, -1, -1, -1},
-                         std::vector<T>{3},
-                         std::vector<T>{10},
-                         std::vector<T>{2, 2, 2, 6, 5, 6, 7, 8, 9, 10, 10, 10}),
-        GatherTreeParams(Shape{2, 2, 2},
-                         std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
-                         std::vector<T>{0, 0, 0, 0, 0, 0, 0, 0},
-                         std::vector<T>{2, 4},
-                         std::vector<T>{0},
-                         std::vector<T>{1, 1, 3, 3, 5, 6, 7, 8})
+template <element::Type_t ET>
+std::vector<GatherTreeParams> generateParams() {
+    using T = typename element_type_traits<ET>::value_type;
+    std::vector<GatherTreeParams> params {
+        Builder {}
+        .stepIds(Tensor(ET, {1, 1, 10}, std::vector<T>{
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+        .parentIdx(Tensor(ET, {1, 1, 10}, std::vector<T>{
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+        .maxSeqLen(Tensor(ET, {1}, std::vector<T>{7}))
+        .endToken(Tensor(ET, {}, std::vector<T>{7}))
+        .finalIdx(Tensor(ET, {1, 1, 10}, std::vector<T>{
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9}))
+        .testcaseName("gather_tree_dummy")
     };
-    return gatherTreeParams;
+    return params;
 }
 
-std::vector<GatherTreeParams> generateGatherTreeCombinedParams() {
-    const std::vector<std::vector<GatherTreeParams>> gatherTreeTypeParams {
-        generateGatherTreeParams<element::Type_t::f32>(),
-        generateGatherTreeParams<element::Type_t::i32>()};
+
+std::vector<GatherTreeParams> generateCombinedParams() {
+    const std::vector<std::vector<GatherTreeParams>> generatedParams {
+        generateParams<element::Type_t::i32>(),
+        generateParams<element::Type_t::f32>(),
+    };
     std::vector<GatherTreeParams> combinedParams;
 
-    for (const auto& params : gatherTreeTypeParams) {
+    for (const auto& params : generatedParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
     return combinedParams;
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherTree_With_Hardcoded_Refs, ReferenceGatherTreeTest,
-    testing::ValuesIn(generateGatherTreeCombinedParams()), ReferenceGatherTreeTest::getTestCaseName);
+    testing::ValuesIn(generateCombinedParams()), ReferenceGatherTreeTest::getTestCaseName);
 } // namespace
