@@ -173,6 +173,12 @@ void regclass_InferRequest(py::module m) {
     });
 
     cls.def(
+        "get_results",
+        [](InferRequestWrapper& self) {
+            return Common::outputs_to_dict(self._outputs, self._request);;
+    });
+
+    cls.def(
         "set_tensor",
         [](InferRequestWrapper& self, const std::string& name, const ov::runtime::Tensor& tensor) {
             self._request.set_tensor(name, tensor);

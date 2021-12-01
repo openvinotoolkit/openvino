@@ -315,3 +315,15 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             expected_res = np.full(input_shape, i, dtype=data_type)
         assert np.allclose(res[k], expected_res, atol=1e-6), \
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+
+
+def test_get_results(device):
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    core.set_config({"PERF_COUNT": "YES"}, device)
+    exec_net = core.compile_model(func, device)
+    img = read_image()
+    request = exec_net.create_infer_request()
+    outputs = request.infer({0: img})
+    results = request.get_results()
+    results == outputs
