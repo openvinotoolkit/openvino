@@ -447,7 +447,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
         auto closingBracket = d.find_first_of(')', openingBracket);
         auto deviceName = d.substr(0, openingBracket);
 
-        int batch = -1;
+        int batch = 1;
         if (closingBracket != std::string::npos && openingBracket < closingBracket) {
             batch = std::stol(d.substr(openingBracket + 1, closingBracket - 1));
 

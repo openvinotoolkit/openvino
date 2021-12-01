@@ -32,8 +32,8 @@ public:
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
         deviceName = CommonTestUtils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
-        if (with_auto_batching) { // BATCH:GPU(1)
-            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName + "(1)";
+        if (with_auto_batching) { // BATCH:GPU
+            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
             config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
         }
     }
