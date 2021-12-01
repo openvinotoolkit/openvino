@@ -383,7 +383,7 @@ void LayerTestsCommon::Infer() {
 	inferRequest = executableNetwork.CreateInferRequest();
 
     ConfigureInferRequest();
-    
+
     inferRequest.Infer();
 }
 
