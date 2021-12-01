@@ -42,6 +42,10 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         Output<Node> mul_const = label_to_output[m_mul_constant];
         Output<Node> add_const = label_to_output[m_add_constant];
 
+        // Temporarily exclude the case of PDPD broadcast
+        if (add->get_autob().m_type == ov::op::AutoBroadcastType::PDPD || mul->get_autob().m_type == ov::op::AutoBroadcastType::PDPD)
+            return false;
+
         if ((input.get_element_type() != mul_const.get_element_type()) || (add_const.get_element_type() != mul_const.get_element_type())) {
             return false;
         }
@@ -85,6 +89,10 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         Output<Node> add1_const = label_to_output[m_add1_constant];
         Output<Node> add2_const = label_to_output[m_add2_constant];
 
+        // Temporarily exclude the case of PDPD broadcast
+        if (add1->get_autob().m_type == ov::op::AutoBroadcastType::PDPD || add2->get_autob().m_type == ov::op::AutoBroadcastType::PDPD)
+            return false;
+
         // Replace Add->Add with single Add
         // Add operation will be added to the list of ops requested for pattern matching
         auto new_add = register_new_node<opset3::Add>(input, op::util::eltwise_fold<opset3::Add>(add1_const, add2_const));
@@ -119,6 +127,10 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         Output<Node> input = label_to_output[m_data];
         Output<Node> mul1_const = label_to_output[m_mul1_constant];
         Output<Node> mul2_const = label_to_output[m_mul2_constant];
+
+        // Temporarily exclude the case of PDPD broadcast
+        if (mul1->get_autob().m_type == ov::op::AutoBroadcastType::PDPD || mul2->get_autob().m_type == ov::op::AutoBroadcastType::PDPD)
+            return false;
 
         // Replace Multiply->Multiply with single Multiply
         // Multiply operation will be added to the list of ops requested for pattern matching
