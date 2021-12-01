@@ -12,16 +12,20 @@ namespace ov {
 namespace frontend {
 class InputModelONNX : public InputModel {
 public:
-    InputModelONNX(const std::string& path);
+    InputModelONNX(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModelONNX(const std::wstring& path);
+    InputModelONNX(const std::wstring& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #endif
-    InputModelONNX(std::istream& model_stream);
+    InputModelONNX(std::istream& model_stream, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
-    InputModelONNX(std::istream& model_stream, const std::string& path);
+    InputModelONNX(std::istream& model_stream,
+                   const std::string& path,
+                   const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    InputModelONNX(std::istream& model_stream, const std::wstring& path);
+    InputModelONNX(std::istream& model_stream,
+                   const std::wstring& path,
+                   const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #endif
 
     std::vector<Place::Ptr> get_inputs() const override;
