@@ -23,3 +23,5 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
     const size_t& batchSize,
     benchmark_app::InputsInfo& app_inputs_info,
     size_t requestsNum);
+
+void copyBlobData(InferenceEngine::Blob::Ptr& dst, const InferenceEngine::Blob::Ptr& src);

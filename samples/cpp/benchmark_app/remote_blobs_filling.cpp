@@ -135,7 +135,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteInputBlo
                        << slog::endl;
             setShared(input.first,
                       InferenceEngine::TensorDesc(input.second.precision,
-                                                  input.second.tensorShape,
+                                                  input.second.dataShape,
                                                   getLayoutFromString(input.second.layout)),
                       true);
         }

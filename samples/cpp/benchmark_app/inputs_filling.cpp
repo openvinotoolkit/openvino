@@ -59,7 +59,7 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
                                                const benchmark_app::InputInfo& inputInfo,
                                                std::string* filenames_used = nullptr) {
     size_t blob_size =
-        std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
     T* data = new T[blob_size];
 
     /** Collect images data ptrs **/
@@ -111,7 +111,7 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo.originalLayout);
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.dataShape, inputInfo.originalLayout);
     auto blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
@@ -124,7 +124,7 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
                                             size_t batchSize,
                                             const benchmark_app::InputInfo& inputInfo) {
     size_t blob_size =
-        std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
     T* data = new T[blob_size];
 
     for (size_t b = 0; b < batchSize; b++) {
@@ -140,7 +140,7 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo.originalLayout);
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.dataShape, inputInfo.originalLayout);
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
@@ -155,7 +155,7 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
                                                 const benchmark_app::InputInfo& inputInfo,
                                                 std::string* filenames_used = nullptr) {
     size_t blob_size =
-        std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
     char* data = new char[blob_size * sizeof(T)];
 
     for (size_t b = 0; b < batchSize; ++b) {
@@ -191,7 +191,7 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo.originalLayout);
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.dataShape, inputInfo.originalLayout);
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>((T*)data, blob_size * sizeof(T)));
@@ -204,7 +204,7 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
                                             T rand_min = std::numeric_limits<uint8_t>::min(),
                                             T rand_max = std::numeric_limits<uint8_t>::max()) {
     size_t blob_size =
-        std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
     T* data = new T[blob_size];
 
     std::mt19937 gen(0);
@@ -213,7 +213,7 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
         data[i] = static_cast<T>(distribution(gen));
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo.originalLayout);
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.dataShape, inputInfo.originalLayout);
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
@@ -311,7 +311,7 @@ InferenceEngine::Blob::Ptr getRandomBlob(const std::pair<std::string, benchmark_
 
 std::stringstream getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
-    strOut << "(" << inputInfo.layout << ", " << inputInfo.precision << ", " << getShapeString(inputInfo.tensorShape)
+    strOut << "(" << inputInfo.layout << ", " << inputInfo.precision << ", " << getShapeString(inputInfo.dataShape)
            << ", ";
     if (inputInfo.partialShape.is_dynamic()) {
         strOut << std::string("dyn:") << inputInfo.partialShape << "):\t";
@@ -387,7 +387,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             shapesToBeUsed = app_inputs_info.size() - app_inputs_info.size() % files.second.size();
             filesToBeUsed = files.second.size();
             if (shapesToBeUsed != app_inputs_info.size()) {
-                slog::warn << "Number of tensor shapes must be a multiple of the number of files. For input "
+                slog::warn << "Number of data shapes must be a multiple of the number of files. For input "
                            << files.first << " only " + std::to_string(shapesToBeUsed) + " files will be added."
                            << slog::endl;
             }
@@ -634,4 +634,33 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
     }
 
     return blobs;
+}
+
+void copyBlobData(InferenceEngine::Blob::Ptr& dst, const InferenceEngine::Blob::Ptr& src) {
+    if (src->getTensorDesc() != dst->getTensorDesc()) {
+        throw std::runtime_error(
+            "Source and destination blobs tensor descriptions are expected to be equal for data copying.");
+    }
+
+    InferenceEngine::MemoryBlob::Ptr srcMinput = as<InferenceEngine::MemoryBlob>(src);
+    if (!srcMinput) {
+        IE_THROW() << "We expect source blob to be inherited from MemoryBlob in "
+                      "fillBlobImage, "
+                   << "but by fact we were not able to cast source blob to MemoryBlob";
+    }
+    // locked memory holder should be alive all time while access to its buffer
+    // happens
+    auto srcMinputHolder = srcMinput->wmap();
+    auto srcBlobData = srcMinputHolder.as<void*>();
+
+    InferenceEngine::MemoryBlob::Ptr dstMinput = as<InferenceEngine::MemoryBlob>(dst);
+    if (!dstMinput) {
+        IE_THROW() << "We expect destination blob to be inherited from MemoryBlob in "
+                      "fillBlobImage, "
+                   << "but by fact we were not able to cast destination blob to MemoryBlob";
+    }
+    auto dstMinputHolder = dstMinput->wmap();
+    auto dstBlobData = dstMinputHolder.as<void*>();
+
+    std::memcpy(dstBlobData, srcBlobData, src->byteSize());
 }

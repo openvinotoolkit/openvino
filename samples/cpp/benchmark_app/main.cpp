@@ -472,6 +472,7 @@ int main(int argc, char* argv[]) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
         }
 
+        bool isDynamicNetwork = false;
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             next_step();
             slog::info << "Skipping the step for loading network from file" << slog::endl;
@@ -542,11 +543,21 @@ int main(int argc, char* argv[]) {
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
-
             topology_name = cnnNetwork.getName();
+
+            // Check if network has dynamic shapes
+            auto input_info = app_inputs_info[0];
+            isDynamicNetwork = std::any_of(input_info.begin(),
+                                           input_info.end(),
+                                           [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
+                                               return i.second.partialShape.is_dynamic();
+                                           });
+
             // use batch size according to provided layout and shapes (static case)
-            if (FLAGS_data_shape.empty())
+            if (!isDynamicNetwork) {
                 batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
+            }
+
             slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
                        << slog::endl;
 
@@ -606,17 +617,33 @@ int main(int argc, char* argv[]) {
                 batchSize = 1;
             }
         }
-        // Check if network has dynamic shapes
-        auto input_info = app_inputs_info[0];
-        bool isDynamicNetwork = std::any_of(input_info.begin(),
-                                            input_info.end(),
-                                            [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
-                                                return i.second.partialShape.is_dynamic();
-                                            });
 
         if (isDynamicNetwork && FLAGS_api == "sync") {
             throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
+        }
+
+        // Defining of benchmark mode
+        // for static models inference only mode is used as default one
+        bool inferenceOnly = FLAGS_inference_only;
+        if (isDynamicNetwork) {
+            if (isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() != 1) {
+                slog::warn << "Dynamic models with different input data shapes must be benchmarked only in full mode."
+                              " -inference_only flag will be ignored"
+                           << slog::endl;
+            }
+            inferenceOnly = isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() == 1;
+        }
+
+        if (inferenceOnly) {
+            slog::info
+                << "Benchmark inference only mode is enabled. Input blobs will be filled once before performance "
+                   "measurements."
+                << slog::endl;
+        } else {
+            slog::info << "Benchmark full mode is enabled. Input blobs setting will be included in performance "
+                          "measurements."
+                       << slog::endl;
         }
 
         // ----------------- 8. Querying optimal runtime parameters
@@ -669,7 +696,7 @@ int main(int argc, char* argv[]) {
             if (shape_groups_num > nireq) {
                 niter = ((niter + shape_groups_num - 1) / shape_groups_num) * shape_groups_num;
                 if (FLAGS_niter != niter) {
-                    slog::warn << "Number of iterations was aligned by tensor shape groups number from " << FLAGS_niter
+                    slog::warn << "Number of iterations was aligned by data shape groups number from " << FLAGS_niter
                                << " to " << niter << " using number of possible input shapes " << shape_groups_num
                                << slog::endl;
                 }
@@ -697,6 +724,7 @@ int main(int argc, char* argv[]) {
             statistics->addParameters(
                 StatisticsReport::Category::RUNTIME_CONFIG,
                 {
+                    {"benchmark mode", inferenceOnly ? "inference only" : "full"},
                     {"topology", topology_name},
                     {"target device", device_name},
                     {"API", FLAGS_api},
@@ -716,7 +744,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // ----------------- 9. Creating infer requests and filling input blobs for each tensor shape
+        // ----------------- 9. Creating infer requests and filling input blobs
         // ----------------------------------------
         next_step();
 
@@ -726,8 +754,7 @@ int main(int argc, char* argv[]) {
         if (inputFiles.size() > 0) {
             inputHasName = inputFiles.begin()->first != "";
         }
-        bool newInputType = isDynamicNetwork || !FLAGS_data_shape.empty() || inputHasName;
-
+        bool newInputType = isDynamicNetwork || inputHasName;
         // create vector to store remote input blobs buffer
         std::vector<::gpu::BufferType> clInputsBuffer;
         bool useGpuMem = false;
@@ -801,28 +828,8 @@ int main(int argc, char* argv[]) {
 
         next_step(ss.str());
 
-        // for static models inference mode is used as default one
-        bool inferenceOnly = FLAGS_inference_only;
-        if (isDynamicNetwork) {
-            if (inferenceOnly && isFlagSetInCommandLine("inference_only")) {
-                slog::warn
-                    << "Dynamic models must be benhmarked only in full mode. -inference_only flag will be ignored"
-                    << slog::endl;
-            }
-            inferenceOnly = false;
-        }
-
-        if (inferenceOnly) {
-            slog::info
-                << "Benchmark inference only mode is enabled. Input blobs will be filled once before performance "
-                   "measurements."
-                << slog::endl;
-        } else {
-            slog::info << "Benchmark full mode is enabled. Input blobs setting will be included in performance "
-                          "measurements."
-                       << slog::endl;
-        }
-
+        // copy prepared data straight into inferRequest->getBlob()
+        // for inference only mode
         if (inferenceOnly) {
             if (nireq < inputsData.begin()->second.size())
                 slog::warn << "Only " << nireq << " test configs will be used." << slog::endl;
@@ -830,9 +837,18 @@ int main(int argc, char* argv[]) {
             for (auto& inferRequest : inferRequestsQueue.requests) {
                 auto input = app_inputs_info[i % app_inputs_info.size()];
                 for (auto& item : input) {
-                    auto input_name = item.first;
-                    const auto& data = inputsData.at(input_name)[i % inputsData.at(input_name).size()];
-                    inferRequest->setBlob(input_name, data);
+                    auto inputName = item.first;
+                    const auto& inputBlob = inputsData.at(inputName)[i % inputsData.at(inputName).size()];
+                    // for remote blobs setBlob is used, they are already allocated on the device
+                    if (useGpuMem) {
+                        inferRequest->setBlob(inputName, inputBlob);
+                    } else {
+                        InferenceEngine::Blob::Ptr requestBlob = inferRequest->getBlob(inputName);
+                        if (isDynamicNetwork) {
+                            requestBlob->setShape(inputBlob->getTensorDesc().getDims());
+                        }
+                        copyBlobData(requestBlob, inputBlob);
+                    }
                 }
 
                 if (useGpuMem) {
@@ -845,6 +861,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // warming up - out of scope
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
             IE_THROW() << "No idle Infer Requests!";
@@ -949,7 +966,6 @@ int main(int argc, char* argv[]) {
                 progressBar.addProgress(newProgress);
                 progressCnt += newProgress;
             }
-
             processedFramesN += batchSize;
             ++iteration;
 
@@ -986,7 +1002,7 @@ int main(int argc, char* argv[]) {
             if (device_name.find("MULTI") == std::string::npos) {
                 std::string latency_label;
                 if (FLAGS_latency_percentile == 50) {
-                    latency_label = "latency (ms)";
+                    latency_label = "Median latency (ms)";
                 } else {
                     latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
                 }
@@ -996,16 +1012,50 @@ int main(int argc, char* argv[]) {
                                           });
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                              {"Average latency", double_to_string(avgLatency)},
+                                              {"Average latency (ms)", double_to_string(avgLatency)},
                                           });
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                              {"Min latency", double_to_string(minLatency)},
+                                              {"Min latency (ms)", double_to_string(minLatency)},
                                           });
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                              {"Max latency", double_to_string(maxLatency)},
+                                              {"Max latency (ms)", double_to_string(maxLatency)},
                                           });
+
+                if (FLAGS_pcseq && latency_groups.size() > 1) {
+                    statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                              {
+                                                  {"Latency for each data shape group:", ""},
+                                              });
+                    for (size_t i = 0; i < app_inputs_info.size(); ++i) {
+                        std::string data_shapes_string = "";
+                        data_shapes_string += std::to_string(i) + ". ";
+                        for (auto& item : app_inputs_info[i]) {
+                            data_shapes_string += item.first + " : " + getShapeString(item.second.dataShape) + " ";
+                        }
+                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                  {
+                                                      {data_shapes_string, ""},
+                                                  });
+                        statistics->addParameters(
+                            StatisticsReport::Category::EXECUTION_RESULTS,
+                            {
+                                {"Avgerage (ms)",
+                                 double_to_string(
+                                     std::accumulate(latency_groups[i].begin(), latency_groups[i].end(), 0.0) /
+                                     latency_groups[i].size())},
+                            });
+                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                  {
+                                                      {"Max (ms)", double_to_string(latency_groups[i].back())},
+                                                  });
+                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                  {
+                                                      {"Mix (ms)", double_to_string(latency_groups[i][0])},
+                                                  });
+                    }
+                }
             }
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                       {{"throughput", double_to_string(fps)}});
@@ -1066,15 +1116,15 @@ int main(int argc, char* argv[]) {
             std::cout << "\tMin:    " << double_to_string(minLatency) << " ms" << std::endl;
 
             if (FLAGS_pcseq && latency_groups.size() > 1) {
-                std::cout << "Latency for each tensor shape group:" << std::endl;
+                std::cout << "Latency for each data shape group:" << std::endl;
                 for (size_t i = 0; i < app_inputs_info.size(); ++i) {
                     std::cout << i << ".";
                     for (auto& item : app_inputs_info[i]) {
                         std::stringstream input_shape;
-                        auto shape = item.second.tensorShape;
+                        auto shape = item.second.dataShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
                         input_shape << shape.back();
-                        std::cout << " " << item.first << " : " << getShapeString(item.second.tensorShape);
+                        std::cout << " " << item.first << " : " << getShapeString(item.second.dataShape);
                     }
                     std::cout << std::endl;
                     std::cout << "\tAvg:    "
