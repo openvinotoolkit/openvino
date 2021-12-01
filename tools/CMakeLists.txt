@@ -40,7 +40,7 @@ foreach(EXTRAS ${EXTRAS_LIST})
     endif()
     configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
 
-    install(FILES ${REQUIREMENTS_OUT}
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
         DESTINATION tools
         COMPONENT openvino_dev_req_files
         EXCLUDE_FROM_ALL)
