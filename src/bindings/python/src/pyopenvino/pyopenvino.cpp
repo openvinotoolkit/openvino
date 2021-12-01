@@ -126,7 +126,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_Extension(m);
     regclass_frontend_FrontEndManager(m);
     regclass_frontend_FrontEnd(m);
-    regclass_frontend_InputModel(m)
+    regclass_frontend_InputModel(m);
     regclass_frontend_TelemetryExtension(m);
 
     regmodule_offline_transformations(m);
