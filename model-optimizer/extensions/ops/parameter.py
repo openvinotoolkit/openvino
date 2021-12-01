@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import unmask_shape
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op, PermuteAttrs
 
@@ -19,6 +19,7 @@ class Parameter(Op):
             'version': 'opset1',
 
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'is_input': True,
             'data_type': None,
 
@@ -49,3 +50,12 @@ class Parameter(Op):
         node.out_port(0).data.set_shape(node.shape)
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('shape', 'output:0')])
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        # update node 'shape' attribute (if it is not defined) from the output port shape which was calculated
+        # during the reverse_infer phase
+        shape = node.soft_get('shape', None)
+        if shape is None and node.out_port(0).data.get_shape() is not None:
+            node['shape'] = node.out_port(0).data.get_shape()
+

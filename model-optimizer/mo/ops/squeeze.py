@@ -4,7 +4,8 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, shape_delete, is_fully_defined
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, shape_delete, is_fully_defined, \
+    undefined_shape_of_rank
 from mo.graph.graph import Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -26,6 +27,7 @@ class Squeeze(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
         }, attrs)
 
     @staticmethod
@@ -69,3 +71,13 @@ class Squeeze(Op):
 
         # the squeeze_dim attribute will be converted to the second input in the end of the Middle phase
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        output_shape = node.out_port(0).data.get_shape()
+        squeeze_dims = node.in_port(1).data.get_value()
+        if input_shape is None and output_shape is not None and squeeze_dims is not None:
+            num_squeeze_dims = 1 if int64_array(squeeze_dims).ndim == 0 else len(squeeze_dims)
+            shape = undefined_shape_of_rank(len(output_shape) + num_squeeze_dims)
+            node.in_port(0).data.set_shape(shape)
