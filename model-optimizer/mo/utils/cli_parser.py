@@ -363,7 +363,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
                               help="Use legacy API for model processing",
-                              action='store_true', default=False)
+                              action='store_true', default=True)
     return parser
 
 
@@ -385,6 +385,7 @@ def get_common_cli_options(model_name):
     d['disable_gfusing'] = ['- Enable grouped convolutions fusing', lambda x: not x]
     d['move_to_preprocess'] = '- Move mean values to preprocess section'
     d['reverse_input_channels'] = '- Reverse input channels'
+    d['use_new_frontend'] = '- Use new API for model processing'
     d['use_legacy_frontend'] = '- Use legacy API for model processing'
     return d
 

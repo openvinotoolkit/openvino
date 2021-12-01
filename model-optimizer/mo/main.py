@@ -101,8 +101,9 @@ def get_moc_frontends(argv: argparse.Namespace):
     fem = argv.feManager
 
     # Read user flags:
-    use_legacy_frontend = argv.use_legacy_frontend
     use_new_frontend = argv.use_new_frontend
+    use_legacy_frontend = not use_new_frontend
+    argv.use_legacy_frontend = not use_new_frontend
 
     if not fem or use_legacy_frontend:
         return None, []
