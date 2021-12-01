@@ -31,11 +31,11 @@
  */
 
 #ifdef OPENVINO_STATIC_LIBRARY
-#define TRANSFORMATIONS_API
+#    define TRANSFORMATIONS_API
 #else
-#ifdef inference_engine_transformations_EXPORTS
-#define TRANSFORMATIONS_API OPENVINO_CORE_EXPORTS
-#else
-#define TRANSFORMATIONS_API OPENVINO_CORE_IMPORTS
-#endif // inference_engine_transformations_EXPORTS
-#endif // OPENVINO_STATIC_LIBRARY
+#    ifdef ov_runtime_EXPORTS
+#        define TRANSFORMATIONS_API OPENVINO_CORE_EXPORTS
+#    else
+#        define TRANSFORMATIONS_API OPENVINO_CORE_IMPORTS
+#    endif  // inference_engine_transformations_EXPORTS
+#endif      // OPENVINO_STATIC_LIBRARY

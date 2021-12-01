@@ -13,7 +13,7 @@
 #    define FRONTEND_API
 #else
 // Defined if cmake is building the frontend_common DLL (instead of using it)
-#    ifdef frontend_common_EXPORTS
+#    ifdef ov_runtime_EXPORTS
 #        define FRONTEND_API OPENVINO_CORE_EXPORTS
 #    else
 #        define FRONTEND_API OPENVINO_CORE_IMPORTS

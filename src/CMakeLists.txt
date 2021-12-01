@@ -193,8 +193,9 @@ install(EXPORT OpenVINOTargets
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
+set(IE_PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/inference/include")
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/src/core")
-set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
+set(IE_INCLUDE_DIR "${IE_PUBLIC_HEADERS_DIR}/ie")
 set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
