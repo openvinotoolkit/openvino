@@ -15,6 +15,12 @@
 using namespace MKLDNNPlugin;
 
 MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
+    // we should redefine 'to' memory for dynamism
+    const auto &currDesc = to->getDesc();
+    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != from->getStaticDims()) {
+        to->redefineDesc(from->getDesc());
+    }
+
     mem_holder_src = from->GetPrimitive();
     mem_holder_dst = to->GetPrimitive();
     reorder = {mem_holder_src, mem_holder_dst};
@@ -26,12 +32,7 @@ void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
 
 bool MKLDNNIfNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "If node doesn't support op with dynamic shapes";
-            return false;
-        }
-        if (!one_of(op->get_type_info(),
-                ov::op::v8::If::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v8::If::get_type_info_static())) {
             errorMessage = "Not supported If operation version " + std::to_string(op->get_type_info().version) +
                     " with name '" + op->get_friendly_name() + "'. Node If supports only opset8 version.";
             return false;
@@ -143,20 +144,16 @@ void MKLDNNIfNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.reserve(getChildEdges().size());
 
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        auto dims = inputShapes[i].getDims();
-
         PortConfig dataConf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.desc = descCreator->createSharedDesc(getOriginalInputPrecisionAtPort(i), Shape(dims));
+        dataConf.desc = descCreator->createSharedDesc(getOriginalInputPrecisionAtPort(i), inputShapes[i]);
         config.inConfs.emplace_back(dataConf);
     }
 
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        auto dims = outputShapes[i].getDims();
-
         PortConfig dataConf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.desc = descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), Shape(dims));
+        dataConf.desc = descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), outputShapes[i]);
         config.outConfs.push_back(dataConf);
     }
 
@@ -165,57 +162,85 @@ void MKLDNNIfNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-
 void MKLDNNIfNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+bool MKLDNNIfNode::needPrepareParams() const {
+    return MKLDNNNode::needPrepareParams() || condition != (reinterpret_cast<const bool*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+}
+
+void MKLDNNIfNode::prepareParams() {
     const auto& eng = getEngine();
 
-    for (auto& map_rule : thenInputPortMap) {
+    if (isDynamic) {
+        condition = (reinterpret_cast<const bool*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+        prepareBeforeMappers(condition, eng);
+    } else {
+        prepareBeforeMappers(true, eng);
+        prepareBeforeMappers(false, eng);
+        prepareAfterMappers(true, eng);
+        prepareAfterMappers(false, eng);
+    }
+}
+
+void MKLDNNIfNode::prepareBeforeMappers(const bool is_then, const dnnl::engine& eng) {
+    auto &inputPortMap = is_then ? thenInputPortMap : elseInputPortMap;
+    auto &inputMems = is_then ? inputMemThen : inputMemElse;
+    auto &beforeMappers = is_then ? beforeThenMappers : beforeElseMappers;
+    for (auto& map_rule : inputPortMap) {
         auto &fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &toMem = inputMemThen[map_rule.to];
+        auto &toMem = inputMems[map_rule.to];
 
-        beforeThenMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMem, eng));
+        beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMem, eng));
     }
+}
 
-    for (auto& map_rule : elseInputPortMap) {
-        auto &fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &toMem = inputMemElse[map_rule.to];
-
-        beforeElseMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMem, eng));
-    }
-
-    for (auto& map_rule : thenOutputPortMap) {
+void MKLDNNIfNode::prepareAfterMappers(const bool is_then, const dnnl::engine& eng) {
+    auto &outputPortMap = is_then ? thenOutputPortMap : elseOutputPortMap;
+    auto &outputMems = is_then ? outputMemThen : outputMemElse;
+    auto &afterMappers = is_then ? afterThenMappers : afterElseMappers;
+    for (auto& map_rule : outputPortMap) {
         auto &toMem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &fromMem = outputMemThen[map_rule.to];
+        auto &fromMem = outputMems[map_rule.to];
 
-        afterThenMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMem, eng));
-    }
-
-    for (auto& map_rule : elseOutputPortMap) {
-        auto &toMem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &fromMem = outputMemElse[map_rule.to];
-
-        afterElseMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMem, eng));
+        afterMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMem, eng));
     }
 }
 
 void MKLDNNIfNode::execute(mkldnn::stream strm) {
-    const bool condition = *(reinterpret_cast<const bool*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()));
+    condition = (reinterpret_cast<const bool*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+    auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
+    auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
+    auto& subGraph = condition ? subGraphThen : subGraphElse;
 
-    if (condition) {
-        for (auto &mapper : beforeThenMappers)
-            mapper->execute(strm);
-        subGraphThen.ResetInferCount();
-        subGraphThen.Infer();
-        for (auto &mapper : afterThenMappers)
-            mapper->execute(strm);
-    } else {
-        for (auto &mapper : beforeElseMappers)
-            mapper->execute(strm);
-        subGraphElse.ResetInferCount();
-        subGraphElse.Infer();
-        for (auto &mapper : afterElseMappers)
-            mapper->execute(strm);
-    }
+    for (auto &mapper : beforeMappers)
+        mapper->execute(strm);
+    subGraph.ResetInferCount();
+    subGraph.Infer();
+    for (auto &mapper : afterMappers)
+        mapper->execute(strm);
+}
+
+void MKLDNNIfNode::executeDynamicImpl(mkldnn::stream strm) {
+    auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
+    auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
+    auto& subGraph = condition ? subGraphThen : subGraphElse;
+
+    for (auto &mapper : beforeMappers)
+        mapper->execute(strm);
+    subGraph.ResetInferCount();
+    subGraph.Infer();
+
+    // after subgraph inference we should redefine out memory of If
+    const auto& eng = getEngine();
+    prepareAfterMappers(condition, eng);
+    for (auto &mapper : afterMappers)
+        mapper->execute(strm);
 }
 
 bool MKLDNNIfNode::created() const {

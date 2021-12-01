@@ -26,6 +26,16 @@ public:
 
     void inline setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+    bool needShapeInfer() const override { return false; }
+
+private:
+    void prepareBeforeMappers(const bool is_then, const dnnl::engine& eng);
+    void prepareAfterMappers(const bool is_then, const dnnl::engine& eng);
+
     struct PortMap {
         int from; /**< Index of external/internal out data */
         int to;   /**< Index of external/internal in data */
@@ -36,13 +46,13 @@ public:
         PortMapHelper(const MKLDNNMemoryPtr& from, const MKLDNNMemoryPtr& to, const mkldnn::engine& eng);
         virtual ~PortMapHelper() = default;
         virtual void execute(mkldnn::stream& strm);
-    protected:
+
+    private:
         mkldnn::reorder reorder;
         mkldnn::memory mem_holder_src;
         mkldnn::memory mem_holder_dst;
     };
 
-private:
     MKLDNNExtensionManager::Ptr ext_mng;
     MKLDNNGraph subGraphThen;
     MKLDNNGraph subGraphElse;
@@ -60,6 +70,7 @@ private:
         elseInputPortMap,
         elseOutputPortMap;
 
+    bool condition;
     const std::shared_ptr<ov::Node> ovOp;
 };
 
