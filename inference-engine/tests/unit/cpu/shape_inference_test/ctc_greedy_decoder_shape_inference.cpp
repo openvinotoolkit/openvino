@@ -5,8 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <ctc_greedy_decoder_shape_inference.hpp>
-#include <openvino/core/coordinate_diff.hpp>
-#include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
 
 #include "utils/shape_inference/static_shape.hpp"

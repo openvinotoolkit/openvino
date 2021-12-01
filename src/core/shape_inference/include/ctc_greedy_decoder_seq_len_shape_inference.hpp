@@ -34,14 +34,12 @@ void shape_infer(const CTCGreedyDecoderSeqLen* op, const std::vector<T>& input_s
     decoded_shape.resize(2);
     seq_shape.resize(1);
 
-    bool is_batch_static = false;
     auto& batch_size = decoded_shape[0];
     auto& time_size = decoded_shape[1];
 
     if (logits_is_static_rank) {
         if (logits_shape[0].is_static()) {
             batch_size = logits_shape[0];
-            is_batch_static = true;
         }
         if (logits_shape[1].is_static()) {
             time_size = logits_shape[1];
@@ -49,11 +47,9 @@ void shape_infer(const CTCGreedyDecoderSeqLen* op, const std::vector<T>& input_s
     }
     //Batch can be dynamic, if so use seq_len's batch. If both static, two dims must equal
     if (seq_len_is_static_rank && seq_len_shape[0].is_static()) {
-        if (is_batch_static) {
-            NODE_VALIDATION_CHECK(op,
-                                  seq_len_shape[0] == batch_size,
-                                  "The first dimensions of input tensors must match.");
-        }
+        NODE_VALIDATION_CHECK(op,
+                              seq_len_shape[0].compatible(batch_size),
+                              "The first dimensions of input tensors must match.");
         batch_size = seq_len_shape[0];
     }
 

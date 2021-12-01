@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/shape_inference/static_shape.hpp"
-#include <ctc_greedy_decoder_seq_len_shape_inference.hpp>
 #include <gtest/gtest.h>
-#include <openvino/core/coordinate_diff.hpp>
-#include <openvino/op/ops.hpp>
+
+#include <ctc_greedy_decoder_seq_len_shape_inference.hpp>
 #include <openvino/op/parameter.hpp>
+
 #include "utils/shape_inference/static_shape.hpp"
 
 using namespace ov;
