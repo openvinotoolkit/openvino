@@ -296,7 +296,7 @@ uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& ac
     }
 }
 
-py::dict outputs_to_dict(std::vector<ov::Output<const ov::Node>> outputs, ov::runtime::InferRequest request) {
+py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>> outputs, ov::runtime::InferRequest request) {
     py::dict res;
     for (const auto& out : outputs) {
         ov::runtime::Tensor t{request.get_tensor(out)};
