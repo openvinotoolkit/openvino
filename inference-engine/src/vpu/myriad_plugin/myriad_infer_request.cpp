@@ -166,6 +166,17 @@ void MyriadInferRequest::InferAsync() {
         } else {
             MEMCPY(&inputBuffer[offset], blob->buffer().as<uint8_t*>(), byteSize);
         }
+        const auto offsetShape = inputInfo.offset.find(name+"_real_shape");
+        if (offsetShape == inputInfo.offset.end()) {
+            continue;
+        }
+        auto dimSize = sizeof(int32_t);
+        const auto offsetDims = (offsetShape->second) / dimSize;
+        const auto blobDims = blob->getTensorDesc().getDims();
+        for (size_t i = 0; i < blobDims.size(); ++i) {
+            int32_t dim = static_cast<int32_t>(blobDims[i]);
+            reinterpret_cast<int32_t*>(inputBuffer.data())[offsetDims + i] = dim;
+        }
     }
 
     _executor->queueInference(_graphDesc, inputBuffer.data(),

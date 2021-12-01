@@ -126,8 +126,7 @@ TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "Eltwise");
+    CheckPluginRelatedResults(executableNetwork, "Eltwise");
 }
 
 
@@ -151,6 +150,36 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {GeluTanh,    {{}}}
 };
 
+std::vector<Precision> netPrc = {
+        Precision::BF16,
+        Precision::FP32
+};
+
+/* ============= Activation (1D) ============= */
+std::vector<CPUSpecificParams> cpuParams_3D = {
+        CPUSpecificParams({nCw16c}, {nCw16c}, {}, {}),
+        CPUSpecificParams({nwc}, {nwc}, {}, {}),
+        CPUSpecificParams({ncw}, {ncw}, {}, {})
+};
+
+std::vector<std::vector<ov::Shape>> basic3D = {
+        {{2, 4, 4}},
+        {{2, 17, 5}},
+};
+
+const auto basicCases3D = ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(basic3D)),
+        ::testing::Values(activationShapes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
+        ::testing::ValuesIn(netPrc),
+        ::testing::Values(Precision::FP32),
+        ::testing::Values(Precision::FP32),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D))
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases3D, ActivationLayerCPUTest::getTestCaseName);
+
+/* ============= Activation (2D) ============= */
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
@@ -162,11 +191,6 @@ std::vector<std::vector<ov::Shape>> basic4D = {
             {{2, 17, 5, 4}}
 };
 
-std::vector<Precision> netPrc = {
-        // TODO: Should be uncommented after PR #8339 merge
-        // Precision::BF16
-        Precision::FP32
-};
 
 const auto basicCases4D = ::testing::Combine(
             ::testing::ValuesIn(static_shapes_to_test_representation(basic4D)),
@@ -180,6 +204,7 @@ const auto basicCases4D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
 
+/* ============= Activation (3D) ============= */
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),

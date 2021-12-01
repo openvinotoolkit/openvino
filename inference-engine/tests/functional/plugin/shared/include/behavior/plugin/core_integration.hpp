@@ -5,6 +5,7 @@
 #pragma once
 
 #include <fstream>
+#include <thread>
 
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -52,6 +53,7 @@ public:
 };
 
 using IEClassNetworkTestP = BehaviorTestsUtils::IEClassBaseTestP;
+using IEClassLoadNetworkTestWithThrow = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetMetricTest = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassQueryNetworkTest = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetMetricTest_SUPPORTED_METRICS = BehaviorTestsUtils::IEClassBaseTestP;
@@ -927,6 +929,12 @@ TEST_P(IEClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
         auto actual_shape = actual_results[i]->get_input_shape(0);
         ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
     }
+}
+
+TEST_P(IEClassLoadNetworkTestWithThrow, LoadNetworkActualWithThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, deviceName), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoThrow) {

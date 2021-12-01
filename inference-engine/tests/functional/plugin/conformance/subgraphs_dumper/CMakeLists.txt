@@ -9,9 +9,6 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/include
-            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-        DEPENDENCIES
-            ir_ngraph_frontend
         LINK_LIBRARIES
             PRIVATE
                 gflags
@@ -20,5 +17,9 @@ addIeTargetTest(
                 pugixml::static
         ADD_CPPLINT
 )
+
+if(TARGET ir_ov_frontend)
+    add_dependencies(${TARGET_NAME} ir_ov_frontend)
+endif()
 
 ie_faster_build(${TARGET_NAME} UNITY)
