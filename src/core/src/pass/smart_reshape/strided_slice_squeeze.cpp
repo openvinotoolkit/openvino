@@ -44,7 +44,6 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
                                                                       : slice->get_shrink_axis_mask();
         auto ellipsis_mask = slice->get_ellipsis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0)
                                                                 : slice->get_ellipsis_mask();
-
         auto is_zero_vec = [](const std::vector<int64_t>& mask) {
             return std::all_of(mask.begin(), mask.end(), [](const int64_t& i) {
                 return i == 0;
@@ -57,13 +56,35 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             }))
             return false;
 
+        auto const_axes_tmp = const_axes->cast_vector<int64_t>();
+
         const auto& axes = normalize_axes(squeeze->description(),
-                                          const_axes->cast_vector<int64_t>(),
-                                          squeeze->get_input_partial_shape(0).rank());
+                                          const_axes->cast_vector<int64_t>(),           // [1]
+                                          squeeze->get_input_partial_shape(0).rank());  // 3
+
+        // Here squeeze input shape is equal to stridedslice input shape,
+        // since new_axis_mask, shrink_axis_mask and ellipsis_mask are all zeros.
+        auto tensor_rank = squeeze->get_input_partial_shape(0).rank();
+        if (tensor_rank.is_dynamic())
+            return false;
+
+        auto tensor_length = tensor_rank.get_length();
+        begin_vec.resize(tensor_length, 0);
+        end_vec.resize(tensor_length, 0);
+        strides_vec.resize(tensor_length, 1);
+        begin_mask.resize(tensor_length, 1);  // ignore what is appended to begin_vec and the 'real' beginning of the
+                                              // tensor is used along corresponding dimension.
+        end_mask.resize(tensor_length, 1);    // igore what is appended to end_vec, and the real 'end' of the tensor is
+                                              // used along corresponding dimension.
+        new_axis_mask.resize(begin_mask.size(), 0);  // validate: All masks of StridedSlice must have the same size.
+        shrink_axis_mask.resize(begin_mask.size(), 0);
+        ellipsis_mask.resize(begin_mask.size(), 0);
+
         for (const auto& axis : axes) {
             if (begin_mask[axis]) {  // corresponding dimension of the begin input is ignored. starting from 0
                 begin_vec[axis] = 0;
                 end_vec[axis] = 1;
+                ;
                 begin_mask[axis] = 0;
                 end_mask[axis] = 0;
             } else {                          // corresponding dimension of the begin input is used for slicing start
