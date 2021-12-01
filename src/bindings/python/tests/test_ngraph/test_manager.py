@@ -13,7 +13,7 @@ import openvino.runtime.opset8 as ov
 from openvino.runtime.impl import Function, PartialShape, Shape
 from openvino.runtime.impl.passes import Manager
 from tests.test_ngraph.util import count_ops_of_type
-from openvino import Core
+from openvino.runtime import Core
 
 
 def test_constant_folding():
