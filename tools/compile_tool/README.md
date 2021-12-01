@@ -53,7 +53,7 @@ compile_tool [OPTIONS]
                                              Example: -ionl "input:NCHW, output:NHWC".
                                              Notice that quotes are required.
                                              Overwrites layout from il and ol options for specified layers.
-    -compile_to_legacy                       Optional. Compile model to legacy format for usage in Inference Engine API,
+    -ov_api_1_0                              Optional. Compile model to legacy format for usage in Inference Engine API,
                                              by default compiles to OV 2.0 API
 
  MYRIAD-specific options:
