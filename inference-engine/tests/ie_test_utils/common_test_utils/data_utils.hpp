@@ -155,6 +155,21 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
     }
 }
 
+/** @brief Fill a memory area with a sorted sequence of unique elements randomly generated.
+ *
+ *  This function generates and fills a blob of a certain precision, with a
+ *  sorted sequence of unique elements.
+ *
+ * @param rawBlobDataPtr pointer to destination memory area
+ * @param size number of elements in destination memory
+ * @param range Values range
+ * @param start_from Value from which range should start
+ * @param k Resolution of floating point numbers.
+ * - With k = 1 every random number will be basically integer number.
+ * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
+ * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
+ * @param seed seed of random generator
+ */
 template <typename T>
 void inline fill_random_unique_sequence(T* rawBlobDataPtr,
                                         std::size_t size,
