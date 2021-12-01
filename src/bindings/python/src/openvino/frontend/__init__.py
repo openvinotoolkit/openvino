@@ -40,6 +40,7 @@ from openvino.pyopenvino import FrontEndManager
 from openvino.pyopenvino import FrontEnd
 from openvino.pyopenvino import InputModel
 from openvino.pyopenvino import Place
+from openvino.pyopenvino import TelemetryExtension
 
 # exceptions
 from openvino.pyopenvino import NotImplementedFailure

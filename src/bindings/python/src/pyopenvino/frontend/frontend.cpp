@@ -2,24 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
 #include "common/frontend_exceptions.hpp"
-#include "frontend_manager.hpp"
+#include "common/telemetry_extension.hpp"
 #include "manager.hpp"
 #include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
 
+using namespace ov::frontend;
+
 void regclass_frontend_FrontEnd(py::module m) {
-    py::class_<ov::frontend::FrontEnd, std::shared_ptr<ov::frontend::FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr());
-    fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
+    py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
+    fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
     fem.def(
         "load",
-        [](ov::frontend::FrontEnd& self, const std::string& s) {
+        [](FrontEnd& self, const std::string& s) {
             return self.load(s);
         },
         py::arg("path"),
@@ -37,12 +40,10 @@ void regclass_frontend_FrontEnd(py::module m) {
                     Loaded input model.
              )");
 
-    fem.def(
-        "convert",
-        static_cast<std::shared_ptr<ngraph::Function> (ov::frontend::FrontEnd::*)(ov::frontend::InputModel::Ptr) const>(
-            &ov::frontend::FrontEnd::convert),
-        py::arg("model"),
-        R"(
+    fem.def("convert",
+            static_cast<std::shared_ptr<ov::Function> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
+            py::arg("model"),
+            R"(
                 Completely convert and normalize entire function, throws if it is not possible.
 
                 Parameters
@@ -57,8 +58,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<void (ov::frontend::FrontEnd::*)(std::shared_ptr<ngraph::Function>) const>(
-                &ov::frontend::FrontEnd::convert),
+            static_cast<void (FrontEnd::*)(std::shared_ptr<ov::Function>) const>(&FrontEnd::convert),
             py::arg("function"),
             R"(
                 Completely convert the remaining, not converted part of a function.
@@ -75,7 +75,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("convert_partially",
-            &ov::frontend::FrontEnd::convert_partially,
+            &FrontEnd::convert_partially,
             py::arg("model"),
             R"(
                 Convert only those parts of the model that can be converted leaving others as-is.
@@ -94,7 +94,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("decode",
-            &ov::frontend::FrontEnd::decode,
+            &FrontEnd::decode,
             py::arg("model"),
             R"(
                 Convert operations with one-to-one mapping with decoding nodes.
@@ -113,7 +113,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("normalize",
-            &ov::frontend::FrontEnd::normalize,
+            &FrontEnd::normalize,
             py::arg("function"),
             R"(
                 Runs normalization passes on function that was loaded with partial conversion.
@@ -125,7 +125,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("get_name",
-            &ov::frontend::FrontEnd::get_name,
+            &FrontEnd::get_name,
             R"(
                 Gets name of this FrontEnd. Can be used by clients
                 if frontend is selected automatically by FrontEndManager::load_by_model.
@@ -136,7 +136,33 @@ void regclass_frontend_FrontEnd(py::module m) {
                     Current frontend name. Empty string if not implemented.
             )");
 
-    fem.def("__repr__", [](const ov::frontend::FrontEnd& self) -> std::string {
+    fem.def("add_extension",
+            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension));
+
+    fem.def("__repr__", [](const FrontEnd& self) -> std::string {
         return "<FrontEnd '" + self.get_name() + "'>";
     });
+}
+
+void regclass_frontend_Extension(py::module m) {
+    py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
+}
+
+void regclass_frontend_TelemetryExtension(py::module m) {
+    {
+        py::class_<TelemetryExtension, std::shared_ptr<TelemetryExtension>, ov::Extension> ext(m,
+                                                                                               "TelemetryExtension",
+                                                                                               py::dynamic_attr());
+
+        ext.def(py::init([](const std::string& event_category,
+                            const TelemetryExtension::event_callback& send_event,
+                            const TelemetryExtension::error_callback& send_error,
+                            const TelemetryExtension::error_callback& send_stack_trace) {
+            return std::make_shared<TelemetryExtension>(event_category, send_event, send_error, send_stack_trace);
+        }));
+
+        ext.def("send_event", &TelemetryExtension::send_event);
+        ext.def("send_error", &TelemetryExtension::send_error);
+        ext.def("send_stack_trace", &TelemetryExtension::send_stack_trace);
+    }
 }
