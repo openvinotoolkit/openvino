@@ -32,7 +32,7 @@ class Unique(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'version': 'experimental',
             'infer': __class__.infer,

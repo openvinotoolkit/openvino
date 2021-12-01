@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import compatible_shapes
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -25,7 +26,7 @@ class SparseSegmentMean(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'version': 'experimental',
             'infer': __class__.infer,
@@ -57,8 +58,8 @@ class SparseSegmentMean(Op):
             "SparseSegmentMean supports only 1D indices tensor"
         assert segment_ids_shape is not None and segment_ids_shape.size == 1, \
             "SparseSegmentMean supports only 1D segment IDs tensor"
-        assert segment_ids_shape == indices_shape, \
-            "Indices and segment IDs tensors must have the same shape"
+        assert compatible_shapes(segment_ids_shape, indices_shape), \
+            "Indices and segment IDs tensors must have compatible shapes"
 
         # computes output shape
         output_shape = data_shape
