@@ -14,6 +14,8 @@ from _pyngraph import FrontEnd
 from _pyngraph import InputModel
 from _pyngraph import Place
 
+from _pyngraph import TelemetryExtension
+
 # exceptions
 from _pyngraph import NotImplementedFailure
 from _pyngraph import InitializationFailure
