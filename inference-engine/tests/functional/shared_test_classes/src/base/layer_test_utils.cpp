@@ -380,7 +380,7 @@ void LayerTestsCommon::ConfigureInferRequest() {
 }
 
 void LayerTestsCommon::Infer() {
-	inferRequest = executableNetwork.CreateInferRequest();
+    inferRequest = executableNetwork.CreateInferRequest();
 
     ConfigureInferRequest();
 
