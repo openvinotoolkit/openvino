@@ -891,8 +891,9 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
         /* ***************************** OneDNN impls format selection part ****************************** */
         bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
-        bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
-        bool is_first_conv = input_layout.size.feature[0] < 4;
+        // TODO: uncomment this code when corresponding fsv32 optimizations inside clDNN will be implemented
+        // bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
+        // bool is_first_conv = input_layout.size.feature[0] < 4;
 
         if (i8_u8_input) {
             if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
@@ -940,14 +941,14 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
             } else {
                 expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
             }
-        // TODO: add this case when corresponding fsv32 optimizations inside cldnn will be implemented
-        } else if (input_layout.data_type == data_types::f32 && i8_u8_output && !is_first_conv && is_2d && false) {
-            if (input_layout.size.batch[0] % 16 == 0) {
-                expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
-            } else {
-                expected_format = cldnn::format::b_fs_yx_fsv32;
-            }
-        }
+        } // TODO: add this case when corresponding fsv32 optimizations inside clDNN will be implemented
+        //else if (input_layout.data_type == data_types::f32 && i8_u8_output && !is_first_conv && is_2d) {
+        //    if (input_layout.size.batch[0] % 16 == 0) {
+        //        expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
+        //    } else {
+        //        expected_format = cldnn::format::b_fs_yx_fsv32;
+        //    }
+        //}
     } else {
         /* *************************** Native impls format selection part ************************** */
         if (i8_u8_input) {
