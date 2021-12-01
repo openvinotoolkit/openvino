@@ -6,6 +6,7 @@ import os
 import pytest
 import datetime
 import time
+from openvino.runtime.opset1.ops import result
 
 import openvino.runtime.opset8 as ops
 from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Function
@@ -326,4 +327,4 @@ def test_get_results(device):
     request = exec_net.create_infer_request()
     outputs = request.infer({0: img})
     results = request.get_results()
-    results == outputs
+    assert np.allclose(list(outputs.values()), list(results.values()))
