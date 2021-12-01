@@ -44,7 +44,7 @@ namespace Common
 
     uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual);
 
-    py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>> outputs, const ov::runtime::InferRequest request);
+    py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::runtime::InferRequest& request);
 
     // Use only with classes that are not creatable by users on Python's side, because
     // Objects created in Python that are wrapped with such wrapper will cause memory leaks.
