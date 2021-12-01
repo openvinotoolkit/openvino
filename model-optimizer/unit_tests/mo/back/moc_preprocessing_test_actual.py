@@ -15,7 +15,7 @@ try:
 
     # pylint: disable=no-name-in-module,import-error
     import openvino.opset8 as ops
-    from openvino import Function, Layout, PartialShape
+    from openvino.runtime import Function, Layout, PartialShape
 
 except Exception:
     print("No OpenVINO API available,"

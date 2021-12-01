@@ -9,7 +9,7 @@ from mo.utils.utils import refer_to_faq_msg
 
 import numpy as np
 
-from openvino import Function, Layout, PartialShape     # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Function, Layout, PartialShape     # pylint: disable=no-name-in-module,import-error
 from openvino.preprocess import PrePostProcessor        # pylint: disable=no-name-in-module,import-error
 
 
