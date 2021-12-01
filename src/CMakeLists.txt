@@ -79,24 +79,24 @@ add_subdirectory(inference)
 add_subdirectory(common)
 
 
-if(NGRAPH_IR_FRONTEND_ENABLE)
-    if(BUILD_SHARED_LIBS)
-        add_dependencies(ov_runtime_libraries ir_ov_frontend)
-    endif()
-    # use this one once CVS-69781 is fixed
-    # add_dependencies(inference_engine ir_ov_frontend)
-endif()
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_dependencies(inference_engine onnx_ov_frontend)
-endif()
-
-if(NGRAPH_PDPD_FRONTEND_ENABLE)
-    add_dependencies(inference_engine paddlepaddle_ov_frontend)
-endif()
-
-if(NGRAPH_TF_FRONTEND_ENABLE)
-    add_dependencies(inference_engine tensorflow_ov_frontend)
-endif()
+# if(NGRAPH_IR_FRONTEND_ENABLE)
+#     if(BUILD_SHARED_LIBS)
+#         add_dependencies(ov_runtime_libraries ir_ov_frontend)
+#     endif()
+#     # use this one once CVS-69781 is fixed
+#     # add_dependencies(inference_engine ir_ov_frontend)
+# endif()
+# if(NGRAPH_ONNX_FRONTEND_ENABLE)
+#     add_dependencies(inference_engine onnx_ov_frontend)
+# endif()
+# 
+# if(NGRAPH_PDPD_FRONTEND_ENABLE)
+#     add_dependencies(inference_engine paddlepaddle_ov_frontend)
+# endif()
+# 
+# if(NGRAPH_TF_FRONTEND_ENABLE)
+#     add_dependencies(inference_engine tensorflow_ov_frontend)
+# endif()
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS MultiDevicePlugin ov_hetero_plugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)

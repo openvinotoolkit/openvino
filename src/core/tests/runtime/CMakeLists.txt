@@ -34,7 +34,7 @@ target_compile_definitions(ngraph_backend
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
-target_link_libraries(ngraph_backend PUBLIC ngraph ngraph::builder ngraph::reference
+target_link_libraries(ngraph_backend PUBLIC ngraph::builder ngraph::reference
                                      PRIVATE ${CMAKE_DL_LIBS} openvino::util)
 
 target_include_directories(ngraph_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
