@@ -4,11 +4,11 @@
 import numpy as np
 import pytest
 
-import openvino as ov
-import openvino.opset8 as ops
-from openvino.impl import Function, Output, Type
-from openvino.utils.decorators import custom_preprocess_function
-from openvino import Core
+import openvino.runtime as ov
+import openvino.runtime.opset8 as ops
+from openvino.runtime.impl import Function, Output, Type
+from openvino.runtime.utils.decorators import custom_preprocess_function
+from openvino.runtime import Core
 from tests.runtime import get_runtime
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 
