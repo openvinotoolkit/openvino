@@ -25,9 +25,7 @@ void shape_infer(const CTCGreedyDecoder* op, const std::vector<T>& input_shapes,
 
     // check ranks of input tensors
     if (logits_pshape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              logits_pshape.rank().compatible(3),
-                              "The rank of logits tensor must be equal to 3.");
+        NODE_VALIDATION_CHECK(op, logits_pshape.rank().compatible(3), "The rank of logits tensor must be equal to 3.");
     }
     if (seq_mask_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,

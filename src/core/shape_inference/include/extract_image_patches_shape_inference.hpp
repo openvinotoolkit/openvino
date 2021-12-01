@@ -53,16 +53,18 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
             out_rows = 0;
             out_cols = 0;
         } else if (op->m_padding == PadType::VALID) {
-            out_rows =
-                (((input_rows) -
-                  static_cast<int32_t>(op->m_patch_selection_rates[0]) * (static_cast<int32_t>(op->m_patch_sizes[0]) - 1) - 1) /
-                 op->m_patch_movement_strides[0]) +
-                1;
-            out_cols =
-                (((input_cols) -
-                  static_cast<int32_t>(op->m_patch_selection_rates[1]) * (static_cast<int32_t>(op->m_patch_sizes[1]) - 1) - 1) /
-                 op->m_patch_movement_strides[1]) +
-                1;
+            out_rows = (((input_rows) -
+                         static_cast<int32_t>(op->m_patch_selection_rates[0]) *
+                             (static_cast<int32_t>(op->m_patch_sizes[0]) - 1) -
+                         1) /
+                        op->m_patch_movement_strides[0]) +
+                       1;
+            out_cols = (((input_cols) -
+                         static_cast<int32_t>(op->m_patch_selection_rates[1]) *
+                             (static_cast<int32_t>(op->m_patch_sizes[1]) - 1) -
+                         1) /
+                        op->m_patch_movement_strides[1]) +
+                       1;
         } else {
             out_rows = 1 + (((input_rows)-1) / op->m_patch_movement_strides[0]);
             out_cols = 1 + (((input_cols)-1) / op->m_patch_movement_strides[1]);
