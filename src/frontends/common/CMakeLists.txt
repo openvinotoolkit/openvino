@@ -33,6 +33,7 @@ target_include_directories(${TARGET_NAME}_obj
         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
         # for ov_frontends.hpp in static build
         ${CMAKE_CURRENT_BINARY_DIR}/src)
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE ${CMAKE_DL_LIBS} openvino::util)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp APPEND PROPERTY COMPILE_DEFINITIONS

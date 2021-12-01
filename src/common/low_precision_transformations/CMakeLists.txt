@@ -20,6 +20,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
 ie_faster_build(${TARGET_NAME}_obj UNITY)
 

@@ -45,7 +45,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create static or shared library depending on BUILD_SHARED_LIBS
 add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${IE_SHARED_SRCS})
 
-
+target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
 ie_faster_build(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")

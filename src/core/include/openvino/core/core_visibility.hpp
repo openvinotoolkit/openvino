@@ -20,7 +20,7 @@
 #    define OPENVINO_API
 #    define OPENVINO_API_C(...) __VA_ARGS__
 #else
-#    ifdef ov_runtime_EXPORTS  // defined if we are building the ov_runtime DLL (instead of using it)
+#    ifdef IMPLEMENT_OPENVINO_API  // defined if we are building the ov_runtime DLL (instead of using it)
 #        define OPENVINO_API        OPENVINO_CORE_EXPORTS
 #        define OPENVINO_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS __VA_ARGS__ OPENVINO_CDECL
 #    else
