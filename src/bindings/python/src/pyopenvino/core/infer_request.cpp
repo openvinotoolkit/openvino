@@ -171,10 +171,6 @@ void regclass_InferRequest(py::module m) {
         return self._request.get_output_tensor();
     });
 
-    cls.def("get_results", [](InferRequestWrapper& self) {
-        return Common::outputs_to_dict(self._outputs, self._request);
-    });
-
     cls.def(
         "set_tensor",
         [](InferRequestWrapper& self, const std::string& name, const ov::runtime::Tensor& tensor) {
@@ -271,5 +267,9 @@ void regclass_InferRequest(py::module m) {
 
     cls.def_property_readonly("profiling_info", [](InferRequestWrapper& self) {
         return self._request.get_profiling_info();
+    });
+
+    cls.def_property_readonly("results", [](InferRequestWrapper& self) {
+        return Common::outputs_to_dict(self._outputs, self._request);
     });
 }

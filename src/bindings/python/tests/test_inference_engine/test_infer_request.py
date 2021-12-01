@@ -325,5 +325,4 @@ def test_get_results(device):
     img = read_image()
     request = exec_net.create_infer_request()
     outputs = request.infer({0: img})
-    results = request.get_results()
-    assert np.allclose(list(outputs.values()), list(results.values()))
+    assert np.allclose(list(outputs.values()), list(request.results.values()))
