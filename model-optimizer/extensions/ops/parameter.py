@@ -49,7 +49,7 @@ class Parameter(Op):
         if not node.has_valid('user_shape'):
             return ','.join([str(i) for i in unmask_shape(node.shape)])
         shape = node.soft_get('user_shape')
-        return "[" + ','.join(map(serialize_dimension, shape)) + "]"
+        return ','.join(map(serialize_dimension, shape))
 
     def supported_attrs(self):
         return [
