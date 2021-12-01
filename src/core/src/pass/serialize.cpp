@@ -48,12 +48,12 @@ std::string dimension_to_str(const Dimension& dim) {
 
 std::string partial_shape_to_str(const PartialShape& shape) {
     if (shape.rank().is_dynamic())
-        return "[...]";
+        return "...";
     std::vector<std::string> dims_str;
     for (const auto& dim : shape) {
         dims_str.emplace_back(dimension_to_str(dim));
     }
-    return "[" + join(dims_str) + "]";
+    return join(dims_str);
 }
 
 struct Edge {
