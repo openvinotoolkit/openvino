@@ -19,7 +19,7 @@ class AsyncInferQueue::Impl {
 public:
     Impl() = delete;
 
-    Impl(ExecutableNetwork &net, size_t jobs) {
+    Impl(ExecutableNetwork& net, size_t jobs) {
         // Automatically set number of jobs
         if (jobs == 0) {
             try {
@@ -57,8 +57,8 @@ public:
     size_t pop_idle_id();
 
     void start_async(const ov::Any userdata);
-    void start_async(std::map<size_t, ov::runtime::Tensor> &inputs, const ov::Any userdata);
-    void start_async(std::map<std::string, ov::runtime::Tensor> &inputs, const ov::Any userdata);
+    void start_async(std::map<size_t, ov::runtime::Tensor>& inputs, const ov::Any userdata);
+    void start_async(std::map<std::string, ov::runtime::Tensor>& inputs, const ov::Any userdata);
 
     bool is_ready();
     void wait_all();
@@ -68,9 +68,9 @@ public:
 private:
     void set_default_callback();
 
-    std::vector<ov::runtime::InferRequest> m_pool; // pool of jobs (InferRequests)
-    std::queue<size_t> m_idle_handles; // idle handles of requests
-    std::mutex m_mutex; 
+    std::vector<ov::runtime::InferRequest> m_pool;  // pool of jobs (InferRequests)
+    std::queue<size_t> m_idle_handles;              // idle handles of requests
+    std::mutex m_mutex;
     std::condition_variable m_cv;
     std::vector<ov::Any> m_userdata;
 };
@@ -107,7 +107,7 @@ void AsyncInferQueue::Impl::start_async(ov::Any userdata) {
     m_pool[request_id].start_async();
 }
 
-void AsyncInferQueue::Impl::start_async(std::map<size_t, ov::runtime::Tensor> &inputs, ov::Any userdata) {
+void AsyncInferQueue::Impl::start_async(std::map<size_t, ov::runtime::Tensor>& inputs, ov::Any userdata) {
     size_t request_id = pop_idle_id();
     if (!userdata.empty()) {
         m_userdata[request_id] = userdata;
@@ -118,7 +118,7 @@ void AsyncInferQueue::Impl::start_async(std::map<size_t, ov::runtime::Tensor> &i
     m_pool[request_id].start_async();
 }
 
-void AsyncInferQueue::Impl::start_async(std::map<std::string, ov::runtime::Tensor> &inputs, ov::Any userdata) {
+void AsyncInferQueue::Impl::start_async(std::map<std::string, ov::runtime::Tensor>& inputs, ov::Any userdata) {
     size_t request_id = pop_idle_id();
     if (!userdata.empty()) {
         m_userdata[request_id] = userdata;
@@ -171,7 +171,7 @@ void AsyncInferQueue::Impl::set_callback(
     }
 }
 
-AsyncInferQueue::AsyncInferQueue(ExecutableNetwork &net, size_t jobs)
+AsyncInferQueue::AsyncInferQueue(ExecutableNetwork& net, size_t jobs)
     : m_pimpl{new Impl{net, jobs}, [](Impl* impl) {
                   delete impl;
               }} {}
