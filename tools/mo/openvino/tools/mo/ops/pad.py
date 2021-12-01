@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, shape_array
-from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, shape_array, undefined_shape_of_rank
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op
 
@@ -29,6 +29,7 @@ class Pad(Op):
 
             'version': 'opset1',
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
 
             'mode': 'constant',
 
@@ -85,6 +86,13 @@ class Pad(Op):
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
         PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
 
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        if input_shape is None and node.is_in_port_connected(2) and node.in_port(2).data.get_shape() is not None:
+            shape = undefined_shape_of_rank(node.in_port(2).data.get_shape()[0])
+            node.in_port(0).data.set_shape(shape)
+
 
 class AttributedPad(Op):
     """ Pad operation that explicitly extends an input tensor at borders.
@@ -130,6 +138,7 @@ class TFPad(Op):
             'out_ports_count': 1,
             'mode': 'constant',
         }, attrs)
+
 
 class ONNXPad(Op):
     """ Pad operation that explicitly extends an input tensor at borders.

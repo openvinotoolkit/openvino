@@ -7,7 +7,7 @@ import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
-from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
@@ -35,5 +35,14 @@ class ExpandDimsToUnsqueeze(FrontReplacementPattern):
                 expand_dims_node.in_port(0).get_connection().set_destination(unsqueeze_node.in_port(0))
                 expand_dims_node.out_port(0).get_connection().set_source(unsqueeze_node.out_port(0))
                 unsqueeze_node.in_port(1).connect(unsqueeze_dims_node.out_port(0))
+            elif len(expand_dims_node.in_nodes()) == 2:
+                # For Unsqueeze-13 from ONNX
+                expand_dims_name = expand_dims_node.soft_get('name', expand_dims_node.id)
+                unsqueeze_node = Unsqueeze(graph, {'name': expand_dims_name  + '/Unsqueeze'}).create_node()
+                rename_nodes([(expand_dims_node, expand_dims_name  + "/TBR"), (unsqueeze_node, expand_dims_name)])
+
+                expand_dims_node.in_port(0).get_connection().set_destination(unsqueeze_node.in_port(0))
+                expand_dims_node.in_port(1).get_connection().set_destination(unsqueeze_node.in_port(1))
+                expand_dims_node.out_port(0).get_connection().set_source(unsqueeze_node.out_port(0))
             else:
-                log.error('The ExpandDims node {} has more than 1 input'.format(expand_dims_node.soft_get('name')))
+                log.error('The ExpandDims node {} has wrong number of inputs'.format(expand_dims_node.soft_get('name')))

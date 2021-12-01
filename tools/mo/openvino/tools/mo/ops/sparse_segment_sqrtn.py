@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -25,7 +26,7 @@ class SparseSegmentSqrtN(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'version': 'experimental',
             'infer': __class__.infer,
@@ -57,8 +58,8 @@ class SparseSegmentSqrtN(Op):
             "SparseSegmentSqrtN supports only 1D indices tensor"
         assert segment_ids_shape is not None and segment_ids_shape.size == 1, \
             "SparseSegmentSqrtN supports only 1D segment IDs tensor"
-        assert segment_ids_shape == indices_shape, \
-            "Indices and segment IDs tensors must have the same shape"
+        assert compatible_shapes(segment_ids_shape, indices_shape), \
+            "Indices and segment IDs tensors must have compatible shapes"
 
         # computes output shape
         output_shape = data_shape

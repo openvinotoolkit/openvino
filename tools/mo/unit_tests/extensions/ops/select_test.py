@@ -272,6 +272,18 @@ class TestSelect(unittest.TestCase):
                                                       auto_broadcast='numpy', fw_format='tf')
         self.assertTrue(flag, msg)
 
+    def test_select_infer_tf_condition_dyn(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=None,
+                                                      condition_shape=shape_array([dynamic_dimension_value]),
+                                                      then_value=None,
+                                                      then_shape=shape_array([dynamic_dimension_value, 20]),
+                                                      else_value=None,
+                                                      else_shape=shape_array([dynamic_dimension_value, 20]),
+                                                      out_value=None,
+                                                      out_shape=shape_array([dynamic_dimension_value, 20]),
+                                                      auto_broadcast='numpy', fw_format='tf')
+        self.assertTrue(flag, msg)
+
     def test_select_infer_tf_condition_assert_raises(self):
         with self.assertRaisesRegex(AssertionError, "if 'condition' is a 1D tensor then it's size"):
             self.build_select_graph_and_infer(condition_value=None, condition_shape=shape_array([42]),

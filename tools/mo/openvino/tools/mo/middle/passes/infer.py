@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+from typing import List
 
 import networkx as nx
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
-from openvino.tools.mo.graph.graph import Node, Graph
-from openvino.tools.mo.graph.graph import dict_includes
+from openvino.tools.mo.graph.graph import Node, Graph, dict_includes
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, shrink_str_value
 
@@ -93,18 +93,59 @@ def partial_infer(graph: Graph, start_node: str = None):
         nx.set_node_attributes(G=graph.subgraph(nodes[start_index:]), name='is_partial_inferred', values=False)
     else:
         nx.set_node_attributes(G=graph, name='is_partial_inferred', values=False)
-    debug_logger = log.getLogger().isEnabledFor(log.DEBUG)
 
     nx.set_node_attributes(G=graph, name='executable',
                            values={n: True for n in graph.get_nodes_with_attributes(kind='data')})
 
+    # first we infer constant sub-graphs so the reverse infer could use constant values sub-graphs. For example,
+    # convolution weights may be reshuffled by some operation in the graph and are not directly consumed by the conv
+    # node
+    infer_nodes(graph, nodes, True)
+
+    # we may need to deduce shape for Parameter node(s) if it is not defined
+    need_reverse_infer = False
+    for parameter in graph.get_op_nodes(op='Parameter'):
+        if parameter.soft_get('shape', None) is None:
+            need_reverse_infer = True
+
+    if need_reverse_infer:
+        reverse_infer(graph, nodes)
+
+    infer_nodes(graph, nodes, False)
+
+    not_fully_inferred = graph.get_nodes_with_attributes(is_not_fully_inferred=True)
+    for n in not_fully_inferred:
+        node = Node(graph, n)
+        if node.has('infer') and not node.infer is None:
+            node.infer(node)
+
+    return graph
+
+
+def infer_nodes(graph: Graph, nodes: List[Node], constant_subgraph_only: bool = False):
+    """
+    Run "infer" function of the specified nodes.
+
+    :param graph: graph with nodes
+    :param nodes: list of node ids in the topological order
+    :param constant_subgraph_only: flag which specifies whether only inference of constant sub-graphs should be done
+    """
+    debug_logger = log.getLogger().isEnabledFor(log.DEBUG)
     for n in nodes:
         # Data Flow Infer
+        node = Node(graph, n)
+        node_name = node.soft_get('name', node.id)
         try:
-            node = Node(graph, n)
-            node_name = node.soft_get('name')
             if node.has('is_partial_inferred') and not node.is_partial_inferred:
                 if node.has('infer') and not node.infer is None:
+                    # we consider that operation will produce value if all inputs are constants or it is
+                    # 'ShapeOf' operation
+                    if constant_subgraph_only:
+                        in_values = [port.data.get_value() for port in node.in_ports().values()]
+                        if node.soft_get('op') == 'Parameter' or any(value is None for value in in_values) or \
+                                (node.soft_get('op') == 'ShapeOf' and node.in_port(0).data.get_shape() is None):
+                            continue
+
                     if debug_logger:
                         log.debug('-' * 20)
                         log.debug('Partial infer for {}'.format(node.soft_get('name')))
@@ -125,18 +166,19 @@ def partial_infer(graph: Graph, start_node: str = None):
                         log.debug('Outputs:')
                         log_debug_dict(node.out_nodes(), 'output')
 
-                    not_all_output_shapes = False
-
-                    for out_port, out_node in out_nodes.items():
+                    if not constant_subgraph_only:
                         not_all_output_shapes = False
-                        if not out_node.has_valid('shape'):
-                            log.error('Shape is not defined for output {} of "{}".'.format(out_port, node_name))
-                            not_all_output_shapes = True
 
-                    if not_all_output_shapes:
-                        raise Error('Not all output shapes were inferred or fully defined for node "{}". ' +
-                                    refer_to_faq_msg(40),
-                                    node_name)
+                        for out_port, out_node in out_nodes.items():
+                            not_all_output_shapes = False
+                            if not out_node.has_valid('shape'):
+                                log.error('Shape is not defined for output {} of "{}".'.format(out_port, node_name))
+                                not_all_output_shapes = True
+
+                        if not_all_output_shapes:
+                            raise Error('Not all output shapes were inferred or fully defined for node "{}". ' +
+                                        refer_to_faq_msg(40),
+                                        node_name)
                 elif node.kind != 'data':
                     raise Error(
                         'There is no registered "infer" function for node "{}" with op = "{}". ' +
@@ -146,7 +188,6 @@ def partial_infer(graph: Graph, start_node: str = None):
                         node.soft_get('op')
                     )
                 node.is_partial_inferred = True
-
         except Exception as err:
             log.error('Cannot infer shapes or values for node "{}".'.format(node.soft_get('name')))
             log.error(str(err))
@@ -168,14 +209,6 @@ def partial_infer(graph: Graph, start_node: str = None):
             raise Error('Stopped shape/value propagation at "{}" node. '.format(node.soft_get('name')) +
                         refer_to_faq_msg(38)) from err
         control_flow_infer(graph, n)
-
-    not_fully_inferred = graph.get_nodes_with_attributes(is_not_fully_inferred=True)
-    for n in not_fully_inferred:
-        node = Node(graph, n)
-        if node.has('infer') and not node.infer is None:
-            node.infer(node)
-
-    return graph
 
 
 def override_batch(graph: Graph, batch: int):
@@ -286,3 +319,13 @@ def copy_type_infer(node):
                 out_port.set_data_type(connected_in_ports[0].get_data_type())
         else:
             raise Error('No input ports of node {} to determine data type'.format(node.soft_get('name')))
+
+
+def reverse_infer(graph: Graph, nodes: list):
+    nodes = reversed(nodes)
+    for n in nodes:
+        node = Node(graph, n)
+        if node.has_valid('reverse_infer'):
+            log.debug("Executed reverse infer for node '{}'".format(node.soft_get('name', node.id)))
+            node.reverse_infer(node)
+

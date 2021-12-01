@@ -86,9 +86,6 @@ function(openvino_developer_export_targets)
         "A list of OpenVINO exported components" FORCE)
 endfunction()
 
-ie_cpack_add_component(ngraph REQUIRED)
-ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
 # add target with processed tests model zoo
 include(cmake/test_model_zoo.cmake)
 
@@ -102,6 +99,7 @@ include(cmake/extra_modules.cmake)
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
+add_subdirectory(licensing)
 
 #
 # CPack

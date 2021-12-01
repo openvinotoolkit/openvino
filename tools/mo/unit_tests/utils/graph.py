@@ -7,7 +7,7 @@ from copy import deepcopy
 import networkx as nx
 
 from openvino.tools.mo.ops.parameter import Parameter
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, int64_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.pattern_match import all_edges_in_nodes
 from openvino.tools.mo.ops.const import Const

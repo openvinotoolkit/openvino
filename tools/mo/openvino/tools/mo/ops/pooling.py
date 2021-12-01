@@ -4,13 +4,19 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, shape_array, \
-    dynamic_dimension_value, dynamic_dimension
+    dynamic_dimension_value, dynamic_dimension, undefined_shape_of_rank
 from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.front.extractor import bool_to_str
+
+
+poolings_map = {
+    'max': {'version': 'opset8', 'out_ports_count': 2},
+    'avg': {'version': 'opset1', 'out_ports_count': 1}
+}
 
 
 class PoolingV2(Op):
@@ -28,29 +34,35 @@ class PoolingV2(Op):
             'op': self.op,
             'version': None,
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'in_ports_count': 3,
             'out_ports_count': 1,
         }, attrs)
 
     @staticmethod
     def infer(node: Node):
-        assert (len(node.in_nodes()) == 3), 'MaxPoolV2 node {} from must have only 3 inputs: input, window size, and strides ' \
-                                            'but instead got {} inputs'.format(node.soft_get('name', node.id), len(node.in_nodes()))
+        assert (len(node.in_nodes()) == 3), 'MaxPoolV2 node {} from must have only 3 inputs: input, window size, and ' \
+                                            'strides but instead got {} inputs'.format(node.soft_get('name', node.id),
+                                                                                       len(node.in_nodes()))
         node['window'] = node.in_port(1).data.get_value()
         node['stride'] = node.in_port(2).data.get_value()
 
         if node['window'] is None:
-            raise Error('The non-constant window size for MaxPoolV2 node {} is not supported'.format(node.soft_get('name', node.id)))
+            raise Error('The non-constant window size for MaxPoolV2 node {} is not supported'
+                        ''.format(node.soft_get('name', node.id)))
         if node['stride'] is None:
-            raise Error('The non-constant strides for MaxPoolV2 node {} is not supported'.format(node.soft_get('name', node.id)))
+            raise Error('The non-constant strides for MaxPoolV2 node {} is not supported'
+                        ''.format(node.soft_get('name', node.id)))
 
         Pooling.pool_infer(node)
 
-
-poolings_map = {
-    'max': {'version': 'opset8', 'out_ports_count': 2},
-    'avg': {'version': 'opset1', 'out_ports_count': 1}
-}
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        window_shape = node.in_port(1).data.get_shape()
+        # use the value of the 'window' input to determine input tensor rank
+        if input_shape is None and window_shape is not None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(window_shape[0]))
 
 
 class Pooling(Op):
@@ -62,8 +74,10 @@ class Pooling(Op):
             'op': self.op,
             'version': poolings_map[attrs.get('pool_method')]['version'],
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'in_ports_count': 1,
-            'out_ports_count': 1 if attrs.get('version') == 'opset1' else poolings_map[attrs.get('pool_method')]['out_ports_count']
+            'out_ports_count': 1 if attrs.get('version') == 'opset1' else
+            poolings_map[attrs.get('pool_method')]['out_ports_count']
         }, attrs)
 
     def backend_attrs(self):
@@ -184,3 +198,10 @@ class Pooling(Op):
                                                        ('window', 'input:0'),
                                                        ('spatial_dims', 'input:0'),
                                                        ('dilation', 'input:0')])
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        window = node.soft_get('window', None)
+        if input_shape is None and window is not None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(len(window)))

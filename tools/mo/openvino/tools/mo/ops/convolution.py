@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mark_input_bins, assign_dims_to_weights, \
-    tf_window_op_pad_infer, dynamic_dimension_value, shape_array
+    tf_window_op_pad_infer, dynamic_dimension_value, shape_array, is_fully_defined, undefined_shape_of_rank
 from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
@@ -23,6 +23,7 @@ class Convolution(Op):
             'op': self.op,
             'version': 'opset1',
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'multiplication_transparent': True,
             'multiplication_transparent_ports': [(0, 0), (1, 0)],
             'in_ports_count': 3,
@@ -112,18 +113,29 @@ class Convolution(Op):
                 log.error('Cannot reshape kernel due to not all required attrs was set to {} node'.format(node.id))
                 return
             # layout for Convolution weights is OIHW
-            kernel_shape = int64_array([node.output, input_shape[node.channel_dims].item() / node.group,
+            kernel_shape = shape_array([node.output, input_shape[node.channel_dims].item() / node.group,
                                        *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]])
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]
 
-            if np.prod(kernel_shape) != np.prod(node.in_node(weights_index).value.shape):
+            if is_fully_defined(kernel_shape) and np.prod(kernel_shape) != np.prod(node.in_node(weights_index).value.shape):
                 log.error("Size of weights {} does not match kernel shape: {}\n"
                           "".format(np.prod(node.in_node(weights_index).value.shape), kernel_shape) +
                           "    Possible reason is wrong channel number in input shape\n")
                 raise Error("Cannot reshape weights to kernel shape")
 
-            node.in_node(weights_index).shape = np.array(kernel_shape)
+            if not is_fully_defined(kernel_shape):
+                num_undefined = np.count_nonzero(kernel_shape.mask is True)  # pylint: disable=no-member
+                if num_undefined > 1:
+                    raise Error('Too many undefined dimensions of the kernel shape for node {}. Use --input_shape '
+                                'command line parameter to specify model input shapes'.format(node.soft_get('name',
+                                                                                                            node.id)))
+                kernel_size = np.prod(node.in_node(weights_index).value.shape)
+                # calculate undefined dimension using fully defined shape of the weights input and known kernel_shape
+                # dimensions
+                kernel_shape[np.where(kernel_shape == np.ma.masked)[0][0]] = kernel_size // np.prod(kernel_shape)
+
+            node.in_node(weights_index).shape = shape_array(kernel_shape)
             node.in_node(weights_index).value = np.reshape(node.in_node(weights_index).value, kernel_shape)
             node.reshape_kernel = False
 
@@ -262,3 +274,16 @@ class Convolution(Op):
         PermuteAttrs.set_permutation(node.in_node(weights_index), node, node.soft_get('get_weights_permute', None))
         PermuteInputs().set_input_permutation(
             node.in_node(weights_index), node, 'input:{}'.format(weights_index), 'transpose')
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        if input_shape is None:
+            shape = None
+            # TODO FIXME this is ugly solution based on various attributes which may not be set in some cases
+            for attr in ['dilation', 'stride', 'pad']:
+                if node.has_valid(attr):
+                    shape = undefined_shape_of_rank(len(node.soft_get(attr)))
+                    break
+            if shape is not None:
+                node.in_port(0).data.set_shape(shape)
