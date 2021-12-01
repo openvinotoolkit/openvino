@@ -492,8 +492,8 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
         }
     }
 
-    size_t imageInputCount = net_input_im_sizes.size();
-    size_t binaryInputCount = app_inputs_info.size() - imageInputCount;
+    size_t imageInputsNum = net_input_im_sizes.size();
+    size_t binaryInputsNum = app_inputs_info.size() - imageInputsNum;
 
     std::vector<std::string> binaryFiles;
     std::vector<std::string> imageFiles;
@@ -506,7 +506,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
         binaryFiles = filterFilesByExtensions(inputFiles, supported_binary_extensions);
         std::sort(std::begin(binaryFiles), std::end(binaryFiles));
 
-        auto binaryToBeUsed = binaryInputCount * batchSize * requestsNum;
+        auto binaryToBeUsed = binaryInputsNum * batchSize * requestsNum;
         if (binaryToBeUsed > 0 && binaryFiles.empty()) {
             std::stringstream ss;
             for (auto& ext : supported_binary_extensions) {
@@ -529,7 +529,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
         imageFiles = filterFilesByExtensions(inputFiles, supported_image_extensions);
         std::sort(std::begin(imageFiles), std::end(imageFiles));
 
-        auto imagesToBeUsed = imageInputCount * batchSize * requestsNum;
+        auto imagesToBeUsed = imageInputsNum * batchSize * requestsNum;
         if (imagesToBeUsed > 0 && imageFiles.empty()) {
             std::stringstream ss;
             for (auto& ext : supported_image_extensions) {
@@ -550,19 +550,32 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
         }
     }
 
-    std::map<std::string, std::vector<std::string>> mapped_files;
+    std::map<std::string, std::vector<std::string>> mappedFiles;
+    size_t imageInputsCount = 0;
+    size_t binaryInputsCount = 0;
     for (auto& input : app_inputs_info) {
         if (input.second.isImage()) {
-            mapped_files[input.first] = imageFiles;
+            mappedFiles[input.first] = {};
+            for (size_t i = 0; i < imageFiles.size(); i += imageInputsNum) {
+                mappedFiles[input.first].push_back(
+                    imageFiles[(imageInputsCount + i) * imageInputsNum % imageFiles.size()]);
+            }
+            ++imageInputsCount;
         } else {
-            mapped_files[input.first] = binaryFiles;
+            mappedFiles[input.first] = {};
+            if (!binaryFiles.empty()) {
+                for (size_t i = 0; i < binaryFiles.size(); i += binaryInputsNum) {
+                    mappedFiles[input.first].push_back(binaryFiles[(binaryInputsCount + i) % binaryFiles.size()]);
+                }
+            }
+            ++binaryInputsCount;
         }
     }
 
     size_t filesNum = 0;
     if (!inputFiles.empty()) {
-        filesNum = std::max_element(mapped_files.begin(),
-                                    mapped_files.end(),
+        filesNum = std::max_element(mappedFiles.begin(),
+                                    mappedFiles.end(),
                                     [](const std::pair<std::string, std::vector<std::string>>& a,
                                        const std::pair<std::string, std::vector<std::string>>& b) {
                                         return a.second.size() < b.second.size();
@@ -571,7 +584,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
     }
     size_t test_configs_num = filesNum / batchSize == 0 ? 1 : filesNum / batchSize;
     std::vector<std::map<std::string, std::string>> logOutput(test_configs_num);
-    for (const auto& files : mapped_files) {
+    for (const auto& files : mappedFiles) {
         size_t imageInputId = 0;
         size_t binaryInputId = 0;
         auto input_name = files.first;
