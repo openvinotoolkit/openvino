@@ -66,71 +66,8 @@ void regclass_InferRequest(py::module m) {
             self._request.infer();
             self._end_time = Time::now();
 
-            Containers::InferMap results;
-            for (const auto& out : self._outputs) {
-                ov::runtime::Tensor t{self._request.get_tensor(out)};
-                switch (t.get_element_type()) {
-                case ov::element::Type_t::i8: {
-                    py::array arr(t.get_shape(), t.data<int8_t>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::i16: {
-                    py::array arr(t.get_shape(), t.data<int16_t>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::i32: {
-                    py::array arr(t.get_shape(), t.data<int32_t>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::i64: {
-                    py::array arr(t.get_shape(), t.data<int64_t>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::u8: {
-                    py::array arr(t.get_shape(), t.data<uint8_t>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::u16: {
-                    py::array arr(t.get_shape(), t.data<uint16_t>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::u32: {
-                    py::array arr(t.get_shape(), t.data<uint32_t>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::u64: {
-                    py::array arr(t.get_shape(), t.data<uint64_t>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::f32: {
-                    py::array arr(t.get_shape(), t.data<float>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::f64: {
-                    py::array arr(t.get_shape(), t.data<double>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                case ov::element::Type_t::boolean: {
-                    py::array arr(t.get_shape(), t.data<bool*>());
-                    results.insert(std::pair<ov::Output<const ov::Node>, py::array>(out, arr));
-                    break;
-                }
-                default: {
-                    break;
-                }
-                }
-            }
-            return results;
+            py::dict res = Common::outputs_to_dict(self._outputs, self._request);
+            return res;
         },
         py::arg("inputs"));
 
