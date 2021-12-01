@@ -99,4 +99,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTest,
         ::testing::Values("CPU"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTestWithThrow,
+        ::testing::Values(""));
 } // namespace
