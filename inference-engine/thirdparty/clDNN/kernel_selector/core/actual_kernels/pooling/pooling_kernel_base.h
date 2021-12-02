@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "common_types.h"
 #include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
@@ -21,6 +22,10 @@ struct pooling_params : public base_params {
     uSize poolSize;
     uSize poolStride;
     uSize poolPad;
+    bool maxPoolOpset8Features{false};
+    uSize poolDilation{1, 1, 1};
+    Datatype poolIndexElementType = Datatype::INT64;
+    int64_t poolAxis = 0;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
@@ -28,6 +33,10 @@ struct pooling_params : public base_params {
         k.EnablePoolType(poolType);
         k.EnablePoolRemainder(remainderAction);
         k.EnablePoolKernelDividerMode(divMode);
+
+        if (maxPoolOpset8Features) {
+            k.EnableMaxPoolOpset8Features();
+        }
 
         return k;
     }
@@ -38,6 +47,12 @@ struct pooling_params : public base_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct pooling_optional_params : optional_params {
     pooling_optional_params() : optional_params(KernelType::POOLING) {}
+
+    ParamsKey GetSupportedKey() const override {
+        ParamsKey k = optional_params::GetSupportedKey();
+
+        return k;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

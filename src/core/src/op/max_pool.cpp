@@ -258,6 +258,8 @@ bool evaluate_maxpool(const HostTensorPtr& data,
 }  // namespace
 }  // namespace maxpool_v8
 
+BWDCMP_RTTI_DEFINITION(op::v8::MaxPool);
+
 op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
                          const Strides& dilations,

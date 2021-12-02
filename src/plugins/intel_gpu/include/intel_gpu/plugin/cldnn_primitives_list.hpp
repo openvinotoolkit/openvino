@@ -212,5 +212,6 @@ REGISTER_FACTORY(v7, Gather);
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Gather);
 REGISTER_FACTORY(v8, GatherND);
+REGISTER_FACTORY(v8, MaxPool);
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

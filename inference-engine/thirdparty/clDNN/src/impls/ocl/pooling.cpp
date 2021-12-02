@@ -77,6 +77,7 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance, split);
         if (!instance.argument.argmax.empty())
             args.inputs.push_back(instance.dep_memory_ptr(1));
+        args.output = instance.output_memory_ptr();
         return args;
     }
 
@@ -89,6 +90,24 @@ public:
             get_default_optional_params<kernel_selector::pooling_optional_params>(arg.get_program());
 
         const auto primitive = arg.get_primitive();
+
+        pool_params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
+        if (pool_params.maxPoolOpset8Features) {
+            switch (primitive->index_element_type) {
+                case cldnn::data_types::i32: {
+                    pool_params.poolIndexElementType = kernel_selector::Datatype::INT32;
+                    break;
+                }
+                case cldnn::data_types::i64: {
+                    pool_params.poolIndexElementType = kernel_selector::Datatype::INT64;
+                    break;
+                }
+                default:
+                    throw std::runtime_error("Not supported index element type");
+            }
+            pool_params.poolAxis = primitive->axis;
+        }
+
         const auto& stride = primitive->stride;
         const auto& pad = primitive->pad;
         const auto& input_sizes = arg.input().get_output_layout().size;
@@ -133,7 +152,8 @@ public:
                       (uint32_t)std::max(pad.spatial[2], 0)};
 
         pp.poolStride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
-
+        const auto& dilation = primitive->dilation;
+        pp.poolDilation = {(uint32_t)dilation.spatial[0], (uint32_t)dilation.spatial[1], (uint32_t)dilation.spatial[2]};
         auto& kernel_selector = kernel_selector::pooling_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(pool_params, pool_optional_params);
 

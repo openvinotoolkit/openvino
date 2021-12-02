@@ -62,7 +62,8 @@ namespace v8 {
 /// \brief MaxPooling operation with values and indices calculated as individual outputs
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase);
+    OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase, 8);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an empty MaxPool operation.
     MaxPool() = default;
