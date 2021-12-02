@@ -47,11 +47,7 @@ void op::v1::OneHot::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           on_value_et.compatible(off_value_et),
                           "on_value element type must be compatible with off_value element type.");
-    NODE_VALIDATION_CHECK(this,
-                          depth_et.is_integral(),
-                          "'depth' input element type must be an integer (got ",
-                          depth_et,
-                          ").");
+
     const auto& indices_shape = get_input_partial_shape(0);
     const auto& depth_shape = get_input_partial_shape(1);
     const auto& on_value_shape = get_input_partial_shape(2);

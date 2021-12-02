@@ -64,6 +64,8 @@ void shape_infer(const OneHot* op,
         } else {
             result_shape.insert(result_shape.begin() + axis, DimType());
         }
+    } else {
+        result_shape = PartialShape::dynamic();
     }
 }
 }  // namespace v1

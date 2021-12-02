@@ -9,27 +9,11 @@
 namespace ov {
 namespace op {
 namespace util {
-
-template <class RankT, class ShapeT>
-void inline create_shape(RankT& rank, ShapeT& shape) {
-    return;
-}
-
-template <class RankT>
-void inline create_shape(RankT& rank, PartialShape& shape) {
-    shape = PartialShape::dynamic(rank);
-}
-
-template <class ShapeT, typename = typename std::enable_if<!std::is_same<ShapeT, PartialShape>::value>::type>
-void inline create_shape(int64_t& rank, ShapeT& shape) {
-    shape.resize(rank);
-}
-
 template <class T>
 void shape_infer(const GatherBase* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
     const auto& data_pshape = input_shapes[0];
     const auto& indices_pshape = input_shapes[1];
@@ -48,7 +32,7 @@ void shape_infer(const GatherBase* op,
                               axis_pshape);
     }
 
-    int64_t batch_dims = op->get_batch_dims();
+    int64_t batch_dims = op->m_batch_dims;
     if (batch_dims < 0 && indices_rank.is_static()) {
         batch_dims += indices_rank.get_length();
     }
@@ -86,7 +70,7 @@ void shape_infer(const GatherBase* op,
     if (data_rank.is_static() && indices_rank.is_static()) {
         auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
         // scalar has one
-        create_shape(out_rank, output_pshape);
+        output_pshape.resize(out_rank);
 
         // implementation of out_shape formula
         // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
@@ -120,7 +104,7 @@ void shape_infer(const GatherBase* op,
         auto out_rank = data_rank + indices_rank - 1 - batch_dims;
         if (batch_dims < 0)
             out_rank = out_rank - indices_rank.get_max_length();
-        create_shape(out_rank, output_pshape);
+        output_pshape = PartialShape::dynamic(out_rank);
     }
 }
 }  // namespace util

@@ -37,7 +37,7 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
     const auto& axis_pshape = get_input_partial_shape(2);
     std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape, axis_pshape},
                               output_shapes = {PartialShape{}};
-    shape_infer(this, input_shapes, output_shapes);
+    shape_infer(this, input_shapes, output_shapes, {});
     set_output_type(0, data_type, output_shapes[0]);
 }
 
@@ -54,10 +54,6 @@ int64_t ov::op::util::GatherBase::get_axis() const {
         }
     }
     return axis;
-}
-
-int64_t ov::op::util::GatherBase::get_batch_dims() const {
-    return this->m_batch_dims;
 }
 
 namespace gather {

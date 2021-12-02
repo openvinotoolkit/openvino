@@ -36,10 +36,14 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
-    int64_t get_batch_dims() const;
 
 protected:
     int64_t m_batch_dims = 0;
+    template <class T>
+    void friend shape_infer(const GatherBase* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes,
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
 };
 }  // namespace util
 }  // namespace op

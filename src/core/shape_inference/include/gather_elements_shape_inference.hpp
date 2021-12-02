@@ -9,16 +9,6 @@
 namespace ov {
 namespace op {
 namespace v6 {
-template <class ShapeT>
-void inline create_shape(ShapeT& shape) {
-    OPENVINO_UNREACHABLE("[ShapeInfer] PartialShape cannot reach");
-}
-
-template <>
-void inline create_shape(PartialShape& shape) {
-    shape = PartialShape::dynamic();
-}
-
 template <class T>
 void shape_infer(const GatherElements* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
@@ -52,7 +42,7 @@ void shape_infer(const GatherElements* op, const std::vector<T>& input_shapes, s
     if (data_rank.is_dynamic()) {
         // can't decide rank, set it to all dynamic
         if (indices_rank.is_dynamic())
-            create_shape(output_shape);
+            output_shape = PartialShape::dynamic();
         return;
     }
 

@@ -26,4 +26,12 @@ TEST(StaticShapeInferenceTest, GatherTreeTest) {
                                               PartialShape{Shape{}}},
                               output_shapes = {PartialShape{}};
     shape_infer(gather_tree.get(), input_shapes, output_shapes);
+    ASSERT_EQ(output_shapes[0], (PartialShape{1, 2, 3}));
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 2, 3},
+                                                    StaticShape{1, 2, 3},
+                                                    StaticShape{2},
+                                                    StaticShape{}},
+                             static_output_shapes = {StaticShape{}};
+    shape_infer(gather_tree.get(), static_input_shapes, static_output_shapes);
+    ASSERT_EQ(static_output_shapes[0], (StaticShape{1, 2, 3}));
 }
