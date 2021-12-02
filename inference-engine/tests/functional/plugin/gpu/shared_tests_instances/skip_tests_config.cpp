@@ -95,6 +95,6 @@ std::vector<std::string> disabledTestPatterns() {
             // Unsupported
             R"(smoke_Behavior/InferRequestSetBlobByType.setInputBlobsByType/BlobType=Batched_Device=GPU_Config=().*)",
             // TODO: Issue 72624
-            R"(smoke_PrePostProcess_Dynamic_GPU.*resize_dynamic.*)",
+            R"(smoke_PrePostProcess.*resize_dynamic.*)",
     };
 }

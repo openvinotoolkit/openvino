@@ -10,11 +10,9 @@ namespace ov {
 namespace builder {
 namespace preprocess {
 
-using preprocess_func = std::tuple<std::function<std::shared_ptr<Function>()>, std::string, float>;
-using preprocess_func_dynamic = std::tuple<std::function<std::shared_ptr<Function>()>, std::string, float, Shape>;
+using preprocess_func = std::tuple<std::function<std::shared_ptr<Function>()>, std::string, float, std::vector<Shape>>;
 
 inline std::vector<preprocess_func> generic_preprocess_functions();
-inline std::vector<preprocess_func_dynamic> generic_preprocess_functions_dynamic();
 
 
 /// -------- Functions ---------------
@@ -370,40 +368,6 @@ inline std::shared_ptr<Function> cvt_color_bgrx_to_bgr() {
     return p.build();
 }
 
-inline std::vector<preprocess_func> generic_preprocess_functions() {
-    return std::vector<preprocess_func> {
-            preprocess_func(mean_only, "mean_only", 0.01f),
-            preprocess_func(scale_only, "scale_only", 0.01f),
-            preprocess_func(mean_scale, "mean_scale", 0.01f),
-            preprocess_func(scale_mean, "scale_mean", 0.01f),
-            preprocess_func(mean_vector, "mean_vector", 0.01f),
-            preprocess_func(scale_vector, "scale_vector", 0.01f),
-            preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean", 0.01f),
-            preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean", 0.01f),
-            preprocess_func(custom_preprocessing, "custom_preprocessing", 0.01f),
-            preprocess_func(multiple_ops, "multiple_ops", 0.01f),
-            preprocess_func(two_inputs_basic, "two_inputs_basic", 0.01f),
-            preprocess_func(two_inputs_trivial, "two_inputs_trivial", 0.01f),
-            preprocess_func(reuse_network_layout, "reuse_network_layout", 0.01f),
-            preprocess_func(tensor_layout, "tensor_layout", 0.01f),
-            preprocess_func(resize_linear, "resize_linear", 0.01f),
-            preprocess_func(resize_nearest, "resize_nearest", 0.01f),
-            preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
-            preprocess_func(resize_cubic, "resize_cubic", 0.01f),
-            preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
-            preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
-            preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
-            preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 1.f),
-            preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 1.f),
-            preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 1.f),
-            preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
-            preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
-            preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f),
-    };
-}
-
-////// Preprocessing tests with dynamic input shapes
-
 inline std::shared_ptr<Function> resize_dynamic() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 20, 20});
@@ -415,9 +379,36 @@ inline std::shared_ptr<Function> resize_dynamic() {
     return function;
 }
 
-inline std::vector<preprocess_func_dynamic> generic_preprocess_functions_dynamic() {
-    return std::vector<preprocess_func_dynamic> {
-            preprocess_func_dynamic(resize_dynamic, "resize_dynamic", 0.01f, Shape {1, 3, 123, 123}),
+inline std::vector<preprocess_func> generic_preprocess_functions() {
+    return std::vector<preprocess_func> {
+            preprocess_func(mean_only, "mean_only", 0.01f, {}),
+            preprocess_func(scale_only, "scale_only", 0.01f, {}),
+            preprocess_func(mean_scale, "mean_scale", 0.01f, {}),
+            preprocess_func(scale_mean, "scale_mean", 0.01f, {}),
+            preprocess_func(mean_vector, "mean_vector", 0.01f, {}),
+            preprocess_func(scale_vector, "scale_vector", 0.01f, {}),
+            preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean", 0.01f, {}),
+            preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean", 0.01f, {}),
+            preprocess_func(custom_preprocessing, "custom_preprocessing", 0.01f, {}),
+            preprocess_func(multiple_ops, "multiple_ops", 0.01f, {}),
+            preprocess_func(two_inputs_basic, "two_inputs_basic", 0.01f, {}),
+            preprocess_func(two_inputs_trivial, "two_inputs_trivial", 0.01f, {}),
+            preprocess_func(reuse_network_layout, "reuse_network_layout", 0.01f, {}),
+            preprocess_func(tensor_layout, "tensor_layout", 0.01f, {}),
+            preprocess_func(resize_linear, "resize_linear", 0.01f, {}),
+            preprocess_func(resize_nearest, "resize_nearest", 0.01f, {}),
+            preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f, {}),
+            preprocess_func(resize_cubic, "resize_cubic", 0.01f, {}),
+            preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { Shape {1, 3, 123, 123} }),
+            preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f, {}),
+            preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f, {}),
+            preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f, {}),
+            preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 1.f, {}),
+            preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 1.f, {}),
+            preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 1.f, {}),
+            preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f, {}),
+            preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f, {}),
+            preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f, {}),
     };
 }
 

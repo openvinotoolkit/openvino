@@ -28,40 +28,19 @@ void PrePostProcessTest::SetUp() {
     preprocess_func func;
     std::tie(func, targetDevice) = GetParam();
     function = (std::get<0>(func))();
-    threshold = std::get<2>(func);
+    rel_threshold = std::get<2>(func);
     functionRefs = ngraph::clone_function(*function);
     abs_threshold = std::get<2>(func);
+    auto static_shapes = std::get<3>(func);
+    if (static_shapes.empty()) {
+        for (const auto& input : function->inputs()) {
+            static_shapes.push_back(input.get_shape());
+        }
+    }
+    init_input_shapes(ov::test::static_shapes_to_test_representation({static_shapes}));
 }
 
 TEST_P(PrePostProcessTest, CompareWithRefs) {
-    Run();
-}
-
-
-std::string PrePostProcessTestDynamic::getTestCaseName(
-        const testing::TestParamInfo<preprocessParamsTupleDynamic> &obj) {
-    std::string targetName;
-    preprocess_func_dynamic func;
-
-    std::tie(func, targetName) = obj.param;
-
-    std::ostringstream result;
-    result << "Func=" << std::get<1>(func) << "_";
-    result << "Device=" << targetName << "";
-    return result.str();
-}
-
-void PrePostProcessTestDynamic::SetUp() {
-    preprocess_func_dynamic func;
-    std::tie(func, targetDevice) = GetParam();
-    function = (std::get<0>(func))();
-    rel_threshold = std::get<2>(func);
-    targetStaticShapes = std::vector<std::vector<ngraph::Shape>>{{std::get<3>(func)}};
-    functionRefs = ngraph::clone_function(*function);
-    abs_threshold = std::get<2>(func);
-}
-
-TEST_P(PrePostProcessTestDynamic, CompareWithRefs) {
     run();
 }
 
