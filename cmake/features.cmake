@@ -59,8 +59,6 @@ cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" OFF
 # Inference Engine specific options
 #
 
-ie_dependent_option (ENABLE_INTEL_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86_64" OFF)
-
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
@@ -85,6 +83,9 @@ else()
 endif()
 
 ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ON "ENABLE_TBBBIND_2_5_DEFAULT" OFF)
+
+ie_dependent_option (ENABLE_INTEL_GNA "GNA support for inference engine" ON
+    "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
 
 if (ENABLE_INTEL_GNA)
     if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
