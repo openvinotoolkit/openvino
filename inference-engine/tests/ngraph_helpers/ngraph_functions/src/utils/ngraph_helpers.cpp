@@ -159,7 +159,7 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
     auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     for (size_t i = 0; i < funcInputsNumber; ++i) {
         const auto &input = funcInputs[i];
-        auto inputShape = input.get_shape();
+        const auto &inputShape = input.get_shape();
         const auto &inputType = input.get_element_type();
         const auto &inputSize = shape_size(inputShape) * inputType.size();
 
