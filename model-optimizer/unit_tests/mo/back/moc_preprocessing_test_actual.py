@@ -37,6 +37,7 @@ def create_function2(shape1=[2, 2], shape2=[2, 2]):
     function = Function(results=[res1, res2], parameters=[input1, input2], name="TestFunction")
     return function
 
+
 def create_function1(shape1=[2, 2]):
     input1 = ops.parameter(shape1, dtype=np.float32, name="input1")
     input1.get_output_tensor(0).set_names({'input1', 'input1a'})
@@ -45,6 +46,7 @@ def create_function1(shape1=[2, 2]):
     res1.get_output_tensor(0).set_names({'res1', 'res1a'})
     function = Function(results=[res1], parameters=[input1], name="TestFunction")
     return function
+
 
 def process_function(ov_function: Function, argv: Namespace):
     apply_preprocessing(ov_function=ov_function, argv=argv)
