@@ -29,10 +29,10 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "Test Utils Python library")
 endif()
 
-if(TARGET commonTestUtils)
-    list(APPEND link_libraries commonTestUtils)
-else()
+if(InferenceEngineDeveloperPackage_FOUND)
     list(APPEND link_libraries IE::commonTestUtils)
+else()
+    list(APPEND link_libraries commonTestUtils)
 endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

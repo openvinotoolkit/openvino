@@ -152,7 +152,8 @@ protected:
         const auto& rhsShape = inputShapes.rhs.shape;
 
         auto broadcastedPartialShape = ngraph::PartialShape{lhsShape};
-        ngraph::PartialShape::broadcast_merge_into(broadcastedPartialShape, ngraph::PartialShape{rhsShape}, ngraph::op::AutoBroadcastSpec::NUMPY);
+        ngraph::PartialShape::broadcast_merge_into(broadcastedPartialShape, ngraph::PartialShape{rhsShape},
+                                                   ngraph::op::AutoBroadcastType::NUMPY);
         const auto& broadcasted = broadcastedPartialShape.to_shape();
 
         ASSERT_EQ(broadcasted, outputShape);

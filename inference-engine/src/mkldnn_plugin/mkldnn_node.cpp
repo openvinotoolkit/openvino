@@ -159,11 +159,17 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
             }
         }
     }
+
+    const auto it = rtInfo.find("enforceBF16evenForGraphTail");
+    if (it != rtInfo.end()) {
+        if (const auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second))
+            enforceBF16evenForGraphTail = value->get();
+    }
 }
 
 MKLDNNNode::MKLDNNNode(const std::string& type, const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          weightCache(w_cache), engine(eng), name(name), typeStr(type),
+          weightCache(w_cache), engine(eng), fusingPort(-1), name(name), typeStr(type),
           type(TypeFromName(type)), profiling(name) {
     // TODO [NM]: What about filling inDims and outDims?
 }
@@ -385,9 +391,12 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
     SEARCH_TYPE(reorder);
     SEARCH_TYPE(jit);
     SEARCH_TYPE(gemm);
+    SEARCH_TYPE(brgconv);
+    SEARCH_TYPE(brgemm);
     SEARCH_TYPE(ref);
 
     SEARCH_TYPE(avx512);
+    SEARCH_TYPE(amx);
     SEARCH_TYPE(avx2);
     SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
@@ -482,7 +491,8 @@ std::vector<memory::format_tag> MKLDNNNode::getAvailableFormatsForDims(const Sha
     else if (dims.getRank() == 2)
         return {memory::format_tag::nc};
     else if (dims.getRank() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc};
+        return {memory::format_tag::tnc, memory::format_tag::ntc,
+                memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
     else if (dims.getRank() == 4)
         return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c};
     else if (dims.getRank() == 5)
@@ -497,8 +507,9 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
-    if (needShapeInfer())
+    if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
+    }
     if (needPrepareParams()) {
         IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
             " since the input shapes are not defined.";
@@ -514,10 +525,17 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
     }
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto edges = getChildEdgesAtPort(i);
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShapes[i]);
+
+        // avoid 0D shape incompatible
+        auto newOutputShape = newOutputShapes[i];
+        if (newOutputShape.empty()) {
+            newOutputShape.push_back(1);
+        }
+
+        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
 
         const auto &currDesc = edges[0]->getMemory().getDesc();
-        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShapes[i])
+        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
             continue;
 
         // this path neccesary if there are several edges per one port
@@ -631,7 +649,7 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
         outDescs.emplace_back(outConf.desc);
     createDescriptor(inDescs, outDescs);
 
-    std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
+    AttrPtr attr = initPrimitiveAttr();
 
     NodeConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -752,15 +770,29 @@ void MKLDNNNode::prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_de
     }
 }
 
-bool MKLDNNNode::isInplace() const {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
-    auto config = selected_pd->getConfig();
+bool MKLDNNNode::isInPlace() {
+    if (inplace == InPlaceType::Unknown) {
+        auto selected_pd = getSelectedPrimitiveDescriptor();
+        if (selected_pd == nullptr)
+            IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    for (auto &in : config.inConfs) if (in.inPlace >= 0) return true;
-    for (auto &out : config.outConfs) if (out.inPlace >= 0) return true;
-    return false;
+        inplace = InPlaceType::NoInPlace;
+        auto config = selected_pd->getConfig();
+        for (auto &in : config.inConfs) {
+            if (in.inPlace >= 0) {
+                inplace = InPlaceType::InPlace;
+                break;
+            }
+        }
+        for (auto &out : config.outConfs) {
+            if (out.inPlace >= 0) {
+                inplace = InPlaceType::InPlace;
+                break;
+            }
+        }
+    }
+
+    return inplace == InPlaceType::InPlace;
 }
 
 bool MKLDNNNode::isConstant() {
@@ -831,6 +863,14 @@ void MKLDNNNode::cleanup() {
 const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::brgconv_avx512_amx_1x1,
+            impl_desc_type::brgconv_avx512_amx,
+            impl_desc_type::jit_avx512_amx_dw,
+            impl_desc_type::jit_avx512_amx_1x1,
+            impl_desc_type::jit_avx512_amx,
+            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
+//            impl_desc_type::brgconv_avx512_1x1,
+//            impl_desc_type::brgconv_avx512,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,
@@ -950,14 +990,14 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 }
 
 MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getInputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getOutputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
@@ -1039,7 +1079,7 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     }
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, bool initBinaryMemory) {
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align, bool initAsBinary, bool initBinaryMemory) {
     IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
@@ -1186,7 +1226,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             if (i == fusingPort)
                 continue;
             auto& weightShape = getInputShapeAtPort(i).getDims();
-            if (getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() != 1 || !isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
+            if (getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() != 1 || !isPerTensorOrPerChannelBroadcastable(dataShape, weightShape, true))
                 return false;
         }
         return true;
@@ -1207,12 +1247,88 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             || isConvertablePowerStatic();
 }
 
+std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts(const MKLDNNNode *parentNode) const {
+    std::vector<float> scales, shifts;
+
+    const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
+        auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
+        if (!constInputNode) {
+            IE_THROW() << "Cannot cast " << constInput->getName() << " to MKLDNNInputNode";
+        }
+        auto constBlob = constInputNode->getMemoryPtr();
+        const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        buffer.resize(elementsCount);
+        cpu_convert(constBlob->GetPtr(),
+                    &buffer[0],
+                    MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    Precision::FP32,
+                    elementsCount);
+    };
+
+    const auto constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
+
+    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
+    } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), shifts);
+    } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
+        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
+        fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
+    } else if (one_of(getAlgorithm(), EltwisePowerStatic)) {
+        const auto power = dynamic_cast<const MKLDNNEltwiseNode *>(this);
+        if (!power) {
+            IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
+        }
+        scales.push_back(power->getBeta());
+        shifts.push_back(power->getGamma());
+    } else {
+        IE_THROW() << "Can't fill scale and shifts for node: " << getName() << " with type: " << NameFromType(getType());
+    }
+
+    switch (getAlgorithm()) {
+        case EltwiseAdd: {
+            scales.resize(shifts.size(), 1.0f);
+            break;
+        }
+        case EltwiseSubtract: {
+            scales.resize(shifts.size(), 1.0f);
+            std::transform(shifts.begin(), shifts.end(), shifts.begin(), [](float shift){ return -1.0f * shift; });
+            break;
+        }
+        case EltwiseMultiply: {
+            shifts.resize(scales.size(), 0.0f);
+            break;
+        }
+        case EltwiseDivide: {
+            shifts.resize(scales.size(), 0.0f);
+            std::transform(scales.begin(), scales.end(), scales.begin(), [](float scale){ return 1.0f / scale; });
+            break;
+        }
+        default: break;
+    }
+
+    return {scales, shifts};
+}
+
 bool MKLDNNNode::inputShapesDefined() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined())
             return false;
     }
     return true;
+}
+
+bool MKLDNNNode::outputShapesDefined() const {
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        if (!getChildEdgesAtPort(i)[0]->getMemory().getDesc().isDefined()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MKLDNNNode::shapesDefined() const {
+    return inputShapesDefined() && outputShapesDefined();
 }
 
 bool MKLDNNNode::needPrepareParams() const {
@@ -1301,91 +1417,11 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
     return false;
 }
 
-void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, int align) {
-    scales.clear();
-    shifts.clear();
-    const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
-        auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
-        auto constBlob = constInputNode->getMemoryPtr();
-        const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-        buffer.resize(elementsCount);
-        cpu_convert(constBlob->GetPtr(),
-                    &buffer[0],
-                    MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
-                    Precision::FP32,
-                    elementsCount);
-    };
-
-    const size_t constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
-
-    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
-        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
-    } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
-        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), shifts);
-    } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
-        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
-        fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
-    } else if (one_of(getAlgorithm(), EltwisePowerStatic)) {
-        const auto power = dynamic_cast<const MKLDNNEltwiseNode *>(this);
-        if (!power) {
-            IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
-        }
-        scales.push_back(power->getBeta());
-        shifts.push_back(power->getGamma());
-    } else {
-        IE_THROW() << "Can't fill scale and shifts for node: " << getName() << " with type: " << NameFromType(getType());
-    }
-
-    const size_t bufferSize = static_cast<size_t>(outputShapes[0].getStaticDims()[outputShapes[0].getRank() > 1 ? 1 : 0]);
-    if (align == -1) {
-        align = bufferSize;
-    }
-    const size_t bufferSizeAligned = rnd_up(bufferSize, static_cast<size_t>(align));
-
-    size_t initSize = scales.size();
-    if (initSize > 0) {
-        scales.resize(bufferSizeAligned, 0);
-        if (initSize == 1) {
-            std::fill(scales.begin() + 1, scales.begin() + bufferSize, scales[0]);
-        }
-    }
-
-    initSize = shifts.size();
-    if (initSize > 0) {
-        shifts.resize(bufferSizeAligned, 0);
-        if (initSize == 1) {
-            std::fill(shifts.begin() + 1, shifts.begin() + bufferSize, shifts[0]);
-        }
-    }
-
-    switch (getAlgorithm()) {
-        case EltwiseAdd: {
-            scales.resize(bufferSizeAligned, 1.0f);
-            break;
-        }
-        case EltwiseSubtract: {
-            scales.resize(bufferSizeAligned, 1.0f);
-            std::transform(shifts.begin(), shifts.end(), shifts.begin(), [](float shift){ return -1.0f * shift; });
-            break;
-        }
-        case EltwiseMultiply: {
-            shifts.resize(bufferSizeAligned, 0.0f);
-            break;
-        }
-        case EltwiseDivide: {
-            shifts.resize(bufferSizeAligned, 0.0f);
-            std::transform(scales.begin(), scales.end(), scales.begin(), [](float scale){ return 1.0f / scale; });
-            break;
-        }
-        default: break;
-    }
-}
-
 void MKLDNNNode::createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op) {
     ngraph::OutputVector inputsForShapeInfer;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         if (dynamic_cast<ngraph::opset1::Constant *>(op->get_input_node_ptr(i))) {
-            inputsForShapeInfer.push_back(op->get_input_node_shared_ptr(i));
+            inputsForShapeInfer.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ngraph::OutputVector{}));
         } else {
             inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
                                                                                       op->get_input_partial_shape(i)));

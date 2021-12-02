@@ -95,7 +95,7 @@ def benchmark_embedded_python_api(path_to_model_file):
         for key, value in input_info.items():
             m = []
             dt = np_d_type[value.precision]
-            for x in value.shape:
+            for x in value.input_data.shape:
                 m.append(x)
             m[0] = m[0] * batch_size
             input_data[key] = np.empty(tuple(m), dtype=dt)
@@ -122,7 +122,7 @@ def benchmark_embedded_python_api(path_to_model_file):
     infer_requests = exe_network.requests
     batch_size = ie_network.batch_size
     request_queue = InferRequestsQueue(infer_requests)
-    requests_input_data = get_dummy_inputs(batch_size, ie_network.inputs, infer_requests)
+    requests_input_data = get_dummy_inputs(batch_size, ie_network.input_info, infer_requests)
     infer_request = request_queue.get_idle_request()
 
     # For warming up

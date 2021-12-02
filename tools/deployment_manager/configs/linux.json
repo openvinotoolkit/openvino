@@ -26,13 +26,13 @@
         "runtime/lib/intel64/libinference_engine_transformations.so",
         "runtime/lib/intel64/libinference_engine_preproc.so",
         "runtime/lib/intel64/libinference_engine_c_api.so",
-        "runtime/lib/intel64/libHeteroPlugin.so",
+        "runtime/lib/intel64/libov_hetero_plugin.so",
         "runtime/lib/intel64/libMultiDevicePlugin.so",
         "runtime/lib/intel64/libngraph.so",
-        "runtime/lib/intel64/libfrontend_manager.so",
-        "runtime/lib/intel64/libir_ngraph_frontend.so",
-        "runtime/lib/intel64/libonnx_ngraph_frontend.so",
-        "runtime/lib/intel64/libpaddlepaddle_ngraph_frontend.so",
+        "runtime/lib/intel64/libfrontend_common.so",
+        "runtime/lib/intel64/libir_ov_frontend.so",
+        "runtime/lib/intel64/libonnx_ov_frontend.so",
+        "runtime/lib/intel64/libpaddlepaddle_ov_frontend.so",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -52,7 +52,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/cache.json",
-        "runtime/lib/intel64/libclDNNPlugin.so",
+        "runtime/lib/intel64/libov_intel_gpu_plugin.so",
         "runtime/lib/intel64/libinference_engine_lp_transformations.so",
         "install_dependencies/install_NEO_OCL_driver.sh"
       ]
@@ -78,7 +78,7 @@
       "files": [
         "runtime/lib/intel64/libgna.so",
         "runtime/lib/intel64/libgna.so.2",
-        "runtime/lib/intel64/libgna.so.2.0.0.1226",
+        "runtime/lib/intel64/libgna.so.3.0.0.1377",
         "runtime/lib/intel64/libinference_engine_legacy.so",
         "runtime/lib/intel64/libGNAPlugin.so"
       ]
@@ -98,10 +98,10 @@
       "group": ["opencv"],
       "dependencies" : [],
       "files": [
-        "opencv/version.txt",
-        "opencv/setupvars.sh",
-        "opencv/lib",
-        "opencv/bin"
+        "extras/opencv/version.txt",
+        "extras/opencv/setupvars.sh",
+        "extras/opencv/lib",
+        "extras/opencv/bin"
       ]
     },
     "python_common": {

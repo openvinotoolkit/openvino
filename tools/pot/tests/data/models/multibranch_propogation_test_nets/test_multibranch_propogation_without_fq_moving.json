@@ -1,7 +1,3 @@
-{
-  "name": "test_multibranch_propogation_without_fq_moving",
-  "framework": "pytorch",
-  "mo_args": {
-    "input_model": "$model_dir/multibranch_propogation_test_nets/test_ig_border_case_without_fq_moving.onnx"
-  }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:e7a22758b328fcbe4860ff8b9381845cab814e77f2fe1d8435d36a774d5749cd
+size 218

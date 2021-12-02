@@ -19,8 +19,8 @@ addIeTargetTest(
         DEPENDENCIES
             myriadPlugin
         LINK_LIBRARIES
-            vpu_common_lib
             vpu_graph_transformer
+            vpu_common_lib
             funcSharedTests
             mvnc
         ADD_CPPLINT

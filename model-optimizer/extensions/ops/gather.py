@@ -20,6 +20,7 @@ class Gather(Op):
             'type': self.op,
             'version': 'opset8',
             'batch_dims': 0,
+            'reinterp_shape': True,
             'infer': self.infer,
             'force_precision_in_ports': {1: 'int32', 2: 'int64'},
             'in_ports_count': 3,
@@ -109,7 +110,7 @@ class AttributedGather(Op):
             'type': 'Gather',
 
             'axis': 0,
-
+            'reinterp_shape': True,
             'infer': self.infer,
 
             'force_precision_in_ports': {1: 'int32'},

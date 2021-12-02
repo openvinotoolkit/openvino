@@ -648,27 +648,39 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         auto pattern_start = layers.first;
         auto pattern_end = layers.second;
 
-        auto setNHWCOrder = [](InferenceEngine::DataPtr data) {
-            if (data->getLayout() == Layout::NHWC) return;
+        auto getTransposedLayout = [](InferenceEngine::DataPtr data) {
+            size_t dims_size = data->getDims().size();
+            if (dims_size < 3 || dims_size > 4) {
+                THROW_GNA_EXCEPTION << data->getName() <<
+                    " unexpected dimensions size in Permute - Conv - Permute pattern";
+            }
+            return dims_size == 4 ? Layout::NHWC : Layout::HWC;
+        };
+
+        auto setTransposedOrder = [getTransposedLayout](InferenceEngine::DataPtr data) {
+            auto layout = getTransposedLayout(data);
+            if (data->getLayout() == layout) return;
+
             auto dims = data->getDims();
-            auto order = GetPermuteOrder(Layout::NCHW, Layout::NHWC);
+            auto order = dims.size() == 4 ? GetPermuteOrder(Layout::NCHW, Layout::NHWC) :
+                std::vector<int32_t>{0, 2, 1};
             InferenceEngine::SizeVector new_dims;
             for (int i = 0; i < dims.size(); ++i) {
                 new_dims.push_back(dims[order[i]]);
             }
             data->setDims(new_dims);
-            data->setLayout(Layout::NHWC);
+            data->setLayout(layout);
         };
 
         auto input_to = getInputTo(pattern_start->outData[0]);
         IE_ASSERT(!input_to.empty());
         auto current_layer = input_to.begin()->second;
-        setNHWCOrder(current_layer->input());
+        setTransposedOrder(current_layer->input());
         std::function<void(CNNLayerPtr)> propogateNHWCOrderRecursive =
-            [pattern_end, &propogateNHWCOrderRecursive, &setNHWCOrder](CNNLayerPtr current_layer) {
+            [pattern_end, &propogateNHWCOrderRecursive, &setTransposedOrder](CNNLayerPtr current_layer) {
             if (current_layer == pattern_end) return;
             for (size_t i = 0; i < current_layer->outData.size(); ++i) {
-                setNHWCOrder(current_layer->outData[i]);
+                setTransposedOrder(current_layer->outData[i]);
                 auto input_to = getInputTo(current_layer->outData[i]);
                 IE_ASSERT(!input_to.empty());
                 propogateNHWCOrderRecursive(input_to.begin()->second);
@@ -682,7 +694,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             for (auto before_output : layer_before_permute->outData) {
                 if (areEqualDatas(pattern_start->input(), before_output)) {
                     output = before_output;
-                    output->setLayout(Layout::NHWC);
+                    output->setLayout(getTransposedLayout(output));
                     break;
                 }
             }
@@ -693,7 +705,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
         if (!pattern_end->outData.empty() && !getInputTo(pattern_end->outData.front()).empty()) {
             auto layer_after_permute = getInputTo(pattern_end->outData.front()).begin()->second;
-            layer_after_permute->input()->setLayout(Layout::NHWC);
+            layer_after_permute->input()->setLayout(getTransposedLayout(layer_after_permute->input()));
         }
     }
 

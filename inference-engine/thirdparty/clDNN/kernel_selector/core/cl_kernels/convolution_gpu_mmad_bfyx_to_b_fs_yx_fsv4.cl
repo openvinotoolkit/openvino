@@ -7,7 +7,6 @@
 #include "include/imad.cl"
 
 #define CEIL_DIV(x, y) (1 + ((x) - 1) / (y))
-#define AS_TYPE(type, val) CAT(as_, type)(val)
 
 #ifdef ACCUMULATOR_TYPE
 #undef ACCUMULATOR_TYPE

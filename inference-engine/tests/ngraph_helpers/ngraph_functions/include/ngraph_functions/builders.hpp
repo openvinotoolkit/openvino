@@ -26,6 +26,8 @@ ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<
 
 ngraph::ParameterVector makeDynamicParams(const element::Type &type, const std::vector<ov::PartialShape> &shapes);
 
+ngraph::ParameterVector makeDynamicParams(const std::vector<element::Type>& types, const std::vector<ov::PartialShape>& shapes);
+
 ngraph::ParameterVector
 makeParams(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs);
 
@@ -75,6 +77,9 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
 
 std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
                                              const std::vector<size_t>& shape);
+
+std::shared_ptr<ngraph::Node> makeDynamicInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
+                                                    const ov::PartialShape& shape);
 
 std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
                                             const ngraph::Output<Node> &target_shape,
@@ -288,6 +293,13 @@ std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &new_axis_mask = std::vector<int64_t>{},
                                                const std::vector<int64_t> &shrink_mask = std::vector<int64_t>{},
                                                const std::vector<int64_t> &ellipsis_mask = std::vector<int64_t>{});
+
+std::shared_ptr<ngraph::Node> makeSlice(const ngraph::Output<Node> &in,
+                                        const std::vector<int64_t> &begin,
+                                        const std::vector<int64_t> &end,
+                                        const std::vector<int64_t> &stride,
+                                        const std::vector<int64_t> &axes,
+                                        const element::Type &type);
 
 std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool acrossChannels,
@@ -523,6 +535,12 @@ std::shared_ptr<ngraph::Node> makeGatherElements(
                                       const int axis);
 
 std::shared_ptr<ngraph::Node> makeGatherND(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const std::size_t batchDims);
+
+std::shared_ptr<ngraph::Node> makeGatherND8(
                                       const ngraph::Output<Node>& dataNode,
                                       const ngraph::Shape& indicesShape,
                                       const element::Type& indicesType,

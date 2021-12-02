@@ -35,12 +35,12 @@ TEST_MODELS_DEFAULT = [
     ('googlenet-v3-pytorch', 'pytorch', 'FP32', {
         'performance': {'accuracy@top1': 0.77562, 'accuracy@top5': 0.9363},
         'mixed': {'accuracy@top1': 0.77562, 'accuracy@top5': 0.9363}}),
-    # ('densenet-121', 'caffe', 'FP32', {
-    #    'performance': {'accuracy@top1': 0.73908, 'accuracy@top5': 0.91728},
-    #    'mixed': {'accuracy@top1': 0.7389, 'accuracy@top5': 0.91714}}),
-    #('mobilenet-ssd', 'caffe', 'FP32', {
-    #    'performance': {'map': 0.71978},
-    #    'mixed': {'map': 0.71931}}),
+    ('densenet-121', 'caffe', 'FP32', {
+        'performance': {'accuracy@top1': 0.73908, 'accuracy@top5': 0.91728},
+        'mixed': {'accuracy@top1': 0.7389, 'accuracy@top5': 0.91714}}),
+    # ('mobilenet-ssd', 'caffe', 'FP32', {
+    #     'performance': {'map': 0.71978},
+    #     'mixed': {'map': 0.71931}}),
     ('octave-resnet-26-0.25', 'mxnet', 'FP32', {
         'performance': {'accuracy@top1': 0.7581, 'accuracy@top5': 0.9256},
         'mixed': {'accuracy@top1': 0.759, 'accuracy@top5': 0.92466}}),
@@ -52,7 +52,7 @@ TEST_MODELS_DEFAULT = [
 TEST_MODELS_ACC_AWARE = [
     ('efficientnet-b0-pytorch', 'pytorch', 'CPU', {'performance': {'accuracy@top1': 0.7663,
                                                                    'accuracy@top5': 0.9294}}),
-    #('mobilenet-ssd', 'caffe', 'CPU', {'performance': {'map': 0.7222}}),
+    # ('mobilenet-ssd', 'caffe', 'CPU', {'performance': {'map': 0.7222}}),
     ('ssd512', 'caffe', 'CPU', {'performance': {'map': 0.7917}}),
     ('mobilenet-v1-0.25-128', 'tf', 'GNA', {'performance': {'accuracy@top1': 0.4133, 'accuracy@top5': 0.6626}})
 ]

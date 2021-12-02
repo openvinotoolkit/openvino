@@ -24,6 +24,16 @@ def shape_array(value, dtype=np.int64):
     return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
 
 
+def undefined_shape_of_rank(rank: int):
+    """
+    Create a shape of specified rank with all dynamic dimensions.
+
+    :param rank: requested rank of the output shape
+    :return: shape array
+    """
+    return shape_array([dynamic_dimension_value] * rank)
+
+
 def compatible_dims(dim1, dim2):
     """
     Compare if dim1 is equal to dim2 or any of them is dynamic
@@ -216,9 +226,12 @@ def convert_deconv_tf_padding_to_str(padding):
 
 
 # TODO eliminate this dependency and pass necessary function as an argument
-def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
+def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False, dilation=None):
     if input is None or window is None or stride is None or auto_pad is None:
         return None, None
+
+    if dilation is None:
+        dilation = np.ones(len(input), dtype=np.int64)
 
     normalized_stride = stride
     if is_deconv:
@@ -237,7 +250,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         high_pad = full_pad - low_pad
         pad = shape_array([low_pad, high_pad]).transpose()
     elif auto_pad == 'valid':
-        output = np.int64(np.ceil((input - window + 1) / normalized_stride))
+        output = np.int64(np.ceil((input - ((window - 1) * dilation + 1) + 1) / normalized_stride))
         pad = np.zeros((len(output), 2), dtype=np.int64)
     else:
         log.error("Unsupported padding scheme: {}".format(auto_pad))

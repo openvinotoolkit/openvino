@@ -18,13 +18,15 @@ CPU_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'cpu.json'
 GNA_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'gna.json'
 
 TEST_MODELS = [
-    # ('mobilenet-v2-pytorch', 'pytorch'),
-    # ('resnet-50-pytorch', 'pytorch'),
-    # ('googlenet-v3', 'tf'),
-    # ('ssd_mobilenet_v2_coco', 'tf'),
-    # ('densenet-121', 'caffe'),
-    ('multiple_out_ports_net', 'tf'),  # multiple output ports in node case check,
-    # ('rm_nnet4a', 'kaldi')
+    ('mobilenetv2_example', 'pytorch', 'ANY'),
+    ('resnet_example', 'pytorch', 'ANY'),
+    ('googlenet_example', 'pytorch', 'ANY'),
+    ('mobilenetv2_ssd_example', 'pytorch', 'ANY'),
+    ('densenet121_example', 'pytorch', 'ANY'),
+    ('multiple_out_ports_net', 'tf', 'ANY'),
+    ('lstm_example', 'pytorch', 'GNA'),
+    ('multiple_outputs_net_example', 'dldt', 'GNA'),
+    # ('tensor_iterator_example', 'tf', 'ANY'),
 ]
 
 CASCADE_MAP = Dict({
@@ -37,15 +39,16 @@ CASCADE_MAP = Dict({
 
 
 @pytest.mark.parametrize(
-    'model_name, model_framework', TEST_MODELS,
+    'model_name, model_framework, target_device', TEST_MODELS,
     ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MODELS])
-def test_build_quantization_graph(tmp_path, models, model_name, model_framework):
+def test_build_quantization_graph(tmp_path, models, model_name, model_framework, target_device):
     model = models.get(model_name, model_framework, tmp_path)
-    model = load_model(model.model_params)
+    model = load_model(model.model_params, target_device=target_device)
 
-    hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix())
-    if model_framework == 'kaldi':
+    if target_device == 'GNA':
         hardware_config = HardwareConfig.from_json(GNA_CONFIG_PATH.as_posix())
+    else:
+        hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix())
 
     quantization_model = GraphTransformer(hardware_config).insert_fake_quantize(model)
 
@@ -53,16 +56,16 @@ def test_build_quantization_graph(tmp_path, models, model_name, model_framework)
 
 
 MODELS_FOR_TESTING_IGNORED_PARAMS = [
-    # ('mobilenet-v2-pytorch', 'pytorch'),
-    # ('resnet-50-pytorch', 'pytorch'),
-    # ('googlenet-v3', 'tf'),
+    ('mobilenetv2_example', 'pytorch'),
+    ('resnet_example', 'pytorch'),
+    ('googlenet_example', 'pytorch'),
     # ('mtcnn', 'caffe')
 ]
 
 
 @pytest.mark.parametrize(
-    'model_name, model_framework', MODELS_FOR_TESTING_IGNORED_PARAMS[1:],
-    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_TESTING_IGNORED_PARAMS[1:]])
+    'model_name, model_framework', MODELS_FOR_TESTING_IGNORED_PARAMS,
+    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_TESTING_IGNORED_PARAMS])
 def test_build_quantization_graph_with_ignored_params(
         tmp_path, models, model_name, model_framework):
     if model_name in CASCADE_MAP:
@@ -88,10 +91,10 @@ def test_build_quantization_graph_with_ignored_params(
             ]
         }
 
-    if model_name == 'resnet-50-pytorch':
-        ignored_params['scope'] = ['Conv_5/WithoutBiases', 'Conv_18/WithoutBiases']
-    elif model_name == 'googlenet-v3':
-        node_name = 'InceptionV3/InceptionV3/Mixed_6c/Branch_2/Conv2d_0a_1x1/convolution'
+    if model_name == 'resnet_example':
+        ignored_params['scope'] = ['Conv_11/WithoutBiases', 'Conv_29/WithoutBiases']
+    elif model_name == 'googlenet_example':
+        node_name = 'Conv_10/WithoutBiases'
         ignored_params['scope'] = [node_name]
     elif model_name == 'mtcnn':
         ignored_params = {
@@ -117,8 +120,8 @@ def test_build_quantization_graph_with_ignored_params(
 
 
 @pytest.mark.parametrize(
-    'model_name, model_framework', MODELS_FOR_TESTING_IGNORED_PARAMS[:],
-    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_TESTING_IGNORED_PARAMS[:]])
+    'model_name, model_framework', MODELS_FOR_TESTING_IGNORED_PARAMS,
+    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_TESTING_IGNORED_PARAMS])
 def test_build_quantization_graph_with_ignored_agnostic_params(
         tmp_path, models, model_name, model_framework):
     if model_name in CASCADE_MAP:
@@ -155,22 +158,19 @@ def test_build_quantization_graph_with_ignored_agnostic_params(
 
 
 TEST_MODELS_REMOVAL = [
-    # ('mobilenet-ssd', 'caffe', ['conv1/WithoutBiases',
-    #                             'conv16_2_mbox_conf/WithoutBiases',
-    #                             'conv15_1/WithoutBiases']),
-    # ('ssd_resnet50_512', 'mxnet', ['stage1_unit1_sc',
-    #                                'stage3_unit1_sc',
-    #                                'multi_feat_2_conv_3x3_relu_cls_pred_conv/WithoutBiases']),
-    # ('squeezenet1.1', 'pytorch', ['fire4/expand3x3/WithoutBiases',
-    #                               'fire8/expand3x3/WithoutBiases']),
-    # ('mobilenet-v2-pytorch', 'pytorch', ['Conv_18/WithoutBiases',
-    #                                      'Conv_66/WithoutBiases',
-    #                                      'Conv_162/WithoutBiases']),
-    # ('googlenet-v3', 'tf', ['InceptionV3/InceptionV3/Conv2d_3b_1x1/convolution',
-    #                         'InceptionV3/InceptionV3/Mixed_6a/Branch_1/Conv2d_0a_1x1/convolution',
-    #                         'InceptionV3/InceptionV3/Mixed_6d/Branch_0/Conv2d_0a_1x1/convolution',
-    #                         'InceptionV3/InceptionV3/Mixed_7c/Branch_2/Conv2d_0a_1x1/convolution',
-    #                         'InceptionV3/InceptionV3/Mixed_6a/Branch_0/Conv2d_1a_1x1/convolution']),
+    ('mobilenetv2_ssd_example', 'caffe', ['Conv_8/WithoutBiases',
+                                          'Conv_172/WithoutBiases',
+                                          'Conv_129/WithoutBiases']),
+    ('squeezenet1_1_example', 'pytorch', ['Conv_14/WithoutBiases',
+                                          'Conv_51/WithoutBiases']),
+    ('mobilenet_example', 'pytorch', ['Conv_10/WithoutBiases',
+                                      'Conv_35/WithoutBiases',
+                                      'Conv_73/WithoutBiases']),
+    ('googlenet_example', 'tf', ['Conv_3/WithoutBiases',
+                                 'Conv_57/WithoutBiases',
+                                 'Conv_65/WithoutBiases',
+                                 'Conv_104/WithoutBiases',
+                                 'Conv_39/WithoutBiases']),
     ('multiple_out_ports_net', 'tf', ['add_indices'])
 ]
 
@@ -205,8 +205,8 @@ def test_cutting_fq_layers(_params, tmp_path, models):
 
 
 TEST_MODELS_WITH_PATTERNS = [
-    # ('efficientnet-b0', 'tf'),
-    # ('se-resnet-50', 'caffe'),
+    ('efficientnet_b0_example', 'pytorch'),
+    ('mobilenet_v3_small_example', 'pytorch'),
     # ('image-retrieval-0001', 'dldt'),
     ('scaleshift_fuse', 'dldt'),
     ('scaleshift_no_fuse_1', 'dldt'),
@@ -249,27 +249,21 @@ def test_multibranch_propagation_without_fq_moving():
 
 
 MODELS_WITH_LSTM = [
-    # ('rm_lstm4f', 'kaldi', {
-    #     'prev_memory_output69':
-    #         ['next_lstm_output108', 'lstmprojectedstreams/Shape', 'input_fullyconnected/WithoutBiases'],
-    #     'prev_memory_state82':
-    #         ['state_filtered_tahn100', 'clamp_scaleshift101/Mul_', 'next_lstm_state98'],
-    #     'prev_memory_output':
-    #         ['next_lstm_output', 'affinetransform/WithoutBiases'],
-    #     'prev_memory_state':
-    #         ['state_filtered_tahn', 'clamp_scaleshift/Mul_', 'next_lstm_state']
-    # })
+    ('lstm_example', 'pytorch', {
+        'LSTM_15/TensorIterator/22/variable_1':
+            ['Assign_298'],
+        'LSTM_15/TensorIterator/24/variable_2':
+            ['Assign_305'],
+        'LSTM_19/TensorIterator/22/variable_1':
+            ['Assign_327'],
+        'LSTM_19/TensorIterator/24/variable_2':
+            ['Assign_334']
+    })
 ]
 
 
-@pytest.fixture(scope='module', params=MODELS_WITH_LSTM,
-                ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_WITH_LSTM])
-def _params(request):
-    return request.param
-
-
-def test_lstm_ends(_params, tmp_path, models):
-    model_name, model_framework, lstm_ends_ref = _params
+def test_lstm_ends(tmp_path, models):
+    model_name, model_framework, lstm_ends_ref = MODELS_WITH_LSTM[0]
     model = models.get(model_name, model_framework, tmp_path)
     model = load_model(model.model_params)
     read_values = get_nodes_by_type(model, ['ReadValue'])

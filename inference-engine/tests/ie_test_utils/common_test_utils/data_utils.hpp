@@ -8,6 +8,8 @@
 #include <utility>
 
 #include <gtest/gtest.h>
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include <ngraph/type/bfloat16.hpp>
 #include <ngraph/type/float16.hpp>
 
@@ -138,6 +140,49 @@ fill_data_roi(InferenceEngine::Blob::Ptr &blob, const uint32_t range, const int 
     }
 }
 
+template<InferenceEngine::Precision::ePrecision PRC>
+inline void
+fill_data_roi(ov::runtime::Tensor& tensor, const uint32_t range, const int height, const int width, const float omega,
+    const bool is_roi_max_mode, const int seed = 1) {
+    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto* data = static_cast<dataType*>(tensor.data());
+    std::default_random_engine random(seed);
+    std::uniform_int_distribution<int32_t> distribution(0, range);
+
+    const int max_y = (is_roi_max_mode) ? (height - 1) : 1;
+    const int max_x = (is_roi_max_mode) ? (width - 1) : 1;
+
+    float center_h = (max_y) / 2.0f;
+    float center_w = (max_x) / 2.0f;
+
+    for (size_t i = 0; i < tensor.get_size(); i += 5) {
+        data[i] = static_cast<dataType>(distribution(random));
+        const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
+        const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
+        data[i + 1] = static_cast<dataType>(is_roi_max_mode ? std::floor(x0) : x0);
+        data[i + 3] = static_cast<dataType>(is_roi_max_mode ? std::floor(x1) : x1);
+        if (data[i + 3] < data[i + 1]) {
+            std::swap(data[i + 1], data[i + 3]);
+        }
+        if (data[i + 1] < 0)
+            data[i + 1] = 0;
+        if (data[i + 3] > max_x)
+            data[i + 3] = static_cast<dataType>(max_x);
+
+        const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
+        const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
+        data[i + 2] = static_cast<dataType>(is_roi_max_mode ? std::floor(y0) : y0);
+        data[i + 4] = static_cast<dataType>(is_roi_max_mode ? std::floor(y1) : y1);
+        if (data[i + 4] < data[i + 2]) {
+            std::swap(data[i + 2], data[i + 4]);
+        }
+        if (data[i + 2] < 0)
+            data[i + 2] = 0;
+        if (data[i + 4] > max_y)
+            data[i + 4] = static_cast<dataType>(max_y);
+    }
+}
+
 template<class T>
 void inline
 fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1,
@@ -150,8 +195,56 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
     }
 
     for (std::size_t i = 0; i < size; i++) {
-        pointer[i] = static_cast<T>(start_from + static_cast<int64_t>(random.Generate(range)));
+        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(range)) / k);
     }
+}
+
+/** @brief Fill a memory area with a sorted sequence of unique elements randomly generated.
+ *
+ *  This function generates and fills a blob of a certain precision, with a
+ *  sorted sequence of unique elements.
+ *
+ * @param rawBlobDataPtr pointer to destination memory area
+ * @param size number of elements in destination memory
+ * @param range Values range
+ * @param start_from Value from which range should start
+ * @param k Resolution of floating point numbers.
+ * - With k = 1 every random number will be basically integer number.
+ * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
+ * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
+ * @param seed seed of random generator
+ */
+template <typename T>
+void inline fill_random_unique_sequence(T* rawBlobDataPtr,
+                                        std::size_t size,
+                                        uint64_t range,
+                                        int64_t start_from = 0,
+                                        const int64_t k = 1,
+                                        const int32_t seed = 1) {
+    if (start_from < 0 && !std::is_signed<T>::value) {
+        start_from = 0;
+    }
+
+    if (range < size) {
+        range = size * 2;
+    }
+
+    std::mt19937 generator(seed);
+    std::uniform_int_distribution<int64_t> dist(k * start_from, k * (start_from + range));
+
+    std::set<T> elems;
+    while (elems.size() != size) {
+        auto value = static_cast<float>(dist(generator));
+        value /= static_cast<float>(k);
+        if (std::is_same<ngraph::float16, T>::value) {
+            elems.insert(static_cast<T>(ngraph::float16(value).to_bits()));
+        } else if (std::is_same<ngraph::bfloat16, T>::value) {
+            elems.insert(static_cast<T>(ngraph::bfloat16(value).to_bits()));
+        } else {
+            elems.insert(static_cast<T>(value));
+        }
+    }
+    std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
 }
 
 /** @brief Fill blob with random data.

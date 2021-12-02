@@ -28,6 +28,8 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 
 using InputShape = ngraph::PartialShape;
@@ -148,9 +150,11 @@ TEST_P(MulAddConversionTests, CompareFunctions) {
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
-    manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
-    ngraph::pass::ConstantFolding().run_on_function(f);
+    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        check_rt_info(f);
+    });
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    ASSERT_NO_THROW(manager.run_passes(f));
     f->validate_nodes_and_infer_types();
 
     auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
@@ -166,9 +170,12 @@ TEST_P(MulOrAddConversionTests, CompareFunctions) {
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
-    manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
-    ngraph::pass::ConstantFolding().run_on_function(f);
+    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        check_rt_info(f);
+    });
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    ASSERT_NO_THROW(manager.run_passes(f));
+
     f->validate_nodes_and_infer_types();
 
     auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);

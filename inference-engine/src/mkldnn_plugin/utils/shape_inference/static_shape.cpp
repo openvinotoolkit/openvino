@@ -83,6 +83,14 @@ ov::Shape ov::StaticShape::to_shape() const {
     return shape_dimensions;
 }
 
+ov::PartialShape ov::StaticShape::to_partial_shape() const {
+    ov::PartialShape shape_dimensions = PartialShape::dynamic(size());
+    std::transform(begin(), end(), shape_dimensions.begin(), [](const StaticDimension& d) {
+        return d.get_length();
+    });
+    return shape_dimensions;
+}
+
 bool ov::StaticShape::merge_into(StaticShape& dst, const StaticShape& src) {
     if (dst.size() != src.size())
         return false;

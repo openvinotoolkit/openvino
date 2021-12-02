@@ -46,6 +46,12 @@ inline std::string vec2str(const std::vector<vecElementType> &vec) {
     }
     return std::string("()");
 }
+inline void replaceSubstringInString(std::string& str, const std::string& from, const std::string& to) {
+    size_t pos;
+    while ((pos = str.find(from)) != std::string::npos) {
+        str.replace(pos, 1, to);
+    }
+}
 
 inline std::string partialShape2str(const std::vector<ngraph::PartialShape>& partialShapes) {
     std::ostringstream result;

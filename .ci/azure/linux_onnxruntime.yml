@@ -1,3 +1,11 @@
+trigger:
+  branches:
+    include:
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 jobs:
 - job: onnxruntime
   timeoutInMinutes: 90
@@ -90,7 +98,7 @@ jobs:
         -DENABLE_CPPLINT=OFF
         -DENABLE_TESTS=OFF
         -DENABLE_MKL_DNN=ON
-        -DENABLE_CLDNN=OFF
+        -DENABLE_INTEL_GPU=OFF
         -DENABLE_PROFILING_ITT=OFF
         -DENABLE_SAMPLES=OFF
         -DNGRAPH_ONNX_FRONTEND_ENABLE=ON

@@ -11,7 +11,7 @@
 
 namespace MKLDNNPlugin {
 
-enum MulticlassNmsSortResultType {
+enum class MulticlassNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
     SCORE,    // sort selected boxes by score (descending) in each batch element
     NONE      // do not guarantee the order in each batch element
@@ -23,11 +23,16 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
+    bool needShapeInfer() const override { return false; }
+    void prepareParams() override;
 
 private:
     // input (port Num)
@@ -39,27 +44,29 @@ private:
     const size_t NMS_SELECTEDINDICES = 1;
     const size_t NMS_SELECTEDNUM = 2;
 
-    bool sort_result_across_batch = false;
-    MulticlassNmsSortResultType sort_result_type = NONE;
+    bool m_sortResultAcrossBatch = false;
+    MulticlassNmsSortResultType m_sortResultType = MulticlassNmsSortResultType::NONE;
 
-    size_t num_batches;
-    size_t num_boxes;
-    size_t num_classes;
+    size_t m_numBatches = 0;
+    size_t m_numBoxes = 0;
+    size_t m_numClasses = 0;
+    size_t m_maxBoxesPerBatch = 0;
 
-    int max_output_boxes_per_class = 0;
-    float iou_threshold = 0.0f;
-    float score_threshold = 0.0f;
+    int m_nmsRealTopk = 0;
+    int m_nmsTopK = 0;
+    float m_iouThreshold = 0.0f;
+    float m_scoreThreshold = 0.0f;
 
-    int32_t background_class = 0;
-    int32_t keep_top_k = 0;
-    float nms_eta = 0.0f;
-    bool normalized = true;
+    int32_t m_backgroundClass = 0;
+    int32_t m_keepTopK = 0;
+    float m_nmsEta = 0.0f;
+    bool m_normalized = true;
 
-    std::string errorPrefix;
+    std::string m_errorPrefix;
 
-    std::vector<std::vector<size_t>> numFiltBox;
-    std::vector<size_t> numBoxOffset;
-    const std::string inType = "input", outType = "output";
+    std::vector<std::vector<size_t>> m_numFiltBox;
+    std::vector<size_t> m_numBoxOffset;
+    const std::string m_inType = "input", m_outType = "output";
 
     struct filteredBoxes {
         float score;
@@ -77,7 +84,7 @@ private:
         int suppress_begin_index;
     };
 
-    std::vector<filteredBoxes> filtBoxes;
+    std::vector<filteredBoxes> m_filtBoxes;
 
     void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
                         const std::string type);

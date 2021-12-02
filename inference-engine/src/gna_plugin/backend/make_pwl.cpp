@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "runtime/pwl.h"
+#include "make_pwl.hpp"
 #include "gna_slope_scale.h"
 #include "dnn_types.h"
 #include "backend/gna_types.h"
@@ -173,7 +174,7 @@ void make_gna_pwl(const DnnActivation&  fun,
             break;
         }
         case kActLog: {
-            double min_x_val = 1 + ~XBASEMASK;
+            double min_x_val = (1 + ~XBASEMASK) / in_scale;
             double max_x_val = INT32_MAX / in_scale;
             double min_y_val = y_min / out_scale;
             double max_y_val = y_max / out_scale;

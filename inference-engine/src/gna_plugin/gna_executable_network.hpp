@@ -67,13 +67,6 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         return std::make_shared<GNAInferRequest>(plg, inputs, outputs);
     }
 
-    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
-        IE_SUPPRESS_DEPRECATED_START
-        return plg->QueryState();
-        IE_SUPPRESS_DEPRECATED_END
-    }
-
     void Export(const std::string &modelFileName) override {
         plg->Export(modelFileName);
     }

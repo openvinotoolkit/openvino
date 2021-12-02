@@ -14,7 +14,6 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <legacy/net_pass.h>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
