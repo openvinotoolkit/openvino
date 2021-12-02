@@ -341,6 +341,16 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
             res[py::cast(out)] = arr;
             break;
         }
+        case ov::element::Type_t::bf16: {
+            py::array arr(t.get_shape(), t.data<ov::bfloat16>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::f16: {
+            py::array arr(t.get_shape(), t.data<ov::float16>());
+            res[py::cast(out)] = arr;
+            break;
+        }
         case ov::element::Type_t::f32: {
             py::array arr(t.get_shape(), t.data<float>());
             res[py::cast(out)] = arr;
