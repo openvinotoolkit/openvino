@@ -1682,7 +1682,6 @@ void MKLDNNFakeQuantizeNode::initializePostOpData(const VectorDims &dims, const 
             }
         }
     } else {
-
             if (cropLow.size() > 1)
                 cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
             if (cropHigh.size() > 1)
