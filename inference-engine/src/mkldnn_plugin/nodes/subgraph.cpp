@@ -224,17 +224,17 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
         interpret();
         return;
     }
-    jit_snippets_const_args const_args;
+    jit_snippets_call_args call_args;
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        const_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
+        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
 
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        const_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
+        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
 
     if (tensorRank == rank6D) {
-        schedule_6d(const_args);
+        schedule_6d(call_args);
     } else {
-        schedule_nt(const_args);
+        schedule_nt(call_args);
     }
 }
 
@@ -514,28 +514,28 @@ void MKLDNNSnippetNode::generate() {
         ngraph::element::Type precision = (blockedDesc->getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
         return std::make_tuple(shape, blocking, precision);
     });
-    jit_snippets_compile_args jep;
-    jep.output_dims = dims_out[max_rank_out_desc_idx];
-    std::copy(sch_dims.begin(), sch_dims.end(), jep.scheduler_dims);
-    std::copy(sch_offsets_in.begin(), sch_offsets_in.end(), jep.scheduler_offsets);
-    std::copy(sch_offsets_out.begin(), sch_offsets_out.end(), &jep.scheduler_offsets[sch_offsets_in.size()]);
-    size_t harness_num_dims = jep.output_dims.size() - 1;
+    jit_snippets_compile_args jcp;
+    jcp.output_dims = dims_out[max_rank_out_desc_idx];
+    std::copy(sch_dims.begin(), sch_dims.end(), jcp.scheduler_dims);
+    std::copy(sch_offsets_in.begin(), sch_offsets_in.end(), jcp.scheduler_offsets);
+    std::copy(sch_offsets_out.begin(), sch_offsets_out.end(), &jcp.scheduler_offsets[sch_offsets_in.size()]);
+    size_t harness_num_dims = jcp.output_dims.size() - 1;
     if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS) {
         canUseOptimizedImpl = false;
         harness_num_dims = SNIPPETS_MAX_HARNESS_DIMS;
     }
     for (size_t i = 0; i < inputShapes.size(); i++) {
         auto b = offsets_in[i].begin();
-        std::copy(b, b + harness_num_dims, &jep.data_offsets[i * harness_num_dims]);
+        std::copy(b, b + harness_num_dims, &jcp.data_offsets[i * harness_num_dims]);
     }
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto b = offsets_out[i].begin();
-        std::copy(b, b + harness_num_dims, &jep.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
+        std::copy(b, b + harness_num_dims, &jcp.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
     }
-    schedule = snippet->generate(output_shapes, input_shapes, reinterpret_cast<void*>(&jep));
+    schedule = snippet->generate(output_shapes, input_shapes, reinterpret_cast<void*>(&jcp));
 }
 
-void MKLDNNSnippetNode::schedule_6d(const jit_snippets_const_args& const_args) const {
+void MKLDNNSnippetNode::schedule_6d(const jit_snippets_call_args& const_args) const {
     const auto& dom = dims_out[max_rank_out_desc_idx];
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
@@ -545,7 +545,7 @@ void MKLDNNSnippetNode::schedule_6d(const jit_snippets_const_args& const_args) c
         });
 }
 
-void MKLDNNSnippetNode::schedule_nt(const jit_snippets_const_args& const_args) const {
+void MKLDNNSnippetNode::schedule_nt(const jit_snippets_call_args& const_args) const {
     const auto& work_size = dims_out[max_rank_out_desc_idx];
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;

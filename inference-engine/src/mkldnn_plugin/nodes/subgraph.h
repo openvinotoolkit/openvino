@@ -51,8 +51,8 @@ private:
     void generate();
 
     // Evaluates generated snippet using parallel backend
-    void schedule_6d(const jit_snippets_const_args& const_args) const;
-    void schedule_nt(const jit_snippets_const_args& const_args) const;
+    void schedule_6d(const jit_snippets_call_args& const_args) const;
+    void schedule_nt(const jit_snippets_call_args& const_args) const;
 
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;

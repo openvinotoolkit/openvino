@@ -11,9 +11,9 @@
 
 namespace MKLDNNPlugin {
 
-class CPUTarget : public ngraph::snippets::TargetMachine {
+class CPUTargetMachine : public ngraph::snippets::TargetMachine {
 public:
-    CPUTarget(dnnl::impl::cpu::x64::cpu_isa_t host_isa);
+    CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa);
 
     bool is_supported() const override;
     ngraph::snippets::code get_snippet() const override;

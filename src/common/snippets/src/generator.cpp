@@ -50,9 +50,6 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     auto out = results.size();
     auto nptrs = in + out;
 
-    if (nptrs > 7) {
-        throw ngraph_error("snippet signature should not exceed 7 arguments. got " + std::to_string(nptrs));
-    }
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
     std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>> lowered;

@@ -33,7 +33,7 @@ public:
     }
 };
 
-MKLDNNPlugin::CPUTarget::CPUTarget(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
+MKLDNNPlugin::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
     : TargetMachine(), h(new jit_snippet()), isa(host_isa) {
     // data movement
     jitters[ngraph::opset1::Parameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
@@ -117,7 +117,7 @@ MKLDNNPlugin::CPUTarget::CPUTarget(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
     jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);
 }
 
-size_t MKLDNNPlugin::CPUTarget::get_lanes() const {
+size_t MKLDNNPlugin::CPUTargetMachine::get_lanes() const {
     switch (isa) {
         case dnnl::impl::cpu::x64::avx2 : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx2>::vlen / sizeof(float);
         case dnnl::impl::cpu::x64::sse41 : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen / sizeof(float);
@@ -126,14 +126,14 @@ size_t MKLDNNPlugin::CPUTarget::get_lanes() const {
     }
 }
 
-bool MKLDNNPlugin::CPUTarget::is_supported() const {
+bool MKLDNNPlugin::CPUTargetMachine::is_supported() const {
     return dnnl::impl::cpu::x64::mayiuse(isa);
 }
 
-code MKLDNNPlugin::CPUTarget::get_snippet() const {
+code MKLDNNPlugin::CPUTargetMachine::get_snippet() const {
     h->create_kernel();
     return h->jit_ker();
 }
 
-MKLDNNPlugin::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTarget>(isa_)) {
+MKLDNNPlugin::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
 }

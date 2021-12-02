@@ -14,8 +14,8 @@ namespace MKLDNNPlugin {
 #define SNIPPETS_MAX_SNIPPETS_DIMS 7
 #define SNIPPETS_MAX_HARNESS_DIMS 5
 #define SNIPPETS_MAX_TILE_RANK 2
-#define GET_OFF(field) offsetof(jit_snippets_const_args, field)
-struct jit_snippets_const_args {
+#define GET_OFF(field) offsetof(jit_snippets_call_args, field)
+struct jit_snippets_call_args {
     const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
 };
@@ -37,7 +37,7 @@ public:
         code = kernel->region;
         if (!kernel->compile_params)
             IE_THROW() << "KernelEmitter invoked without compile_params";
-        _jep = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
+        jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -46,9 +46,10 @@ public:
               const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         emit_impl(in, out, pool, gpr, nullptr);
     }
-    jit_snippets_compile_args _jep;
 
 private:
+    jit_snippets_compile_args jcp;
+
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
@@ -59,29 +60,31 @@ private:
         const size_t num_outputs = in[2];
         const size_t num_params = num_inputs + num_outputs;
         int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
+        const int64_t harness_num_dims = jcp.output_dims.size() - 1;
+
         Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param1 };
         Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param2 };
-        #ifdef _WIN32
-        Reg64 reg_tmp_64 { Operand::RDI };
-        #else
-        Xbyak::Reg64 reg_tmp_64 { Operand::RCX };
-        #endif
+        Xbyak::Reg64 reg_tmp_64 { dnnl::impl::cpu::x64::abi_not_param1};
 
         if (tile_rank != 2)
             IE_THROW() << "Kernel of codegen supports only Tile2D" << std::endl;
+
+        if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS)
+            IE_THROW() << "Codegen Kernel supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
+                       " dims, got " << harness_num_dims << std::endl;
+
+        if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
+            IE_THROW() << "Codegen Kernel supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+                       " parameters, got " << num_params << std::endl;
 
         h->preamble();
 
         std::vector<Reg64> regs(num_params);
 
-        const int64_t harness_num_dims = _jep.output_dims.size() - 1;
-        if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS)
-            IE_THROW() << "Codegen Kernel supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
-                            " dims, got " << harness_num_dims << std::endl;
 
         auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
             for (int j = 0; j < harness_num_dims; j++) {
-                if (_jep.output_dims[j] != 1 && offsets[j] != 0) {
+                if (jcp.output_dims[j] != 1 && offsets[j] != 0) {
                     h->mov(reg_tmp_64, offsets[j]);
                     h->imul(reg_tmp_64, h->ptr[reg_indexes + j * sizeof(size_t)]);
                     h->add(pointer, reg_tmp_64);
@@ -94,7 +97,7 @@ private:
                 h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
             else
                 h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
-            init_ptrs_with_offsets(regs[i], &_jep.data_offsets[i * harness_num_dims]);
+            init_ptrs_with_offsets(regs[i], &jcp.data_offsets[i * harness_num_dims]);
         }
 
         for (auto& c : code) {
@@ -116,7 +119,7 @@ public:
         code = tile->region;
         if (!tile->compile_params)
             IE_THROW() << "TileEmitter invoked without compile_params";
-        _jep = *reinterpret_cast<const jit_snippets_compile_args*>(tile->compile_params);
+        jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile->compile_params);
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -125,21 +128,27 @@ public:
               const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         emit_impl(in, out, pool, gpr, nullptr);
     }
-    jit_snippets_compile_args _jep;
 
 private:
+    jit_snippets_compile_args jcp;
+
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const MKLDNNPlugin::emitter_context *emit_context) const override {
         const size_t inc = in[0];
-        const size_t prew_inc = in[1]; // increment of a prew tile in the same dim (0 if the first tile in the dim)
+        const size_t previous_inc = in[1]; // increment of a previous tile in the same dim (0 if the first tile in the dim)
         const size_t num_params = in[2];
         const size_t dim = in[3]; // tile dimension: 0 - outer, 1 - inner
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
         Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
         std::array<Label, 2> for_body;
+
+        if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
+            IE_THROW() << "Codegen Tile supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+                       " parameters, got " << num_params << std::endl;
+
         // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
         // todo: Do we need explicitly check that code contains ScalarEmitter?
         std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
@@ -147,20 +156,20 @@ private:
         for (auto i = 0; dim == 0 && i < num_params; i++)
             regs[i] = Reg64(reg64_tmp_start + i);
 
-        if (inc > _jep.scheduler_dims[dim]) {
+        if (inc > jcp.scheduler_dims[dim]) {
             return;
-        } else if (inc == _jep.scheduler_dims[dim]) {
+        } else if (inc == jcp.scheduler_dims[dim]) {
             for (auto& c : code) {
                 c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
             }
         } else {
-            // The prew tile has done nothing, all the work is ours
-            if (prew_inc == 0 || prew_inc > _jep.scheduler_dims[dim]) {
-                h->mov(amount, _jep.scheduler_dims[dim]);
-            // The prew tile has done all the work
-            } else if (_jep.scheduler_dims[dim] % prew_inc == 0) {
+            // The previous tile has done nothing, all the work is ours
+            if (previous_inc == 0 || previous_inc > jcp.scheduler_dims[dim]) {
+                h->mov(amount, jcp.scheduler_dims[dim]);
+            // The previous tile has done all the work
+            } else if (jcp.scheduler_dims[dim] % previous_inc == 0) {
                 return;
-            }// else: the prew tile has already set a proper work amount
+            }// else: the previous tile has already set a proper work amount
             h->cmp(amount, inc);
             h->jl(for_body[0], CodeGenerator::T_NEAR);
 
@@ -173,8 +182,8 @@ private:
                 h->pop(amount);
                 // we need to add offset for ptrs only in external tiles because stores and loaders in internal tiles have default offsets
                 for (auto i = 0; dim == 0 && i < num_params; i++) {
-                    if (_jep.scheduler_offsets[i] != 0) {
-                        h->add(regs[i], _jep.scheduler_offsets[i]);
+                    if (jcp.scheduler_offsets[i] != 0) {
+                        h->add(regs[i], jcp.scheduler_offsets[i]);
                     }
                 }
                     h->sub(amount, inc);
@@ -294,10 +303,12 @@ class ScalarEmitter : public jit_emitter {
 public:
     ScalarEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
-        auto out_shape = n->output(0).get_tensor().get_shape();
-        if (out_shape == ov::Shape() || ov::shape_size(out_shape) == 1) {
-            value = mkldnn::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
-        }
+        auto out_pshape = n->output(0).get_tensor().get_partial_shape();
+        if (out_pshape.is_dynamic())
+            IE_THROW() << "Codegen Scalar supports only static input shapes";
+        if ( out_pshape.get_shape() != ov::Shape() && ov::shape_size(out_pshape.get_shape()) != 1)
+            IE_THROW() << "Codegen Scalar got invalid shape";
+        value = mkldnn::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
 
         push_arg_entry_of("scalar", value, true);
         prepare_table();
