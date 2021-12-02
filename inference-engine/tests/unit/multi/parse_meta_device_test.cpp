@@ -91,19 +91,19 @@ public:
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(metrics));
 
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
+       ON_CALL(*core, GetMetric(HasSubstr(CommonTestUtils::DEVICE_CPU),
                    StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(cpuFullDeviceName));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
+       ON_CALL(*core, GetMetric(HasSubstr(CommonTestUtils::DEVICE_GPU),
                    StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(igpuFullDeviceName));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD),
+       ON_CALL(*core, GetMetric(HasSubstr(CommonTestUtils::DEVICE_MYRIAD),
                    StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(myriadFullDeviceName));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
+       ON_CALL(*core, GetMetric(HasSubstr(CommonTestUtils::DEVICE_KEEMBAY),
                    StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(vpuxFullDeviceName));
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, otherConfigKeys, {CONFIG_KEY(DEVICE_ID)});
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, cpuConfigKeys, {});
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
+       ON_CALL(*core, GetMetric(HasSubstr(CommonTestUtils::DEVICE_CPU),
                    StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuConfigKeys));
-       ON_CALL(*core, GetMetric(Not(StrEq(CommonTestUtils::DEVICE_CPU)),
+       ON_CALL(*core, GetMetric(Not(HasSubstr(CommonTestUtils::DEVICE_CPU)),
                    StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(RETURN_MOCK_VALUE(otherConfigKeys));
        ON_CALL(*core, GetConfig(_, StrEq(CONFIG_KEY(DEVICE_ID))))
            .WillByDefault(InvokeWithoutArgs([](){return "01";}));
@@ -151,21 +151,21 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevices) {
 
 const std::vector<ConfigParams> testConfigs = {
     ConfigParams {"CPU,GPU,MYRIAD,VPUX",
-        {{"CPU", {}, -1, "", std::string(cpuFullDeviceName) + "_"},
+        {{"CPU", {}, -1, "", "CPU_"},
             {"GPU", {}, -1, "01", std::string(igpuFullDeviceName) + "_01"},
-            {"MYRIAD", {}, -1, "01", std::string(myriadFullDeviceName) + "_01"},
+            {"MYRIAD", {}, -1, "01", "MYRIAD_01"},
             {"VPUX", {}, -1, "01", "VPUX_01"}}, false},
     ConfigParams {"CPU(1),GPU(2),MYRIAD(3),VPUX(4)",
-        {{"CPU", {}, 1, "", std::string(cpuFullDeviceName) + "_"},
+        {{"CPU", {}, 1, "", "CPU_"},
             {"GPU", {}, 2, "01", std::string(igpuFullDeviceName) + "_01"},
-            {"MYRIAD", {}, 3, "01", std::string(myriadFullDeviceName) + "_01"},
+            {"MYRIAD", {}, 3, "01", "MYRIAD_01"},
             {"VPUX", {}, 4, "01", "VPUX_01"}}, false},
     ConfigParams {"CPU(-1),GPU,MYRIAD,VPUX",  {}, true},
     ConfigParams {"CPU(NA),GPU,MYRIAD,VPUX",  {}, true},
     ConfigParams {"CPU.02(3),GPU.03,MYRIAD.04,VPUX.05",
-        {{"CPU.02", {}, 3, "", std::string(cpuFullDeviceName) + "_02"},
+        {{"CPU.02", {}, 3, "",  "CPU_02"},
             {"GPU.03", {}, -1, "", std::string(igpuFullDeviceName) + "_03"},
-            {"MYRIAD.04", {}, -1, "", std::string(myriadFullDeviceName) + "_04"},
+            {"MYRIAD.04", {}, -1, "", "MYRIAD_04"},
             {"VPUX.05", {}, -1, "", "VPUX_05"}}, false}
     };
 
