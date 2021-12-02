@@ -14,7 +14,7 @@ try:
     from mo.back.preprocessing import apply_preprocessing
 
     # pylint: disable=no-name-in-module,import-error
-    import openvino.opset8 as ops
+    import openvino.runtime.opset8 as ops
     from openvino.runtime import Function, Layout, PartialShape
 
 except Exception:
