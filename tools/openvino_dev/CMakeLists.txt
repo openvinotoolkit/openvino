@@ -20,3 +20,11 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     VERBATIM)
 
 add_custom_target(openvino_dev_wheel ALL DEPENDS ${openvino_wheel_path})
+
+# install
+
+ie_cpack_add_component(python_wheels)
+
+install(FILES ${openvino_wheel_path}
+        DESTINATION tools
+        COMPONENT python_wheels)
