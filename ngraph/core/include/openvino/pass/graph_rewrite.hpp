@@ -98,8 +98,8 @@ public:
 
 protected:
     void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                          const graph_rewrite_callback& callback,
-                          const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
+                          const graph_rewrite_callback& callback);
+
 
 private:
     handler_callback m_handler;

@@ -352,10 +352,9 @@ bool ov::pass::RecurrentGraphRewrite::run_on_function(std::shared_ptr<Function> 
 }
 
 void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pattern::Matcher>& m,
-                                             const ov::graph_rewrite_callback& callback,
-                                             const PassPropertyMask& property) {
+                                             const ov::graph_rewrite_callback& callback) {
     set_name(m->get_name());
-    set_property(property, true);
+    set_property(PassProperty::CHANGE_DYNAMIC_STATE, true);
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0))) {

@@ -1,10 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import numpy as np
 
-from openvino import Function, PartialShape
+from openvino import Function, PartialShape, opset8
 import openvino as ov
 
-from openvino.impl.passes import Manager, Matcher, MatcherPass, WrapType
+from openvino.impl.passes import Manager, Matcher, MatcherPass, WrapType, Serialize
 
 
 # Simple: for Extensions. Without any classes and inheritance.
@@ -30,6 +31,8 @@ def pattern_replacement():
 # Hard: for POT. Includes all MatcherPass capabilities!
 class PatternReplacement(MatcherPass):
     def __init__(self):
+        MatcherPass.__init__(self)
+
         relu = WrapType("Relu")
 
         def callback(m: Matcher) -> bool:
@@ -44,13 +47,13 @@ class PatternReplacement(MatcherPass):
             root.input(0).replace_source_output(new_relu.output(0))
             return True
 
-        MatcherPass.__init__(self, Matcher(relu, "PatternReplacement"), callback)
+        self.register_matcher(Matcher(relu, "PatternReplacement"), callback)
 
 
 def get_test_function():
-    param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
-    relu = ov.opset8.relu(param.output(0))
-    res = ov.opset8.result(relu.output(0), name="result")
+    param = opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    relu = opset8.relu(param.output(0))
+    res = opset8.result(relu.output(0), name="result")
     return Function([res], [param], "test")
 
 

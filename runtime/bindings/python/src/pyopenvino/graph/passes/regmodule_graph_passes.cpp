@@ -15,4 +15,5 @@ void regmodule_graph_passes(py::module m) {
     regclass_graph_pattern_PassBase(m_passes);
     regclass_graph_pattern_MatcherPass(m_passes);
     regclass_graph_patterns(m_passes);
+    regclass_transformations(m_passes);
 }

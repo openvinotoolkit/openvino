@@ -15,6 +15,7 @@
 #include <iterator>
 #include <sstream>
 #include <string>
+#include <transformations/serialize.hpp>
 
 #include "pyopenvino/graph/passes/matcher.hpp"
 
@@ -80,6 +81,15 @@ void regclass_graph_pattern_PassBase(py::module m) {
     pass_base.doc() = "openvino.impl.MatcherPass wraps ov::pass::MatcherPass";
 }
 
+void regclass_transformations(py::module m) {
+    py::class_<ov::pass::Serialize, std::shared_ptr<ov::pass::Serialize>, ov::pass::PassBase> serialize(m, "Serialize");
+    serialize.doc() = "openvino.impl.Serialize transformation";
+    serialize.def(py::init([](const std::string & path_to_xml,
+                              const std::string & path_to_bin) {
+                                   return std::make_shared<ov::pass::Serialize>(path_to_xml, path_to_bin);
+                           }));
+}
+
 // WA: to expose protected method
 class PyMatcherPass: public ov::pass::MatcherPass {
 public:
@@ -91,6 +101,7 @@ void regclass_graph_pattern_MatcherPass(py::module m) {
                std::shared_ptr<ov::pass::MatcherPass>,
                ov::pass::PassBase> matcher_pass(m, "MatcherPass");
     matcher_pass.doc() = "openvino.impl.MatcherPass wraps ov::pass::MatcherPass";
+    matcher_pass.def(py::init<>());
     matcher_pass.def(py::init([](const std::shared_ptr<ov::pass::pattern::Matcher>& m,
                                  ov::graph_rewrite_callback callback) {
                     return std::make_shared<ov::pass::MatcherPass>(m, callback);
@@ -128,7 +139,7 @@ ov::NodeTypeInfo get_type(const std::string & type_name) {
 }
 
 std::vector<ov::NodeTypeInfo> get_types(const std::vector<std::string> & type_names) {
-    std::vector<ov::NodeTypeInfo> types(type_names.size());
+    std::vector<ov::NodeTypeInfo> types;
     for (const auto & type_name : type_names) {
         types.emplace_back(get_type(type_name));
     }
