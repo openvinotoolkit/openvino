@@ -79,7 +79,7 @@ Options:
     -h, --help                  Print a usage message
     -m "<path>"                 Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
     -i "<path>"                 Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-                                In case of dynamic shapes networks with several inputs provide the same number of files for each input (except cases with 1 file for 1 input):
+                                In case of dynamic shapes networks with several inputs provide the same number of files for each input (except cases with single file for any input):
                                 "input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ".
                                 Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
     -d "<device>"               Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
@@ -106,17 +106,18 @@ Options:
                                 This parameter affect model input shape and can be dynamic. For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?].
                                 For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].
     -data_shape                 Required for networks with dynamic shapes. Set shape for input blobs.
-                                For example, "[1,3,224,224]" or "input1[1,3,224,224],input2[1,4]" in case of
-                                one input size. In case of several input sizes provide the same number for
-                                each input (except cases with 1 shape for 1 input): "[1,3,128,128][3,3,128,128][1,3,320,320]",
-                                "input1[1,1,128,128][1,1,256,256],input2[80,1]" or "input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]"
-                                If network shapes are all static option will be ignored.
+                                In case of one input size: "[1,3,224,224]" or "input1[1,3,224,224],input2[1,4]".
+                                In case of several input sizes provide the same number for
+                                each input (except cases with single shape for any input): "[1,3,128,128][3,3,128,128][1,3,320,320]",
+                                "input1[1,1,128,128][1,1,256,256],input2[80,1]" or "input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]".
+                                If network shapes are all static specifying the option will cause an exception.
     -layout                     Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
     -cache_dir "<path>"         Optional. Enables caching of loaded models to specified directory.
     -load_from_file             Optional. Loads model from file directly without ReadNetwork.
     -latency_percentile         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
     -inference_only             Optional. Measure only inference stage. Default option for static models.
-                                Dynamic models are measured in full mode which includes inputs setting stage.
+                                Dynamic models are measured in full mode which includes inputs setup stage,
+                                inference only mode available for them with single input data shape only.
                                 To enable full mode for static models pass \"false\" value to this argument: ex. -inference_only=false".
 
   CPU-specific performance options:

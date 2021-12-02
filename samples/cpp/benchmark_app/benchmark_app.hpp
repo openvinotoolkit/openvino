@@ -21,7 +21,7 @@ static const char help_message[] = "Print a usage message";
 static const char input_message[] =
     "Optional. Path to a folder with images and/or binaries or to specific image or binary file.\n"
     "                              In case of dynamic shapes networks with several inputs provide the same number"
-    " of files for each input (except cases with 1 file for 1 input):"
+    " of files for each input (except cases with single file for any input):"
     "\"input1:1.jpg input2:1.bin\", \"input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin \"."
     " Also you can pass specific keys for inputs: \"random\" - for fillling input with random data,"
     " \"image_info\" - for filling input with image size.";
@@ -169,13 +169,13 @@ static const char shape_message[] =
     " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
 static const char data_shape_message[] =
-    "Optional if network shapes are all static (original ones or set by -shape.\n"
-    "                              Required if at least one input shape is dynamic."
-    " Set shape for input tensores. For example, \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\""
-    " in case of one input size."
-    " In case of several input sizes provide the same number for each input (except cases with 1 shape for 1 input):"
+    " Required for networks with dynamic shapes. Set shape for input blobs."
+    " In case of one input size: \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\"."
+    " In case of several input sizes provide the same number for each input (except cases with single shape for any "
+    "input):"
     " \"[1,3,128,128][3,3,128,128][1,3,320,320]\", \"input1[1,1,128,128][1,1,256,256],input2[80,1]\""
-    " or \"input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]\"";
+    " or \"input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]\"."
+    " If network shapes are all static specifying the option will cause an exception.";
 
 static const char layout_message[] =
     "Optional. Prompts how network layouts should be treated by application. "
@@ -216,7 +216,8 @@ static constexpr char input_image_mean_message[] =
 
 static constexpr char inference_only_message[] =
     "Optional. Measure only inference stage. Default option for static models. Dynamic models"
-    " are measured in full mode which includes inputs setting stage."
+    " are measured in full mode which includes inputs setup stage,"
+    " inference only mode available for them with single input data shape only."
     " To enable full mode for static models pass \"false\" value to this argument:"
     " ex. \"-inference_only=false\".\n";
 
