@@ -35,5 +35,19 @@ std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
     return pooling;
 }
 
+std::shared_ptr<Node> makeMaxPool8(const ngraph::Output<Node> &in,
+                                  const std::vector<size_t> &strides,
+                                  const std::vector<size_t> &dilations,
+                                  const std::vector<size_t> &padsBegin,
+                                  const std::vector<size_t> &padsEnd,
+                                  const std::vector<size_t> &kernel,
+                                  const op::RoundingType &roundingType,
+                                  const op::PadType &padType,
+                                  const ov::element::Type& indexElementType,
+                                  const int64_t axis) {
+    return std::make_shared<ngraph::opset8::MaxPool>(in, strides, dilations, padsBegin, padsEnd, kernel, roundingType,
+                                                                padType, indexElementType, axis);
+}
+
 }  // namespace builder
 }  // namespace ngraph
