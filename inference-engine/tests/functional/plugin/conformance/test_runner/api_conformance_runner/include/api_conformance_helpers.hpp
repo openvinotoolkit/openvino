@@ -22,7 +22,7 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
             { "AUTO", "MultiDevicePlugin" },
             { "CPU", "MKLDNNPlugin" },
             { "GNA", "GNAPlugin" },
-            { "GPU", "clDNNPlugin" },
+            { "GPU", "ov_intel_gpu_plugin" },
             { "HETERO", "ov_hetero_plugin" },
             { "MULTI", "MultiDevicePlugin" },
             { "MYRIAD", "myriadPlugin" },
