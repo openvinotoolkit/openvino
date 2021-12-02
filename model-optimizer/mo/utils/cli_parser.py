@@ -25,8 +25,7 @@ class DeprecatedStoreTrue(argparse.Action):
         super().__init__(nargs=nargs, **kw)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
-            option_string)
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
         if 'fusing' in option_string:
             dep_msg += 'Please use --finegrain_fusing cli option instead'
         log.error(dep_msg, extra={'is_warning': True})
@@ -273,15 +272,6 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'The exact meaning and order ' +
                                    'of channels depend on how the original model was trained.',
                               default=())
-    common_group.add_argument('--layout',
-                              help='Layout of the input or output of the network. It can be specified in two ways: coma'
-                                   ' separated, e.g. [n,c,h,w] or not coma separated, e.g. nhwc, each character will be'
-                                   ' treated as dimention name. If model has one input it is sufficent to specify'
-                                   ' layout of this input, for example --layout nhwc. To specify layouts of many'
-                                   ' tensors, names must be provided, for example: --layout name1(nchw),name2(nc). It'
-                                   ' is possible to instruct model optimizer to change layout, for example:'
-                                   ' --layout name1(nhwc->nchw),name2(cn->nc).',
-                              default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
                               help='Data type for all intermediate tensors and weights. ' +
@@ -492,8 +482,7 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',
                              type=str,
-                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions',
-                                                  'front', 'caffe',
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions', 'front', 'caffe',
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
@@ -559,8 +548,8 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                                'nodes information.',
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_use_custom_operations_config',
-                          help='Use the configuration file with custom operation description.',
-                          action=DeprecatedCanonicalizePathCheckExistenceAction)
+                              help='Use the configuration file with custom operation description.',
+                              action=DeprecatedCanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
                           help='TensorFlow*: path to the pipeline configuration file used to generate model created '
                                'with help of Object Detection API.',
@@ -804,34 +793,6 @@ def parse_input_value(input_value: str):
     return node_name, shape, value, data_type
 
 
-def get_layout_values(argv_layout: str):
-    if not argv_layout:
-        return {}
-    node_name_re = r'[^(),\[\]]+'  # should fit any node name possible
-    source_layout_re = r'[^()>]+'  # should fit 'nhwc', '[n,h,w,c]' or 0312
-    target_layout_re = r'->[^()]+'  # should fit ->'layout'
-    # check if we deal with simple nameless case like 'nhwc' or more complicated like 'name(nhwc)'
-    p = re.compile('\S+\(\S+\)\S*')
-    if p.match(argv_layout):
-        p = re.compile(r'(({})\(({})({})?\),?)'.format(node_name_re, source_layout_re, target_layout_re))
-        m = p.findall(argv_layout)
-        res = dict()
-        validation_str = ''
-        for group in m:
-            group_3 = None
-            if group[3]:
-                # removing -> at the beggining of pattern
-                group_3 = group[3][2:]
-            validation_str += group[0]
-            res[group[1]] = {'source_layout': group[2], 'target_layout': group_3}
-        if validation_str != argv_layout:
-            raise Error("The layout can't be parsed")
-        return res
-    else:
-        m = re.split('->', argv_layout)
-        return {'': {'source_layout': m[0], 'target_layout': None if len(m) < 2 else m[1]}}
-
-
 def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
     """
     Parses values for placeholder freezing and input node names
@@ -862,9 +823,8 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
             node_name = plh_with_value[0]
             value = plh_with_value[1]
             if node_name in placeholder_values and placeholder_values[node_name] != value:
-                raise Error(
-                    "Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
-                    ".".format(node_name, placeholder_values[node_name], value))
+                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
+                            ".".format(node_name, placeholder_values[node_name], value))
             if '[' in value.strip(' '):
                 value = value.replace('[', '').replace(']', '').split(' ')
             placeholder_values[node_name] = value
@@ -874,13 +834,12 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
         # walkthrough all input values and save values for freezing
         for input_value in argv_input.split(','):
             node_name, _, value, _ = parse_input_value(input_value)
-            input_node_names = input_node_names + ',' + node_name if input_node_names != '' else node_name
-            if value is None:  # no value is specified for freezing
+            input_node_names = input_node_names + ',' + node_name  if input_node_names != '' else node_name
+            if value is None: # no value is specified for freezing
                 continue
             if node_name in placeholder_values and placeholder_values[node_name] != value:
-                raise Error(
-                    "Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
-                    ".".format(node_name, placeholder_values[node_name], value))
+                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
+                            ".".format(node_name, placeholder_values[node_name], value))
             placeholder_values[node_name] = value
 
     return placeholder_values, input_node_names

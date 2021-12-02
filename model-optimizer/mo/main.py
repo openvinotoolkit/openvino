@@ -31,7 +31,7 @@ from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info, \
-    parse_transform, check_available_transforms, get_layout_values
+    parse_transform, check_available_transforms
 from mo.utils.error import Error, FrameworkError
 from mo.utils.find_ie_version import find_ie_version
 from mo.utils.get_ov_update_message import get_ov_update_message
@@ -268,7 +268,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     scale_values = parse_tuple_pairs(argv.scale_values)
     mean_scale = get_mean_scale_dictionary(mean_values, scale_values, argv.input)
     argv.mean_scale_values = mean_scale
-    argv.layout_values = get_layout_values(argv.layout)
 
     if not os.path.exists(argv.output_dir):
         try:
