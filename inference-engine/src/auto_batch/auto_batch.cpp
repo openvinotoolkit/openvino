@@ -288,7 +288,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
             workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
                 while (1) {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(100));
+                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(1000));
                     // as we pop the tasks from the queue only here
                     // it is ok to call unsafe_size (as the _tasks can only grow in parallel)
                     const int sz = workerRequestPtr->_tasks.unsafe_size();
@@ -554,7 +554,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         const auto stats = pCore->GetMetric(device, GPU_METRIC_KEY(MEMORY_STATISTICS)).as<std::map<std::string, uint64_t>>();
         for (auto s : stats)
             footprint += s.second;
-        std::cout << "!!!!!!!!!!!!!! (FOOTPRINT) " << message << " : " << footprint/1024 << " MB" << std::endl;
+        std::cout << "!!!!!!!!!!!!!! (FOOTPRINT) " << message << " : " << footprint/1024/1024 << " MB" << std::endl;
         return  footprint;
     };
 
