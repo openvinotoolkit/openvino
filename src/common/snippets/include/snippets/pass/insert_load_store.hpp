@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <snippets/snippets_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/matcher.hpp>
@@ -19,7 +19,7 @@ namespace pass {
  * The pass is used to convert function to a canonical form for code generation
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API InsertLoad: public ngraph::pass::MatcherPass {
+class SNIPPETS_API InsertLoad: public ngraph::pass::MatcherPass {
 public:
     InsertLoad();
 };
@@ -30,7 +30,7 @@ public:
  * The pass is used to convert function to a canonical form for code generation
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API InsertStore: public ngraph::pass::MatcherPass {
+class SNIPPETS_API InsertStore: public ngraph::pass::MatcherPass {
 public:
     InsertStore();
 };

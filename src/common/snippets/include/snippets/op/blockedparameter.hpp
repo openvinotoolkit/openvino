@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <snippets/snippets_visibility.hpp>
 
 #include <ngraph/op/op.hpp>
 #include <ngraph/op/parameter.hpp>
@@ -18,7 +18,7 @@ namespace op {
  * @brief Represents blocked input (NCHW<X>c) for a subgraph
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API BlockedParameter : public ngraph::op::Parameter {
+class SNIPPETS_API BlockedParameter : public ngraph::op::Parameter {
 public:
     OPENVINO_OP("BlockedParameter", "SnippetsOpset", ngraph::op::Parameter);
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <snippets/snippets_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
 
@@ -17,7 +17,7 @@ namespace op {
  * @brief Added to a subgraph if explicit broadcast instruction should be generated
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API BroadcastMove : public ngraph::op::Op {
+class SNIPPETS_API BroadcastMove : public ngraph::op::Op {
 public:
     OPENVINO_OP("BroadcastMove", "SnippetsOpset");
 

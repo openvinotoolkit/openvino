@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <snippets/snippets_visibility.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/op/op.hpp>
 #include <ngraph/rt_info.hpp>
@@ -23,7 +23,7 @@ namespace op {
  * @brief An operation that is implemented by a function
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API Subgraph : public ngraph::op::Op {
+class SNIPPETS_API Subgraph : public ngraph::op::Op {
 public:
     OPENVINO_OP("Subgraph", "SnippetsOpset");
 

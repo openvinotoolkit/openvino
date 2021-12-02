@@ -6,12 +6,12 @@
 
 #include <ngraph/axis_vector.hpp>
 #include <ngraph/variant.hpp>
-#include <transformations_visibility.hpp>
+#include <snippets/snippets_visibility.hpp>
 
 namespace ov {
 
 template <>
-class TRANSFORMATIONS_API VariantWrapper<std::vector<size_t>> : public VariantImpl<std::vector<size_t>> {
+class SNIPPETS_API VariantWrapper<std::vector<size_t>> : public VariantImpl<std::vector<size_t>> {
 public:
     OPENVINO_RTTI("VariantWrapper<std::vector<size_t>>");
     BWDCMP_RTTI_DECLARATION;

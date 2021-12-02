@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <snippets/snippets_visibility.hpp>
 #include <ngraph/pass/pass.hpp>
 
 namespace ngraph {
@@ -17,7 +17,7 @@ namespace pass {
  * Changing order of variables or datafrow lead to invalidation of register assignment.
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API AssignRegisters : public ngraph::pass::FunctionPass {
+class SNIPPETS_API AssignRegisters : public ngraph::pass::FunctionPass {
 public:
     AssignRegisters() : FunctionPass() {
         set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);

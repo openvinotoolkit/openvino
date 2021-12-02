@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <snippets/snippets_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/matcher.hpp>
@@ -20,7 +20,7 @@ namespace pass {
  * Used for tail generation
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API ReplaceLoadsWithScalarLoads: public ngraph::pass::MatcherPass {
+class SNIPPETS_API ReplaceLoadsWithScalarLoads: public ngraph::pass::MatcherPass {
 public:
     ReplaceLoadsWithScalarLoads();
 };
@@ -32,7 +32,7 @@ public:
  * Used for tail generation
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API ReplaceStoresWithScalarStores: public ngraph::pass::MatcherPass {
+class SNIPPETS_API ReplaceStoresWithScalarStores: public ngraph::pass::MatcherPass {
 public:
     ReplaceStoresWithScalarStores();
 };
