@@ -718,8 +718,13 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
+        auto& inTensorDesc = in->getTensorDesc();
+        auto node = input->second;
+        auto childEdge = node->getChildEdgeAt(0);
+        const auto& outDims = node->getOutputShapeAtPort(0);
+
         const void *ext_data_ptr = in->cbuffer();
-        void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
+        void *inter_data_ptr = childEdge->getMemory().GetData();
 
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
@@ -727,17 +732,16 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
             auto ext_mem = MKLDNNMemory(eng);
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
-            input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, 0, false);
+            childEdge->getMemory().SetData(ext_mem, 0, false);
         }
 
         // todo: make sure 'name' exists in this map...
         if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
-            if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
-                _normalizePreprocMap[name].NormalizeImage(input->second->getOutputShapeAtPort(0),
-                                                          reinterpret_cast<float *>(inter_data_ptr),
-                                                          in->getTensorDesc().getLayout());
+            if (inTensorDesc.getPrecision() == InferenceEngine::Precision::FP32) {
+                _normalizePreprocMap[name].NormalizeImage(outDims, reinterpret_cast<float *>(inter_data_ptr),
+                                                          inTensorDesc.getLayout());
             } else {
-                IE_THROW() << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";
+                IE_THROW() << "Mean image of type " << inTensorDesc.getPrecision().name() << " is unsupported";
             }
         }
     } else {
@@ -752,15 +756,17 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
     for (auto &outputMap : outputNodesMap) {
         auto name = outputMap.first;
         auto node = outputMap.second;
-        const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
+        auto parentEdge = node->getParentEdgeAt(0);
+        const MKLDNNMemory& intr_blob = parentEdge->getMemory();
 
-        auto ext_blob = out.find(name);
-        if (ext_blob == out.end()) {
+        const auto ext_blob_map = out.find(name);
+        const auto ext_blob = ext_blob_map->second;
+        if (ext_blob_map == out.end()) {
             IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
-        auto &expectedDesc = ext_blob->second->getTensorDesc();
+        auto &expectedDesc = ext_blob->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
@@ -793,26 +799,15 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if (srcPrec == dstPrec && ext_blob->second->byteSize() != intr_blob.GetSize())
+        if (srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
                 IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->second->byteSize() << "!=" << intr_blob.GetSize() << ").";
+                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
 
-        void *ext_blob_ptr = ext_blob->second->buffer();
+        void *ext_blob_ptr = ext_blob->buffer();
         void *intr_blob_ptr = intr_blob.GetData();
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
-
-        size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-        // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
-        // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
-        if (config.batchLimit) {
-            if (node->isDynamicNode()) {
-                IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
-            }
-            int MB_to_process = node->batchToProcess();
-            size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * MB_to_process;
-        }
 
         if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
             auto outBlobDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
@@ -821,6 +816,17 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 
             outBloMem.SetData(intr_blob, 0, false);
         } else {
+            size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+            // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
+            // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
+            if (config.batchLimit) {
+                if (node->isDynamicNode()) {
+                    IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
+                }
+                int MB_to_process = node->batchToProcess();
+                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * MB_to_process;
+            }
+
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
         }
     }

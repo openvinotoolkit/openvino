@@ -6,6 +6,7 @@
 
 #include "common/input_model.hpp"
 #include "common/place.hpp"
+#include "common/telemetry_extension.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
 
 namespace ov {
@@ -24,7 +25,8 @@ class InputModelTF : public ov::frontend::InputModel {
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
 public:
-    explicit InputModelTF(const GraphIterator::Ptr& graph_iterator);
+    explicit InputModelTF(const GraphIterator::Ptr& graph_iterator,
+                          const std::shared_ptr<TelemetryExtension>& telemetry = {});
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
