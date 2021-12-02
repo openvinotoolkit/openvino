@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 from openvino.runtime import PartialShape, Dimension
+from openvino.runtime.exceptions import UserInputError
 
 import openvino.runtime.opset8 as ov
 import openvino.runtime.opset1 as ov_opset1
@@ -1977,6 +1978,13 @@ def test_i420_to_bgr():
     assert node_separate_planes.get_output_element_type(0) == Type.f32
     assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
 
+    # Incorrect inputs number
+    with pytest.raises(UserInputError, match=r".*Operation I420toBGR*."):
+        node_separate_planes = ov.i420_to_bgr(arg_y, arg_v)
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toBGR*."):
+        node_separate_planes = ov.i420_to_bgr(arg_single_plane, None, arg_v)
+
 
 def test_i420_to_rgb():
     expected_output_shape = [1, 480, 640, 3]
@@ -2001,3 +2009,9 @@ def test_i420_to_rgb():
     assert node_separate_planes.get_output_size() == 1
     assert node_separate_planes.get_output_element_type(0) == Type.f32
     assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toRGB*."):
+        node_separate_planes = ov.i420_to_rgb(arg_y, arg_v)
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toRGB*."):
+        node_separate_planes = ov.i420_to_rgb(arg_single_plane, None, arg_v)

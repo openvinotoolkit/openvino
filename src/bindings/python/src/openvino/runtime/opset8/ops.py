@@ -6,6 +6,7 @@ from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union, Tuple
 
 import numpy as np
+from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.impl import Node, Shape
 from openvino.runtime.impl.op import Constant, Parameter
 from openvino.runtime.opset_utils import _get_node_factory
@@ -597,7 +598,7 @@ def i420_to_bgr(
         inputs = as_nodes(arg, arg_u, arg_v)
     else:
         raise UserInputError(
-            'Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided'
+            "Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided."
         )
 
     return _get_node_factory_opset8().create("I420toBGR", inputs)
@@ -624,7 +625,7 @@ def i420_to_rgb(
         inputs = as_nodes(arg, arg_u, arg_v)
     else:
         raise UserInputError(
-            'Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided'
+            "Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided."
         )
 
     return _get_node_factory_opset8().create("I420toRGB", inputs)
