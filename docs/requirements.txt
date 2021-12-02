@@ -21,6 +21,7 @@ soupsieve
 Sphinx
 sphinx-copybutton
 sphinx-inline-tabs
+sphinx-toolbox
 sphinxcontrib-applehelp
 sphinxcontrib-devhelp
 sphinxcontrib-htmlhelp

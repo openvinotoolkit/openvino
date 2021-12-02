@@ -2,6 +2,8 @@
 
 @sphinxdirective
 
+.. _code samples:
+
 .. toctree::
    :maxdepth: 1
    :hidden:
