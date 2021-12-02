@@ -6,6 +6,7 @@
 
 #include "node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -64,28 +65,21 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node) {
     return get_pads(node, data_spatial_dims);
 }
 std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, const int32_t groups) {
-    auto shape_of_filters = std::make_shared<opset6::ShapeOf>(filters);
+    /*  filters' layout is [O,I,W,H].
+     *  Divide O with groups:
+     *      grouped_O = O / groups
+     *  The final grouped filters' layout is [groups, grouped_O, I, W, H]
+     */
+    const std::vector<size_t> o_indices{0};
+    auto filter_o_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, o_indices);
 
-    auto num_begin = opset6::Constant::create(element::i64, Shape{1}, {0});
-    auto num_end = opset6::Constant::create(element::i64, Shape{1}, {1});
-    auto num_node = std::make_shared<opset6::StridedSlice>(shape_of_filters,
-                                                           num_begin,
-                                                           num_end,
-                                                           std::vector<int64_t>{0},
-                                                           std::vector<int64_t>{0});
-
-    auto hw_begin = opset6::Constant::create(element::i64, Shape{1}, {1});
-    auto hw_end = opset6::Constant::create(element::i64, Shape{1}, {4});
-    auto filter_hw_node = std::make_shared<opset6::StridedSlice>(shape_of_filters,
-                                                                 hw_begin,
-                                                                 hw_end,
-                                                                 std::vector<int64_t>{0},
-                                                                 std::vector<int64_t>{0});
+    const std::vector<size_t> ihw_indices{1, 2, 3};
+    auto filter_ihw_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, ihw_indices);
 
     auto groups_node = opset6::Constant::create(element::i64, Shape{1}, {groups});
-    auto grouped_num_node = std::make_shared<opset6::Divide>(num_node, groups_node);
+    auto grouped_o_node = std::make_shared<opset6::Divide>(filter_o_node, groups_node);
     auto target_filter_shape =
-        std::make_shared<opset6::Concat>(OutputVector{groups_node, grouped_num_node, filter_hw_node}, 0);
+        std::make_shared<opset6::Concat>(OutputVector{groups_node, grouped_o_node, filter_ihw_node}, 0);
     return std::make_shared<opset6::Reshape>(filters, target_filter_shape, false);
 }
 
