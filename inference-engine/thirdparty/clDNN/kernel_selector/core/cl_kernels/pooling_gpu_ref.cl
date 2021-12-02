@@ -28,6 +28,9 @@ KERNEL(pooling_gpu)(
 #if MAX_WITH_ARGMAX_POOLING
 , __global float* arg_max
 #endif
+#ifdef SECOND_OUTPUT_TYPE
+, __global SECOND_OUTPUT_TYPE* indices
+#endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif
@@ -91,6 +94,10 @@ KERNEL(pooling_gpu)(
 
     ACCUMULATOR_TYPE result = INIT_VAL;
 
+#ifdef SECOND_OUTPUT_TYPE
+    SECOND_OUTPUT_TYPE result_idx = 0;
+#endif
+
 #if MAX_WITH_ARGMAX_POOLING
     uint arg_max_idx = 0;
 #endif
@@ -116,20 +123,34 @@ KERNEL(pooling_gpu)(
 #if OUTPUT_DIMS == 5
     for(uint l = 0; l < POOL_SIZE_Z; l++)
     {
-        int input_offset_z = offset_z + l;
+        #if MAX_POOLING && defined(DILATION_SIZE_Z)
+            int input_offset_z = offset_z + (l * DILATION_SIZE_Z);
+        #else
+            int input_offset_z = offset_z + l;
+        #endif
         bool zero_z = input_offset_z >= INPUT0_SIZE_Z || input_offset_z < 0;
         if (!zero_z)
         {
 #endif
             for(uint j = 0; j < POOL_SIZE_Y; j++)
             {
-                int input_offset_y = offset_y + j;
+                #if MAX_POOLING && defined(DILATION_SIZE_Y)
+                    int input_offset_y = offset_y + (j * DILATION_SIZE_Y);
+                #else
+                    int input_offset_y = offset_y + j;
+                #endif
+
                 bool zero_y = input_offset_y >= INPUT0_SIZE_Y || input_offset_y < 0;
                 if(!zero_y)
                 {
                     for(uint i = 0; i < POOL_SIZE_X; i++)
                     {
-                        int input_offset_x = offset_x + i;
+                        #if MAX_POOLING && defined(DILATION_SIZE_X)
+                            int input_offset_x = offset_x + (i * DILATION_SIZE_X);
+                        #else
+                            int input_offset_x = offset_x + i;
+                        #endif
+
                         bool zero = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
                         if(!zero)
                         {
@@ -159,7 +180,17 @@ KERNEL(pooling_gpu)(
                                 arg_max_idx = input_idx_bfyx_no_padding;
                             }
 #endif
-                            result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
+                            const ACCUMULATOR_TYPE casted_input = TO_ACCUMULATOR_TYPE(input[input_idx]);
+                            #ifdef SECOND_OUTPUT_TYPE
+                                if (casted_input > result)
+                                {
+                                    result = casted_input;
+                                    result_idx = input_idx;
+                                }
+                            #else
+                                result = FUNC_CALL(apply_pooling)(result, casted_input);
+                            #endif
+
 
 #ifdef DYNAMIC_KERNEL_DIVIDER
                             num_elementes++;
@@ -227,7 +258,15 @@ KERNEL(pooling_gpu)(
                 uint input_idx = INPUT0_GET_INDEX(b, f, offset_y + j, offset_x + i);
                 result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
     #else
-                result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
+                #ifdef SECOND_OUTPUT_TYPE
+                    if (input[input_idx] > result)
+                    {
+                        result = input[input_idx];
+                        result_idx = input_idx;
+                    }
+                #else
+                    result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
+                #endif
                 input_idx += INPUT0_X_PITCH;
     #endif
 #endif
@@ -279,6 +318,13 @@ KERNEL(pooling_gpu)(
     const uint output_pos = OUTPUT_GET_INDEX(b, f, y, x);
 #endif
     output[output_pos] = final_result;
+
+#ifdef SECOND_OUTPUT_TYPE
+    #ifdef INDICES_UPPER_BOUND
+        result_idx %= INDICES_UPPER_BOUND;
+    #endif
+    indices[output_pos] = TO_SECOND_OUTPUT_TYPE(result_idx);
+#endif
 
 #if MAX_WITH_ARGMAX_POOLING
     //INPUT1 macro stands for Argmax
