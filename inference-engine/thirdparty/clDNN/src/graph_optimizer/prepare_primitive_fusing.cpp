@@ -476,9 +476,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
-            return true;
-            std::cout << "conv_supports_fusings(" << node.id() << ") fmt: " << fmt_to_str(node.get_output_layout().format)
-                      << " / dep(1).fmt: " << fmt_to_str(node.get_dependency(1).get_output_layout().format) << std::endl;
+            if (_lo.get_optimization_attributes().use_onednn_impls == 1)
+	            return true;
 
             // Since reorder inputs is called after this pass
             // we have to check that blocked formats can be used in the network and layer is optimized for it.
