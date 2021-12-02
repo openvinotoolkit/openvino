@@ -192,6 +192,25 @@ void regclass_graph_PartialShape(py::module m) {
         },
         py::is_operator());
 
+    shape.def("__len__", [](const ov::PartialShape& self) {
+        return self.size();
+    });
+
+    shape.def("__setitem__", [](ov::PartialShape& self, size_t key, ov::Dimension& d) {
+        self[key] = d;
+    });
+
+    shape.def("__getitem__", [](const ov::PartialShape& self, size_t key) {
+        return self[key];
+    });
+
+    shape.def(
+        "__iter__",
+        [](ov::PartialShape& self) {
+            return py::make_iterator(self.begin(), self.end());
+        },
+        py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
+
     shape.def("__str__", [](const ov::PartialShape& self) -> std::string {
         std::stringstream ss;
         ss << self;
