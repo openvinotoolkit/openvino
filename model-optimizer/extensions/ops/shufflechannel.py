@@ -13,7 +13,7 @@ class ShuffleChannels(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
-            'version': 'opset3',
+            'version': 'opset1',
 
             'infer': self.infer,
 
