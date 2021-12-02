@@ -159,12 +159,12 @@ TEST(type_prop, slice_v8_const_inputs_not_all_axes_unordered) {
 }
 
 TEST(type_prop, slice_v8_basic_const_inputs_data_dynamic_bounds_dimensions) {
-    PartialShape data_shape{Dimension(10, 20), Dimension(20, 30), Dimension(30, 40)};
-    PartialShape expected_out_shape{6, Dimension(10, 15), Dimension(0, 5)};
+    PartialShape data_shape{Dimension(1, 5), Dimension(10, 20), Dimension(20, 30), 16, Dimension(30, 40)};
+    PartialShape expected_out_shape{1, 6, Dimension(10, 15), 16, Dimension(0, 5)};
 
-    std::vector<int32_t> start_val{2, 10, 35};
-    std::vector<int32_t> stop_val{8, 25, 40};
-    std::vector<int32_t> step_val{1, 1, 1};
+    std::vector<int32_t> start_val{0, 2, 10, 0, 35};
+    std::vector<int32_t> stop_val{1, 8, 25, 16, 40};
+    std::vector<int32_t> step_val{1, 1, 1, 1, 1};
 
     std::vector<int32_t> axes_val(start_val.size());
     std::iota(axes_val.begin(), axes_val.end(), 0);
