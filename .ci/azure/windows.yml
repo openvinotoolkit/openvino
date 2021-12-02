@@ -150,7 +150,7 @@ jobs:
 
   - script: |
       $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-      python -m pip install $(BUILD_DIR)/wheels/*
+      for /f %%a in ('dir /A-D /b $(BUILD_DIR)\wheels') do ( python -m pip %a --find-links=$(BUILD_DIR)\wheels)
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 

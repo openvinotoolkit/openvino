@@ -183,7 +183,7 @@ jobs:
 
   - script: |
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-      python3 -m pip install $(BUILD_DIR)/wheels/*
+      python3 -m pip install $(BUILD_DIR)/wheels/* --find-links=$(BUILD_DIR)/wheels
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
