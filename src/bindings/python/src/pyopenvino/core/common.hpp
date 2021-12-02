@@ -19,6 +19,7 @@
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "pyopenvino/core/containers.hpp"
+#include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 
@@ -40,7 +41,7 @@ namespace Common
 
     void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inputs);
 
-    PyObject* parse_parameter(const InferenceEngine::Parameter& param);
+    PyObject* from_ov_any(const ov::Any& any);
 
     uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual);
 

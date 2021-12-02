@@ -50,14 +50,14 @@ void regclass_ExecutableNetwork(py::module m) {
     cls.def(
         "get_config",
         [](ov::runtime::ExecutableNetwork& self, const std::string& name) -> py::handle {
-            return Common::parse_parameter(self.get_config(name));
+            return Common::from_ov_any(self.get_config(name));
         },
         py::arg("name"));
 
     cls.def(
         "get_metric",
         [](ov::runtime::ExecutableNetwork& self, const std::string& name) -> py::handle {
-            return Common::parse_parameter(self.get_metric(name));
+            return Common::from_ov_any(self.get_metric(name));
         },
         py::arg("name"));
 

@@ -25,7 +25,7 @@ using PyRTMap = std::map<std::string, ov::Any>;
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_pyngraph_PyRTMap(py::module m) {
-    auto py_map = py::bind_map<PyRTMap>(m, "PyRTMap");
+    auto py_map = py::bind_map<PyRTMap>(m, "PyRTMap", py::module_local());
     py_map.doc() = "ngraph.impl.PyRTMap makes bindings for std::map<std::string, "
                    "std::shared_ptr<ngraph::Variant>>, which can later be used as ngraph::Node::RTMap";
 

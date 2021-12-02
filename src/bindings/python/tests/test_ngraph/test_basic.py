@@ -9,7 +9,7 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import VariantInt, VariantString
+from openvino.pyopenvino import Variant
 
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers
@@ -416,8 +416,8 @@ def test_node_target_inputs_soruce_output():
 
 
 def test_variants():
-    variant_int = VariantInt(32)
-    variant_str = VariantString("test_text")
+    variant_int = Variant(32)
+    variant_str = Variant("test_text")
 
     assert variant_int.get() == 32
     assert variant_str.get() == "test_text"
@@ -438,7 +438,6 @@ def test_runtime_info():
     runtime_info["affinity"] = "test_affinity"
     relu_node.set_friendly_name("testReLU")
     runtime_info_after = relu_node.get_rt_info()
-
     assert runtime_info_after["affinity"] == "test_affinity"
 
 
