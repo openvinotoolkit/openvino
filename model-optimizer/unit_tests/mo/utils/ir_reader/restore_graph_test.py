@@ -11,8 +11,8 @@ from mo.utils.ir_reader.restore_graph import restore_graph_from_ir
 
 
 class TestIRReader(unittest.TestCase):
-    def setUp(self):
-        self.xml_bomb = b'<?xml version="1.0"?>\n' \
+    def test_read_xml_incorrect(self):
+        incorrect_xml = b'<?xml version="1.0"?>\n' \
                         b'<!DOCTYPE lolz [\n' \
                         b' <!ENTITY lol "lol">\n' \
                         b' <!ELEMENT lolz (#PCDATA)>\n' \
@@ -28,26 +28,25 @@ class TestIRReader(unittest.TestCase):
                         b']>\n' \
                         b'<lolz>&lol9;</lolz>'
 
-        self.xml_bomb2 = b'<?xml version="1.0"?>\n' \
-                         b'<!DOCTYPE foo [\n' \
-                         b'<!ELEMENT foo ANY>\n' \
-                         b'<!ENTITY xxe SYSTEM "file:///c:/boot.ini">\n' \
-                         b']>\n' \
-                         b'<foo>&xxe;</foo>\n'
-
-    def test_read_xml_bomb(self):
-        bomb_file = tempfile.NamedTemporaryFile(delete=False)
-        bomb_file.write(self.xml_bomb)
-        bomb_file.close()
-        self.assertRaises(EntitiesForbidden, restore_graph_from_ir, bomb_file.name)
-        os.remove(bomb_file.name)
+        incorrect_xml_file = tempfile.NamedTemporaryFile(delete=False)
+        incorrect_xml_file.write(incorrect_xml)
+        incorrect_xml_file.close()
+        self.assertRaises(EntitiesForbidden, restore_graph_from_ir, incorrect_xml_file.name)
+        os.remove(incorrect_xml_file.name)
 
     def test_read_xml_bomb2(self):
-        bomb_file = tempfile.NamedTemporaryFile(delete=False)
-        bomb_file.write(self.xml_bomb2)
-        bomb_file.close()
-        self.assertRaises(EntitiesForbidden, restore_graph_from_ir, bomb_file.name)
-        os.remove(bomb_file.name)
+        untrusted_xml = b'<?xml version="1.0"?>\n' \
+                        b'<!DOCTYPE foo [\n' \
+                        b'<!ELEMENT foo ANY>\n' \
+                        b'<!ENTITY xxe SYSTEM "file:///c:/boot.ini">\n' \
+                        b']>\n' \
+                        b'<foo>&xxe;</foo>\n'
+
+        untrusted_xml_file = tempfile.NamedTemporaryFile(delete=False)
+        untrusted_xml_file.write(untrusted_xml)
+        untrusted_xml_file.close()
+        self.assertRaises(EntitiesForbidden, restore_graph_from_ir, untrusted_xml_file.name)
+        os.remove(untrusted_xml_file.name)
 
     def test_read_untrusted_IR(self):
         ir_front = b'<?xml version="1.0"?>' \
@@ -71,8 +70,11 @@ class TestIRReader(unittest.TestCase):
                              b'		<layer id="0" name="parameter" type="Parameter" version="opset1">' \
                              b'			<data shape="1, 3, 22, 22" element_type="f32" />' \
                              b'			<output>' \
-                             b'				<port id="0" precision="FP32" names="parameter">' \
-            				 b'                   SYSTEM "file:///c:/boot.ini"' \
+                             b'				<port id="boot.ini" precision="FP32" names="parameter">' \
+                             b'					<dim>1</dim>' \
+                             b'					<dim>3</dim>' \
+                             b'					<dim>22</dim>' \
+                             b'					<dim>22</dim>' \
                              b'				</port>' \
                              b'			</output>' \
                              b'		</layer>' \
@@ -120,10 +122,10 @@ class TestIRReader(unittest.TestCase):
         restore_graph_from_ir(normal_ir_file.name)
         os.remove(normal_ir_file.name)
 
+        # expect that IR Reader complains on IR with malformed port id
         malformed_ir = ir_front_malformed + ir_end
         malformed_ir_file = tempfile.NamedTemporaryFile(delete=False)
         malformed_ir_file.write(malformed_ir)
         malformed_ir_file.close()
-        restore_graph_from_ir(malformed_ir_file.name)
-        self.assertRaises(EntitiesForbidden, restore_graph_from_ir, malformed_ir_file.name)
+        self.assertRaises(ValueError, restore_graph_from_ir, malformed_ir_file.name)
         os.remove(malformed_ir_file.name)
