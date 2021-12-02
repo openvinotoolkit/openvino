@@ -294,6 +294,13 @@ std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &shrink_mask = std::vector<int64_t>{},
                                                const std::vector<int64_t> &ellipsis_mask = std::vector<int64_t>{});
 
+std::shared_ptr<ngraph::Node> makeSlice(const ngraph::Output<Node> &in,
+                                        const std::vector<int64_t> &begin,
+                                        const std::vector<int64_t> &end,
+                                        const std::vector<int64_t> &stride,
+                                        const std::vector<int64_t> &axes,
+                                        const element::Type &type);
+
 std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool acrossChannels,
                                       bool normalizeVariance,

@@ -29,34 +29,19 @@ class OPENVINO_API OutputNetworkInfo final {
     std::unique_ptr<OutputNetworkInfoImpl> m_impl;
     friend class OutputInfo;
 
-public:
-    /// \brief Default empty constructor
+    /// \brief Default internal empty constructor
     OutputNetworkInfo();
 
-    /// \brief Default move constructor
-    OutputNetworkInfo(OutputNetworkInfo&&) noexcept;
-
-    /// \brief Default move assignment
-    OutputNetworkInfo& operator=(OutputNetworkInfo&&) noexcept;
-
+public:
     /// \brief Default destructor
     ~OutputNetworkInfo();
 
     /// \brief Set layout for network's output tensor
-    /// This version allows chaining for Lvalue objects
     ///
     /// \param layout Layout for network's output tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    OutputNetworkInfo& set_layout(const ov::Layout& layout) &;
-
-    /// \brief Set layout for network's output tensor
-    /// This version allows chaining for Rvalue objects
-    ///
-    /// \param layout Layout for network's output tensor.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    OutputNetworkInfo&& set_layout(const ov::Layout& layout) &&;
+    OutputNetworkInfo& set_layout(const ov::Layout& layout);
 };
 
 }  // namespace preprocess
