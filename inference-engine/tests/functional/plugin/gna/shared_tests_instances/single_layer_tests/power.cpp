@@ -32,8 +32,24 @@ namespace {
             {2.0f},
     };
 
+    std::vector<std::vector<float >> PowerPwlUniformDesign = {
+            {0.0f},
+            {0.5f},
+            {1.0f},
+            {1.1f},
+            {1.5f},
+    };
+
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16,
+    };
+
+    std::vector<std::map<std::string, std::string>> Configs = {
+        {}
+    };
+
+    std::vector<std::map<std::string, std::string>> ConfigsPwlUniformDesign = {
+        {{"GNA_PWL_UNIFORM_DESIGN", "YES"}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_power, PowerLayerTest,
@@ -45,6 +61,20 @@ namespace {
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                    ::testing::ValuesIn(Power)),
+                                    ::testing::ValuesIn(Power),
+                                    ::testing::ValuesIn(Configs)),
+                            PowerLayerTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_power_pwl_uniform_design, PowerLayerTest,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(inShapes),
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                    ::testing::ValuesIn(PowerPwlUniformDesign),
+                                    ::testing::ValuesIn(ConfigsPwlUniformDesign)),
                             PowerLayerTest::getTestCaseName);
 }  // namespace

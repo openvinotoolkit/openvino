@@ -85,7 +85,8 @@ typedef std::tuple<
         InferenceEngine::Layout,       // Input layout
         InferenceEngine::Layout,       // Output layout
         std::pair<std::vector<size_t>, std::vector<size_t>>,
-        std::string> activationParams;
+        std::string,
+        std::map<std::string, std::string>> activationParams;
 
 class ActivationLayerTest : public testing::WithParamInterface<activationParams>,
                             virtual public LayerTestsUtils::LayerTestsCommon {

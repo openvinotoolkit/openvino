@@ -104,6 +104,10 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
         {{2, 2, 2, 2, 2, 2, 2, 2}, {{2}, {2, 2}, {2, 1, 1, 2}}},
 };
 
+std::vector<std::map<std::string, std::string>> Configs = {
+    {}
+};
+
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
@@ -112,7 +116,8 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(Configs)
 );
 
 const auto basicPreluCases = ::testing::Combine(
@@ -123,7 +128,8 @@ const auto basicPreluCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(Configs)
 );
 
 const auto basicIntegerOperations = ::testing::Combine(
@@ -134,7 +140,8 @@ const auto basicIntegerOperations = ::testing::Combine(
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)
+            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::ValuesIn(Configs)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);

@@ -13,7 +13,8 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::string targetDevice;
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = obj.param;
+    std::map<std::string, std::string> configuration;
+    std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice, configuration) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -27,6 +28,9 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
     result << "inL=" << inLayout << separator;
     result << "outL=" << outLayout << separator;
     result << "trgDev=" << targetDevice;
+    for (auto const& configItem : configuration) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return result.str();
 }
 
@@ -34,7 +38,7 @@ void ActivationLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = GetParam();
+    std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice, configuration) = GetParam();
 
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
@@ -198,7 +202,7 @@ void ActivationParamLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = GetParam();
+    std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice, configuration) = GetParam();
 
     activationType = activationDecl.first;
     constantsValue = activationDecl.second;

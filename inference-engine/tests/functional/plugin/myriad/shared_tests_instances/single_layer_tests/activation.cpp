@@ -37,6 +37,10 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 128}, {{}}},
 };
 
+std::vector<std::map<std::string, std::string>> Configs = {
+    {}
+};
+
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
@@ -45,7 +49,8 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+        ::testing::ValuesIn(Configs)
 );
 
 
