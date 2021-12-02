@@ -45,7 +45,7 @@ from openvino.tools.mo.utils.versions_checker import check_requirements  # pylin
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 
 # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEndManager, TelemetryExtension
+from openvino.frontend import FrontEndManager, TelemetryExtension
 
 
 def replace_ext(name: str, old: str, new: str):

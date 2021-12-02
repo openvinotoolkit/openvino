@@ -9,65 +9,63 @@ from openvino.tools.mo.utils.cli_parser import parse_transform
 
 def get_available_transformations():
     try:
-        from openvino.offline_transformations import ApplyLowLatencyTransformation, ApplyMakeStatefulTransformation # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations_pybind import apply_low_latency_transformation, apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
         return {
-            'MakeStateful': ApplyMakeStatefulTransformation,
-            'LowLatency2': ApplyLowLatencyTransformation,
+            'MakeStateful': apply_make_stateful_transformation,
+            'LowLatency2': apply_low_latency_transformation,
         }
     except Exception as e:
         return {}
 
 
 # net should be openvino.inference_engine.IENetwork type, but IE Engine is still optional dependency
-def apply_user_transformations(net: object, transforms: list):
+def apply_user_transformations(func: object, transforms: list):
     available_transformations = get_available_transformations()
 
     for name, args in transforms:
         if name not in available_transformations.keys():
             raise Error("Transformation {} is not available.".format(name))
 
-        available_transformations[name](net, **args)
+        available_transformations[name](func, **args)
 
 
-def apply_moc_transformations(net: object):
-    from openvino.offline_transformations import ApplyMOCTransformations  # pylint: disable=import-error,no-name-in-module
-    ApplyMOCTransformations(net, False)
+def apply_moc_transformations(func: object):
+    from openvino.offline_transformations_pybind import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
+    apply_moc_transformations(func, False)
 
-def compress_model(net:object):
-    from openvino.offline_transformations import CompressModelTransformation  # pylint: disable=import-error,no-name-in-module
-    CompressModelTransformation(net)
+def compress_model(func: object):
+    from openvino.offline_transformations_pybind import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
+    compress_model_transformation(func)
 
 def apply_offline_transformations(input_model: str, framework: str, transforms: list, compress_fp16=False):
     # This variable is only needed by GenerateMappingFile transformation
     # to produce correct mapping
     extract_names = framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.offline_transformations import GenerateMappingFile, Serialize  # pylint: disable=import-error,no-name-in-module
-    from openvino.inference_engine import IENetwork  # pylint: disable=import-error,no-name-in-module
-    from ngraph.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
-    from ngraph.impl import Function  # pylint: disable=no-name-in-module,import-error
+    from openvino.offline_transformations_pybind import generate_mapping_file, serialize  # pylint: disable=import-error,no-name-in-module
+    from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
 
     fem = FrontEndManager()
 
     # We have to separate fe object lifetime from fem to
     # avoid segfault during object destruction. So fe must
     # be destructed before fem object explicitly.
-    def read_network(path_to_xml):
+    def read_model(path_to_xml):
         fe = fem.load_by_framework(framework="ir")
-        f = fe.convert(fe.load(path_to_xml))
-        return IENetwork(Function.to_capsule(f))
+        function = fe.convert(fe.load(path_to_xml))
+        return function
 
-    net = read_network(input_model + "_tmp.xml")
+    func = read_model(input_model + "_tmp.xml")
 
-    apply_user_transformations(net, transforms)
-    apply_moc_transformations(net)
+    apply_user_transformations(func, transforms)
+    apply_moc_transformations(func)
 
     if compress_fp16:
-        compress_model(net)
+        compress_model(func)
 
-    Serialize(net, str(input_model + ".xml").encode('utf-8'), (input_model + ".bin").encode('utf-8'))
+    serialize(func, str(input_model + ".xml").encode('utf-8'), (input_model + ".bin").encode('utf-8'))
     path_to_mapping = input_model + ".mapping"
-    GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
+    generate_mapping_file(func, path_to_mapping.encode('utf-8'), extract_names)
 
 
 if __name__ == "__main__":

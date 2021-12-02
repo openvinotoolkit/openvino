@@ -1,6 +1,12 @@
-# -*- coding: utf-8 -*-
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+"""
+Package: openvino
+Low level wrappers for the FrontEnd c++ api.
+"""
+
+# flake8: noqa
 
 import os
 import sys
@@ -29,11 +35,16 @@ if sys.platform == "win32":
                 os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
 
-from openvino.pyopenvino.offline_transformations_pybind import apply_moc_transformations
-from openvino.pyopenvino.offline_transformations_pybind import apply_pot_transformations
-from openvino.pyopenvino.offline_transformations_pybind import apply_low_latency_transformation
-from openvino.pyopenvino.offline_transformations_pybind import apply_pruning_transformation
-from openvino.pyopenvino.offline_transformations_pybind import generate_mapping_file
-from openvino.pyopenvino.offline_transformations_pybind import apply_make_stateful_transformation
-from openvino.pyopenvino.offline_transformations_pybind import serialize
-from openvino.pyopenvino.offline_transformations_pybind import compress_model_transformation
+# main classes
+from openvino.pyopenvino import FrontEndManager
+from openvino.pyopenvino import FrontEnd
+from openvino.pyopenvino import InputModel
+from openvino.pyopenvino import Place
+from openvino.pyopenvino import TelemetryExtension
+
+# exceptions
+from openvino.pyopenvino import NotImplementedFailure
+from openvino.pyopenvino import InitializationFailure
+from openvino.pyopenvino import OpConversionFailure
+from openvino.pyopenvino import OpValidationFailure
+from openvino.pyopenvino import GeneralFailure
