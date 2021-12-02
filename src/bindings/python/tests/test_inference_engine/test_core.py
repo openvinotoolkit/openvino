@@ -24,7 +24,7 @@ def test_compact_api_xml():
     model = compile_model(test_net_xml)
     assert(isinstance(model, ExecutableNetwork))
     results = model.infer_new_request({"data": img})
-    k = list(results.keys())[0]
+    k = list(results)[0]
     assert np.argmax(results[k]) == 2
 
 
@@ -34,7 +34,7 @@ def test_compact_api_onnx():
     model = compile_model(test_net_onnx)
     assert(isinstance(model, ExecutableNetwork))
     results = model.infer_new_request({"data": img})
-    k = list(results.keys())[0]
+    k = list(results)[0]
     assert np.argmax(results[k]) == 2
 
 
@@ -55,7 +55,7 @@ def test_core_class():
 
     input_tensor = Tensor(input_data)
     results = request.infer({"parameter": input_tensor})
-    k = list(results.keys())[0]
+    k = list(results)[0]
 
     assert np.allclose(results[k], expected_output)
 

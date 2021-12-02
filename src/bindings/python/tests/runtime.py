@@ -83,7 +83,7 @@ class Computation(object):
     def convert_buffers(self, source_buffers, target_dtypes):
         converted_buffers = []
         for i in range(len(source_buffers)):
-            k = list(source_buffers.keys())[i]
+            k = list(source_buffers)[i]
             target_dtype = target_dtypes[i]
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:

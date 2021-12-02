@@ -231,7 +231,7 @@ def test_infer_new_request_numpy(device):
     img = read_image()
     exec_net = ie.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    k = list(res.keys())[0]
+    k = list(res)[0]
     assert np.argmax(res[k]) == 2
 
 
@@ -243,10 +243,8 @@ def test_infer_new_request_tensor_numpy_copy(device):
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    k1 = list(res_tensor.keys())[0]
-    k2 = list(res_img.keys())[0]
-    assert np.argmax(res_tensor[k1]) == 2
-    assert np.argmax(res_tensor[k1]) == np.argmax(res_img[k2])
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 2
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
 def test_infer_tensor_numpy_shared_memory(device):
@@ -258,10 +256,8 @@ def test_infer_tensor_numpy_shared_memory(device):
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    k1 = list(res_tensor.keys())[0]
-    k2 = list(res_img.keys())[0]
-    assert np.argmax(res_tensor[k1]) == 2
-    assert np.argmax(res_tensor[k1]) == np.argmax(res_img[k2])
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 2
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
 def test_infer_new_request_wrong_port_name(device):
@@ -297,7 +293,7 @@ def test_infer_numpy_model_from_buffer(device):
     img = read_image()
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    k = list(res.keys())[0]
+    k = list(res)[0]
     assert np.argmax(res[k]) == 2
 
 
@@ -312,5 +308,5 @@ def test_infer_tensor_model_from_buffer(device):
     tensor = Tensor(img)
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": tensor})
-    k = list(res.keys())[0]
+    k = list(res)[0]
     assert np.argmax(res[k]) == 2
