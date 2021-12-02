@@ -159,9 +159,6 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
     auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     for (size_t i = 0; i < funcInputsNumber; ++i) {
         const auto &input = funcInputs[i];
-        const auto &inputShape = input.get_shape();
-        const auto &inputType = input.get_element_type();
-        const auto &inputSize = shape_size(inputShape) * inputType.size();
 
         auto inputIt = std::find_if(inputs.begin(), inputs.end(),
                                     [&input](std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> elem) {
@@ -171,6 +168,14 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
             throw std::runtime_error("Parameter: " + input.get_node_shared_ptr()->get_friendly_name() + " was not find in input parameters");
         }
         auto inputTensor = inputIt->second;
+        Shape inputShape;
+        if (input.get_partial_shape().is_dynamic()) {
+            inputShape = inputTensor.get_shape(); // For dynamic input, use tensor's shape
+        } else {
+            inputShape = input.get_shape();
+        }
+        const auto &inputType = input.get_element_type();
+        const auto &inputSize = shape_size(inputShape) * inputType.size();
 
         const auto &inputTensorSize = inputTensor.get_byte_size();
         NGRAPH_CHECK(inputSize == inputTensorSize,

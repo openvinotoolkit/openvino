@@ -11,8 +11,10 @@ namespace builder {
 namespace preprocess {
 
 using preprocess_func = std::tuple<std::function<std::shared_ptr<Function>()>, std::string, float>;
+using preprocess_func_dynamic = std::tuple<std::function<std::shared_ptr<Function>()>, std::string, float, Shape>;
 
 inline std::vector<preprocess_func> generic_preprocess_functions();
+inline std::vector<preprocess_func_dynamic> generic_preprocess_functions_dynamic();
 
 
 /// -------- Functions ---------------
@@ -397,6 +399,25 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
             preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
             preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f),
+    };
+}
+
+////// Preprocessing tests with dynamic input shapes
+
+inline std::shared_ptr<Function> resize_dynamic() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 20, 20});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_spatial_dynamic_shape();
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().network().set_layout("NCHW");
+    function = p.build();
+    return function;
+}
+
+inline std::vector<preprocess_func_dynamic> generic_preprocess_functions_dynamic() {
+    return std::vector<preprocess_func_dynamic> {
+            preprocess_func_dynamic(resize_dynamic, "resize_dynamic", 0.01f, Shape {1, 3, 123, 123}),
     };
 }
 

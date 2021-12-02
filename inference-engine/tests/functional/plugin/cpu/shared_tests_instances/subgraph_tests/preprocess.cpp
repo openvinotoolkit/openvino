@@ -13,3 +13,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_PrePostProcess, PrePostProcessTest,
                                 ::testing::ValuesIn(ov::builder::preprocess::generic_preprocess_functions()),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          PrePostProcessTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_PrePostProcess_Dynamic, PrePostProcessTestDynamic,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(ov::builder::preprocess::generic_preprocess_functions_dynamic()),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         PrePostProcessTestDynamic::getTestCaseName);
