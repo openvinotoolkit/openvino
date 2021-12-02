@@ -953,10 +953,18 @@ size_t ov::Node::hash() const {
         return m_hash;
     AtomicGuard lock(m_hash_changing);
     if (!m_hash) {
-        size_t name_hash = std::hash<std::string>()(m_friendly_name);
+        std::vector<size_t> hashes;
+        hashes.emplace_back(std::hash<std::string>()(m_friendly_name));
+        hashes.emplace_back(get_type_info().hash());
         HashVisitor visitor;
         const_cast<ov::Node*>(this)->visit_attributes(visitor);
-        m_hash = ov::util::hash_combine(std::vector<size_t>{name_hash, visitor.hash()});
+        hashes.emplace_back(visitor.hash());
+        for (size_t i = 0; i < get_output_size(); i++) {
+            std::stringstream sstr;
+            sstr << get_output_partial_shape(i) << get_output_element_type(i);
+            hashes.emplace_back(std::hash<std::string>()(sstr.str()));
+        }
+        m_hash = ov::util::hash_combine(hashes);
     }
     return m_hash;
 }
