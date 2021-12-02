@@ -1,0 +1,95 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import unittest
+from unittest.mock import Mock
+
+from mo.main import prepare_ir
+from openvino.frontend import FrontEndManager
+from onnx.helper import make_graph, make_model, make_tensor_value_info
+import argparse
+import os
+import onnx
+from generator import generator, generate
+
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import mo.utils.telemetry_stub as tm
+
+def base_args_config():
+    args = argparse.Namespace()
+    args.feManager = FrontEndManager()
+    args.extensions = 'dir_to_extension'
+    args.use_legacy_frontend = False
+    args.use_new_frontend = True
+    args.framework = None
+    args.model_name = None
+    args.input_model = None
+    args.silent = True
+    args.transform=[]
+    args.legacy_ir_generation = False
+    args.scale = None
+    args.output=None
+    args.input=None
+    args.input_shape=None
+    args.batch=None
+    args.mean_values=None
+    args.scale_values=None
+    args.output_dir=os.getcwd()
+    args.freeze_placeholder_with_value = None
+    args.transformations_config = None
+    args.disable_fusing = None
+    args.finegrain_fusing = None
+    args.disable_gfusing = None
+    args.disable_resnet_optimization = None
+    args.enable_concat_optimization = None
+    args.static_shape = None
+    args.disable_weights_compression = None
+    args.reverse_input_channels = None
+    args.data_type = None
+    return args
+
+@generator
+class TestMoFallback(unittest.TestCase):
+    def setUp(self):
+        tm.Telemetry.__init__ = Mock(return_value=None)
+        tm.Telemetry.send_event = Mock()
+
+        self.models = {}
+        add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
+        input_tensors = [
+            make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+            make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+        ]
+        output_tensors = [
+            make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (1, 2)),
+        ]
+        graph = make_graph([add], "test_graph", input_tensors, output_tensors)
+        model = make_model(graph, producer_name="MO tests",
+                                                opset_imports=[onnx.helper.make_opsetid("", 13)])
+        self.models["test_model_1.onnx"] = model
+
+        for name, model in self.models.items():
+            onnx.save(model, name)
+
+    def tearDown(self):
+        for name in self.models.keys():
+            os.remove(name)
+
+
+    @generate(*[('dir_to_extension', False, True, 'mo_legacy'),
+                ('dir_to_extension', True, False, 'mo_legacy'),
+                ('', True, False, 'mo_legacy'),
+                ('', False, True, 'onnx_frontend'),
+                (None, False, True, 'onnx_frontend'),
+    ])
+    def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, expected_path):
+        args = base_args_config()
+        args.extensions = extension
+        args.use_legacy_frontend = use_legacy
+        args.use_new_frontend = use_new_fe
+        args.input_model = "test_model_1.onnx"
+
+        graph, ng_func = prepare_ir(args)
+        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
