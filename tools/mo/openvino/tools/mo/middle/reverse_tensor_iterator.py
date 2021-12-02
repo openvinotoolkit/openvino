@@ -28,7 +28,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
         ]
 
     def run_before(self):
-        from extensions.middle.pass_separator import MiddleFinish
+        from openvino.tools.mo.middle.pass_separator import MiddleFinish
         return [MiddleFinish]
 
     @staticmethod

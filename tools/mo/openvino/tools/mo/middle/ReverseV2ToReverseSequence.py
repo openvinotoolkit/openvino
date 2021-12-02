@@ -25,11 +25,11 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.PartialInfer import PartialInfer
+        from openvino.tools.mo.middle.PartialInfer import PartialInfer
         return [PartialInfer]
 
     def run_before(self):
-        from extensions.middle.reverse_tensor_iterator import ReverseTensorIteratorLSTM
+        from openvino.tools.mo.middle.reverse_tensor_iterator import ReverseTensorIteratorLSTM
         return [ReverseTensorIteratorLSTM]
 
     def find_and_replace_pattern(self, graph: Graph):

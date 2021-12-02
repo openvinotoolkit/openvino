@@ -12,8 +12,8 @@ try:
 except ImportError:
     pass  # we try to import AddOutputRecursive for subgraphs quantization
 
-from extensions.ops.ReduceOps import ReduceMin, ReduceMax, ReduceMean
-from extensions.ops.activation_ops import Abs
+from openvino.tools.mo.ops.ReduceOps import ReduceMin, ReduceMax, ReduceMean
+from openvino.tools.mo.ops.activation_ops import Abs
 
 from ..graph.model_utils import get_node_by_name
 from ..graph.node_utils import get_output_shape, reset_node_fullname

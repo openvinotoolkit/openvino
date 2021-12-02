@@ -6,6 +6,7 @@ import os
 import re
 import sys
 from distutils.version import LooseVersion
+from pathlib import Path
 
 modules = {
     "protobuf": "google.protobuf",
@@ -262,7 +263,14 @@ def check_requirements(framework=None):
         framework_suffix = "_{}".format(framework)
 
     file_name = "requirements{}.txt".format(framework_suffix)
+
+    # if MO was run from developer clone requirements are 4 levels out from mo.py
     requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, os.pardir, file_name))
+    if not Path(requirements_file).is_file():
+        # if MO was run from site-packages requirements are at the same level with mo.py file
+        # in site-packages/openvino/tools/mo/requirements.txt
+        requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, file_name))
+
     requirements_list = get_module_version_list_from_file(requirements_file, env_setup)
     not_satisfied_versions = []
     exit_code = 0
