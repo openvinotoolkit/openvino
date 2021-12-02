@@ -15,6 +15,12 @@ def tf_fused_bn_infer(node):
         out_node.shape = shape_array(output_shape)
 
 
+def fused_bn_reverse_infer(node):
+    output_shape = node.out_port(0).data.get_shape()
+    if output_shape is not None and node.in_port(0).data.get_shape() is None:
+        node.in_port(0).data.set_shape(output_shape)
+
+
 def tf_fused_bn_extractor(pb):
     is_training = pb.attr['is_training'].b
     if is_training:
@@ -25,5 +31,6 @@ def tf_fused_bn_extractor(pb):
         'data_type': tf_dtype_extractor(pb.attr["T"].type),
         'eps': pb.attr['epsilon'].f,
         'infer': tf_fused_bn_infer,
+        'reverse_infer': fused_bn_reverse_infer,
         'is_training': is_training
     }

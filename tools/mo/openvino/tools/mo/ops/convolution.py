@@ -112,8 +112,16 @@ class Convolution(Op):
                     'group') and node.has_valid('kernel_spatial')):
                 log.error('Cannot reshape kernel due to not all required attrs was set to {} node'.format(node.id))
                 return
+
+            #  in shape_array([..., num_in_channels / node.group, ...])
+            #  num_in_channels / node.group must be a scalar
+            if len(np.array(node.channel_dims).shape) == 0:  # if channel_dims is scalar
+                num_in_channels = input_shape[node.channel_dims]
+            else:  # if channel_dims is an array
+                num_in_channels = input_shape[node.channel_dims][0]
+
             # layout for Convolution weights is OIHW
-            kernel_shape = shape_array([node.output, input_shape[node.channel_dims].item() / node.group,
+            kernel_shape = shape_array([node.output, num_in_channels / node.group,
                                        *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]])
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]

@@ -56,6 +56,9 @@ class Parameter(Op):
         # update node 'shape' attribute (if it is not defined) from the output port shape which was calculated
         # during the reverse_infer phase
         shape = node.soft_get('shape', None)
-        if shape is None and node.out_port(0).data.get_shape() is not None:
-            node['shape'] = node.out_port(0).data.get_shape()
-
+        if shape is not None:
+            return
+        for i, out_port in node.out_ports().items():
+            out_shape = out_port.data.get_shape()
+            if out_shape is not None:
+                node['shape'] = out_shape
