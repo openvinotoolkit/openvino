@@ -94,6 +94,43 @@ std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo
     return result.str();
 }
 
+std::string MaxPool8LayerTest::getTestCaseName(const testing::TestParamInfo<maxPool8LayerTestParamsSet>& obj) {
+    maxPool8SpecificParams poolParams;
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
+    std::vector<size_t> inputShapes;
+    std::string targetDevice;
+    std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
+    std::vector<size_t> kernel, stride, dilation;
+    std::vector<size_t> padBegin, padEnd;
+    ngraph::op::PadType padType;
+    ngraph::op::RoundingType roundingType;
+    ngraph::element::Type indexElementType;
+    int32_t axis;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
+
+    std::ostringstream result;
+    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "MaxPool8_";
+    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
+    result << "S" << CommonTestUtils::vec2str(stride) << "_";
+    result << "D" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
+    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+    result << "IET" << indexElementType << "_";
+    result << "A" << axis << "_";
+    result << "Rounding=" << roundingType << "_";
+    result << "AutoPad=" << padType << "_";
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetDevice;
+    return result.str();
+}
+
 void PoolingLayerTest::SetUp() {
     poolSpecificParams poolParams;
     std::vector<size_t> inputShape;
@@ -159,4 +196,39 @@ void GlobalPoolingLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
 }
+
+void MaxPool8LayerTest::SetUp() {
+    maxPool8SpecificParams poolParams;
+    std::vector<size_t> inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::vector<size_t> kernel, stride, dilation;
+    std::vector<size_t> padBegin, padEnd;
+    ngraph::op::PadType padType;
+    ngraph::op::RoundingType roundingType;
+    ngraph::element::Type indexElementType;
+    int32_t axis;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
+
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+
+    std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makeMaxPool8(paramOuts[0],
+                                                                         stride,
+                                                                         dilation,
+                                                                         padBegin,
+                                                                         padEnd,
+                                                                         kernel,
+                                                                         roundingType,
+                                                                         padType,
+                                                                         indexElementType,
+                                                                         axis);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling->output(0)),
+                                 std::make_shared<ngraph::opset3::Result>(pooling->output(1))};
+    function = std::make_shared<ngraph::Function>(results, params, "pooling");
+}
+
 }  // namespace LayerTestsDefinitions

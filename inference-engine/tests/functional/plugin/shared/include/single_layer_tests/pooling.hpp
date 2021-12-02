@@ -19,4 +19,8 @@ TEST_P(GlobalPoolingLayerTest, CompareWithRefs) {
         PluginCache::get().reset();
     }
 }
+
+TEST_P(MaxPool8LayerTest, CompareWithRefs) {
+    Run();
+}
 }  // namespace LayerTestsDefinitions

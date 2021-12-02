@@ -66,4 +66,47 @@ protected:
     void SetUp() override;
 };
 
+typedef std::tuple<
+        std::vector<size_t>,            // Kernel size
+        std::vector<size_t>,            // Stride
+        std::vector<size_t>,            // Dilation
+        std::vector<size_t>,            // Pad begin
+        std::vector<size_t>,            // Pad end
+        ngraph::element::Type_t,        // Index element type
+        int64_t,                        // Axis
+        ngraph::op::RoundingType,       // Rounding type
+        ngraph::op::PadType             // Pad type
+> maxPool8SpecificParams;
+
+typedef std::tuple<
+        maxPool8SpecificParams,
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
+        std::vector<size_t>,            // Input shape
+        std::string                     // Device name
+> maxPool8LayerTestParamsSet;
+
+typedef std::tuple<
+        maxPool8SpecificParams,
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
+        size_t,                         // Channel number
+        std::string                     // Device name
+> globalMaxPool8LayerTestParamsSet;
+
+class MaxPool8LayerTest : public testing::WithParamInterface<maxPool8LayerTestParamsSet>,
+                         virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<maxPool8LayerTestParamsSet>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 }  // namespace LayerTestsDefinitions
