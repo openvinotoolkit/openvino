@@ -119,15 +119,16 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
         IE_THROW() << "MaxPool opset 8 requires 2 outputs";
     }
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
-    std::string layerName = layer_type_name_ID(op) + ".0";
+    const auto layer_type_name = layer_type_name_ID(op);
+    const auto layerName = layer_type_name + ".0";
 
-    auto mutable_precision = op->get_output_element_type(1);
+    const auto mutable_precision = op->get_output_element_type(1);
     cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
                                                 DefaultFormatForDims(op->get_output_shape(1).size()),
                                                 CldnnTensorFromIEDims(op->get_output_shape(1)));
-    auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
-    cldnn::primitive_id maxpool_mutable_id_w = layer_type_name_ID(op) + "_md_write";
-    auto indices_mutable_prim = cldnn::mutable_data(maxpool_mutable_id_w,
+    const auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
+    const cldnn::primitive_id maxpool_mutable_id_w = layer_type_name + "_md_write";
+    const auto indices_mutable_prim = cldnn::mutable_data(maxpool_mutable_id_w,
                                                    shared_memory,
                                                    op->get_friendly_name());
     p.primitiveIDs[maxpool_mutable_id_w] = maxpool_mutable_id_w;
@@ -150,8 +151,8 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
                                    op->get_friendly_name());
     p.AddPrimitive(poolPrim);
 
-    cldnn::primitive_id maxpool_mutable_id_r = layer_type_name_ID(op) + ".1";
-    auto indices_mutable_id_r = cldnn::mutable_data(maxpool_mutable_id_r,
+    const cldnn::primitive_id maxpool_mutable_id_r = layer_type_name + ".1";
+    const auto indices_mutable_id_r = cldnn::mutable_data(maxpool_mutable_id_r,
                                                      { layerName },
                                                      shared_memory,
                                                      op->get_friendly_name());

@@ -61,10 +61,7 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
     });
 
     if (pp.maxPoolOpset8Features) {
-        mem_consts.AddConstants({
-            MakeJitConstant("DILATION", pp.poolDilation),
-            MakeJitConstant("AXIS", pp.poolAxis)
-        });
+        mem_consts.AddConstants({MakeJitConstant("DILATION", pp.poolDilation)});
 
         if (pp.poolAxis != 0) {
             size_t indices_upper_bound = 1;

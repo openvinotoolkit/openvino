@@ -152,8 +152,10 @@ public:
                       (uint32_t)std::max(pad.spatial[2], 0)};
 
         pp.poolStride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
+
         const auto& dilation = primitive->dilation;
         pp.poolDilation = {(uint32_t)dilation.spatial[0], (uint32_t)dilation.spatial[1], (uint32_t)dilation.spatial[2]};
+
         auto& kernel_selector = kernel_selector::pooling_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(pool_params, pool_optional_params);
 

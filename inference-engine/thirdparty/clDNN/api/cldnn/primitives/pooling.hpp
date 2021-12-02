@@ -184,7 +184,7 @@ struct pooling : public primitive_base<pooling> {
             const tensor& dilation,
             const tensor& pad,
             const tensor& pad_end,
-            int32_t axis,
+            int64_t axis,
             data_types index_element_type,
             tensor output_size,
             const data_types output_data_type,
@@ -204,7 +204,7 @@ struct pooling : public primitive_base<pooling> {
               pad_end(pad_end),
               axis(axis),
               index_element_type(index_element_type),
-              maxPoolOpset8Features{true}
+              maxPoolOpset8Features(true)
               {}
 
     /// @brief Primitive id which contains indices of each max pooling region.

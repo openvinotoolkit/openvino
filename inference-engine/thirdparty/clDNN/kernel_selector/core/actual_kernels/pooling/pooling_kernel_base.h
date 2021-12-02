@@ -22,7 +22,7 @@ struct pooling_params : public base_params {
     uSize poolSize;
     uSize poolStride;
     uSize poolPad;
-    bool maxPoolOpset8Features{false};
+    bool maxPoolOpset8Features = false;
     uSize poolDilation{1, 1, 1};
     Datatype poolIndexElementType = Datatype::INT64;
     int64_t poolAxis = 0;

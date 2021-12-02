@@ -107,7 +107,7 @@ std::string MaxPool8LayerTest::getTestCaseName(const testing::TestParamInfo<maxP
     ngraph::op::PadType padType;
     ngraph::op::RoundingType roundingType;
     ngraph::element::Type indexElementType;
-    int32_t axis;
+    int64_t axis;
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 
     std::ostringstream result;
@@ -207,7 +207,7 @@ void MaxPool8LayerTest::SetUp() {
     ngraph::op::PadType padType;
     ngraph::op::RoundingType roundingType;
     ngraph::element::Type indexElementType;
-    int32_t axis;
+    int64_t axis;
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

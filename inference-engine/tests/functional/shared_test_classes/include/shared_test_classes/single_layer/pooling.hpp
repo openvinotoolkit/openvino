@@ -89,17 +89,6 @@ typedef std::tuple<
         std::string                     // Device name
 > maxPool8LayerTestParamsSet;
 
-typedef std::tuple<
-        maxPool8SpecificParams,
-        InferenceEngine::Precision,     // Net precision
-        InferenceEngine::Precision,     // Input precision
-        InferenceEngine::Precision,     // Output precision
-        InferenceEngine::Layout,        // Input layout
-        InferenceEngine::Layout,        // Output layout
-        size_t,                         // Channel number
-        std::string                     // Device name
-> globalMaxPool8LayerTestParamsSet;
-
 class MaxPool8LayerTest : public testing::WithParamInterface<maxPool8LayerTestParamsSet>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
