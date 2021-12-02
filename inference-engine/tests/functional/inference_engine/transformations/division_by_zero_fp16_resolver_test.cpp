@@ -10,7 +10,7 @@
 #include <ngraph/function.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/division_to_zero_fp16_resolver.hpp>
+#include <transformations/common_optimizations/division_by_zero_fp16_resolver.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -20,7 +20,7 @@ using namespace ov;
 constexpr float normalized_fp16_min = 6.103515625e-05f;  // fp16 minimal normalized value
 
 
-TEST_F(TransformationTestsF, DivisionToZeroMinimalPattern) {
+TEST_F(TransformationTestsF, DivisionByZeroMinimalPattern) {
     const float eps_value = 1.e-12;
     {
         auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -31,7 +31,7 @@ TEST_F(TransformationTestsF, DivisionToZeroMinimalPattern) {
 
         function = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
+        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -59,7 +59,7 @@ TEST_F(TransformationTestsF, PowWithNegativeExponent) {
 
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
+        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, PowWithNegativeExponent) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
-TEST_F(TransformationTestsF, PowWithPozitiveExponent) {
+TEST_F(TransformationTestsF, PowWithPositiveExponent) {
     // graph should be left unchanged
     const float eps_value = 1.e-12;
     {
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, PowWithPozitiveExponent) {
 
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
+        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -108,7 +108,7 @@ TEST_F(TransformationTestsF, PowWithPozitiveExponent) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, DivisionToZeroMinimalPatternUnchanged) {
+TEST_F(TransformationTestsF, DivisionByZeroMinimalPatternUnchanged) {
     // if eps_value is greater than normalized_fp16_min then leave graph unchanged
     const float eps_value = 0.0001f;
     {
@@ -120,7 +120,7 @@ TEST_F(TransformationTestsF, DivisionToZeroMinimalPatternUnchanged) {
 
         function = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
+        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -135,7 +135,7 @@ TEST_F(TransformationTestsF, DivisionToZeroMinimalPatternUnchanged) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
-TEST_F(TransformationTestsF, DivisionToZeroWithMax) {
+TEST_F(TransformationTestsF, DivisionByZeroWithMax) {
     const float eps_value = 1.e-12;
     {
         auto input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -150,7 +150,7 @@ TEST_F(TransformationTestsF, DivisionToZeroWithMax) {
 
         function = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
 
-        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
+        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
 
     {
@@ -170,7 +170,7 @@ TEST_F(TransformationTestsF, DivisionToZeroWithMax) {
 }
 
 
-TEST_F(TransformationTestsF, DivisionToZeroWithAdd) {
+TEST_F(TransformationTestsF, DivisionByZeroWithAdd) {
     const float eps_value = 1.e-12;
     {
         auto input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -185,7 +185,7 @@ TEST_F(TransformationTestsF, DivisionToZeroWithAdd) {
 
         function = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
 
-        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
+        manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
 
     {

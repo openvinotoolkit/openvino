@@ -3,7 +3,7 @@
 //
 
 #include "itt.hpp"
-#include "transformations/common_optimizations/division_to_zero_fp16_resolver.hpp"
+#include "transformations/common_optimizations/division_by_zero_fp16_resolver.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
@@ -14,14 +14,14 @@
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::pass::DivisionToZeroFP16Resolver, "DivisionToZeroFP16Resolver", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::DivisionByZeroFP16Resolver, "DivisionByZeroFP16Resolver", 0);
 
 constexpr float normalized_fp16_min = 6.103515625e-05f;  // fp16 minimal normalized  value
 
 using namespace ov;
 
-ov::pass::DivisionToZeroFP16Resolver::DivisionToZeroFP16Resolver() {
-    MATCHER_SCOPE(DivisionToZeroFP16Resolver);
+ov::pass::DivisionByZeroFP16Resolver::DivisionByZeroFP16Resolver() {
+    MATCHER_SCOPE(DivisionByZeroFP16Resolver);
     auto input_1 = pattern::any_input();
     auto input_2 = pattern::any_input();
 
@@ -46,7 +46,7 @@ ov::pass::DivisionToZeroFP16Resolver::DivisionToZeroFP16Resolver() {
         }
 
         const auto eps_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(eps_const_pattern).get_node_shared_ptr());
-        if (!eps_const)
+        if (!eps_const || eps_const->get_element_type() != ov::element::f32)
             return false;
 
         for (float val : eps_const->get_vector<float>())
