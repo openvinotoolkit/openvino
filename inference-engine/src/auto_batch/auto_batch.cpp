@@ -599,7 +599,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 const size_t footprint = report_footprint(GetCore(), deviceName, "After BATCHED");
                 if (footprint > total_mem) {  // WA for inaccurate footprint estimations
                     std::cout << "!!!! Total on-device mem is " << total_mem << " less than :" << footprint << std::endl;
-                    throw NETWORK_NOT_LOADED;
+                    // throw NETWORK_NOT_LOADED;
                 }
             }
         } catch (...) {
