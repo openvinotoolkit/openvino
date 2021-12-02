@@ -37,9 +37,6 @@ namespace util {
 // clang-format on
 class OPENVINO_API BinaryElementwiseLogical : public Op {
 protected:
-    OPENVINO_OP("BinaryElementwiseLogical", "util");
-    BWDCMP_RTTI_DECLARATION;
-
     BinaryElementwiseLogical();
 
     /// \brief Constructs a binary elementwise logical operation.
@@ -51,6 +48,9 @@ protected:
                              const AutoBroadcastSpec& autob = AutoBroadcastSpec());
 
 public:
+    OPENVINO_OP("BinaryElementwiseLogical", "util");
+    BWDCMP_RTTI_DECLARATION;
+
     void validate_and_infer_types() override;
 
     const AutoBroadcastSpec& get_autob() const override {
