@@ -715,10 +715,10 @@ def create_fake_quantize_node(graph: Graph, name, data_type=np.float32):
     fq = FakeQuantize(graph, {'name': name, 'levels': 0,
                               'stop_value_propagation': True}).create_node()
 
-    input_low = Const(graph, {'value': np.array(0.0).astype(data_type)}).create_node()
-    input_height = Const(graph, {'value': np.array(0.0).astype(data_type)}).create_node()
-    output_low = Const(graph, {'value': np.array(0.0).astype(data_type)}).create_node()
-    output_height = Const(graph, {'value': np.array(0.0).astype(data_type)}).create_node()
+    input_low = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
+    input_height = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
+    output_low = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
+    output_height = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
 
     input_low.out_port(0).connect(fq.in_port(1))
     input_height.out_port(0).connect(fq.in_port(2))
