@@ -455,13 +455,13 @@ if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
+if (ENABLE_INTEL_GPU AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_gpu_plugin)
     endif()
 endif()
 

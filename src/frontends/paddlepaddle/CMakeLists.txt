@@ -5,5 +5,4 @@
 ov_add_frontend(NAME paddlepaddle
                 LINKABLE_FRONTEND
                 PROTOBUF_LITE
-                FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format"
-                LINK_LIBRARIES ngraph::builder)
+                FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
