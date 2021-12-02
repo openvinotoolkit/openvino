@@ -38,7 +38,7 @@ def test_constant_folding():
     assert np.allclose(values_out, values_expected)
 
 
-def test_serialize_pass_kwargs():
+def test_serialize_seperate_paths_kwargs():
     core = Core()
     xml_path = "serialized_function.xml"
     bin_path = "serialized_function.bin"
@@ -61,7 +61,7 @@ def test_serialize_pass_kwargs():
     os.remove(xml_path)
     os.remove(bin_path)
 
-def test_serialize_pass_args():
+def test_serialize_seperate_paths_args():
     core = Core()
     xml_path = "serialized_function.xml"
     bin_path = "serialized_function.bin"
@@ -97,7 +97,7 @@ def test_serialize_pass_mixed_args_kwargs():
     func = Function(model, [parameter_a, parameter_b], "Function")
 
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path, bin_path)
+    pass_manager.register_pass("Serialize", xml_path, bin_path=bin_path)
     pass_manager.run_passes(func)
 
     res_func = core.read_model(model=xml_path, weights=bin_path)
@@ -138,16 +138,9 @@ def test_serialize_pass_wrong_num_of_args():
     bin_path = "serialized_function.bin"
 
     pass_manager = Manager()
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(TypeError) as e:
         pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path, model=5)
-    assert "Invoked with wrong number of arguments!" in str(e.value)
-
-
-def test_serialize_pass_no_paths():
-    pass_manager = Manager()
-    with pytest.raises(RuntimeError) as e:
-        pass_manager.register_pass(pass_name="Serialize")
-    assert "Invoked with wrong number of arguments!" in str(e.value)
+    assert "Invoked with:" in str(e.value)
 
 
 def test_serialize_results():
@@ -185,6 +178,78 @@ def test_serialize_pass_tuple():
     func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
+    pass_manager.run_passes(func)
+
+    res_func = core.read_model(model=xml_path, weights=bin_path)
+
+    assert func.get_parameters() == res_func.get_parameters()
+    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+def test_default_version():
+    core = Core()
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    shape = [100, 100, 2]
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+    parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+    parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
+    model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
+    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    pass_manager = Manager()
+    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
+    pass_manager.run_passes(func)
+
+    res_func = core.read_model(model=xml_path, weights=bin_path)
+
+    assert func.get_parameters() == res_func.get_parameters()
+    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+def test_default_version_IR_V11_tuple():
+    core = Core()
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    shape = [100, 100, 2]
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+    parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+    parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
+    model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
+    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    pass_manager = Manager()
+    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path), version="IR_V11")
+    pass_manager.run_passes(func)
+
+    res_func = core.read_model(model=xml_path, weights=bin_path)
+
+    assert func.get_parameters() == res_func.get_parameters()
+    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+def test_default_version_IR_V11_seperate_paths():
+    core = Core()
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    shape = [100, 100, 2]
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+    parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+    parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
+    model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
+    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    pass_manager = Manager()
+    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path, version="IR_V11")
     pass_manager.run_passes(func)
 
     res_func = core.read_model(model=xml_path, weights=bin_path)
