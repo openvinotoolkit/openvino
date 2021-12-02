@@ -91,9 +91,6 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
                 deviceName.substr(std::string("AUTO:").size());
         }
     } else {
-        if (deviceName_.empty()) {
-            deviceName_ = "AUTO";
-        }
         ie::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
         std::string deviceIDLocal = parser.getDeviceID();
