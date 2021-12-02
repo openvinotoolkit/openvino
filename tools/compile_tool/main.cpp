@@ -115,7 +115,7 @@ DEFINE_string(iol, "", iol_message);
 DEFINE_string(iml, "", inputs_model_layout_message);
 DEFINE_string(oml, "", outputs_model_layout_message);
 DEFINE_string(ioml, "", ioml_message);
-DEFINE_bool(legacy, false, legacy_message);
+DEFINE_bool(ov_api_1_0, false, api1_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
@@ -298,7 +298,7 @@ int main(int argc, char* argv[]) {
         if (!parseCommandLine(&argc, &argv)) {
             return EXIT_SUCCESS;
         }
-        if (FLAGS_legacy) {
+        if (FLAGS_ov_api_1_0) {
             InferenceEngine::Core ie;
             if (!FLAGS_log_level.empty()) {
                 ie.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);

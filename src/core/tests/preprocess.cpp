@@ -92,7 +92,6 @@ TEST(pre_post_process, convert_element_type_implicit_several_time) {
     preprocessor.input().tensor().set_element_type(element::i32);
     preprocessor.input().tensor().set_element_type(element::u32);
     preprocessor.input().tensor().set_element_type(element::f32);
-    OutputInfo output;
     preprocessor.output().tensor().set_element_type(element::f16);
     preprocessor.output().tensor().set_element_type(element::i32);
     preprocessor.output().tensor().set_element_type(element::u32);
