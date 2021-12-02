@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "frontend.hpp"
+
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -10,7 +12,6 @@
 #include "common/frontend_exceptions.hpp"
 #include "common/telemetry_extension.hpp"
 #include "manager.hpp"
-#include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
 
