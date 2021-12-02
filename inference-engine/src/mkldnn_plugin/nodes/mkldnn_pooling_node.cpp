@@ -466,7 +466,7 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
             if (isMaxPool8) {
                 auto& creatorsMap = BlockedDescCreator::getCommonCreators();
                 PortConfig dataConfig;
-                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
+                dataConfig.inPlace = -1;
                 dataConfig.constant = false;
                 dataConfig.desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(cfg.outConfs.front().desc->getPrecision(), getOutputShapeAtPort(1));
 
