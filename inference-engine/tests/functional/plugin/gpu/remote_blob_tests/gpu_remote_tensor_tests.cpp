@@ -30,28 +30,7 @@ protected:
     }
 };
 
-class OVRemoteTensor_TestsWithContext : public OVRemoteTensor_Test, public testing::WithParamInterface<bool> {
-protected:
-    std::shared_ptr<ngraph::Function> fn_ptr;
-    std::string deviceName;
-    std::map<std::string, std::string> config;
-
-public:
-    void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
-        deviceName = CommonTestUtils::DEVICE_GPU;
-        auto with_auto_batching = this->GetParam();
-        if (with_auto_batching) { // BATCH:GPU
-            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
-            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
-        }
-    }
-    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
-        auto with_auto_batch = obj.param;
-        return std::string("RemoteBlob_Test") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
-    }
-};
-
+std::vector<bool> ov_with_auto_batching {true, false};
 enum class RemoteTensorSharingType {
     USER_CL_TENSOR = 0,
     PLUGIN_CL_TENSOR = 1,
@@ -76,17 +55,34 @@ std::ostream& operator<<(std::ostream& stream, RemoteTensorSharingType sharing_t
     return stream;
 }
 
-class OVRemoteTensorInputBlob_Test : public OVRemoteTensor_Test, public testing::WithParamInterface<RemoteTensorSharingType> {
+using RemoteTensorSharingTestOptionsParams = std::tuple<RemoteTensorSharingType, bool /*auto-batching*/>;
+
+class OVRemoteTensorInputBlob_Test : public OVRemoteTensor_Test,
+        public testing::WithParamInterface<RemoteTensorSharingTestOptionsParams> {
+protected:
+    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::string deviceName;
+
 public:
     void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        deviceName = CommonTestUtils::DEVICE_GPU;
+        RemoteTensorSharingType sharing_type;
+        bool with_auto_batching;
+        std::tie(sharing_type, with_auto_batching) = this->GetParam();
+        if (with_auto_batching)  // BATCH:GPU
+            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
     }
-
-    static std::string getTestCaseName(testing::TestParamInfo<RemoteTensorSharingType> obj) {
-        RemoteTensorSharingType sharing_type = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorSharingTestOptionsParams>& obj) {
+        RemoteTensorSharingType sharing_type;
+        bool with_auto_batching;
+        std::tie(sharing_type, with_auto_batching) = obj.param;
 
         std::ostringstream result;
+        result << "OVRemoteTensorInputBlob_Test_";
         result << sharing_type;
+        if (with_auto_batching)
+            result << "_WITH_AUTO_BATCHING";
         return result.str();
     }
 };
@@ -104,9 +100,17 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
                            .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
             .build();
 
-    auto exec_net = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    RemoteTensorSharingType sharing_type;
+    bool with_auto_batching;
+    std::tie(sharing_type, with_auto_batching) = GetParam();
 
-    RemoteTensorSharingType sharing_type = GetParam();
+    // auto-batching relies on availability of the lock() for the tensor (and the *USM_DEVICE is not lockable)
+    if (with_auto_batching
+            && (RemoteTensorSharingType::USER_USM_DEVICE_TENSOR == sharing_type
+                    || RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR == sharing_type))
+        GTEST_SKIP();
+
+    auto exec_net = ie.compile_model(function, deviceName);
 
     // regular inference
     auto inf_req_regular = exec_net.create_infer_request();
@@ -267,6 +271,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
 INSTANTIATE_TEST_SUITE_P(
     smoke_GPU,
     OVRemoteTensorInputBlob_Test,
+    ::testing::Combine(
         ::testing::ValuesIn(std::vector<RemoteTensorSharingType>{RemoteTensorSharingType::USER_CL_TENSOR,
                                                                  RemoteTensorSharingType::PLUGIN_CL_TENSOR,
                                                                  RemoteTensorSharingType::USER_USM_HOST_TENSOR,
@@ -274,7 +279,30 @@ INSTANTIATE_TEST_SUITE_P(
                                                                  RemoteTensorSharingType::PLUGIN_USM_HOST_TENSOR,
                                                                  RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR,
                                                                  RemoteTensorSharingType::PLUGIN_HOST_TENSOR}),
+        ::testing::ValuesIn(ov_with_auto_batching)),
         OVRemoteTensorInputBlob_Test::getTestCaseName);
+
+class OVRemoteTensor_TestsWithContext : public OVRemoteTensor_Test, public testing::WithParamInterface<bool> {
+protected:
+    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::string deviceName;
+    std::map<std::string, std::string> config;
+
+public:
+    void SetUp() override {
+        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        deviceName = CommonTestUtils::DEVICE_GPU;
+        auto with_auto_batching = this->GetParam();
+        if (with_auto_batching) { // BATCH:GPU
+            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
+            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
+        }
+    }
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        auto with_auto_batch = obj.param;
+        return std::string("RemoteTensor_Test") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
+    }
+};
 
 TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContext) {
     auto ie = ov::runtime::Core();
@@ -525,7 +553,6 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_in_order) {
     }
 }
 
-std::vector<bool> ov_with_auto_batching {true, false};
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensor_TestsWithContext, ::testing::ValuesIn(ov_with_auto_batching),
                          OVRemoteTensor_TestsWithContext::getTestCaseName);
 
