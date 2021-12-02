@@ -183,7 +183,7 @@ if __name__ == "__main__":
     assert not (args.cpu_cache and args.device != "CPU"), \
         "The cache option is used only for the CPU device."
 
-    assert not (args.vpu_compiler and args.device != "VPUX"), \
+    assert not (args.vpu_compiler and "VPUX" not in args.device), \
         "The VPUX compiler option is used only for the VPUX device."
 
     exit_code, _, aggr_stats, _ = run_timetest(
