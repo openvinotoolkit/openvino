@@ -578,18 +578,53 @@ def prior_box(
 
 @nameable_op
 def i420_to_bgr(
-        arg_y: NodeInput,
-        arg_u: NodeInput,
-        arg_v: NodeInput,
+        arg: NodeInput,
+        arg_u: NodeInput = None,
+        arg_v: NodeInput = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs I420toBGR operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_u: The node providing U plane data. Required for separate planes.
+    @param  arg_v: The node providing V plane data. Required for separate planes.
+    @param  name:  The optional name for the created output node.
+    @return The new node performing I420toBGR operation.
+    """
+    if arg_u is None and arg_v is None:
+        inputs = as_nodes(arg)
+    elif arg_u is not None and arg_v is not None:
+        inputs = as_nodes(arg, arg_u, arg_v)
+    else:
+        raise UserInputError(
+            'Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided'
+        )
+
+    return _get_node_factory_opset8().create("I420toBGR", inputs)
+
+
+@nameable_op
+def i420_to_rgb(
+        arg: NodeInput,
+        arg_u: NodeInput = None,
+        arg_v: NodeInput = None,
         name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs I420toRGB operation.
 
-    @param  arg_y: The node providing input image data (Y plane).
-    @param  arg_u: The node providing input image data (U plane).
-    @param  arg_v: The node providing input image data (V plane).
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_u: The node providing U plane data. Required for separate planes.
+    @param  arg_v: The node providing V plane data. Required for separate planes.
     @param  name:  The optional name for the created output node.
     @return The new node performing I420toRGB operation.
     """
-    inputs = as_nodes(arg_y, arg_u, arg_v)
+    if arg_u is None and arg_v is None:
+        inputs = as_nodes(arg)
+    elif arg_u is not None and arg_v is not None:
+        inputs = as_nodes(arg, arg_u, arg_v)
+    else:
+        raise UserInputError(
+            'Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided'
+        )
+
     return _get_node_factory_opset8().create("I420toRGB", inputs)
