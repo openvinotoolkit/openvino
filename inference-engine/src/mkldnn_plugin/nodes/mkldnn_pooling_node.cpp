@@ -281,6 +281,13 @@ void MKLDNNPoolingNode::createPrimitive() {
     }
 }
 
+void MKLDNNPoolingNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 bool MKLDNNPoolingNode::created() const {
     return getType() == Pooling;
 }

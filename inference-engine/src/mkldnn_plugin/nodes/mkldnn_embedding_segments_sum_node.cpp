@@ -129,6 +129,13 @@ void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex, const int*& indice
     }
 }
 
+void MKLDNNEmbeddingSegmentsSumNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNEmbeddingSegmentsSumNode::execute(mkldnn::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());

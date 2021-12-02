@@ -90,8 +90,9 @@ public:
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
     std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override;
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
     enum class NormEpsMode {

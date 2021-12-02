@@ -245,6 +245,13 @@ void MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::exec(const uint8_t* src
         permuteKernel->execute(srcData, dstData);
 }
 
+void MKLDNNShuffleChannelsNode::executeDynamicImpl(mkldnn::stream strm) {
+     if (hasZeroShapes()) {
+        return;
+    }
+    return execute(strm);
+}
+
 void MKLDNNShuffleChannelsNode::execute(mkldnn::stream strm) {
     if (!execPtr)
         THROW_SHCH_ERROR << "doesn't have a compiled executor.";

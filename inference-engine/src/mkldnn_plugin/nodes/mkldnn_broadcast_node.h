@@ -21,9 +21,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override {
-        execute(strm);
-    }
+    void executeDynamicImpl(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;

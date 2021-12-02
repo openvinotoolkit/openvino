@@ -158,7 +158,10 @@ bool MKLDNNTopKNode::needPrepareParams() const {
 }
 
 void MKLDNNTopKNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNTopKNode::createPrimitive() {

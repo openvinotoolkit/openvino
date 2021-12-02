@@ -238,6 +238,9 @@ bool MKLDNNScatterUpdateNode::needPrepareParams() const {
 }
 
 void MKLDNNScatterUpdateNode::executeDynamicImpl(mkldnn::stream strm) {
+     if (hasZeroShapes()) {
+        return;
+    }
     return execute(strm);
 }
 

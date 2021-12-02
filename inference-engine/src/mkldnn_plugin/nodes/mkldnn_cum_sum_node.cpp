@@ -258,7 +258,10 @@ bool MKLDNNCumSumNode::needPrepareParams() const {
 }
 
 void MKLDNNCumSumNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNCumSumNode::createPrimitive() {

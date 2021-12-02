@@ -110,6 +110,9 @@ void MKLDNNGatherNode::prepareParams() {
 }
 
 bool MKLDNNGatherNode::needPrepareParams() const {
+    if (hasZeroShapes()) {
+        return false;
+    }
     bool result = MKLDNNNode::needPrepareParams();
     if (!isAxisInputConst)
         result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
@@ -149,6 +152,9 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNGatherNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     execute(strm);
 }
 

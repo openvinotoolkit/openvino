@@ -313,6 +313,9 @@ void MKLDNNPadNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNPadNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     execute(strm);
 }
 

@@ -145,6 +145,19 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
     m_numBoxOffset.resize(m_numBatches);
 }
 
+void MKLDNNMultiClassNmsNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasInputZeroShapes()) {
+        getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTEDOUTPUTS)->cloneWithNewDims({0, 6}));
+        getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({0, 1}));
+        getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTEDNUM)->cloneWithNewDims({0}));
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());

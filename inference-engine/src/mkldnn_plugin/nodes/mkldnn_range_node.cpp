@@ -83,6 +83,13 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void MKLDNNRangeNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNRangeNode::execute(mkldnn::stream strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {

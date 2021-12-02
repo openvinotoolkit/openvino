@@ -24,7 +24,7 @@ public:
 
 protected:
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
     static const int ID_LOC = 0;

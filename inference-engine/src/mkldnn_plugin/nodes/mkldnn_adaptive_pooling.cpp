@@ -145,6 +145,13 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void MKLDNNAdaptivePoolingNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();

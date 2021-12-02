@@ -155,6 +155,16 @@ void MKLDNNNonMaxSuppressionNode::createPrimitive() {
 }
 
 void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasInputZeroShapes() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
+            reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
+        getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({0, 6}));
+        getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTEDSCORES)->cloneWithNewDims({0, 1}));
+        getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_VALIDOUTPUTS)->cloneWithNewDims({0}));
+        return;
+    }
     execute(strm);
 }
 
@@ -168,12 +178,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
 
     max_output_boxes_per_class = std::min(max_output_boxes_per_class, num_boxes);
 
-    auto indicesMemPtr = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr();
-    auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
     if (max_output_boxes_per_class == 0) {
-        VectorDims newDims{max_output_boxes_per_class, 3};
-        indicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims(newDims));
-        scoresMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDSCORES)->cloneWithNewDims(newDims));
         return;
     }
 
@@ -227,6 +232,8 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
                       });
     }
 
+    auto indicesMemPtr = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr();
+    auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
     const size_t validOutputs = std::min(filtBoxes.size(), maxNumberOfBoxes);
 
     // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS

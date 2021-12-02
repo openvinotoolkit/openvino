@@ -99,6 +99,9 @@ std::vector<VectorDims> MKLDNNReferenceNode::shapeInfer() const {
 }
 
 void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     execute(strm);
 }
 

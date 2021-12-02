@@ -1335,6 +1335,32 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
     return {scales, shifts};
 }
 
+bool MKLDNNNode::hasInputZeroShapes() const {
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        if (getParentEdgesAtPort(i)[0]->getMemory().GetShape().hasZeroDims())
+            return true;
+    }
+    return false;
+}
+
+bool MKLDNNNode::hasOutputZeroShapes() const {
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        if (getChildEdgesAtPort(i)[0]->getMemory().GetShape().hasZeroDims())
+            return true;
+    }
+    return false;
+}
+
+bool MKLDNNNode::hasZeroShapes() const {
+    if (hasInputZeroShapes()) {
+        return true;
+    }
+    if (hasOutputZeroShapes()) {
+        return true;
+    }
+    return false;
+}
+
 bool MKLDNNNode::inputShapesDefined() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined())
@@ -1357,6 +1383,9 @@ bool MKLDNNNode::shapesDefined() const {
 }
 
 bool MKLDNNNode::needPrepareParams() const {
+    if (hasZeroShapes()) {
+        return false;
+    }
     return inputShapesModified();
 }
 
@@ -1412,7 +1441,7 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
             IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism. "
                                      << "Type: " << getTypeStr() << " Name: " << getName();
         }
-            
+
         newOutputShapes[i] = partShape.get_shape();
     }
     return newOutputShapes;

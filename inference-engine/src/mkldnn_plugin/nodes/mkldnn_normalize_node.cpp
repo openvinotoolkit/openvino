@@ -854,10 +854,24 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
     }
 }
 
+bool MKLDNNNormalizeL2Node::needPrepareParams() const {
+    if (getParentEdgesAtPort(0)[0]->getMemory().GetShape().hasZeroDims()) {
+        return false;
+    }
+    return inputShapesModified();
+}
+
 void MKLDNNNormalizeL2Node::prepareParams() {
     const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
     setPostOps(kernel_attrs, dims, true);
     execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, kernel_attrs, dims);
+}
+
+void MKLDNNNormalizeL2Node::executeDynamicImpl(mkldnn::stream strm) {
+    if (getParentEdgesAtPort(0)[0]->getMemory().GetShape().hasZeroDims()) {
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {

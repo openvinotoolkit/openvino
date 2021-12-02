@@ -116,6 +116,9 @@ void MKLDNNBroadcastNode::createPrimitive() {
 }
 
 bool MKLDNNBroadcastNode::needPrepareParams() const {
+    if (hasZeroShapes()) {
+        return false;
+    }
     return needPrepareParamsVar;
 }
 
@@ -213,6 +216,13 @@ std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
     }
 
     return newOutputShapes;
+}
+
+void MKLDNNBroadcastNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {

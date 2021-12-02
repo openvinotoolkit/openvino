@@ -381,7 +381,10 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNExtractImagePatchesNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNExtractImagePatchesNode::ExtractImagePatchesRefExecutor::executeReference(

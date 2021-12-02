@@ -102,6 +102,13 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
+void MKLDNNGatherElementsNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 template <typename dataType>
 void MKLDNNGatherElementsNode::directExecution() {
     const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(dataIndex_)->getMemoryPtr()->GetPtr());

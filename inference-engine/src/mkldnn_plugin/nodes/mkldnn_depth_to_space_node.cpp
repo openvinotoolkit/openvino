@@ -269,6 +269,9 @@ void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNDepthToSpaceNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     execute(strm);
 }
 

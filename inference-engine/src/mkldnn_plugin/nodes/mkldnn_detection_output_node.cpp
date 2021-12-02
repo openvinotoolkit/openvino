@@ -170,6 +170,13 @@ struct ConfidenceComparatorDO {
     const float* confData;
 };
 
+void MKLDNNDetectionOutputNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 

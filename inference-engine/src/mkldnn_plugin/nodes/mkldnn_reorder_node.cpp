@@ -100,6 +100,13 @@ void MKLDNNReorderNode::createPrimitive() {
     }
 }
 
+void MKLDNNReorderNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNReorderNode::prepareParams() {
     if (!isOptimized) {
         auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();

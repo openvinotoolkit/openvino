@@ -425,6 +425,9 @@ void MKLDNNMatMulNode::prepareParams() {
 }
 
 void MKLDNNMatMulNode::executeDynamicImpl(dnnl::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     MKLDNNNode::execute(strm);
 }
 

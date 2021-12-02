@@ -288,6 +288,19 @@ void MKLDNNMatrixNmsNode::prepareParams() {
     }
 }
 
+void MKLDNNMatrixNmsNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasInputZeroShapes()) {
+        getChildEdgesAtPort(NMS_SELECTED_OUTPUTS)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTED_OUTPUTS)->cloneWithNewDims({0, 6}));
+        getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTED_INDICES)->cloneWithNewDims({0, 1}));
+        getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_VALID_OUTPUTS)->cloneWithNewDims({0}));
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());

@@ -336,7 +336,7 @@ bool MKLDNNConcatNode::isOptimized() const {
 }
 
 bool MKLDNNConcatNode::needPrepareParams() const {
-    if (canOptimizeNspc) {
+    if (canOptimizeNspc || getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().hasZeroDims()) {
         return false;
     }
     return inputShapesModified();
@@ -353,11 +353,6 @@ void MKLDNNConcatNode::prepareParams() {
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     std::vector<memory::desc> srcs_d;
-
-    if (dstMemPtr->GetShape().hasZeroDims()) {
-        return;
-    }
-
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
@@ -502,7 +497,7 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
     if (dst_memory.GetShape().hasZeroDims()) {
         return;
     }
-std::cout << "!!! " << canOptimizeNspc << " " << dst_memory.GetShape().toString() << std::endl;
+
     if (canOptimizeNspc) {
         execNspcSpecCase();
         return;

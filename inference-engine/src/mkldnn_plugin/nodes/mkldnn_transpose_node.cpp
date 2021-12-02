@@ -107,7 +107,7 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
 }
 
 bool MKLDNNTransposeNode::needPrepareParams() const {
-    if (isOptimized)
+    if (isOptimized || hasZeroShapes())
         return false;
     return MKLDNNNode::needPrepareParams();
 }
@@ -277,6 +277,9 @@ void MKLDNNTransposeNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNTransposeNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     execute(strm);
 }
 

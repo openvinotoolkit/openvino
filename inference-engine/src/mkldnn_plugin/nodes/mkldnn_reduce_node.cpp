@@ -1919,6 +1919,13 @@ void MKLDNNReduceNode::createPrimitive() {
     jit_mode = jit_mode && reduce_kernel;
 }
 
+void MKLDNNReduceNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNReduceNode::execute(mkldnn::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();

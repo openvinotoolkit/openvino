@@ -96,7 +96,7 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
     enum BroadcastingPolicy {
         PerChannel,

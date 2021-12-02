@@ -165,8 +165,11 @@ bool MKLDNNCTCGreedyDecoderNode::created() const {
     return getType() == CTCGreedyDecoder;
 }
 
-void MKLDNNCTCGreedyDecoderNode::executeDynamicImpl(dnnl::stream strm) {
-    MKLDNNCTCGreedyDecoderNode::execute(strm);
+void MKLDNNCTCGreedyDecoderNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNCTCGreedyDecoderNode::createPrimitive() {

@@ -227,7 +227,10 @@ void MKLDNNGatherNDNode::GatherNDExecutor::gatherElementwise(const MKLDNNMemoryP
     });
 }
 
-void MKLDNNGatherNDNode::executeDynamicImpl(dnnl::stream strm) {
+void MKLDNNGatherNDNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     execute(strm);
 }
 

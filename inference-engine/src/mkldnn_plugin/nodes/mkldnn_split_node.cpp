@@ -231,7 +231,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 }
 
 bool MKLDNNSplitNode::needPrepareParams() const {
-    if (isOptimized()) {
+    if (isOptimized() || getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().hasZeroDims()) {
         return false;
     }
     return MKLDNNNode::inputShapesModified();
@@ -241,10 +241,6 @@ void MKLDNNSplitNode::prepareParams() {
     const auto &srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
         THROW_ERROR << "has not allocated input memory";
-    }
-
-    if (srcMemPtr->GetShape().hasZeroDims()) {
-        return;
     }
 
     dstMemPtrs.clear();

@@ -140,6 +140,13 @@ void MKLDNNConvertNode::createPrimitive() {
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
 }
 
+void MKLDNNConvertNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNConvertNode::execute(mkldnn::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
@@ -149,10 +156,6 @@ void MKLDNNConvertNode::execute(mkldnn::stream strm) {
 
     if (parentPaddElemCount != childPaddElemCount)
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
-
-    if (parentPaddElemCount == 0) {
-        return;
-    }
 
     void* srcPtr = parentMem.GetPtr();
     void* dstPtr = childMem.GetPtr();

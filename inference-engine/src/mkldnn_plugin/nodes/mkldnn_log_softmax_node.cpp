@@ -87,6 +87,13 @@ void MKLDNNLogSoftmaxNode::prepareParams() {
         reducedAxisStride *= dims[i];
 }
 
+void MKLDNNLogSoftmaxNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNLogSoftmaxNode::execute(mkldnn::stream strm) {
     const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());

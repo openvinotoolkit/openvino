@@ -200,6 +200,13 @@ void MKLDNNSelectNode::execute_impl() {
     }
 }
 
+void MKLDNNSelectNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNSelectNode::execute(mkldnn::stream strm) {
     const size_t condPrecSize = getParentEdgeAt(CONDITION)->getMemory().getDesc().getPrecision().size();
     const size_t inputsPrecSize = getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().size();

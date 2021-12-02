@@ -147,12 +147,18 @@ void MKLDNNReshapeNode::createPrimitive() {
 }
 
 void MKLDNNReshapeNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     const auto count = srcMemPtr->GetShape().getElementsCount();
     if (count != dstMemPtr->GetShape().getElementsCount())
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
     cpu_memcpy(dstMemPtr->GetPtr(), srcMemPtr->GetPtr(), count * MKLDNNExtensionUtils::sizeOfDataType(srcMemPtr->GetDataType()));
+
+    execute(strm);
 }
 
 bool MKLDNNReshapeNode::created() const {

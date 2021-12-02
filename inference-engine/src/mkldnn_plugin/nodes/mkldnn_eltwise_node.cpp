@@ -1514,6 +1514,9 @@ void MKLDNNEltwiseNode::prepareParams() {
 }
 
 bool MKLDNNEltwiseNode::needPrepareParams() const {
+    if (hasZeroShapes()) {
+        return false;
+    }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (getParentEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
             return true;
@@ -1681,6 +1684,13 @@ void MKLDNNEltwiseNode::executeReference(const jit_eltwise_params &jep, const ji
             }
         }
     });
+}
+
+void MKLDNNEltwiseNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {

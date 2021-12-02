@@ -369,6 +369,9 @@ bool MKLDNNROIAlignNode::needPrepareParams() const {
 }
 
 void MKLDNNROIAlignNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     return execute(strm);
 }
 

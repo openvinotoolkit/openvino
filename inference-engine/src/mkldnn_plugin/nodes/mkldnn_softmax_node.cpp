@@ -148,8 +148,11 @@ void MKLDNNSoftMaxNode::prepareParams() {
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
-void MKLDNNSoftMaxNode::executeDynamicImpl(dnnl::stream strm) {
-    MKLDNNNode::execute(strm);
+void MKLDNNSoftMaxNode::executeDynamicImpl(mkldnn::stream strm) {
+     if (hasZeroShapes()) {
+        return;
+    }
+    return execute(strm);
 }
 
 std::vector<VectorDims> MKLDNNSoftMaxNode::shapeInfer() const {

@@ -683,6 +683,9 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNStridedSliceNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     execute(strm);
 }
 

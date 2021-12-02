@@ -281,7 +281,10 @@ void MKLDNNSpaceToDepthNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNSpaceToDepthNode::executeDynamicImpl(mkldnn::stream strm) {
-    execute(strm);
+    if (hasZeroShapes()) {
+        return;
+    }
+    return execute(strm);
 }
 
 bool MKLDNNSpaceToDepthNode::created() const {

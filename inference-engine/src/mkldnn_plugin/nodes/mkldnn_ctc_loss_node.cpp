@@ -65,6 +65,13 @@ void MKLDNNCTCLossNode::createPrimitive() {
     }
 }
 
+void MKLDNNCTCLossNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
     StatusCode returnCode = OK;
 

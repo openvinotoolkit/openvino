@@ -461,10 +461,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_dynamic_axis_4, ConcatLayerCPUTest,
                                 ::testing::Values(planar_5D_ref, planarChannels_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> inputShapes_byBatch = {
+const std::vector<std::vector<InputShape>> inputShapes_byBatch_static = {
         static_shapes_to_test_representation({{5, 2, 2, 2}, {2, 2, 2, 2}}),
         static_shapes_to_test_representation({{1, 3, 5}, {3, 3, 5}}),
-        static_shapes_to_test_representation({{4, 3, 2}, {1, 3, 2}}),
+        static_shapes_to_test_representation({{4, 3, 2}, {1, 3, 2}})
+};
+
+const std::vector<std::vector<InputShape>> inputShapes_byBatch_dynamic = {
         // 5D
         {
             {{-1, -1, -1, -1, -1}, {{10, 32, 4, 5, 5}, {4, 7, 1, 1, 3},  {3, 20, 7, 9, 1}, }},
@@ -489,12 +492,20 @@ const std::vector<std::vector<InputShape>> inputShapes_byBatch = {
         }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Concat_byBatch, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_byBatch_static, ConcatLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Values(0),
-                                 ::testing::ValuesIn(inputShapes_byBatch),
+                                 ::testing::ValuesIn(inputShapes_byBatch_static),
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                                 ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_byBatch_dynamic, ConcatLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Values(0),
+                                 ::testing::ValuesIn(inputShapes_byBatch_dynamic),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                                  ConcatLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> inputShapes3D_axis1 = {
@@ -563,11 +574,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_2D_axis1, ConcatLayerCPUTest,
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> inputShapes1D = {
+const std::vector<std::vector<InputShape>> inputShapes1D_static = {
         static_shapes_to_test_representation({ov::Shape{5}, ov::Shape{5}}),
         static_shapes_to_test_representation({ov::Shape{2}, ov::Shape{2}}),
         static_shapes_to_test_representation({ov::Shape{1}, ov::Shape{1}}),
-        static_shapes_to_test_representation({ov::Shape{3}, ov::Shape{3}}),
+        static_shapes_to_test_representation({ov::Shape{3}, ov::Shape{3}})
+};
+
+const std::vector<std::vector<InputShape>> inputShapes1D_dynamic = {
         {
             {{-1}, {{19}, {8}, {5}}},
             {{-1}, {{19}, {8}, {5}}},
@@ -580,12 +594,20 @@ const std::vector<std::vector<InputShape>> inputShapes1D = {
         },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_static, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0),
-                                ::testing::ValuesIn(inputShapes1D),
+                                ::testing::ValuesIn(inputShapes1D_static),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                        ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_dynamic, ConcatLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(0),
+                                ::testing::ValuesIn(inputShapes1D_dynamic),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
 // ============================================== inPlace cases ============================================

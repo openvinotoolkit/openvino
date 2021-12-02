@@ -174,8 +174,11 @@ std::vector<VectorDims> MKLDNNLrnNode::shapeInfer() const {
     return { getParentEdgesAtPort(0).front()->getMemory().getStaticDims() };
 }
 
-void MKLDNNLrnNode::executeDynamicImpl(dnnl::stream strm) {
-    MKLDNNNode::execute(strm);
+void MKLDNNLrnNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNLrnNode, Lrn);

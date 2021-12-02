@@ -89,6 +89,9 @@ void MKLDNNTileNode::createPrimitive() {
 }
 
 bool MKLDNNTileNode::needPrepareParams() const {
+    if (hasZeroShapes()) {
+        return false;
+    }
     return needPrepareParamsVar;
 }
 
@@ -148,6 +151,13 @@ std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
         newOutputShapes[i] = partShape.get_shape();
     }
     return newOutputShapes;
+}
+
+void MKLDNNTileNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {

@@ -487,7 +487,6 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-
 void MKLDNNConvolutionNode::createPrimitive() {
     if (inputShapesDefined()) {
         if (needPrepareParams())
@@ -954,7 +953,7 @@ void MKLDNNConvolutionNode::prepareParams() {
     auto weightMemoryDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
     auto outMemoryDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
     mkldnn::memory::desc biasDesc;
-    if(biasMemPtr) {
+    if (biasMemPtr) {
         biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
     }
 
@@ -1097,7 +1096,10 @@ void MKLDNNConvolutionNode::execute(mkldnn::stream strm) {
     execPtr->exec(strm);
 }
 
-void MKLDNNConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
+void MKLDNNConvolutionNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
     execute(strm);
 }
 

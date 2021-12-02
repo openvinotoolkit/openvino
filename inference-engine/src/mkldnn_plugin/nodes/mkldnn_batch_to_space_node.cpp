@@ -225,6 +225,13 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
     });
 }
 
+void MKLDNNBatchToSpaceNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNBatchToSpaceNode::execute(mkldnn::stream strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
         case 1: batchToSpaceKernel<PrecisionTrait<Precision::U8>::value_type>();  break;

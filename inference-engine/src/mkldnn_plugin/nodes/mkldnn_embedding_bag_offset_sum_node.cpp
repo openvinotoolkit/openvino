@@ -126,6 +126,13 @@ void MKLDNNEmbeddingBagOffsetSumNode::getIndices(int embIndex, const int*& indic
         weightsIdx = offsetsData_[embIndex];
 }
 
+void MKLDNNEmbeddingBagOffsetSumNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
+}
+
 void MKLDNNEmbeddingBagOffsetSumNode::execute(mkldnn::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());

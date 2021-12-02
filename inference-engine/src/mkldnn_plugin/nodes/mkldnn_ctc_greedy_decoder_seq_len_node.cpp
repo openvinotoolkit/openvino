@@ -174,8 +174,11 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::createPrimitive() {
     }
 }
 
-void MKLDNNCTCGreedyDecoderSeqLenNode::executeDynamicImpl(dnnl::stream strm) {
-    MKLDNNCTCGreedyDecoderSeqLenNode::execute(strm);
+void MKLDNNCTCGreedyDecoderSeqLenNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasZeroShapes()) {
+        return;
+    }
+    execute(strm);
 }
 
 bool MKLDNNCTCGreedyDecoderSeqLenNode::needPrepareParams() const {

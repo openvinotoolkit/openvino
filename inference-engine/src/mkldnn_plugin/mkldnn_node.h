@@ -728,6 +728,10 @@ protected:
 
     bool isDynamic = false;
 
+    bool hasInputZeroShapes() const;
+    bool hasOutputZeroShapes() const;
+    bool hasZeroShapes() const;
+
     bool inputShapesDefined() const;
     bool outputShapesDefined() const;
     bool shapesDefined() const;
