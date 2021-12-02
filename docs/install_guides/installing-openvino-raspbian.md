@@ -138,25 +138,25 @@ Follow the next steps to use the pre-trained face detection model using Inferenc
    ```sh
    mkdir build && cd build
    ```
-2. Build the Object Detection Sample:
+2. Build the Hello Classification Sample:
    ```sh
    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
    ```
    ```sh
-   make -j2 object_detection_sample_ssd
+   make -j2 hello_classifiaction
    ```
-3. Download the pre-trained Face Detection model with the Model Downloader or copy it from the host machine:
+3. Download the pre-trained squeezenet1.1 image classifiaction model with the Model Downloader or copy it from the host machine:
    ```sh
    git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
    cd open_model_zoo/tools/downloader
    python3 -m pip install -r requirements.in
-   python3 downloader.py --name face-detection-adas-0001 
+   python3 downloader.py --name squeezenet1.1 
    ```
 4. Run the sample specifying the model, a path to the input image, and the VPU required to run with the Raspbian* OS:
    ```sh
-   ./armv7l/Release/object_detection_sample_ssd -m <path_to_model>/face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
+   ./armv7l/Release/hello_classification <path_to_model>/squeezenet1.1.xml <path_to_image> MYRIAD
    ```
-   The application outputs an image (`out_0.bmp`) with detected faced enclosed in rectangles.
+   The application outputs to console window top 10 classification results.
 
 Congratulations, you have finished the OpenVINO™ toolkit for Raspbian* OS installation. You have completed all required installation, configuration and build steps in this guide.
 
