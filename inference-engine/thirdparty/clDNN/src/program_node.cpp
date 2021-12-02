@@ -728,10 +728,19 @@ void program_node::init_onednn_primitive_attributes() {
         auto node = cldnn_post_ops[idx].node;
 
         if (node->is_type<activation>()) {
-            auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
-            int oc_dim = node->get_output_layout().size.feature.size();
-            post_ops.append_prelu(1 << oc_dim);
-            update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
+		if (node->get_dependencies().size() == 1) {
+			std::cout << "Prelu" << node->get_dependencies().size() << " " << cldnn_post_ops[idx].dep_start_idx <<std::endl;
+			auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
+			int oc_dim = node->get_output_layout().size.feature.size();
+			post_ops.append_prelu(1 << oc_dim);
+			update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
+		} else {
+			std::cout << "Leaky" << node->get_dependencies().size() << " " << cldnn_post_ops[idx].dep_start_idx <<std::endl;
+			auto fused_desc = node->as<activation>().get_primitive();
+			dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
+			post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+			update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+		}
         } else if (node->is_type<eltwise>()) {
             auto& e_node = node->as<eltwise>();
             auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
