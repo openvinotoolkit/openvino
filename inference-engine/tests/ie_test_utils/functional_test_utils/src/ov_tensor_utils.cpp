@@ -52,6 +52,54 @@ ov::runtime::Tensor create_and_fill_tensor(
     return tensor;
 }
 
+ov::runtime::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,
+                                                           const ov::Shape& shape,
+                                                           const int32_t start_from,
+                                                           const int32_t resolution,
+                                                           const int seed) {
+    auto tensor = ov::runtime::Tensor{element_type, shape};
+    auto range = shape_size(shape) * 2;
+#define CASE(X)                                                                                           \
+    case X:                                                                                               \
+        ::CommonTestUtils::fill_random_unique_sequence(tensor.data<element_type_traits<X>::value_type>(), \
+                                                       shape_size(shape),                                 \
+                                                       range,                                             \
+                                                       start_from,                                        \
+                                                       resolution,                                        \
+                                                       seed);                                             \
+        break;
+
+    switch (element_type) {
+        CASE(ov::element::Type_t::boolean)
+        CASE(ov::element::Type_t::i8)
+        CASE(ov::element::Type_t::i16)
+        CASE(ov::element::Type_t::i32)
+        CASE(ov::element::Type_t::i64)
+        CASE(ov::element::Type_t::u8)
+        CASE(ov::element::Type_t::u16)
+        CASE(ov::element::Type_t::u32)
+        CASE(ov::element::Type_t::u64)
+        CASE(ov::element::Type_t::bf16)
+        CASE(ov::element::Type_t::f16)
+        CASE(ov::element::Type_t::f32)
+        CASE(ov::element::Type_t::f64)
+    case ov::element::Type_t::u1:
+    case ov::element::Type_t::i4:
+    case ov::element::Type_t::u4:
+        ::CommonTestUtils::fill_random_unique_sequence(static_cast<uint8_t*>(tensor.data()),
+                                                       tensor.get_byte_size(),
+                                                       range,
+                                                       start_from,
+                                                       resolution,
+                                                       seed);
+        break;
+    default:
+        OPENVINO_UNREACHABLE("Unsupported element type: ", element_type);
+    }
+#undef CASE
+    return tensor;
+}
+
 template<typename ExpectedT, typename ActualT>
 void compare(const ov::runtime::Tensor& expected,
              const ov::runtime::Tensor& actual,
