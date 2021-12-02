@@ -313,19 +313,20 @@ def arguments_post_parsing(argv: argparse.Namespace):
     return argv
 
 
-def prepare_ir(argv : argparse.Namespace, telemetry : tm.Telemetry = tm.Telemetry()):
+def prepare_ir(argv : argparse.Namespace):
     argv = arguments_post_parsing(argv)
 
+    t = tm.Telemetry()
     graph = None
     ngraph_function = None
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
     apply_fallback = hasattr(argv, 'extensions') and argv.extensions and len(argv.extensions) > 0
     if moc_front_end and not apply_fallback:
-        telemetry.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-        moc_front_end.add_extension(TelemetryExtension("mo", telemetry.send_event, telemetry.send_error, telemetry.send_stack_trace))
+        t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
+        moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
         ngraph_function = moc_pipeline(argv, moc_front_end)
     else:
-        telemetry.send_event("mo", "conversion_method", "mo_legacy")
+        t.send_event("mo", "conversion_method", "mo_legacy")
         graph = unified_pipeline(argv)
 
     return graph, ngraph_function
