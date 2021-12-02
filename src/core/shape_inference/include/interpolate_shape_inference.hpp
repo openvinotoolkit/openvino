@@ -12,16 +12,6 @@ namespace ov {
 namespace op {
 
 template <class T>
-inline void set_low_upper_bound(T& dim, int64_t lower_bound, int64_t upper_bound) {
-    OPENVINO_UNREACHABLE("Cannot set Dimension to in-compatible type.");
-}
-
-template <>
-inline void set_low_upper_bound<ov::Dimension>(ov::Dimension& dim, int64_t lower_bound, int64_t upper_bound) {
-    dim = ov::Dimension(lower_bound, upper_bound);
-};
-
-template <class T>
 inline bool get_data_as_shape(size_t idx,
                               const ov::Node* op,
                               T& output,
@@ -43,10 +33,7 @@ inline bool get_data_as_shape<ov::PartialShape>(
     const ov::Node* op,
     ov::PartialShape& output,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    if (ov::evaluate_as_partial_shape(op->input_value(idx), output)) {
-        return true;
-    }
-    return false;
+    return ov::evaluate_as_partial_shape(op->input_value(idx), output);
 }
 
 namespace v0 {
@@ -134,21 +121,18 @@ inline int64_t multiply_bound_and_scale(int64_t bound, float scale) {
 }
 
 template <typename T>
-void infer_using_scales(T& output_shape,
-                        const std::vector<int64_t>& axes,
-                        const std::vector<float>& scales,
-                        const T& padded_input_shape) {
+void infer_using_scales(T& output_shape, const std::vector<int64_t>& axes, const std::vector<float>& scales) {
     size_t i = 0;
     static constexpr float epsilon = 1.0e-6f;
     for (auto axis : axes) {
-        const auto& current_dim = padded_input_shape[axis];
+        const auto& current_dim = output_shape[axis];
         float multiplier = scales[i] + epsilon;
         if (current_dim.is_static()) {
             output_shape[axis] = multiply_bound_and_scale(current_dim.get_length(), multiplier);
         } else {
             int64_t new_lower_bound = multiply_bound_and_scale(current_dim.get_min_length(), multiplier);
             int64_t new_upper_bound = multiply_bound_and_scale(current_dim.get_max_length(), multiplier);
-            set_low_upper_bound(output_shape[axis], new_lower_bound, new_upper_bound);
+            output_shape[axis] = ov::Dimension(new_lower_bound, new_upper_bound);
         }
         ++i;
     }
@@ -189,19 +173,16 @@ void shape_infer(const Interpolate* op,
                               "Axis value should less than input rank.");
 
         // Get padded input shape
-        auto padded_input_shape = input_shape;
         for (int64_t i = 0; i < input_rank; ++i) {
             if (input_shape[i].is_static()) {
-                auto new_length = pads_begin[i] + pads_end[i] + input_shape[i].get_length();
-                padded_input_shape[i] = new_length;
+                output_shape[i] = pads_begin[i] + pads_end[i] + input_shape[i].get_length();
             }
         }
 
-        output_shape = padded_input_shape;
         if (op->m_attrs.shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES) {
             std::vector<float> scales;
             if (get_data_as_float<T>(2, op, scales, constant_data)) {
-                infer_using_scales(output_shape, axes, scales, padded_input_shape);
+                infer_using_scales(output_shape, axes, scales);
             } else {
                 for (auto axis : axes) {
                     output_shape[axis] = ov::Dimension::dynamic();

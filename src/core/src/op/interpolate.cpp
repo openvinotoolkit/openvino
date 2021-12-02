@@ -46,8 +46,8 @@ void op::v0::Interpolate::validate_and_infer_types() {
                           "output shape must be an integral number.");
     set_input_is_relevant_to_shape(1);
 
-    const auto input_shape = get_input_partial_shape(0);
-    const auto target_spatial_shape = get_input_partial_shape(1);
+    const auto& input_shape = get_input_partial_shape(0);
+    const auto& target_spatial_shape = get_input_partial_shape(1);
     std::vector<ov::PartialShape> input_shapes = {input_shape, target_spatial_shape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
@@ -223,13 +223,13 @@ void op::v4::Interpolate::validate_and_infer_types() {
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;
-    const auto input_shape = get_input_partial_shape(0);
-    const auto target_spatial_shape = get_input_partial_shape(1);
-    const auto scales = get_input_partial_shape(2);
+    const auto& input_shape = get_input_partial_shape(0);
+    const auto& target_spatial_shape = get_input_partial_shape(1);
+    const auto& scales = get_input_partial_shape(2);
     if (input_values().size() == 3) {
         input_shapes = {input_shape, target_spatial_shape, scales};
     } else {
-        const auto axes = get_input_partial_shape(3);
+        const auto& axes = get_input_partial_shape(3);
         input_shapes = {input_shape, target_spatial_shape, scales, axes};
     }
 

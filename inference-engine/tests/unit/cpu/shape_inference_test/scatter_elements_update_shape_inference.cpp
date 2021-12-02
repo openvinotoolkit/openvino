@@ -7,8 +7,8 @@
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
 #include <scatter_elements_update_shape_inference.hpp>
-
-#include "utils/shape_inference/static_shape.hpp"
+#include <utils/shape_inference/shape_inference.hpp>
+#include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
 
@@ -23,13 +23,14 @@ TEST(StaticShapeInferenceTest, ScatterElementsUpdateTest) {
 
     int32_t axis_shape_val[] = {2};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axis_shape_val);
+    constant_data[3] =
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axis_shape_val);
     std::vector<StaticShape> input_shapes = {StaticShape{1000, 256, 7, 7},
                                              StaticShape{125, 20, 7, 6},
                                              StaticShape{125, 20, 7, 6},
                                              StaticShape{1}},
                              output_shapes = {StaticShape{}};
-    shape_infer(scatter_elements.get(), input_shapes, output_shapes, constant_data);
+    shape_inference(scatter_elements.get(), input_shapes, output_shapes, constant_data);
 
     ASSERT_EQ(output_shapes[0], StaticShape({1000, 256, 7, 7}));
 }

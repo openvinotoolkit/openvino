@@ -41,9 +41,9 @@ void ov::op::util::ScatterNDBase::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, updates_et == inputs_et, "Updates element type must be the same as inputs");
 
-    const auto inputs = get_input_partial_shape(0);
-    const auto indices = get_input_partial_shape(1);
-    const auto updates = get_input_partial_shape(2);
+    const auto& inputs = get_input_partial_shape(0);
+    const auto& indices = get_input_partial_shape(1);
+    const auto& updates = get_input_partial_shape(2);
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes = {inputs, indices, updates};

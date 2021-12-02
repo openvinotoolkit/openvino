@@ -21,7 +21,9 @@ void shape_infer(const ov::op::util::ScatterNDBase* op,
     const auto& indices_rank = indices_shape.rank();
     const auto& updates_rank = updates_shape.rank();
 
-    NODE_VALIDATION_CHECK(op, indices_rank != 0, "Indices rank is expected to be at least 1");
+    NODE_VALIDATION_CHECK(op,
+                          indices_rank != 0 && inputs_rank != 0,
+                          "Indices rank and inputs_rank are expected to be at least 1");
 
     NODE_VALIDATION_CHECK(op,
                           inputs_rank.is_dynamic() || indices_rank.is_dynamic() ||
