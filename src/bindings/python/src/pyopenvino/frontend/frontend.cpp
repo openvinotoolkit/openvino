@@ -10,12 +10,13 @@
 #include "common/frontend_exceptions.hpp"
 #include "common/telemetry_extension.hpp"
 #include "manager.hpp"
+#include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
 
 using namespace ov::frontend;
 
-void regclass_pyngraph_FrontEnd(py::module m) {
+void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
@@ -40,7 +41,7 @@ void regclass_pyngraph_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ngraph::Function> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
+            static_cast<std::shared_ptr<ov::Function> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
             py::arg("model"),
             R"(
                 Completely convert and normalize entire function, throws if it is not possible.
@@ -57,7 +58,7 @@ void regclass_pyngraph_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<void (FrontEnd::*)(std::shared_ptr<ngraph::Function>) const>(&FrontEnd::convert),
+            static_cast<void (FrontEnd::*)(std::shared_ptr<ov::Function>) const>(&FrontEnd::convert),
             py::arg("function"),
             R"(
                 Completely convert the remaining, not converted part of a function.
@@ -143,11 +144,11 @@ void regclass_pyngraph_FrontEnd(py::module m) {
     });
 }
 
-void regclass_pyngraph_Extension(py::module m) {
+void regclass_frontend_Extension(py::module m) {
     py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
 }
 
-void regclass_pyngraph_TelemetryExtension(py::module m) {
+void regclass_frontend_TelemetryExtension(py::module m) {
     {
         py::class_<TelemetryExtension, std::shared_ptr<TelemetryExtension>, ov::Extension> ext(m,
                                                                                                "TelemetryExtension",

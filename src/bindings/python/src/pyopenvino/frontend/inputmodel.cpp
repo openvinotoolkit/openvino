@@ -11,12 +11,11 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_InputModel(py::module m) {
+void regclass_frontend_InputModel(py::module m) {
     py::class_<ov::frontend::InputModel, std::shared_ptr<ov::frontend::InputModel>> im(m,
                                                                                        "InputModel",
-                                                                                       py::dynamic_attr(),
-                                                                                       py::module_local());
-    im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
+                                                                                       py::dynamic_attr());
+    im.doc() = "openvino.frontend.InputModel wraps ov::frontend::InputModel";
 
     im.def("get_place_by_tensor_name",
            &ov::frontend::InputModel::get_place_by_tensor_name,
