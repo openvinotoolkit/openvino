@@ -22,7 +22,7 @@ void shape_infer(const RegionYolo* op,
 
     const auto& input_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
-    if (input_shape.is_static()) {
+    if (input_shape.rank().is_static()) {
         int end_axis = op->get_end_axis();
         if (end_axis < 0) {
             end_axis += input_shape.size();
@@ -30,11 +30,16 @@ void shape_infer(const RegionYolo* op,
 
         if (op->get_do_softmax()) {
             output_shape.resize(0);
+            auto axis = op->get_axis();
             size_t flat_dim = 1;
-            for (int64_t i = 0; i < op->get_axis(); i++) {
+            for (int64_t i = 0; i < axis; i++) {
                 output_shape.push_back(input_shape[i]);
             }
-            for (int64_t i = op->get_axis(); i < end_axis + 1; i++) {
+            for (int64_t i = axis; i < end_axis + 1; i++) {
+                if (input_shape[i].is_dynamic()) {
+                    flat_dim = -1;
+                    break;
+                }
                 flat_dim *= input_shape[i].get_length();
             }
             output_shape.push_back(flat_dim);

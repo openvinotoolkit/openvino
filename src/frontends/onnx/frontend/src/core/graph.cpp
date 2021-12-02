@@ -47,12 +47,16 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
 }
 }  // namespace detail
 
-Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
-    : Graph(model_proto, common::make_unique<GraphCache>()) {}
+Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+    : Graph(model_proto, common::make_unique<GraphCache>(), telemetry) {}
 
-Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::unique_ptr<GraphCache>&& cache)
+Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             std::unique_ptr<GraphCache>&& cache,
+             const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
     : m_model{common::make_unique<Model>(model_proto)},
-      m_cache{std::move(cache)} {
+      m_cache{std::move(cache)},
+      m_telemetry(telemetry) {
     std::map<std::string, Tensor> initializers;
     // Process all initializers in the graph
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
@@ -96,12 +100,22 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
 
     // Verify that ONNX graph contains only nodes of available operator types
     std::map<std::string, std::reference_wrapper<const ONNX_NAMESPACE::NodeProto>> unknown_operators;
+    std::map<std::string, uint64_t> op_statistics;
     for (const auto& node_proto : m_model->get_graph().node()) {
+        if (telemetry) {
+            op_statistics[node_proto.op_type()]++;
+        }
         if (!m_model->is_operator_available(node_proto)) {
             unknown_operators.emplace(detail::get_op_domain_and_name(node_proto), node_proto);
             // If a node from an unregistered domain is detected, try registering that
             // domain
             m_model->enable_opset_domain(get_node_domain(node_proto));
+        }
+    }
+
+    if (telemetry) {
+        for (const auto& op : op_statistics) {
+            telemetry->send_event("op_count", "onnx_" + op.first, op.second);
         }
     }
 
@@ -297,7 +311,7 @@ const OpsetImports& Graph::get_opset_imports() const {
 }
 
 Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
-    : Graph(model_proto, common::make_unique<GraphCache>()),
+    : Graph(model_proto, common::make_unique<GraphCache>(), parent_graph->get_telemetry()),
       m_parent_graph(parent_graph) {}
 
 bool Subgraph::is_ng_node_in_cache(const std::string& name) const {
