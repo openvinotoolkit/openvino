@@ -635,17 +635,6 @@ int main(int argc, char* argv[]) {
             inferenceOnly = isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() == 1;
         }
 
-        if (inferenceOnly) {
-            slog::info
-                << "Benchmark inference only mode is enabled. Input blobs will be filled once before performance "
-                   "measurements."
-                << slog::endl;
-        } else {
-            slog::info << "Benchmark full mode is enabled. Input blobs setting will be included in performance "
-                          "measurements."
-                       << slog::endl;
-        }
-
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
@@ -827,6 +816,17 @@ int main(int argc, char* argv[]) {
         }
 
         next_step(ss.str());
+
+        if (inferenceOnly) {
+            slog::info
+                << "Benchmark inference only mode is enabled. Input blobs will be filled once before performance "
+                   "measurements."
+                << slog::endl;
+        } else {
+            slog::info << "Benchmark full mode is enabled. Input blobs setting will be included in performance "
+                          "measurements."
+                       << slog::endl;
+        }
 
         // copy prepared data straight into inferRequest->getBlob()
         // for inference only mode
