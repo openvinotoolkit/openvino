@@ -150,16 +150,21 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         std::string fullDeviceName = "";
         std::string uniqueName = "";
-        std::vector<std::string> supportedMetrics = GetCore()->GetMetric(parsed.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS));
-        if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
-            fullDeviceName = GetCore()->GetMetric(parsed.getDeviceName(), METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+        if (parsed.getDeviceName() == "GPU") {
+            std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
+                fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+            }
         }
+
         if (fullDeviceName.empty()) {
             uniqueName = parsed.getDeviceName() + "_" + deviceid;
         } else {
             uniqueName = fullDeviceName + "_" + deviceid;
         }
 
+        LOG_DEBUG("deviceName:%s, defaultDeviceID:%s, uniqueName:%s",
+              deviceName.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
         // create meta device
         metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
     }
