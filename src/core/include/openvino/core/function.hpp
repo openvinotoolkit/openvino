@@ -354,7 +354,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 };
 
-namespace util {
+namespace pass {
 /// \brief Helper method to get associated batch size for a Function
 /// \details Checks layout of each parameter in a Function and extracts value for N (B) dimension. All values are then
 /// merged and returned
@@ -365,11 +365,11 @@ namespace util {
 /// `function->get_parameters()[some_index]->set_layout("NCHW");`
 /// * Several parameters have conflicting N dimension, e.g. param1 NCHW{1,3,224,224} and param2 NCHW{2,3,224,224}. This
 /// is ambiguous, most probably first dimension is incorrectly marked as 'batch' (N) in some layout. User shall
-///// fix it before using of 'set_batch_size' (in example above correct layout for param2 from 'NCHW' to 'CHWN')
+///// fix it before using of 'get_batch' (in example above correct layout for param2 from 'NCHW' to 'CHWN')
 ///
 /// \param f function where to look for a batch_size value
 /// \return Dimension representing current batch size. Can represent a number or be a dynamic
-OPENVINO_API ov::Dimension get_batch_size(const std::shared_ptr<const ov::Function>& f);
+OPENVINO_API ov::Dimension get_batch(const std::shared_ptr<const ov::Function>& f);
 
 /// \brief Helper method to set batch size to a Function
 ///
@@ -382,14 +382,14 @@ OPENVINO_API ov::Dimension get_batch_size(const std::shared_ptr<const ov::Functi
 /// `function->get_parameters()[some_index]->set_layout("NCHW");`
 /// * Several parameters have conflicting N dimension, e.g. param1 NCHW{1,3,224,224} and param2 NCHW{3,224,224,1}. This
 /// is ambiguous (1 != 3), most probably some dimension is incorrectly marked as 'batch' (N) in some layout. User shall
-/// fix it before using of 'set_batch_size' (in example above correct layout for param2 from 'NCHW' to 'CHWN')
+/// fix it before using of 'set_batch' (in example above correct layout for param2 from 'NCHW' to 'CHWN')
 /// * Validation fails after setting batch_size. Function becomes in inconsistent state after new batch size value is
 /// applied. Possible reason could be that layout was not set for some parameters, or batch size can't be applied to
 /// model at all
 ///
 /// \param f function where to set batch_size value
 /// \param batch_size Batch size value. For dynamic batch size, Dimension::dynamic() can be passed.
-OPENVINO_API void set_batch_size(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size);
-}  // namespace util
+OPENVINO_API void set_batch(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size);
+}  // namespace pass
 
 }  // namespace ov
