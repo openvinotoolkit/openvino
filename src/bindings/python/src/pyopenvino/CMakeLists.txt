@@ -46,7 +46,7 @@ endif()
 
 # create target
 
-file(GLOB_RECURSE SOURCES *.cpp)
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 

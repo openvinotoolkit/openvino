@@ -3,12 +3,13 @@
 
 from openvino.runtime import Function
 from openvino.runtime.impl import Shape, Type
+from openvino.runtime.impl.op import Parameter
 import openvino.runtime.opset8 as ops
 
 
 def get_test_function():
     element_type = Type.f32
-    param = ops.parameter(element_type, Shape([1, 3, 22, 22]))
+    param = Parameter(element_type, Shape([1, 3, 22, 22]))
     relu = ops.relu(param)
     func = Function([relu], [param], "test")
     assert func is not None
