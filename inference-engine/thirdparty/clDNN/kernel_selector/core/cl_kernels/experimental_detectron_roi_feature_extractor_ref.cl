@@ -31,7 +31,7 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
                                                          INPUT_LEVEL_PARAMS,
                                                          __global OUTPUT_TYPE* dst_data)
 {
-    const size_t oxy = get_global_id(0);
+    const uint oxy = get_global_id(0);
 
     const uint x = oxy % POOLED_WIDTH;
     const uint y = oxy / POOLED_WIDTH;
