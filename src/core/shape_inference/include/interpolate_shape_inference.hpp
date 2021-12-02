@@ -11,31 +11,6 @@
 namespace ov {
 namespace op {
 
-template <class T>
-inline bool get_data_as_shape(size_t idx,
-                              const ov::Node* op,
-                              T& output,
-                              const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    std::vector<int64_t> output_value;
-    if (get_data_as_int64<T>(1, op, output_value, constant_data)) {
-        output.resize(output_value.size());
-        for (size_t i = 0; i < output_value.size(); i++) {
-            output[i] = output_value[i];
-        }
-        return true;
-    }
-    return false;
-}
-
-template <>
-inline bool get_data_as_shape<ov::PartialShape>(
-    size_t idx,
-    const ov::Node* op,
-    ov::PartialShape& output,
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    return ov::evaluate_as_partial_shape(op->input_value(idx), output);
-}
-
 namespace v0 {
 template <class T>
 void shape_infer(const Interpolate* op,
