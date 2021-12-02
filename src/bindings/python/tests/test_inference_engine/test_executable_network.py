@@ -231,8 +231,7 @@ def test_infer_new_request_numpy(device):
     img = read_image()
     exec_net = ie.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    k = list(res)[0]
-    assert np.argmax(res[k]) == 2
+    assert np.argmax(res[list(res)[0]]) == 2
 
 
 def test_infer_new_request_tensor_numpy_copy(device):
@@ -293,8 +292,7 @@ def test_infer_numpy_model_from_buffer(device):
     img = read_image()
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    k = list(res)[0]
-    assert np.argmax(res[k]) == 2
+    assert np.argmax(res[list(res)[0]]) == 2
 
 
 def test_infer_tensor_model_from_buffer(device):
@@ -308,5 +306,4 @@ def test_infer_tensor_model_from_buffer(device):
     tensor = Tensor(img)
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": tensor})
-    k = list(res)[0]
-    assert np.argmax(res[k]) == 2
+    assert np.argmax(res[list(res)[0]]) == 2

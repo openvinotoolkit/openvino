@@ -188,8 +188,7 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    k = list(res)[0]
-    assert np.argmax(res[k]) == 2
+    assert np.argmax(res[list(res)[0]]) == 2
 
 
 def test_infer_queue(device):
@@ -346,10 +345,9 @@ def test_results_async_infer(device):
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()
-    request_id = infer_queue.get_idle_request_id()
-    print(infer_queue[request_id].results)
-    print(infer_queue[3].results)
 
     request = exec_net.create_infer_request()
     outputs = request.infer({0: img})
-    print(outputs.values())
+
+    for i in range(num_request):
+        np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
