@@ -28,26 +28,26 @@ TEST(attributes, dimension) {
     EXPECT_EQ(dyn, g_dyn);
 
     Dimension scalar = Dimension(10);
-    saver.on_attribute("scalar", dyn);
+    saver.on_attribute("scalar", scalar);
     Dimension g_scalar;
-    loader.on_attribute("scalar", g_dyn);
-    EXPECT_EQ(dyn, g_dyn);
+    loader.on_attribute("scalar", g_scalar);
+    EXPECT_EQ(scalar, g_scalar);
 
     Dimension boundaries1 = Dimension(2, 100);
-    saver.on_attribute("boundaries1", dyn);
+    saver.on_attribute("boundaries1", boundaries1);
     Dimension g_boundaries1;
-    loader.on_attribute("boundaries1", g_dyn);
-    EXPECT_EQ(dyn, g_dyn);
+    loader.on_attribute("boundaries1", g_boundaries1);
+    EXPECT_EQ(boundaries1, g_boundaries1);
 
     Dimension boundaries2 = Dimension(-1, 100);
-    saver.on_attribute("boundaries2", dyn);
+    saver.on_attribute("boundaries2", boundaries2);
     Dimension g_boundaries2;
-    loader.on_attribute("boundaries2", g_dyn);
-    EXPECT_EQ(dyn, g_dyn);
+    loader.on_attribute("boundaries2", g_boundaries2);
+    EXPECT_EQ(boundaries2, g_boundaries2);
 
     Dimension boundaries3 = Dimension(5, -1);
-    saver.on_attribute("boundaries3", dyn);
+    saver.on_attribute("boundaries3", boundaries3);
     Dimension g_boundaries3;
-    loader.on_attribute("boundaries3", g_dyn);
-    EXPECT_EQ(dyn, g_dyn);
+    loader.on_attribute("boundaries3", g_boundaries3);
+    EXPECT_EQ(boundaries3, g_boundaries3);
 }
