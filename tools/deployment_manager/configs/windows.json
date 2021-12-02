@@ -47,7 +47,7 @@
       "files": [
         "runtime/bin/intel64/Release/cache.json",
         "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
-        "runtime/bin/intel64/Release/clDNNPlugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_gpu_plugin.dll"
       ]
     },
     "vpu": {

@@ -6,7 +6,7 @@ set(VPU_DEPENDENCIES
     vpu_copy_firmware)
 
 if (ENABLE_INTEL_GPU)
-    list(APPEND VPU_DEPENDENCIES clDNNPlugin)
+    list(APPEND VPU_DEPENDENCIES ov_intel_gpu_plugin)
     if(ENABLE_HETERO)
         list(APPEND VPU_DEPENDENCIES ov_hetero_plugin)
     endif()
