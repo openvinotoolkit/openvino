@@ -11,9 +11,9 @@ After you have used the Model Optimizer to create an Intermediate Representation
 
 Inference Engine is a set of C++ libraries providing a common API to deliver inference solutions on the platform of your choice: CPU, GPU, or VPU. Use the Inference Engine API to read the Intermediate Representation, set the input and output formats, and execute the model on devices. While the C++ libraries is the primary implementation, C libraries and Python bindings are also available.
 
-For Intel® Distribution of OpenVINO™ toolkit, Inference Engine binaries are delivered within release packages. 
+For Intel® Distribution of OpenVINO™ toolkit, Inference Engine binaries are delivered within release packages.
 
-The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">Inference Engine Build Instructions</a>.    
+The open source version is available in the [OpenVINO™ toolkit GitHub repository](https://github.com/openvinotoolkit/openvino) and can be built for supported platforms using the <a href="https://github.com/openvinotoolkit/openvino/wiki/BuildingCode">Inference Engine Build Instructions</a>.
 
 To learn about how to use the Inference Engine API for your application, see the [Integrating Inference Engine in Your Application](Integrate_with_customer_application_new_API.md) documentation.
 
@@ -71,7 +71,7 @@ The table below shows the plugin libraries and additional dependencies for Linux
 | Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
 |--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
 | CPU    | `libMKLDNNPlugin.so`        | `libinference_engine_lp_transformations.so`                 | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`                                                              | `libMKLDNNPlugin.so`      | `inference_engine_lp_transformations.dylib` |
-| GPU    | `libclDNNPlugin.so`         | `libinference_engine_lp_transformations.so`, `libOpenCL.so` | `clDNNPlugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                |  Is not supported            |  -                                          |
+| GPU    | `libov_intel_gpu_plugin.so`         | `libinference_engine_lp_transformations.so`, `libOpenCL.so` | `ov_intel_gpu_plugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                |  Is not supported            |  -                                          |
 | MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.so`      | `libusb.dylib`                              |
 | HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
 | GNA    | `libGNAPlugin.so`           | `libgna.so`,                                                | `GNAPlugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |

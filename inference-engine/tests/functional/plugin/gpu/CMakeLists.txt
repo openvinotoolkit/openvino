@@ -12,7 +12,7 @@ addIeTargetTest(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            clDNNPlugin
+            ov_intel_gpu_plugin
         LINK_LIBRARIES
             funcSharedTests
             OpenCL
