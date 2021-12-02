@@ -142,7 +142,7 @@ static const char progress_message[] =
 static const char pc_message[] = "Optional. Report performance counters.";
 
 // @brief message for performance counters for sequence option
-static const char pcseq_message[] = "Optional. Report latencies for each shape in --data_shape sequence.";
+static const char pcseq_message[] = "Optional. Report latencies for each shape in -data_shape sequence.";
 
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 // @brief message for switching memory allocation type option
