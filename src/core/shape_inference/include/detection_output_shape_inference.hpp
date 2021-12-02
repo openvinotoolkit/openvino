@@ -140,6 +140,10 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
         const auto& aux_box_preds_pshape = input_shapes[4];
         if (aux_class_preds_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
+                        aux_class_preds_pshape.size() == 2,
+                        "additional class predictions rank must be 2. Got ",
+                        aux_class_preds_pshape.size());
+            NODE_VALIDATION_CHECK(op,
                                   aux_class_preds_pshape[0].compatible(num_images),
                                   "Additional class predictions' first dimension must be "
                                   "compatible with batch size. Current value is: ",

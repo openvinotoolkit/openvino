@@ -121,6 +121,14 @@ TEST(type_prop, shuffle_channels_axis_validation) {
 }
 
 TEST(type_prop, shuffle_channels_negative_axis_calculation) {
+    const auto data = make_shared<op::Parameter>(element::f64, Shape{1, 2, 3, 4});
+
+    const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, -3, 2);
+
+    EXPECT_EQ(shuffle_channels->get_zero_based_axis(), 1);
+}
+
+TEST(type_prop, shuffle_channels_infer_shape_with_negative_axis_calculation) {
     // Only when the length of `axis` dimension is even, the shuffle_channels OP can work correctly.
     const auto group = 2;
     {
