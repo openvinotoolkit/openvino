@@ -762,9 +762,10 @@ class TestShapesParsing(unittest.TestCase):
         for i in exp_res.keys():
             npt.assert_array_equal(result[i], exp_res[i])
 
-    def test_get_shapes_one_input_first_neg_shape_not_one(self):
-        argv_input = "inp1"
-        input_shapes = "(-12,4,1),(4,6,8)"
+    def test_get_shapes_long_dimension_with_invalid_character(self):
+        # test for regular expression denial of service
+        argv_input = "inp1,inp2"
+        input_shapes = "(222222222222222222222222222222222222222222!,4,1),(4,6,8)"
         self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
 
     def test_get_shapes_one_input_any_neg_shape(self):
