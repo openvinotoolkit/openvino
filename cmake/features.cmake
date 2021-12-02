@@ -211,7 +211,7 @@ if (ENABLE_MKL_DNN)
 endif()
 
 if (ENABLE_INTEL_GNA)
-    add_definitions(-DENABLE_GNA)
+    add_definitions(-DENABLE_INTEL_GNA)
 
     if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
         message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
