@@ -2,18 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/core/node.hpp>
+#include "shape_inference.hpp"
+
 #include <ngraph/runtime/host_tensor.hpp>
+#include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include "static_shape.hpp"
-#include "shape_inference.hpp"
-#include "convolution_shape_inference.hpp"
-#include "reduce_shape_inference.hpp"
-#include "shape_nodes.hpp"
-#include "experimental_detectron_detection_output_shape_inference.hpp"
 
+#include "convolution_shape_inference.hpp"
+#include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
+#include "ctc_greedy_decoder_shape_inference.hpp"
+#include "experimental_detectron_detection_output_shape_inference.hpp"
+#include "extract_image_patches_shape_inference.hpp"
+#include "reduce_shape_inference.hpp"
+#include "reverse_sequence_shape_inference.hpp"
+#include "shape_nodes.hpp"
+#include "static_shape.hpp"
 
 void shape_inference(ov::Node* op,
                      const std::vector<ov::StaticShape>& input_shapes,
@@ -22,7 +27,8 @@ void shape_inference(ov::Node* op,
     if (auto node = ov::as_type<ov::opset8::Convolution>(op)) {
         ov::CoordinateDiff pads_begin, pads_end;
         bool status = resolve_auto_pad_for_shape(node, pads_begin, pads_end, input_shapes, 2, 2);
-        OPENVINO_ASSERT(status, "Convolution shape inference doesn't have enough information to calculate static shapes");
+        OPENVINO_ASSERT(status,
+                        "Convolution shape inference doesn't have enough information to calculate static shapes");
         shape_infer(node, pads_begin, pads_end, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::op::util::ArithmeticReductionKeepDims>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
@@ -40,15 +46,22 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
         shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::CTCGreedyDecoderSeqLen>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::CTCGreedyDecoder>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::ExtractImagePatches>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::ReverseSequence>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (constant_data.count(i)) {
                 new_inputs.push_back(std::make_shared<ov::opset1::Constant>(constant_data.at(i)));
             } else {
-                new_inputs.push_back(
-                        std::make_shared<ov::opset1::Parameter>(
-                                op->get_input_element_type(i), input_shapes[i].to_partial_shape()));
+                new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),
+                                                                             input_shapes[i].to_partial_shape()));
             }
         }
         const auto local_op = op->clone_with_new_inputs(new_inputs);
@@ -56,8 +69,10 @@ void shape_inference(ov::Node* op,
 
         output_shapes.resize(op->get_output_size());
         for (size_t i = 0; i < output_shapes.size(); ++i) {
-            const auto &partial_shape = local_op->get_output_partial_shape(i);
-            OPENVINO_ASSERT(partial_shape.is_static(), "On device shape infer shouldn't support default shape infer for nodes with internal dynamism");
+            const auto& partial_shape = local_op->get_output_partial_shape(i);
+            OPENVINO_ASSERT(
+                partial_shape.is_static(),
+                "On device shape infer shouldn't support default shape infer for nodes with internal dynamism");
             output_shapes[i] = ov::StaticShape(partial_shape.to_shape());
         }
     }
