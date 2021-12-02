@@ -954,7 +954,7 @@ size_t ov::Node::hash() const {
     AtomicGuard lock(m_hash_changing);
     if (!m_hash) {
         std::vector<size_t> hashes;
-        hashes.emplace_back(std::hash<std::string>()(m_friendly_name));
+        hashes.emplace_back(std::hash<std::string>()(get_friendly_name()));
         hashes.emplace_back(get_type_info().hash());
         HashVisitor visitor;
         const_cast<ov::Node*>(this)->visit_attributes(visitor);
