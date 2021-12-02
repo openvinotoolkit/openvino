@@ -100,6 +100,7 @@ def update_layout_is_input_flag(ov_function: Function, layout_values: dict):
                 break
     return layout_values
 
+
 def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, layout_values):
     """
     Internal function. Finds dimension index matching with expected channels number
@@ -186,9 +187,9 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
 
             if not layout_exists:
                 layout_values = find_channels_dimension(shape=ov_input.get_partial_shape(),
-                                                       num_channels=num_channels,
-                                                       name=ms_name,
-                                                       layout_values=layout_values)
+                                                        num_channels=num_channels,
+                                                        name=ms_name,
+                                                        layout_values=layout_values)
     return layout_values
 
 
@@ -220,9 +221,9 @@ def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_valu
 
         if not layout_exists:
             layout_values = find_channels_dimension(shape=ov_input.get_partial_shape(),
-                                                   num_channels=3,
-                                                   name=first_name,
-                                                   layout_values=layout_values)
+                                                    num_channels=3,
+                                                    name=first_name,
+                                                    layout_values=layout_values)
 
     return layout_values
 
