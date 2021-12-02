@@ -40,7 +40,6 @@ Inference Engine sample applications include the following:
 - **Object Detection for SSD Sample** – Inference of object detection networks based on the SSD, this sample is simplified version that supports only images as inputs.
    - [Object Detection SSD C++ Sample](../../samples/cpp/object_detection_sample_ssd/README.md)
    - [Object Detection SSD C Sample](../../samples/c/object_detection_sample_ssd/README.md)
-   - [Object Detection SSD Python* Sample](../../samples/python/object_detection_sample_ssd/README.md)
  
 > **NOTE**: All C++ samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
 

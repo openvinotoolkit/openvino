@@ -54,29 +54,29 @@ The OpenVINO™ workflow on Raspbian* OS is as follows:
 
 ## <a name="using-sample"></a>Build and Run Code Samples
 
-Follow the steps below to run pre-trained Face Detection network using Inference Engine samples from the OpenVINO toolkit.
+Follow the steps below to run pre-trained SqueezeNet image classification network using Inference Engine samples from the OpenVINO toolkit.
 
 1. Create a samples build directory. This example uses a directory named `build`:
    ```sh
    mkdir build && cd build
    ```
-2. Build the Object Detection Sample with the following command:
+2. Build the Hello Classification Sample with the following command:
    ```sh
    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
-   make -j2 object_detection_sample_ssd
+   make -j2 hello_classification
    ```
-3. Download the pre-trained Face Detection model with the [Model Downloader tool](@ref omz_tools_downloader):
+3. Download the pre-trained SqueezeNet image classification model with the [Model Downloader tool](@ref omz_tools_downloader):
 ```sh
 git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
 cd open_model_zoo/tools/downloader
 python3 -m pip install -r requirements.in
-python3 downloader.py --name face-detection-adas-0001 
+python3 downloader.py --name squeezenet1.1 
 ```
 4. Run the sample, specifying the model and path to the input image:
 ```sh
-./armv7l/Release/object_detection_sample_ssd -m face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
+./armv7l/Release/hello_classification <path_to_model>/squeezenet1.1.xml <path_to_image> MYRIAD
 ```
-The application outputs an image (`out_0.bmp`) with detected faced enclosed in rectangles.
+The application outputs to console window top 10 classification results.
 
 ## <a name="basic-guidelines-sample-application"></a>Basic Guidelines for Using Code Samples
 
