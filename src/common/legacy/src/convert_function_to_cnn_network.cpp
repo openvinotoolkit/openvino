@@ -404,9 +404,9 @@ void CNNLayerCreator::on_adapter(const std::string& name,
         auto shape = a->get();
         if (!shape.rank().is_dynamic()) {
             for (int64_t i = 0; i < shape.rank().get_length(); i++) {
-                if (!dims.empty()) dims += ",";
-                dims += std::to_string(shape[i].get_length());
+                dims += std::to_string(shape[i].get_length()) + ",";
             }
+            dims.pop_back();
         }
         params[name] = dims;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Shape>>(&adapter)) {
