@@ -249,19 +249,19 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<std::shared_ptr<Varian
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
             std::string m_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-            return std::make_shared<InputModelPDPD>(m_path);
+            return std::make_shared<InputModelPDPD>(m_path, m_telemetry);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else if (ov::is_type<VariantWrapper<std::wstring>>(variants[0])) {
             std::wstring m_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
-            return std::make_shared<InputModelPDPD>(m_path);
+            return std::make_shared<InputModelPDPD>(m_path, m_telemetry);
         }
 #endif
         // The case with only model stream provided and no weights. This means model has
         // no learnable weights
         else if (ov::is_type<VariantWrapper<std::istream*>>(variants[0])) {
             auto p_model_stream = ov::as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
-            return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream});
+            return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
         }
     } else if (variants.size() == 2) {
         // The case when .pdmodel and .pdparams files are provided
@@ -270,7 +270,8 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<std::shared_ptr<Varian
         std::istream* p_model_stream = pdpd::variant_to_stream_ptr(variants[0], model_stream);
         std::istream* p_weights_stream = pdpd::variant_to_stream_ptr(variants[1], weights_stream);
         if (p_model_stream && p_weights_stream) {
-            return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream, p_weights_stream});
+            return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
+                                                    m_telemetry);
         }
     }
     PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");
@@ -326,6 +327,13 @@ std::shared_ptr<ov::Function> FrontEndPDPD::decode(InputModel::Ptr model) const 
 std::string FrontEndPDPD::get_name() const {
     return "paddle";
 }
+
+void FrontEndPDPD::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+        m_telemetry = telemetry;
+    }
+}
+
 }  // namespace frontend
 }  // namespace ov
 

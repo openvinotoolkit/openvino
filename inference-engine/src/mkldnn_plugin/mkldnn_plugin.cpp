@@ -38,6 +38,7 @@
 #include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
+#include <transformations/op_conversions/convert_slice_to_strided_slice.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
@@ -107,6 +108,7 @@
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "nodes/mkldnn_normalize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
+#include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -371,6 +373,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
     pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
     pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
+    pass_config->disable<ngraph::pass::SliceToStridedSlice>();
 
     pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
@@ -475,6 +478,14 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
 
+    postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
+    postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+        if (node->get_input_size() >= 2) {
+            return node->get_input_element_type(1) == ngraph::element::i8 || node->get_input_element_type(1) == ngraph::element::u8;
+        }
+        return false;
+    });
+
     postLPTPassManager.run_passes(nGraphFunc);
 }
 
@@ -575,15 +586,13 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     // network is below general threshold
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 }
-
-                int ovPerfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;  // set thru SetConfig to the plugin
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (num_requests != config.end()) {
-                    // arrived with config to the LoadNetwork (and thus higher pri)
-                    ovPerfHintNumRequests = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-                }
-                num_streams = std::min(num_streams, std::max(ovPerfHintNumRequests, 1));
-
+                if (engConfig.perfHintsConfig.ovPerfHintNumRequests)  // set thru SetConfig to the plugin
+                    num_streams = std::min(engConfig.perfHintsConfig.ovPerfHintNumRequests,
+                            engConfig.perfHintsConfig.ovPerfHintNumRequests);
+                if (num_requests != config.end())   // arrived with config to the LoadNetwork (and thus higher pri)
+                    num_streams = std::min(num_streams,
+                            PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
            }
         }

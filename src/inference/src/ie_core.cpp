@@ -96,9 +96,6 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         deviceName_ = "BATCH";
         config_[CONFIG_KEY(AUTO_BATCH)] = deviceName.substr(6);
     } else {
-        if (deviceName_.empty()) {
-            deviceName_ = "AUTO";
-        }
         ie::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
         std::string deviceIDLocal = parser.getDeviceID();

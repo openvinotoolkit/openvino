@@ -34,8 +34,8 @@ if(ENABLE_MKL_DNN)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)
 endif()
 
-if(ENABLE_CLDNN)
-    add_dependencies(${TARGET_NAME} clDNNPlugin)
+if(ENABLE_INTEL_GPU)
+    add_dependencies(${TARGET_NAME} ov_intel_gpu_plugin)
 endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

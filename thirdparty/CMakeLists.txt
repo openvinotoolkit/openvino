@@ -14,7 +14,7 @@ add_subdirectory(ittapi)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
-if(ENABLE_CLDNN)
+if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
 endif()
 
@@ -186,6 +186,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # TODO: install onednn_gpu in static builds
     endfunction()
     build_onednn_gpu()
+endif()
+
+#
+# nlohmann json
+#
+if(ENABLE_SAMPLES OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE)
+    add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 endif()
 
 #
