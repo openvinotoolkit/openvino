@@ -23,6 +23,10 @@ namespace low_precision {
 
 constexpr char LayerTransformation::originalLayerPostfix[];
 
+// order defines default precision
+std::vector<ngraph::element::Type> LayerTransformation::defaultPrecisions = { ngraph::element::u8,  ngraph::element::i8 };
+std::mutex LayerTransformation::defaultPrecisionsMutex;
+
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
     deqPrecision(params.deqPrecision),
@@ -440,6 +444,16 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
     NGRAPH_SUPPRESS_DEPRECATED_START
     pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END
+}
+
+void LayerTransformation::setDefaultPrecisions(const std::vector<ngraph::element::Type>& precisions) {
+    std::lock_guard<std::mutex> lock(defaultPrecisionsMutex);
+    defaultPrecisions = precisions;
+}
+
+std::vector<ngraph::element::Type> LayerTransformation::getDefaultPrecisions() {
+    std::lock_guard<std::mutex> lock(defaultPrecisionsMutex);
+    return defaultPrecisions;
 }
 
 }  // namespace low_precision
