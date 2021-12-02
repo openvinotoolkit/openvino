@@ -30,7 +30,7 @@ Install Cython in the Python installation, or virtualenv that you are planning t
  ### Configure and Build as a part of OpenVINO™ Toolkit on Linux and macOS
 
 The following section illustrates how to build and install OpenVINO™ in a workspace directory using CMake.
-The workspace directory is specified by the `${OPENVINO_BASEDIR}` variable. Set this variable to a directory of your choice: 
+The workspace directory is specified by the `${OPENVINO_BASEDIR}` variable. Set this variable to a directory of your choice:
 
     export OPENVINO_BASEDIR=/path/to/my/workspace
 
@@ -42,30 +42,30 @@ set the mentioned flags to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults
     git clone --recursive https://github.com/openvinotoolkit/openvino.git
     mkdir openvino/build
     cd openvino/build
-    
+
     cmake .. \
-        -DENABLE_CLDNN=OFF \
+        -DENABLE_INTEL_GPU=OFF \
         -DENABLE_OPENCV=OFF \
         -DENABLE_VPU=OFF \
         -DENABLE_PYTHON=ON \
         -DNGRAPH_ONNX_FRONTEND_ENABLE=ON \
         -DCMAKE_INSTALL_PREFIX="${OPENVINO_BASEDIR}/openvino_dist"
-    
+
     make -j 4
     make install
 
-The Python module is installed in the `${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/` folder. 
+The Python module is installed in the `${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/` folder.
 Set up the OpenVINO™ environment in order to add the module path to `PYTHONPATH`:
 
     source ${OPENVINO_BASEDIR}/openvino_dist/setupvars.sh
 
-If you would like to use a specific version of Python, or use a virtual environment, you can set the `PYTHON_EXECUTABLE` 
-variable. For example: 
+If you would like to use a specific version of Python, or use a virtual environment, you can set the `PYTHON_EXECUTABLE`
+variable. For example:
 
 ```
 -DPYTHON_EXECUTABLE=/path/to/venv/bin/python
 -DPYTHON_EXECUTABLE=$(which python3.8)
-```   
+```
 
 ### Build an nGraph Python Wheel on Linux and macOS
 
@@ -88,7 +88,7 @@ You can now install the wheel in your Python environment:
 
 ### Prerequisites
 
-In order to build OpenVINO™ and the nGraph Python wheel on Windows, you need to install Microsoft Visual Studio* and Python. 
+In order to build OpenVINO™ and the nGraph Python wheel on Windows, you need to install Microsoft Visual Studio* and Python.
 
 Once Python is installed, you also need to install Cython using `pip install cython`.
 
@@ -96,10 +96,10 @@ Once Python is installed, you also need to install Cython using `pip install cyt
 
 The following section illustrates how to build and install OpenVINO™ in a workspace directory using CMake.
 The workspace directory is specified by the `OPENVINO_BASEDIR` variable. Set this variable to a directory of your choice:
-    
+
     set OPENVINO_BASEDIR=/path/to/my/workspace
 
-Configure the build with a `cmake` invocation similar to the following. Note that need to set `-G` and 
+Configure the build with a `cmake` invocation similar to the following. Note that need to set `-G` and
 `-DCMAKE_CXX_COMPILER` to match the version and location of your Microsoft Visual Studio installation.
 
 ```
@@ -107,7 +107,7 @@ cmake .. ^
     -G"Visual Studio 16 2019" ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DCMAKE_INSTALL_PREFIX="%OPENVINO_BASEDIR%/openvino_dist" ^
-    -DENABLE_CLDNN=OFF ^
+    -DENABLE_INTEL_GPU=OFF ^
     -DENABLE_OPENCV=OFF ^
     -DENABLE_VPU=OFF ^
     -DNGRAPH_ONNX_FRONTEND_ENABLE=ON ^
@@ -169,7 +169,7 @@ You may wish to use a virutualenv for your installation.
 
 ### Run Tests
 
-You should now be able to run tests. 
+You should now be able to run tests.
 
 You may need to run the `setupvars` script from the OpenVINO™ Toolkit to set paths to OpenVINO™ components.
 
