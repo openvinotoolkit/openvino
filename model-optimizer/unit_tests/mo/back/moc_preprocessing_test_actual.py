@@ -178,6 +178,29 @@ class TestPreprocessingMOC(unittest.TestCase):
         # Verify that guessed layout (?C??) is not appeared in input2
         self.assertEqual(function.get_parameters()[1].layout, Layout())
 
+    def test_mean_scale_with_layout(self):
+        argv = Namespace(mean_scale_values={'input2a': {'mean': np.array([1., 2., 3.]),
+                                                        'scale': np.array([2., 4., 8.])}},
+                         scale=None)
+        function = create_function2(shape2=[1, 3, 3, 3])
+        function.get_parameters()[1].layout = Layout("NHWC")
+        process_function(ov_function=function, argv=argv)
+        # Verify that first is 'subtract mean', then 'scale'
+        op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[1., 2., 3.], shape=[1, 1, 1, 3])
+
+        op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=[2., 4., 8.], shape=[1, 1, 1, 3])
+
+        # Verify that input1 is not affected
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertEqual(op_node.get_type_name(), 'Relu')
+
+        # Verify that layout presents in function after preprocessing
+        self.assertEqual(function.get_parameters()[1].layout, Layout("NHWC"))
+
     def test_no_param_name(self):
         argv = Namespace(mean_scale_values=list(np.array([(np.array([1., 2., 3.]), np.array([2., 4., 6.])),
                                                           (np.array([7., 8.]), None)],
@@ -279,14 +302,6 @@ class TestPreprocessingMOC(unittest.TestCase):
         with self.assertRaises(Exception):
             process_function(ov_function=function, argv=argv)
 
-    def test_error_guess_layout_dynamic_shape(self):
-        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2.]),
-                                                       'mean': None}},
-                         scale=None)
-        function = create_function2(shape1=PartialShape.dynamic())
-        with self.assertRaises(Exception):
-            process_function(ov_function=function, argv=argv)
-
     def test_reverse_input_channels(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 224, 224])
@@ -302,6 +317,24 @@ class TestPreprocessingMOC(unittest.TestCase):
         # Verify that guessed layouts are not appeared in input1,input2
         self.assertEqual(function.get_parameters()[0].layout, Layout())
         self.assertEqual(function.get_parameters()[1].layout, Layout())
+
+    def test_reverse_input_channels_func_layout(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+        function = create_function2(shape1=[1, 3, 3, 3], shape2=[1, 3, 3, 3])
+        function.get_parameters()[0].layout = Layout("NCHW")
+        function.get_parameters()[1].layout = Layout("NHWC")
+        process_function(ov_function=function,
+                         argv=argv)
+        # Verify that some operations are inserted.
+        # In future, consider using mock PrePostProcessor to verify that 'reverse_channels' was called
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() != 'Relu')
+
+        # Verify that guessed layouts are not appeared in input1,input2
+        self.assertEqual(function.get_parameters()[0].layout, Layout("NCHW"))
+        self.assertEqual(function.get_parameters()[1].layout, Layout("NHWC"))
 
     def test_reverse_input_channels_layout(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
@@ -389,5 +422,12 @@ class TestPreprocessingMOC(unittest.TestCase):
     def test_error_guess_layout_reverse_channels_multi_3(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 3, 224])
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
+
+    def test_no_guess_layout_reverse_channels_has_layout_no_c(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+        function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 224, 224])
+        function.get_parameters()[0].layout = Layout("N?HW")
         with self.assertRaises(Exception):
             process_function(ov_function=function, argv=argv)

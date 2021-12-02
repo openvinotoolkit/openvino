@@ -162,7 +162,12 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
             continue
 
         num_channels = num_channels_mean if num_channels_mean > 1 else num_channels_scale
-        for ov_input in ov_function.inputs:
+        for i in range(0, len(ov_function.inputs)):
+            ov_input = ov_function.input(i)
+
+            if not ov_function.get_parameters()[i].layout.empty:
+                continue
+
             if ms_name not in ov_input.get_tensor().get_names():
                 continue
 
@@ -194,7 +199,11 @@ def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_valu
     :param: layout_values Existing source/target layout items specified by user
     :return: updated layout items with guessed layouts
     """
-    for ov_input in ov_function.inputs:
+    for i in range(0, len(ov_function.inputs)):
+        ov_input = ov_function.input(i)
+
+        if not ov_function.get_parameters()[i].layout.empty:
+            continue
         layout_exists = False
         layout_item = None
         first_name = list(ov_input.get_tensor().get_names())[0]
@@ -285,7 +294,6 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
 
     # Apply reverse_input_channels
     if need_reverse:
-        guess_source_layouts_for_reverse_channels(ov_function=ov_function, layout_values=layout_values)
         for ov_input in ov_function.inputs:
             node_name = list(ov_input.get_tensor().get_names())[0]
             prep.input(node_name).preprocess().reverse_channels()
