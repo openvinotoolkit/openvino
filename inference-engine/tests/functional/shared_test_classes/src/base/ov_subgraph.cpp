@@ -186,7 +186,6 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
 }
 
 void SubgraphBaseTest::infer() {
-    std::string a = *function->inputs().front().get_tensor().get_names().begin();
     inferRequest = executableNetwork.create_infer_request();
     for (const auto& input : inputs) {
         inferRequest.set_tensor(input.first, input.second);

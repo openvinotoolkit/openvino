@@ -10,7 +10,7 @@ namespace subgraph {
 
 void OpImplCheckTest::run() {
     if (function == nullptr) {
-        throw std::runtime_error("Function is empty!");
+        GTEST_FAIL() << "Target function is empty!";
     }
     auto crashHandler = [](int errCode) {
         auto& s = LayerTestsUtils::Summary::getInstance();
@@ -26,7 +26,7 @@ void OpImplCheckTest::run() {
         summary.updateOPsImplStatus(function, true);
     } catch (...) {
         summary.updateOPsImplStatus(function, false);
-        GTEST_FAIL();
+        GTEST_FAIL() << "Error in the LoadNetwork!";
     }
 }
 
