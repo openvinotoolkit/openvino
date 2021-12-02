@@ -18,6 +18,10 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/util/common_util.hpp"
 #include "shared_node_info.hpp"
 
 using namespace std;
@@ -260,6 +264,7 @@ const std::string& ov::Node::get_name() const {
 }
 
 void ov::Node::set_friendly_name(const string& name) {
+    m_hash = 0;
     m_friendly_name = name;
 }
 
@@ -813,6 +818,147 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
+}
+
+bool ov::Node::operator==(const Node& other) const {
+    return this->hash() == other.hash();
+}
+
+bool ov::Node::operator!=(const Node& other) const {
+    return !(*this == other);
+}
+
+class ov::HashVisitor : public ngraph::AttributeVisitor {
+    size_t m_hash;
+    template <typename T>
+    std::string create_atribute_list(ngraph::ValueAccessor<std::vector<T>>& adapter) {
+        return ngraph::join(adapter.get());
+    }
+
+public:
+    HashVisitor() : m_hash(0) {}
+
+    size_t hash() const {
+        return m_hash;
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+        using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
+
+        if (const auto& a = ngraph::as_type<
+                ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>>(
+                &adapter)) {
+            auto attrs = a->get();
+            std::vector<size_t> hashes = {m_hash};
+            for (const auto& attr : attrs) {
+                hashes.emplace_back(attr->get_type_info().hash());
+                hashes.emplace_back(std::hash<uint64_t>()(attr->m_body_parameter_index));
+                hashes.emplace_back(std::hash<uint64_t>()(attr->m_input_index));
+            }
+            m_hash = ov::util::hash_combine(hashes);
+        } else if (const auto& a = ngraph::as_type<ov::AttributeAdapter<
+                       std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>>(&adapter)) {
+            auto attrs = a->get();
+            std::vector<size_t> hashes = {m_hash};
+            for (const auto& attr : attrs) {
+                hashes.emplace_back(attr->get_type_info().hash());
+                hashes.emplace_back(std::hash<uint64_t>()(attr->m_body_value_index));
+                hashes.emplace_back(std::hash<uint64_t>()(attr->m_output_index));
+            }
+            m_hash = ov::util::hash_combine(hashes);
+        } else if (const auto& a =
+                       ngraph::as_type<ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+            auto attr = a->get();
+            m_hash = ov::util::hash_combine({m_hash,
+                                             std::hash<int64_t>()(attr.body_condition_output_idx),
+                                             std::hash<int64_t>()(attr.current_iteration_input_idx)});
+        } else if (const auto& a =
+                       ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
+            m_hash =
+                ov::util::hash_combine({m_hash, std::hash<std::string>()(name + a->get()->get_info().variable_id)});
+        } else if (const auto& a =
+                       ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                           &adapter)) {
+            if (name == "value") {
+                size_t data_ptr = std::hash<int64_t>()(reinterpret_cast<int64_t>(a->get()->get_ptr()));
+                size_t size = std::hash<int64_t>()(a->get()->size());
+
+                m_hash = ov::util::hash_combine({m_hash, data_ptr, size});
+            }
+        } else if (const auto& a =
+                       ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+            const auto& attrs = a->get();
+
+            std::vector<size_t> types;
+            types.emplace_back(m_hash);
+            types.emplace_back(std::hash<std::string>()(attrs.get_type_name()));
+
+            if (!attrs.get_opset_name().empty()) {
+                types.emplace_back(std::hash<std::string>()(attrs.get_opset_name()));
+            }
+
+            // Update node attributes in data field
+            for (const auto& attr : attrs) {
+                types.emplace_back(std::hash<std::string>()(attr.first + attr.second.c_str()));
+            }
+            m_hash = ov::util::hash_combine(types);
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
+            const auto& attrs = a->get();
+            m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + ngraph::join(attrs))});
+        } else {
+            throw ov::Exception("Unsupported attribute type for serialization: " + name);
+        }
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + std::to_string(adapter.get()))});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + adapter.get())});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + std::to_string(adapter.get()))});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + std::to_string(adapter.get()))});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + create_atribute_list(adapter))});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + create_atribute_list(adapter))});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + create_atribute_list(adapter))});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + create_atribute_list(adapter))});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+        m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + create_atribute_list(adapter))});
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override {
+        if (name == "body" || name == "then_body" || name == "else_body" || name == "body") {
+            for (const auto& op : adapter.get()->get_ordered_ops()) {
+                m_hash = ov::util::hash_combine(std::vector<size_t>{m_hash, op->hash()});
+            }
+        } else {
+            NGRAPH_CHECK(false, "Unsupported Function name.");
+        }
+    }
+};
+
+size_t ov::Node::hash() const {
+    if (m_hash != 0)
+        return m_hash;
+    AtomicGuard lock(m_hash_changing);
+    if (!m_hash) {
+        size_t name_hash = std::hash<std::string>()(m_friendly_name);
+        HashVisitor visitor;
+        const_cast<ov::Node*>(this)->visit_attributes(visitor);
+        m_hash = ov::util::hash_combine(std::vector<size_t>{name_hash, visitor.hash()});
+    }
+    return m_hash;
 }
 
 namespace ov {

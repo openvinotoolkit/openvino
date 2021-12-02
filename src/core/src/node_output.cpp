@@ -104,16 +104,16 @@ std::string Output<const Node>::get_any_name() const {
 }
 
 bool Output<Node>::operator==(const Output& other) const {
-    return m_node == other.m_node && m_index == other.m_index;
+    return *m_node == *other.m_node && m_index == other.m_index;
 }
 bool Output<Node>::operator!=(const Output& other) const {
     return !(*this == other);
 }
 bool Output<Node>::operator<(const Output& other) const {
-    return m_node < other.m_node || (m_node == other.m_node && m_index < other.m_index);
+    return *m_node < *other.m_node || (m_node == other.m_node && m_index < other.m_index);
 }
 bool Output<Node>::operator>(const Output& other) const {
-    return m_node > other.m_node || (m_node == other.m_node && m_index > other.m_index);
+    return *this != other && !(*this < other);
 }
 bool Output<Node>::operator<=(const Output& other) const {
     return !(*this > other);

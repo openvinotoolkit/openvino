@@ -52,18 +52,18 @@ void Input<Node>::replace_source_output(const Output<Node>& new_source_output) c
 }
 
 bool Input<Node>::operator==(const Input& other) const {
-    return m_node == other.m_node && m_index == other.m_index;
+    return *m_node == *other.m_node && m_index == other.m_index;
 }
 
 bool Input<Node>::operator!=(const Input& other) const {
     return !(*this == other);
 }
 bool Input<Node>::operator<(const Input& other) const {
-    return m_node < other.m_node || (m_node == other.m_node && m_index < other.m_index);
+    return *m_node < *other.m_node || (*m_node == *other.m_node && m_index < other.m_index);
 }
 
 bool Input<Node>::operator>(const Input& other) const {
-    return m_node > other.m_node || (m_node == other.m_node && m_index > other.m_index);
+    return *this != other && !(*this < other);
 }
 
 bool Input<Node>::operator<=(const Input& other) const {

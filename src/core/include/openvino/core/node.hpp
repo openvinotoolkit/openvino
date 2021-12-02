@@ -71,6 +71,8 @@ class Output;
 
 class Node;
 
+class HashVisitor;
+
 class Function;
 
 class SharedRTInfo;
@@ -482,6 +484,9 @@ public:
 
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
+    bool operator==(const Node& other) const;
+    bool operator!=(const Node& other) const;
+
 private:
     friend class ov::NodeAccessor;
     std::vector<Node*> m_control_dependents;
@@ -510,6 +515,12 @@ private:
     // update of this field by having specific method with mutex.
     void insert_info(std::shared_ptr<SharedRTInfo> info);
     std::mutex m_insert_mutex;
+
+    mutable size_t m_hash{0};
+    mutable std::atomic_bool m_hash_changing{false};
+    size_t hash() const;
+
+    friend HashVisitor;
 };
 
 using NodeTypeInfo = Node::type_info_t;
