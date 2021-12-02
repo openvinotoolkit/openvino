@@ -79,8 +79,8 @@ template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    explicit jit_uni_eltwise_generic(jit_eltwise_params jep, MKLDNNEltwiseNode& eltwiseNode) :
-        jit_uni_eltwise_kernel(std::move(jep), eltwiseNode), jit_generator() {}
+    explicit jit_uni_eltwise_generic(const jit_eltwise_params& jep, MKLDNNEltwiseNode& eltwiseNode) :
+        jit_uni_eltwise_kernel(jep, eltwiseNode), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1238,18 +1238,18 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 2, 4, 5);
+    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 2, 3, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1, 2, 4, 5);
+        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1, 2, 3, 4, 5);
         isChannelsFirstApplicable = isChannelsFirstApplicable && implication(getInputShapeAtPort(i).getRank() != 1,
                                                                              getOutputShapeAtPort(0).getRank() ==
                                                                                      getInputShapeAtPort(i).getRank());
     }
 
-    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 4, 5);
+    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 3, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto &inShape = getInputShapeAtPort(i);
-        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1, 4, 5);
+        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1, 3, 4, 5);
         isBlockedApplicable = isBlockedApplicable && implication(inShape.getRank() != 1,
                                                                  getOutputShapeAtPort(0).getRank() ==
                                                                  inShape.getRank());
@@ -1398,7 +1398,7 @@ void MKLDNNEltwiseNode::prepareParams() {
                 break;
 
             for (int j = 1; j < dims_in.size(); j++) {
-                if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+                if (dims_in[j].back() != dims_in[0].back()) {
                     hasDifferentDims = true;
                 }
             }
@@ -1410,11 +1410,6 @@ void MKLDNNEltwiseNode::prepareParams() {
             bool canCollapse = true;
             for (int i = 0; i < dims_in.size(); i++) {
                 if (dims_in[i][dims_in[i].size() - 2] != 1) {
-                    if (dims_in[i][dims_in[i].size() - 1] == 1) {
-                        canCollapse = false;
-                        break;
-                    }
-
                     if (hasDifferentDims) {
                         canCollapse = false;
                         break;
