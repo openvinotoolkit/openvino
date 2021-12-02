@@ -21,7 +21,8 @@
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include "../../../ngraph/core/include/openvino/core/interval.hpp"
+// FIXME: Please remove relative path
+#include "../../../src/core/include/openvino/core/interval.hpp"
 
 using namespace InferenceEngine;
 
@@ -99,10 +100,9 @@ ExecutableNetwork::ExecutableNetwork(
         }
         copyNetwork = ie::CNNNetwork(function);
         for (const auto& inputInf : network.getInputsInfo()) {
-            auto& copyInput = copyNetwork.getInputsInfo()[inputInf.first];
-            copyInput->setPrecision(inputInf.second->getPrecision());
-            copyInput->setLayout(inputInf.second->getLayout());
-            copyInput->getPreProcess() = inputInf.second->getPreProcess();
+            copyNetwork.getInputsInfo()[inputInf.first]->setPrecision(inputInf.second->getPrecision());
+            copyNetwork.getInputsInfo()[inputInf.first]->setLayout(inputInf.second->getLayout());
+            copyNetwork.getInputsInfo()[inputInf.first]->getPreProcess() = inputInf.second->getPreProcess();
         }
         for (const auto& outputInf : network.getOutputsInfo()) {
             *copyNetwork.getOutputsInfo()[outputInf.first].get() = *outputInf.second.get();

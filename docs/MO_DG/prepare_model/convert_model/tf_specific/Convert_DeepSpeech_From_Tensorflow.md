@@ -71,8 +71,7 @@ To generate the IR, run the Model Optimizer with the following parameters:
 python3 {path_to_mo}/mo_tf.py                            \
 --input_model output_graph.pb                            \
 --input "input_lengths->[16],input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]"   \
---output "cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd_1,cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd,logits" \
---disable_nhwc_to_nchw
+--output "cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd_1,cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd,logits"
 ```
 
 Where:
