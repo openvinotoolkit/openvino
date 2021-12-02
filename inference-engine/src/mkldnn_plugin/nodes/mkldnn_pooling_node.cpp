@@ -132,8 +132,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
-    inputPrecision = getOriginalInputPrecisionAtPort(0);
-    outputPrecision = getOriginalOutputPrecisionAtPort(0);
+    InferenceEngine::Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
+    InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
@@ -250,42 +250,23 @@ void MKLDNNPoolingNode::prepareParams() {
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
 
-    if (isMaxPool8) {
-        MKLDNNDescriptor desc{createDescriptorInternalV2(in_candidate, out_candidate)};
-        pooling_v2_forward::primitive_desc prim_desc;
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
+    mkldnn::algorithm alg = getPoolingAlgorithm();
+    MKLDNNDescriptor desc{createDescriptorInternal(in_candidate, out_candidate, alg)};
+    pooling_v2_forward::primitive_desc prim_desc;
+    primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
 
-        while (static_cast<bool>(itpd)) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+    while (static_cast<bool>(itpd)) {
+        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-            if (impl_type == selected_pd->getImplementationType()) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl())
-                IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        if (impl_type == selected_pd->getImplementationType()) {
+            prim_desc = itpd.get();
+            break;
         }
-
-        prim.reset(new pooling_v2_forward(prim_desc));
-    } else {
-        mkldnn::algorithm alg = getPoolingAlgorithm();
-        MKLDNNDescriptor desc{createDescriptorInternal(in_candidate, out_candidate, alg)};
-        pooling_forward::primitive_desc prim_desc;
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
-
-        while (static_cast<bool>(itpd))  {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            if (impl_type == selected_pd->getImplementationType()) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl())
-                IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
-        }
-
-        prim.reset(new pooling_forward(prim_desc));
+        if (!itpd.next_impl())
+            IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
+
+    prim.reset(new pooling_v2_forward(prim_desc));
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
@@ -331,9 +312,9 @@ mkldnn::algorithm MKLDNNPoolingNode::getPoolingAlgorithm() const {
     }
 }
 
-std::shared_ptr<pooling_forward::desc> MKLDNNPoolingNode::createDescriptorInternal(const mkldnn::memory::desc& in_candidate,
-                                                                                   const mkldnn::memory::desc& out_candidate,
-                                                                                   const mkldnn::algorithm alg) const {
+std::shared_ptr<pooling_v2_forward::desc> MKLDNNPoolingNode::createDescriptorInternal(const mkldnn::memory::desc& in_candidate,
+                                                                                      const mkldnn::memory::desc& out_candidate,
+                                                                                      const mkldnn::algorithm alg) const {
     if (alg == mkldnn::algorithm::undef) {
         IE_THROW() << "Unsupported pooling type";
     }
@@ -341,13 +322,14 @@ std::shared_ptr<pooling_forward::desc> MKLDNNPoolingNode::createDescriptorIntern
     auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
         return memory::dims(orig_dims.begin(), orig_dims.end());
     };
-    std::shared_ptr<pooling_forward::desc> desc_ptr(
-            new pooling_forward::desc(prop_kind::forward_scoring, alg,
-                                      in_candidate, out_candidate,
-                                      convert(stride),
-                                      convert(kernel),
-                                      convert(effective_pad_begin),
-                                      convert(effective_pad_end)));
+    std::shared_ptr<pooling_v2_forward::desc> desc_ptr(
+            new pooling_v2_forward::desc(prop_kind::forward_scoring, alg,
+                                         in_candidate, out_candidate,
+                                         convert(stride),
+                                         convert(kernel),
+                                         convert(effective_dilation),
+                                         convert(effective_pad_begin),
+                                         convert(effective_pad_end)));
 
     if (alg == mkldnn::algorithm::pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
@@ -362,22 +344,6 @@ std::shared_ptr<pooling_forward::desc> MKLDNNPoolingNode::createDescriptorIntern
         }
     }
 
-    return desc_ptr;
-}
-
-std::shared_ptr<pooling_v2_forward::desc> MKLDNNPoolingNode::createDescriptorInternalV2(const mkldnn::memory::desc& in_candidate,
-                                                                                        const mkldnn::memory::desc& out_candidate) const {
-    auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
-        return memory::dims(orig_dims.begin(), orig_dims.end());
-    };
-    std::shared_ptr<pooling_v2_forward::desc> desc_ptr(
-            new pooling_v2_forward::desc(prop_kind::forward_scoring, mkldnn::algorithm::pooling_max,
-                                            in_candidate, out_candidate,
-                                            convert(stride),
-                                            convert(kernel),
-                                            convert(effective_dilation),
-                                            convert(effective_pad_begin),
-                                            convert(effective_pad_end)));
     return desc_ptr;
 }
 
@@ -399,13 +365,8 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
     auto dnnlOutDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*outDesc);
     auto out_candidate = dnnlOutDesc.getDnnlDesc();
 
-    if (isMaxPool8) {
-        auto desc_ptr = createDescriptorInternalV2(in_candidate, out_candidate);
-        descs.emplace_back(desc_ptr);
-    } else {
-        auto desc_ptr = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
-        descs.emplace_back(desc_ptr);
-    }
+    auto desc_ptr = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
+    descs.emplace_back(desc_ptr);
 }
 
 void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
@@ -442,7 +403,7 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
             if (isMaxPool8) {
                 auto& creatorsMap = BlockedDescCreator::getCommonCreators();
                 PortConfig dataConfig;
-                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
+                dataConfig.inPlace = -1;
                 dataConfig.constant = false;
                 dataConfig.desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().desc->getPrecision(), getOutputShapeAtPort(1));
 

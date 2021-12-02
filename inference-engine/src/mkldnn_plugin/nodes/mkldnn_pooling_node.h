@@ -42,16 +42,13 @@ private:
     std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> getPaddingFromNode(std::shared_ptr<ov::Node> node) const;
     void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
     mkldnn::algorithm getPoolingAlgorithm() const;
-    std::shared_ptr<mkldnn::pooling_forward::desc> createDescriptorInternal(const mkldnn::memory::desc& in_candidate,
-                                                                            const mkldnn::memory::desc& out_candidate,
-                                                                            const mkldnn::algorithm alg) const;
-    std::shared_ptr<mkldnn::pooling_v2_forward::desc> createDescriptorInternalV2(const mkldnn::memory::desc& in_candidate,
-                                                                                 const mkldnn::memory::desc& out_candidate) const;
+    std::shared_ptr<mkldnn::pooling_v2_forward::desc> createDescriptorInternal(const mkldnn::memory::desc& in_candidate,
+                                                                               const mkldnn::memory::desc& out_candidate,
+                                                                               const mkldnn::algorithm alg) const;
 
     AttrPtr pAttr;
 
     bool isMaxPool8 = false;
-
     bool auto_pad = false;
     bool exclude_pad = false;
     std::vector<ptrdiff_t> dilation;
@@ -74,9 +71,6 @@ private:
     /// is decreased.
     std::vector<ptrdiff_t> data_pad_begin;
     std::vector<ptrdiff_t> data_pad_end;
-
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 };
 
 }  // namespace MKLDNNPlugin

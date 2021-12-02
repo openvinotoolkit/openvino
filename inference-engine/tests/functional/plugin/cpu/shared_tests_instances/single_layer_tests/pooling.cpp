@@ -553,7 +553,7 @@ const auto maxPoolv8_ValidPad_Params = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_MAXPool_ValidPad, MaxPoolingV8LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MAXPoolv8_ValidPad, MaxPoolingV8LayerTest,
                          ::testing::Combine(
                                  maxPoolv8_ValidPad_Params,
                                  ::testing::ValuesIn(netPrecisions),

@@ -94,18 +94,6 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::lrn_forward::desc>() {
     return typeDesc->getPtr();
 }
 
-MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_forward::desc> desc) {
-    this->desc.reset(new DescFwdImpl<mkldnn::pooling_forward::desc>(desc));
-}
-
-MKLDNNDescriptor::operator std::shared_ptr<mkldnn::pooling_forward::desc>() {
-    auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::pooling_forward::desc>>(desc);
-    if (typeDesc == nullptr) {
-        IE_THROW() << "Cannot cast descriptor!";
-    }
-    return typeDesc->getPtr();
-}
-
 MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_v2_forward::desc> desc) {
     this->desc.reset(new DescFwdImpl<mkldnn::pooling_v2_forward::desc>(desc));
 }

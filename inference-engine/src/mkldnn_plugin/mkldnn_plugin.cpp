@@ -56,7 +56,6 @@
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/softmax_decomposition.hpp>
-#include <transformations/op_conversions/convert_maxpool_downgrade.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
@@ -371,7 +370,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::ConvertGather7ToGather1>();
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::ConvertBroadcastToTiles>();
-    pass_config->disable<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
     pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
     pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
     pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
