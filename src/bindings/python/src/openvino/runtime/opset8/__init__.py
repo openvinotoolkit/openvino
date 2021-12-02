@@ -71,6 +71,7 @@ from openvino.runtime.opset4.ops import hswish
 from openvino.runtime.opset7.ops import idft
 from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset1.ops import interpolate
+from openvino.runtime.opset8.ops import i420_to_bgr
 from openvino.runtime.opset1.ops import less
 from openvino.runtime.opset1.ops import less_equal
 from openvino.runtime.opset1.ops import log

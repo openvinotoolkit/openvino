@@ -1951,3 +1951,28 @@ def test_slice():
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
     assert tuple(node.get_output_shape(0)) == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape
+
+
+def test_i420_to_bgr():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    # arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    # node_single_plane = ov.i420_to_bgr(arg_single_plane)
+
+    # assert node_single_plane.get_type_name() == "I420toRGB"
+    # assert node_single_plane.get_output_size() == 1
+    # assert node_single_plane.get_output_element_type(0) == Type.f32
+    # assert node_single_plane.get_output_shape(0) == expected_output_shape
+
+    # Separate planes (three args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_u = ov.parameter([1, 240, 320, 1], name="input_u", dtype=np.float32)
+    arg_v = ov.parameter([1, 240, 320, 1], name="input_v", dtype=np.float32)
+
+    node_separate_planes = ov.i420_to_bgr(arg_y, arg_u, arg_v)
+
+    assert node_separate_planes.get_type_name() == "I420toRGB"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
