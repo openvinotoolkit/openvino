@@ -1108,7 +1108,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*, QUANT_DESC> {
 template<typename QUANT_DESC>
 class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*, QUANT_DESC> {
  private:
-    std::vector<std::tuple<uint16_t const, float const, float const>> thresholds {
+    std::vector<std::tuple<uint16_t const, float const, float const>> thresholds = {
         // tuple values: scale factor threshold, scale factor reduction factor for I16 precision, for I8 precision
         std::make_tuple(30, 0.50f, 0.50f),     // entry check value
         std::make_tuple(100, 0.50f, 0.50f),    // if below this threshold, then use this factor
