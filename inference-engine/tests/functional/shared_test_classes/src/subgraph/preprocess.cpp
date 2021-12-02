@@ -19,7 +19,7 @@ std::string PrePostProcessTest::getTestCaseName(
     std::tie(func, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "Func=" << std::get<1>(func) << "_";
+    result << "Func=" << func.m_name << "_";
     result << "Device=" << targetName << "";
     return result.str();
 }
@@ -27,17 +27,16 @@ std::string PrePostProcessTest::getTestCaseName(
 void PrePostProcessTest::SetUp() {
     preprocess_func func;
     std::tie(func, targetDevice) = GetParam();
-    function = (std::get<0>(func))();
-    rel_threshold = std::get<2>(func);
+    function = func.m_function();
+    rel_threshold = func.m_accuracy;
     functionRefs = ngraph::clone_function(*function);
-    abs_threshold = std::get<2>(func);
-    auto static_shapes = std::get<3>(func);
-    if (static_shapes.empty()) {
+    abs_threshold = func.m_accuracy;
+    if (func.m_shapes.empty()) {
         for (const auto& input : function->inputs()) {
-            static_shapes.push_back(input.get_shape());
+            func.m_shapes.push_back(input.get_shape());
         }
     }
-    init_input_shapes(ov::test::static_shapes_to_test_representation({static_shapes}));
+    init_input_shapes(ov::test::static_shapes_to_test_representation({func.m_shapes}));
 }
 
 TEST_P(PrePostProcessTest, CompareWithRefs) {
