@@ -4,12 +4,24 @@
 import numpy as np
 import pytest
 
-import openvino.opset8 as ops
+import openvino.runtime.opset8 as ops
 
-from openvino import Function, Tensor
-from openvino.descriptor import Tensor as DescriptorTensor
+from openvino.runtime import Function, Tensor
+from openvino.runtime.impl import Type, PartialShape, Shape
 
-from openvino.impl import PartialShape, Shape
+
+def test_test_descriptor_tensor():
+    input_shape = PartialShape([1])
+    param = ops.parameter(input_shape, dtype=np.float32, name="data")
+    relu1 = ops.relu(param, name="relu1")
+    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    td = relu1.get_output_tensor(0)
+    assert "relu_t1" in td.names
+    assert td.element_type == Type.f32
+    assert td.partial_shape == PartialShape([1])
+    assert repr(td.shape) == "<Shape: {1}>"
+    assert td.size == 4
+    assert td.any_name == "relu_t1"
 
 
 def test_function_add_outputs_tensor_name():
@@ -23,7 +35,6 @@ def test_function_add_outputs_tensor_name():
     assert len(function.get_results()) == 1
     new_outs = function.add_outputs("relu_t1")
     assert len(function.get_results()) == 2
-    assert isinstance(function.outputs[1].get_tensor(), DescriptorTensor)
     assert "relu_t1" in function.outputs[1].get_tensor().names
     assert len(new_outs) == 1
     assert new_outs[0].get_node() == function.outputs[1].get_node()
