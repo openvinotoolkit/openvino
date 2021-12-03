@@ -17,7 +17,7 @@ if(NOT ENABLE_DOCKER)
         set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
     endif()
 
-    if(NGRAPH_ONNX_FRONTEND_ENABLE)
+    if(OV_ONNX_FRONTEND_ENABLE)
         add_subdirectory(onnx_custom_op)
     endif()
     add_subdirectory(template_extension)

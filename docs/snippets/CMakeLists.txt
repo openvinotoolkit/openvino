@@ -45,7 +45,7 @@ if(OpenCV_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
 endif()
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(OV_ONNX_FRONTEND_ENABLE)
     target_link_libraries(${TARGET_NAME} PRIVATE onnx_ov_frontend)
 endif()
 

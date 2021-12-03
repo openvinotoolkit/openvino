@@ -8,7 +8,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
-set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
+set(OV_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
 
@@ -16,12 +16,12 @@ if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
     add_subdirectory(util)
     add_subdirectory(engines_util)
-    if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    if (OV_ONNX_FRONTEND_ENABLE)
         add_subdirectory(onnx_test_util)
     endif()
 endif()
 
-if(NOT NGRAPH_UNIT_TEST_ENABLE)
+if(NOT OV_CORE_UNIT_TEST_ENABLE)
     message(STATUS "nGraph unit tests disabled")
     return()
 endif()
@@ -445,8 +445,8 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
-if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
-    message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
+if (ENABLE_MKL_DNN AND OV_CORE_UNIT_TEST_BACKENDS_ENABLE)
+    message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
@@ -455,8 +455,8 @@ if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (ENABLE_INTEL_GPU AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
-    message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
+if (ENABLE_INTEL_GPU AND OV_CORE_UNIT_TEST_BACKENDS_ENABLE)
+    message(STATUS "OV_CORE_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
@@ -465,7 +465,7 @@ if (ENABLE_INTEL_GPU AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
+if (OV_CORE_UNIT_TEST_BACKENDS_ENABLE)
     list(APPEND SRC
         builder.cpp
         backend_api.cpp)
@@ -477,7 +477,7 @@ endif()
 # 2) They must be in the `test/backend` directory
 # 3) Include "util/test_control.hpp" in your cpp file
 # 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
-# 5) Use the `NGRAPH_TEST` macro in place of `TEST`.
+# 5) Use the `OV_CORE_TEST` macro in place of `TEST`.
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 
@@ -502,7 +502,7 @@ set(MULTI_TEST_SRC
     backend/zero_sized.in.cpp
 )
 
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (OV_ONNX_FRONTEND_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_com_microsoft.in.cpp
@@ -523,7 +523,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             onnx/onnx_transformations.cpp)
 endif()
 
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (OV_ONNX_FRONTEND_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
     list(APPEND MULTI_TEST_SRC
         onnx/onnx_test_utils.in.cpp
@@ -565,8 +565,8 @@ add_dependencies(unit-test template_extension)
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
-get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
-target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
+get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
+target_include_directories(unit-test PRIVATE ${OV_CORE_SRC_DIR}/src)
 
 target_compile_definitions(unit-test
     PRIVATE
@@ -592,7 +592,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (OV_ONNX_FRONTEND_ENABLE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(unit-test
@@ -602,14 +602,14 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_definitions(unit-test PRIVATE NGRAPH_ONNX_FRONTEND_ENABLE)
+    target_compile_definitions(unit-test PRIVATE OV_ONNX_FRONTEND_ENABLE)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (OV_ONNX_FRONTEND_ENABLE)
     get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
     target_link_libraries(unit-test PRIVATE onnx_ov_frontend onnx_test_util)
@@ -620,7 +620,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     endif()
 endif()
 
-if(NGRAPH_IR_FRONTEND_ENABLE)
+if(OV_IR_FRONTEND_ENABLE)
     add_dependencies(unit-test ir_ov_frontend)
 endif()
 
