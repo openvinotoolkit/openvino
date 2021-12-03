@@ -39,7 +39,7 @@ def send_telemetry(mo_version: str, message: str, event_type: str):
 
 def import_core_modules(silent: bool, path_to_module: str):
     """
-        This function checks that InferenceEngine Python API is available
+        This function checks that OpenVINO Python API is available
         and necessary python modules exists. So the next list of imports
         must contain all IE/NG Python API imports that are used inside MO.
 
@@ -48,21 +48,16 @@ def import_core_modules(silent: bool, path_to_module: str):
     :return: True if all imports were successful and False otherwise
     """
     try:
-        from openvino.inference_engine import get_version, IENetwork  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import ApplyMakeStatefulTransformation, GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import GenerateMappingFile, ApplyMakeStatefulTransformation, Serialize  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations_pybind import apply_moc_transformations, apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations_pybind import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations_pybind import generate_mapping_file, apply_make_stateful_transformation, serialize  # pylint: disable=import-error,no-name-in-module
 
-        # TODO: it is temporary import to check that nGraph python API is available. But in future
-        # we need to replace it with Frontend imports
-        from ngraph.impl import Function  # pylint: disable=import-error,no-name-in-module
-        from ngraph.impl.op import Parameter  # pylint: disable=import-error,no-name-in-module
-        from _pyngraph import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
-        from ngraph.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
+        from openvino.runtime import Function, get_version  # pylint: disable=import-error,no-name-in-module
+        from openvino.runtime.impl.op import Parameter  # pylint: disable=import-error,no-name-in-module
+        from openvino.runtime import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
+        from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
 
-        import openvino  # pylint: disable=import-error,no-name-in-module
-        import ngraph  # pylint: disable=import-error,no-name-in-module
-        import ngraph.frontend  # pylint: disable=import-error,no-name-in-module
+        import openvino.frontend  # pylint: disable=import-error,no-name-in-module
 
         if silent:
             return True
@@ -70,10 +65,8 @@ def import_core_modules(silent: bool, path_to_module: str):
         ie_version = str(get_version())
         mo_version = str(v.get_version())  # pylint: disable=no-member,no-name-in-module
 
-        print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
-        # TODO: when nGraph version will be available we need to start compare it to IE and MO versions. Ticket: 58091
-        print("\t- {}: \t{}".format("nGraph found in", os.path.dirname(ngraph.__file__)))
-        print("{}: \t{}".format("Inference Engine version", ie_version))
+        print("\t- {}: \t{}".format("OpenVINO runtime found in", os.path.dirname(openvino.__file__)))
+        print("{}: \t{}".format("OpenVINO runtime version", ie_version))
         print("{}: \t{}".format("Model Optimizer version", mo_version))
 
         versions_mismatch = False
@@ -82,8 +75,8 @@ def import_core_modules(silent: bool, path_to_module: str):
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
 
-            print("[ WARNING ] Model Optimizer and Inference Engine versions do no match.")
-            print("[ WARNING ] Consider building the Inference Engine Python API from sources or reinstall OpenVINO "
+            print("[ WARNING ] Model Optimizer and OpenVINO runtime versions do no match.")
+            print("[ WARNING ] Consider building the OpenVINO Python API from sources or reinstall OpenVINO "
                   "(TM) toolkit using", end=" ")
             if mo_is_custom:
                 print("\"pip install openvino\" (may be incompatible with the current Model Optimizer version)")
@@ -103,7 +96,7 @@ def import_core_modules(silent: bool, path_to_module: str):
     except Exception as e:
         # Do not print a warning if module wasn't found or silent mode is on
         if "No module named 'openvino" not in str(e):
-            print("[ WARNING ] Failed to import Inference Engine Python API in: {}".format(path_to_module))
+            print("[ WARNING ] Failed to import OpenVINO Python API in: {}".format(path_to_module))
             print("[ WARNING ] {}".format(e))
 
             # Send telemetry message about warning
