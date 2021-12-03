@@ -62,6 +62,9 @@ void regclass_graph_Variant(py::module m) {
     variant.def("__setitem__", [](PyAny& self, py::object object) {
         self = PyAny(object);
     });
+    variant.def("__set__", [](PyAny& self, py::object object) {
+        self = PyAny(object);
+    });
     variant.def_property_readonly("value", [](const PyAny& self) {
         return py::cast<py::object>(Common::from_ov_any(self));
     });
