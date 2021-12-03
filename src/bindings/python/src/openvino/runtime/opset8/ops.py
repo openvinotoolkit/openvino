@@ -565,8 +565,8 @@ def prior_box(
 @nameable_op
 def i420_to_bgr(
         arg: NodeInput,
-        arg_u: NodeInput = None,
-        arg_v: NodeInput = None,
+        arg_u: Optional[NodeInput] = None,
+        arg_v: Optional[NodeInput] = None,
         name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs I420toBGR operation.
@@ -592,8 +592,8 @@ def i420_to_bgr(
 @nameable_op
 def i420_to_rgb(
         arg: NodeInput,
-        arg_u: NodeInput = None,
-        arg_v: NodeInput = None,
+        arg_u: Optional[NodeInput] = None,
+        arg_v: Optional[NodeInput] = None,
         name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs I420toRGB operation.
@@ -619,7 +619,7 @@ def i420_to_rgb(
 @nameable_op
 def nv12_to_bgr(
         arg: NodeInput,
-        arg_uv: NodeInput = None,
+        arg_uv: Optional[NodeInput] = None,
         name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs NV12toBGR operation.
@@ -640,7 +640,7 @@ def nv12_to_bgr(
 @nameable_op
 def nv12_to_rgb(
         arg: NodeInput,
-        arg_uv: NodeInput = None,
+        arg_uv: Optional[NodeInput] = None,
         name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs NV12toRGB operation.
