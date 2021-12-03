@@ -236,11 +236,10 @@ def get_duration_in_secs(target_device):
 
 
 def check_for_static(app_input_info):
-    is_static = True
     for info in app_input_info:
-        if info.is_dynamic:
+        if info.is_dynamic and len(info.shapes) > 1:
             return False
-    return is_static
+    return True
 
 
 def parse_devices(device_string):
@@ -625,7 +624,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
     return input_info, reshape
 
 
-def get_batch_size(inputs_info):
+def get_network_batch_size(inputs_info):
     null_dimension = Dimension(0)
     batch_size = null_dimension
     for info in inputs_info:
