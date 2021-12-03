@@ -196,6 +196,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
     static std::vector<ngraph::element::Type> defaultPrecisions;
     static std::mutex defaultPrecisionsMutex;
+
 public:
     class Params {
     public:
