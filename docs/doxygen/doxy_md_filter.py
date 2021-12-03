@@ -15,6 +15,7 @@ def get_label(file):
     If the label is not found return None.
     Assume the label is in the first line
     """
+    print("file",file)
     with open(file, 'r', encoding='utf-8') as f:
         line = f.readline()
         label = re.search(r'\{\#(.+)\}', line)
