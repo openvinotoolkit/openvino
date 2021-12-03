@@ -558,26 +558,26 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
-add_executable(unit-test ${SRC})
+add_executable(ov_core_unit_tests ${SRC})
 
-add_dependencies(unit-test template_extension)
+add_dependencies(ov_core_unit_tests template_extension)
 
-target_include_directories(unit-test PRIVATE ".")
-target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+target_include_directories(ov_core_unit_tests PRIVATE ".")
+target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
 get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
-target_include_directories(unit-test PRIVATE ${OV_CORE_SRC_DIR}/src)
+target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
 
-target_compile_definitions(unit-test
+target_compile_definitions(ov_core_unit_tests
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(UNIT_TESTS_DEPENDENCIES)
-    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
+    add_dependencies(ov_core_unit_tests ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(unit-test PRIVATE ngraph_test_util
+target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
                                         ngraph::builder
                                         openvino::util
@@ -595,36 +595,36 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 if (OV_ONNX_FRONTEND_ENABLE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
-    target_include_directories(unit-test
+    target_include_directories(ov_core_unit_tests
         SYSTEM PRIVATE
             $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
             ${Protobuf_INCLUDE_DIRS})
-    target_compile_definitions(unit-test
+    target_compile_definitions(ov_core_unit_tests
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_definitions(unit-test PRIVATE OV_ONNX_FRONTEND_ENABLE)
+    target_compile_definitions(ov_core_unit_tests PRIVATE OV_ONNX_FRONTEND_ENABLE)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
-    target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
+    target_compile_options(ov_core_unit_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
 if (OV_ONNX_FRONTEND_ENABLE)
     get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(unit-test PRIVATE onnx_ov_frontend onnx_test_util)
+    target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
+    target_link_libraries(ov_core_unit_tests PRIVATE onnx_ov_frontend onnx_test_util)
     if (LINUX)
-        target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+        target_link_options(ov_core_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
-        target_link_options(unit-test PRIVATE -Wl,-dead_strip)
+        target_link_options(ov_core_unit_tests PRIVATE -Wl,-dead_strip)
     endif()
 endif()
 
 if(OV_IR_FRONTEND_ENABLE)
-    add_dependencies(unit-test ir_ov_frontend)
+    add_dependencies(ov_core_unit_tests ir_ov_frontend)
 endif()
 
-install(TARGETS unit-test
+install(TARGETS ov_core_unit_tests
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
@@ -632,4 +632,4 @@ install(TARGETS unit-test
 add_subdirectory(frontend)
 
 # process models
-add_dependencies(unit-test test_model_zoo)
+add_dependencies(ov_core_unit_tests test_model_zoo)
