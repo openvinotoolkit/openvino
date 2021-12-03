@@ -9,12 +9,12 @@ from extensions.middle.TensorIteratorMerge import op_type
 from extensions.ops.activation_ops import activation_ops
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph
 
 
-class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
+class ReplaceConvolutionTranspose(FrontReplacementPattern):
     """
     This pass adds Transpose around a Convolution layer if after there is sequence Pooling or Activation afterConvolution
     **IMPORTANT**: This pass must run after inserting Reshapes around Poolings and Convolutions
@@ -32,20 +32,20 @@ class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
            Convolution -> * -> Transpose (order 0, 3, 2, 1 )-> Next_Layer -> ... -> (ScaleShift|FullyConnected)
 
     """
-    enabled = True
+    enabled = False
 
-    def pattern(self):
-        return dict(
-            nodes=[
-                ('target_node', dict(op=lambda x: x in ['ScaleShift', 'FullyConnected']))
-            ],
-            edges=[]
-        )
+    #def pattern(self):
+    #    return dict(
+    #        nodes=[('conv', dict(op='Convolution'))
+    #            #('target_node', dict(op=lambda x: x in ['ScaleShift', 'FullyConnected']))
+     #       ],
+     #       edges=[]
+     #   )
 
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        target_node = match['target_node']
-        nodes_with_weights = self.dfs(graph, target_node.name, ('Convolution', 'FullyConnected', 'ScaleShift'), True)
-        convolution_nodes = [node for node in nodes_with_weights if Node(graph, node).op == 'Convolution']
+    def find_and_replace_pattern(self, graph: Graph):
+        #target_node = match['target_node']
+        #nodes_with_weights = self.dfs(graph, target_node.name, ('Convolution', 'FullyConnected', 'ScaleShift'), True)
+        convolution_nodes = graph.get_op_nodes(op='Convolution') #[node for node in nodes_with_weights if Node(graph, node).op == 'Convolution']
         for convolution_node in convolution_nodes:
             target_node = self.search_target_node(Node(graph, convolution_node))
             permute_node = create_op_with_const_inputs(graph, Transpose, {1: int64_array([0, 2, 3, 1])},

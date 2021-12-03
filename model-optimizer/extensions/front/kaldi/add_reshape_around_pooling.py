@@ -5,6 +5,7 @@ import numpy as np
 
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Div
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
@@ -28,6 +29,7 @@ class ReplacePoolingReshape(FrontReplacementPattern):
 
             Prev_Layer [N, H] -> Reshape -> Pooling [N, C=1, H, W=1] -> Reshape -> Next_Layer [N, H]
     """
+    enabled = True
     def run_before(self):
         from extensions.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
         return [ReplaceConvolutionTranspose]
@@ -45,7 +47,7 @@ class ReplacePoolingReshape(FrontReplacementPattern):
             node.stride = int64_array([1, 1, node.window[-1], node.window[-1]])
 
         # create Reshape before convolution
-        # shape = [in_shape[0], pool_stride, 1, in_shape[1]/pool_stride]
+        # shape = [in_shape[0], t, in_shape[1]/pool_stride, pool_stride]
         i_shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
 
         dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
@@ -60,10 +62,10 @@ class ReplacePoolingReshape(FrontReplacementPattern):
             graph, Div, {1: float32_array([node.pool_stride])}, {'name': node_name + '/div_stride_h'})
         div.in_port(0).connect(H.out_port(0))
 
-        concat = create_op_with_const_inputs(graph, Concat, {1: float32_array([node.pool_stride]), 2: float32_array([1])},
+        concat = create_op_with_const_inputs(graph, Concat, {3: float32_array([node.pool_stride]), 1: float32_array([1])},
                                              {'name': node_name + '/concat_all_dims', 'in_ports_count': 4, 'axis': 0})
         concat.in_port(0).connect(N.out_port(0))
-        concat.in_port(3).connect(div.out_port(0))
+        concat.in_port(2).connect(div.out_port(0))
 
         reshape_pattern = Cast(graph, {'name': node_name + '/to_int', 'dst_type': np.int64}).create_node()
         concat.out_port(0).connect(reshape_pattern.in_port(0))
@@ -71,14 +73,26 @@ class ReplacePoolingReshape(FrontReplacementPattern):
         reshape_in = Reshape(graph, {'name': node_name + '/reshape_in'}).create_node()
         reshape_in.in_port(1).connect(reshape_pattern.out_port(0))
 
+        # change layout from NHWC to NCHW
+        # should be replaced by common Permute logic in future
+        direct_transpose = None
+        inverse_transpose = None
+        direct_transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 3, 1, 2]),
+                                                           {'name': node.name + '/Transpose'}, reshape_in)
+        inverse_transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 2, 3, 1]),
+                                                             {'name': node.name + '/Transpose_back'})
+
+
         # create Reshape after Convolution
         reshape_out = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
                                                        {'name': node_name + '/reshape_out'})
 
         # connect input_reshape_node
         source = node.in_port(0).get_source()
-        node.in_port(0).get_connection().set_source(reshape_in.out_port(0))
+        node.in_port(0).get_connection().set_source(direct_transpose.out_port(0))
         reshape_in.in_port(0).connect(source)
         # connect output_reshape_node
         node.out_port(0).get_connection().set_source(reshape_out.out_port(0))
-        node.out_port(0).connect(reshape_out.in_port(0))
+        node.out_port(0).connect(inverse_transpose.in_port(0))
+        inverse_transpose.out_port(0).connect(reshape_out.in_port(0))
+        return
