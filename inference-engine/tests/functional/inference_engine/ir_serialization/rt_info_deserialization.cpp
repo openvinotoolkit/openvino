@@ -580,9 +580,9 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
                     <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                     <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
                 </port>
             </output>
         </layer>
@@ -594,17 +594,17 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
             <input>
                 <port id="1" precision="FP32">
                     <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                     <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
                 </port>
             </input>
             <output>
                 <port id="2" precision="FP32" names="output_tensor">
                     <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                     <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
                 </port>
             </output>
         </layer>
@@ -615,9 +615,9 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                     <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
                 </port>
             </input>
         </layer>
