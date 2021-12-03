@@ -1286,21 +1286,14 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 /// POWER_STATIC ///
 jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
-    auto parent = node->get_input_node_shared_ptr(1);
-    if (!std::dynamic_pointer_cast<ngraph::snippets::op::Scalar>(parent)) {
-        throw ngraph::ngraph_error("unsupported non constant power");
+    auto powerStaticNode = ov::as_type_ptr<ngraph::snippets::op::PowerStatic>(node);
+    if (powerStaticNode == nullptr) {
+        IE_THROW() << "Can't cast to snippets::op::PowerStatic";
     }
 
-    if (ngraph::shape_size(node->get_input_shape(1)) != 1) {
-        throw ngraph::ngraph_error("unsupported non scalar power");
-    }
-    power = ngraph::as_type_ptr<ngraph::snippets::op::Scalar>(parent)->get_data_ptr<float>()[0];
+    power = powerStaticNode->get_power();
     scale = 1.f;
     shift = 0.f;
-    push_arg_entry_of("power", cpu::x64::float2int(power), true);
-    push_arg_entry_of("scale", 0x3f800000, true);
-    push_arg_entry_of("shift", 0x00000000, true);
-    push_arg_entry_of("one",   0x3f800000, true);
 
     prepare_table();
 }

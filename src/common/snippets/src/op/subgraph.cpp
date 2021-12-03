@@ -139,10 +139,10 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
     NODE_VALIDATION_CHECK(this, input_shapes.size() == m_body->get_parameters().size(),
-        "Number of parameters for snippet doesn't much passed to generate method: ", input_shapes.size(), " vs ", m_body->get_parameters().size(), ".");
+        "Number of parameters for snippet doesn't match passed to generate method: ", input_shapes.size(), " vs ", m_body->get_parameters().size(), ".");
 
     NODE_VALIDATION_CHECK(this, output_shapes.size() == m_body->get_results().size(),
-        "number of results for snippet doesn't much passed to generate method: ", output_shapes.size(), " vs ", m_body->get_results().size(), ".");
+        "number of results for snippet doesn't match passed to generate method: ", output_shapes.size(), " vs ", m_body->get_results().size(), ".");
 
     // replace only constants which are actually should be represented as scalars during code generation and probably move this step a bit later
     for (auto op : m_body->get_ordered_ops()) {
@@ -154,18 +154,6 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
         }
     }
 
-    // repalace power with power static
-    for (auto op : m_body->get_ordered_ops()) {
-        if (auto power = ngraph::as_type_ptr<opset1::Power>(op)) {
-            if (ngraph::as_type_ptr<snippets::op::Scalar>(power->get_input_node_shared_ptr(1))) {
-                auto power_static = std::make_shared<snippets::op::PowerStatic>(
-                    power->input(0).get_source_output(), power->input(1).get_source_output(), power->get_autob());
-                power_static->set_friendly_name(power->get_friendly_name());
-                ngraph::copy_runtime_info(power, power_static);
-                ngraph::replace_node(power, power_static);
-            }
-        }
-    }
 
 
     // it should be in subgraph node to be aligned with internal and external parameter list, but adding this for testing
@@ -222,6 +210,27 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
     canonicalize(output_shapes, input_shapes);
+
+    // Todo: ngraph::pass::Manager introduces appreciable overheads, especially while used on small graphs.
+    // So don't wrap this transformation as a MatcherPass, but rewrite convert_to_snippet_dialect() as a
+    // for loop to improve first-inference time.
+    // repalace power with power static
+
+    for (auto op : m_body->get_ordered_ops()) {
+        if (ov::is_type<opset1::Power>(op) &&
+            ov::is_type<snippets::op::Scalar>(op->get_input_node_shared_ptr(1)) &&
+            ov::shape_size(op->get_input_shape(1)) == 1) {
+            auto power = ov::as_type_ptr<opset1::Power>(op);
+            auto scalar = ov::as_type_ptr<snippets::op::Scalar>(op->get_input_node_shared_ptr(1));
+            auto value = scalar->cast_vector<float>()[0];;
+            auto power_static = std::make_shared<snippets::op::PowerStatic>(power->input(0).get_source_output(), value);
+            power_static->set_friendly_name(power->get_friendly_name());
+            ngraph::copy_runtime_info(power, power_static);
+            ngraph::replace_node(power, power_static);
+        }
+    }
+
+
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
 
@@ -233,7 +242,7 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);
 
-    // chack that body doesnt have constants for scheduling
+    // check that body doesn't have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;
     for (auto op : m_body->get_ordered_ops()) {
         if (auto constant = ov::as_type_ptr<opset1::Constant>(op)) {
