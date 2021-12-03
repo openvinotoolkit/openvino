@@ -453,7 +453,7 @@ class BiasCorrection(Algorithm):
             if node.type in self._types_with_bias:
                 node_input = nu.get_node_input(node, 0)
                 node_input_name = nu.create_node_name(node_input)
-                biased_after_param_nodes[node.name] = node_input_name
+                biased_after_param_nodes[node.fullname] = node_input_name
                 return
             for node_child in node_children:
                 walk_to_children(node_child, parameter_name)
