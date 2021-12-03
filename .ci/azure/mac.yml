@@ -130,7 +130,7 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'nGraph UT'
+    displayName: 'OV Core UT'
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_filter=-MKLDNNGraphStructureTests.TestNoRedundantReordersBeforeDWConvolution:TestConvolution/MKLDNNGraphConvolutionTests.TestsConvolution/0:TestConvolutionDefaultPrimitivesPriority/MKLDNNGraphConvolutionTests.TestsConvolution/0 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
