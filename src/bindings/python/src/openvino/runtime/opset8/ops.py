@@ -574,7 +574,7 @@ def i420_to_bgr(
     @param  arg: The node providing single or Y plane data.
     @param  arg_u: The node providing U plane data. Required for separate planes.
     @param  arg_v: The node providing V plane data. Required for separate planes.
-    @param  name:  The optional name for the created output node.
+    @param  name: The optional name for the created output node.
     @return The new node performing I420toBGR operation.
     """
     if arg_u is None and arg_v is None:
@@ -601,7 +601,7 @@ def i420_to_rgb(
     @param  arg: The node providing single or Y plane data.
     @param  arg_u: The node providing U plane data. Required for separate planes.
     @param  arg_v: The node providing V plane data. Required for separate planes.
-    @param  name:  The optional name for the created output node.
+    @param  name: The optional name for the created output node.
     @return The new node performing I420toRGB operation.
     """
     if arg_u is None and arg_v is None:
@@ -626,7 +626,7 @@ def nv12_to_bgr(
 
     @param  arg: The node providing single or Y plane data.
     @param  arg_uv: The node providing UV plane data. Required for separate planes.
-    @param  name:  The optional name for the created output node.
+    @param  name: The optional name for the created output node.
     @return The new node performing NV12toBGR operation.
     """
     if arg_uv is None:
@@ -647,7 +647,7 @@ def nv12_to_rgb(
 
     @param  arg: The node providing single or Y plane data.
     @param  arg_uv: The node providing UV plane data. Required for separate planes.
-    @param  name:  The optional name for the created output node.
+    @param  name: The optional name for the created output node.
     @return The new node performing NV12toRGB operation.
     """
     if arg_uv is None:
