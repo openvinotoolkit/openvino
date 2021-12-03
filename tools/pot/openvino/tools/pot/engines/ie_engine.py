@@ -7,7 +7,7 @@ from time import time
 
 import copy
 import numpy as np
-from openvino.inference_engine import IECore, StatusCode   # pylint: disable=E0611
+from openvino.runtime import Core   # pylint: disable=E0611
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results
@@ -24,7 +24,7 @@ class IEEngine(Engine):
 
     def __init__(self, config, data_loader=None, metric=None):
         super().__init__(config, data_loader, metric)
-        self._ie = IECore()
+        self._ie = Core()
         self._model = None
         self._nx_model = None
         self._output_layers = None
@@ -41,7 +41,7 @@ class IEEngine(Engine):
 
         # save NetworkX graph to IR and use it to initialize IE Network
         self._model = self._set_model(model)[0]['model']
-        self._output_layers = list(self._model.outputs.keys())
+        self._output_layers = [output.get_node().friendly_name for output in self._model.outputs]
 
     def _set_model(self, model):
         """Creates IENetwork instances from NetworkX models in NXModel.
@@ -58,8 +58,7 @@ class IEEngine(Engine):
         paths = save_model(model, self._tmp_dir.name, 'tmp_model', for_stat_collection=True)
         ie_networks = []
         for path_dict in paths:
-            ie_net = {'model': self._ie.read_network(model=path_dict['model'],
-                                                     weights=path_dict['weights'])}
+            ie_net = {'model': self._ie.read_model(model=path_dict['model'], weights=path_dict['weights'])}
             if 'name' in path_dict:
                 ie_net.update(name=path_dict['name'])
             ie_networks.append(ie_net)
@@ -91,15 +90,18 @@ class IEEngine(Engine):
 
         stat_names_aliases = None
         if stats_layout:
-            model_with_stat_op, nodes_name, output_to_node_names = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_names_map, output_to_node_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
-            self._add_outputs(nodes_name)
+            outputs = self._add_outputs(list(nodes_names_map.values()))
+            for output_node, node_name in zip(outputs, nodes_names_map.keys()):
+                node_name = convert_output_key(node_name) + '/sink_port_0'
+                output_node.get_node().set_friendly_name(node_name)
 
-            model_output_names = self._model.outputs.keys()
+            model_output_names = [o.get_node().friendly_name for o in self._model.outputs]
             align_stat_names_with_results(model_output_names,
-                                          nodes_name,
+                                          nodes_names_map,
                                           output_to_node_names,
                                           stats_layout,
                                           stat_aliases)
@@ -145,7 +147,7 @@ class IEEngine(Engine):
         self._accumulated_layer_stats = {}
 
     def _add_outputs(self, nodes_name):
-        self._model.add_outputs(nodes_name)
+        return self._model.add_outputs(nodes_name)
 
     def _predict(self, stats_layout, sampler, print_progress=False,
                  need_metrics_per_sample=False):
@@ -223,13 +225,12 @@ class IEEngine(Engine):
                 break
             batch_id, batch = data_batch
             image_ids, images, batch_meta = self._process_batch(batch)
-            ir.async_infer(inputs=self._fill_input(self._model, images))
+            ir.start_async(inputs=self._fill_input(self._model, images))
             queued_irs.append((batch_id, image_ids, batch_meta, ir))
 
         free_irs.clear()
 
-    @staticmethod
-    def _wait_for_any(irs):
+    def _wait_for_any(self, irs):
         """Waits for any queued infer requests to finish inference.
         :param irs: list of queued infer requests
         :return list of results of completed infer requests [(batch_id, annotations, layer_outputs, infer_request)]
@@ -241,15 +242,13 @@ class IEEngine(Engine):
         result = []
         free_indexes = []
         for ir_id, (batch_id, image_annotations, batch_meta, ir) in enumerate(irs):
-            infer_status = ir.wait(0)
-            if infer_status == StatusCode.RESULT_NOT_READY:
-                continue
+            infer_status = ir.wait()
 
-            if infer_status != StatusCode.OK:
+            if infer_status:
                 logger.debug('Infer request %d returned %s message', ir_id, infer_status)
                 return [], []
+            outputs = self._process_raw_output(ir.results)
 
-            outputs = {out_name: out_blob.buffer for out_name, out_blob in ir.output_blobs.items()}
             result.append((batch_id, image_annotations, batch_meta, outputs, ir))
             free_indexes.append(ir_id)
         irs = [ir for ir_id, ir in enumerate(irs) if ir_id not in free_indexes]
@@ -263,21 +262,21 @@ class IEEngine(Engine):
         if isinstance(image_batch[0], dict):
             return image_batch[0]
 
-        input_info = model.input_info
+        input_info = model.inputs
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
-            return {input_blob: np.stack(image_batch, axis=0)}
+            return {input_blob.get_node().friendly_name: np.stack(image_batch, axis=0)}
 
         if len(input_info) == 2:
             image_info_nodes = list(filter(
-                lambda x: len(x[1].input_data.shape) == 2, input_info.items()))
+                lambda x: len(x.get_node().shape) == 2, input_info))
 
             if len(image_info_nodes) != 1:
                 raise Exception('Two inputs networks must contain exactly one ImageInfo node')
 
             image_info_name, _ = image_info_nodes[0]
             image_tensor_name, _ = next(iter(filter(
-                lambda x: x[0] != image_info_name, input_info.items())))
+                lambda x: x[0] != x.get_node().friendly_name, input_info)))
 
             image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
 
@@ -323,10 +322,13 @@ class IEEngine(Engine):
         progress_log_fn = logger.info if print_progress else logger.debug
 
         # Load model to the plugin
-        executable_model = self._ie.load_network(network=self._model,
-                                                 device_name=self.config.device,
-                                                 num_requests=requests_num)
-        free_irs = executable_model.requests
+        executable_model = self._ie.compile_model(model=self._model, device_name=self.config.device)
+        free_irs = []
+        optimal_requests_num = executable_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        requests_num = optimal_requests_num if requests_num == 0 else requests_num
+        for _ in range(requests_num):
+            infer_request = executable_model.create_infer_request()
+            free_irs.append(infer_request)
         queued_irs = []
 
         progress_log_fn('Start inference of %d images', len(sampler))
@@ -367,8 +369,8 @@ class IEEngine(Engine):
         progress_log_fn = logger.info if print_progress else logger.debug
 
         # Load model to the plugin
-        executable_model = self._ie.load_network(network=self._model,
-                                                 device_name=self.config.device)
+        executable_model = self._ie.compile_model(model=self._model, device_name=self.config.device)
+        infer_request = executable_model.create_infer_request()
 
         progress_log_fn('Start inference of %d images', len(sampler))
 
@@ -378,9 +380,10 @@ class IEEngine(Engine):
             batch_annotations, image_batch, batch_meta = self._process_batch(batch)
 
             # Infer batch of images
-            predictions = executable_model.infer(self._fill_input(self._model, image_batch))
+            predictions = infer_request.infer(self._fill_input(self._model, image_batch))
+            outputs = self._process_raw_output(predictions)
 
-            self._process_infer_output(stats_layout, predictions,
+            self._process_infer_output(stats_layout, outputs,
                                        batch_annotations, batch_meta,
                                        need_metrics_per_sample)
 
@@ -441,3 +444,12 @@ class IEEngine(Engine):
         stats_layout_ie_style = {convert_output_key(key): value
                                  for key, value in stats_layout.items()}
         return stats_layout_ie_style, stat_names_aliases
+    
+    @staticmethod
+    def _process_raw_output(raw_output):
+        """Processes raw output into the POT friendly format"""
+        result = {}
+        for result_node, result_data in raw_output.items():
+            result_name = result_node.get_node().friendly_name.replace('/sink_port_0', '')
+            result[result_name] = result_data
+        return result

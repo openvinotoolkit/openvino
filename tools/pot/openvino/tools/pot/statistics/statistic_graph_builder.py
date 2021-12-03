@@ -16,7 +16,7 @@ from openvino.tools.mo.ops.ReduceOps import ReduceMin, ReduceMax, ReduceMean
 from openvino.tools.mo.ops.activation_ops import Abs
 
 from ..graph.model_utils import get_node_by_name
-from ..graph.node_utils import get_output_shape, reset_node_fullname
+from ..graph.node_utils import get_output_shape, reset_node_fullname, convert_to_outputs_name
 from ..statistics.statistics import Statistic, TensorStatistic, TensorStatisticAxis
 from ..statistics.function_selector import ACTIVATIONS, get_stats_function
 
@@ -26,7 +26,7 @@ class StatisticGraphBuilder:
         output_to_node_names = {}
         if stat_aliases is None or model is None:
             return model, list(stats_layout.keys()), output_to_node_names
-        nodes_names = []
+        nodes_names_map = {}
         copy_stat_aliases = deepcopy(stat_aliases)
         for algo_name, node_stats in copy_stat_aliases.items():
             for node_name, stats in node_stats.items():
@@ -37,8 +37,8 @@ class StatisticGraphBuilder:
                 model_graph = node_in_main_graph.graph
                 for stat, _ in list(stats.items()):
                     if not isinstance(stat, Statistic) or not stat.kwargs.get('inplace_statistics', False):
-                        if node_name_in_graph not in nodes_names:
-                            nodes_names.append(node_name_in_graph)
+                        if node_name not in nodes_names_map:
+                            nodes_names_map[node_name] = convert_to_outputs_name(node_name)
                         continue
                     type_stat = stat.kwargs['type']
                     add_output_node, op_name = getattr(self, f'insert_{type_stat}')(model_graph,
@@ -47,8 +47,8 @@ class StatisticGraphBuilder:
                                                                                     node.name,
                                                                                     **stat.kwargs)
                     if add_output_node:
-                        if node_name_in_graph not in nodes_names:
-                            nodes_names.append(op_name)
+                        if node_name not in nodes_names_map:
+                            nodes_names_map[node_name] = convert_to_outputs_name(op_name)
                         class_statistic = TensorStatistic if isinstance(stat, TensorStatistic) else TensorStatisticAxis
                         fn = get_stats_function(ACTIVATIONS, type_stat, stat.kwargs.get('granularity'),
                                                 'compute_statistic')
@@ -71,8 +71,8 @@ class StatisticGraphBuilder:
 
                 # add output if node in subgraph
                 if model_graph != node.graph:
-                    if node_name_in_graph in nodes_names:
-                        nodes_names.remove(node_name_in_graph)
+                    if node_name in nodes_names_map:
+                        del nodes_names_map[node_name]
 
                     # Don't need adding extra output to the same node, but for another algo
                     if node_name_in_graph in output_to_node_names.values():
@@ -88,7 +88,7 @@ class StatisticGraphBuilder:
                     stat_aliases[algo_name][result_name] = stat_aliases[algo_name].pop(node_name)
                     output_to_node_names[result_name] = node_name_in_graph
 
-        return model, nodes_names, output_to_node_names
+        return model, nodes_names_map, output_to_node_names
 
     def insert_reduce(self, model_graph, insert_op, node, granularity, type_stat, node_name, axis=1):
         axis_const = self.find_axis(node, granularity, axis)

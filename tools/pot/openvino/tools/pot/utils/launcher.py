@@ -1,16 +1,17 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.inference_engine import IECore, IENetwork  # pylint: disable=E0611
+from openvino.runtime import Core  # pylint: disable=E0611
 
 from ..utils.utils import create_tmp_dir
 from ..graph.model_utils import save_model
+from ..graph.node_utils import convert_to_outputs_name
 
 
 class IELauncher:
     """ Inference Engine Launcher for model inference """
 
-    def __init__(self, device='CPU', extension=None):
+    def __init__(self, device='CPU'):
         """ Constructor
          :param device: specify the target device to infer on; CPU, GPU, FPGA, HDDL, MYRIAD or HETERO: is acceptable
          :param extension: path to the extension library with custom layers
@@ -19,11 +20,9 @@ class IELauncher:
         self.device = device
         self.model = None
 
-        self._ie = IECore()
-        if extension is not None:
-            self._ie.add_extension(extension, device)
+        self._ie = Core()
 
-    def set_model(self, model, output_names=None, md_shapes=None):
+    def set_model(self, model, output_names=None, md_shapes=None, input_names=None):
         """ Set/reset model to instance of engine class
          :param model: NXModel instance for inference
         """
@@ -36,19 +35,25 @@ class IELauncher:
         ir_model = self._load_model(path)
 
         if output_names is not None:
+            output_names = [convert_to_outputs_name(output_name) for output_name in output_names]
             ir_model.add_outputs(output_names)
 
         if md_shapes is not None:
             ir_model.reshape(md_shapes)
 
-        self.model = self._ie.load_network(network=ir_model, device_name=self.device)
+        self.model = self._ie.compile_model(model=ir_model, device_name=self.device)
+        
+        if input_names is not None:
+            self.model.input().get_tensor().set_names(set(input_names))
+
+        self.infer_request = self.model.create_infer_request()
 
     def infer(self, inputs):
         """ Inference model
          :param inputs: dictionary of inputs {node_name, value}
          :returns dictionary of outputs {node_name, value}
         """
-        return self.model.infer(inputs=inputs)
+        return self.infer_request.infer(inputs=inputs)
 
     def _load_model(self, path):
         """ Loads IT model from disk
@@ -57,6 +62,4 @@ class IELauncher:
         'weights': path to bin
         :return IE model instance
         """
-        if 'read_network' in IECore.__dict__:
-            return self._ie.read_network(model=path['model'], weights=path['weights'])
-        return IENetwork(model=path['model'], weights=path['weights'])
+        return self._ie.read_model(model=path['model'], weights=path['weights'])

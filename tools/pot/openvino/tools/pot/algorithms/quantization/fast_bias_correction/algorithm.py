@@ -155,7 +155,7 @@ class FastBiasCorrection(Algorithm):
         return inputs_outputs_layout
 
     def _calculate_bias_shift(self, launcher, input_name, input_shape, op_model, fp32_inputs, fp32_outputs):
-        launcher.set_model(op_model)
+        launcher.set_model(op_model, input_names=[input_name])
 
         if len(input_shape) < 2:
             raise RuntimeError('Invalid input shape for {}'.format(input_name))
