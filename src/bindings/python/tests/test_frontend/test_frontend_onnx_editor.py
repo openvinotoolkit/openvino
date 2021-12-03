@@ -6,7 +6,6 @@ import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import numpy as np
-import openvino as ov
 from ngraph import PartialShape
 from ngraph.frontend import FrontEndManager
 

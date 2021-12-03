@@ -8,6 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_FrontEnd(py::module m);
-void regclass_pyngraph_Extension(py::module m);
-void regclass_pyngraph_TelemetryExtension(py::module m);
+void regclass_frontend_Place(py::module m);
