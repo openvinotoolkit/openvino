@@ -456,11 +456,6 @@ void program::init_graph() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
 
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layout();
-    }
-
     apply_opt_pass<calculate_prior_boxes>();
 
     apply_opt_pass<mark_nodes>();
