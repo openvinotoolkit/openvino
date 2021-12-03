@@ -312,7 +312,8 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
+        DESTINATION include
         COMPONENT core_dev)
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
@@ -320,9 +321,9 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION runtime/include
+        INCLUDES DESTINATION include
                              # TODO: remove later once samples are updated
-                             runtime/include/ie)
+                             include/ie)
 
 if(BUILD_SHARED_LIBS)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
@@ -348,7 +349,7 @@ ov_install_static_lib(${TARGET_NAME}_plugin_api core)
 install(EXPORT OpenVINOTargets
         FILE OpenVINOTargets.cmake
         NAMESPACE openvino::
-        DESTINATION runtime/cmake
+        DESTINATION cmake
         COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/src/core")
@@ -389,10 +390,10 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
               "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake"
-        DESTINATION runtime/cmake
+        DESTINATION cmake
         COMPONENT core_dev)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
               "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"
-        DESTINATION runtime/cmake
+        DESTINATION cmake
         COMPONENT core_dev)
