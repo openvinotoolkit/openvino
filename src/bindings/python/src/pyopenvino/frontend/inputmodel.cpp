@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
-#include <pybind11/numpy.h>
 
+#include "../core/common.hpp"
 #include "common/frontend_exceptions.hpp"
 #include "manager.hpp"
-#include "../core/common.hpp"
-
 
 namespace py = pybind11;
 
@@ -364,7 +363,7 @@ void regclass_frontend_InputModel(py::module m) {
                 type : ngraph.Type
                     New element type.
             )");
-    
+
     im.def(
         "set_tensor_value",
         [](ov::frontend::InputModel& self, ov::frontend::Place::Ptr& place, py::array& value) {

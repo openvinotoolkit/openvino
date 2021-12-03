@@ -233,7 +233,8 @@ void InputModelONNX::cut_and_add_new_input(Place::Ptr place, const std::string& 
     std::vector<Place::Ptr> inputs = get_inputs();
     std::vector<Place::Ptr> outputs = get_outputs();
 
-    if (place->is_input()) return;
+    if (place->is_input())
+        return;
 
     m_editor->serialize("orig_for_cut_and_new.onnx");
 
@@ -248,8 +249,7 @@ void InputModelONNX::cut_and_add_new_input(Place::Ptr place, const std::string& 
         m_editor->set_tensor_name(new_inputs.back()->get_names().at(0), new_name_optional);
     }
 
-    for(auto & input : get_inputs())
-    {
+    for (auto& input : get_inputs()) {
         std::cout << input->get_names().at(0) << std::endl;
     }
 }
@@ -262,7 +262,8 @@ void InputModelONNX::set_tensor_value(Place::Ptr place, const void* value) {
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_element_type(name);
 
-        std::shared_ptr<ngraph::op::Constant> constant = ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
+        std::shared_ptr<ngraph::op::Constant> constant =
+            ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
 
         constant->set_friendly_name(name);
         map.emplace(name, constant);
@@ -302,7 +303,8 @@ std::vector<onnx_editor::InputEdge> InputModelONNX::convert_place_to_input_edge(
     return onnx_inputs;
 }
 
-std::vector<onnx_editor::OutputEdge> InputModelONNX::convert_place_to_output_edge(const std::vector<Place::Ptr>& outputs) {
+std::vector<onnx_editor::OutputEdge> InputModelONNX::convert_place_to_output_edge(
+    const std::vector<Place::Ptr>& outputs) {
     std::vector<onnx_editor::OutputEdge> onnx_outputs;
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {

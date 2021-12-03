@@ -295,7 +295,7 @@ void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs,
 
         const auto new_input = append_new_graph_input(m_onnx_graph, input_edge, input_consumers);
 
-        for (auto it = new_inputs.begin() + 1; it != new_inputs.end(); ++it){
+        for (auto it = new_inputs.begin() + 1; it != new_inputs.end(); ++it) {
             auto& target_node = *(m_onnx_graph.mutable_node(it->m_node_idx));
             auto target_input = target_node.mutable_input(it->m_port_idx);
             *target_input = new_input.second;

@@ -15,8 +15,8 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
-#include "utils/onnx_internal.hpp"
 #include "utils/common.hpp"
+#include "utils/onnx_internal.hpp"
 
 using namespace ov;
 using namespace ov::onnx_editor;
@@ -288,8 +288,8 @@ element::Type_t onnx_editor::ONNXModelEditor::get_element_type(const std::string
         auto* type_proto = onnx_input->mutable_type();
         if (!type_proto->has_tensor_type()) {
             throw ov::Exception("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
-                            "change the data type. Input name: " +
-                            onnx_input->name());
+                                "change the data type. Input name: " +
+                                onnx_input->name());
         }
         auto* tensor_type = type_proto->mutable_tensor_type();
         auto type = tensor_type->elem_type();

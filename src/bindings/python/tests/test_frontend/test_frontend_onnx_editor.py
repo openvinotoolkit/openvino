@@ -207,8 +207,8 @@ def create_test_onnx_models():
                                          outputs=["out4"])
     graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)
     models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="ONNX Importer",
-                                                         opset_imports=[onnx.helper.make_opsetid("", 13)])    
-                                                         
+                                                         opset_imports=[onnx.helper.make_opsetid("", 13)])
+
     # Expected for cut_and_add_new_input_edge
     input_tensors = [
         make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
@@ -225,7 +225,7 @@ def create_test_onnx_models():
     new_mul = onnx.helper.make_node("Mul", inputs=["new_input", "add_out"], outputs=["out4"])
     graph = make_graph([add, split, relu, new_mul], "test_graph", input_tensors, output_tensors)
     models["cut_and_add_new_input_edge.onnx"] = make_model(graph, producer_name="ONNX Importer",
-                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                           opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for cut_and_add_new_input_place
     input_tensors = [
@@ -240,10 +240,10 @@ def create_test_onnx_models():
     ]
     new_mul = onnx.helper.make_node("Mul", inputs=["new_input", "new_input"], outputs=["out4"])
     new_split = onnx.helper.make_node("Split", inputs=["new_input"],
-                                  outputs=["out1", "out2"], name="split1", axis=0)
+                                      outputs=["out1", "out2"], name="split1", axis=0)
     graph = make_graph([new_split, relu, new_mul], "test_graph", input_tensors, output_tensors)
     models["cut_and_add_new_input_place.onnx"] = make_model(graph, producer_name="ONNX Importer",
-                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # test partial shape
     input_tensors = [
