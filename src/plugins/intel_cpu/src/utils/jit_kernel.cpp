@@ -155,7 +155,7 @@ const Xbyak::Reg64 & stack_frame::pointer() const {
 }
 
 void stack_frame::clear() const {
-    const size_t end = _size & ~(size_t)3u;
+    const size_t end = _size & ~(size_t)7u;
 
     _kernel.foreach(0, end, [&](const Reg64 & idx) {
         _kernel.mov(_kernel.qword[pointer() + idx], 0);
@@ -325,10 +325,10 @@ void jit_kernel::uni_vblendps(const Xbyak::Ymm& y1, const Xbyak::Ymm& y2, uint16
 }
 
 void jit_kernel::uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16_t mask) {
-    auto r16 = var<uint16_t>();
-    mov(r16, mask);
-    kmovw(Opmask(1), r16);
-    vblendmps(z1, z1, z2);
+    auto reg = var<uint32_t>();
+    mov(reg, mask);
+    kmovw(k1, reg);
+    vblendmps(z1 | k1, z1, z2);
 }
 
 }   // namespace MKLDNNPlugin

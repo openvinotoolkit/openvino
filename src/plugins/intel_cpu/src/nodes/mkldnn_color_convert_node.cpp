@@ -224,6 +224,7 @@ class jit_uni_converter_impl : public jit_uni_converter {
 template<typename T, cpu_isa_t isa>
 void jit_uni_converter_impl<T, isa>::generate() {
     using reg_type = typename isa_traits<isa>::reg::type;
+    using var_type = variable<float[isa_traits<isa>::reg::length]>;
     constexpr auto reg_capacity = isa_traits<isa>::reg::length;
 
     preamble();
@@ -315,7 +316,7 @@ void jit_uni_converter_impl<T, isa>::generate() {
         uni_vpermps(g, permutationMask4g.data(), g);
         uni_vpermps(b, permutationMask4b.data(), b);
 
-        auto blendWithMask = [&](int offset, const variable<float[reg_capacity]> & result) {
+        auto blendWithMask = [&](int offset, const var_type & result) {
             static const uint32_t blendMasks[2] = {
                 0x92492492,
                 0x24924924
@@ -394,11 +395,11 @@ void jit_uni_converter_impl<T, isa>::generate() {
     });
 
     mov(width, argPtr(&Params::width));
-    width &= reg_capacity_log;
+    width &= reg_capacity - 1;
 
     _if(width != 0)
     ._then([&] {
-        auto s = stack(2 * step);
+        auto s = stack(3 * step);
         s.clear();
 
         copy<T>(s.pointer(), y, width);
@@ -412,14 +413,12 @@ void jit_uni_converter_impl<T, isa>::generate() {
 
         colorConvert(y_val, uv_val);
 
-        store(y, c);
-        copy<T>(ptr[dst], y, width);
-
-        store(y, d);
-        copy<T>(ptr[dst + width * sizeof(T)], y, width);
-
+        store(y, c);    y += step;
+        store(y, d);    y += step;
         store(y, e);
-        copy<T>(ptr[dst + width * (sizeof(T) * 2)], y, width);
+
+        lea(width, ptr[width + width * 2]);
+        copy<T>(ptr[dst], s.pointer(), width);
     });
 
     postamble();

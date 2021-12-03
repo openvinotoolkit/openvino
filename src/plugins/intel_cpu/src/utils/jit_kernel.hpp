@@ -510,6 +510,9 @@ void jit_kernel::load(const variable<DstT> & dst, const variable<SrcT> & src) {
                             typename std::decay<DstT>::type>::type>::type;
     constexpr size_t length = variable<DstT>::length;
 
+    const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
+    const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
+
     _load_emitter.emit_code(
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx()) },
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx()) },
@@ -517,7 +520,9 @@ void jit_kernel::load(const variable<DstT> & dst, const variable<SrcT> & src) {
             internal::type2precision<src_type>(),
             internal::type2precision<dst_type>(),
             static_cast<int>(length)),
-        {}, {});
+        pool_vec_idxs,
+        pool_gpr_idxs);
+
     _is_load_emitter_used = true;
 }
 
@@ -534,6 +539,9 @@ void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT> & src) {
                             typename std::decay<DstT>::type>::type>::type;
     constexpr size_t length = variable<SrcT>::length;
 
+    const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
+    const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
+
     _store_emitter.emit_code(
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx()) },
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx()) },
@@ -541,7 +549,9 @@ void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT> & src) {
             internal::type2precision<src_type>(),
             internal::type2precision<dst_type>(),
             static_cast<int>(length)),
-        {}, {});
+        pool_vec_idxs,
+        pool_gpr_idxs);
+
     _is_store_emitter_used = true;
 }
 
