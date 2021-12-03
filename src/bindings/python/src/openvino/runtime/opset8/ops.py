@@ -562,21 +562,6 @@ def prior_box(
     return _get_node_factory_opset8().create("PriorBox", [layer_shape, as_node(image_shape)], attrs)
 
 
-# @nameable_op
-# def i420_to_bgr(
-#         arg: NodeInput,
-#         name: Optional[str] = None,
-# ) -> Node:
-#     """Return a node which performs I420toRGB operation.
-
-#     @param  arg: The node providing input image data (single plane).
-#     @param  name:  The optional name for the created output node.
-#     @return The new node performing I420toRGB operation.
-#     """
-#     inputs = as_nodes(arg)
-#     return _get_node_factory_opset8().create("I420toRGB", inputs)
-
-
 @nameable_op
 def i420_to_bgr(
         arg: NodeInput,
