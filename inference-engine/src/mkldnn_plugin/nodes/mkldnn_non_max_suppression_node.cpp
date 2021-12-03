@@ -158,11 +158,10 @@ void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
     if (hasInputZeroShapes() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
             reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
         getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->redefineDesc(
-            getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({0, 6}));
+            getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({0, 3}));
         getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->redefineDesc(
-            getBaseMemDescAtOutputPort(NMS_SELECTEDSCORES)->cloneWithNewDims({0, 1}));
-        getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->redefineDesc(
-            getBaseMemDescAtOutputPort(NMS_VALIDOUTPUTS)->cloneWithNewDims({0}));
+            getBaseMemDescAtOutputPort(NMS_SELECTEDSCORES)->cloneWithNewDims({0, 3}));
+        *reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr()) = 0;
         return;
     }
     execute(strm);
