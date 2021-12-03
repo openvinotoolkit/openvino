@@ -30,16 +30,10 @@ void regclass_graph_Variant(py::module m) {
     variant.def("__eq__", [](const PyAny& a, py::object b) -> bool {
         return a == PyAny(b);
     });
-    variant.def("__getitem__", [](const PyAny& self) -> py::object {
-        return py::cast<py::object>(Common::from_ov_any(self));
-    });
-    variant.def("__get__", [](const PyAny& self) -> py::object {
-        return py::cast<py::object>(Common::from_ov_any(self));
-    });
     variant.def(
         "get",
         [](const PyAny& self) -> py::object {
-            return py::cast<py::object>(Common::from_ov_any(self));
+            return self.as<py::object>();
         },
         R"(
             Returns
@@ -59,13 +53,7 @@ void regclass_graph_Variant(py::module m) {
                 Value to be set in ov::Any.
 
     )");
-    variant.def("__setitem__", [](PyAny& self, py::object object) {
-        self = PyAny(object);
-    });
-    variant.def("__set__", [](PyAny& self, py::object object) {
-        self = PyAny(object);
-    });
     variant.def_property_readonly("value", [](const PyAny& self) {
-        return py::cast<py::object>(Common::from_ov_any(self));
+        return self.as<py::object>();
     });
 }

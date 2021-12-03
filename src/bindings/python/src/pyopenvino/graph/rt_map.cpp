@@ -37,7 +37,7 @@ void regclass_graph_PyRTMap(py::module m) {
         m[k] = v;
     });
     py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) -> py::object {
-        return py::cast<py::object>(Common::from_ov_any(m[k]));
+        return Common::from_ov_any(m[k]).as<py::object>();
     });
     py_map.def(
         "__bool__",

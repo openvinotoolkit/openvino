@@ -6,6 +6,7 @@
 
 #include <pybind11/pybind11.h>
 
+#include "Python.h"
 #include "openvino/core/any.hpp"
 
 namespace py = pybind11;
@@ -16,5 +17,6 @@ class PyAny : public ov::Any {
 public:
     using ov::Any::Any;
     PyAny(py::object object) : ov::Any(object) {}
-    PyAny(const ov::Any &any): ov::Any(any) {}
+    PyAny(PyObject* object) : ov::Any(py::reinterpret_borrow<py::object>(object)) {}
+    PyAny(const ov::Any& any) : ov::Any(any) {}
 };

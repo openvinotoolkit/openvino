@@ -173,10 +173,10 @@ void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inp
     }
 }
 
-PyObject* from_ov_any(const ov::Any& any) {
+PyAny from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
-        return any.as<py::object>().ptr();
+        return any.as<py::object>();
     }
     // Check for std::string
     else if (any.is<std::string>()) {
