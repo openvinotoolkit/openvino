@@ -100,13 +100,14 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
 }
 
 void FrontEndIR::add_extension(const ov::Extension::Ptr& ext) {
-    if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext)) {
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(ext)) {
+        m_telemetry = telemetry;
+    } else if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext)) {
         if (std::dynamic_pointer_cast<ov::BaseOpExtension>(so_ext->extension())) {
             shared_objects.emplace_back(so_ext->shared_object());
             extensions.emplace_back(so_ext->extension());
         }
-    }
-    if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
+    } else if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
         extensions.emplace_back(ext);
 }
 
