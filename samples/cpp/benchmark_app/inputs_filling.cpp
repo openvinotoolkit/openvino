@@ -309,7 +309,7 @@ InferenceEngine::Blob::Ptr getRandomBlob(const std::pair<std::string, benchmark_
     }
 }
 
-std::stringstream getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
+std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
     strOut << "(" << inputInfo.layout << ", " << inputInfo.precision << ", " << getShapeString(inputInfo.dataShape)
            << ", ";
@@ -318,7 +318,7 @@ std::stringstream getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     } else {
         strOut << "static):\t";
     }
-    return strOut;
+    return strOut.str();
 }
 
 std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
@@ -448,12 +448,11 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             }
 
             // Preparing info
-            std::stringstream strOut = getTestInfoStreamHeader(input_info);
-            strOut << blob_src_info;
+            std::string strOut = getTestInfoStreamHeader(input_info) + blob_src_info;
             if (n_shape >= logOutput.size()) {
                 logOutput.resize(n_shape + 1);
             }
-            logOutput[n_shape][input_name] += strOut.str();
+            logOutput[n_shape][input_name] += strOut;
 
             ++n_shape;
             m_file += batchSize;
@@ -597,7 +596,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
                     blobs[input_name].push_back(
                         getImageBlob(files.second, imageInputId, batchSize, {input_name, input_info}, &blob_src_info));
                     imageInputId = (imageInputId + batchSize) % files.second.size();
-                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
+                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
                 }
             } else {
@@ -609,7 +608,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
                                                               {input_name, input_info},
                                                               &blob_src_info));
                     binaryInputId = (binaryInputId + batchSize) % files.second.size();
-                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
+                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
                 }
                 if (input_info.isImageInfo() && (net_input_im_sizes.size() == 1)) {
@@ -618,7 +617,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
                     blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
                                     std::to_string(image_size.second);
                     blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
-                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
+                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
                 }
             }
@@ -626,7 +625,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
             blob_src_info =
                 "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
             blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
-            logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
+            logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
         }
     }
 
