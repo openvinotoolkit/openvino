@@ -93,6 +93,8 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
             option_string)
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
+        if 'mean_file' in option_string or 'mean_offset' in option_string:
+            dep_msg += 'Please use --mean_values cli option instead'
         log.error(dep_msg, extra={'is_warning': True})
         super().__call__(parser, namespace, values, option_string)
 
@@ -486,12 +488,12 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
-                             help='[Deprecated option, please use mean_values option instead] ' +
+                             help='[DEPRECATED] ' +
                                   'Mean image to be used for the input. Should be a binaryproto file',
                              default=None,
                              action=DeprecatedCanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file_offsets', '-mo',
-                             help='[Deprecated option, please use mean_values option instead] ' +
+                             help='[DEPRECATED] ' +
                                   'Mean image offsets to be used for the input binaryproto file. ' +
                                   'When the mean image is bigger than the expected input, it is cropped. By default, centers ' +
                                   'of the input image and the mean image are the same and the mean image is cropped by ' +

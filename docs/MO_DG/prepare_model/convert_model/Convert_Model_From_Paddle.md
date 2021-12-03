@@ -38,7 +38,7 @@ python3 mo.py --input_model <INPUT_MODEL>.pdmodel --output_dir <OUTPUT_MODEL_DIR
 Parameters to convert your model:
 
 * [Framework-agnostic parameters](Converting_Model_General.md): These parameters are used to convert a model trained with any supported framework.
-> **NOTE:** `--scale`, `--scale_values`, `--mean_values`, `--mean_file` are not supported in the current version of mo_paddle.
+> **NOTE:** `--scale`, `--scale_values`, `--mean_values` are not supported in the current version of mo_paddle.
 
 ### Example of Converting a Paddle* Model
 Below is the example command to convert yolo v3 Paddle\* network to OpenVINO IR network with Model Optimizer.

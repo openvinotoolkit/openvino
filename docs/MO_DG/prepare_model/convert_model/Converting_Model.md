@@ -6,7 +6,7 @@ python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 You need to have have write permissions for an output directory.
 
-> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model Using General Conversion Parameters](Converting_Model_General.md).
+> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`. To learn about when you need to use these parameters, refer to [Converting a Model Using General Conversion Parameters](Converting_Model_General.md).
 
 To adjust the conversion process, you may use general parameters defined in the [Converting a Model Using General Conversion Parameters](Converting_Model_General.md) and 
 Framework-specific parameters for:

@@ -63,12 +63,10 @@ Caffe*-specific parameters:
   -k K                  Path to CustomLayersMapping.xml to register custom
                         layers
   --mean_file MEAN_FILE, -mf MEAN_FILE
-                        [Deprecated option, please use mean_values option instead]
-						Mean image to be used for the input. Should be a
+                        [DEPRECATED] Mean image to be used for the input. Should be a
                         binaryproto file
   --mean_file_offsets MEAN_FILE_OFFSETS, -mo MEAN_FILE_OFFSETS
-                        [Deprecated option, please use mean_values option instead]
-						Mean image offsets to be used for the input
+                        [DEPRECATED] Mean image offsets to be used for the input
                         binaryproto file. When the mean image is bigger than
                         the expected input, it is cropped. By default, centers
                         of the input image and the mean image are the same and
