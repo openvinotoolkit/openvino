@@ -1290,8 +1290,8 @@ static std::shared_ptr<ov::Function> create_add(ov::element::Type type,
 TEST(function, get_batch_size) {
     auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 512, 512, 3}, {1, 3, 224, 224}}, {"NHWC", "NCHW"});
 
-    EXPECT_NO_THROW(ov::pass::get_batch(f));
-    EXPECT_EQ(ov::pass::get_batch(f), 1);
+    EXPECT_NO_THROW(ov::get_batch(f));
+    EXPECT_EQ(ov::get_batch(f), 1);
 }
 
 TEST(function, get_batch_size_with_conflict) {
@@ -1301,7 +1301,7 @@ TEST(function, get_batch_size_with_conflict) {
 
     // TODO: gtest v.10 limitation. Replace with EXPECT_THAT for gtest >= v1.11
     try {
-        ov::pass::get_batch(f);
+        ov::get_batch(f);
         FAIL() << "get_batch shall throw";
     } catch (const ov::Exception& err) {
         // Verify error message contains conflicting layouts
@@ -1321,7 +1321,7 @@ TEST(function, get_batch_size_without_batches) {
 
     // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
     try {
-        ov::pass::get_batch(f);
+        ov::get_batch(f);
         FAIL() << "get_batch shall throw";
     } catch (const ov::Exception& err) {
         // Verify error message contains layouts without batches
@@ -1336,21 +1336,21 @@ TEST(function, get_batch_size_without_one_layout) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {{ov::Dimension::dynamic(), 3, 224, 224}, {10, 20}},
                                        {"N...", "HW"});
-    EXPECT_EQ(ov::pass::get_batch(f), ov::Dimension::dynamic());
+    EXPECT_EQ(ov::get_batch(f), ov::Dimension::dynamic());
 }
 
 TEST(function, get_batch_size_ranges) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {{ov::Dimension(1, 10), 3, 224, 224}, {ov::Dimension(5, 15), 3, 224, 224}},
                                        {"NCHW", "NCHW"});
-    EXPECT_EQ(ov::pass::get_batch(f), ov::Dimension(5, 10));
+    EXPECT_EQ(ov::get_batch(f), ov::Dimension(5, 10));
 }
 
 TEST(function, set_batch_size) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {{1, 512, 512, 3}, {ov::Dimension::dynamic(), 3, 224, 224}, {1, 5}},
                                        {"NHWC", "NCHW", "??"});
-    EXPECT_NO_THROW(ov::pass::set_batch(f, 4));
+    EXPECT_NO_THROW(ov::set_batch(f, 4));
     ov::PartialShape pshape({1, 4, 3, 3});
     EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape{4, 512, 512, 3}));
     EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{4, 3, 224, 224}));
@@ -1361,7 +1361,7 @@ TEST(function, set_batch_size_ranges) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {{ov::Dimension(1, 10), 3, 224, 224}, {ov::Dimension(5, 15), 3, 224, 224}},
                                        {"NCHW", "NCHW"});
-    EXPECT_NO_THROW(ov::pass::set_batch(f, 42));
+    EXPECT_NO_THROW(ov::set_batch(f, 42));
     EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
     EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
 }
@@ -1369,14 +1369,14 @@ TEST(function, set_batch_size_ranges) {
 TEST(function, set_batch_size_fully_dynamic) {
     auto f =
         bs_utils::create_n_inputs(ov::element::f32, {ov::PartialShape::dynamic(), {1, 3, 224, 224}}, {"NCHW", "NCHW"});
-    EXPECT_NO_THROW(ov::pass::set_batch(f, 42));
+    EXPECT_NO_THROW(ov::set_batch(f, 42));
     EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape::dynamic()));
     EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
 }
 
 TEST(function, set_batch_size_dynamic_layout) {
     auto f = bs_utils::create_n_inputs(ov::element::f32, {{3, 224, 224, 1}, {1, 3, 224, 224}}, {"...N", "NCHW"});
-    EXPECT_NO_THROW(ov::pass::set_batch(f, 42));
+    EXPECT_NO_THROW(ov::set_batch(f, 42));
     EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape{3, 224, 224, 42}));
     EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
 }
@@ -1388,7 +1388,7 @@ TEST(function, set_batch_size_with_conflict) {
 
     // TODO: gtest v.10 limitation. Replace with EXPECT_THAT for gtest >= v1.11
     try {
-        ov::pass::set_batch(f, 12);
+        ov::set_batch(f, 12);
         FAIL() << "set_batch shall throw";
     } catch (const ov::Exception& err) {
         // Verify error message contains conflicting layouts
@@ -1408,7 +1408,7 @@ TEST(function, set_batch_size_without_batches) {
 
     // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
     try {
-        ov::pass::set_batch(f, 42);
+        ov::set_batch(f, 42);
         FAIL() << "set_batch shall throw";
     } catch (const ov::Exception& err) {
         // Verify error message contains layouts without batches
@@ -1424,7 +1424,7 @@ TEST(function, set_batch_size_validation_throw) {
 
     // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
     try {
-        ov::pass::set_batch(f, 42);
+        ov::set_batch(f, 42);
         FAIL() << "set_batch shall throw";
     } catch (const ov::Exception& err) {
         // Verify error message contains possible reasons

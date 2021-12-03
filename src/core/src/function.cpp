@@ -944,7 +944,7 @@ static void dump_parameter(std::ostream& stream, const std::shared_ptr<const ov:
 }
 }  // namespace bs_util
 
-ov::Dimension ov::pass::get_batch(const std::shared_ptr<const ov::Function>& f) {
+ov::Dimension ov::get_batch(const std::shared_ptr<const ov::Function>& f) {
     bool batch_initialized = false;
     auto batch_size = ov::Dimension::dynamic();
     std::vector<size_t> merged_indexes;
@@ -992,7 +992,7 @@ ov::Dimension ov::pass::get_batch(const std::shared_ptr<const ov::Function>& f) 
     return batch_size;
 }
 
-void ov::pass::set_batch(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size) {
+void ov::set_batch(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size) {
     get_batch(f);  // Ensure that function's batch size is valid and can be changed
     std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes_map;
     // Now batch size can be set for all needed parameters

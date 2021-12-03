@@ -354,7 +354,6 @@ public:
     BWDCMP_RTTI_DECLARATION;
 };
 
-namespace pass {
 /// \brief Helper method to get associated batch size for a Function
 /// \details Checks layout of each parameter in a Function and extracts value for N (B) dimension. All values are then
 /// merged and returned
@@ -390,6 +389,5 @@ OPENVINO_API ov::Dimension get_batch(const std::shared_ptr<const ov::Function>& 
 /// \param f function where to set batch_size value
 /// \param batch_size Batch size value. For dynamic batch size, Dimension::dynamic() can be passed.
 OPENVINO_API void set_batch(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size);
-}  // namespace pass
 
 }  // namespace ov

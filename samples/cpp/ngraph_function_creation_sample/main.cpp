@@ -321,7 +321,7 @@ int main(int argc, char* argv[]) {
         // -------- Step 4. Reshape a model --------
         // Setting batch size using image count
         const auto batch_size = static_cast<int64_t>(imagesData.size());
-        ov::pass::set_batch(model, batch_size);
+        ov::set_batch(model, batch_size);
         slog::info << "Batch size is " << std::to_string(batch_size) << slog::endl;
 
         const auto outputShape = model->output().get_shape();
