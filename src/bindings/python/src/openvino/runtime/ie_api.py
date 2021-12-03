@@ -167,17 +167,17 @@ class Variant(VariantBase):
     @endcode
     """
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Union[str, int]) -> Any:
         return self.value[key]
 
-    def __get__(self):
+    def __get__(self) -> Any:
         return self.value
 
-    def __setitem__(self, key, val):
+    def __setitem__(self, key: Union[str, int], val: Any) -> None:
         self.value[key] = val
 
-    def __set__(self, val):
+    def __set__(self, val: Any) -> None:
         self.value = val
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.value)
