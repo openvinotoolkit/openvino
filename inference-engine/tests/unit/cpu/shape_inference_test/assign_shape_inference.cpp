@@ -4,10 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <assign_shape_inference.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
-#include "utils/shape_inference/static_shape.hpp"
+#include <utils/shape_inference/shape_inference.hpp>
+#include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
 template <class T>
@@ -32,13 +32,10 @@ std::shared_ptr<op::v6::Assign> constructGraph() {
 template <class T>
 void assignTest() {
     auto assign = constructGraph<T>();
-    // Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{1, 2, 64, 64}}, output_shapes = {PartialShape{}};
-    shape_infer(assign.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], (PartialShape{1, 2, 64, 64}));
+
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 2, 64, 64}}, static_output_shapes = {StaticShape{}};
-    shape_infer(assign.get(), static_input_shapes, static_output_shapes);
+    shape_inference(assign.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_input_shapes[0], (StaticShape{1, 2, 64, 64}));
 }
 

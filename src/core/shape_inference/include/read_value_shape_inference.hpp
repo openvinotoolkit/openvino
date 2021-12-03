@@ -9,8 +9,7 @@ namespace op {
 
 template <class OpType, class ShapeType>
 void read_value_shape_infer(const OpType* op, const std::vector<ShapeType>& input_shapes, std::vector<ShapeType>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
-    ShapeInfer::copy_shape(input_shapes[0], output_shapes[0]);
+    copy_shape_infer(op, input_shapes, output_shapes);
 }
 
 namespace v3 {
