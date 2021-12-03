@@ -67,11 +67,14 @@ class ArangeLikeReplacer(FrontReplacementOp):
             shape_node.out_port(0).connect(reshape_node2.in_port(1))
             node.out_port(0).get_connection().set_source(reshape_node2.out_port(0))
 
+        # MXNet arange_like op has no stop attribute and the result tensor always matches the input shape, so
+        # we have to correct the stop value for the Range node if start > 0
         if node.start > 0:
             correct_stop_value = create_op_with_const_inputs(graph, Add, port_value_dict={1: int64_array(node.start)},
                                                              op_attrs={'name': range_node.name + '/Stop'})
             range_node.in_port(1).get_connection().insert_node(correct_stop_value)
 
+        # Range node supports only scalar inputs
         squeeze_node = create_op_with_const_inputs(graph, Squeeze, port_value_dict={1: int64_array(0)},
                                                    op_attrs={"name": range_node.name + '/Stop/Squeeze'})
         range_node.in_port(1).get_connection().insert_node(squeeze_node)
