@@ -14,40 +14,50 @@ static const char PathSeparator[] = ":";
 
 namespace ov {
 namespace frontend {
-/// Plugin library handle wrapper. On destruction calls internal function which frees
-/// library handle
-class PluginHandle {
+
+/// \brief Internal data structure holding plugin information including library handle, file names and paths, etc.
+class PluginInfo {
+    std::shared_ptr<void> m_so;  // Library shared object, must be first data member to be destroyed last
+    bool m_loaded = false;
+    FrontEndPluginInfo m_fe_info;  // Loaded Frontend Plugin Info obtained from exported API
+    bool m_load_failed = false;    // Remember if loading of plugin is already failed
+    bool load_internal();
+
 public:
-    PluginHandle(std::function<void()> call_on_destruct) : m_call_on_destruct(call_on_destruct) {}
+    std::string m_file_name;  // Plugin file name, e.g. "libir_ov_frontend.so"
+    std::string m_file_path;  // Plugin file full path
 
-    PluginHandle(const PluginHandle&) = delete;
+    PluginInfo() = default;
 
-    PluginHandle& operator=(const PluginHandle&) = delete;
-
-    PluginHandle(PluginHandle&&) = default;
-
-    PluginHandle& operator=(PluginHandle&&) = default;
-
-    ~PluginHandle() {
-        if (m_call_on_destruct) {
-            m_call_on_destruct();
-        }
+    PluginInfo(std::string name, FrontEndFactory creator) {
+        m_fe_info.m_name = std::move(name);
+        m_fe_info.m_creator = std::move(creator);
+        m_loaded = true;
     }
 
-private:
-    std::function<void()> m_call_on_destruct;
-};
+    const FrontEndPluginInfo& get_creator() const {
+        return m_fe_info;
+    }
 
-struct PluginData {
-    PluginData(PluginHandle&& h, FrontEndPluginInfo&& info) : m_lib_handle(std::move(h)), m_plugin_info(info) {}
-    PluginData(PluginData&& pd) : m_lib_handle(std::move(pd.m_lib_handle)), m_plugin_info(pd.m_plugin_info) {}
+    // Use in future to pass library handle pointer to frontend/input_model/function/executable_network
+    std::shared_ptr<void> get_so_pointer() const {
+        return m_so;
+    }
 
-    PluginHandle m_lib_handle;  // Shall be destroyed when plugin is not needed anymore to free memory
-    FrontEndPluginInfo m_plugin_info;
+    bool is_loaded() const {
+        return m_loaded;
+    }
+
+    std::string get_name_from_file() const;
+
+    bool is_file_name_match(const std::string& name) const;
+
+    bool load();
 };
 
 // Searches for available plugins in a specified directory
-std::vector<PluginData> load_plugins(const std::string& dir_name);
+// Appends found plugins to existing list
+void find_plugins(const std::string& dir_name, std::vector<PluginInfo>& res);
 
 }  // namespace frontend
 }  // namespace ov

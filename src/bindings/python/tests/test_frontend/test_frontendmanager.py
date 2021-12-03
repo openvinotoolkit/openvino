@@ -3,9 +3,9 @@
 
 import pickle
 
-from ngraph import PartialShape
-from ngraph.frontend import FrontEndManager, InitializationFailure
-from ngraph.utils.types import get_element_type
+from openvino.runtime import PartialShape
+from openvino.frontend import FrontEndManager, InitializationFailure
+from openvino.runtime.utils.types import get_element_type
 
 import numpy as np
 

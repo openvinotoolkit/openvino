@@ -69,6 +69,7 @@ from openvino.runtime.opset1.ops import hard_sigmoid
 from openvino.runtime.opset5.ops import hsigmoid
 from openvino.runtime.opset4.ops import hswish
 from openvino.runtime.opset7.ops import idft
+from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset1.ops import interpolate
 from openvino.runtime.opset1.ops import less
 from openvino.runtime.opset1.ops import less_equal
