@@ -5,8 +5,8 @@ import os
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-from ngraph import PartialShape
-from ngraph.frontend import FrontEndManager
+from openvino.runtime import PartialShape
+from openvino.frontend import FrontEndManager
 
 
 # ------Test input model 1------

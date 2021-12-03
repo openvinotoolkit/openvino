@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "clDNNPlugin")
+set (TARGET_NAME "ov_intel_gpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-all)
