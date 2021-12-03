@@ -58,21 +58,16 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     const auto& axis = inputs[1];
     auto& output = outputs[0];
     auto repeats_val = read_index_vector(axis);
-    auto repeats_rank = repeats_val.size();
-    ov::Shape data_shape = data->get_shape();
-    auto data_rank = data_shape.size();
-    auto output_rank = std::max(data_rank, repeats_rank);
-    repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
+    const auto repeats_rank = repeats_val.size();
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {data_shape, axis->get_shape()};
+    std::vector<ov::PartialShape> input_shapes = {data->get_shape(), axis->get_shape()};
     shape_infer(this, input_shapes, output_shapes, {{1, axis}});
-
     const auto& output_shape = output_shapes[0].to_shape();
     if (!output->get_is_allocated()) {
         output->set_shape(output_shape);
     }
-
+    repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
     ngraph::runtime::reference::tile(data->get_data_ptr<const char>(),
                                      output->get_data_ptr<char>(),
                                      data->get_shape(),
