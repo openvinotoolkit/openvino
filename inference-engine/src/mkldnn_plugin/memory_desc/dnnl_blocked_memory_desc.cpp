@@ -236,7 +236,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
     if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any))
         return false;
 
-    int stride_start = wrappedThis.ndims() > 0 && wrappedThis.dims()[0] == 1 ? 1 : 0;  // ignore batch axis stride if batch size == 1
+    int stride_start = 0;
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;
@@ -401,207 +401,6 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
     return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order)));
 }
 
-static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by_ndims {
-    {0, {
-        mkldnn::memory::format_tag::a   // TODO :: really 1d layout for scalar??
-     }}, {1, {
-        mkldnn::memory::format_tag::a
-     }}, {2, {
-        mkldnn::memory::format_tag::ab,
-        mkldnn::memory::format_tag::ba
-     }}, {3, {
-        mkldnn::memory::format_tag::abc,
-        mkldnn::memory::format_tag::acb,
-        mkldnn::memory::format_tag::bac,
-        mkldnn::memory::format_tag::bca,
-        mkldnn::memory::format_tag::cba,
-
-        mkldnn::memory::format_tag::Abc16a,
-        mkldnn::memory::format_tag::ABc16a16b,
-        mkldnn::memory::format_tag::ABc4a4b,
-        mkldnn::memory::format_tag::aBc16b,
-        mkldnn::memory::format_tag::aBc32b,
-        mkldnn::memory::format_tag::ABc16b16a,
-        mkldnn::memory::format_tag::Abc4a,
-        mkldnn::memory::format_tag::aBc4b,
-        mkldnn::memory::format_tag::ABc4b16a4b,
-        mkldnn::memory::format_tag::ABc2b8a4b,
-        mkldnn::memory::format_tag::ABc16b16a4b,
-        mkldnn::memory::format_tag::ABc16b16a2b,
-        mkldnn::memory::format_tag::ABc4b4a,
-        mkldnn::memory::format_tag::ABc8a16b2a,
-        mkldnn::memory::format_tag::ABc8a8b,
-        mkldnn::memory::format_tag::ABc8a4b,
-        mkldnn::memory::format_tag::aBc8b,
-        mkldnn::memory::format_tag::ABc8b16a2b,
-        mkldnn::memory::format_tag::ABc8b8a,
-        mkldnn::memory::format_tag::Acb16a,
-        mkldnn::memory::format_tag::Acb4a,
-        mkldnn::memory::format_tag::Acb8a,
-        mkldnn::memory::format_tag::BAc16a16b,
-        mkldnn::memory::format_tag::BAc16b16a,
-     }}, {4, {                                 // Popular
-        mkldnn::memory::format_tag::abcd,      // plain
-        mkldnn::memory::format_tag::acdb,      // tail_c
-        mkldnn::memory::format_tag::aBcd8b,    // blocked 8c
-        mkldnn::memory::format_tag::aBcd16b,   // blocked 16c
-
-        mkldnn::memory::format_tag::abdc,
-
-        mkldnn::memory::format_tag::bacd,
-        mkldnn::memory::format_tag::bcda,
-        mkldnn::memory::format_tag::cdba,
-        mkldnn::memory::format_tag::dcab,
-
-        mkldnn::memory::format_tag::Abcd8a,
-        mkldnn::memory::format_tag::Abcd16a,
-        mkldnn::memory::format_tag::Abcd32a,
-        mkldnn::memory::format_tag::ABcd16a16b,
-        mkldnn::memory::format_tag::aBcd32b,
-        mkldnn::memory::format_tag::ABcd16b16a,
-        mkldnn::memory::format_tag::aBCd16b16c,
-        mkldnn::memory::format_tag::aBCd16c16b,
-        mkldnn::memory::format_tag::Abcd4a,
-        mkldnn::memory::format_tag::aBcd4b,
-        mkldnn::memory::format_tag::ABcd4b16a4b,
-        mkldnn::memory::format_tag::ABcd2b8a4b,
-        mkldnn::memory::format_tag::ABcd4b4a,
-        mkldnn::memory::format_tag::ABcd4a4b,
-        mkldnn::memory::format_tag::aBCd4c16b4c,
-        mkldnn::memory::format_tag::aBCd2c8b4c,
-        mkldnn::memory::format_tag::ABcd16b16a4b,
-        mkldnn::memory::format_tag::ABcd16b16a2b,
-        mkldnn::memory::format_tag::aBCd16c16b4c,
-        mkldnn::memory::format_tag::aBCd16c16b2c,
-        mkldnn::memory::format_tag::aBCd4c4b,
-        mkldnn::memory::format_tag::aBCd4b4c,
-        mkldnn::memory::format_tag::ABcd8a16b2a,
-        mkldnn::memory::format_tag::ABcd8a8b,
-        mkldnn::memory::format_tag::ABcd8a32b,
-        mkldnn::memory::format_tag::ABcd32a32b,
-        mkldnn::memory::format_tag::ABcd8a4b,
-
-        mkldnn::memory::format_tag::ABcd8b16a2b,
-        mkldnn::memory::format_tag::aBCd8b16c2b,
-        mkldnn::memory::format_tag::ABcd8b8a,
-        mkldnn::memory::format_tag::aBCd8b8c,
-        mkldnn::memory::format_tag::aBCd8b4c,
-        mkldnn::memory::format_tag::aBCd8c16b2c,
-        mkldnn::memory::format_tag::aBCd8c8b,
-
-        mkldnn::memory::format_tag::ABcd4a8b8a4b,
-        mkldnn::memory::format_tag::ABcd2a8b8a2b,
-
-        mkldnn::memory::format_tag::aBdc16b,
-        mkldnn::memory::format_tag::aBdc4b,
-        mkldnn::memory::format_tag::aBdc8b,
-        mkldnn::memory::format_tag::aCBd16b16c,
-        mkldnn::memory::format_tag::aCBd16c16b,
-        mkldnn::memory::format_tag::Acdb16a,
-        mkldnn::memory::format_tag::Acdb4a,
-        mkldnn::memory::format_tag::Acdb8a,
-        mkldnn::memory::format_tag::BAcd16a16b,
-        mkldnn::memory::format_tag::BAcd16b16a,
-        mkldnn::memory::format_tag::ABcd32a32b,
-        mkldnn::memory::format_tag::Acdb32a,
-        mkldnn::memory::format_tag::aBCd2b4c2b,
-        mkldnn::memory::format_tag::aBCd2c4b2c,
-        mkldnn::memory::format_tag::aBCd4b8c2b,
-        mkldnn::memory::format_tag::aBCd4c8b2c,
-    }}, {5, {                                   // Popular
-        mkldnn::memory::format_tag::abcde,      // plain
-        mkldnn::memory::format_tag::acdeb,      // tail_c
-        mkldnn::memory::format_tag::aBcde8b,    // blocked 8c
-        mkldnn::memory::format_tag::aBcde16b,   // blocked 16c
-
-        mkldnn::memory::format_tag::abdec,
-        mkldnn::memory::format_tag::acbde,
-        mkldnn::memory::format_tag::bacde,
-        mkldnn::memory::format_tag::bcdea,
-        mkldnn::memory::format_tag::cdeba,
-        mkldnn::memory::format_tag::decab,
-
-        mkldnn::memory::format_tag::Abcde16a,
-        mkldnn::memory::format_tag::Abcde32a,
-        mkldnn::memory::format_tag::ABcde16a16b,
-        mkldnn::memory::format_tag::aBcde32b,
-        mkldnn::memory::format_tag::ABcde16b16a,
-        mkldnn::memory::format_tag::aBCde16b16c,
-        mkldnn::memory::format_tag::aBCde16c16b,
-        mkldnn::memory::format_tag::aBCde2c8b4c,
-        mkldnn::memory::format_tag::Abcde4a,
-        mkldnn::memory::format_tag::aBcde4b,
-        mkldnn::memory::format_tag::ABcde4b4a,
-        mkldnn::memory::format_tag::ABcde4a4b,
-        mkldnn::memory::format_tag::aBCde4b4c,
-        mkldnn::memory::format_tag::aBCde4c16b4c,
-        mkldnn::memory::format_tag::aBCde16c16b4c,
-        mkldnn::memory::format_tag::aBCde16c16b2c,
-        mkldnn::memory::format_tag::aBCde4c4b,
-        mkldnn::memory::format_tag::Abcde8a,
-        mkldnn::memory::format_tag::ABcde8a8b,
-        mkldnn::memory::format_tag::ABcde8a4b,
-        mkldnn::memory::format_tag::ABcde8b16a2b,
-        mkldnn::memory::format_tag::ABcde4b16a4b,
-        mkldnn::memory::format_tag::ABcde2b8a4b,
-        mkldnn::memory::format_tag::aBCde8b16c2b,
-        mkldnn::memory::format_tag::ABcde8b8a,
-        mkldnn::memory::format_tag::aBCde8b8c,
-        mkldnn::memory::format_tag::aBCde8b4c,
-        mkldnn::memory::format_tag::aBCde4b8c8b4c,
-        mkldnn::memory::format_tag::aBCde2b8c8b2c,
-        mkldnn::memory::format_tag::aBCde8c16b2c,
-        mkldnn::memory::format_tag::aBCde8c8b,
-        mkldnn::memory::format_tag::aBdec16b,
-        mkldnn::memory::format_tag::aBdec4b,
-        mkldnn::memory::format_tag::aBdec8b,
-        mkldnn::memory::format_tag::aCBde16b16c,
-        mkldnn::memory::format_tag::aCBde16c16b,
-        mkldnn::memory::format_tag::Acdeb16a,
-        mkldnn::memory::format_tag::Acdeb4a,
-        mkldnn::memory::format_tag::Acdeb8a,
-        mkldnn::memory::format_tag::BAcde16b16a,
-        mkldnn::memory::format_tag::BAcde16a16b,
-        mkldnn::memory::format_tag::aBdec32b,
-        mkldnn::memory::format_tag::aBCde2b4c2b,
-        mkldnn::memory::format_tag::aBCde2c4b2c,
-        mkldnn::memory::format_tag::aBCde4b8c2b,
-        mkldnn::memory::format_tag::aBCde4c8b2c,
-    }}, {6, {                                    // Popular
-        mkldnn::memory::format_tag::abcdef,      // plain
-        mkldnn::memory::format_tag::acbdef,      // permute
-        mkldnn::memory::format_tag::defcab,      // permute
-        mkldnn::memory::format_tag::aBcdef16b,   // blocked 16c
-
-        mkldnn::memory::format_tag::aBCdef16b16c,
-        mkldnn::memory::format_tag::aBCdef16c16b,
-        mkldnn::memory::format_tag::aBcdef4b,
-        mkldnn::memory::format_tag::aBCdef2c8b4c,
-        mkldnn::memory::format_tag::aBCdef4c4b,
-        mkldnn::memory::format_tag::aBCdef4b4c,
-        mkldnn::memory::format_tag::aBCdef8b8c,
-        mkldnn::memory::format_tag::aBCdef8b4c,
-        mkldnn::memory::format_tag::aBCdef8c16b2c,
-        mkldnn::memory::format_tag::aBCdef4c16b4c,
-        mkldnn::memory::format_tag::aBCdef8c8b,
-
-        mkldnn::memory::format_tag::aBdefc16b,
-        mkldnn::memory::format_tag::aCBdef16c16b,
-        mkldnn::memory::format_tag::aCBdef16b16c,
-        mkldnn::memory::format_tag::aBdefc4b,
-        mkldnn::memory::format_tag::aBdefc8b,
-
-        mkldnn::memory::format_tag::Abcdef4a,
-        mkldnn::memory::format_tag::Abcdef8a,
-        mkldnn::memory::format_tag::Abcdef16a,
-        mkldnn::memory::format_tag::Abcdef32a,
-        mkldnn::memory::format_tag::aBCdef2b4c2b,
-        mkldnn::memory::format_tag::aBCdef2c4b2c,
-        mkldnn::memory::format_tag::aBCdef4b8c2b,
-        mkldnn::memory::format_tag::aBCdef4c8b2c,
-        }}
-};
-
 bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
     mkldnn::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
 
@@ -674,28 +473,6 @@ bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
     }
 
     return true;
-}
-
-mkldnn::memory::format_tag DnnlBlockedMemoryDesc::getFormat() const {
-    // TODO [OneDNN]: Previously it was a field of tdesc, but now the brute
-    //                force search here. Please avoid of using this method.
-    const auto ndims = desc.dims().size();
-
-    // There are no suitable format_tag for this
-    if (ndims == 0 || ndims > 6)
-        return mkldnn::memory::format_tag::undef;
-
-    for (const auto fmt : form_tags_by_ndims.at(ndims)) {
-        if (this->isSame(fmt))
-            return fmt;
-    }
-
-    return mkldnn::memory::format_tag::undef;
-}
-
-std::string DnnlBlockedMemoryDesc::serializeFormat() const {
-    auto fmt = getFormat();
-    return mkldnn::utils::fmt2str(fmt);
 }
 
 size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
@@ -857,4 +634,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, 
     desc = cloneDescWithNewDims(mdesc, shape.getDims(), order);
 
     initBlockedParams();
+}
+
+std::string DnnlBlockedMemoryDesc::serializeFormat() const {
+    return BlockedMemoryDesc::serializeFormat();
 }

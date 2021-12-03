@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include <shared_test_classes/single_layer/group_convolution.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
@@ -9,32 +10,79 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
-using groupConvLayerTestParamsSet = LayerTestsDefinitions::groupConvLayerTestParamsSet;
 using groupConvSpecificParams = LayerTestsDefinitions::groupConvSpecificParams;
+using Config = std::map<std::string, std::string>;
+
+typedef std::tuple<
+        groupConvSpecificParams,
+        ElementType,
+        ElementType,    // Input precision
+        ElementType,    // Output precision
+        InputShape, // Input shapes
+        LayerTestsUtils::TargetDevice> groupConvLayerTestParamsSet;
 
 typedef std::tuple<
         groupConvLayerTestParamsSet,
         CPUSpecificParams,
-        fusingSpecificParams> groupConvLayerCPUTestParamsSet;
+        fusingSpecificParams,
+        Config > groupConvLayerCPUTestParamsSet;
 
 class GroupConvolutionLayerCPUTest : public testing::WithParamInterface<groupConvLayerCPUTestParamsSet>,
-                                     virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
+                                     virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
         groupConvLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
-        std::tie(basicParamsSet, cpuParams, fusingParams) = obj.param;
+        Config additionalConfig;
+        std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = obj.param;
+
+        groupConvSpecificParams groupConvParams;
+        ElementType netType;
+        ElementType inType, outType;
+        InputShape inputShape;
+        std::string targetDevice;
+        std::tie(groupConvParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
+        ngraph::op::PadType padType;
+        InferenceEngine::SizeVector kernel, stride, dilation;
+        std::vector<ptrdiff_t> padBegin, padEnd;
+        size_t convOutChannels, numGroups;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::GroupConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<groupConvLayerTestParamsSet>(
-                basicParamsSet, 0));
+        result << "IS=";
+        result  << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "TS=(";
+        for (const auto& shape : inputShape.second) {
+            result << CommonTestUtils::vec2str(shape) << "_";
+        }
+        result << ")_";
+        result << "K" << CommonTestUtils::vec2str(kernel) << "_";
+        result << "S" << CommonTestUtils::vec2str(stride) << "_";
+        result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
+        result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "O=" << convOutChannels << "_";
+        result << "G=" << numGroups << "_";
+        result << "AP=" << padType << "_";
+        result << "netPRC=" << netType << "_";
+        result << "inPRC=" << inType << "_";
+        result << "outPRC=" << outType << "_";
+        result << "trgDev=" << targetDevice;
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
+
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second;
+            }
+        }
 
         return result.str();
     }
@@ -42,8 +90,8 @@ public:
 protected:
     bool isBias = false;
 
-    void checkBiasFusing(InferenceEngine::ExecutableNetwork &execNet) const {
-        auto execGraph = execNet.GetExecGraphInfo().getFunction();
+    void checkBiasFusing(ov::runtime::ExecutableNetwork &execNet) const {
+        auto execGraph = execNet.get_runtime_function();
         ASSERT_NE(nullptr, execGraph);
 
         bool foundConv = false;
@@ -67,11 +115,29 @@ protected:
         ASSERT_TRUE(foundConv) << "Can't find Convolution node";
     }
 
+    std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
+                                              ngraph::ParameterVector &params,
+                                              const std::shared_ptr<ngraph::Node> &lastNode) override {
+        auto retNode = CpuTestWithFusing::modifyGraph(ngPrc, params, lastNode);
+        for (size_t i = targetStaticShapes.front().size(); i < params.size(); ++i) {
+            const auto& shape = params[i]->get_output_partial_shape(0);
+            if (shape.is_static()) {
+                targetStaticShapes.front().push_back(shape.get_shape());
+            }
+        }
+        return retNode;
+    }
+
     void SetUp() override {
+        rel_threshold = 1e-4f;
+
         groupConvLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
-        std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
+        Config additionalConfig;
+        std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
@@ -80,9 +146,19 @@ protected:
                 isBias = postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)";
 
         groupConvSpecificParams groupConvParams;
-        std::vector<size_t> inputShape;
-        auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(groupConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
+        InputShape inputShape;
+        auto netType   = ElementType::undefined;
+        std::tie(groupConvParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
+
+        init_input_shapes({inputShape});
+
+        if (configuration.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
+            PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16]) {
+            selectedType += "_BF16";
+            rel_threshold = 1e-2f;
+        } else {
+            selectedType = makeSelectedTypeStr(selectedType, netType);
+        }
 
         ngraph::op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
@@ -90,27 +166,20 @@ protected:
         size_t convOutChannels, numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
-        if (inPrc == Precision::UNSPECIFIED) {
-            selectedType += std::string("_") + Precision(Precision::FP32).name();
-        } else {
-            selectedType += std::string("_") + inPrc.name();
-        }
-
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto params = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
-                ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
+                ngraph::builder::makeGroupConvolution(paramOuts[0], netType, kernel, stride, padBegin,
                                                       padEnd, dilation, padType, convOutChannels, numGroups));
-        function = makeNgraphFunction(ngPrc, params, groupConv, "groupConvolution");
+        function = makeNgraphFunction(netType, params, groupConv, "groupConvolution");
     }
 };
 
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    Run();
+    run();
     if (isBias) {
         checkBiasFusing(executableNetwork);
     }
@@ -218,34 +287,44 @@ const std::vector<CPUSpecificParams> CPUParams_Gemm_2D = {
         conv_gemm_2D_nspc
 };
 
+std::vector<InputShape> inShapesGemm2D = {
+    {{}, {{ 2, 12, 7, 7 }}},
+    {
+        //dynamic shape
+        {{1, 200}, 12, -1, {1, 200}},
+        { //target static shapes
+            { 2, 12, 7, 7 },
+            { 1, 12, 5, 5 }
+        }
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Gemm_2D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 12, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inShapesGemm2D),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_2D)),
-                                ::testing::ValuesIn(fusingParamsSet)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Gemm_2D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 12, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inShapesGemm2D),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_2D)),
-                                ::testing::ValuesIn(fusingParamsSetBF16)),
+                                ::testing::ValuesIn(fusingParamsSetBF16),
+                                ::testing::Values(cpuBF16PluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (Gemm 3D) ============= */
@@ -265,34 +344,44 @@ const std::vector<CPUSpecificParams> CPUParams_Gemm_3D = {
         conv_gemm_3D_nspc
 };
 
+std::vector<InputShape> inShapesGemm3D = {
+    {{}, {{ 2, 12, 7, 7, 7 }}},
+    {
+        //dynamic shape
+        {{1, 200}, 12, -1, {1, 200}, -1},
+        { //target static shapes
+            { 2, 12, 7, 7, 7 },
+            { 1, 12, 5, 5, 5 }
+        }
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_Gemm_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Gemm_3D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 12, 7, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inShapesGemm3D),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_3D)),
-                                ::testing::ValuesIn(fusingParamsSet)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_Gemm_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Gemm_3D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 12, 7, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inShapesGemm3D),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_3D)),
-                                ::testing::ValuesIn(fusingParamsSetBF16)),
+                                ::testing::ValuesIn(fusingParamsSetBF16),
+                                ::testing::Values(cpuBF16PluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (2D) ============= */
@@ -316,34 +405,44 @@ const std::vector<CPUSpecificParams> CPUParams_2D = {
         conv_avx512_2D_nspc
 };
 
+std::vector<InputShape> inputShapes2d = {
+    {{}, {{ 1, 64, 7, 7 }}},
+    {
+        //dynamic shapes
+        {-1, 64, -1, {1, 200}},
+        { //target static shapes
+            { 2, 64, 7, 7 },
+            { 1, 64, 9, 9 }
+        }
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_2D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 64, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2d),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
-                                ::testing::ValuesIn(fusingParamsSet)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_2D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 64, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2d),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx512_2D_nspc})),
-                                ::testing::ValuesIn(fusingParamsSetBF16)),
+                                ::testing::ValuesIn(fusingParamsSetBF16),
+                                ::testing::Values(cpuBF16PluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (3D) ============= */
@@ -366,34 +465,44 @@ const std::vector<CPUSpecificParams> CPUParams_3D = {
         conv_avx512_3D_nspc
 };
 
+std::vector<InputShape> inputShapes3d = {
+    {{}, {{ 1, 64, 7, 7, 7 }}},
+    {
+        //dynamic shapes
+        {-1, 64, -1, {1, 200}, -1},
+        { //target static shapes
+            { 2, 64, 7, 7, 7 },
+            { 1, 64, 9, 9, 9 }
+        }
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_3D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 64, 7, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes3d),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
-                                ::testing::ValuesIn(fusingParamsSet)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_BF16, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_3D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 64, 7, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes3d),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D, conv_avx512_3D_nspc})),
-                                ::testing::ValuesIn(fusingParamsSetBF16)),
+                                ::testing::ValuesIn(fusingParamsSetBF16),
+                                ::testing::Values(cpuBF16PluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 2D) ============= */
@@ -417,19 +526,30 @@ const std::vector<CPUSpecificParams> CPUParams_DW_2D = {
         conv_avx512_dw_2D_nspc
 };
 
+std::vector<InputShape> inputShapes2dDW = {
+    {{}, {{ 2, 32, 7, 7 }}},
+    {
+        //dynamic shapes
+        {-1, 32, -1, {1, 200}},
+        { //target static shapes
+            { 2, 32, 7, 7 },
+            { 1, 32, 9, 9 }
+        }
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_DW_2D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 32, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2dDW),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_2D)),
-                                ::testing::ValuesIn(fusingParamsSet)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 
@@ -437,15 +557,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_BF16, GroupConvolutionLayerCPUTes
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_DW_2D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(Precision::BF16),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 32, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2dDW),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D, conv_avx512_dw_2D_nspc})),
-                                ::testing::ValuesIn(fusingParamsSetBF16)),
+                                ::testing::ValuesIn(fusingParamsSetBF16),
+                                ::testing::Values(cpuBF16PluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 3D) ============= */
@@ -469,57 +588,69 @@ const std::vector<CPUSpecificParams> CPUParams_DW_3D = {
         conv_avx512_dw_3D_nspc
 };
 
+std::vector<InputShape> inputShapes3dDW = {
+    {{}, {{ 2, 32, 7, 7, 7 }}},
+    {
+        //dynamic shapes
+        {-1, 32, -1, {1, 200}, -1},
+        { //target static shapes
+            { 2, 32, 7, 7, 7 },
+            { 1, 32, 9, 9, 9 }
+        }
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_DW_3D,
-                                        ::testing::Values(Precision::FP32),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(InferenceEngine::Layout::ANY),
-                                        ::testing::Values(std::vector<size_t >({2, 32, 7, 7, 7})),
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes3dDW),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_3D)),
-                                ::testing::ValuesIn(fusingParamsSet)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 /* ========= */
 
 
 /* ============= SINGLE TEST CASES ============= */
 using VecFusingParams = std::vector<fusingSpecificParams>;
-using PrcConnectedParams = std::tuple<Precision, Precision,  VecFusingParams>; // inPrc, outPrc, FusingParamsSet
-using VecPrcConnectedParams = std::vector<PrcConnectedParams>;
+using ConfigRelatedParams = std::tuple<Config,  VecFusingParams>; // Plugin config FusingParamsSet
+using VecConfigRelatedParams = std::vector<ConfigRelatedParams>;
 
 std::vector<groupConvLayerCPUTestParamsSet> makeSingleGroupConvCPUTestCases(SizeVector kernels, SizeVector strides, SizeVector dilations,
                                                                             std::vector<ptrdiff_t> padBegins, std::vector<ptrdiff_t> padEnds,
                                                                             ngraph::op::PadType padType, int groups, int mb, SizeVector spDims,
                                                                             int inGroupSize, int outGroupSize,
                                                                             const std::vector<CPUSpecificParams>& CPUParams,
-                                                                            const VecPrcConnectedParams& vecPrcConnectedParams) {
+                                                                            const VecConfigRelatedParams& vecConfigRelatedParams) {
     int inChannels = groups * inGroupSize;
     int outChannels = groups * outGroupSize;
 
-    SizeVector inputShapes;
-    inputShapes.push_back(mb);
-    inputShapes.push_back(inChannels);
-    inputShapes.insert(inputShapes.end(), spDims.begin(), spDims.end());
+    InputShape inputShapes;
+    SizeVector targetShape;
+    targetShape.push_back(mb);
+    targetShape.push_back(inChannels);
+    targetShape.insert(targetShape.end(), spDims.begin(), spDims.end());
+    inputShapes.second.push_back({targetShape});
 
     groupConvSpecificParams specificParams(kernels, strides, padBegins, padEnds, dilations, outChannels, groups, padType);
     std::vector<groupConvLayerCPUTestParamsSet> retVector;
 
-    for (auto& prcConnectedParams : vecPrcConnectedParams) {
-        Precision inPrc, outPrc;
+    for (auto& configRelatedParams : vecConfigRelatedParams) {
         VecFusingParams fusingParams;
-        std::tie(inPrc, outPrc, fusingParams) = prcConnectedParams;
+        Config config;
+        std::tie(config, fusingParams) = configRelatedParams;
 
-        groupConvLayerTestParamsSet basicParamsSet(specificParams, Precision::FP32, inPrc, outPrc,
-                                                   InferenceEngine::Layout::ANY, InferenceEngine::Layout::ANY,
+        groupConvLayerTestParamsSet basicParamsSet(specificParams, ElementType::f32, ElementType::undefined, ElementType::undefined,
                                                    inputShapes, CommonTestUtils::DEVICE_CPU);
 
         for (auto &item : CPUParams) {
             for (auto &fusingParam : fusingParams) {
-                retVector.push_back(groupConvLayerCPUTestParamsSet(basicParamsSet, item, fusingParam));
+                retVector.push_back(groupConvLayerCPUTestParamsSet(basicParamsSet, item, fusingParam, config));
             }
         }
     }
@@ -546,15 +677,13 @@ std::vector<groupConvLayerCPUTestParamsSet> generateSingleGroupConvCPUTestCases(
 
 /* COMMON PARAMS */
 
-const VecPrcConnectedParams vecPrcConnectParamsFP32 = {PrcConnectedParams{Precision::FP32, Precision::FP32, fusingParamsSet}};
-const VecPrcConnectedParams vecPrcConnectParams = {PrcConnectedParams{Precision::FP32, Precision::FP32, fusingParamsSet},
-                                                   PrcConnectedParams{Precision::BF16, Precision::BF16, fusingParamsSetBF16},
-                                                   PrcConnectedParams{Precision::BF16, Precision::FP32, fusingParamsSetBF16}};
+const VecConfigRelatedParams vecPrcConnectParamsFP32 = {ConfigRelatedParams{cpuEmptyPluginConfig, fusingParamsSet}};
+const VecConfigRelatedParams vecPrcConnectParams = {ConfigRelatedParams{cpuEmptyPluginConfig, fusingParamsSet},
+                                                   ConfigRelatedParams{cpuBF16PluginConfig, fusingParamsSetBF16}};
 
-const VecPrcConnectedParams vecPrcConnectParamsFP32Default = {PrcConnectedParams{Precision::FP32, Precision::FP32, VecFusingParams{emptyFusingSpec}}};
-const VecPrcConnectedParams vecPrcConnectParamsDefault = {PrcConnectedParams{Precision::FP32, Precision::FP32, VecFusingParams{emptyFusingSpec}},
-                                                          PrcConnectedParams{Precision::BF16, Precision::BF16, VecFusingParams{emptyFusingSpec}},
-                                                          PrcConnectedParams{Precision::BF16, Precision::FP32, VecFusingParams{emptyFusingSpec}}};
+const VecConfigRelatedParams vecPrcConnectParamsFP32Default = {ConfigRelatedParams{cpuEmptyPluginConfig, VecFusingParams{emptyFusingSpec}}};
+const VecConfigRelatedParams vecPrcConnectParamsDefault = {ConfigRelatedParams{cpuEmptyPluginConfig, VecFusingParams{emptyFusingSpec}},
+                                                          ConfigRelatedParams{cpuBF16PluginConfig, VecFusingParams{emptyFusingSpec}}};
 
 /* ============= GEMM GroupConvolution ============= */
 const std::vector<groupConvLayerCPUTestParamsSet> gemmGroupConvTestCases = generateSingleGroupConvCPUTestCases(
@@ -718,7 +847,8 @@ const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_GroupConvTestCases 
                                         2, 1, {10, 10, 10}, 16, 16, avx512_GroupConv_3D, vecPrcConnectParams)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX512_GroupConv, GroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice(JIT_AVX512_GroupConvTestCases)),
+INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX512_GroupConv, GroupConvolutionLayerCPUTest,
+ ::testing::ValuesIn(filterParamsSetForDevice(JIT_AVX512_GroupConvTestCases)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT SSE42 DW GroupConvolution ============= */
@@ -860,19 +990,30 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
         conv_avx512_1D
 };
 
+std::vector<InputShape> inputShapes1d = {
+    {{}, {{ 2, 64, 7 }}},
+    {
+        //dynamic shapes
+        { {-1, 64, -1} },
+        { //target static shapes
+            { 2, 64, 7 },
+            { 1, 64, 14 }
+        }
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_1D, GroupConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_1D,
-            ::testing::Values(Precision::FP32),
-            ::testing::Values(Precision::FP32),
-            ::testing::Values(Precision::UNSPECIFIED),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 64, 7})),
+            ::testing::Values(ElementType::f32),
+            ::testing::Values(ElementType::f32),
+            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(inputShapes1d),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D)),
-        ::testing::Values(fusingAddPerChannel)),
+        ::testing::Values(fusingAddPerChannel),
+        ::testing::Values(cpuEmptyPluginConfig)),
     GroupConvolutionLayerCPUTest::getTestCaseName);
 
 } // namespace

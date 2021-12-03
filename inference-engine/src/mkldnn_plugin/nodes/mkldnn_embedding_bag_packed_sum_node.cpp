@@ -13,10 +13,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNEmbeddingBagPackedSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto embBagPackedSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagPackedSum>(op);
         if (!embBagPackedSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagPackedSum operation from opset v3.";
@@ -35,10 +31,8 @@ MKLDNNEmbeddingBagPackedSumNode::MKLDNNEmbeddingBagPackedSumNode(const std::shar
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (op->get_input_shape(INDICES_IDX).size() != 2)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid shape.";
-    _batch = op->get_input_shape(INDICES_IDX)[0];
-    _indicesPerBag = op->get_input_shape(INDICES_IDX)[1];
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul)
+        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
 }
 
 void MKLDNNEmbeddingBagPackedSumNode::initSupportedPrimitiveDescriptors() {
@@ -68,6 +62,20 @@ void MKLDNNEmbeddingBagPackedSumNode::initSupportedPrimitiveDescriptors() {
         inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+}
+
+void MKLDNNEmbeddingBagPackedSumNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNEmbeddingBagPackedSumNode::prepareParams() {
+    _batch = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
+    _indicesPerBag = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[1];
+    MKLDNNEmbeddingBagSumNode::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
 }
 
 void MKLDNNEmbeddingBagPackedSumNode::initFromInputs() {
