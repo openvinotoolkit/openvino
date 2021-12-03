@@ -14,7 +14,7 @@ template <class T>
 void shape_infer(const ShuffleChannels* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
 
-    const auto group = op->get_group();
+    const auto& group = op->get_group();
     NODE_VALIDATION_CHECK(op, group >= 1, "The 'group' parameter must be greater or equal to 1.");
 
     const auto& input_shape = input_shapes[0];
@@ -24,7 +24,7 @@ void shape_infer(const ShuffleChannels* op, const std::vector<T>& input_shapes, 
         const auto input_rank_value = input_shape.size();
         NODE_VALIDATION_CHECK(op, input_rank_value >= 1, "The input tensor's shape is expected to be at least 1D.");
 
-        const auto axis = op->get_axis();
+        const auto& axis = op->get_axis();
         size_t axis_zb = static_cast<size_t>(axis >= 0 ? axis : (axis + static_cast<int64_t>(input_rank_value)));
         NODE_VALIDATION_CHECK(op,
                               axis_zb < input_rank_value,

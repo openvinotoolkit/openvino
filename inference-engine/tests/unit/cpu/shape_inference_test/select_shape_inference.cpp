@@ -36,7 +36,7 @@ TEST(StaticShapeInferenceTest, SelectTest) {
         }
 
         {
-            std::vector<StaticShape> static_input_shapes = {StaticShape{4}, StaticShape{2, 4}, StaticShape{}},
+            std::vector<StaticShape> static_input_shapes = {StaticShape{4}, StaticShape{2, 4}, StaticShape{4}},
                                      static_output_shapes = {StaticShape{}};
             shape_inference(select.get(), static_input_shapes, static_output_shapes);
             ASSERT_EQ(static_output_shapes[0], StaticShape({2, 4}));
@@ -51,7 +51,7 @@ TEST(StaticShapeInferenceTest, SelectTest) {
                                                        ptrue,
                                                        pfalse,
                                                        op::AutoBroadcastSpec{op::AutoBroadcastType::PDPD, 1});
-        std::vector<StaticShape> static_input_shapes = {StaticShape{4}, StaticShape{4}, StaticShape{2, 4}},
+        std::vector<StaticShape> static_input_shapes = {StaticShape{4}, StaticShape{2, 4}, StaticShape{4}},
                                  static_output_shapes = {StaticShape{}};
         shape_inference(select.get(), static_input_shapes, static_output_shapes);
         ASSERT_EQ(static_output_shapes[0], StaticShape({2, 4}));
