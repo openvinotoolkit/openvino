@@ -25,7 +25,7 @@ addIeTarget(
         PRIVATE
             ngraphFunctions
             pugixml::static
-            frontend_manager
+            frontend_common
     INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
@@ -35,4 +35,4 @@ ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
-openvino_developer_export_targets(COMPONENT inference_engine_tests TARGETS frontend_manager)
+openvino_developer_export_targets(COMPONENT inference_engine_tests TARGETS frontend_common)

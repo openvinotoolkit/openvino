@@ -4,7 +4,7 @@
 
 #include "functional_test_utils/layer_test_utils/external_network_tool.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "frontend_manager/frontend_manager.hpp"
+#include "manager.hpp"
 
 using namespace LayerTestsUtils;
 
