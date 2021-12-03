@@ -237,7 +237,14 @@ def get_duration_in_secs(target_device):
 
 def check_for_static(app_input_info):
     for info in app_input_info:
-        if info.is_dynamic and len(info.shapes) > 1:
+        if info.is_dynamic:
+            return False
+    return True
+
+
+def can_measure_as_static(app_input_info):
+    for info in app_input_info:
+        if info.is_dynamic and (len(info.shapes) > 1 or info.original_shape.is_static):
             return False
     return True
 
@@ -427,6 +434,7 @@ class AppInputInfo:
     def __init__(self):
         self.element_type = None
         self.layout = Layout()
+        self.original_shape = None
         self.partial_shape = None
         self.data_shapes = []
         self.scale = []
@@ -549,6 +557,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Input name
         info.name = input_names[i]
         # Shape
+        info.original_shape = parameters[i].get_partial_shape()
         if info.name in shape_map.keys():
             info.partial_shape = parse_partial_shape(shape_map[info.name])
             reshape = True

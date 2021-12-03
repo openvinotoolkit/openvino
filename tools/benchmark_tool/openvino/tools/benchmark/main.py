@@ -18,7 +18,7 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
-    check_for_static
+    check_for_static, can_measure_as_static
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
@@ -347,21 +347,22 @@ def run(args):
         data_queue = get_input_data(paths_to_input, app_inputs_info)
 
         static_mode = check_for_static(app_inputs_info)
-        if not static_mode and benchmark.api_type == 'sync':
+        allow_inference_only_or_sync = can_measure_as_static(app_inputs_info)
+        if not allow_inference_only_or_sync and benchmark.api_type == 'sync':
             raise Exception("Benchmarking of the model with dynamic shapes is available for async API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior.")
-
-        # update batch size in case dynamic network with one data_shape
-        if static_mode and batch_size.is_dynamic:
-            batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
 
         if benchmark.inference_only == None:
             if static_mode:
                 benchmark.inference_only = True
             else:
                 benchmark.inference_only = False
-        elif benchmark.inference_only and not static_mode:
+        elif benchmark.inference_only and not allow_inference_only_or_sync:
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
+
+        # update batch size in case dynamic network with one data_shape
+        if benchmark.inference_only and batch_size.is_dynamic:
+            batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
 
         benchmark.latency_groups = get_latency_groups(app_inputs_info)
 
