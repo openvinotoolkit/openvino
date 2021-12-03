@@ -43,8 +43,8 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
-    const VectorDims& getWeightDims() { return getInputShapeAtPort(1).getStaticDims(); }
-    const std::vector<ptrdiff_t>& getStride() { return stride; }
+    const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
+    const std::vector<ptrdiff_t>& getStride() const { return stride; }
 
     void prepareParams() override;
     void execute(mkldnn::stream strm) override;
@@ -57,16 +57,16 @@ private:
         protected:
             class IntermReorder {
                 public:
-                    IntermReorder(MKLDNNMemoryPtr memFrom_, const mkldnn::memory::desc& descTo, const mkldnn::engine& engine);
-                    IntermReorder(const mkldnn::memory::desc& descFrom, MKLDNNMemoryPtr memTo_, const mkldnn::engine& engine);
-                    MKLDNNMemoryPtr getFromMem() const { return memFrom; }
-                    MKLDNNMemoryPtr getToMem() const { return memTo; }
+                    IntermReorder(MKLDNNMemoryPtr memFrom, const mkldnn::memory::desc& descTo, const mkldnn::engine& engine);
+                    IntermReorder(const mkldnn::memory::desc& descFrom, MKLDNNMemoryPtr memTo, const mkldnn::engine& engine);
+                    MKLDNNMemoryPtr getFromMem() const { return m_memFrom; }
+                    MKLDNNMemoryPtr getToMem() const { return m_memTo; }
                     void exec(mkldnn::stream strm);
 
                 private:
-                    MKLDNNMemoryPtr memFrom;
-                    MKLDNNMemoryPtr memTo;
-                    mkldnn::reorder reorder;
+                    MKLDNNMemoryPtr m_memFrom;
+                    MKLDNNMemoryPtr m_memTo;
+                    mkldnn::reorder m_reorder;
             };
 
         public:
@@ -130,9 +130,9 @@ private:
     void initPadding(std::shared_ptr<ngraph::Node> op, const Shape &inShape, const std::vector<int32_t>& outSpDims);
     void initPaddingR(const Shape &inShape, const Shape &outShape);
     std::vector<int32_t> get3rdInputData() const;
-    VectorDims computeInShapeByOutShape(const std::vector<int32_t>& outSpDims,
-                                        const ov::CoordinateDiff& pb,
-                                        const ov::CoordinateDiff& pe) const;
+    VectorDims computeOptInDummyShape(const std::vector<int32_t>& outSpDims,
+                                      const ov::CoordinateDiff& pb,
+                                      const ov::CoordinateDiff& pe) const;
 
     DefaultDeconvDescs createDescriptorInternalDefault(const mkldnn::memory::desc& in_candidate,
                                                        const mkldnn::memory::desc& wgh_candidate,

@@ -62,7 +62,7 @@ MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::N
 
         auto convBackprop = std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(op);
         auto groupConvBackprop = std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolutionBackpropData>(op);
-        const auto& weightDims = getInputShapeAtPort(1).getStaticDims();
+        const auto& weightDims = getWeightDims();
 
         if (convBackprop) {
             algorithm = DeconvolutionCommon;
@@ -218,7 +218,7 @@ bool MKLDNNDeconvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
 }
 
 void MKLDNNDeconvolutionNode::initPadding(std::shared_ptr<ngraph::Node> op, const Shape &inDims, const std::vector<int32_t>& outSpDims) {
-    std::vector<ov::StaticShape> input_shapes{inDims.getStaticDims(), getInputShapeAtPort(1).getStaticDims()};
+    std::vector<ov::StaticShape> input_shapes{inDims.getStaticDims(), getWeightDims()};
     ov::StaticShape output_shape_input;
     if (externOutShape) {
         IE_ASSERT(outSpDims.size() == getInputShapeAtPort(2).getStaticDims()[0]);
@@ -237,11 +237,11 @@ void MKLDNNDeconvolutionNode::initPadding(std::shared_ptr<ngraph::Node> op, cons
     }
 }
 
-VectorDims MKLDNNDeconvolutionNode::computeInShapeByOutShape(const std::vector<int32_t>& outSpDims,
-                                                             const ov::CoordinateDiff& pb,
-                                                             const ov::CoordinateDiff& pe) const {
+VectorDims MKLDNNDeconvolutionNode::computeOptInDummyShape(const std::vector<int32_t>& outSpDims,
+                                                           const ov::CoordinateDiff& pb,
+                                                           const ov::CoordinateDiff& pe) const {
     auto inputDims = inShape.getStaticDims();
-    const auto& weightDims = getInputShapeAtPort(1).getStaticDims();
+    const auto& weightDims = getWeightDims();
     const size_t wghOffset = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
     for (size_t i = 0; i < inputDims.size() - 2; i++) {
         inputDims[2 + i] = ((outSpDims[i] - (dilation[i] + 1) * (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
@@ -299,7 +299,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
             }
             ov::CoordinateDiff pb = autoPad ? ov::CoordinateDiff(paddingL.size(), 0) : paddingL;
             ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
-            inShape = Shape(computeInShapeByOutShape(currentOutSpatialDims, pb, pe));
+            inShape = Shape(computeOptInDummyShape(currentOutSpatialDims, pb, pe));
         }
         initPadding(opToShapeInfer, inShape, currentOutSpatialDims);
         outShape = Shape(shapeInferInternal(inShape.getStaticDims(), currentOutSpatialDims));
@@ -307,7 +307,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
     initPaddingR(inShape, outShape);
 
     if (isInt8) {
-        int8WeightDims = getInputShapeAtPort(1).getStaticDims();
+        int8WeightDims = getWeightDims();
         //  WA: if int8 deconvolution is supported, we create internal weights blob in IO format
         std::swap(int8WeightDims[withGroups + 0], int8WeightDims[withGroups + 1]);
         internalBlobs.push_back(createWeiBlobAsIO(int8WeightDims));
@@ -328,7 +328,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
 void MKLDNNDeconvolutionNode::initPaddingR(const Shape &inShape, const Shape &outShape) {
     for (int i = 0; i < paddingR.size(); i++) {
         int with_group = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
-        const auto& weightDims = getInputShapeAtPort(1).getStaticDims();
+        const auto& weightDims = getWeightDims();
         int krn = weightDims[with_group + 2 + i];
         int src = outShape.getStaticDims()[2 + i];
         int dst = inShape.getStaticDims()[2 + i];
@@ -438,7 +438,7 @@ std::vector<VectorDims> MKLDNNDeconvolutionNode::shapeInfer() const {
 VectorDims MKLDNNDeconvolutionNode::shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const {
     std::vector<ov::StaticShape> inputShapes = {
             inDims,
-            getInputShapeAtPort(1).getStaticDims()
+            getWeightDims()
     };
 
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> inputValues;
@@ -527,10 +527,10 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
                                                                                         memory::data_type::f32,
                                                                                         memory::format_tag::any);
 
-            std::shared_ptr<MKLDNNDescriptor> reorderDeconvDesc = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc, false);
-            auto reordItpd = reorderDeconvDesc->createPrimitiveDescriptorIterator(getEngine(), *attr);
-            if (static_cast<bool>(reordItpd)) {
-                auto prim_desc = convolution_backward_data::primitive_desc(reordItpd.get());
+            std::shared_ptr<MKLDNNDescriptor> anyDeconvDesc = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc, false);
+            auto anyDeconvItpd = anyDeconvDesc->createPrimitiveDescriptorIterator(getEngine(), *attr);
+            if (static_cast<bool>(anyDeconvItpd)) {
+                auto prim_desc = convolution_backward_data::primitive_desc(anyDeconvItpd.get());
                 execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, getEngine());
                 return;
             }
@@ -567,7 +567,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
         }
         pAttrLocal = pAttr;
         if (autoPad || externOutShape) {
-            initPadding(opToShapeInfer, inMemoryDesc->getShape(), get3rdInputData());
+            initPadding(opToShapeInfer, inMemoryDesc->getShape(), externOutShape ? get3rdInputData() : std::vector<int32_t>{});
         }
         initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
     } else {
@@ -665,7 +665,7 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<MemoryDescPtr> 
     auto dnnlOutDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*outDesc);
     auto out_candidate = dnnlOutDesc.getDnnlDesc();
 
-    // grouping and autoblicking is not compatible
+    // grouping and autoblocking is not compatible
     if ((withGroups && !isDW) && (dnnlInDesc.blocksExtended() || dnnlOutDesc.blocksExtended()))
         return;
 
@@ -673,7 +673,7 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<MemoryDescPtr> 
         mkldnn::memory::desc wgh_candidate(MKLDNNExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
         descs.emplace_back(createDescriptorInternalInt8(in_candidate, wgh_candidate, out_candidate));
     } else {
-        mkldnn::memory::desc wgh_candidate(MKLDNNExtensionUtils::convertToDnnlDims(getInputShapeAtPort(1).getStaticDims()),
+        mkldnn::memory::desc wgh_candidate(MKLDNNExtensionUtils::convertToDnnlDims(getWeightDims()),
                                            dnnlInDesc.getDataType(), memory::format_tag::any);
         for (auto alg : {mkldnn::algorithm::convolution_winograd, mkldnn::algorithm::convolution_direct}) {
             std::shared_ptr<convolution_backward_data::desc> deconv_desc;
@@ -724,26 +724,26 @@ InferenceEngine::Precision MKLDNNDeconvolutionNode::getRuntimePrecision() const 
     return getMaxPrecision(inputPrecisions);
 }
 
-MKLDNNDeconvolutionNode::DeconvExecutor::IntermReorder::IntermReorder(MKLDNNMemoryPtr memFrom_,
+MKLDNNDeconvolutionNode::DeconvExecutor::IntermReorder::IntermReorder(MKLDNNMemoryPtr memFrom,
                                                                       const mkldnn::memory::desc& descTo,
-                                                                      const mkldnn::engine& engine) : memFrom(memFrom_) {
-    memTo = std::make_shared<MKLDNNMemory>(engine);
-    memTo->Create(MKLDNNExtensionUtils::makeDescriptor(descTo));
-    reorder = mkldnn::reorder(memFrom->GetPrimitive(), memTo->GetPrimitive());
+                                                                      const mkldnn::engine& engine) : m_memFrom(memFrom) {
+    m_memTo = std::make_shared<MKLDNNMemory>(engine);
+    m_memTo->Create(MKLDNNExtensionUtils::makeDescriptor(descTo));
+    m_reorder = mkldnn::reorder(m_memFrom->GetPrimitive(), m_memTo->GetPrimitive());
 }
 
 MKLDNNDeconvolutionNode::DeconvExecutor::IntermReorder::IntermReorder(const mkldnn::memory::desc& descFrom,
-                                                                      MKLDNNMemoryPtr memTo_,
-                                                                      const mkldnn::engine& engine) : memTo(memTo_) {
-    memFrom = std::make_shared<MKLDNNMemory>(engine);
-    memFrom->Create(MKLDNNExtensionUtils::makeDescriptor(descFrom));
-    reorder = mkldnn::reorder(memFrom->GetPrimitive(), memTo->GetPrimitive());
+                                                                      MKLDNNMemoryPtr memTo,
+                                                                      const mkldnn::engine& engine) : m_memTo(memTo) {
+    m_memFrom = std::make_shared<MKLDNNMemory>(engine);
+    m_memFrom->Create(MKLDNNExtensionUtils::makeDescriptor(descFrom));
+    m_reorder = mkldnn::reorder(m_memFrom->GetPrimitive(), m_memTo->GetPrimitive());
 }
 
 void MKLDNNDeconvolutionNode::DeconvExecutor::IntermReorder::exec(mkldnn::stream strm) {
-    auto src = memFrom->GetPrimitive();
-    auto dst = memTo->GetPrimitive();
-    reorder.execute(strm, src, dst);
+    auto src = m_memFrom->GetPrimitive();
+    auto dst = m_memTo->GetPrimitive();
+    m_reorder.execute(strm, src, dst);
 }
 
 void MKLDNNDeconvolutionNode::DeconvExecutor::exec(mkldnn::stream strm) {
