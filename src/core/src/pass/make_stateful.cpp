@@ -26,22 +26,45 @@ ov::pass::MakeStateful::ParamResPairs find_param_results_by_names(
     const auto& params = func->get_parameters();
     const auto& results = func->get_results();
 
+    std::set<Node*> uniq_params;
+    std::set<Node*> uniq_res;
+
     // find corresponding param and result by name and add to the list
     for (const auto& param_res : param_res_names) {
         const auto& param_name = param_res.first;
         const auto& res_name = param_res.second;
-
         auto param = std::find_if(params.begin(), params.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
-            return node->get_friendly_name() == param_name;
+            const auto& possible_names = node->output(0).get_names();
+            return possible_names.find(param_name) != possible_names.end();
         });
         NGRAPH_CHECK(param != params.end(), "Parameter node with name = ", param_name, "doesn't exist in the function");
+        uniq_params.insert(param->get());
 
         auto res = std::find_if(results.begin(), results.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
-            return node->get_friendly_name() == res_name;
+            const auto& possible_names = node->output(0).get_names();
+            return possible_names.find(res_name) != possible_names.end();
         });
+
         NGRAPH_CHECK(res != results.end(), "Result node with name = ", res_name, " doesn't exist in the function");
 
-        pairs_to_replace.emplace_back(*param, *res);
+        // In case of several Results connected to one output tensor,
+        // We can't determine what result we need to take exactly.
+        // But we can take first unused, the order is not important, data is the same.
+        std::shared_ptr<opset8::Result> unused_res;
+        for (const auto& target_in : (*res)->input_value(0).get_target_inputs()) {
+            auto is_target_res = std::dynamic_pointer_cast<opset8::Result>(target_in.get_node()->shared_from_this());
+            if (!is_target_res) {
+                continue;
+            }
+            if (uniq_res.find(is_target_res.get()) == uniq_res.end()) {
+                unused_res = is_target_res;
+                break;
+            }
+        }
+        NGRAPH_CHECK(unused_res != nullptr, "");
+        uniq_res.insert(unused_res.get());
+
+        pairs_to_replace.emplace_back(*param, unused_res);
     }
     return pairs_to_replace;
 }
