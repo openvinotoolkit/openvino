@@ -79,16 +79,6 @@ def _update_config_path(args):
             args.config = os.path.join(config_template_folder, 'accuracy_aware_quantization_template.json')
 
 
-def print_optimizer_config(config):
-    # log algorithms settings
-    optimizer_string = 'Optimizer: {}'.format(config.name)
-    optimizer_string += '\n Parameters:'
-    for name, value in config.params.items():
-        optimizer_string += '\n\t{: <27s}: {}'.format(name, value)
-    optimizer_string += '\n {}'.format('=' * 75)
-    logger.info(optimizer_string)
-
-
 def print_algo_configs(config):
     # log algorithms settings
     configs_string = 'Creating pipeline:'
@@ -120,12 +110,7 @@ def optimize(config):
     pipeline = create_pipeline(
         config.compression.algorithms, engine, 'CLI')
 
-    if 'optimizer' in config:
-        print_optimizer_config(config.optimizer)
-        optimizer = OPTIMIZATION_ALGORITHMS.get(config.optimizer.name)(config.optimizer, pipeline, engine)
-        compressed_model = optimizer.run(model)
-    else:
-        compressed_model = pipeline.run(model)
+    compressed_model = pipeline.run(model)
 
     if not config.model.keep_uncompressed_weights:
         compress_model_weights(compressed_model)
