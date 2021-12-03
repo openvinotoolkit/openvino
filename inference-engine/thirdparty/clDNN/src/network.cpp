@@ -214,6 +214,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     }
 
     allocate_primitives();
+    configure_primitives_second_output();
     check_names();
     build_insts_deps();
     build_exec_order();
@@ -549,6 +550,41 @@ void network::allocate_primitives() {
     for (auto const& node : _program->get_processing_order()) {
         auto prim = _primitives[node->id()];
         prim->allocate_internal_buffers();
+    }
+}
+
+void network::configure_primitives_second_output() {
+    std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
+    for (auto& inst : _primitives) {
+        auto& node = inst.second->get_node();
+
+        if (!node.is_type<mutable_data>())
+            continue;
+
+        mutable_datas_ptrs[node.as<mutable_data>().get_attached_memory_ptr()].push_back(&node);
+    }
+
+    for (auto item : mutable_datas_ptrs) {
+        if (item.second.size() != 2)
+            continue;
+
+        auto is_first_node_input_md = [&](const cldnn::program_node* first,
+                                          const cldnn::program_node* second) {
+            for (auto user : first->get_users()) {
+                for (auto next_user : user->get_users()) {
+                    if (next_user == second)
+                        return true;
+                }
+            }
+            return false;
+        };
+
+        auto is_first_node_input = is_first_node_input_md(item.second[0], item.second[1]);
+
+        auto input_md_inst = is_first_node_input ? _primitives[item.second[0]->id()] : _primitives[item.second[1]->id()];
+        auto output_md_inst = is_first_node_input ? _primitives[item.second[1]->id()] : _primitives[item.second[0]->id()];
+
+        output_md_inst->set_output_memory(input_md_inst->output_memory_ptr(), false);
     }
 }
 
