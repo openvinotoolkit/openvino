@@ -62,14 +62,13 @@ protected:
 public:
     static primitive_impl* create(const convolution_node& arg) {
         const auto& primitive = arg.get_primitive();
-        const auto& input_layout = arg.input().get_output_layout();
         const auto& weights_layout = arg.weights(0).get_output_layout();
         const auto& weights_size = weights_layout.size;
 
-        const auto& split = primitive->split();
+        const auto &split = primitive->split();
         const auto& stride = primitive->stride;
         const auto& dilation = primitive->dilation;
-        const auto& input_offset = primitive->input_offset;
+        const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = arg.get_transposed();
@@ -78,12 +77,6 @@ public:
             arg, split, 1, primitive->grouped_weights_shape);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
-
-        const auto additional_offset = tensor::max(input_offset, (tensor) 0);
-        if (additional_offset != (tensor) 0) {
-            conv_params.inputs[0] =
-                convert_data_tensor(input_layout, split, additional_offset);
-        }
 
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(arg.trans().get_output_layout()));
@@ -103,9 +96,9 @@ public:
         uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
         conv_params.filterSize = { kx, ky, kz };
 
-        conv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
-                               (uint32_t)std::max(-input_offset.spatial[1], 0),
-                               (uint32_t)std::max(-input_offset.spatial[2], 0)};
+        conv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
+                               (uint32_t)std::max(pad.spatial[1], 0),
+                               (uint32_t)std::max(pad.spatial[2], 0)};
 
         conv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
         conv_params.dilation = {(uint32_t)dilation.spatial[0],
@@ -161,38 +154,50 @@ namespace detail {
 
 attach_convolution_impl::attach_convolution_impl() {
     implementation_map<convolution>::add(impl_types::ocl, convolution_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::yxfb),
+        std::make_tuple(data_types::f16, format::yxfb),
+
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
+
         std::make_tuple(data_types::f32, format::winograd_2x3_s1_data),
         std::make_tuple(data_types::f16, format::winograd_2x3_s1_data),
+
+        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::byxf),
         std::make_tuple(data_types::i8, format::byxf),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
 

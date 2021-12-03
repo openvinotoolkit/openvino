@@ -38,7 +38,8 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 */
 inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims,
                                                  bool weakComparison = false) {
-    bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) : dimsEqualStrong;
+    bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) :
+                                                         static_cast<bool (*)(size_t, size_t)>(dimsEqualStrong);
     if (secondInputDims.size() > firstInputDims.size())
         return false;
     if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)

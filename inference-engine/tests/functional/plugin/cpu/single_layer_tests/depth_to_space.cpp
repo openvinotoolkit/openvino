@@ -58,7 +58,6 @@ public:
 protected:
     void SetUp() override {
         InputShape shapes;
-        ElementType inType;
         DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         CPUSpecificParams cpuParams;
@@ -68,15 +67,13 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inType).name();
+        selectedType = makeSelectedTypeStr(selectedType, inType);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto d2s = ngraph::builder::makeDepthToSpace(params[0], mode, blockSize);
-        d2s->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
-        function = std::make_shared<ngraph::Function>(results, params, "DepthToSpaceCPU");
+        function = makeNgraphFunction(inType, params, d2s, "DepthToSpace");
     }
 };
 
@@ -84,8 +81,7 @@ TEST_P(DepthToSpaceLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: need to uncomment when this method will be updated
-    // CheckPluginRelatedResults(executableNetwork, "DepthToSpace");
+    CheckPluginRelatedResults(executableNetwork, "DepthToSpace");
 }
 
 namespace {

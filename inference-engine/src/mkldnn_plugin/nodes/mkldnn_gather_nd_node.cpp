@@ -8,7 +8,7 @@
 #include <mkldnn_types.h>
 #include "ie_parallel.hpp"
 #include "mkldnn_gather_nd_node.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <precision_utils.h>
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
@@ -16,15 +16,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+#define THROW_ERROR IE_THROW() << "GatherND layer with name '" << getName() << "' "
+
 bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-        const auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op);
-        if (!gatherElementsOp) {
-            errorMessage = "Node is not an instance of the GatherND operation from operation set v5.";
+        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v5::GatherND::get_type_info_static(), ngraph::op::v8::GatherND::get_type_info_static())) {
+            errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }
     } catch (...) {
@@ -40,58 +37,42 @@ MKLDNNGatherNDNode::MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op, 
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    _errorPrefix = std::string("Layer GatherND with name '") + op->get_friendly_name() + "'";
 
-    if (op->get_input_size() != 2 || op->get_output_size() != 1)
-        IE_THROW() << _errorPrefix << " has invalid number of input/output edges.";
+    if (inputShapes.size() != 2 && outputShapes.size() != 1)
+        THROW_ERROR << "has invalid number of input/output edges.";
 
-    const auto& dataDims = op->get_input_shape(_dataIndex);
-    const auto& indicesDims = op->get_input_shape(_indicesIndex);
+    const size_t dataInputRank = getInputShapeAtPort(GATHERND_DATA).getRank();
+    const size_t indicesInputRank = getInputShapeAtPort(GATHERND_INDEXES).getRank();
 
-    auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op);
-    _batchDims = gatherNdOp->get_batch_dims();
-    if (_batchDims >= std::min(dataDims.size(), indicesDims.size()))
-        IE_THROW() << _errorPrefix << " has invalid batch_dims attribute: " << _batchDims;
-
-    _batchNum = 1lu;
-    for (size_t i = 0; i < _batchDims; i++) {
-        _batchNum *= indicesDims[i];
+    if (auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v8::GatherND>(op)) {
+        attrs.batchDims = gatherNdOp->get_batch_dims();
+    } else if (auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op)) {
+        attrs.batchDims = gatherNdOp->get_batch_dims();
+    } else {
+        THROW_ERROR << "has support only opset5.";
     }
-
-    _sliceRank = indicesDims[indicesDims.size() - 1];
-    _dataRank = dataDims.size() - _batchDims;
-    if (_sliceRank > _dataRank)
-        IE_THROW() << _errorPrefix << " has invalid inputs shapes.";
-
-    _blockSize = 1;
-    for (size_t i = _sliceRank + _batchDims; i < dataDims.size(); i++) {
-        _blockSize *= dataDims[i];
-    }
-    _batchStep = 1;
-    for (size_t i = _batchDims; i < dataDims.size(); i++) {
-        _batchStep *= dataDims[i];
-    }
+    if (attrs.batchDims >= std::min(dataInputRank, indicesInputRank))
+        THROW_ERROR << "has invalid batch_dims attribute: " << attrs.batchDims;
 }
 
 void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inDataPrecision = getOriginalInputPrecisionAtPort(_dataIndex);
+    Precision inDataPrecision = getOriginalInputPrecisionAtPort(GATHERND_DATA);
     if (!MKLDNNPlugin::one_of(inDataPrecision.size(),
                               sizeof(PrecisionTrait<Precision::I32>::value_type),
                               sizeof(PrecisionTrait<Precision::I16>::value_type),
                               sizeof(PrecisionTrait<Precision::I8>::value_type))) {
-        IE_THROW() << _errorPrefix << " has unsupported 'data' input precision: " << inDataPrecision;
+        THROW_ERROR << "has unsupported 'data' input precision: " << inDataPrecision;
     }
+    attrs.dataSize = inDataPrecision.size();
 
-    Precision indicesPrecision = getOriginalInputPrecisionAtPort(_indicesIndex);
+    Precision indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
     if (!MKLDNNPlugin::one_of(indicesPrecision,
                               Precision::I32, Precision::I64, Precision::I16, Precision::U16, Precision::I8, Precision::U8)) {
-        IE_THROW() << _errorPrefix << " has unsupported 'indices' input precision: " << indicesPrecision;
+        THROW_ERROR << "has unsupported 'indices' input precision: " << indicesPrecision;
     }
-
-    _dataTypeSize = inDataPrecision.size();
 
     addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
                           {LayoutType::ncsp, Precision::I32}},
@@ -99,71 +80,86 @@ void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-template <typename dataType>
-void MKLDNNGatherNDNode::gatherElementwise() {
-    const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(_dataIndex)->getMemoryPtr()->GetPtr());
-    const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(_indicesIndex)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-
-    auto strides = getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    const size_t* srcMultipliers = strides.data() + _batchDims;
-
-    const size_t cycles = getChildEdgeAt(0)->getMemory().GetShape().getElementsCount() *
-                          getChildEdgeAt(0)->getMemory().getDesc().getPrecision().size() / (sizeof(dataType) * _batchNum);
-    const size_t CS = cycles * _sliceRank;
-    const size_t CB = cycles * _blockSize;
-    const size_t workAmount = _batchNum * cycles;
-
-    auto threadBody = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
-        splitter(workAmount, nthr, ithr, start, end);
-        if (start >= end)
-            return;
-        size_t bStart = start / cycles;
-        size_t cStart = start % cycles;
-        size_t workCounter = start;
-
-        const dataType* shiftedSrcData = srcData + bStart * _batchStep;
-        const int* shiftedIndices = indices + bStart * CS + cStart * _sliceRank;
-        dataType* shiftedDstData = dstData + bStart * CB + cStart * _blockSize;
-
-        for (size_t b = bStart; b < _batchNum; b++) {
-            for (size_t j = cStart; j < cycles; j++) {
-                size_t dataIdx = 0lu;
-                for (size_t i = 0lu; i < _sliceRank; i++)
-                    dataIdx += srcMultipliers[i] * shiftedIndices[i];
-                shiftedDstData[0] = shiftedSrcData[dataIdx];
-                shiftedDstData++;
-                shiftedIndices += _sliceRank;
-                if (++workCounter == end) {
-                    return;
-                }
-            }
-            cStart = 0lu;
-            shiftedSrcData += _batchStep;
-        }
-    };
-
-    parallel_nt(0, threadBody);
+void MKLDNNGatherNDNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
 }
 
-void MKLDNNGatherNDNode::gatherBlocks() {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(_dataIndex)->getMemoryPtr()->GetPtr());
-    const int* indices = reinterpret_cast<const int *>(getParentEdgeAt(_indicesIndex)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+void MKLDNNGatherNDNode::prepareParams() {
+    auto& srcMemPtr = getParentEdgeAt(GATHERND_DATA)->getMemoryPtr();
+    auto& idxMemPtr = getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+        THROW_ERROR << " has not allocated input memory of 'data'.";
+    if (!idxMemPtr || !idxMemPtr->GetPrimitivePtr())
+        THROW_ERROR << " has not allocated input memory of 'indices'.";
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        THROW_ERROR << " has not allocated output memory.";
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        THROW_ERROR << " has unidentified preferable primitive descriptor.";
 
-    std::vector<size_t> srcMultipliers(_sliceRank);
-    for (size_t i = 0; i < _sliceRank ; i++)
-        srcMultipliers[i] = _dataTypeSize * getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides()[i + _batchDims];
+    attrs.srcDims = srcMemPtr->getStaticDims();
+    attrs.srcStrides = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    attrs.dstElementCount = dstMemPtr->GetShape().getElementsCount();
+    attrs.sliceRank =  idxMemPtr->getStaticDims().back();
+    execPtr = std::make_shared<GatherNDExecutor>(attrs);
+}
 
-    const size_t batchStep = _batchStep * _dataTypeSize;
-    const size_t dataStep = _blockSize * _dataTypeSize;
-    const size_t cycles = getChildEdgeAt(0)->getMemory().GetSize() / (dataStep * _batchNum);
-    const size_t CS = cycles * _sliceRank;
-    const size_t CB = cycles * dataStep;
-    const size_t workAmount = _batchNum * cycles;
+MKLDNNGatherNDNode::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : dataSize(attrs.dataSize), sliceRank(attrs.sliceRank) {
+    batchSize = std::accumulate(attrs.srcDims.begin(), attrs.srcDims.begin() + attrs.batchDims, 1lu, std::multiplies<size_t>());
+    dataLength = std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims, attrs.srcDims.end(), 1lu,
+                                 std::multiplies<size_t>());
+    cycles = attrs.dstElementCount / (dataLength * batchSize);
+    workAmount = batchSize * cycles;
 
-    auto threadBody = [&](const int ithr, const int nthr) {
+    srcBatchStride = std::accumulate(attrs.srcDims.begin() + attrs.batchDims, attrs.srcDims.end(), 1lu,
+                                     std::multiplies<size_t>());
+    idxBatchStride = cycles * sliceRank;
+    dstBatchStride = cycles * dataLength;
+
+    srcShifts.resize(attrs.sliceRank, 0);
+    for (size_t i = 0; i < attrs.sliceRank ; i++)
+        srcShifts[i] = attrs.srcStrides[i + attrs.batchDims] * (dataLength > 1 ? dataSize : 1);
+
+    // optimized implementation 'blocks' via memcpy
+    if (dataLength > 1) {
+        dataLength *= dataSize;
+        srcBatchStride *= dataSize;
+        dstBatchStride *= dataSize;
+    }
+}
+
+void MKLDNNGatherNDNode::execute(mkldnn::stream strm) {
+    if (!execPtr)
+        THROW_ERROR << "has not compiled executor.";
+
+    execPtr->exec(getParentEdgeAt(GATHERND_DATA)->getMemoryPtr(),
+                  getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr(),
+                  getChildEdgeAt(0)->getMemoryPtr());
+}
+
+void MKLDNNGatherNDNode::GatherNDExecutor::exec(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    if (dataLength > 1) {
+        gatherBlocks(srcMemPtr, idxMemPtr, dstMemPtr);
+        return;
+    }
+
+    GatherNDContext ctx { this, srcMemPtr, idxMemPtr, dstMemPtr };
+    OV_SWITCH(MKLDNNPlugin, GatherNDEmitter, ctx, dataSize,
+              OV_CASE(sizeof(PrecisionTrait<Precision::I32>::value_type), PrecisionTrait<Precision::I32>::value_type),
+              OV_CASE(sizeof(PrecisionTrait<Precision::I16>::value_type), PrecisionTrait<Precision::I16>::value_type),
+              OV_CASE(sizeof(PrecisionTrait<Precision::I8>::value_type), PrecisionTrait<Precision::I8>::value_type));
+}
+
+void MKLDNNGatherNDNode::GatherNDExecutor::gatherBlocks(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end)
@@ -172,48 +168,67 @@ void MKLDNNGatherNDNode::gatherBlocks() {
         size_t cStart = start % cycles;
         size_t workCounter = start;
 
-        const uint8_t* shiftedSrcData = srcData + bStart * batchStep;
-        const int* shiftedIndices = indices + bStart * CS + cStart * _sliceRank;
-        uint8_t* shiftedDstData = dstData + bStart * CB + cStart * dataStep;
+        const uint8_t* shiftedSrcData = srcData + bStart * srcBatchStride;
+        const int32_t* shiftedIndices = indices + bStart * idxBatchStride + cStart * sliceRank;
+        uint8_t* shiftedDstData = dstData + bStart * dstBatchStride + cStart * dataLength;
 
-        for (size_t b = bStart; b < _batchNum; b++) {
+        for (size_t b = bStart; b < batchSize; b++) {
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0lu;
-                for (size_t i = 0; i < _sliceRank ; i++)
-                    dataIdx += srcMultipliers[i] * shiftedIndices[i];
-                cpu_memcpy(shiftedDstData, &(shiftedSrcData[dataIdx]), dataStep);
-                shiftedDstData += dataStep;
-                shiftedIndices += _sliceRank;
+                for (size_t i = 0; i < sliceRank; i++)
+                    dataIdx += srcShifts[i] * shiftedIndices[i];
+                cpu_memcpy(shiftedDstData, &(shiftedSrcData[dataIdx]), dataLength);
+                shiftedDstData += dataLength;
+                shiftedIndices += sliceRank;
                 if (++workCounter == end) {
                     return;
                 }
             }
             cStart = 0;
-            shiftedSrcData += batchStep;
+            shiftedSrcData += srcBatchStride;
         }
-    };
-
-    parallel_nt(0, threadBody);
+    });
 }
 
-void MKLDNNGatherNDNode::execute(mkldnn::stream strm) {
-    if (_blockSize > 1) {
-        gatherBlocks();
-    } else {
-        switch (_dataTypeSize) {
-            case sizeof(PrecisionTrait<Precision::I32>::value_type):
-                gatherElementwise<PrecisionTrait<Precision::I32>::value_type>();
-                break;
-            case sizeof(PrecisionTrait<Precision::I16>::value_type):
-                gatherElementwise<PrecisionTrait<Precision::I16>::value_type>();
-                break;
-            case sizeof(PrecisionTrait<Precision::I8>::value_type):
-                gatherElementwise<PrecisionTrait<Precision::I8>::value_type>();
-                break;
-            default:
-                IE_THROW() << _errorPrefix + " has data input with unsupported precision: " + getOriginalInputPrecisionAtPort(_dataIndex).name();
+template <typename dataType>
+void MKLDNNGatherNDNode::GatherNDExecutor::gatherElementwise(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    const dataType* srcData = reinterpret_cast<const dataType*>(srcMemPtr->GetPtr());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
+    dataType* dstData = reinterpret_cast<dataType*>(dstMemPtr->GetPtr());
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start(0lu), end(0lu);
+        splitter(workAmount, nthr, ithr, start, end);
+        if (start >= end)
+            return;
+        size_t bStart = start / cycles;
+        size_t cStart = start % cycles;
+        size_t workCounter = start;
+
+        const dataType* shiftedSrcData = srcData + bStart * srcBatchStride;
+        const int32_t* shiftedIndices = indices + bStart * idxBatchStride + cStart * sliceRank;
+        dataType* shiftedDstData = dstData + bStart * dstBatchStride + cStart * dataLength;
+
+        for (size_t b = bStart; b < batchSize; b++) {
+            for (size_t j = cStart; j < cycles; j++) {
+                size_t dataIdx = 0lu;
+                for (size_t i = 0lu; i < sliceRank; i++)
+                    dataIdx += srcShifts[i] * shiftedIndices[i];
+                shiftedDstData[0] = shiftedSrcData[dataIdx];
+                shiftedDstData++;
+                shiftedIndices += sliceRank;
+                if (++workCounter == end) {
+                    return;
+                }
+            }
+            cStart = 0lu;
+            shiftedSrcData += srcBatchStride;
         }
-    }
+    });
+}
+
+void MKLDNNGatherNDNode::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
 }
 
 bool MKLDNNGatherNDNode::created() const {

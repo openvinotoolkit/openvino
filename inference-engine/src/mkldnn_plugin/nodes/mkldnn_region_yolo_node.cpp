@@ -229,10 +229,6 @@ private:
 
 bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
         if (!regionYolo) {
             errorMessage = "Only opset1 RegionYolo operation is supported";
@@ -242,6 +238,10 @@ bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngra
         return false;
     }
     return true;
+}
+
+bool MKLDNNRegionYoloNode::needPrepareParams() const {
+    return false;
 }
 
 MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
@@ -261,6 +261,7 @@ MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& 
     num = regionYolo->get_num_regions();
     do_softmax = regionYolo->get_do_softmax();
     mask = regionYolo->get_mask();
+    block_size = 1;
 }
 
 void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {
@@ -301,6 +302,10 @@ void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNRegionYoloNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
+
     jit_logistic_config_params jcp;
     jcp.src_dt = jcp.dst_dt = output_prec;
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();
