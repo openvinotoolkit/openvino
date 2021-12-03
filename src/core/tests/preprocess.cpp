@@ -52,12 +52,20 @@ TEST(pre_post_process, simple_mean_scale) {
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
 
-TEST(pre_post_process, simple_mean_scale_getters) {
-    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+TEST(pre_post_process, simple_mean_scale_getters_f16) {
+    auto f = create_simple_function(element::f16, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
     p.input("tensor_input1").preprocess().mean(1).scale(2);
     f = p.build();
-    EXPECT_EQ(f->get_output_element_type(0), element::f32);
+    EXPECT_EQ(f->get_output_element_type(0), element::f16);
+}
+
+TEST(pre_post_process, simple_mean_scale_getters_f64) {
+    auto f = create_simple_function(element::f64, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    p.input("tensor_input1").preprocess().mean(1).scale(2);
+    f = p.build();
+    EXPECT_EQ(f->get_output_element_type(0), element::f64);
 }
 
 TEST(pre_post_process, convert_element_type_and_scale) {

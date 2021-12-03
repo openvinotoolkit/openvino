@@ -9,8 +9,9 @@ from mo.utils.utils import refer_to_faq_msg
 
 import numpy as np
 
-from openvino.runtime import Function, Layout, PartialShape     # pylint: disable=no-name-in-module,import-error
 from openvino.preprocess import PrePostProcessor        # pylint: disable=no-name-in-module,import-error
+# pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Function, Layout, PartialShape, layout_helpers
 
 
 def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
@@ -122,13 +123,35 @@ def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, l
             if dim_idx_found >= 0:
                 raise Error('Can\'t determine channels dimension for {}. '
                             'Input shape is {}, needed channels {}. '
-                            'Conflicting dimensions: {} and {}'
+                            'Conflicting dimensions: {} and {}. Please specify layout manually.'
                             .format(name, shape, num_channels, dim_idx_found, dim_idx))
             dim_idx_found = dim_idx
     if dim_idx_found < 0:
         raise Error('Can\'t determine channels dimension for {}. '
                     'Input shape is {}, needed channels {}'
                     .format(name, shape, num_channels))
+
+    # Restrict guessed channels index to particular position depending on tensor shape(3d, 4d, 5d)
+    if shape.rank.get_length() == 3:
+        # CHW or HWC, possible channels index is 0 or 2
+        if dim_idx_found != 0 and dim_idx_found != 2:
+            raise Error('Can\'t determine channels dimension for 3D input {} (CHW or HWC) with shape {}. '
+                        'Please specify layout containing \'C\' channels manually.'.format(name, shape))
+    elif shape.rank.get_length() == 4:
+        # NCHW or NHWC, possible channels index is 1 or 3
+        if dim_idx_found != 1 and dim_idx_found != 3:
+            raise Error('Can\'t determine channels dimension for 4D input {} (NCHW or NHWC) with shape {}. '
+                        'Please specify layout containing \'C\' channels manually.'.format(name, shape))
+    elif shape.rank.get_length() == 5:
+        # NCDHW or NDHWC, possible channels index is 1 or 4
+        if dim_idx_found != 1 and dim_idx_found != 4:
+            raise Error('Can\'t determine channels dimension for 5D input {} (NCDHW or NDHWC) with shape {}. '
+                        'Please specify layout containing \'C\' channels manually.'.format(name, shape))
+    else:
+        raise Error('Can\'t determine channels dimension for {}D input {} with shape {}.'
+                    'Please specify layout containing \'C\' channels manually.'
+                    .format(shape.rank.get_length(), name, shape))
+
     layout_str = "?" * shape.rank.get_length()
     layout_str = layout_str[:dim_idx_found] + 'C' + layout_str[dim_idx_found+1:]
     layout_values[name] = {
@@ -163,6 +186,7 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
             continue
 
         num_channels = num_channels_mean if num_channels_mean > 1 else num_channels_scale
+
         for i in range(0, len(ov_function.inputs)):
             ov_input = ov_function.input(i)
 
@@ -172,60 +196,102 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
             if ms_name not in ov_input.get_tensor().get_names():
                 continue
 
-            layout_exists = False
             layout_item = None
             for name in ov_input.get_tensor().get_names():
                 if name in layout_values:
                     layout_item = layout_values[name]
-                    if layout_item.get('source_layout'):
-                        layout_exists = True
                     break
 
             if layout_item is not None:
-                # If user specified 'target_layout' but didn't specify 'source_layout', skip guessing
+                # User specified some layout, skip guessing
                 continue
 
-            if not layout_exists:
-                layout_values = find_channels_dimension(shape=ov_input.get_partial_shape(),
-                                                        num_channels=num_channels,
-                                                        name=ms_name,
-                                                        layout_values=layout_values)
+            if num_channels != 3:
+                raise Error('Can\'t determine channels dimension for {}. '
+                            'When number of mean/scale values is {} (not 3), '
+                            'please specify layout for input manually'.format(ms_name, num_channels))
+
+            layout_values = find_channels_dimension(shape=ov_input.get_partial_shape(),
+                                                    num_channels=num_channels,
+                                                    name=ms_name,
+                                                    layout_values=layout_values)
     return layout_values
+
+
+def check_suitable_for_reverse(layout: Layout, ov_input):
+    """
+    Internal function. Checks if input with layout is suitable for reversing channels
+    :param: layout Existing source/target layout items specified by user
+    :param: ov_input Model's input
+    :return: True if reverse channels can be applied to input
+    """
+    if not layout_helpers.has_channels(layout):
+        return False
+    c_idx = layout_helpers.channels_idx(layout)
+    if c_idx < 0:
+        if ov_input.get_partial_shape().rank.is_dynamic():
+            return False
+        c_idx += ov_input.get_partial_shape().rank.get_length()
+    if c_idx >= ov_input.get_partial_shape().rank.get_length():
+        raise Error('Layout {} for input {} is inconsistent with shape {}'.format(
+            layout, ov_input.get_tensor().get_any_name(), ov_input.get_partial_shape()))
+    return ov_input.get_partial_shape()[c_idx] == 3 and len(ov_input.get_partial_shape()) == 4
 
 
 def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_values):
     """
     Internal function. Try to guess source layout for input by finding dimension with size=3 (RGB/BGR)
+    Additionally checks existing layouts and detects suitable inputs for reversing of input channels
     :param: ov_function Original model
     :param: layout_values Existing source/target layout items specified by user
-    :return: updated layout items with guessed layouts
+    :return: array with suitable parameters for reversing of input channels
     """
+    all_params = []
+    suitable_params = []
     for i in range(0, len(ov_function.inputs)):
         ov_input = ov_function.input(i)
+        param_info = [ov_input.get_tensor().get_any_name(), ov_input.get_partial_shape()]
+        all_params.append(param_info)
 
         if not ov_function.get_parameters()[i].layout.empty:
+            if check_suitable_for_reverse(ov_function.get_parameters()[i].layout, ov_input):
+                suitable_params.append(param_info)
             continue
-        layout_exists = False
+
         layout_item = None
-        first_name = list(ov_input.get_tensor().get_names())[0]
+        first_name = ov_input.get_tensor().get_any_name()
         for name in ov_input.get_tensor().get_names():
             if name in layout_values:
                 layout_item = layout_values[name]
-                if layout_item.get('source_layout'):
-                    layout_exists = True
                 break
 
         if layout_item is not None:
-            # If user specified 'target_layout' but didn't specify 'source_layout', skip guessing
+            if layout_item.get('target_layout'):
+                if check_suitable_for_reverse(Layout(layout_item['target_layout']), ov_input):
+                    suitable_params.append(param_info)
+            elif layout_item.get('source_layout'):
+                if check_suitable_for_reverse(Layout(layout_item['source_layout']), ov_input):
+                    suitable_params.append(param_info)
             continue
 
-        if not layout_exists:
+        try:
             layout_values = find_channels_dimension(shape=ov_input.get_partial_shape(),
                                                     num_channels=3,
                                                     name=first_name,
                                                     layout_values=layout_values)
+        except Error as e:
+            log.debug('Reverse input channels guess did not succeed {}'.format(e))
+        else:
+            layout = layout_values[first_name].get('source_layout')
+            if layout and check_suitable_for_reverse(Layout(layout), ov_input):
+                suitable_params.append(param_info)
 
-    return layout_values
+    if len(suitable_params) < len(all_params):
+        log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
+                  'Suitable for input channel reversing inputs are 4-dimensional with 3 channels\nAll inputs: {}\n'
+                  'Suitable inputs {}'.format(len(all_params), len(suitable_params), all_params, suitable_params),
+                  extra={'is_warning': True})
+    return suitable_params
 
 
 def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
@@ -269,9 +335,10 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     layout_values = update_layout_is_input_flag(ov_function, layout_values)
     layout_values = guess_source_layouts_by_mean_scale(ov_function, layout_values, mean_scale_values)
     need_reverse = 'reverse_input_channels' in argv and argv.reverse_input_channels
+    suitable_params_ric = []
     if need_reverse:
-        layout_values = guess_source_layouts_for_reverse_channels(ov_function=ov_function,
-                                                                  layout_values=layout_values)
+        suitable_params_ric = guess_source_layouts_for_reverse_channels(ov_function=ov_function,
+                                                                        layout_values=layout_values)
 
     for node_name, layout_value in layout_values.items():
         if layout_value.get('source_layout'):
@@ -295,10 +362,9 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
 
     # Apply reverse_input_channels
     if need_reverse:
-        for ov_input in ov_function.inputs:
-            node_name = list(ov_input.get_tensor().get_names())[0]
-            prep.input(node_name).preprocess().reverse_channels()
-            log.debug('reverse_input_channels pre-processing applied to {}'.format(node_name))
+        for name, _ in suitable_params_ric:
+            prep.input(name).preprocess().reverse_channels()
+            log.debug('reverse_input_channels pre-processing applied to {}'.format(name))
 
     # Apply pre-processing builder to a function
     ov_function = prep.build()
@@ -312,4 +378,4 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
                 if node_name in ov_input.get_tensor().get_names():
                     log.debug('Clearing guessed layout {} for {}'
                               .format(layout_value['source_layout'], node_name))
-                    ov_function.get_parameters()[idx].layout = Layout()
+                ov_function.get_parameters()[idx].layout = Layout()

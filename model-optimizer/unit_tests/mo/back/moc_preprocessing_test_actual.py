@@ -23,13 +23,13 @@ except Exception:
     raise
 
 
-def create_function2(shape1=[2, 2], shape2=[2, 2]):
-    input1 = ops.parameter(shape1, dtype=np.float32, name="input1")
+def create_function2(shape1=[2, 2], shape2=[2, 2], dtype1=np.float32, dtype2=np.float32):
+    input1 = ops.parameter(shape1, dtype=dtype1, name="input1")
     input1.get_output_tensor(0).set_names({'input1', 'input1a'})
     relu1 = ops.relu(input1)
     res1 = ops.result(relu1, "res1")
     res1.get_output_tensor(0).set_names({'res1', 'res1a'})
-    input2 = ops.parameter(shape2, dtype=np.float32, name="input2")
+    input2 = ops.parameter(shape2, dtype=dtype2, name="input2")
     input2.get_output_tensor(0).set_names({'input2', 'input2a'})
     relu2 = ops.relu(input2)
     res2 = ops.result(relu2, "res2")
@@ -86,6 +86,25 @@ class TestPreprocessingMOC(unittest.TestCase):
             self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
             self.check_scale_constant(op_node, [2.0])
 
+    def test_scale_single_value_fp64(self):
+        argv = Namespace(mean_scale_values=None, scale=2.0)
+        function = create_function2(dtype1=np.float64)
+        process_function(ov_function=function, argv=argv)
+
+        for ov_input in function.inputs:
+            op_node = list(ov_input.get_target_inputs())[0].get_node()
+            self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+            self.check_scale_constant(op_node, [2.0])
+
+    def test_scale_single_value_fp16(self):
+        argv = Namespace(mean_scale_values=None, scale=2.0)
+        function = create_function2(dtype1=np.float16)
+        process_function(ov_function=function, argv=argv)
+
+        for ov_input in function.inputs:
+            op_node = list(ov_input.get_target_inputs())[0].get_node()
+            self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+
     def test_scale_vector(self):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([4.]), 'mean': None}}, scale=None)
         function = create_function2()
@@ -112,16 +131,16 @@ class TestPreprocessingMOC(unittest.TestCase):
         # Verify that guessed layout (?C??) is not appeared in input1
         self.assertEqual(function.get_parameters()[0].layout, Layout())
 
-    def test_scale_vector3_layout(self):
-        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([2., 4., 8.]), 'mean': None}},
+    def test_scale_vector4_layout(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([2., 4., 8., 9.]), 'mean': None}},
                          layout_values={'input1': {'source_layout': 'nhwc'}},
                          scale=None)
-        function = create_function2(shape1=[1, 3, 3, 3])  # Use layout to determine channels dim
+        function = create_function2(shape1=[1, 3, 3, 4])  # Use layout to determine channels dim
 
         process_function(ov_function=function, argv=argv)
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
-        self.check_scale_constant(op_node, expected=[2., 4., 8.], shape=[1, 1, 1, 3])
+        self.check_scale_constant(op_node, expected=[2., 4., 8., 9.], shape=[1, 1, 1, 4])
 
         # Verify that input2 is not affected
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
@@ -137,6 +156,27 @@ class TestPreprocessingMOC(unittest.TestCase):
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
         self.check_mean_constant(op_node, [4.0], shape=None)
+        # Verify that input2 is not affected
+        op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertEqual(op_node.get_type_name(), 'Relu')
+
+    def test_mean_single_fp64(self):
+        argv = Namespace(mean_scale_values={'input1': {'mean': np.array([4.]), 'scale': None}}, scale=None)
+        function = create_function2(dtype1=np.float64)
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, [4.0], shape=None)
+        # Verify that input2 is not affected
+        op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertEqual(op_node.get_type_name(), 'Relu')
+
+    def test_mean_single_fp16(self):
+        argv = Namespace(mean_scale_values={'input1': {'mean': np.array([4.]), 'scale': None}}, scale=None)
+        function = create_function2(dtype1=np.float16)
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
         # Verify that input2 is not affected
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertEqual(op_node.get_type_name(), 'Relu')
@@ -179,20 +219,20 @@ class TestPreprocessingMOC(unittest.TestCase):
         self.assertEqual(function.get_parameters()[1].layout, Layout())
 
     def test_mean_scale_with_layout(self):
-        argv = Namespace(mean_scale_values={'input2a': {'mean': np.array([1., 2., 3.]),
-                                                        'scale': np.array([2., 4., 8.])}},
+        argv = Namespace(mean_scale_values={'input2a': {'mean': np.array([1., 2., 3., 4.]),
+                                                        'scale': np.array([2., 4., 8., 9.])}},
                          scale=None)
-        function = create_function2(shape2=[1, 3, 3, 3])
+        function = create_function2(shape2=[1, 3, 3, 4])
         function.get_parameters()[1].layout = Layout("NHWC")
         process_function(ov_function=function, argv=argv)
         # Verify that first is 'subtract mean', then 'scale'
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
-        self.check_mean_constant(op_node, expected=[1., 2., 3.], shape=[1, 1, 1, 3])
+        self.check_mean_constant(op_node, expected=[1., 2., 3., 4.], shape=[1, 1, 1, 4])
 
         op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
-        self.check_scale_constant(op_node, expected=[2., 4., 8.], shape=[1, 1, 1, 3])
+        self.check_scale_constant(op_node, expected=[2., 4., 8., 9.], shape=[1, 1, 1, 4])
 
         # Verify that input1 is not affected
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
@@ -203,9 +243,9 @@ class TestPreprocessingMOC(unittest.TestCase):
 
     def test_no_param_name(self):
         argv = Namespace(mean_scale_values=list(np.array([(np.array([1., 2., 3.]), np.array([2., 4., 6.])),
-                                                          (np.array([7., 8.]), None)],
+                                                          (np.array([7., 8., 9.]), None)],
                                                          dtype='object')), scale=None)
-        function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
+        function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 224, 224, 3])
         process_function(ov_function=function, argv=argv)
 
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
@@ -218,7 +258,7 @@ class TestPreprocessingMOC(unittest.TestCase):
 
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
-        self.check_mean_constant(op_node, expected=[7., 8.], shape=[1, 2, 1, 1])
+        self.check_mean_constant(op_node, expected=[7., 8., 9.], shape=[1, 1, 1, 3])
 
         # Verify that guessed layouts are not appeared in inputs
         self.assertEqual(function.get_parameters()[0].layout, Layout())
@@ -226,9 +266,9 @@ class TestPreprocessingMOC(unittest.TestCase):
 
     def test_no_param_name_single_value(self):
         argv = Namespace(mean_scale_values=list(np.array([(np.array([1.]), None),
-                                                          (np.array([2., 3.]), np.array([4.]))],
+                                                          (np.array([2., 3., 4.]), np.array([5.]))],
                                                          dtype='object')), scale=None)
-        function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
+        function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 224, 224, 3])
         process_function(ov_function=function, argv=argv)
 
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
@@ -237,11 +277,11 @@ class TestPreprocessingMOC(unittest.TestCase):
 
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
-        self.check_mean_constant(op_node, expected=[2., 3.], shape=[1, 2, 1, 1])
+        self.check_mean_constant(op_node, expected=[2., 3., 4.], shape=[1, 1, 1, 3])
 
         op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
-        self.check_scale_constant(op_node, expected=[4.], shape=None)
+        self.check_scale_constant(op_node, expected=[5.], shape=None)
 
     # Two inputs, but 'mean_scale_value' has only one array
     def test_error_no_param_name_number_not_match(self):
@@ -283,6 +323,38 @@ class TestPreprocessingMOC(unittest.TestCase):
                                                        'mean': np.array([1., 2., 3.])}},
                          scale=None)
         function = create_function2(shape1=[1, 3, 4, 224])
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
+
+    def test_error_guess_c_wrong_position_3d(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.]),
+                                                       'mean': np.array([1., 2., 3.])}},
+                         scale=None)
+        function = create_function2(shape1=[2, 3, 4])
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
+
+    def test_error_guess_c_wrong_position_4d(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.]),
+                                                       'mean': np.array([1., 2., 3.])}},
+                         scale=None)
+        function = create_function2(shape1=[1, 2, 3, 4])
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
+
+    def test_error_guess_c_wrong_position_5d(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.]),
+                                                       'mean': np.array([1., 2., 3.])}},
+                         scale=None)
+        function = create_function2(shape1=[1, 2, 3, 4, 5])
+        with self.assertRaises(Exception):
+            process_function(ov_function=function, argv=argv)
+
+    def test_error_guess_c_wrong_position_6d(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.]),
+                                                       'mean': np.array([1., 2., 3.])}},
+                         scale=None)
+        function = create_function2(shape1=[1, 2, 4, 5, 6, 3])
         with self.assertRaises(Exception):
             process_function(ov_function=function, argv=argv)
 
@@ -343,22 +415,22 @@ class TestPreprocessingMOC(unittest.TestCase):
                                         })
         function = create_function2(shape1=[1, 224, 224, 4], shape2=[1, 4, 224, 224])
         process_function(ov_function=function, argv=argv)
-        # Verify that some operations are inserted.
-        # In future, consider using mock PrePostProcessor to verify that 'reverse_channels' was called
+        # In future, consider using mock PrePostProcessor to verify that 'reverse_channels' was not called
+        # Verify that reverse_channels are not applied.
         op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        self.assertTrue(op_node0.get_type_name() == 'Relu')
         op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node1.get_type_name() != 'Relu')
+        self.assertTrue(op_node1.get_type_name() == 'Relu')
 
     def test_reverse_input_channels_2_channels(self):
         argv = Namespace(reverse_input_channels=True,
-                         mean_scale_values={'input1': {'scale': np.array([1., 2.]), 'mean': None}},
+                         mean_scale_values=None,
                          scale=None)
         function = create_function2(shape1=[1, 224, 224, 2], shape2=[1, 3, 224, 224])
         process_function(ov_function=function, argv=argv)
-        # Verify that some operations are inserted.
+        # Verify that some operations are inserted to input2.
         op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
-        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        self.assertTrue(op_node0.get_type_name() == 'Relu')
         op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node1.get_type_name() != 'Relu')
 
@@ -390,7 +462,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                                  'target_layout': 'nhwc'
                              },
                              'res2a': {
-                                 'source_layout': 'ndchw'
+                                 'source_layout': 'ncdhw'
                              }
                          },
                          scale=None)
@@ -401,7 +473,7 @@ class TestPreprocessingMOC(unittest.TestCase):
         self.assertEqual(op_node.get_type_name(), 'Transpose')
 
         self.assertEqual(function.get_results()[0].layout, Layout('nhwc'))
-        self.assertEqual(function.get_results()[1].layout, Layout('ndchw'))
+        self.assertEqual(function.get_results()[1].layout, Layout('ncdhw'))
 
     def test_error_layout_empty_input_name_2_inputs(self):
         argv = Namespace(mean_scale_values=None,
@@ -413,21 +485,64 @@ class TestPreprocessingMOC(unittest.TestCase):
         with self.assertRaisesRegex(Error, '.*2.*inputs.*input1.*input2.*'):
             process_function(ov_function=function, argv=argv)
 
-    def test_error_guess_layout_reverse_channels(self):
+    def test_reverse_channels_bad_layout(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 4, 224, 224])
-        with self.assertRaises(Exception):
+        function.get_parameters()[0].layout = Layout("NDHWC")
+        with self.assertRaisesRegex(Error, '.*input1.*'):
             process_function(ov_function=function, argv=argv)
+
+    def test_guess_layout_reverse_channels_dont_apply_to_4(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+        function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 4, 224, 224])
+        process_function(ov_function=function, argv=argv)
+
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() == 'Relu')
 
     def test_error_guess_layout_reverse_channels_multi_3(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 3, 224])
-        with self.assertRaises(Exception):
-            process_function(ov_function=function, argv=argv)
+        process_function(ov_function=function, argv=argv)
+        # Applied to only input1
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() == 'Relu')
+
 
     def test_no_guess_layout_reverse_channels_has_layout_no_c(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 224, 224])
-        function.get_parameters()[0].layout = Layout("N?HW")
-        with self.assertRaises(Exception):
-            process_function(ov_function=function, argv=argv)
+        function.get_parameters()[0].layout = Layout("NHW?")
+        function.get_parameters()[1].layout = Layout("N?HW")
+        process_function(ov_function=function, argv=argv)
+        # Nothing has applied
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() == 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() == 'Relu')
+
+    def test_guess_layout_reverse_channels_incorrect_pos(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+        function = create_function2(shape1=[1, 4, 224, 224], shape2=[1, 224, 224, 2])
+        function.get_parameters()[0].layout = Layout("NCHW")
+        function.get_parameters()[1].layout = Layout("NHWC")
+        process_function(ov_function=function, argv=argv)
+        # Nothing has applied
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() == 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() == 'Relu')
+
+    def test_no_reverse_channels_even_with_layout(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+        function = create_function2(shape1=[3, 4, 224, 224], shape2=[1, 224, 3, 224])
+        process_function(ov_function=function, argv=argv)
+        # Nothing has applied
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() == 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() == 'Relu')
