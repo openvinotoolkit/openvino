@@ -332,8 +332,6 @@ bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node, element::
 
 bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
     if (auto convert = ov::as_type_ptr<opset4::Convert>(node)) {
-        convert->get_rt_info()["precision"] =
-            std::make_shared<ngraph::VariantWrapper<element::Type>>(convert->get_convert_element_type());
         convert->set_convert_element_type(to);
         return true;
     }

@@ -38,13 +38,6 @@ MKLDNNConvertNode::MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, co
 
     auto convert = ov::as_type_ptr<const ngraph::opset1::Convert>(op);
     origPrc = details::convertPrecision(convert->get_destination_type());
-
-    auto it = convert->get_rt_info().find("precision");
-    if (it != convert->get_rt_info().end()) {
-        if (auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<ov::element::Type>>(it->second)) {
-            origPrc = details::convertPrecision(variant->get());
-        }
-    }
 }
 
 std::vector<VectorDims> MKLDNNConvertNode::shapeInfer() const {

@@ -131,6 +131,7 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
                         const T_IE* actualBuffer, size_t size, float threshold, float abs_threshold) {
     auto expectedBuffer = expected.second.data();
     switch (expected.first) {
+        case ngraph::element::Type_t::boolean:
         case ngraph::element::Type_t::u8:
             LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
                                                      actualBuffer, size, threshold, abs_threshold);
@@ -178,10 +179,6 @@ inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::
         case ngraph::element::Type_t::f64:
             LayerTestsCommon::Compare<T_IE, double>(reinterpret_cast<const double *>(expectedBuffer),
                                                    actualBuffer, size, threshold, abs_threshold);
-            break;
-        case ngraph::element::Type_t::boolean:
-            LayerTestsCommon::Compare<T_IE, bool>(reinterpret_cast<const bool *>(expectedBuffer),
-                                                     actualBuffer, size, threshold, abs_threshold);
             break;
         case ngraph::element::Type_t::i4: {
             auto expectedOut = ngraph::helpers::convertOutputPrecision(
@@ -233,6 +230,7 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
 
     const auto &size = actual->size();
     switch (precision) {
+        case InferenceEngine::Precision::BOOL:
         case InferenceEngine::Precision::U8:
             callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold, abs_threshold);
             break;
@@ -268,9 +266,6 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
             break;
         case InferenceEngine::Precision::FP64:
             callCompare<double>(expected, reinterpret_cast<const double *>(actualBuffer), size, threshold, abs_threshold);
-            break;
-        case InferenceEngine::Precision::BOOL:
-            callCompare<bool>(expected, reinterpret_cast<const bool *>(actualBuffer), size, threshold, abs_threshold);
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
