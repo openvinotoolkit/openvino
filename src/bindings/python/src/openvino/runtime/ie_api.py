@@ -20,25 +20,32 @@ def tensor_from_file(path: str) -> Tensor:
     return Tensor(np.fromfile(path, dtype=np.uint8))
 
 
-def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
+def normalize_inputs(py_dict: dict, py_types: dict, tensor_names: dict) -> dict:
     """Normalize a dictionary of inputs to Tensors."""
     for k, val in py_dict.items():
-        try:
-            if isinstance(k, int):
-                ov_type = list(py_types.values())[k]
-            elif isinstance(k, str):
+        if isinstance(k, int):
+            if k in py_types:
                 ov_type = py_types[k]
             else:
-                raise TypeError("Incompatible key type for tensor named: {}".format(k))
-        except KeyError:
-            raise KeyError("Port for tensor named {} was not found!".format(k))
+                raise Exception(f"No tensor with index {k} was found")
+        elif isinstance(k, str):
+            if k in tensor_names:
+                ov_type = py_types[tensor_names[k]]
+            else:
+                raise KeyError(f"No tensor with name {k} was found!")
+        else:
+            raise TypeError(f"Incompatible key type! Use tensor names or indexes!")
         py_dict[k] = val if isinstance(val, Tensor) else Tensor(np.array(val, get_dtype(ov_type)))
     return py_dict
 
 
 def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
     """Get all precisions from object inputs."""
-    return {i.get_any_name(): i.get_element_type() for i in obj.inputs}
+    return {index: input.get_element_type() for index, input in enumerate(obj.inputs)}
+
+def get_tensor_names(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
+    """Get all tensor_names from object inputs."""
+    return {input.any_name: index for index, input in enumerate(obj.inputs) if input.names}
 
 
 class InferRequest(InferRequestBase):
@@ -46,7 +53,7 @@ class InferRequest(InferRequestBase):
 
     def infer(self, inputs: dict = None) -> List[np.ndarray]:
         """Infer wrapper for InferRequest."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
         res = super().infer(inputs)
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
@@ -54,7 +61,7 @@ class InferRequest(InferRequestBase):
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for InferRequest."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
         super().start_async(inputs, userdata)
 
 
@@ -67,7 +74,7 @@ class ExecutableNetwork(ExecutableNetworkBase):
 
     def infer_new_request(self, inputs: dict = None) -> List[np.ndarray]:
         """Infer wrapper for ExecutableNetwork."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
         res = super().infer_new_request(inputs)
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
@@ -86,7 +93,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         inputs = (
             {}
             if inputs is None
-            else normalize_inputs(inputs, get_input_types(self[self.get_idle_request_id()]))
+            else normalize_inputs(inputs, get_input_types(self[self.get_idle_request_id()]), get_tensor_names(self[self.get_idle_request_id()]))
         )
         super().start_async(inputs, userdata)
 
