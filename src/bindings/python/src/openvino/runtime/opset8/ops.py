@@ -614,3 +614,45 @@ def i420_to_rgb(
         )
 
     return _get_node_factory_opset8().create("I420toRGB", inputs)
+
+
+@nameable_op
+def nv12_to_bgr(
+        arg: NodeInput,
+        arg_uv: NodeInput = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NV12toBGR operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_uv: The node providing UV plane data. Required for separate planes.
+    @param  name:  The optional name for the created output node.
+    @return The new node performing NV12toBGR operation.
+    """
+    if arg_uv is None:
+        inputs = as_nodes(arg)
+    else:
+        inputs = as_nodes(arg, arg_uv)
+
+    return _get_node_factory_opset8().create("NV12toBGR", inputs)
+
+
+@nameable_op
+def nv12_to_rgb(
+        arg: NodeInput,
+        arg_uv: NodeInput = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NV12toRGB operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_uv: The node providing UV plane data. Required for separate planes.
+    @param  name:  The optional name for the created output node.
+    @return The new node performing NV12toRGB operation.
+    """
+    if arg_uv is None:
+        inputs = as_nodes(arg)
+    else:
+        inputs = as_nodes(arg, arg_uv)
+
+    return _get_node_factory_opset8().create("NV12toRGB", inputs)

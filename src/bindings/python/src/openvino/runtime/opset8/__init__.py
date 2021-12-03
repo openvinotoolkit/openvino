@@ -100,6 +100,8 @@ from openvino.runtime.opset5.ops import non_max_suppression
 from openvino.runtime.opset3.ops import non_zero
 from openvino.runtime.opset1.ops import normalize_l2
 from openvino.runtime.opset1.ops import not_equal
+from openvino.runtime.opset8.ops import nv12_to_bgr
+from openvino.runtime.opset8.ops import nv12_to_rgb
 from openvino.runtime.opset1.ops import one_hot
 from openvino.runtime.opset1.ops import pad
 from openvino.runtime.opset1.ops import parameter
