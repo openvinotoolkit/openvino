@@ -76,9 +76,6 @@ void correct_pads_attr(const Interpolate* op,
                        std::vector<size_t>& pads_end,
                        const std::vector<T>& input_shapes) {
     auto input_shape = input_shapes[0];
-    pads_begin = op->m_attrs.pads_begin;
-    pads_end = op->m_attrs.pads_end;
-
     if (input_shape.rank().is_dynamic()) {
         return;
     }
