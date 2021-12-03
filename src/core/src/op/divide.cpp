@@ -75,8 +75,9 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
     const auto& input1_low = input1.get_tensor().get_lower_value();
     if (input1_low == nullptr)
         return false;
-
     const auto& input1_up = input1.get_tensor().get_upper_value();
+    if (input1_up == nullptr)
+        return false;
 
     auto zeros_const = op::Constant::create(input2.get_element_type(), {}, {0});
 
