@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// clang-format off
 #include <algorithm>
 #include <map>
 #include <regex>
@@ -10,8 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include "samples/common.hpp"
-#include "samples/slog.hpp"
+// clang-format off
+#include <samples/args_helper.hpp>
+#include <samples/common.hpp>
+#include <samples/slog.hpp>
 
 #include "utils.hpp"
 // clang-format on
@@ -287,6 +288,90 @@ InferenceEngine::SizeVector parseTensorShape(const std::string& dataShape) {
         shape.push_back(std::stoi(dim));
     }
     return shape;
+}
+
+std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::string& file_paths_string) {
+    auto search_string = file_paths_string;
+    std::string input_name = "";
+    std::vector<std::string> file_paths;
+
+    // parse strings like <input1>:file1,file2,file3 and get name from them
+    size_t semicolon_pos = search_string.find_first_of(":");
+    size_t quote_pos = search_string.find_first_of("\"");
+    if (semicolon_pos != std::string::npos && quote_pos != std::string::npos && semicolon_pos > quote_pos) {
+        // if : is found after opening " symbol - this means that " belongs to pathname
+        semicolon_pos = std::string::npos;
+    }
+    if (search_string.length() > 2 && semicolon_pos == 1 && search_string[2] == '\\') {
+        // Special case like C:\ denotes drive name, not an input name
+        semicolon_pos = std::string::npos;
+    }
+
+    if (semicolon_pos != std::string::npos) {
+        input_name = search_string.substr(0, semicolon_pos);
+        search_string = search_string.substr(semicolon_pos + 1);
+    }
+
+    // parse file1,file2,file3 and get vector of paths
+    size_t coma_pos = 0;
+    do {
+        coma_pos = search_string.find_first_of(',');
+        file_paths.push_back(search_string.substr(0, coma_pos));
+        if (coma_pos == std::string::npos) {
+            search_string = "";
+            break;
+        }
+        search_string = search_string.substr(coma_pos + 1);
+    } while (coma_pos != std::string::npos);
+
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse file paths for input " + input_name +
+                               " in input parameter string: " + file_paths_string);
+
+    return {input_name, file_paths};
+}
+
+std::map<std::string, std::vector<std::string>> parseInputArguments(const std::vector<std::string>& args) {
+    std::map<std::string, std::vector<std::string>> mapped_files = {};
+    auto args_it = begin(args);
+    const auto is_image_arg = [](const std::string& s) {
+        return s == "-i";
+    };
+    const auto is_arg = [](const std::string& s) {
+        return s.front() == '-';
+    };
+    while (args_it != args.end()) {
+        const auto files_start = std::find_if(args_it, end(args), is_image_arg);
+        if (files_start == end(args)) {
+            break;
+        }
+        const auto files_begin = std::next(files_start);
+        const auto files_end = std::find_if(files_begin, end(args), is_arg);
+        for (auto f = files_begin; f != files_end; ++f) {
+            auto files = parseInputFiles(*f);
+            if (mapped_files.find(files.first) == mapped_files.end()) {
+                mapped_files[files.first] = {};
+            }
+
+            for (auto& file : files.second) {
+                readInputFilesArguments(mapped_files[files.first], file);
+            }
+        }
+        args_it = files_end;
+    }
+    size_t max_files = 20;
+    for (auto& files : mapped_files) {
+        if (files.second.size() <= max_files) {
+            slog::info << "For input " << files.first << " " << files.second.size() << " files were added. "
+                       << slog::endl;
+        } else {
+            slog::info << "For input " << files.first << " " << files.second.size() << " files were added. "
+                       << " The number of files will be limited to " << max_files << "." << slog::endl;
+            files.second.resize(20);
+        }
+    }
+
+    return mapped_files;
 }
 
 #ifdef USE_OPENCV

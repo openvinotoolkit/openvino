@@ -16,6 +16,24 @@
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
+inline uint64_t getDurationInMilliseconds(uint32_t duration) {
+    return duration * 1000LL;
+}
+
+inline uint64_t getDurationInNanoseconds(uint32_t duration) {
+    return duration * 1000000000LL;
+}
+
+inline double get_duration_ms_till_now(Time::time_point& startTime) {
+    return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
+};
+
+inline std::string double_to_string(const double number) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << number;
+    return ss.str();
+};
+
 namespace benchmark_app {
 struct InputInfo {
     InferenceEngine::Precision precision;
@@ -42,16 +60,20 @@ std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
 std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
                                                                const std::string& values_string);
+
 InferenceEngine::Layout getLayoutFromString(const std::string& string_layout);
 std::string getShapeString(const InferenceEngine::SizeVector& shape);
 std::string getShapesString(const benchmark_app::PartialShapes& shapes);
 std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes);
 size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info);
 std::vector<std::string> split(const std::string& s, char delim);
+
 std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& scale_mean,
                                                            const benchmark_app::InputsInfo& inputs_info);
 std::vector<ngraph::Dimension> parsePartialShape(const std::string& partial_shape);
 InferenceEngine::SizeVector parseTensorShape(const std::string& data_shape);
+std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::string& file_paths_string);
+std::map<std::string, std::vector<std::string>> parseInputArguments(const std::vector<std::string>& args);
 
 template <typename T>
 std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string parameter_string,
@@ -77,7 +99,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(const std::
             }
         }
         search_string = search_string.substr(end_pos + 1);
-        if (search_string.empty() || search_string.front() != ',' && search_string.front() != '[')
+        if (search_string.empty() || (search_string.front() != ',' && search_string.front() != '['))
             break;
         if (search_string.front() == ',')
             search_string = search_string.substr(1);
@@ -245,16 +267,6 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                             input_info,
                             reshape_required);
 }
-
-inline std::string double_to_string(const double number) {
-    std::stringstream ss;
-    ss << std::fixed << std::setprecision(2) << number;
-    return ss.str();
-};
-
-inline double get_duration_ms_till_now(Time::time_point& startTime) {
-    return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
-};
 
 #ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config);

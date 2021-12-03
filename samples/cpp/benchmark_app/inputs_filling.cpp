@@ -424,7 +424,6 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             size_t batchSize = getBatchSize(app_inputs_info[n_shape % app_inputs_info.size()]);
             size_t inputId = m_file % files.second.size();
             auto input_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
-            auto precision = input_info.precision;
 
             std::string blob_src_info;
             if (files.second[0] == "random") {
@@ -589,7 +588,6 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
         size_t binaryInputId = 0;
         auto input_name = files.first;
         auto input_info = app_inputs_info.at(files.first);
-        auto precision = input_info.precision;
 
         for (size_t i = 0; i < test_configs_num; ++i) {
             std::string blob_src_info;

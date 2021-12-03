@@ -25,38 +25,37 @@ static constexpr char averageCntReport[] = "average_counters";
 static constexpr char detailedCntReport[] = "detailed_counters";
 
 /// @brief Responsible for calculating different latency metrics
-template <class T>
 class LatencyMetrics {
 public:
     LatencyMetrics() = delete;
 
-    LatencyMetrics(const std::vector<T>& latencies) : latencies(latencies) {
+    LatencyMetrics(const std::vector<double>& latencies) : latencies(latencies) {
         if (latencies.empty()) {
             throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
         }
         std::sort(this->latencies.begin(), this->latencies.end());
     }
 
-    LatencyMetrics(std::vector<T>&& latencies) : latencies(latencies) {
+    LatencyMetrics(std::vector<double>&& latencies) : latencies(latencies) {
         if (latencies.empty()) {
             throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
         }
         std::sort(this->latencies.begin(), this->latencies.end());
     }
 
-    T min() {
+    double min() {
         return latencies[0];
     }
 
-    T average() {
+    double average() {
         return std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
     }
 
-    T percentile(std::size_t p) {
+    double percentile(std::size_t p) {
         return latencies[size_t(latencies.size() / 100.0 * p)];
     }
 
-    T max() {
+    double max() {
         return latencies.back();
     }
 
@@ -69,7 +68,7 @@ public:
     }
 
 private:
-    std::vector<T> latencies;
+    std::vector<double> latencies;
 };
 
 /// @brief Responsible for collecting of statistics and dumping to .csv file
