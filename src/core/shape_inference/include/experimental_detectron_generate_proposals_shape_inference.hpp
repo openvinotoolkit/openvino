@@ -58,14 +58,14 @@ void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
                           scores_shape);
     if (deltas_shape_rank.is_static() && scores_shape_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              deltas_shape[1].same_scheme(scores_shape[1]),
+                              deltas_shape[1].compatible(scores_shape[1]),
                               "Heights for inputs 'input_deltas' and 'input_scores' should be "
                               "equal. Got: ",
                               deltas_shape[1],
                               scores_shape[1]);
 
         NODE_VALIDATION_CHECK(op,
-                              deltas_shape[2].same_scheme(scores_shape[2]),
+                              deltas_shape[2].compatible(scores_shape[2]),
                               "Width for inputs 'input_deltas' and 'input_scores' should be "
                               "equal. Got: ",
                               deltas_shape[2],

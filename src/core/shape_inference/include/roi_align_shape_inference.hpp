@@ -63,6 +63,8 @@ void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_sha
         (output_shapes[0])[0] = rois_ps[0];
     } else if (batch_indices_ps_rank.is_static() && batch_indices_ps[0].is_static()) {
         (output_shapes[0])[0] = batch_indices_ps[0];
+    } else {
+        (output_shapes[0])[0] = Dimension::dynamic();
     }
 }
 
