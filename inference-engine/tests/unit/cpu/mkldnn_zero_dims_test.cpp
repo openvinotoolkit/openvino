@@ -19,7 +19,7 @@ class MemDescWithZeroDimsBaseTest: public ::testing::Test {
 protected:
     Shape shape;
     dnnl::memory::format_tag fmt;
-    InferenceEngine::Precision precision = InferenceEngine::Precision::FP32;
+    const InferenceEngine::Precision precision = InferenceEngine::Precision::FP32;
 
     void validate(const BlockedMemoryDesc& desc, const VectorDims& expectedStrieds, size_t offsetSize, size_t offsetPaddingSize,
                   size_t maxMemSize, bool orderCheckSkip = false) {
@@ -57,15 +57,21 @@ protected:
         ASSERT_EQ(VectorDims(expectedBlkDims.size(), offsetPaddingSize), desc.getOffsetPaddingToData());
     }
 
+    virtual std::pair<DnnlBlockedMemoryDesc, CpuBlockedMemoryDesc> createDescs() const {
+        DnnlBlockedMemoryDesc descDnnl(precision, shape);
+        CpuBlockedMemoryDesc descCpu(precision, shape);
+        return {descDnnl, descCpu};
+    }
+
     void Run() {
         const size_t offset = 0, offsetPadding = 0;
 
-        DnnlBlockedMemoryDesc descDnnl(shape, MKLDNNExtensionUtils::IEPrecisionToDataType(precision), fmt);
+        auto descs = createDescs();
+        DnnlBlockedMemoryDesc descDnnl(descs.first);
+        CpuBlockedMemoryDesc descCpu(descs.second);
+
         VectorDims zeroStrides(descDnnl.getBlockDims().size(), 0);
         validate(descDnnl, zeroStrides, offset, offsetPadding, 0);
-
-        CpuBlockedMemoryDesc descCpu(precision, shape, descDnnl.getBlockDims(), descDnnl.getOrder(),
-                                     0, VectorDims(descDnnl.getOrder().size(), 0), descDnnl.getStrides());
         validate(descCpu, zeroStrides, offset, offsetPadding, precision.size());
 
         ASSERT_TRUE(descDnnl.isCompatible(descCpu));
@@ -87,13 +93,12 @@ protected:
         validate(*definedDnnl->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
 
         const auto definedCpu = descCpu.cloneWithDefaultStridesAndOffset();
-        validate(*definedCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, precision.size());          
+        validate(*definedCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, precision.size());
     }
 };
 
 /* ======================================= TEST DATA ======================================= */
-const std::vector<Shape> shapes = {
-    // static
+const std::vector<Shape> staticShapes = {
     Shape(VectorDims{0, 32, 48, 64}),
     Shape(VectorDims{16, 0, 48, 64}),
     Shape(VectorDims{16, 32, 0, 64}),
@@ -104,7 +109,19 @@ const std::vector<Shape> shapes = {
     Shape(VectorDims{0, 0, 0, 64}),
     Shape(VectorDims{16, 0, 0, 0}),
     Shape(VectorDims{0, 0, 0, 0})
-    // dynamic
+};
+
+const std::vector<Shape> dynamicShapes = {
+    Shape(ngraph::PartialShape{0, -1, {0, 48}, -1}),
+    Shape(ngraph::PartialShape{16, 0, -1, {0, 64}}),
+    Shape(ngraph::PartialShape{-1, -1, 0, -1}),
+    Shape(ngraph::PartialShape{{0, 16}, -1, {0, 48}, 0}),
+    Shape(ngraph::PartialShape{-1, 32, 0, 0}),
+    Shape(ngraph::PartialShape{0, 0, 48, -1}),
+    Shape(ngraph::PartialShape{{0, 16}, 0, 0, 64}),
+    Shape(ngraph::PartialShape{0, 0, 0, -1}),
+    Shape(ngraph::PartialShape{{0, 16}, 0, 0, 0}),
+    Shape(ngraph::PartialShape{0, 0, 0, 0})
 };
 
 const std::vector<dnnl::memory::format_tag> fmts = {
@@ -132,6 +149,13 @@ public:
         result << "_Fmt=" << mkldnn::utils::fmt2str(fmt);
         return result.str();
     }
+
+    std::pair<DnnlBlockedMemoryDesc, CpuBlockedMemoryDesc> createDescs() const override {
+        DnnlBlockedMemoryDesc descDnnl(shape, MKLDNNExtensionUtils::IEPrecisionToDataType(precision), fmt);
+        CpuBlockedMemoryDesc descCpu(precision, shape, descDnnl.getBlockDims(), descDnnl.getOrder());
+        return {descDnnl, descCpu};
+    }
+
 protected:
     void SetUp() override {
         std::tie(fmt, shape) = this->GetParam();
@@ -143,11 +167,15 @@ TEST_P(MemDescWithZeroDimsFmtTest, CreateDescWithFmt) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest, MemDescWithZeroDimsFmtTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_static, MemDescWithZeroDimsFmtTest,
                          ::testing::Combine(::testing::ValuesIn(fmts),
-                                            ::testing::ValuesIn(shapes)),
+                                            ::testing::ValuesIn(staticShapes)),
                          MemDescWithZeroDimsFmtTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_dynamic, MemDescWithZeroDimsFmtTest,
+                         ::testing::Combine(::testing::ValuesIn(fmts),
+                                            ::testing::ValuesIn(dynamicShapes)),
+                         MemDescWithZeroDimsFmtTest::getTestCaseName);
 
 class MemDescWithZeroDimsPlanarTest: public testing::WithParamInterface<Shape>,
                                      public MemDescWithZeroDimsBaseTest {
@@ -172,7 +200,7 @@ TEST_P(MemDescWithZeroDimsPlanarTest, CreateDescPlanar) {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsPlanarTest, MemDescWithZeroDimsPlanarTest,
-                         ::testing::ValuesIn(shapes),
+                         ::testing::ValuesIn(staticShapes),
                          MemDescWithZeroDimsPlanarTest::getTestCaseName);
 
 using MemDescWithZeroDimsCloneNewDimsParams = std::tuple<dnnl::memory::format_tag, // memory format
@@ -217,13 +245,13 @@ TEST_P(MemDescWithZeroDimsCloneNewDimsTest, CloneWithNewDims) {
     validate(*clonedDescCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, precision.size());
 }
 
-const std::vector<Shape> dynamicShapes = {
+const std::vector<Shape> srcDynShapes = {
     Shape(ngraph::PartialShape({-1, -1, -1, -1})),
     Shape(ngraph::PartialShape({{0, 16}, {0, 32}, {0, 48}, {0, 64}}))
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsCloneNewDimsTest, MemDescWithZeroDimsCloneNewDimsTest,
                          ::testing::Combine(::testing::ValuesIn(fmts),
-                                            ::testing::ValuesIn(dynamicShapes),
-                                            ::testing::ValuesIn(shapes)),
+                                            ::testing::ValuesIn(srcDynShapes),
+                                            ::testing::ValuesIn(staticShapes)),
                          MemDescWithZeroDimsCloneNewDimsTest::getTestCaseName);

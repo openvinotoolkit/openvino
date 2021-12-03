@@ -41,7 +41,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
             }
         }
     }
-    
+
     this->order = order;
     this->blockedDims = blockedDims;
     this->offsetPadding = offsetPadding;
@@ -122,8 +122,10 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
         return getCurrentMemSize();
     }
 
-    auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
+    auto maxDims = shape.getMaxDims();
+    if (shape.hasZeroDims()) {
+        std::replace(maxDims.begin(), maxDims.end(), static_cast<Dim>(Shape::UNDEFINED_DIM), static_cast<Dim>(0));
+    } else if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
                                                                          // WA: for some nodes ngraph compute upper bound depending on precision max value
                                                                          x >= std::numeric_limits<int32_t>::max(); })) {
         return UNDEFINED_SIZE;
@@ -284,8 +286,12 @@ bool CpuBlockedMemoryDesc::blocksExtended() const {
 }
 
 size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
-    if (std::any_of(blockedDims.begin(), blockedDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; }))
+    if (getShape().hasZeroDims()) {
+        return 0;
+    }
+    if (std::any_of(blockedDims.begin(), blockedDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; })) {
         IE_THROW() << "Can't compute padded elements count for non undefined blocked dims";
+    }
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
 }
 

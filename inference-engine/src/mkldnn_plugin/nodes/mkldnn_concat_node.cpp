@@ -513,7 +513,7 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
         }
         mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
         nonZeroInShapes++;
-    }      
+    }
 
     (*prim).execute(strm, mem_ags);
 }

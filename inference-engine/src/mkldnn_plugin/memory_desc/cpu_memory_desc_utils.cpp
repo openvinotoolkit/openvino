@@ -56,7 +56,7 @@ CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const Infere
     if (std::any_of(dims.begin(), dims.end(), [](size_t dim){ return dim == 0; })) {
         std::fill(strides.begin(), strides.end(), 0);
     }
-    
+
     return CpuBlockedMemoryDesc(desc.getPrecision(), Shape(dims), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
                                 blkDesc.getOffsetPaddingToData(), strides);
 }

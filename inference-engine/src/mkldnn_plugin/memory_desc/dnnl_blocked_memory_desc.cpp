@@ -389,6 +389,7 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
 static mkldnn::memory::desc cloneDescWithNewDims(const mkldnn::memory::desc& desc, const VectorDims& dims, const VectorDims& order) {
     using namespace dnnl::impl::utils;
     auto mklDims = MKLDNNExtensionUtils::convertToDnnlDims(dims);
+    const auto offsetPadding = desc.data.offset0;
     mkldnn::memory::desc newMklDesc = desc;
     array_copy(newMklDesc.data.dims, mklDims.data(), mklDims.size());
     std::vector<int> perm(order.begin(), order.begin() + mklDims.size());
@@ -400,6 +401,8 @@ static mkldnn::memory::desc cloneDescWithNewDims(const mkldnn::memory::desc& des
     if (retCode != dnnl::impl::status::success) {
         IE_THROW() << "Can not clone DnnlBlockedMemoryDesc with dims: " << MemoryDescUtils::dims2str(dims);
     }
+    // fill_blocked set offset0 to 0
+    newMklDesc.data.offset0 = offsetPadding;
     return newMklDesc;
 }
 
@@ -501,8 +504,10 @@ size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
         return getCurrentMemSize();
     }
 
-    auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
+    auto maxDims = shape.getMaxDims();
+    if (shape.hasZeroDims()) {
+        std::replace(maxDims.begin(), maxDims.end(), static_cast<Dim>(Shape::UNDEFINED_DIM), static_cast<Dim>(0));
+    } else if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
                                                                          // WA: for some nodes ngraph compute upper bound depending on precision max value
                                                                          x >= std::numeric_limits<int32_t>::max(); })) {
         return UNDEFINED_SIZE;
@@ -513,6 +518,13 @@ size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
 }
 
 size_t DnnlBlockedMemoryDesc::getPaddedElementsCount() const {
+    if (getShape().hasZeroDims()) {
+        return 0;
+    }
+    if (std::any_of(std::begin(desc.data.padded_dims), std::begin(desc.data.padded_dims) + desc.data.ndims,
+            [](dnnl_dim_t dim) { return dim == DNNL_RUNTIME_DIM_VAL; })) {
+        IE_THROW() << "Can't compute padded elements count for non undefined blocked dims";
+    }
     return std::accumulate(std::begin(desc.data.padded_dims), std::begin(desc.data.padded_dims) + desc.data.ndims, size_t{1},
                            std::multiplies<int64_t>());
 }

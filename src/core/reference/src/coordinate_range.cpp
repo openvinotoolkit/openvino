@@ -81,7 +81,7 @@ bool SliceRange::increment() {
         m_coordinate[axis] += m_source_strides[axis];
         m_index += index_step;
         if (m_coordinate[axis] < m_bounds.m_upper[axis]) {
-            // assert(m_index < shape_size(m_source_shape));
+            assert(m_index < shape_size(m_source_shape));
             return true;
         }
         const auto difference = m_coordinate[axis] - m_bounds.m_lower[axis];
