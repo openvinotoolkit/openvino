@@ -72,11 +72,47 @@ class TestGatherPartialInfer(unittest.TestCase):
                                             indices_shape=[1, 2],
                                             ref_shape=[3, 1, 2])
 
+    def test_shape_axis_1_1(self):
+        self.build_and_test_shape_inference(axis=1, batch_dims=0,
+                                            data_shape=[3, 3],
+                                            indices_shape=[1, 2, 4],
+                                            ref_shape=[3, 1, 2, 4])
+
+    def test_shape_axis_1_2(self):
+        self.build_and_test_shape_inference(axis=1, batch_dims=0,
+                                            data_shape=[1, 2, 4],
+                                            indices_shape=[3, 3],
+                                            ref_shape=[1, 3, 3, 4])
+
+    def test_shape_axis_1_3(self):
+        self.build_and_test_shape_inference(axis=1, batch_dims=0,
+                                            data_shape=[1, 2, 4],
+                                            indices_shape=[5, 8, 16],
+                                            ref_shape=[1, 5, 8, 16, 4])
+
     def test_shape_axis_0(self):
         self.build_and_test_shape_inference(axis=0, batch_dims=0,
                                             data_shape=[3, 3],
                                             indices_shape=[1, 2],
                                             ref_shape=[1, 2, 3])
+
+    def test_shape_axis_0_1(self):
+        self.build_and_test_shape_inference(axis=0, batch_dims=0,
+                                            data_shape=[3, 3],
+                                            indices_shape=[1, 2, 5],
+                                            ref_shape=[1, 2, 5, 3])
+
+    def test_shape_axis_0_2(self):
+        self.build_and_test_shape_inference(axis=0, batch_dims=0,
+                                            data_shape=[1, 2, 5],
+                                            indices_shape=[3, 3],
+                                            ref_shape=[3, 3, 2, 5])
+
+    def test_shape_axis_0_3(self):
+        self.build_and_test_shape_inference(axis=0, batch_dims=0,
+                                            data_shape=[1, 2, 5],
+                                            indices_shape=[6, 8, 15],
+                                            ref_shape=[6, 8, 15, 2, 5])
 
     def test_shape_axis_minus_2(self):
         self.build_and_test_shape_inference(axis=-2, batch_dims=0,
