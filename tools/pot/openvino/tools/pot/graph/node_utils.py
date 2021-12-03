@@ -268,8 +268,8 @@ def create_node_name(input_node, mode=tuple):
     If input node has one output port -> key is name of input node.
     Otherwise, key is tuple (input name, output port number)
     """
-    key = input_node.name
+    key = input_node.fullname
     if len(input_node.out_ports()) > 1:
         port_number = input_node.in_port(0).get_source().out
-        key = (input_node.name, port_number) if mode == tuple else f"{input_node.name}.{port_number}"
+        key = (input_node.fullname, port_number) if mode == tuple else f"{input_node.fullname}.{port_number}"
     return key

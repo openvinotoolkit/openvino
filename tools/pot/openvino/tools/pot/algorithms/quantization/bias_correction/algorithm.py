@@ -172,7 +172,7 @@ class BiasCorrection(Algorithm):
         def fill_output_nodes():
             assigns = ge.get_nodes_by_type(main_node.graph, ['Assign'])
             for node_name in checked_input_names:
-                node = ge.get_node_by_name(main_node.graph, node_name)
+                node = ge.get_node_by_name(main_node.graph, node_name, recursively=False)
 
                 if node.type == 'ReadValue':
                     output_nodes.extend(nu.get_lstm_ends(node, assigns, checked_input_names))
@@ -409,7 +409,7 @@ class BiasCorrection(Algorithm):
                 add_node_name = add_node['orig_node_name']
             axis = OPERATIONS_CHANNEL_AXIS[node.type]
             self._channel_axis[add_node_name] = axis
-            node_name = node.name
+            node_name = node.fullname
             if node_name in biased_after_param_nodes:
                 input_name = biased_after_param_nodes[node_name]
                 statistics_layout[input_name] = {'batch_mean_param_in': agf.batch_mean}
