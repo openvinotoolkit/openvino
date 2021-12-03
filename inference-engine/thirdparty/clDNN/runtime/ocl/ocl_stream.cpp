@@ -441,7 +441,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 
     std::vector<cl::Event> clevents;
     for (auto& ev : events) {
-        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get()))
+        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get()))
             clevents.push_back(ocl_base_ev->get());
     }
 
@@ -455,7 +455,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
     bool needs_barrier = false;
     for (auto& dep : deps) {
-        auto* ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get());
+        auto* ocl_base_ev = downcast<ocl_base_event>(dep.get());
         if (ocl_base_ev->get_queue_stamp() > _last_barrier) {
             needs_barrier = true;
         }

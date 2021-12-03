@@ -2,7 +2,7 @@ Integrate the Inference Engine with Your Application {#openvino_docs_IE_DG_Integ
 ===============================
 
 This section provides a high-level description of the process of integrating the Inference Engine into your application.
-Refer to the [Hello Classification Sample](../../inference-engine/samples/hello_classification/README.md) sources
+Refer to the [Hello Classification Sample](../../samples/cpp/hello_classification/README.md) sources
 for example of using the Inference Engine in applications.
 
 ## Use the Inference Engine API in Your Code
@@ -73,7 +73,7 @@ methods:
 >  Inference Engine expects two separate image planes (Y and UV). You must use a specific
 >  `InferenceEngine::NV12Blob` object instead of default blob object and set this blob to
 >  the Inference Engine Infer Request using `InferenceEngine::InferRequest::SetBlob()`.
->  Refer to [Hello NV12 Input Classification C++ Sample](../../inference-engine/samples/hello_nv12_input_classification/README.md)
+>  Refer to [Hello NV12 Input Classification C++ Sample](../../samples/cpp/hello_nv12_input_classification/README.md)
 >  for more details.
 
   If you skip this step, the default values are set:
@@ -209,6 +209,6 @@ It's allowed to specify additional build options (e.g. to build CMake project on
 
 ### Run Your Application
 
-Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
+Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../samples/cpp/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
 
 [integration_process]: img/integration_process.png
