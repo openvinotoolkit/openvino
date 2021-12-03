@@ -7,12 +7,12 @@
 #include <fstream>
 #include <functional>
 #include <gna/gna_config.hpp>
-#include <inference_engine.hpp>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
+#include <openvino/openvino.hpp>
 #include <random>
 #include <samples/args_helper.hpp>
 #include <samples/slog.hpp>
@@ -20,9 +20,10 @@
 #include <thread>
 #include <utility>
 #include <vector>
-#include "utils.hpp"
+
 #include "fileutils.hpp"
 #include "speech_sample.hpp"
+#include "utils.hpp"
 
 using namespace ov::preprocess;
 
@@ -46,6 +47,7 @@ int main(int argc, char* argv[]) {
         ArkFile arkFile;
         NumpyFile numpyFile;
         auto extInputFile = fileExt(FLAGS_i);
+
         if (extInputFile == "ark") {
             file = &arkFile;
         } else if (extInputFile == "npz") {
@@ -60,13 +62,14 @@ int main(int argc, char* argv[]) {
         if (!FLAGS_i.empty()) {
             std::string outStr;
             std::istringstream stream(FLAGS_i);
-
             uint32_t currentNumUtterances(0), currentNumBytesThisUtterance(0);
             while (getline(stream, outStr, ',')) {
                 std::string filename(fileNameNoExt(outStr) + "." + extInputFile);
+
                 inputFiles.push_back(filename);
 
                 file->GetFileInfo(filename.c_str(), 0, &currentNumUtterances, &currentNumBytesThisUtterance);
+
                 if (numUtterances == 0) {
                     numUtterances = currentNumUtterances;
                 } else if (currentNumUtterances != numUtterances) {
@@ -80,7 +83,6 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- Initialize inference engine core and read model
         // -------------------------------------
-        slog::info << "Loading Inference Engine" << slog::endl;
         ov::runtime::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
 
@@ -106,8 +108,10 @@ int main(int argc, char* argv[]) {
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
 
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
+
         ov::Shape input_shape = model->input().get_shape();
         input_shape[ov::layout::batch_idx(tensor_layout)] = batchSize;
+
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Set parameters and scale factors -------------------------------------
@@ -255,54 +259,6 @@ int main(int argc, char* argv[]) {
 
         // ---------------------------------------------------------------------------------------------------------
 
-        // --------------------------- Prepare input data -----------------------------------------------------
-        /** Taking information about all topology inputs **/
-
-        /** Stores all input data **/
-        std::vector<ov::runtime::Tensor> ptrInputBlobs;
-        if (!FLAGS_iname.empty()) {
-            std::vector<std::string> inputNameBlobs = ConvertStrToVector(FLAGS_iname);
-
-            for (const auto& input : inputNameBlobs) {
-                std::stringstream sstream(input);
-                size_t result_input;
-                sstream >> result_input;
-                ov::runtime::Tensor blob = inferRequests.begin()->inferRequest.get_input_tensor(result_input);
-                if (!blob) {
-                    std::string errMessage("No blob with name : " + result_input);
-                    throw std::logic_error(errMessage);
-                }
-                ptrInputBlobs.push_back(blob);
-            }
-        } else {
-            for (auto& input : executableNet.inputs()) {
-                ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.get_tensor(input));
-            }
-        }
-
-        // ---------------------------------------------------------------------
-
-        // ------------------------------ Prepare output data -------------------------------------------------
-
-        std::vector<ov::runtime::Tensor> ptrOutputBlob;
-        if (!outputs.empty()) {
-            for (const auto& output : outputs) {
-                std::stringstream sstream(output);
-                size_t result_output;
-                sstream >> result_output;
-                ov::runtime::Tensor blob = inferRequests.begin()->inferRequest.get_output_tensor(result_output);
-                if (!blob) {
-                    std::string errMessage("No blob with name : " + result_output);
-                    throw std::logic_error(errMessage);
-                }
-                ptrOutputBlob.push_back(blob);
-            }
-        } else {
-            for (auto& output : executableNet.outputs()) {
-                ptrOutputBlob.push_back(inferRequests.begin()->inferRequest.get_tensor(output));
-            }
-        }
-
         std::vector<std::string> output_name_files;
         std::vector<std::string> reference_name_files;
         size_t count_file = 1;
@@ -320,7 +276,6 @@ int main(int argc, char* argv[]) {
             }
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
         }
-        // ---------------------------------------------------------------------
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Do inference --------------------------------------------------------
@@ -375,20 +330,12 @@ int main(int argc, char* argv[]) {
                                                std::to_string(numFrames) + " and " + std::to_string(currentNumFrames));
                         throw std::logic_error(errMessage);
                     }
-
+                 
                     ptrUtterances[i] = ptrUtterance;
+
                     numFrameElementsInput[i] = currentNumFrameElementsInput;
                 }
-
-                int i = 0;
-                for (auto& ptrInputBlob : ptrInputBlobs) {
-                    if (ptrInputBlob.get_size() != numFrameElementsInput[i++] * batchSize) {
-                        throw std::logic_error("network input size(" + std::to_string(ptrInputBlob.get_size()) +
-                                               ") mismatch to input file size (" +
-                                               std::to_string(numFrameElementsInput[i - 1] * batchSize) + ")");
-                    }
-                }
-
+             
                 ptrScores.resize(numFrames * numScoresPerFrame * sizeof(float));
                 if (!FLAGS_r.empty()) {
                     /** Read file with reference scores **/
@@ -464,19 +411,17 @@ int main(int argc, char* argv[]) {
                                     /* Prepare output data for save to file in future */
                                     outputFrame = &ptrScores.front() +
                                                   numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
-                                    ov::runtime::Tensor outputBlob = inferRequest.inferRequest.get_tensor(
-                                        executableNet.outputs().begin()->get_any_name());
+
+                                    ov::runtime::Tensor outputBlob =
+                                        inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
                                 }
                                 if (!FLAGS_r.empty()) {
                                     /** Compare output data with reference scores **/
-
-                                    ov::runtime::Tensor outputBlob = inferRequest.inferRequest.get_tensor(
-                                        executableNet.outputs().begin()->get_any_name());
-                                    // locked memory holder should be alive all time while access to its buffer happens
-
+                                    ov::runtime::Tensor outputBlob =
+                                        inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
                                     CompareScores(
                                         outputBlob.data<float>(),
                                         &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
@@ -502,6 +447,9 @@ int main(int argc, char* argv[]) {
                         // -----------------------------------------------------------------------------------------------------
 
                         int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
+                        ov::runtime::Tensor input_tensor =
+                            ov::runtime::Tensor(ov::element::f32, input_shape, inputFrame[0]);
+                        inferRequest.inferRequest.set_input_tensor(input_tensor);
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();
 

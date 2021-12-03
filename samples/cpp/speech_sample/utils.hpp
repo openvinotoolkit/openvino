@@ -270,6 +270,7 @@ void printReferenceCompareResults(score_error_t const& totalError, size_t frames
  * @param stream output stream
  * @param fullDeviceName full device name string
  * @param numberOfFramesOnHw number of frames delivered to GNA HW
+ * @param FLAGS_d flag of device
  * @return none.
  */
 void printPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> const& utterancePerfMap,
