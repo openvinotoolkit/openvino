@@ -69,7 +69,6 @@ The attribute names are self-explanatory or match the name in the `hparams_confi
 
 OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet model. For more information, refer to 
 [Object Detection for SSD C++ Sample](@ref openvino_inference_engine_samples_object_detection_sample_ssd_README) and 
-[Object Detection for SSD Python Sample](@ref openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README).
 
 ## <a name="efficientdet-ir-results-interpretation"></a>Interpreting Results of the TensorFlow Model and the IR
 
