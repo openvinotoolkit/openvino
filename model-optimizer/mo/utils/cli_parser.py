@@ -94,7 +94,7 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
         if 'mean_file' in option_string or 'mean_offset' in option_string:
-            dep_msg += 'Please use --mean_values cli option instead'
+            dep_msg += 'Please use --mean_values cli option instead.'
         log.error(dep_msg, extra={'is_warning': True})
         super().__call__(parser, namespace, values, option_string)
 
