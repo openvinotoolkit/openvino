@@ -46,7 +46,6 @@ QUANTIZATION_ALGORITHMS = [
     'AccuracyAwareCommon',
     'INT4MixedQuantization',
     'TunableQuantization',
-    'Tpe',
     'QuantNoiseEstimator',
     'OutlierChannelSplitting',
     'WeightBiasCorrection',
