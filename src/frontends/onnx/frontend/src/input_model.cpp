@@ -172,61 +172,6 @@ void InputModelONNX::override_all_inputs(const std::vector<Place::Ptr>& inputs) 
                  "Unexpected number of inputs after override_all_inputs");
 }
 
-/*void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) {
-    std::vector<onnx_editor::InputEdge> onnx_inputs;
-    onnx_inputs.reserve(inputs.size());
-    for (const auto& input : inputs) {
-        if (const auto input_port = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(input)) {
-            onnx_inputs.push_back(input_port->get_input_edge());
-        } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(input)) {
-            auto name = tensor->get_names()[0];
-            const auto consumers = m_editor->find_output_consumers(name);
-            std::transform(std::begin(consumers),
-                           std::end(consumers),
-                           std::back_inserter(onnx_inputs),
-                           [](const onnx_editor::InputEdge& edge) {
-                               return edge;
-                           });
-        } else if (const auto op = std::dynamic_pointer_cast<PlaceOpONNX>(input)) {
-            const auto editor_node = op->get_editor_node();
-            const auto op_inputs = m_editor->get_input_ports(editor_node);
-            int node_idx = m_editor->get_node_index(editor_node);
-            int port_idx = 0;
-            std::transform(std::begin(op_inputs),
-                           std::end(op_inputs),
-                           std::back_inserter(onnx_inputs),
-                           [&node_idx, &port_idx](const std::string&) {
-                               return onnx_editor::InputEdge{node_idx, port_idx++};
-                           });
-        }
-    }
-
-    std::vector<onnx_editor::OutputEdge> onnx_outputs;
-    onnx_outputs.reserve(outputs.size());
-    for (const auto& output : outputs) {
-        if (const auto output_port = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(output)) {
-            onnx_outputs.push_back(output_port->get_output_edge());
-        } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(output)) {
-            const auto output_port = tensor->get_producing_port();
-            const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(output_port);
-            NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
-            onnx_outputs.push_back(onnx_output_edge->get_output_edge());
-        } else if (const auto op = std::dynamic_pointer_cast<PlaceOpONNX>(output)) {
-            const auto editor_node = op->get_editor_node();
-            const auto op_outputs = m_editor->get_output_ports(editor_node);
-            int node_idx = m_editor->get_node_index(editor_node);
-            int port_idx = 0;
-            std::transform(std::begin(op_outputs),
-                           std::end(op_outputs),
-                           std::back_inserter(onnx_outputs),
-                           [&node_idx, &port_idx](const std::string&) {
-                               return onnx_editor::OutputEdge{node_idx, port_idx++};
-                           });
-        }
-    }
-    m_editor->cut_graph_fragment(onnx_inputs, onnx_outputs);
-}*/
-
 void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) {
     std::vector<onnx_editor::InputEdge> onnx_inputs = convert_place_to_input_edge(inputs);
     std::vector<onnx_editor::OutputEdge> onnx_outputs = convert_place_to_output_edge(outputs);

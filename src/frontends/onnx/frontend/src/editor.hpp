@@ -274,7 +274,17 @@ public:
     ///
     std::shared_ptr<Function> decode();
 
+    /// \brief     Adds output to provided OutputEdge.
+    ///
+    /// \param output_edge An output_edge type where graph output shall be added.
+    ///
     void add_output(const OutputEdge& output_edge) const;
+
+    /// \brief     Provides element type for given tensor name.
+    ///
+    /// \param output_edge Name of tensor for which element type will be returned.
+    ///
+    element::Type_t get_element_type(const std::string& tensor_name);
 
 private:
     void update_mapper_if_needed() const;
