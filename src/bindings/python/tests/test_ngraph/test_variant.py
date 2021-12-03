@@ -35,7 +35,7 @@ def test_variant_int_list():
 def test_variant_float_list():
     v = Variant([21.0, 37.0])
     assert isinstance(v.value, list)
-    assert len(v.value)== 2
+    assert len(v.value) == 2
     assert isinstance(v.value[0], float)
 
 
@@ -47,7 +47,7 @@ def test_variant_tuple():
 def test_variant_bool():
     v = Variant(False)
     assert isinstance(v.value, bool)
-    assert v == False
+    assert v.value is False
 
 
 def test_variant_dict_str():
