@@ -26,11 +26,12 @@ class ArangeLikeReplacer(FrontReplacementOp):
         if node.repeat != 1:
             raise Error("arange_like node {} with non default repeat value {} "
                         "is not supported".format(name, node.repeat))
-        axis = node.soft_get('axis')
+        axis = node.axis
         shape_node = Shape(graph, {'name': name + '/shape'}).create_node()
         range_node = create_op_with_const_inputs(graph, Range, {0: int64_array(node.start),
                                                                 2: int64_array(1)}, {'name': name + '/Range'})
-        shape_node.in_port(0).connect(node.in_port(0).get_source())
+        node.in_port(0).get_connection().set_destination(shape_node.in_port(0))
+
         if axis:
             '''
             Replace arange_like op to subgraph:
@@ -42,7 +43,6 @@ class ArangeLikeReplacer(FrontReplacementOp):
             shape_node.out_port(0).connect(gather_node.in_port(0))
             gather_node.out_port(0).connect(range_node.in_port(1))
             node.out_port(0).get_connection().set_source(range_node.out_port(0))
-            node.in_port(0).disconnect()
         else:
             r'''
             Replace arange_like op to subgraph:
