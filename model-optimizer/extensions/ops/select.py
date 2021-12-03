@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import compatible_shapes, dynamic_dimension, shape_array, is_fully_defined, compatible_dims
+from mo.front.common.partial_infer.utils import compatible_shapes, dynamic_dimension, shape_array, is_fully_defined
 from mo.graph.graph import Node, Graph, Error
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting, bi_directional_broadcasting
@@ -55,12 +55,12 @@ class Select(Op):
             # but by adding ones to the end we can achieve numpy compatibility, as in transformation SelectBroadcast.py
             if node.has_valid('format') and node['format'] == 'tf' and len(condition_shape) == 1:
                 # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/array_ops.py#L4596-L4598
-                msg_tf = "In Select node '{}' if 'condition' is a 1D tensor then sizes " \
-                         "must be compatible with the first dimension of then/else branches. " \
+                msg_tf = "In Select node '{}' if 'condition' is a 1D tensor then it's size " \
+                         "must be matching with the first dimension of then/else branches. " \
                          "But instead got: cond_shape={}, then_shape={}, else_shape={}".format(
                             node_name, condition_shape, a_shape, b_shape)
 
-                assert compatible_dims(condition_shape[0], output_shape[0]), msg_tf
+                assert condition_shape[0] == output_shape[0], msg_tf
                 condition_shape = np.concatenate((condition_shape, np.ones(len(output_shape) - 1)))
 
             output_shape = bi_directional_shape_broadcasting(output_shape, condition_shape)

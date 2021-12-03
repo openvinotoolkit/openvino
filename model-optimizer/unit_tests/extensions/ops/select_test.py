@@ -4,7 +4,7 @@
 import unittest
 
 import numpy as np
-import re
+
 from extensions.ops.select import Select
 from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value
 from mo.front.common.partial_infer.utils import strict_compare_tensors, int64_array
@@ -273,12 +273,12 @@ class TestSelect(unittest.TestCase):
         self.assertTrue(flag, msg)
 
     def test_select_infer_tf_condition_assert_raises(self):
-        with self.assertRaisesRegex(AssertionError, r"In Select node .*if 'condition' is a 1D tensor then"):
+        with self.assertRaisesRegex(AssertionError, "if 'condition' is a 1D tensor then it's size"):
             self.build_select_graph_and_infer(condition_value=None, condition_shape=shape_array([42]),
-                                              then_value=None, then_shape=shape_array([100, 20]),
-                                              else_value=None, else_shape=shape_array([100, 20]),
-                                              out_value=None, out_shape=shape_array([100, 20]),
-                                              auto_broadcast='numpy', fw_format='tf')
+                                                      then_value=None, then_shape=shape_array([100, 20]),
+                                                      else_value=None, else_shape=shape_array([100, 20]),
+                                                      out_value=None, out_shape=shape_array([100, 20]),
+                                                      auto_broadcast='numpy', fw_format='tf')
 
     def test_select_infer_assert_pdpd(self):
         with self.assertRaisesRegex(Error, "PDPD broadcasting rule is not implemented yet"):
