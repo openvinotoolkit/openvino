@@ -26,9 +26,7 @@ class DivSqrtDim(FrontReplacementOp):
         div_sqrt = match['op']
         div_sqrt_name = div_sqrt.soft_get('name', div_sqrt.id)
         shape_node = Shape(graph, dict(name=div_sqrt_name + '/Shape')).create_node()
-        rank_node = Shape(graph, dict(name=div_sqrt_name + '/RankShape')).create_node()
         shape_node.in_port(0).connect(div_sqrt.in_port(0).get_source())
-        rank_node.in_port(0).connect(shape_node.out_port(0))
 
         shape_values_node = node_to_get_shape_value_of_indices(shape_node=shape_node, indices=[-1])
 
