@@ -484,9 +484,13 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     }
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
+    std::string FEs;
+    for (const auto& fe_name : manager.get_available_front_ends())
+        FEs += fe_name + " ";
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
-                             << " is supported and the model is correct.";
+                             << " is supported and the model is correct."
+                             << " Available frontends: " << FEs;
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model,
