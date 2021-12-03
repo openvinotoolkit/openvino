@@ -64,6 +64,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                         }
                     }
                 }
+                MultiDeviceExecutableNetwork::_thisWorkerInferRequest =  _workerInferRequest;
         }},
         // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
         // then sets the device-agnostic blobs to the actual (device-specific) request
@@ -79,6 +80,9 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
               }
               if (_needPerfCounters)
                   _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
+              if (!_workerInferRequest->_isBinded && _multiDeviceExecutableNetwork->_workModeIsAUTO) {
+                  _workerInferRequest = nullptr;
+              }
         }}
     };
 }
@@ -96,8 +100,9 @@ MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {
     StopAndWait();
     //if the auto infer request is shared with optimal workers, no need to do manual release
     if (_multiDeviceExecutableNetwork->_workModeIsAUTO) {
-        if (_inferRequest->GetSharedWorker() != nullptr)
-            _inferRequest->GetSharedWorker()->_readyForDestroy = true;
+        if (_workerInferRequest &&  _workerInferRequest->_manualyDestory) {
+            delete  _workerInferRequest;
+        }
     }
 }
 }  // namespace MultiDevicePlugin

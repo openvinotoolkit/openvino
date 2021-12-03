@@ -136,12 +136,14 @@ class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkTh
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
     friend class MultiDeviceAsyncInferRequest;
+    friend class MultiDeviceInferRequest;
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
         bool                                      _manualyDestory = false;
         bool                                      _readyForDestroy = false;
+        bool                                      _isBinded = true;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
@@ -190,7 +192,8 @@ public:
 
 private:
     void GenerateWorkers(const std::string& device, const InferenceEngine::SoExecutableNetworkInternal& executableNetwork);
-    WorkerInferRequest* IncreaseWorkers(AutoLoadContext& loadcontext, InferenceEngine::SoIInferRequestInternal& request_to_share);
+    WorkerInferRequest* IncreaseWorkers(AutoLoadContext& loadcontext);
+    void PushToIdleQueue(MultiDeviceExecutableNetwork::WorkerInferRequest* workerRequestPtr, DeviceName& deviceName);
     void WaitActualNetworkReady() const;
     void WaitFirstNetworkReady();
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
@@ -199,6 +202,7 @@ private:
     void TryToLoadNetWork(AutoLoadContext& context,
                           const std::string& modelPath,
                           const InferenceEngine::CNNNetwork& network);
+    bool NeedHotSwap() { return _loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready; }
 
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;

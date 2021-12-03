@@ -118,12 +118,22 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
         IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
         workerRequest._inferRequest->SetCallback(
             [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
-                IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
                 {
                     auto capturedTask = std::move(workerRequestPtr->_task);
                     capturedTask();
                 }
+                if (_workModeIsAUTO && _loadContext[CPU].isEnabled
+                    &&_loadContext[ACTUALDEVICE].isAlready && device == "CPU") {
+                    workerRequestPtr->_isBinded = false;
+                }
+                if (!workerRequestPtr->_isBinded && _workModeIsAUTO) {
+                    IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
+                }
+                if (_workModeIsAUTO) {
+                    return;
+                }
+                IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 // try to return the request to the idle list (fails if the overall object destruction has began)
                 if (idleGuard.Release()->try_push(workerRequestPtr)) {
                     // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
@@ -139,42 +149,42 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
 }
 
 MultiDeviceExecutableNetwork::WorkerInferRequest*
-MultiDeviceExecutableNetwork::IncreaseWorkers(AutoLoadContext& loadcontext, InferenceEngine::SoIInferRequestInternal& request_to_share) {
+MultiDeviceExecutableNetwork::IncreaseWorkers(AutoLoadContext& loadcontext) {
+    //only Auto mode will use this now.
     auto devicename = loadcontext.deviceInfo.deviceName;
     auto& executableNetwork =  loadcontext.executableNetwork;
     auto& idleWorkerRequests = _idleWorkerRequests[devicename];
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
-    {
-        std::lock_guard<std::mutex> lock(_idleWorkerMutex);
-        idleWorkerRequests.set_capacity(idleWorkerRequests.capacity() + 1);
-    }
     auto* workerRequestPtr =  new WorkerInferRequest;
     workerRequestPtr->_manualyDestory = true;
     auto& workerRequest = *workerRequestPtr;
     workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
-    IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
     workerRequest._inferRequest->SetCallback(
             [workerRequestPtr, this, devicename, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
-                IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
+                if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready && devicename == "CPU") {
+                    workerRequestPtr->_isBinded = false;
+                }
                 {
                     auto capturedTask = std::move(workerRequestPtr->_task);
                     capturedTask();
                 }
-                // try to return the request to the idle list (fails if the overall object destruction has began)
-                if (idleGuard.Release()->try_push(workerRequestPtr)) {
-                    // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
-                    // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
-                    Task t;
-                    if (_inferPipelineTasks.try_pop(t))
-                        ScheduleToWorkerInferRequest(std::move(t));
-                    else if (_inferPipelineTasksDeviceSpecific[devicename]->try_pop(t))
-                        ScheduleToWorkerInferRequest(std::move(t), devicename);
+                if (!workerRequestPtr->_isBinded) {
+                    IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 }
             });
-    request_to_share = workerRequest._inferRequest;
     return workerRequestPtr;
 }
+
+void MultiDeviceExecutableNetwork::PushToIdleQueue(MultiDeviceExecutableNetwork::WorkerInferRequest* workerRequestPtr, DeviceName& devicename) {
+    auto& idleWorkerRequests = _idleWorkerRequests[devicename];
+    {
+        std::lock_guard<std::mutex> lock(_idleWorkerMutex);
+        idleWorkerRequests.set_capacity(idleWorkerRequests.capacity() + 1);
+    }
+    IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
+}
+
 
 MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&                         modelPath,
                                                            const InferenceEngine::CNNNetwork&         network,
@@ -430,7 +440,14 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             return;
         }
     }
-
+    //in AUTO:CPU,GPU case, when GPU infer request is running out, increase the gpu workers
+    if (_workModeIsAUTO) {
+        WorkerInferRequest* increasedWorker = nullptr;
+        increasedWorker = IncreaseWorkers(_loadContext[ACTUALDEVICE]);
+        PushToIdleQueue(increasedWorker, _loadContext[ACTUALDEVICE].deviceInfo.deviceName);
+        ScheduleToWorkerInferRequest(inferPipelineTask, preferred_device);
+        return;
+    }
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty())
         _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
@@ -442,12 +459,7 @@ bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
                                             NotBusyWorkerRequests& idleWorkerRequests,
                                             const DeviceName& preferred_device) {
   WorkerInferRequest *workerRequestPtr = nullptr;
-  while (idleWorkerRequests.try_pop(workerRequestPtr)) {
-      if (workerRequestPtr->_manualyDestory && workerRequestPtr->_readyForDestroy) {
-          delete workerRequestPtr;
-          workerRequestPtr = nullptr;
-          continue;
-      }
+  if (idleWorkerRequests.try_pop(workerRequestPtr)) {
       IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
       _thisWorkerInferRequest = workerRequestPtr;
       {
@@ -461,7 +473,13 @@ bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
 }
 
 void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
-    ScheduleToWorkerInferRequest(std::move(inferPipelineTask), _thisPreferredDeviceName);
+    //in auto work mode, do not schedule when binded worker request is available
+    if (_thisWorkerInferRequest && _workModeIsAUTO) {
+          auto capturedTask = std::move(inferPipelineTask);
+          capturedTask();
+    } else {
+        ScheduleToWorkerInferRequest(std::move(inferPipelineTask), _thisPreferredDeviceName);
+    }
 }
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
@@ -488,7 +506,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         for (auto&& idleWorker : _idleWorkerRequests) {
             WorkerInferRequest *workerRequestPtr = nullptr;
             while (idleWorker.second.try_pop(workerRequestPtr)) {
-                if (workerRequestPtr->_manualyDestory) {
+                if (workerRequestPtr && workerRequestPtr->_manualyDestory) {
                     delete workerRequestPtr;
                 }
             }
@@ -532,6 +550,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     WorkerInferRequest* sharedWorker = nullptr;
+    std::string devicename = "";
 
     if (_workModeIsAUTO) {
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
@@ -539,17 +558,27 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
             if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
             } else {
-                sharedWorker = IncreaseWorkers(_loadContext[ACTUALDEVICE], request_to_share_blobs_with);
+                sharedWorker = IncreaseWorkers(_loadContext[ACTUALDEVICE]);
+                request_to_share_blobs_with = sharedWorker->_inferRequest;
+                devicename = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
             }
         } else {
             auto& dev_requests = _workerRequests[_loadContext[CPU].deviceInfo.deviceName];
             if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
             } else {
-                sharedWorker = IncreaseWorkers(_loadContext[CPU], request_to_share_blobs_with);
+                sharedWorker = IncreaseWorkers(_loadContext[CPU]);
+                request_to_share_blobs_with = sharedWorker->_inferRequest;
+                devicename = _loadContext[CPU].deviceInfo.deviceName;
             }
         }
-        return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, sharedWorker);
+        InferenceEngine::IInferRequestInternal::Ptr autoInferRequest =
+            std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, sharedWorker);
+        //push to idle queue after the auto request been created and blob sharing success
+        //to avoid the shared worker been deleted in other threads
+        if (sharedWorker)
+            PushToIdleQueue(sharedWorker, devicename);
+        return autoInferRequest;
     }
 
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
@@ -573,6 +602,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
     WorkerInferRequest* sharedWorker = nullptr;
+    std::string devicename = "";
 
     if (_workModeIsAUTO) {
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
@@ -580,17 +610,27 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
             if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
             } else {
-                sharedWorker = IncreaseWorkers(_loadContext[ACTUALDEVICE], request_to_share_blobs_with);
+                sharedWorker = IncreaseWorkers(_loadContext[ACTUALDEVICE]);
+                request_to_share_blobs_with = sharedWorker->_inferRequest;
+                devicename = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
             }
         } else {
             auto& dev_requests = _workerRequests[_loadContext[CPU].deviceInfo.deviceName];
             if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
             } else {
-                sharedWorker = IncreaseWorkers(_loadContext[CPU], request_to_share_blobs_with);
+                sharedWorker = IncreaseWorkers(_loadContext[CPU]);
+                request_to_share_blobs_with = sharedWorker->_inferRequest;
+                devicename = _loadContext[CPU].deviceInfo.deviceName;
             }
         }
-        return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, sharedWorker);
+        InferenceEngine::IInferRequestInternal::Ptr autoInferRequest =
+            std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, sharedWorker);
+        //push to idle queue after the auto request been created and blob sharing success
+        //to avoid the shared worker been deleted in other threads
+        if (sharedWorker)
+            PushToIdleQueue(sharedWorker, devicename);
+        return autoInferRequest;
     }
 
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests

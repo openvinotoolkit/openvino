@@ -9,6 +9,20 @@
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <blob_factory.hpp>
 
+namespace {
+void CopyBlob(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst) {
+    auto bufferDst = dst->buffer();
+    auto ptrDst = bufferDst.as<char*>();
+    auto bufferSrc = src->cbuffer();
+    auto ptrSrc = bufferSrc.as<const char*>();
+    ptrdiff_t szDst = dst->byteSize();
+    if (ptrDst - ptrSrc < szDst)
+        return;
+    else
+        memcpy(ptrDst, ptrSrc, src->byteSize());
+}
+} // namespace
+
 namespace MultiDevicePlugin {
 
 using namespace InferenceEngine;
@@ -68,15 +82,38 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
-        if (req->GetBlob(name) != blob)
+        if (req->GetBlob(name) != blob) {
+            //TODO: check the current hw ready status, and update the input to reuse the hw input if applicable
+            auto exeNetwork = _exeNetwork.get();
+            if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->NeedHotSwap() && !blob->is<RemoteBlob>()) {
+                //if pre-proc involved, stick to system blob, same as GPU plugin
+                auto it = _preProcData.find(name);
+                if (it != _preProcData.end()) {
+                    req->SetBlob(name, blob);
+                } else {
+                    //otherwise, copy the current auto input data to the hw request
+                    //use the hw device blob thread-safely,
+                    //as this hw request is binded to current auto request
+                    CopyBlob(blob, req->GetBlob(name));
+                    SetBlob(name, req->GetBlob(name));
+                }
+            } else {
             req->SetBlob(name, blob);
+            }
+        }
     }
     for (const auto &it : _networkOutputs) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
-        if (req->GetBlob(name) != blob)
-            req->SetBlob(name, blob);
+        if (req->GetBlob(name) != blob) {
+            auto exeNetwork = _exeNetwork.get();
+            if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->NeedHotSwap() && !blob->is<RemoteBlob>()) {
+                SetBlob(name, req->GetBlob(name));
+            } else {
+                req->SetBlob(name, blob);
+            }
+        }
     }
 }
 
