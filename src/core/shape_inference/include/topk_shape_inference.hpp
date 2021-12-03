@@ -17,7 +17,7 @@ template <typename T>
 void shape_infer(const TopK* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
 
@@ -35,7 +35,8 @@ void shape_infer(const TopK* op,
     auto output_shape = input_shape;
     if (input_shape.rank().is_static()) {
         ov::PartialShape k_as_shape;
-        auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
+        auto input_rank = input_shape.size();
+        auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_rank, -input_rank, input_rank - 1);
         auto& dim_axis = output_shape[normalized_axis];
 
         if (!is_dynamic_shape) {
@@ -80,7 +81,7 @@ void shape_infer(const TopK* op,
                 dim_axis = Dimension(lower, upper);
             }
         } else {
-            dim_axis = Dimension(0, dim_axis.get_max_length());
+            dim_axis = Dimension::dynamic();
         }
     }
 

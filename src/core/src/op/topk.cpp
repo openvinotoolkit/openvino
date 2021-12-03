@@ -198,11 +198,11 @@ void op::v1::TopK::validate_and_infer_types() {
         read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
     }
 
+    set_axis(get_input_partial_shape(0).rank(), get_provided_axis());
+
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
-    shape_infer(this, input_shapes, output_shapes);
-
-    set_axis(input_shapes[0].rank(), get_provided_axis());
+    shape_infer(this, input_shapes, output_shapes, {});
 
     set_output_size(2);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);

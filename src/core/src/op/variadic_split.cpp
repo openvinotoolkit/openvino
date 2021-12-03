@@ -38,7 +38,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
                                                   get_input_partial_shape(1),
                                                   get_input_partial_shape(2)};
     std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes);
+    shape_infer(this, input_shapes, output_shapes, {});
 
     const auto& data_type = get_input_element_type(0);
     for (size_t i = 0; i < output_shapes.size(); ++i) {

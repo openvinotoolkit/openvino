@@ -108,11 +108,11 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
     for (int i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
 
-    auto relevant_inputs = shape_infer(this, input_shapes, result_shapes);
+    shape_infer(this, input_shapes, result_shapes);
 
-    for (int i = 0; i < get_input_size(); i++)
-        set_input_is_relevant_to_shape(i, relevant_inputs[i]);
-
+    if (result_shapes[EMB_TABLE].rank().is_dynamic() || result_shapes[EMB_TABLE][0].is_dynamic()) {
+        set_input_is_relevant_to_shape(NUM_SEGMENTS, true);
+    }
     set_output_type(0, result_et, result_shapes[0]);
 }
 

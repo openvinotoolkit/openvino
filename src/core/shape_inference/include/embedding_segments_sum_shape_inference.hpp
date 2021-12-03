@@ -14,10 +14,10 @@ namespace op {
 namespace v3 {
 
 template <class T>
-std::bitset<32> shape_infer(const EmbeddingSegmentsSum* op,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes,
-                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+void shape_infer(const EmbeddingSegmentsSum* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     const auto input_size = input_shapes.size();
 
     NODE_VALIDATION_CHECK(op, (input_size >= 4 && input_size <= 6) && output_shapes.size() == 1);
@@ -53,8 +53,6 @@ std::bitset<32> shape_infer(const EmbeddingSegmentsSum* op,
 
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
 
-    std::bitset<32> relevant_inputs;
-
     auto& result_shape = output_shapes[0];
     if (emb_table_shape.rank().is_static()) {
         result_shape = emb_table_shape;
@@ -63,14 +61,10 @@ std::bitset<32> shape_infer(const EmbeddingSegmentsSum* op,
             result_shape[0] = segments_value[0];
         } else {
             result_shape[0] = Dimension::dynamic();
-            relevant_inputs[NUM_SEGMENTS] = true;
         }
     } else {
         result_shape = ov::PartialShape::dynamic();
-        relevant_inputs[NUM_SEGMENTS] = true;
     }
-
-    return relevant_inputs;
 }
 }  // namespace v3
 }  // namespace op

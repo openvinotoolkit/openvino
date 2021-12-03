@@ -18,11 +18,7 @@ TEST(StaticShapeInferenceTest, Padv1) {
     const auto pad = std::make_shared<ov::op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT);
     auto f = std::make_shared<Function>(pad, ParameterVector{data});
 
-    check_partial_shape(pad,
-                        {ov::PartialShape{3, 6, 5, 5}, ov::PartialShape{4}, ov::PartialShape{4}, ov::PartialShape{}},
-                        {PartialShape({6, 9, 8, 8})});
-
-    check_static_shape(pad,
+    check_static_shape(pad.get(),
                        {ov::StaticShape{3, 6, 5, 5},
                         ov::StaticShape{4},
                         ov::StaticShape{4},

@@ -16,7 +16,7 @@ namespace v6 {
 //          1.  out_shape = [number_of_ROIs, number_of_channels, output_size, output_size]
 //          2.  out_rois_shape = [number_of_ROIs, 4]
 template <class T>
-void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
+void shape_infer(const ExperimentalDetectronROIFeatureExtractor* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
@@ -32,8 +32,8 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
     out_rois_shape.resize(2);
 
     // infer static dimensions
-    out_shape[2] = op->m_attrs.output_size;
-    out_shape[3] = op->m_attrs.output_size;
+    out_shape[2] = op->get_attrs().output_size;
+    out_shape[3] = op->get_attrs().output_size;
     out_rois_shape[1] = 4;
 
     // infer number_of_ROIs (which may be dynamic/static)

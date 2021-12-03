@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -11,9 +10,18 @@ using namespace ov;
 using namespace std;
 
 TEST(StaticShapeInferenceTest, RegionYoloV0) {
-    auto inputs = make_shared<op::v0::Parameter>(element::f32, Shape{1, 125, 13, 13});
+    auto inputs = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, -1, -1});
     auto op = make_shared<op::v0::RegionYolo>(inputs, 0, 0, 0, true, std::vector<int64_t>{}, 0, 1);
 
-    check_partial_shape(op, {ov::PartialShape{1, 125, 13, 13}}, {ov::PartialShape{1 * 125, 13, 13}});
-    check_static_shape(op, {ov::StaticShape{1, 125, 13, 13}}, {ov::StaticShape{1 * 125, 13, 13}});
+    check_static_shape(op.get(), {ov::StaticShape{1, 125, 13, 13}}, {ov::StaticShape{1 * 125, 13, 13}});
+}
+
+TEST(StaticShapeInferenceTest, RegionYoloV0Dynamic) {
+    auto inputs = make_shared<op::v0::Parameter>(element::f32,
+                                                 ov::PartialShape{{1, 11}, {2, 12}, ov::Dimension::dynamic(), {4, 14}});
+    auto op = make_shared<op::v0::RegionYolo>(inputs, 4, 80, 5, true, std::vector<int64_t>{}, 1, 3);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), ov::PartialShape({{1, 11}, ov::Dimension::dynamic()}));
+
+    check_static_shape(op.get(), {ov::StaticShape{10, 125, 13, 13}}, {ov::StaticShape{10, 125 * 13 * 13}});
 }

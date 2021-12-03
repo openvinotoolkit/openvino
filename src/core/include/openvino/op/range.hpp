@@ -39,15 +39,18 @@ public:
     void set_output_type(element::Type output_type) {
         m_output_type = output_type;
     }
-    element::Type get_output_type() const {
-        return m_output_type;
-    }
 
     // Overload collision with method on Node
     using Node::set_output_type;
 
 private:
     element::Type m_output_type;
+
+    template <class T>
+    friend void shape_infer(const Range* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes,
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
 };
 }  // namespace v4
 namespace v0 {

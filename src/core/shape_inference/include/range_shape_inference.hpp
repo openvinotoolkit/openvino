@@ -13,81 +13,81 @@ namespace op {
 namespace v4 {
 
 template <class T>
-inline std::shared_ptr<ov::opset1::Constant> get_data_as_const(
+inline bool get_data_as_double(
     size_t idx,
     const ov::Node* op,
+    std::vector<double>& axes_value,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     if (constant_data.count(idx)) {
-        return std::make_shared<ov::opset1::Constant>(constant_data.at(idx));
+        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<double>();
+    } else {
+        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
+        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
+        axes_value = constant->cast_vector<double>();
     }
-    const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
-    NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
-    return constant;
+    return true;
 }
 
 template <>
-inline std::shared_ptr<ov::opset1::Constant> get_data_as_const<ov::PartialShape>(
+inline bool get_data_as_double<ov::PartialShape>(
     size_t idx,
     const ov::Node* op,
+    std::vector<double>& axes_value,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     if (constant_data.count(idx)) {
-        return std::make_shared<ov::opset1::Constant>(constant_data.at(idx));
+        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<double>();
+    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        axes_value = constant->cast_vector<double>();
+    } else {
+        return false;
     }
-
-    return ov::get_constant_from_source(op->input_value(idx));
+    return true;
 }
 
 template <class T>
 void shape_infer(const Range* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3) && output_shapes.size() == 1);
 
-    NODE_VALIDATION_CHECK(op, input_shapes[0].compatible(T{}), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(op, input_shapes[1].compatible(T{}), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(op, input_shapes[2].compatible(T{}), "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(op, input_shapes[0].rank().compatible(0), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(op, input_shapes[1].rank().compatible(0), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(op, input_shapes[2].rank().compatible(0), "'step' input is not a scalar");
 
-    auto const_start = get_data_as_const<T>(0, op, constant_data);
-    auto const_stop = get_data_as_const<T>(1, op, constant_data);
-    auto const_step = get_data_as_const<T>(2, op, constant_data);
+    std::vector<double> start_val;
+    std::vector<double> stop_val;
+    std::vector<double> step_val;
 
     double start = 0;
     double stop = 0;
     double step = 0;
 
-    if (const_start != nullptr) {
-        std::vector<double> start_val = const_start->template cast_vector<double>();
+    if (get_data_as_double<T>(0, op, start_val, constant_data)) {
         NODE_VALIDATION_CHECK(op, start_val.size() == 1);
         start = start_val[0];
         NODE_VALIDATION_CHECK(op, std::isfinite(start) && !std::isnan(start), "'start' cannot be nan or infinite.");
     }
 
-    if (const_stop != nullptr) {
-        std::vector<double> stop_val = const_stop->template cast_vector<double>();
+    if (get_data_as_double<T>(1, op, stop_val, constant_data)) {
         NODE_VALIDATION_CHECK(op, stop_val.size() == 1);
         stop = stop_val[0];
         NODE_VALIDATION_CHECK(op, std::isfinite(stop) && !std::isnan(stop), "'stop' cannot be nan or infinite.");
     }
 
-    if (const_step != nullptr) {
-        std::vector<double> step_val = const_step->template cast_vector<double>();
+    if (get_data_as_double<T>(2, op, step_val, constant_data)) {
         NODE_VALIDATION_CHECK(op, step_val.size() == 1);
         step = step_val[0];
         NODE_VALIDATION_CHECK(op, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
     }
 
-    auto output_type = op->get_output_type();
-    if (const_start != nullptr && const_stop != nullptr && const_step != nullptr) {
+    const auto& output_type = op->m_output_type;
+    if (start_val.size() == 1 && stop_val.size() == 1 && step_val.size() == 1) {
         // all inputs must be casted to output_type before
         // the rounding for casting values are done towards zero
-        if (output_type.is_integral_number() && const_start->get_output_element_type(0).is_real()) {
+        if (output_type.is_integral_number()) {
             start = std::trunc(start);
-        }
-        if (output_type.is_integral_number() && const_stop->get_output_element_type(0).is_real()) {
             stop = std::trunc(stop);
-        }
-        if (output_type.is_integral_number() && const_step->get_output_element_type(0).is_real()) {
             step = std::trunc(step);
         }
 

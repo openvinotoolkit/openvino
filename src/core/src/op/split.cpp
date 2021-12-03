@@ -49,7 +49,7 @@ void op::v1::Split::validate_and_infer_types() {
 
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
     std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes);
+    shape_infer(this, input_shapes, output_shapes, {});
     for (size_t i = 0; i < m_num_splits; ++i) {
         set_output_type(i, get_input_element_type(0), output_shapes[i]);
     }

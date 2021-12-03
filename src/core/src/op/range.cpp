@@ -90,7 +90,7 @@ void op::v4::Range::validate_and_infer_types() {
     for (int i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
 
-    shape_infer(this, input_shapes, result_shapes);
+    shape_infer(this, input_shapes, result_shapes, {});
 
     set_output_type(0, m_output_type, result_shapes[0]);
 }

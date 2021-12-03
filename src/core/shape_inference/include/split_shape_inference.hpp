@@ -17,7 +17,7 @@ template <typename T>
 void shape_infer(const Split* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
 
@@ -30,7 +30,6 @@ void shape_infer(const Split* op,
 
     auto each_output_shape = data_ps;
     const auto data_rank = data_ps.rank();
-    NODE_VALIDATION_CHECK(op, axis_ps.rank().compatible(0), "'axis' input must be a scalar. Got: ", axis_ps);
 
     std::vector<int64_t> axes_values;
     auto num_splits = op->get_num_splits();

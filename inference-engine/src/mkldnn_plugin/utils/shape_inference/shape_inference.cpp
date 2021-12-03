@@ -5,6 +5,8 @@
 #include <openvino/core/node.hpp>
 #include <ngraph/runtime/host_tensor.hpp>
 #include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset2.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include "static_shape.hpp"
@@ -14,6 +16,17 @@
 #include "shape_nodes.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 
+#include "bucketize_shape_inference.hpp"
+#include "embedding_segments_sum_shape_inference.hpp"
+#include "embeddingbag_offsets_shape_inference.hpp"
+#include "experimental_detectron_roi_feature_shape_inference.hpp"
+#include "pad_shape_inference.hpp"
+#include "range_shape_inference.hpp"
+#include "region_yolo_shape_inference.hpp"
+#include "reorg_yolo_shape_inference.hpp"
+#include "split_shape_inference.hpp"
+#include "topk_shape_inference.hpp"
+#include "variadic_split_shape_inference.hpp"
 
 void shape_inference(ov::Node* op,
                      const std::vector<ov::StaticShape>& input_shapes,
@@ -40,6 +53,28 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
         shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::TopK>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset3::Bucketize>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::EmbeddingSegmentsSum>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset3::EmbeddingBagOffsetsSum>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::Pad>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset4::Range>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::RegionYolo>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset2::ReorgYolo>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::Split>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::VariadicSplit>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {

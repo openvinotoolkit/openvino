@@ -15,8 +15,7 @@ namespace util {
 template <class T>
 void shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
                  const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 std::vector<T>& output_shapes) {
     const auto input_size = input_shapes.size();
 
     NODE_VALIDATION_CHECK(op, (input_size >= 3 && input_size <= 5) && output_shapes.size() == 1);

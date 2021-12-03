@@ -30,7 +30,7 @@ void op::ReorgYolo::validate_and_infer_types() {
     auto input_et = get_input_element_type(0);
 
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     shape_infer(this, input_shapes, output_shapes);
 
     set_output_type(0, input_et, output_shapes[0]);

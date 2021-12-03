@@ -16,7 +16,7 @@ template <class T>
 void shape_infer(const Pad* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
 
@@ -73,20 +73,11 @@ void shape_infer(const Pad* op,
 
         output_shape.resize(arg_shape_rank.get_length());
 
-        auto pads_begin_coord = op->get_pads_begin();
-        auto pads_end_coord = op->get_pads_end();
+        std::vector<int64_t> pads_begin_coord;
+        std::vector<int64_t> pads_end_coord;
 
-        if (pads_begin_coord.empty()) {
-            auto it = constant_data.find(1);
-            if (it != constant_data.end())
-                pads_begin_coord = ov::opset1::Constant(it->second).cast_vector<ptrdiff_t>();
-        }
-
-        if (pads_end_coord.empty()) {
-            auto it = constant_data.find(2);
-            if (it != constant_data.end())
-                pads_end_coord = ov::opset1::Constant(it->second).cast_vector<ptrdiff_t>();
-        }
+        get_data_as_int64<T>(1, op, pads_begin_coord, constant_data);
+        get_data_as_int64<T>(2, op, pads_end_coord, constant_data);
 
         // special check for static shape inference
         NODE_VALIDATION_CHECK(op,
@@ -98,9 +89,23 @@ void shape_infer(const Pad* op,
                               "Cannot determined static output shape when pads_begin is not determined.");
 
         if (!pads_begin_coord.empty() && !pads_end_coord.empty()) {
+            NODE_VALIDATION_CHECK(op,
+                                  (output_shape.size() == pads_begin_coord.size()),
+                                  "length of pads_begin mismatches with rank of input, expect ",
+                                  output_shape.size(),
+                                  ", but got ",
+                                  pads_begin_coord.size());
+
+            NODE_VALIDATION_CHECK(op,
+                                  (output_shape.size() == pads_end_coord.size()),
+                                  "length of pads_end mismatches with rank of input, expect ",
+                                  output_shape.size(),
+                                  ", but got ",
+                                  pads_end_coord.size());
+
             for (size_t i = 0; i < output_shape.size(); i++) {
-                ptrdiff_t begin = i < pads_begin_coord.size() ? pads_begin_coord[i] : 0;
-                ptrdiff_t end = i < pads_end_coord.size() ? pads_end_coord[i] : 0;
+                ptrdiff_t begin = pads_begin_coord[i];
+                ptrdiff_t end = pads_end_coord[i];
 
                 if (arg_shape[i].is_static()) {
                     const auto& dim = arg_shape[i].get_length();
@@ -130,7 +135,11 @@ void shape_infer(const Pad* op,
                     output_shape[i] = arg_shape[i] + (begin + end);
                 }
             }
+        } else {
+            output_shape = ov::PartialShape::dynamic(arg_shape_rank);
         }
+    } else {
+        output_shape = ov::PartialShape::dynamic(arg_shape_rank);
     }
 }
 

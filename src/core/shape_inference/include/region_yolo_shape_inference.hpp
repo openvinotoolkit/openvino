@@ -13,34 +13,31 @@ namespace op {
 namespace v0 {
 
 template <class T>
-void shape_infer(const RegionYolo* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+void shape_infer(const RegionYolo* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 1) && output_shapes.size() == 1);
 
     const auto& input_shape = input_shapes[0];
+    const auto& input_rank = input_shape.rank();
     auto& output_shape = output_shapes[0];
-    if (input_shape.rank().is_static()) {
-        int end_axis = op->get_end_axis();
+
+    NODE_VALIDATION_CHECK(op, input_rank.compatible(4), "Input must be a tensor of rank 4, but got ", input_rank);
+
+    if (input_rank.is_static()) {
+        int end_axis = op->m_end_axis;
         if (end_axis < 0) {
             end_axis += input_shape.size();
         }
 
-        if (op->get_do_softmax()) {
+        if (op->m_do_softmax) {
             output_shape.resize(0);
-            auto axis = op->get_axis();
-            size_t flat_dim = 1;
+            auto axis = ov::normalize_axis(op, op->m_axis, input_rank);
+            DimType flat_dim = 1;
             for (int64_t i = 0; i < axis; i++) {
                 output_shape.push_back(input_shape[i]);
             }
             for (int64_t i = axis; i < end_axis + 1; i++) {
-                if (input_shape[i].is_dynamic()) {
-                    flat_dim = -1;
-                    break;
-                }
-                flat_dim *= input_shape[i].get_length();
+                flat_dim *= input_shape[i];
             }
             output_shape.push_back(flat_dim);
             for (size_t i = end_axis + 1; i < input_shape.size(); i++) {
@@ -54,7 +51,7 @@ void shape_infer(const RegionYolo* op,
                               input_shape[3]});
         }
     } else {
-        output_shape = ov::PartialShape::dynamic();
+        output_shape = ov::PartialShape::dynamic(ov::Rank(1, 4));
     }
 }
 }  // namespace v0

@@ -6,8 +6,8 @@
 
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
-
-#include "utils/shape_inference/static_shape.hpp"
+#include <utils/shape_inference/shape_inference.hpp>
+#include <utils/shape_inference/static_shape.hpp>
 
 #pragma once
 
@@ -47,11 +47,9 @@ struct TestTensor {
 //      2                           tensor of scalar with value 2
 //      Shape{2,2}                  tensor of shape [2,2] and value unknown
 //      {Shape{2,2}, {1,2,3,4}}     tensor of shape [2,2] and values (1,2,3,4)
-template <typename OP>
-static void check_static_shape(std::shared_ptr<OP> op,
+static void check_static_shape(ov::Node* op,
                                std::initializer_list<TestTensor> inputs,
-                               std::initializer_list<ov::StaticShape> expect_shapes,
-                               bool b_expect_throw = false) {
+                               std::initializer_list<ov::StaticShape> expect_shapes) {
     std::vector<ov::StaticShape> output_shapes;
     std::vector<ov::StaticShape> input_shapes;
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constData;
@@ -64,51 +62,23 @@ static void check_static_shape(std::shared_ptr<OP> op,
         index++;
     });
 
-    if (b_expect_throw) {
-        EXPECT_ANY_THROW(shape_infer(op.get(), input_shapes, output_shapes, constData));
-    } else {
-        output_shapes.resize(expect_shapes.size(), ov::StaticShape{});
+    output_shapes.resize(expect_shapes.size(), ov::StaticShape{});
 
-        shape_infer(op.get(), input_shapes, output_shapes, constData);
+    shape_inference(op, input_shapes, output_shapes, constData);
 
-        EXPECT_EQ(output_shapes.size(), expect_shapes.size());
-        int id = 0;
-        for (auto& shape : expect_shapes) {
-            EXPECT_EQ(output_shapes[id], shape);
-            id++;
-        }
+    EXPECT_EQ(output_shapes.size(), expect_shapes.size());
+    int id = 0;
+    for (auto& shape : expect_shapes) {
+        EXPECT_EQ(output_shapes[id], shape);
+        id++;
     }
 }
 
-template <typename OP>
-static void check_output_shape(std::shared_ptr<OP> op, std::initializer_list<ov::PartialShape> expect_shapes) {
+static void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialShape> expect_shapes) {
     int id = 0;
     EXPECT_EQ(op->outputs().size(), expect_shapes.size());
     for (auto& shape : expect_shapes) {
         EXPECT_EQ(op->get_output_partial_shape(id), shape);
         id++;
-    }
-}
-
-template <typename OP>
-static void check_partial_shape(std::shared_ptr<OP> op,
-                                std::vector<ov::PartialShape> input_shapes,
-                                std::initializer_list<ov::PartialShape> expect_shapes,
-                                bool b_expect_throw = false) {
-    std::vector<ov::PartialShape> output_shapes;
-
-    if (b_expect_throw) {
-        EXPECT_ANY_THROW(shape_infer(op.get(), input_shapes, output_shapes));
-    } else {
-        output_shapes.resize(expect_shapes.size(), ov::PartialShape::dynamic());
-
-        shape_infer(op.get(), input_shapes, output_shapes);
-
-        EXPECT_EQ(output_shapes.size(), expect_shapes.size());
-        int id = 0;
-        for (auto& shape : expect_shapes) {
-            EXPECT_EQ(output_shapes[id], shape);
-            id++;
-        }
     }
 }

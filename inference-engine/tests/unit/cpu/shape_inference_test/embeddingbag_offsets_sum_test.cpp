@@ -19,13 +19,8 @@ TEST(StaticShapeInferenceTest, EmbeddingBagOffsetsSumV3) {
     auto ebos =
         make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
 
-    check_partial_shape(
-        ebos,
-        {ov::PartialShape{5, 2}, ov::PartialShape{4}, ov::PartialShape{3}, ov::PartialShape{}, ov::PartialShape{4}},
-        {ov::PartialShape({3, 2})});
-
     check_static_shape(
-        ebos,
+        ebos.get(),
         {ov::StaticShape{5, 2}, ov::StaticShape{4}, ov::StaticShape{3}, ov::StaticShape{}, ov::StaticShape{4}},
         {ov::StaticShape{3, 2}});
 }

@@ -13,10 +13,7 @@ namespace op {
 namespace v3 {
 
 template <class T>
-void shape_infer(const Bucketize* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+void shape_infer(const Bucketize* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2) && output_shapes.size() == 1);
 
     const auto& data_shape = input_shapes[0];
