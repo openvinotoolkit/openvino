@@ -8,6 +8,9 @@ from mo.graph.graph import Node
 
 
 class BatchDotExt(FrontExtractorOp):
+    """
+    MXNet operation which compute dot product of x and y.
+    """
     op = 'batch_dot'
     enabled = True
 

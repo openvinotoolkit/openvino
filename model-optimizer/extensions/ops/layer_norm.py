@@ -8,9 +8,8 @@ from mo.ops.op import Op
 
 class LayerNorm(Op):
     """
-    LayerNorm - normalize along given axis.
-    We first compute the mean and variance along this axis and
-    then compute the normalized output, which has the same shape as input
+    MXNet operation which normalizes the channels of the input tensor by mean and variance, and applies a scale gamma
+    and offset beta
     """
 
     op = 'LayerNorm'
