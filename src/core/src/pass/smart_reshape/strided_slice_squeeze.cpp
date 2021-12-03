@@ -56,11 +56,9 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             }))
             return false;
 
-        auto const_axes_tmp = const_axes->cast_vector<int64_t>();
-
         const auto& axes = normalize_axes(squeeze->description(),
-                                          const_axes->cast_vector<int64_t>(),           // [1]
-                                          squeeze->get_input_partial_shape(0).rank());  // 3
+                                          const_axes->cast_vector<int64_t>(),
+                                          squeeze->get_input_partial_shape(0).rank());
 
         // Here squeeze input shape is equal to stridedslice input shape,
         // since new_axis_mask, shrink_axis_mask and ellipsis_mask are all zeros.
@@ -84,7 +82,6 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             if (begin_mask[axis]) {  // corresponding dimension of the begin input is ignored. starting from 0
                 begin_vec[axis] = 0;
                 end_vec[axis] = 1;
-                ;
                 begin_mask[axis] = 0;
                 end_mask[axis] = 0;
             } else {                          // corresponding dimension of the begin input is used for slicing start
