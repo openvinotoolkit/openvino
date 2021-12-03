@@ -7,8 +7,8 @@
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
-#include "experimental_detectron_roi_feature_extractor/experimental_detectron_roi_feature_extractor_kernel_selector.h"
-#include "experimental_detectron_roi_feature_extractor/experimental_detectron_roi_feature_extractor_kernel_ref.h"
+#include "edrfe/experimental_detectron_roi_feature_extractor_kernel_selector.h"
+#include "edrfe/experimental_detectron_roi_feature_extractor_kernel_ref.h"
 
 namespace cldnn {
 namespace ocl {
