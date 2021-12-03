@@ -191,12 +191,6 @@ static void next_step(const std::string additional_info = "") {
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
 }
 
-template <typename T>
-T getMedianValue(std::vector<T>& vec, std::size_t percentile) {
-    std::sort(vec.begin(), vec.end());
-    return vec[int(vec.size() / 100.0 * percentile)];
-}
-
 /**
  * @brief The entry point of the benchmark application
  */
@@ -452,11 +446,6 @@ int main(int argc, char* argv[]) {
             ie.SetConfig(item.second, item.first);
         }
 
-        auto double_to_string = [](const double number) {
-            std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << number;
-            return ss.str();
-        };
         auto get_total_ms_time = [](Time::time_point& startTime) {
             return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
         };
@@ -974,24 +963,17 @@ int main(int argc, char* argv[]) {
 
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
-
-        auto latencies = inferRequestsQueue.getLatencies();
-        double medianLatency = getMedianValue(latencies, FLAGS_latency_percentile);
-        double avgLatency = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
-        double minLatency = latencies[0];
-        double maxLatency = latencies.back();
-
-        std::vector<std::vector<double>> latency_groups = {};
-        if (FLAGS_pcseq) {
-            latency_groups = inferRequestsQueue.getLatencyGroups();
-            for (auto& group : latency_groups) {
-                std::sort(group.begin(), group.end());
+        LatencyMetrics<double> generalLatency(inferRequestsQueue.getLatencies());
+        std::vector<LatencyMetrics<double>> groupLatencies = {};
+        if (FLAGS_pcseq && app_inputs_info.size() > 1) {
+            for (auto lats : inferRequestsQueue.getLatencyGroups()) {
+                groupLatencies.push_back(LatencyMetrics<double>(lats));
             }
         }
 
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
-        double fps =
-            (FLAGS_api == "sync") ? batchSize * 1000.0 / medianLatency : 1000.0 * processedFramesN / totalDuration;
+        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.percentile(FLAGS_latency_percentile)
+                                           : 1000.0 * processedFramesN / totalDuration;
 
         if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -1006,24 +988,25 @@ int main(int argc, char* argv[]) {
                 } else {
                     latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
                 }
+                statistics->addParameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {
+                        {latency_label, double_to_string(generalLatency.percentile(FLAGS_latency_percentile))},
+                    });
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                              {latency_label, double_to_string(medianLatency)},
+                                              {"Average latency (ms)", double_to_string(generalLatency.average())},
                                           });
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                              {"Average latency (ms)", double_to_string(avgLatency)},
+                                              {"Min latency (ms)", double_to_string(generalLatency.min())},
                                           });
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                              {"Min latency (ms)", double_to_string(minLatency)},
-                                          });
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {
-                                              {"Max latency (ms)", double_to_string(maxLatency)},
+                                              {"Max latency (ms)", double_to_string(generalLatency.max())},
                                           });
 
-                if (FLAGS_pcseq && latency_groups.size() > 1) {
+                if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {
                                                   {"Latency for each data shape group:", ""},
@@ -1041,18 +1024,20 @@ int main(int argc, char* argv[]) {
                         statistics->addParameters(
                             StatisticsReport::Category::EXECUTION_RESULTS,
                             {
-                                {"Avgerage (ms)",
-                                 double_to_string(
-                                     std::accumulate(latency_groups[i].begin(), latency_groups[i].end(), 0.0) /
-                                     latency_groups[i].size())},
+                                {latency_label,
+                                 double_to_string(groupLatencies[i].percentile(FLAGS_latency_percentile))},
                             });
                         statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                                   {
-                                                      {"Max (ms)", double_to_string(latency_groups[i].back())},
+                                                      {"Avgerage (ms)", double_to_string(groupLatencies[i].average())},
                                                   });
                         statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                                   {
-                                                      {"Mix (ms)", double_to_string(latency_groups[i][0])},
+                                                      {"Min (ms)", double_to_string(groupLatencies[i].min())},
+                                                  });
+                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                  {
+                                                      {"Max (ms)", double_to_string(groupLatencies[i].max())},
                                                   });
                     }
                 }
@@ -1101,42 +1086,32 @@ int main(int argc, char* argv[]) {
         if (statistics)
             statistics->dump();
 
-        std::cout << "Count:      " << iteration << " iterations" << std::endl;
-        std::cout << "Duration:   " << double_to_string(totalDuration) << " ms" << std::endl;
+        // Performance metrics report
+        slog::info << "Count:      " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:   " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
-            std::cout << "Latency: " << std::endl;
-            if (FLAGS_latency_percentile == 50) {
-                std::cout << "\tMedian:  ";
-            } else {
-                std::cout << "\t" << FLAGS_latency_percentile << " percentile:    ";
-            }
-            std::cout << double_to_string(medianLatency) << " ms" << std::endl;
-            std::cout << "\tAvg:    " << double_to_string(avgLatency) << " ms" << std::endl;
-            std::cout << "\tMax:    " << double_to_string(maxLatency) << " ms" << std::endl;
-            std::cout << "\tMin:    " << double_to_string(minLatency) << " ms" << std::endl;
+            slog::info << "Latency: " << slog::endl;
+            generalLatency.logTotal(FLAGS_latency_percentile);
 
-            if (FLAGS_pcseq && latency_groups.size() > 1) {
-                std::cout << "Latency for each data shape group:" << std::endl;
+            if (FLAGS_pcseq && app_inputs_info.size() > 1) {
+                slog::info << "Latency for each data shape group:" << slog::endl;
                 for (size_t i = 0; i < app_inputs_info.size(); ++i) {
-                    std::cout << i << ".";
+                    slog::info << i << ".";
                     for (auto& item : app_inputs_info[i]) {
                         std::stringstream input_shape;
                         auto shape = item.second.dataShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
                         input_shape << shape.back();
-                        std::cout << " " << item.first << " : " << getShapeString(item.second.dataShape);
+                        slog::info << " " << item.first << " : " << getShapeString(item.second.dataShape);
                     }
-                    std::cout << std::endl;
-                    std::cout << "\tAvg:    "
-                              << std::accumulate(latency_groups[i].begin(), latency_groups[i].end(), 0.0) /
-                                     latency_groups[i].size()
-                              << " ms" << std::endl;
-                    std::cout << "\tMax:    " << latency_groups[i].back() << " ms" << std::endl;
-                    std::cout << "\tMin:    " << latency_groups[i][0] << " ms" << std::endl;
+                    slog::info << slog::endl;
+
+                    groupLatencies[i].logTotal(FLAGS_latency_percentile);
                 }
             }
         }
-        std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
+        slog::info << "Throughput: " << double_to_string(fps) << " FPS" << slog::endl;
+
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
 

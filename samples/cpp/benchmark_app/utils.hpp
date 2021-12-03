@@ -4,12 +4,17 @@
 
 #pragma once
 
+#include <chrono>
+#include <iomanip>
 #include <map>
 #include <samples/slog.hpp>
 #include <string>
 #include <vector>
 
 #include "ngraph/partial_shape.hpp"
+
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
 
 namespace benchmark_app {
 struct InputInfo {
@@ -240,6 +245,16 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                             input_info,
                             reshape_required);
 }
+
+inline std::string double_to_string(const double number) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << number;
+    return ss.str();
+};
+
+inline double get_total_ms_time(Time::time_point& startTime) {
+    return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
+};
 
 #ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config);
