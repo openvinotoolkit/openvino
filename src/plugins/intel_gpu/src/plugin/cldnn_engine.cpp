@@ -734,7 +734,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         batch = std::min(closest, batch);
         batch = std::max(4u, batch); //batch 4 is a min
         batch = std::min(256u, batch); //batch 256 is a max
-        std::cout << "ACTUAL SELECTED BATCH: " << batch << std::endl;
+        std::cout << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
         IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
