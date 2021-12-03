@@ -11,12 +11,16 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+void MKLDNNEmbeddingSegmentsSumNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
 bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto embBagSegSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingSegmentsSum>(op);
         if (!embBagSegSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingSegmentsSum operation from opset v3.";
@@ -36,13 +40,13 @@ MKLDNNEmbeddingSegmentsSumNode::MKLDNNEmbeddingSegmentsSumNode(const std::shared
     }
 
     std::string errPrefix = std::string("EmbeddingSegmentsSum layer with name '") + _layerName + "' ";
-    if (op->get_input_shape(INDICES_IDX).size() != 1)
-        IE_THROW() << errPrefix << "has indices data with invalid shape: "
-                   << op->get_input_shape(INDICES_IDX).size();
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
+        IE_THROW() << errPrefix << "has indices data with invalid rank: "
+                   << getInputShapeAtPort(INDICES_IDX).getRank();
 
-    if (op->get_input_shape(SEGMENT_ID_IDX).size() != 1)
-        IE_THROW() << errPrefix << "has invalid segmentID data shape: "
-                   << op->get_input_shape(SEGMENT_ID_IDX).size();
+    if (getInputShapeAtPort(SEGMENT_ID_IDX).getRank() != 1ul)
+        IE_THROW() << errPrefix << "has invalid segmentID data rank: "
+                   << getInputShapeAtPort(SEGMENT_ID_IDX).getRank();
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
@@ -76,6 +80,10 @@ void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
         inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+}
+
+void MKLDNNEmbeddingSegmentsSumNode::prepareParams() {
+    MKLDNNEmbeddingBagSumNode::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::initFromInputs() {

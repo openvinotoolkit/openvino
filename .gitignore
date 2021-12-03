@@ -20,8 +20,8 @@ doc/
 !ngraph/doc
 docs/build_documentation/work_dir/
 inference-engine/plugins/
-inference-engine/temp
 inference-engine/report
+temp/
 .repo/
 docs/template_plugin/html/
 CMakeLists.txt.user

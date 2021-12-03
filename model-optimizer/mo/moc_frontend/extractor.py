@@ -6,7 +6,7 @@ import re
 from mo.front.extractor import raise_no_node, raise_node_name_collision
 from mo.utils.error import Error
 
-from ngraph.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
+from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 
 import numpy as np
 
@@ -25,11 +25,6 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     node = input_model.get_place_by_tensor_name(node_name)
     if node:
         found_node_names.append('Tensor:' + node_name)
-        found_nodes.append(node)
-
-    node = input_model.get_place_by_operation_name(node_name)
-    if node:
-        found_node_names.append('Operation:' + node_name)
         found_nodes.append(node)
 
     regexp_post = r'(.+):(\d+)'
