@@ -72,6 +72,11 @@ public:
 
 private:
     bool broadcast_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+    template <class T>
+    friend void shape_infer(const Broadcast* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes,
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
 };
 }  // namespace v3
 

@@ -83,6 +83,14 @@ protected:
                                     const PartialShape& target_shape) const;
 
     Shape get_target_shape(const HostTensorPtr& input1) const;
+
+private:
+    template <class T>
+    friend void broadcase_base_shape_infer(
+        const ov::op::util::BroadcastBase* op,
+        const std::vector<T>& input_shapes,
+        std::vector<T>& output_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
 };
 }  // namespace util
 }  // namespace op
