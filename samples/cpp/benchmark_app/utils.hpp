@@ -252,7 +252,7 @@ inline std::string double_to_string(const double number) {
     return ss.str();
 };
 
-inline double get_total_ms_time(Time::time_point& startTime) {
+inline double get_duration_ms_till_now(Time::time_point& startTime) {
     return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
 };
 
