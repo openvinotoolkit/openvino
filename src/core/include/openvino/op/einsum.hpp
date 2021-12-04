@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
@@ -102,8 +102,8 @@ public:
             bool local_is_ellipsis_met = false;
             // check that input subscript contains only alphabetic letter or ellipsis
             OPENVINO_ASSERT(is_subscript_correct(input_subscript, local_is_ellipsis_met),
-                         "Input subscript of Einsum equation must consist of either only "
-                         "alphabetic letters or alphabetic letters with one ellipsis.");
+                            "Input subscript of Einsum equation must consist of either only "
+                            "alphabetic letters or alphabetic letters with one ellipsis.");
 
             // mark that ellipsis is met at least in one input subscript
             if (local_is_ellipsis_met) {
@@ -133,13 +133,13 @@ public:
 
             // check that the output subscript has the correct format
             OPENVINO_ASSERT(is_subscript_correct(output_subscript, output_is_ellipsis_met),
-                         "Output subscript of Einsum equation must consist of either only "
-                         "alphabetic letters or alphabetic letters with one ellipsis.");
+                            "Output subscript of Einsum equation must consist of either only "
+                            "alphabetic letters or alphabetic letters with one ellipsis.");
 
             // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
             OPENVINO_ASSERT(is_ellipsis_met == output_is_ellipsis_met,
-                         "Output subscript of Einsum equation must contain one ellipsis if "
-                         "ellipsis is met in any input subscript.");
+                            "Output subscript of Einsum equation must contain one ellipsis if "
+                            "ellipsis is met in any input subscript.");
         }
     }
 

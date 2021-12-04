@@ -3,7 +3,7 @@
 #
 
 add_library(interpreter_backend SHARED
-        int_backend.cpp int_executable.cpp evaluates_map.cpp $<TARGET_OBJECTS:ngraph_obj>)
+        int_backend.cpp int_executable.cpp evaluates_map.cpp)
 
 ie_faster_build(interpreter_backend UNITY)
 
