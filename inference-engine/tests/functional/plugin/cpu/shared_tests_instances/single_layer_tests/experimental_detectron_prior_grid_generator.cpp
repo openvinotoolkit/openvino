@@ -4,6 +4,7 @@
 
 #include <vector>
 #include "single_layer_tests/experimental_detectron_prior_grid_generator.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 using namespace ov::test;
 using namespace ov::test::subgraph;
@@ -59,7 +60,7 @@ std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTenso
     {
         "test#1",
         {
-            ExperimentalDetectronPriorGridGeneratorLayerTest::createTensor<float>(
+            CommonTestUtils::create_tensor<float>(
                     ov::element::f32,
                     ov::Shape{3, 4},
                     {-24.5, -12.5, 24.5, 12.5, -16.5, -16.5, 16.5, 16.5, -12.5, -24.5, 12.5, 24.5})
@@ -68,7 +69,7 @@ std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTenso
     {
         "test#2",
         {
-            ExperimentalDetectronPriorGridGeneratorLayerTest::createTensor<float>(
+            CommonTestUtils::create_tensor<float>(
                     ov::element::f32,
                     ov::Shape{3, 4},
                     {-44.5, -24.5, 44.5, 24.5, -32.5, -32.5, 32.5, 32.5, -24.5, -44.5, 24.5, 44.5})
@@ -77,7 +78,7 @@ std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTenso
     {
         "test#3",
         {
-            ExperimentalDetectronPriorGridGeneratorLayerTest::createTensor<float>(
+            CommonTestUtils::create_tensor<float>(
                     ov::element::f32,
                     ov::Shape{3, 4},
                     {-364.5, -184.5, 364.5, 184.5, -256.5, -256.5, 256.5, 256.5, -180.5, -360.5, 180.5, 360.5})
@@ -86,7 +87,7 @@ std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTenso
     {
         "test#4",
         {
-            ExperimentalDetectronPriorGridGeneratorLayerTest::createTensor<float>(
+            CommonTestUtils::create_tensor<float>(
                     ov::element::f32,
                     ov::Shape{3, 4},
                     {-180.5, -88.5, 180.5, 88.5, -128.5, -128.5, 128.5, 128.5, -92.5, -184.5, 92.5, 184.5})

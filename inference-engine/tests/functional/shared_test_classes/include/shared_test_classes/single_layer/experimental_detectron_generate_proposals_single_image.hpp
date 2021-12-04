@@ -30,17 +30,6 @@ protected:
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageTestParams>& obj);
-    template <class T>
-    static ov::runtime::Tensor createTensor(
-            const ov::element::Type& element_type,
-            const Shape& shape,
-            const std::vector<T>& values,
-            const size_t size = 0) {
-        const size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
-        ov::runtime::Tensor tensor { element_type, shape };
-        std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
-        return tensor;
-    }
 };
 } // namespace subgraph
 } // namespace test

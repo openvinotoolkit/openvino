@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/single_layer/experimental_detectron_detection_output.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
@@ -95,24 +96,10 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
         "ExperimentalDetectronDetectionOutput");
 }
 
-namespace {
-template <class T>
-ov::runtime::Tensor createTensor(
-        const ov::element::Type& element_type,
-        const Shape& shape,
-        const std::vector<T>& values,
-        const size_t size = 0) {
-    const size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
-    ov::runtime::Tensor tensor { element_type, shape };
-    std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
-    return tensor;
-}
-} // namespace
-
 void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
     static const std::vector<ov::runtime::Tensor> inputTensors = {
         // 16 x 4 = 64
-        createTensor<float>(ov::element::f32, Shape{16, 4}, {
+        CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{16, 4}, {
             1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -120,7 +107,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::v
             1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
         }),
         // 16 x 8
-        createTensor<float>(ov::element::f32, Shape{16, 8}, {
+        CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{16, 8}, {
             5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -132,13 +119,13 @@ void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::v
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
         }),
         // 16 x 2 = 32
-        createTensor<float>(ov::element::f32, Shape{16, 2}, {
+        CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{16, 2}, {
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
         }),
         // 1 x 3 = 3
-        createTensor<float>(ov::element::f32, Shape{1, 3}, {1.0f, 1.0f, 1.0f})
+        CommonTestUtils::create_tensor<float>(ov::element::f32, Shape{1, 3}, {1.0f, 1.0f, 1.0f})
     };
 
     inputs.clear();

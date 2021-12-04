@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/single_layer/experimental_detectron_prior_grid_generator.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
@@ -85,7 +86,7 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std
     }
 
     for (auto j = i; j < funcInputs.size(); ++j) {
-        ov::runtime::Tensor inputTensor = createTensor<float>(
+        ov::runtime::Tensor inputTensor = CommonTestUtils::create_tensor<float>(
             ov::element::f32,
             targetInputStaticShapes[j],
             std::vector<float>(0.f, shape_size(targetInputStaticShapes[j])));
