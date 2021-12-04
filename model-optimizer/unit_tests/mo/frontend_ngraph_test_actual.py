@@ -24,7 +24,7 @@ try:
         mock_return_partial_shape
 
     # pylint: disable=no-name-in-module,import-error
-    from openvino.runtime import PartialShape
+    from openvino import PartialShape
     from openvino.frontend import FrontEndManager
     from openvino.runtime.utils.types import get_element_type
 

@@ -9,6 +9,8 @@ import sys
 
 from pkg_resources import get_distribution, DistributionNotFound
 
+import openvino
+
 try:
     __version__ = get_distribution("openvino-core").version
 except DistributionNotFound:
@@ -44,6 +46,8 @@ from openvino.runtime.impl import Function
 from openvino.runtime.impl import Node
 from openvino.runtime.impl import PartialShape
 from openvino.runtime.impl import Layout
+from openvino.runtime.impl import Shape
+from openvino.runtime.impl import layout_helpers
 
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import ExecutableNetwork
@@ -68,6 +72,35 @@ from openvino.runtime import opset8
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
+
+openvino.Core = Core
+openvino.PartialShape = PartialShape
+openvino.Dimension = Dimension
+openvino.Function = Function
+openvino.Layout = Layout
+openvino.layout_helpers = layout_helpers
+openvino.Shape = Shape
+openvino.ExecutableNetwork = ExecutableNetwork
+openvino.InferRequest = InferRequest
+openvino.AsyncInferQueue = AsyncInferQueue
+openvino.Version = Version
+openvino.Parameter = Parameter
+openvino.Tensor = Tensor
+openvino.ProfilingInfo = ProfilingInfo
+openvino.Tensor = Tensor
+openvino.get_version = get_version
+openvino.tensor_from_file = tensor_from_file
+openvino.compile_model = compile_model
+openvino.get_version = get_version
+
+openvino.opset1 = opset1
+openvino.opset2 = opset2
+openvino.opset3 = opset3
+openvino.opset4 = opset4
+openvino.opset5 = opset5
+openvino.opset6 = opset6
+openvino.opset7 = opset7
+openvino.opset8 = opset8
 
 # Extend Node class to support binary operators
 Node.__add__ = opset8.add

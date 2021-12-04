@@ -3,7 +3,7 @@
 
 def get_ie_version():
     try:
-        from openvino.runtime import get_version  # pylint: disable=import-error,no-name-in-module
+        from openvino import get_version  # pylint: disable=import-error,no-name-in-module
         return get_version()
     except:
         return None
