@@ -768,7 +768,7 @@ def create_bias_node(graph: Graph, src_node):
 
     for destination_port in destination_ports:
         add_op.out_port(0).connect(destination_port)
-    add_bias.out_node(0)['Insert_Convert_operation_after'] = True
+    #add_bias.out_node(0)['Insert_Convert_operation_after'] = True
 
 
 def create_fake_quantize_node(graph: Graph, name):

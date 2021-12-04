@@ -47,7 +47,7 @@ def load_graph(model_config, target_device='ANY'):
     graph_from_ir.meta_data = meta_data
     graph_from_ir.ir_v10 = True
     graph_from_ir.graph['cmd_params'] = orig_graph_from_ir.graph['cmd_params']
-    remove_converts(graph_from_ir)
+    #remove_converts(graph_from_ir)
     model_preprocessing(graph_from_ir)
     if os.path.exists(serialized_xml_path):
         os.remove(serialized_xml_path)
@@ -73,7 +73,7 @@ def save_graph(graph: Graph, save_path, model_name=None):
             raise PermissionError(
                 'Output directory {} is not writable for the current user. '.format(save_path))
     graph_copy = deepcopy(graph)
-    add_removed_converts(graph_copy)
+    #add_removed_converts(graph_copy)
     save_restored_graph(graph=graph_copy, path=save_path, meta_data=graph.meta_data,
                         name=model_name)
 
