@@ -309,15 +309,19 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
             break;
         }
 
-        auto onnx_node_name = onnx_node.get_name();
-        if (!onnx_node_name.empty()) {
-            if (!common_node) {
-                // if different outputs are produced by different nodes,
-                // those nodes need to be given unique friendly names
-                onnx_node_name = onnx_node_name + "_" + onnx_node.output(i);
+        const auto& onnx_node_name = onnx_node.get_name();
+        if (onnx_node_name.empty()) {
+            // for multioutput nodes, their friendly name is always set to the last ONNX output's name
+            // this is because this setter is called in a loop and the last call is ultimate for a given node
+            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
+        } else {
+            if (common_node) {
+                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
+            } else {
+                // if different outputs are produced by different nodes, then those nodes need to be given
+                // unique friendly names
+                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name() + "_" + onnx_node.output(i));
             }
-            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node_name);
-
             NGRAPH_SUPPRESS_DEPRECATED_START
             ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
             NGRAPH_SUPPRESS_DEPRECATED_END
@@ -325,7 +329,7 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
 
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
-            ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
+            ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
         }
     }
 }

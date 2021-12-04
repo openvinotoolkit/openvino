@@ -27,10 +27,9 @@ bool matching_node_found_in_graph(const std::vector<DerivedFromNode>& ops,
         if (const std::shared_ptr<OpType> casted = std::dynamic_pointer_cast<OpType>(op)) {
             const auto& op_friendly_name = casted->get_friendly_name();
             const auto& op_output_names = casted->get_output_tensor(out_tensor_number).get_names();
-            if (friendly_name.empty())
-                return op_output_names == output_names;
-            else
-                return op_friendly_name == friendly_name && op_output_names == output_names;
+            if (op_friendly_name == friendly_name && op_output_names == output_names) {
+                return true;
+            }
         }
         return false;
     });
@@ -52,8 +51,8 @@ NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
 
     const auto ops = function->get_ordered_ops();
     EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "x", {"x"}));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "", {"values"}, 0));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "", {"indices"}, 1));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"values"}, 0));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"indices"}, 1));
 
     const auto results = function->get_results();
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "indices", {"indices"}));
