@@ -76,6 +76,10 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
     if (params.deformable_mode) {
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MODE", params.deformable_mode)});
+        if (params.deformable_mask_enabled)
+            mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
+        if (params.bilinear_interpolation_pad)
+            mem_consts.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
     }
 
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
@@ -243,6 +247,8 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     if (newParams.deformable_mode) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        if (newParams.deformable_mask_enabled)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
     }
 
     if (!newParams.weights_zero_points.empty())

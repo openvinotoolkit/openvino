@@ -29,6 +29,8 @@ ParamsKey DeformableConvolutionKernel_bfyx_conv::GetSupportedKey() const {
     k.EnableLocalConvolution();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();
+    k.EnableDeformableMask();
+    k.EnableBilinearInterpolationPad();
     k.EnableSubGroup();
     k.EnableSubGroupShort();
     return k;
