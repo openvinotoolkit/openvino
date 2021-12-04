@@ -1405,6 +1405,12 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
     };
 
     auto isSuitableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+        if (childNode->outputShapes.size() > 0) {
+            const auto& parentShape = parentNode->getOutputShapeAtPort(0);
+            const auto& childShape = childNode->getOutputShapeAtPort(0);
+            if (parentShape.isStatic() && childShape.isStatic() && parentShape.getElementsCount() < childShape.getElementsCount())
+                return false;
+        }
         if (parentNode->isConstant() && !childNode->isConstant())
             return false;
         for (auto &childParentEdge : childNode->getParentEdges()) {
