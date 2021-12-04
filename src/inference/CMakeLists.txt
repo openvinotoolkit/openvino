@@ -270,41 +270,41 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
-    install(DIRECTORY "${TBB}/include"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
-    install(DIRECTORY "${TBB}/lib"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
-    # Windows only
-    if(EXISTS "${TBB}/bin")
-        install(DIRECTORY "${TBB}/bin"
-                DESTINATION runtime/3rdparty/tbb
-                COMPONENT tbb)
-    endif()
-    install(FILES "${TBB}/LICENSE"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
+    # install(DIRECTORY "${TBB}/include"
+    #         DESTINATION runtime/3rdparty/tbb
+    #         COMPONENT tbb)
+    # install(DIRECTORY "${TBB}/lib"
+    #         DESTINATION runtime/3rdparty/tbb
+    #         COMPONENT tbb)
+    # # Windows only
+    # if(EXISTS "${TBB}/bin")
+    #     install(DIRECTORY "${TBB}/bin"
+    #             DESTINATION runtime/3rdparty/tbb
+    #             COMPONENT tbb)
+    # endif()
+    # install(FILES "${TBB}/LICENSE"
+    #         DESTINATION runtime/3rdparty/tbb
+    #         COMPONENT tbb)
 
-    set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
-    install(FILES "${TBB}/cmake/TBBConfig.cmake"
-                  "${TBB}/cmake/TBBConfigVersion.cmake"
-            DESTINATION runtime/${IE_TBB_DIR_INSTALL}
-            COMPONENT tbb)
+    # set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
+    # install(FILES "${TBB}/cmake/TBBConfig.cmake"
+    #               "${TBB}/cmake/TBBConfigVersion.cmake"
+    #         DESTINATION runtime/${IE_TBB_DIR_INSTALL}
+    #         COMPONENT tbb)
 endif()
 
 if(install_tbbbind)
-    install(DIRECTORY "${TBBBIND_2_5}/lib"
-            DESTINATION runtime/3rdparty/tbb_bind_2_5
-            COMPONENT tbb)
-    install(FILES "${TBBBIND_2_5}/LICENSE"
-            DESTINATION runtime/3rdparty/tbb_bind_2_5
-            COMPONENT tbb)
+    # install(DIRECTORY "${TBBBIND_2_5}/lib"
+    #         DESTINATION runtime/3rdparty/tbb_bind_2_5
+    #         COMPONENT tbb)
+    # install(FILES "${TBBBIND_2_5}/LICENSE"
+    #         DESTINATION runtime/3rdparty/tbb_bind_2_5
+    #         COMPONENT tbb)
 
-    set(IE_TBBBIND_DIR_INSTALL "3rdparty/tbb_bind_2_5/cmake")
-    install(FILES "${TBBBIND_2_5}/cmake/TBBBIND_2_5Config.cmake"
-            DESTINATION runtime/${IE_TBBBIND_DIR_INSTALL}
-            COMPONENT tbb)
+    # set(IE_TBBBIND_DIR_INSTALL "3rdparty/tbb_bind_2_5/cmake")
+    # install(FILES "${TBBBIND_2_5}/cmake/TBBBIND_2_5Config.cmake"
+    #         DESTINATION runtime/${IE_TBBBIND_DIR_INSTALL}
+    #         COMPONENT tbb)
 endif()
 
 # Install Inference Engine

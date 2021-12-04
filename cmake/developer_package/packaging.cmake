@@ -103,9 +103,75 @@ macro(ie_cpack)
         set(CPACK_DEB_COMPONENT_INSTALL ON)
         # automatically find dependencies for binaries
         set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+        # enable dependencies between components
+        set(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
+        # homepage
+        set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
+        # enable for debug cpack run
+        if(NOT DEFINED CPACK_DEBIAN_PACKAGE_DEBUG)
+            set(CPACK_DEBIAN_PACKAGE_DEBUG OFF)
+        endif()
+
+        # automatic dependencies discovering
+        set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
+        # OpenVINO does not have backward and forward compatibility
+        set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY "=")
+
+        # TODO
+        # add preinst script for core to ask about aptin
 
         # ngraph
-        set(CPACK_DEBIAN_ngraph_PACKAGE_NAME "openvino-ngraph")
+        set(CPACK_COMPONENT_NGRAPH_DESCRIPTION "OpenVINO ngraph")
+        # admin, devel, doc, see https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+        # set(CPACK_DEBIAN_ngraph_PACKAGE_SECTION devel)
+        # see required, important, standard, optional, extra
+        # https://www.debian.org/doc/debian-policy/ch-archive.html#s-priorities
+        # set(CPACK_DEBIAN_ngraph_PACKAGE_PRIORITY standard)
+
+        # ngraph-dev
+        set(CPACK_COMPONENT_NGRAPH_DEV_DESCRIPTION "OpenVINO ngraph development files")
+        set(CPACK_COMPONENT_NGRAPH_DEV_DEPENDS "ngraph")
+
+        # core
+        set(CPACK_COMPONENT_CORE_DESCRIPTION "OpenVINO core runtime")
+        set(CPACK_COMPONENT_CORE_DEPENDS "ngraph")
+        # TODO: should be discovered automatically
+        # TODO: install build dependencies libpugixml-dev, libtbb-dev
+        set(CPACK_DEBIAN_CORE_PACKAGE_DEPENDS "libpugixml1v5")
+
+        # hetero
+        set(CPACK_COMPONENT_hetero_DESCRIPTION "OpenVINO Hetero plugin")
+        set(CPACK_COMPONENT_HETERO_DEPENDS "core")
+
+        # core_dev
+        set(CPACK_COMPONENT_CODE_DEV_DESCRIPTION "OpenVINO core dev runtime")
+        set(CPACK_COMPONENT_COR_DEV_DEPENDS "ngraph_dev;core")
+        # set(CPACK_DEBIAN_CORE_PACKAGE_DEPENDS "libtbb-dev")
+        # set(CPACK_DEBIAN_core_dev_PACKAGE_CONFLICTS "!!!")
+
+        # core_c
+        set(CPACK_COMPONENT_core_c_DESCRIPTION "OpenVINO C core runtime")
+        set(CPACK_COMPONENT_CORE_C_DEPENDS "core")
+
+        # core_c_dev
+        set(CPACK_COMPONENT_core_c_dev_DESCRIPTION "OpenVINO C dev runtime")
+        set(CPACK_COMPONENT_CORE_C_DEV_DEPENDS "core_c;core_dev")
+        # set(CPACK_DEBIAN_core_dev_PACKAGE_CONFLICTS "!!!")
+
+        # core tools
+        set(CPACK_COMPONENT_CORE_TOOLS_DESCRIPTION "OpenVINO Core Tools")
+        set(CPACK_COMPONENT_CORE_TOOLS_DEPENDS "core")
+        set(CPACK_DEBIAN_CORE_TOOLS_PACKAGE_RECOMMENDS "openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+
+        # cpp_samples
+        set(CPACK_COMPONENT_CPP_SAMPLES_DESCRIPTION "OpenVINO C++ samples")
+        set(CPACK_COMPONENT_CPP_SAMPLES_DEPENDS "core_dev")
+        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_RECOMMENDS "openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev")
+
+        # c_samples
+        set(CPACK_COMPONENT_C_SAMPLES_DESCRIPTION "OpenVINO C samples")
+        set(CPACK_COMPONENT_C_SAMPLES_DEPENDS "core_c_dev")
     endif()
 
     include(CPack)

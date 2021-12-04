@@ -132,7 +132,7 @@ install(TARGETS ngraph EXPORT OpenVINOTargets
         INCLUDES DESTINATION include)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION "runtime/include"
+        DESTINATION include
         COMPONENT ngraph_dev
         FILES_MATCHING
             PATTERN "*.hpp"
@@ -148,5 +148,5 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION "runtime/cmake"
+        DESTINATION cmake
         COMPONENT ngraph_dev)
