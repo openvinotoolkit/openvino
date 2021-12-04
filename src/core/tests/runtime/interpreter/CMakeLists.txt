@@ -14,7 +14,7 @@ ie_add_api_validator_post_build_step(TARGET interpreter_backend)
 
 target_compile_definitions(interpreter_backend PRIVATE INTERPRETER_BACKEND_EXPORTS)
 target_link_libraries(interpreter_backend PUBLIC ngraph_backend
-                                          PRIVATE pugixml::static ov_shape_inference
+                                          PRIVATE pugixml::static ov_shape_inference ngraph_s
                                                   openvino::util ngraph_reference)
 
 install(TARGETS interpreter_backend

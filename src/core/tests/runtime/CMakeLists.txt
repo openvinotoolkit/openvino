@@ -18,7 +18,6 @@ set (SRC
     pass/dyn_elimination.hpp
     pass/shape_relevance.cpp
     pass/shape_relevance.hpp
-    $<TARGET_OBJECTS:ngraph_obj>
     )
 
 add_library(ngraph_backend SHARED ${SRC})
@@ -36,7 +35,7 @@ target_compile_definitions(ngraph_backend
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
 target_link_libraries(ngraph_backend PUBLIC ngraph::builder ngraph::reference
-                                     PRIVATE ${CMAKE_DL_LIBS} pugixml::static ov_shape_inference openvino::util openvino::itt)
+                                     PRIVATE ${CMAKE_DL_LIBS} pugixml::static ov_shape_inference openvino::util openvino::itt ngraph_s)
 
 target_include_directories(ngraph_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
