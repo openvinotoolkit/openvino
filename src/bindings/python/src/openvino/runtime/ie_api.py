@@ -34,7 +34,7 @@ def normalize_inputs(py_dict: dict, py_types: dict, tensor_names: dict) -> dict:
             else:
                 raise KeyError(f"No tensor with name {k} was found!")
         else:
-            raise TypeError(f"Incompatible key type! Use tensor names or indexes!")
+            raise TypeError("Incompatible key type! Use tensor names or indexes!")
         py_dict[k] = val if isinstance(val, Tensor) else Tensor(np.array(val, get_dtype(ov_type)))
     return py_dict
 
@@ -42,6 +42,7 @@ def normalize_inputs(py_dict: dict, py_types: dict, tensor_names: dict) -> dict:
 def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
     """Get all precisions from object inputs."""
     return {index: input.get_element_type() for index, input in enumerate(obj.inputs)}
+
 
 def get_tensor_names(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
     """Get all tensor_names from object inputs."""
@@ -53,7 +54,8 @@ class InferRequest(InferRequestBase):
 
     def infer(self, inputs: dict = None) -> List[np.ndarray]:
         """Infer wrapper for InferRequest."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
+        inputs = {} if inputs is None \
+                    else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
         res = super().infer(inputs)
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
@@ -61,7 +63,8 @@ class InferRequest(InferRequestBase):
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for InferRequest."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
+        inputs = {} if inputs is None \
+                    else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
         super().start_async(inputs, userdata)
 
 
@@ -74,7 +77,8 @@ class ExecutableNetwork(ExecutableNetworkBase):
 
     def infer_new_request(self, inputs: dict = None) -> List[np.ndarray]:
         """Infer wrapper for ExecutableNetwork."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
+        inputs = {} if inputs is None \
+                    else normalize_inputs(inputs, get_input_types(self), get_tensor_names(self))
         res = super().infer_new_request(inputs)
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
@@ -93,7 +97,8 @@ class AsyncInferQueue(AsyncInferQueueBase):
         inputs = (
             {}
             if inputs is None
-            else normalize_inputs(inputs, get_input_types(self[self.get_idle_request_id()]), get_tensor_names(self[self.get_idle_request_id()]))
+            else normalize_inputs(inputs, get_input_types(self[self.get_idle_request_id()]), \
+                                            get_tensor_names(self[self.get_idle_request_id()]))
         )
         super().start_async(inputs, userdata)
 
