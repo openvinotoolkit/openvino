@@ -10,7 +10,6 @@ import cv2
 import numpy as np
 from openvino.runtime import Core, Tensor, Layout, Type
 from openvino.preprocess import PrePostProcessor, ResizeAlgorithm
-from openvino.layout_helpres import height_idx, width_idx
 
 
 def parse_args() -> argparse.Namespace:
@@ -60,7 +59,7 @@ def main():
     # Wrap input image into openvino.runtime.Tensor without allocating of new memory
     image_tensor = Tensor(image)
     tensor_layout = Layout("NHWC")
-    h, w = image_tensor.shape[height_idx(tensor_layout)], image_tensor.shape[width_idx(tensor_layout)]
+    h, w = image_tensor.shape[1], image_tensor.shape[2]
 
     # ---------------------------Step 4. Apply preprocessing----------------------------------------------------------
     preproc = PrePostProcessor(model)
@@ -95,7 +94,7 @@ def main():
 
     # ---------------------------Step 5. Do inference----------------------------------------------------------------------
     log.info('Infer new request.')
-    res = exec_net.infer_new_request(input=image_tensor)
+    res = exec_net.infer_new_request(inputs={0:image_tensor})
 
     # ---------------------------Step 6. Process output--------------------------------------------------------------------
     # Generate a label list
