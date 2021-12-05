@@ -27,24 +27,24 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 
 # install setupvars
 
-ie_cpack_add_component(setupvars REQUIRED)
+# ie_cpack_add_component(setupvars REQUIRED)
 
-if(UNIX)
-    install(PROGRAMS setupvars/setupvars.sh
-            DESTINATION .
-            COMPONENT setupvars)
-elseif(WIN32)
-    install(PROGRAMS setupvars/setupvars.bat
-            DESTINATION .
-            COMPONENT setupvars)
-endif()
+# if(UNIX)
+#     install(PROGRAMS setupvars/setupvars.sh
+#             DESTINATION .
+#             COMPONENT setupvars)
+# elseif(WIN32)
+#     install(PROGRAMS setupvars/setupvars.bat
+#             DESTINATION .
+#             COMPONENT setupvars)
+# endif()
 
 # install install_dependencies
 
 if(UNIX)
     ie_cpack_add_component(install_dependencies REQUIRED)
     install(DIRECTORY install_dependencies/
-            DESTINATION install_dependencies
+            DESTINATION share/openvino/install_dependencies
             COMPONENT install_dependencies
             USE_SOURCE_PERMISSIONS)
 endif()

@@ -35,14 +35,12 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # install
 
-ie_cpack_add_component(core_tools DEPENDS core)
-
 # TODO: check the proper location
 install(TARGETS compile_tool
-        RUNTIME DESTINATION var/tools/compile_tool
+        RUNTIME DESTINATION share/openvino/tools/compile_tool
         COMPONENT core_dev)
 
 # TODO
 install(FILES README.md
-        DESTINATION var/tools/compile_tool
+        DESTINATION share/openvino/tools/compile_tool
         COMPONENT core_dev)

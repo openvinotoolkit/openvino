@@ -16,7 +16,7 @@ add_subdirectory(compile_tool)
 ie_cpack_add_component(deployment_manager REQUIRED)
 
 install(DIRECTORY deployment_manager
-        DESTINATION share/tools
+        DESTINATION share/openvino/tools
         COMPONENT deployment_manager
         USE_SOURCE_PERMISSIONS)
 
