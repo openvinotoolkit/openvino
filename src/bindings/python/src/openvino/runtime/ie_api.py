@@ -10,6 +10,7 @@ from openvino.pyopenvino import Core as CoreBase
 from openvino.pyopenvino import ExecutableNetwork as ExecutableNetworkBase
 from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
+from openvino.pyopenvino import Output
 from openvino.pyopenvino import Tensor
 
 from openvino.runtime.utils.types import get_dtype
@@ -38,10 +39,11 @@ def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
 
 def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
     """Map all tensor names of all inputs to the data types of those tensors."""
-    def map_tensor_names_to_types(input):
+
+    def map_tensor_names_to_types(input: Output) -> dict:
         return {n: input.get_element_type() for n in input.get_names()}
 
-    input_types = {}
+    input_types: dict = {}
     for input in obj.inputs:
         input_types = {**input_types, **map_tensor_names_to_types(input)}
     return input_types
