@@ -84,7 +84,7 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "core"
 ie_coverage_genhtml(INFO_FILE "core"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(OV_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     ie_coverage_extract(INPUT "openvino" OUTPUT "onnx"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*"
         "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*")

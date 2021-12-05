@@ -48,11 +48,11 @@ if(ENABLE_MULTI)
     list(APPEND DEPENDENCIES MultiDevicePlugin)
 endif()
 
-if (NOT OV_ONNX_FRONTEND_ENABLE)
+if (NOT ENABLE_OV_ONNX_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
-if (NOT OV_PDPD_FRONTEND_ENABLE)
+if (NOT ENABLE_OV_PDPD_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader")
 endif()
 
@@ -70,14 +70,14 @@ addIeTargetTest(
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-if(OV_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-        OV_ONNX_FRONTEND_ENABLE
+        ENABLE_OV_ONNX_FRONTEND
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} onnx_ov_frontend)
 endif()
 
-if(OV_PDPD_FRONTEND_ENABLE)
+if(ENABLE_OV_PDPD_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
     add_dependencies(${TARGET_NAME} paddlepaddle_ov_frontend)

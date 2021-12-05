@@ -21,7 +21,7 @@ if(OV_IR_FRONTEND_ENABLE)
     list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 
-if (OV_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES test_model_zoo)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")
 else()

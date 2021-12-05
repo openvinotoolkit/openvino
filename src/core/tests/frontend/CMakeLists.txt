@@ -3,15 +3,15 @@
 #
 add_subdirectory(shared)
 
-if (OV_PDPD_FRONTEND_ENABLE)
+if (ENABLE_OV_PDPD_FRONTEND)
     add_subdirectory(paddlepaddle)
 endif()
 
-if (OV_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()
 
-if (OV_TF_FRONTEND_ENABLE)
+if (ENABLE_OV_TF_FRONTEND)
     add_subdirectory(tensorflow)
 endif()
 

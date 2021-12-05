@@ -16,12 +16,12 @@ if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
     add_subdirectory(util)
     add_subdirectory(engines_util)
-    if (OV_ONNX_FRONTEND_ENABLE)
+    if (ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_test_util)
     endif()
 endif()
 
-if(NOT OV_CORE_UNIT_TEST_ENABLE)
+if(NOT ENABLE_OV_CORE_UNIT_TESTS)
     message(STATUS "nGraph unit tests disabled")
     return()
 endif()
@@ -445,7 +445,7 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
-if (ENABLE_MKL_DNN AND OV_CORE_UNIT_TEST_BACKENDS_ENABLE)
+if (ENABLE_MKL_DNN AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
@@ -455,7 +455,7 @@ if (ENABLE_MKL_DNN AND OV_CORE_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (ENABLE_INTEL_GPU AND OV_CORE_UNIT_TEST_BACKENDS_ENABLE)
+if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
@@ -465,7 +465,7 @@ if (ENABLE_INTEL_GPU AND OV_CORE_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (OV_CORE_UNIT_TEST_BACKENDS_ENABLE)
+if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     list(APPEND SRC
         builder.cpp
         backend_api.cpp)
@@ -502,7 +502,7 @@ set(MULTI_TEST_SRC
     backend/zero_sized.in.cpp
 )
 
-if (OV_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_com_microsoft.in.cpp
@@ -523,7 +523,7 @@ if (OV_ONNX_FRONTEND_ENABLE)
             onnx/onnx_transformations.cpp)
 endif()
 
-if (OV_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND SRC onnx/onnx_editor.cpp)
     list(APPEND MULTI_TEST_SRC
         onnx/onnx_test_utils.in.cpp
@@ -592,7 +592,7 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
-if (OV_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(ov_core_unit_tests
@@ -602,14 +602,14 @@ if (OV_ONNX_FRONTEND_ENABLE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(ov_core_unit_tests
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_definitions(ov_core_unit_tests PRIVATE OV_ONNX_FRONTEND_ENABLE)
+    target_compile_definitions(ov_core_unit_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
     target_compile_options(ov_core_unit_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-if (OV_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
     target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
     target_link_libraries(ov_core_unit_tests PRIVATE onnx_ov_frontend onnx_test_util)

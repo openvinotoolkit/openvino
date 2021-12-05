@@ -71,7 +71,7 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 # Google Tests framework
 #
 
-if(OV_CORE_UNIT_TEST_ENABLE OR ENABLE_TESTS)
+if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     openvino_developer_export_targets(COMPONENT inference_engine_tests
@@ -82,7 +82,7 @@ endif()
 # Protobuf
 #
 
-if(OV_PDPD_FRONTEND_ENABLE OR OV_ONNX_FRONTEND_ENABLE OR OV_TF_FRONTEND_ENABLE)
+if(ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
     if(OV_USE_SYSTEM_PROTOBUF)
         set(Protobuf_USE_STATIC_LIBS ON)
         if(VERBOSE_BUILD)
@@ -124,7 +124,7 @@ endif()
 # ONNX
 #
 
-if(OV_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()
 
@@ -191,7 +191,7 @@ endif()
 #
 # nlohmann json
 #
-if(ENABLE_SAMPLES OR OV_PDPD_FRONTEND_ENABLE OR OV_ONNX_FRONTEND_ENABLE OR OV_TF_FRONTEND_ENABLE)
+if(ENABLE_SAMPLES OR ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
     add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
     openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 endif()

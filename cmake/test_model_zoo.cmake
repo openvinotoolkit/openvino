@@ -19,7 +19,7 @@ function(ov_model_convert SRC DST OUT)
         get_filename_component(name_we "${in_file}" NAME_WE)
         set(model_source_dir "${SRC}/${rel_dir}")
 
-        if(NOT OV_ONNX_FRONTEND_ENABLE AND ext MATCHES "^\\.(onnx|prototxt)$")
+        if(NOT ENABLE_OV_ONNX_FRONTEND AND ext MATCHES "^\\.(onnx|prototxt)$")
             # don't copy / process ONNX / prototxt files
             continue()
         endif()
@@ -92,7 +92,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  docs_onnx_out_files)
 
 if(ENABLE_TESTS)
-    if(OV_ONNX_FRONTEND_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
+    if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
         find_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
@@ -136,7 +136,7 @@ if(ENABLE_TESTS)
         add_dependencies(test_model_zoo test_pip_prerequsites)
     endif()
 
-    if (OV_PDPD_FRONTEND_ENABLE AND OV_CORE_UNIT_TEST_ENABLE)
+    if (ENABLE_OV_PDPD_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
         add_dependencies(test_model_zoo paddlepaddle_test_models)
     endif()
 

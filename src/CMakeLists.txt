@@ -33,14 +33,14 @@ if(OV_IR_FRONTEND_ENABLE)
     # use this one once CVS-69781 is fixed
     # add_dependencies(inference_engine ir_ov_frontend)
 endif()
-if(OV_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     add_dependencies(inference_engine onnx_ov_frontend)
 endif()
 
-if(OV_PDPD_FRONTEND_ENABLE)
+if(ENABLE_OV_PDPD_FRONTEND)
     add_dependencies(inference_engine paddlepaddle_ov_frontend)
 endif()
 
-if(OV_TF_FRONTEND_ENABLE)
+if(ENABLE_OV_TF_FRONTEND)
     add_dependencies(inference_engine tensorflow_ov_frontend)
 endif()
