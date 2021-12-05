@@ -19,6 +19,7 @@ public:
     };
 
     OPENVINO_OP("DetectionOutput", "opset1", op::util::DetectionOutputBase);
+    BWDCMP_RTTI_DECLARATION;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation

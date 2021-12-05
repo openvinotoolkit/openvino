@@ -773,7 +773,6 @@ TEST(type_prop_layers, detection_outputv8_dynamic) {
 
     auto attrs_vector = create_attributes_vector();
     for (const auto& attrs : attrs_vector) {
-        Dimension num_loc_classes = attrs.share_location ? 1 : num_classes;
         Dimension prior_box_size = attrs.normalized ? 4 : 5;
 
         PartialShape box_logits_shape = {N, Dimension::dynamic()};
@@ -802,7 +801,6 @@ TEST(type_prop_layers, detection_outputv8_num_classes_not_deduced) {
 
     auto attrs_vector = create_attributes_vector();
     for (const auto& attrs : attrs_vector) {
-        Dimension num_loc_classes = attrs.share_location ? 1 : num_classes;
         Dimension prior_box_size = attrs.normalized ? 4 : 5;
 
         PartialShape box_logits_shape = {N, Dimension::dynamic()};
@@ -826,15 +824,11 @@ TEST(type_prop_layers, detection_outputv8_num_classes_no_deduction) {
     // initialize attributes affecting shape inference
     // others remain by default
     Dimension N = 3;
-    Dimension num_prior_boxes = 5;
     Dimension priors_batch_size = N;
     Dimension num_classes = 3;
 
     auto attrs_vector = create_attributes_vector();
     for (const auto& attrs : attrs_vector) {
-        Dimension num_loc_classes = attrs.share_location ? 1 : num_classes;
-        Dimension prior_box_size = attrs.normalized ? 4 : 5;
-
         PartialShape box_logits_shape = {N, Dimension::dynamic()};
         PartialShape class_preds_shape = {N, Dimension::dynamic()};
         PartialShape proposals_shape = {priors_batch_size,
@@ -866,9 +860,6 @@ TEST(type_prop_layers, detection_outputv8_dynamic2) {
 
     auto attrs_vector = create_attributes_vector();
     for (const auto& attrs : attrs_vector) {
-        Dimension num_loc_classes = attrs.share_location ? 1 : num_classes;
-        Dimension prior_box_size = attrs.normalized ? 4 : 5;
-
         PartialShape box_logits_shape = {N, Dimension::dynamic()};
         PartialShape class_preds_shape = {Dimension::dynamic(), num_prior_boxes * num_classes};
         PartialShape proposals_shape = {priors_batch_size,
