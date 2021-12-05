@@ -37,7 +37,7 @@ def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
 
 
 def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
-    """Map all tensor names of all inputs to the data types of those tensors"""
+    """Map all tensor names of all inputs to the data types of those tensors."""
     def map_tensor_names_to_types(input):
         return {n: input.get_element_type() for n in input.get_names()}
 
