@@ -73,6 +73,8 @@ from openvino.runtime import opset8
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
 
+# type: ignore
+
 openvino.Core = Core
 openvino.PartialShape = PartialShape
 openvino.Dimension = Dimension
