@@ -16,7 +16,7 @@ add_subdirectory(compile_tool)
 ie_cpack_add_component(deployment_manager REQUIRED)
 
 install(DIRECTORY deployment_manager
-        DESTINATION tools
+        DESTINATION share/tools
         COMPONENT deployment_manager
         USE_SOURCE_PERMISSIONS)
 
@@ -42,15 +42,16 @@ if(ENABLE_PYTHON)
     # install BA tool for tests
     install(FILES benchmark_tool/README.md
                   benchmark_tool/requirements.txt
-            DESTINATION tools/benchmark_tool
+            DESTINATION share/tools/benchmark_tool
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 
     install(PROGRAMS benchmark_tool/benchmark_app.py
-            DESTINATION tools/benchmark_tool
+            DESTINATION share/tools/benchmark_tool
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 
+    # TODO: will be removed
     # install openvino/tools/benchmark as a python package
     install(DIRECTORY benchmark_tool/openvino/tools/benchmark
             DESTINATION python/${PYTHON_VERSION}/openvino/tools

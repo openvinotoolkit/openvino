@@ -201,16 +201,26 @@ endif()
 #
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-        DESTINATION "samples/cpp/thirdparty"
+        DESTINATION share/samples/cpp/thirdparty
+        USE_SOURCE_PERMISSIONS
         COMPONENT cpp_samples
-        USE_SOURCE_PERMISSIONS)
+        PATTERN gflags/gflags/test EXCLUDE
+        PATTERN gflags/gflags/.gitattributes EXCLUDE
+        PATTERN gflags/gflags/.git EXCLUDE
+        PATTERN gflags/gflags/.gitmodules EXCLUDE
+        PATTERN gflags/gflags/.gitignore EXCLUDE)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-        DESTINATION "samples/cpp/thirdparty"
+        DESTINATION share/samples/cpp/thirdparty
+        USE_SOURCE_PERMISSIONS
         COMPONENT cpp_samples
-        USE_SOURCE_PERMISSIONS)
+        PATTERN zlib/zlib/.gitignore EXCLUDE
+        PATTERN zlib/zlib/zlib2ansi EXCLUDE
+        PATTERN zlib/zlib/configure EXCLUDE
+        PATTERN zlib/zlib/contrib/dotzlib EXCLUDE
+        PATTERN zlib/zlib/contrib/vstudio EXCLUDE)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples
-        USE_SOURCE_PERMISSIONS)
+        DESTINATION share/samples/cpp/thirdparty
+        USE_SOURCE_PERMISSIONS
+        COMPONENT cpp_samples)

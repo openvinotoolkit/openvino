@@ -216,18 +216,18 @@ macro(ov_add_frontend)
                 set(export_set EXPORT OpenVINOTargets)
             endif()
             install(TARGETS ${TARGET_NAME} ${export_set}
-                    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-                    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
+                    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+                    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
         else()
-            ov_install_static_lib(${TARGET_NAME} ngraph)
+            ov_install_static_lib(${TARGET_NAME} core)
         endif()
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install -dev part
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/${OV_FRONTEND_NAME}_frontend
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-                    COMPONENT ngraph_dev
+                    COMPONENT core_dev
                     FILES_MATCHING PATTERN "*.hpp")
 
             set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})

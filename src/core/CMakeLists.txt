@@ -122,25 +122,22 @@ export(TARGETS ngraph NAMESPACE openvino::
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
-ie_cpack_add_component(ngraph REQUIRED)
-ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
 install(TARGETS ngraph EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
         INCLUDES DESTINATION include)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION include
-        COMPONENT ngraph_dev
+        COMPONENT core_dev
         FILES_MATCHING
             PATTERN "*.hpp"
             PATTERN "*.h")
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
-    INSTALL_DESTINATION cmake)
+    INSTALL_DESTINATION ${IE_CPACK_LIBRARY_PATH}/openvino/cmake)
 
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
     VERSION ${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}
@@ -148,5 +145,5 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION cmake
-        COMPONENT ngraph_dev)
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}/openvino/cmake
+        COMPONENT core_dev)

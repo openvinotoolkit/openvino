@@ -37,10 +37,12 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_cpack_add_component(core_tools DEPENDS core)
 
+# TODO: check the proper location
 install(TARGETS compile_tool
-        RUNTIME DESTINATION tools/compile_tool
-        COMPONENT core_tools)
+        RUNTIME DESTINATION var/tools/compile_tool
+        COMPONENT core_dev)
 
+# TODO
 install(FILES README.md
-        DESTINATION tools/compile_tool
-        COMPONENT core_tools)
+        DESTINATION var/tools/compile_tool
+        COMPONENT core_dev)

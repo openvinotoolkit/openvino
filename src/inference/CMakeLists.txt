@@ -267,8 +267,8 @@ endif()
 
 # install only downloaded TBB, system one is not installed
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
-    ie_cpack_add_component(tbb REQUIRED)
-    list(APPEND core_components tbb)
+    # ie_cpack_add_component(tbb REQUIRED)
+    # list(APPEND core_components tbb)
 
     # install(DIRECTORY "${TBB}/include"
     #         DESTINATION runtime/3rdparty/tbb
@@ -310,7 +310,7 @@ endif()
 # Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
+ie_cpack_add_component(core_dev REQUIRED core)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION include
@@ -349,7 +349,7 @@ ov_install_static_lib(${TARGET_NAME}_plugin_api core)
 install(EXPORT OpenVINOTargets
         FILE OpenVINOTargets.cmake
         NAMESPACE openvino::
-        DESTINATION cmake
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}/openvino/cmake
         COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/src/core")
@@ -374,7 +374,7 @@ set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-                              INSTALL_DESTINATION cmake
+                              INSTALL_DESTINATION ${IE_CPACK_LIBRARY_PATH}/openvino/cmake
                               PATH_VARS ${PATH_VARS})
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
@@ -390,10 +390,10 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
               "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake"
-        DESTINATION cmake
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}/openvino/cmake
         COMPONENT core_dev)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
               "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"
-        DESTINATION cmake
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}/openvino/cmake
         COMPONENT core_dev)

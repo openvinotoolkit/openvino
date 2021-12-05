@@ -16,9 +16,16 @@ function(ie_cpack_set_library_dir)
         set(IE_CPACK_RUNTIME_PATH bin/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
         set(IE_CPACK_ARCHIVE_PATH lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
     else()
-        set(IE_CPACK_LIBRARY_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
+        if(CPACK_GENERATOR STREQUAL "DEB")
+            # TODO
+            set(IE_CPACK_LIBRARY_PATH lib PARENT_SCOPE)
+            set(IE_CPACK_RUNTIME_PATH lib PARENT_SCOPE)
+            set(IE_CPACK_ARCHIVE_PATH lib PARENT_SCOPE)
+        else()
+            set(IE_CPACK_LIBRARY_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(IE_CPACK_RUNTIME_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(IE_CPACK_ARCHIVE_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 
@@ -51,9 +58,13 @@ macro(ie_cpack)
     set(CPACK_COMPONENT_UNSPECIFIED_REQUIRED OFF)
     set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")
-    set(CPACK_PACKAGE_CONTACT "openvino@intel.com")
+    set(CPACK_PACKAGE_CONTACT "OpenVINO Developers <openvino@intel.com>")
     set(CPACK_VERBATIM_VARIABLES ON)
     set(CPACK_COMPONENTS_ALL ${ARGN})
+    set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
+        OWNER_READ OWNER_WRITE OWNER_EXECUTE
+        GROUP_READ GROUP_EXECUTE
+        WORLD_READ WORLD_EXECUTE)
 
     # archive operations can be run in parallels since CMake 3.20
     set(CPACK_THREADS 8)
@@ -81,21 +92,24 @@ macro(ie_cpack)
 
     # generator specific variables
     if(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|ZIP)$")
-        message(FATAL_ERROR "CPACK_GENERATORCPACK_GENERATORCPACK_GENERATOR")
         # multiple packages are generated
         set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
     elseif(CPACK_GENERATOR STREQUAL "DEB")
         # per component configuration
         # list of components:
-        # - ngraph
         # - core
         # - core_c
-        # - ngraph_dev
         # - core_dev
         # - core_c_dev
+        # - core_tools
+        # - c_samples
+        # - cpp_samples
+        # - python_samples
+        # - deployment_manager
+        # - [install_dependencies] probably should be removed
         # - licensing
         # - docs
-        # - core_tools
+        # - [setupvars] should be removed
         # - [python .*]
         # - (cpu|gpu|hetero)
 
@@ -105,6 +119,8 @@ macro(ie_cpack)
         set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
         # enable dependencies between components
         set(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
+        # control file permissions
+        set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
         # homepage
         set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
         # enable for debug cpack run
@@ -116,62 +132,177 @@ macro(ie_cpack)
         set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
         # OpenVINO does not have backward and forward compatibility
         set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY "=")
+        # naming convention for debian package files
+        set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+
+        function(ov_add_lintian_suppression comp)
+            set(lines ${ARGN})
+            list(APPEND lines "copyright-file-contains-full-apache-2-license")
+            list(APPEND lines "copyright-should-refer-to-common-license-file-for-apache-2")
+            list(APPEND lines "copyright-without-copyright-notice")
+            # TODO: fix
+            list(APPEND lines "changelog-file-missing-in-native-package")
+            # add SOVERSION
+            list(APPEND lines "package-must-activate-ldconfig-trigger")
+            # add SOVERSION
+            list(APPEND lines "shlib-without-versioned-soname")
+            # add SOVERSION
+            list(APPEND lines "sharedobject-in-library-directory-missing-soname")
+            list(APPEND lines "maintscript-calls-ldconfig postinst")
+            list(APPEND lines "maintscript-calls-ldconfig postrm")
+
+            foreach(line IN LISTS lines)
+                set(line "openvino-${comp} binary: ${line}")
+                if(content)
+                    set(content "${content}\n${line}")
+                else()
+                    set(content "${line}")
+                endif()
+            endforeach()
+
+            set(lintian_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/lintian/openvino-${comp}")
+            file(WRITE ${lintian_override_file} ${content})
+            install(FILES ${lintian_override_file}
+                    DESTINATION share/lintian/overrides/
+                    COMPONENT ${comp})
+        endfunction()
+
+        # install debian common files
+        foreach(comp IN LISTS CPACK_COMPONENTS_ALL)
+            # copyright
+            install(FILES "${OpenVINO_SOURCE_DIR}/LICENSE"
+                    DESTINATION share/doc/openvino-${comp}/
+                    COMPONENT ${comp}
+                    RENAME copyright)
+
+            # TODO: changelog
+        endforeach()
+
+        #
+        # OpenVINO Core components including frontends
+        #
 
         # TODO
         # add preinst script for core to ask about aptin
 
-        # ngraph
-        set(CPACK_COMPONENT_NGRAPH_DESCRIPTION "OpenVINO ngraph")
         # admin, devel, doc, see https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
         # set(CPACK_DEBIAN_ngraph_PACKAGE_SECTION devel)
         # see required, important, standard, optional, extra
         # https://www.debian.org/doc/debian-policy/ch-archive.html#s-priorities
         # set(CPACK_DEBIAN_ngraph_PACKAGE_PRIORITY standard)
 
-        # ngraph-dev
-        set(CPACK_COMPONENT_NGRAPH_DEV_DESCRIPTION "OpenVINO ngraph development files")
-        set(CPACK_COMPONENT_NGRAPH_DEV_DEPENDS "ngraph")
-
         # core
-        set(CPACK_COMPONENT_CORE_DESCRIPTION "OpenVINO core runtime")
-        set(CPACK_COMPONENT_CORE_DEPENDS "ngraph")
+        set(CPACK_COMPONENT_CORE_DESCRIPTION "OpenVINO C++ Runtime libraries")
+        set(CPACK_COMPONENT_CORE_DEPENDS "")
         # TODO: should be discovered automatically
         # TODO: install build dependencies libpugixml-dev, libtbb-dev
         set(CPACK_DEBIAN_CORE_PACKAGE_DEPENDS "libpugixml1v5")
-
-        # hetero
-        set(CPACK_COMPONENT_hetero_DESCRIPTION "OpenVINO Hetero plugin")
-        set(CPACK_COMPONENT_HETERO_DEPENDS "core")
+        ov_add_lintian_suppression(core
+            "package-name-doesnt-match-sonames"
+            "script-not-executable usr/share/samples/scripts/utils.sh"
+            "non-standard-file-perm usr/share/samples/cpp/thirdparty/.*")
 
         # core_dev
-        set(CPACK_COMPONENT_CODE_DEV_DESCRIPTION "OpenVINO core dev runtime")
-        set(CPACK_COMPONENT_COR_DEV_DEPENDS "ngraph_dev;core")
+        set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "OpenVINO C++ Runtime development files")
+        set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core")
+        # Looks like it's arch dependent
+        # set(CPACK_DEBIAN_CORE_DEV_PACKAGE_ARCHITECTURE "all")
         # set(CPACK_DEBIAN_CORE_PACKAGE_DEPENDS "libtbb-dev")
-        # set(CPACK_DEBIAN_core_dev_PACKAGE_CONFLICTS "!!!")
+        # set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "!!!")
+        ov_add_lintian_suppression(core_dev
+            "bad-package-name"
+            "package-name-doesnt-match-sonames"
+            "script-not-executable usr/share/samples/scripts/utils.sh"
+            "non-standard-file-perm usr/share/samples/cpp/thirdparty/.*")
 
         # core_c
-        set(CPACK_COMPONENT_core_c_DESCRIPTION "OpenVINO C core runtime")
+        set(CPACK_COMPONENT_CORE_C_DESCRIPTION "OpenVINO C Runtime libraries")
         set(CPACK_COMPONENT_CORE_C_DEPENDS "core")
 
         # core_c_dev
-        set(CPACK_COMPONENT_core_c_dev_DESCRIPTION "OpenVINO C dev runtime")
+        set(CPACK_COMPONENT_CORE_C_DEV_DESCRIPTION "OpenVINO C Runtime development files")
         set(CPACK_COMPONENT_CORE_C_DEV_DEPENDS "core_c;core_dev")
+        # Looks like it's arch dependent
+        # set(CPACK_DEBIAN_CORE_C_DEV_PACKAGE_ARCHITECTURE "all")
         # set(CPACK_DEBIAN_core_dev_PACKAGE_CONFLICTS "!!!")
 
-        # core tools
-        set(CPACK_COMPONENT_CORE_TOOLS_DESCRIPTION "OpenVINO Core Tools")
-        set(CPACK_COMPONENT_CORE_TOOLS_DEPENDS "core")
-        set(CPACK_DEBIAN_CORE_TOOLS_PACKAGE_RECOMMENDS "openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+        #
+        # Plugins
+        #
+
+        # hetero
+        if(ENABLE_HETERO)
+            set(CPACK_COMPONENT_HETERO_DESCRIPTION "OpenVINO Hetero plugin")
+            set(CPACK_COMPONENT_HETERO_DEPENDS "core")
+        endif()
+
+        # multi / auto plugins
+        if(ENABLE_MULTI)
+            set(CPACK_COMPONENT_MULTI_DESCRIPTION "OpenVINO Multi / Auto plugin")
+            set(CPACK_COMPONENT_MULTI_DEPENDS "core")
+        endif()
+
+        # cpu
+        if(ENABLE_MKL_DNN)
+            set(CPACK_COMPONENT_CPU_DESCRIPTION "OpenVINO Intel CPU plugin")
+            set(CPACK_COMPONENT_CPU_DEPENDS "core")
+            set(CPACK_DEBIAN_CPU_PACKAGE_SUGGESTS "openvino-multi (= ${CPACK_PACKAGE_VERSION}), openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+        endif()
+
+        # gpu
+        if(ENABLE_INTEL_GPU)
+            set(CPACK_COMPONENT_GPU_DESCRIPTION "OpenVINO Intel GPU plugin")
+            set(CPACK_COMPONENT_GPU_DEPENDS "core")
+            set(CPACK_DEBIAN_GPU_PACKAGE_SUGGESTS "openvino-multi (= ${CPACK_PACKAGE_VERSION}), openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+        endif()
+
+        # myriad
+        if(ENABLE_MYRIAD)
+            set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "OpenVINO Intel Myriad plugin")
+            set(CPACK_COMPONENT_MYRIAD_DEPENDS "core")
+            set(CPACK_DEBIAN_MYRIAD_PACKAGE_SUGGESTS "openvino-multi (= ${CPACK_PACKAGE_VERSION}), openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+        endif()
+
+        # gna
+        if(ENABLE_GNA)
+            set(CPACK_COMPONENT_GNA_DESCRIPTION "OpenVINO Intel GNA plugin")
+            set(CPACK_COMPONENT_GNA_DEPENDS "core")
+            set(CPACK_DEBIAN_GNA_PACKAGE_SUGGESTS "openvino-multi (= ${CPACK_PACKAGE_VERSION}), openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+        endif()
+
+        #
+        # Samples
+        #
+
+        set(samples_build_deps "cmake, g++, gcc, libc6-dev, make")
 
         # cpp_samples
         set(CPACK_COMPONENT_CPP_SAMPLES_DESCRIPTION "OpenVINO C++ samples")
         set(CPACK_COMPONENT_CPP_SAMPLES_DEPENDS "core_dev")
-        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_RECOMMENDS "openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
-        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev")
+        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_SUGGESTS "openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev, ${samples_build_deps}")
+        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_ARCHITECTURE "all")
 
         # c_samples
         set(CPACK_COMPONENT_C_SAMPLES_DESCRIPTION "OpenVINO C samples")
         set(CPACK_COMPONENT_C_SAMPLES_DEPENDS "core_c_dev")
+        set(CPACK_DEBIAN_C_SAMPLES_PACKAGE_DEPENDS "${samples_build_deps}")
+        set(CPACK_DEBIAN_C_SAMPLES_PACKAGE_ARCHITECTURE "all")
+
+        # python_samples
+        set(CPACK_COMPONENT_PYTHON_SAMPLES_DESCRIPTION "OpenVINO Python samples")
+        set(CPACK_COMPONENT_PYTHON_SAMPLES_DEPENDS "python3")
+        set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
+
+        #
+        # other
+        #
+
+        # deployment manager
+        set(CPACK_COMPONENT_DEPLOYMENT_MANAGER_DESCRIPTION "OpenVINO Deployment Manager")
+        set(CPACK_COMPONENT_DEPLOYMENT_MANAGER_DEPENDS "core")
+        set(CPACK_DEBIAN_DEPLOYMENT_MANAGER_PACKAGE_DEPENDS "python3")
+        set(CPACK_DEBIAN_DEPLOYMENT_MANAGER_PACKAGE_ARCHITECTURE "all")
     endif()
 
     include(CPack)
