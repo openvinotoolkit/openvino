@@ -352,3 +352,26 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
         self.check_graph_attrs(graph, graph_ref, [])
+
+    def test_insert_add_mean_scale_after_convert_different_type(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', 'convert'),
+            *connect('convert', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]),
+                                             np.array([1., 2., 3.])]])
+        graph = build_graph(nodes, [*connect('parameter', 'convert'), *connect('convert', 'result')],
+                            nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, [])
+        add_node = graph.get_op_nodes(type="Add")[0]
+        self.assertTrue(add_node.in_port(1).get_connection().get_source().node['value'].dtype == np.float32)
