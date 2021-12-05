@@ -49,7 +49,7 @@ void create_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>&
 }
 }  // namespace
 
-TEST_F(TransformationTestsF, DetectionOutput8ToDetectionOutput1) {
+TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
     std::vector<opset1::DetectionOutput::Attributes> attrs_v1_vector;
     std::vector<opset8::DetectionOutput::Attributes> attrs_v8_vector;
     Dimension N = 5;
@@ -110,7 +110,7 @@ TEST_F(TransformationTestsF, DetectionOutput8ToDetectionOutput1) {
     }
 }
 
-TEST_F(TransformationTestsF, DetectionOutput8ToDetectionOutput1FiveArguments) {
+TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
     // In this case num_classes attribute value is deduced using inputs shapes
     std::vector<opset1::DetectionOutput::Attributes> attrs_v1_vector;
     std::vector<opset8::DetectionOutput::Attributes> attrs_v8_vector;
