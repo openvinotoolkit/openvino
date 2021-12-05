@@ -797,7 +797,6 @@ TEST(type_prop_layers, detection_outputv8_num_classes_not_deduced) {
     Dimension N = 13;
     Dimension num_prior_boxes = 33;
     Dimension priors_batch_size = 1;
-    Dimension num_classes = 10;
 
     auto attrs_vector = create_attributes_vector();
     for (const auto& attrs : attrs_vector) {
@@ -825,7 +824,6 @@ TEST(type_prop_layers, detection_outputv8_num_classes_no_deduction) {
     // others remain by default
     Dimension N = 3;
     Dimension priors_batch_size = N;
-    Dimension num_classes = 3;
 
     auto attrs_vector = create_attributes_vector();
     for (const auto& attrs : attrs_vector) {
