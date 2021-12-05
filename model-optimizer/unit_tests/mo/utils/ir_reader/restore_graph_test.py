@@ -34,7 +34,7 @@ class TestIRReader(unittest.TestCase):
         self.assertRaises(EntitiesForbidden, restore_graph_from_ir, incorrect_xml_file.name)
         os.remove(incorrect_xml_file.name)
 
-    def test_read_xml_bomb2(self):
+    def test_read_untrusted_IR(self):
         untrusted_xml = b'<?xml version="1.0"?>\n' \
                         b'<!DOCTYPE foo [\n' \
                         b'<!ELEMENT foo ANY>\n' \
@@ -48,7 +48,7 @@ class TestIRReader(unittest.TestCase):
         self.assertRaises(EntitiesForbidden, restore_graph_from_ir, untrusted_xml_file.name)
         os.remove(untrusted_xml_file.name)
 
-    def test_read_untrusted_IR(self):
+    def test_read_malformed_IR(self):
         ir_front = b'<?xml version="1.0"?>' \
                    b'<net name="test" version="11">' \
                    b'	<layers>' \
