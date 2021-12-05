@@ -468,7 +468,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                                << blobDesc.getPrecision() << ", if CNNNetwork output blob precision is: " << foundOutput->getPrecision();
         }
         size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-            ? InferenceEngine::details::product(foundOutput->getDims())
+            ? InferenceEngine::details::product(foundOutput->getTensorDesc().getDims())
             : 1;
 
         const bool isDynamic = outputNode->isDynamicNode();
