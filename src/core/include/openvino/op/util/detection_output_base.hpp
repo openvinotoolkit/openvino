@@ -31,9 +31,8 @@ public:
     };
 
     OPENVINO_OP("DetectionOutputBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     DetectionOutputBase() = default;
-    DetectionOutputBase(OutputVector args);
+    DetectionOutputBase(const OutputVector& args);
 
     void validate_and_infer_types_base(const AttributesBase& attrs, Dimension num_classes);
 

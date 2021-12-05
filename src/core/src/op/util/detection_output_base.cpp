@@ -15,8 +15,7 @@
 using namespace std;
 using namespace ov::op::util;
 
-BWDCMP_RTTI_DEFINITION(DetectionOutputBase);
-DetectionOutputBase::DetectionOutputBase(OutputVector args) : Op(args) {}
+DetectionOutputBase::DetectionOutputBase(const ov::OutputVector& args) : Op(args) {}
 
 ov::Dimension DetectionOutputBase::compute_num_classes(const AttributesBase& attrs) {
     Dimension num_classes = Dimension::dynamic();
@@ -137,7 +136,7 @@ ov::Dimension DetectionOutputBase::compute_num_classes(const AttributesBase& att
 }
 
 void DetectionOutputBase::validate_and_infer_types_base(const DetectionOutputBase::AttributesBase& attrs,
-                                                        Dimension num_classes) {
+                                                        ov::Dimension num_classes) {
     NODE_VALIDATION_CHECK(this, attrs.keep_top_k.size() > 0, "keep_top_k attribute must be provided");
 
     NODE_VALIDATION_CHECK(

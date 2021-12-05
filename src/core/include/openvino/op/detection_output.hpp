@@ -19,7 +19,6 @@ public:
     };
 
     OPENVINO_OP("DetectionOutput", "opset1", op::util::DetectionOutputBase);
-    BWDCMP_RTTI_DECLARATION;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation
@@ -67,10 +66,9 @@ namespace v8 {
 /// generate detection output using location and confidence predictions
 class OPENVINO_API DetectionOutput : public op::util::DetectionOutputBase {
 public:
-    struct Attributes : public op::util::DetectionOutputBase::AttributesBase {};
+    using Attributes = op::util::DetectionOutputBase::AttributesBase;
 
     OPENVINO_OP("DetectionOutput", "opset8", op::util::DetectionOutputBase);
-    BWDCMP_RTTI_DECLARATION;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation
