@@ -63,7 +63,7 @@ based on deep learning in various tasks, including Image Classifiacton, Visual O
 Speech Recognition, Natural Language Processing and others. Refer to the links below for more details.
 
 
-* [Inference Engine Samples](../IE_DG/Samples_Overview.md)
+* [Inference Engine Samples](../../../../IE_DG/Samples_Overview.md)
 * [Open Model Zoo Demos](@ref omz_demos)
 
 ## Important Notes About Feeding Input Images to the Samples
