@@ -31,8 +31,6 @@ Inference Engine sample applications include the following:
 - **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs).
    - [Image Classification Async C++ Sample](../../samples/cpp/classification_sample_async/README.md)
    - [Image Classification Async Python* Sample](../../samples/python/classification_sample_async/README.md)
-- **Style Transfer Sample** – Style Transfer sample (the sample supports only images as inputs).
-   - [Style Transfer Python* Sample](../../samples/python/style_transfer_sample/README.md)
 - **nGraph Function Creation Sample** – Construction of the LeNet network using the nGraph function creation sample.
    - [nGraph Function Creation C++ Sample](../../samples/cpp/ngraph_function_creation_sample/README.md)
    - [nGraph Function Creation Python Sample](../../samples/python/ngraph_function_creation_sample/README.md)
