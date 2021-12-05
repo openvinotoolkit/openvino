@@ -109,6 +109,7 @@ target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${NGRAPH_INCLUDE_P
 
 add_library(ngraph_s STATIC $<TARGET_OBJECTS:ngraph_obj>)
 target_include_directories(ngraph_s PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+target_link_libraries(ngraph_s PRIVATE openvino::itt)
 
 # TODO: remove this
 install(TARGETS ngraph EXPORT OpenVINOTargets
