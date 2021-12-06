@@ -114,6 +114,16 @@ KERNEL(pooling_gpu)(
     uint num_elementes = 0;
 #endif
 
+#ifndef DILATION_SIZE_X
+    #define DILATION_SIZE_X 1
+#endif
+#ifndef DILATION_SIZE_Y
+    #define DILATION_SIZE_Y 1
+#endif
+#ifndef DILATION_SIZE_Z
+    #define DILATION_SIZE_Z 1
+#endif
+
 #if OUTPUT_DIMS == 5
     const uint batch_and_feature_offset = INPUT0_GET_INDEX(b, f, 0, 0, 0);
 #else
@@ -123,34 +133,20 @@ KERNEL(pooling_gpu)(
 #if OUTPUT_DIMS == 5
     for(uint l = 0; l < POOL_SIZE_Z; l++)
     {
-        #if MAX_POOLING && defined(DILATION_SIZE_Z)
-            int input_offset_z = offset_z + (l * DILATION_SIZE_Z);
-        #else
-            int input_offset_z = offset_z + l;
-        #endif
+        int input_offset_z = offset_z + (l * DILATION_SIZE_Z);
         bool zero_z = input_offset_z >= INPUT0_SIZE_Z || input_offset_z < 0;
         if (!zero_z)
         {
 #endif
             for(uint j = 0; j < POOL_SIZE_Y; j++)
             {
-                #if MAX_POOLING && defined(DILATION_SIZE_Y)
-                    int input_offset_y = offset_y + (j * DILATION_SIZE_Y);
-                #else
-                    int input_offset_y = offset_y + j;
-                #endif
-
+                int input_offset_y = offset_y + (j * DILATION_SIZE_Y);
                 bool zero_y = input_offset_y >= INPUT0_SIZE_Y || input_offset_y < 0;
                 if(!zero_y)
                 {
                     for(uint i = 0; i < POOL_SIZE_X; i++)
                     {
-                        #if MAX_POOLING && defined(DILATION_SIZE_X)
-                            int input_offset_x = offset_x + (i * DILATION_SIZE_X);
-                        #else
-                            int input_offset_x = offset_x + i;
-                        #endif
-
+                        int input_offset_x = offset_x + (i * DILATION_SIZE_X);
                         bool zero = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
                         if(!zero)
                         {
