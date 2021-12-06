@@ -205,6 +205,7 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
                 # User specified some layout, skip guessing
                 continue
 
+            # Guess layout is applicable only when number of channels is '3'
             if num_channels != 3:
                 raise Error('Can\'t determine channels dimension for {}. '
                             'When number of mean/scale values is {} (not 3), '
@@ -300,6 +301,21 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     """
     Applies pre-processing of model inputs by adding appropriate operations
     On return, 'ov_function' object will be updated
+    Expected 'argv.mean_scale_values' formats examples:
+        a) Dict: {'inputName': {'mean': [1., 2., 3.], 'scale': [2., 4., 8.]}}
+        b) List: list(np.array([(np.array([1., 2., 3.]), np.array([2., 4., 6.])),
+                     (np.array([7., 8., 9.]), np.array([5., 6., 7.])))
+    Expected 'argv.layout_values' format examples:
+        a) Specific layouts for inputs and outputs
+        { 'input1': {
+                 'source_layout': 'nchw',
+                 'target_layout': 'nhwc'
+             },
+             'output2': {
+                 'source_layout': 'nhwc'
+             }
+        }
+        b) Layout for single input: {'': {'source_layout': 'nchw'}}
     :param: ov_function OV function for applying mean/scale pre-processing
     :param: argv Parsed command line arguments
     """
@@ -313,6 +329,8 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
                                                   mean_scale_val=mean_scale_values,
                                                   scale=argv.scale)
+    # On return, mean_scale_values is a dictionary with input names as key and mean/scale pair as value
+    # {'inputName': {'mean': [1., 2., 3.], 'scale': [2.]}}
 
     layout_values = {}
     if 'layout_values' in argv and argv.layout_values:
