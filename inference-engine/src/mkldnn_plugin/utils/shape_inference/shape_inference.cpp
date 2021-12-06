@@ -96,6 +96,7 @@ void shape_inference(ov::Node* op,
     } else if (auto node = ov::as_type<ov::opset1::GatherTree>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::OneHot>(op)) {
+        resolve_axis(node);
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;

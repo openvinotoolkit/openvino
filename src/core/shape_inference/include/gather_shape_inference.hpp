@@ -13,7 +13,7 @@ template <class T>
 void shape_infer(const GatherBase* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
     const auto& data_pshape = input_shapes[0];
     const auto& indices_pshape = input_shapes[1];
@@ -32,7 +32,7 @@ void shape_infer(const GatherBase* op,
                               axis_pshape);
     }
 
-    int64_t batch_dims = op->m_batch_dims;
+    int64_t batch_dims = op->get_batch_dims();
     if (batch_dims < 0 && indices_rank.is_static()) {
         batch_dims += indices_rank.get_length();
     }

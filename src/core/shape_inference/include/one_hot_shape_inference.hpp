@@ -22,7 +22,7 @@ template <class T>
 void shape_infer(const OneHot* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 1);
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     const auto& indices_shape = input_shapes[0];
@@ -45,7 +45,7 @@ void shape_infer(const OneHot* op,
     auto& result_shape = output_shapes[0];
     std::vector<int64_t> depth_vals;
     bool depth_is_set = get_data_as_int64<T>(1, op, depth_vals, constant_data);
-    int64_t axis = op->m_axis;
+    int64_t axis = op->get_axis();
     if (indices_shape.rank().is_static()) {
         // decide result rank
         result_shape = indices_shape;

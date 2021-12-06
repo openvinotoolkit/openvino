@@ -56,6 +56,10 @@ int64_t ov::op::util::GatherBase::get_axis() const {
     return axis;
 }
 
+const int64_t& ov::op::util::GatherBase::get_batch_dims() const {
+    return m_batch_dims;
+}
+
 namespace gather {
 namespace {
 template <ov::element::Type_t ET>
