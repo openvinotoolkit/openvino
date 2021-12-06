@@ -776,3 +776,5 @@ def detection_output(
     if aux_box_preds is not None:
         inputs.append(aux_box_preds)
     inputs = as_nodes(*inputs)
+
+    return _get_node_factory_opset8().create("DetectionOutput", inputs, attrs)
