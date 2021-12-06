@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-
-#include <openvino/op/parameter.hpp>
+#include <extract_image_patches_shape_inference.hpp>
 #include <openvino/op/ops.hpp>
+#include <openvino/op/parameter.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
 #include <utils/shape_inference/static_shape.hpp>
 
@@ -21,6 +21,11 @@ TEST(StaticShapeInferenceTest, ExtractImagePatchesTest) {
     auto extractImagePatches =
         std::make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padTypePadding);
 
+    // Test PartialShape
+    std::vector<PartialShape> input_shapes = {PartialShape{64, 3, 10, 10}}, output_shapes = {PartialShape{}};
+    shape_infer(extractImagePatches.get(), input_shapes, output_shapes);
+    ASSERT_EQ(output_shapes[0], (PartialShape{64, 27, 2, 2}));
+    // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{64, 3, 10, 10}}, static_output_shapes = {StaticShape{}};
 
     shape_inference(extractImagePatches.get(), static_input_shapes, static_output_shapes);
