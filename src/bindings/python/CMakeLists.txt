@@ -29,6 +29,4 @@ if(NGRAPH_UNIT_TEST_ENABLE)
     add_dependencies(pyopenvino pybind_mock_frontend)
 endif()
 
-if(InferenceEngineDeveloperPackage_FOUND)
-    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
-endif()
+ie_cpack(${IE_CPACK_COMPONENTS_ALL})

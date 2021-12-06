@@ -71,16 +71,16 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_python_minimal_api(${PROJECT_NAME})
     add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
-    ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
+    ie_cpack_add_component(${OV_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
 
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../openvino
             DESTINATION python/${PYTHON_VERSION}
-            COMPONENT pyopenvino_${PYTHON_VERSION}
+            COMPONENT ${OV_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
     install(TARGETS ${PROJECT_NAME}
             DESTINATION python/${PYTHON_VERSION}/openvino
-            COMPONENT pyopenvino_${PYTHON_VERSION})
+            COMPONENT ${OV_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
 endif()
 
 if(TARGET ie_wheel)

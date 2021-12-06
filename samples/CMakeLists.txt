@@ -20,19 +20,19 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reade
 
 # install C++ samples
 
-ie_cpack_add_component(cpp_samples DEPENDS core)
+ie_cpack_add_component(${OV_COMP_CPP_SAMPLES} DEPENDS ${OV_COMP_CORE})
 
 if(UNIX)
     install(DIRECTORY cpp/
             DESTINATION share/openvino/samples/cpp
-            COMPONENT cpp_samples
+            COMPONENT ${OV_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE
             PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY cpp/
             DESTINATION share/openvino/samples/cpp
-            COMPONENT cpp_samples
+            COMPONENT ${OV_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE
             PATTERN .clang-format EXCLUDE)
@@ -40,37 +40,37 @@ endif()
 
 # install C samples
 
-ie_cpack_add_component(c_samples DEPENDS core_c)
+ie_cpack_add_component(${OV_COMP_C_SAMPLES} DEPENDS ${OV_COMP_CORE_C})
 
 if(UNIX)
     install(PROGRAMS cpp/build_samples.sh
             DESTINATION share/openvino/samples/c
-            COMPONENT c_samples)
+            COMPONENT ${OV_COMP_C_SAMPLES})
 elseif(WIN32)
     install(PROGRAMS cpp/build_samples_msvc.bat
             DESTINATION share/openvino/samples/c
-            COMPONENT c_samples)
+            COMPONENT ${OV_COMP_C_SAMPLES})
 endif()
 
 install(DIRECTORY c
         DESTINATION share/openvino/samples
-        COMPONENT c_samples
+        COMPONENT ${OV_COMP_C_SAMPLES}
         PATTERN c/CMakeLists.txt EXCLUDE
         PATTERN c/.clang-format EXCLUDE)
 
 install(FILES cpp/CMakeLists.txt
         DESTINATION share/openvino/samples/c
-        COMPONENT c_samples)
+        COMPONENT ${OV_COMP_C_SAMPLES})
 
 # install Python samples
 
 if(ENABLE_PYTHON)
-    ie_cpack_add_component(python_samples)
+    ie_cpack_add_component(${OV_COMP_PYTHON_SAMPLES})
 
     install(DIRECTORY python/
             DESTINATION share/openvino/samples/python
             USE_SOURCE_PERMISSIONS
-            COMPONENT python_samples)
+            COMPONENT ${OV_COMP_PYTHON_SAMPLES})
 endif()
 
 # install scripts to run samples fast
@@ -78,13 +78,13 @@ endif()
 if(UNIX)
     install(DIRECTORY scripts/
             DESTINATION share/openvino/samples/scripts
-            COMPONENT cpp_samples
+            COMPONENT ${OV_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY scripts/
             DESTINATION share/openvino/samples/scripts
-            COMPONENT cpp_samples
+            COMPONENT ${OV_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE)
 endif()

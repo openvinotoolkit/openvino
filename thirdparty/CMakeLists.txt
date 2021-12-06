@@ -203,7 +203,7 @@ endif()
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
         DESTINATION share/openvino/samples/cpp/thirdparty
         USE_SOURCE_PERMISSIONS
-        COMPONENT cpp_samples
+        COMPONENT ${OV_COMP_CPP_SAMPLES}
         PATTERN gflags/gflags/test EXCLUDE
         PATTERN gflags/gflags/.gitattributes EXCLUDE
         PATTERN gflags/gflags/.git EXCLUDE
@@ -213,7 +213,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
         DESTINATION share/openvino/samples/cpp/thirdparty
         USE_SOURCE_PERMISSIONS
-        COMPONENT cpp_samples
+        COMPONENT ${OV_COMP_CPP_SAMPLES}
         PATTERN zlib/zlib/.gitignore EXCLUDE
         PATTERN zlib/zlib/zlib2ansi EXCLUDE
         PATTERN zlib/zlib/configure EXCLUDE
@@ -223,4 +223,4 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
         DESTINATION share/openvino/samples/cpp/thirdparty
         USE_SOURCE_PERMISSIONS
-        COMPONENT cpp_samples)
+        COMPONENT ${OV_COMP_CPP_SAMPLES})

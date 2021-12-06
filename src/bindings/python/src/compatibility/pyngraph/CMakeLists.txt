@@ -68,15 +68,15 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_python_minimal_api(_${PROJECT_NAME})
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
-    ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
+    ie_cpack_add_component(${OV_COMP_PYTHON_NGRAPH}_${PYTHON_VERSION})
 
     install(TARGETS _${PROJECT_NAME}
             DESTINATION python/${PYTHON_VERSION}
-            COMPONENT pyngraph_${PYTHON_VERSION})
+            COMPONENT ${OV_COMP_PYTHON_NGRAPH}_${PYTHON_VERSION})
 
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
             DESTINATION python/${PYTHON_VERSION}
-            COMPONENT pyngraph_${PYTHON_VERSION}
+            COMPONENT ${OV_COMP_PYTHON_NGRAPH}_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../../tests

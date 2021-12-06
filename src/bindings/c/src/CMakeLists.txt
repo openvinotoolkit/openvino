@@ -38,15 +38,15 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 # install
 
-ie_cpack_add_component(core_c DEPENDS core)
-ie_cpack_add_component(core_c_dev DEPENDS core_c)
+ie_cpack_add_component(${OV_COMP_CORE_C} DEPENDS core)
+ie_cpack_add_component(${OV_COMP_CORE_C_DEV} DEPENDS ${OV_COMP_CORE_C})
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core_c
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core_c
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${OV_COMP_CORE_C}
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${OV_COMP_CORE_C}
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${OV_COMP_CORE_C}
         INCLUDES DESTINATION include/ie)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
         DESTINATION include/ie
-        COMPONENT core_c_dev)
+        COMPONENT ${OV_COMP_CORE_C_DEV})
