@@ -49,11 +49,12 @@
                 <select id="opsetNumber" class="form-control"></select>
             </div>
             <div class="form-group">
-                <label for="references"><b>Ngraph references</b></label>
-                <select id="references" class="form-control">
+                <label for="implementation"><b>Plugin Implementation</b></label>
+                <select id="implementation" class="form-control">
                     <option value="0">All</option>
-                    <option value="v">Verified</option>
-                    <option value="nv">Not verified</option>
+                    <option value="i">Implemented</option>
+                    <option value="ni">Not implemented</option>
+                    <option value="ns">No status</option>
                 </select>
             </div>
             <div class="form-group">
@@ -127,22 +128,33 @@
 
                 {% for d in devices -%}
                 {% if op in results[d] -%}
-                <td class="value {{ d }}" passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
+                <td class="value {{ d }} {% if results[d][op].implemented == 'true' -%} impl {% else -%} not_impl {% endif -%}"
+                    passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
                     skipped="{{ results[d][op].skipped }}" crashed="{{ results[d][op].crashed }}"
-                    value="{{ results[d][op].passrate }}">
-                     {% if results[d][op].implemented == 'true' -%}
-                        <span class="green" title="Plugin implementation status">IMPLEMENTED</span>
+                    value="{{ results[d][op].passrate }}"
+                    title="{% if results[d][op].implemented == 'true' -%}
+                            {{op}} is implemented in {{d}} plugin
+                        {% else -%}
+                            {{op}} is not implemented in {{d}} plugin
+                        {% endif -%}">
+                    {% if (results[d][op].passed + results[d][op].failed + results[d][op].crashed + results[d][op].skipped) != 0 -%}
+                        {{ results[d][op].passrate }} %<br />
                     {% else -%}
-                        <span class="red" title="Plugin implementation status">NOT IMPLEMENTED</span>
-                    {% endif -%} <br />
-                    {{ results[d][op].passrate }} %<br />
-                    <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>
-                    <span class="red" title="Failed">F:{{ results[d][op].failed }}</span>
-                    <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>
-                    <span class="dark" title="Crashed">C:{{ results[d][op].crashed }}</span>
+                        N/A<br />
+                    {% endif -%}
+                    <div class="flex">
+                        <div>
+                            <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>
+                            <span class="red" title="Failed">F:{{ results[d][op].failed }}</span>
+                            <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>
+                            <span class="dark" title="Crashed">C:{{ results[d][op].crashed }}</span>
+                        </div>
+                        <div class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></div>
+                    </div>
+
                 </td>
                 {% else -%}
-                <td class="table-secondary {{ d }}">N/A</td>
+                    <td class="table-secondary {{ d }}">N/A</td>
                 {% endif -%}
 
                 {% endfor %}

@@ -14,7 +14,7 @@ $(document).ready(function () {
         $('#operationName').val('');
         $('#status').prop("disabled", true).val('');
         $('#devices').val(0);
-        $('#references').val(0);
+        $('#implementation').val(0);
         $("#status").chosen("destroy");
         $("#status").chosen({max_selected_options: 6});
         filterTable();
@@ -79,7 +79,7 @@ function filterTable() {
     opsetNumber = $("#opsetNumber").val();
     operationName = $('#operationName').val().trim();
     status = $('#status').val();
-    references = $('#references').val();
+    implementation = $('#implementation').val();
 
     $("#report #data tr").show();
     $('#report').show();
@@ -96,14 +96,18 @@ function filterTable() {
         });
     }
 
-    if (references != 0) {
-        if (references == 'nv') {
+    if (implementation != 0) {
+        if (implementation == 'ni') {
             $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('th').hasClass("colorRed"))
+                $(this).toggle($(this).find('td').hasClass("not_impl"))
+            });
+        } else if (implementation == 'i') {
+            $("#report #data tr:not(:hidden)").filter(function () {
+                $(this).toggle($(this).find('td').hasClass("impl"));
             });
         } else {
             $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle(!$(this).find('th').hasClass("colorRed"));
+                $(this).toggle(!$(this).find('td').hasClass("not_impl") && !$(this).find('td').hasClass("impl"));
             });
         }
     }
@@ -173,14 +177,14 @@ function calculateColumnStatistics(device) {
     total = $("#report #data tr:not(:hidden)").length;
     $('#statistic .table-primary[scope="row"] i').text(total);
     // trusted op
-    count_trasted_op = $("#report #data tr:not(:hidden) ." + device + ".value[value^='100'][crashed='0'][failed='0'][skipped='0']").length;
+    count_trusted_op = $("#report #data tr:not(:hidden) ." + device + ".value[value^='100'][crashed='0'][failed='0'][skipped='0']").length;
     all_operations = $("#report #data tr:not(:hidden) .value." + device).length;
     if (!all_operations) {
-        trasted_op = "---";
+        trusted_op = "---";
     } else {
-        trasted_op = (count_trasted_op * 100 / all_operations).toFixed(1) + ' %';
+        trusted_op = (count_trusted_op * 100 / all_operations).toFixed(1) + ' %';
     }
-    $('#statistic .table-primary.' + device + '.trusted-ops').text(trasted_op);
+    $('#statistic .table-primary.' + device + '.trusted-ops').text(trusted_op);
     $('#statistic .table-primary.' + device + '.test_total').text(all_operations || 0);
 
     // tested op_counter

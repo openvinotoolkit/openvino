@@ -535,3 +535,69 @@ h2 {
     background-position: -12px 2px;
   }
 
+
+  .check {
+    width: 16px;
+    height: 16px;
+    background: #be2d2d;
+    text-indent: -1000;
+    border-radius: 8px;
+    position: relative;
+  }
+
+  .check::before {
+    display: block;
+    border-bottom: 2px solid #FFF;
+    position: absolute;
+    z:index: 10;
+    width: 8px;
+    top:7px;
+    left: 4px;
+    content: "";
+  }
+
+  .checkmark {
+    display: block;
+    width: 16px;
+    height: 16px;
+    position: relative;
+  }
+
+  .checkmark::before {
+    position: absolute;
+    display: block;
+    width: 2px;
+    height: 16px;
+    background-color: green;
+    left: 10px;
+    content: '';
+    top: 0px;
+    z-index: 20;
+    transform: rotate(45deg);
+  }
+
+  .checkmark::after {
+    position: absolute;
+    width: 2px;
+    content: '';
+    height: 7px;
+    background-color: green;
+    left:3px;
+    display: block;
+    top: 7px;
+    z-index: 20;
+    transform: rotate(-45deg);
+  }
+
+  .flex {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .not_impl:hover {
+     background: #ffdee1;
+  }
+
+  .impl:hover {
+     background: #e0fde6;
+  }
