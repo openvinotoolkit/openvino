@@ -53,22 +53,6 @@ void shape_infer(const Interpolate* op,
 }  // namespace v0
 
 namespace v4 {
-template <typename T>
-std::vector<T> correct_pad(const std::vector<T>& p, size_t rank) {
-    size_t pad_len = p.size();
-    if (pad_len == rank) {
-        return p;
-    }
-
-    std::vector<T> result;
-    if (pad_len > rank) {
-        result.insert(result.end(), p.begin(), p.begin() + rank);
-    } else {
-        result = p;
-        result.insert(result.end(), rank - pad_len, T{});
-    }
-    return result;
-}
 
 template <typename T>
 void correct_pads_attr(const Interpolate* op,
@@ -81,8 +65,14 @@ void correct_pads_attr(const Interpolate* op,
     }
     const auto input_rank = input_shape.size();
 
-    pads_begin = correct_pad(op->m_attrs.pads_begin, input_rank);
-    pads_end = correct_pad(op->m_attrs.pads_end, input_rank);
+    pads_begin = op->m_attrs.pads_begin;
+    pads_end = op->m_attrs.pads_end;
+    if (pads_begin.size() != input_rank) {
+        pads_begin.resize(input_rank);
+    }
+    if (pads_end.size() != input_rank) {
+        pads_end.resize(input_rank);
+    }
 }
 
 inline int64_t multiply_bound_and_scale(int64_t bound, float scale) {
