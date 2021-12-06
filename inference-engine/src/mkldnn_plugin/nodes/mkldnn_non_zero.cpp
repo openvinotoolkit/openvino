@@ -87,9 +87,6 @@ struct MKLDNNNonZeroNode::NonZeroExecute {
 };
 
 void MKLDNNNonZeroNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

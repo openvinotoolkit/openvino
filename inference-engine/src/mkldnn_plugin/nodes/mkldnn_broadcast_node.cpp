@@ -107,18 +107,7 @@ void MKLDNNBroadcastNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors = getSupportedConfigs(this);
 }
 
-void MKLDNNBroadcastNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 bool MKLDNNBroadcastNode::needPrepareParams() const {
-    if (hasZeroShapes()) {
-        return false;
-    }
     return needPrepareParamsVar;
 }
 
@@ -218,10 +207,11 @@ std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
     return newOutputShapes;
 }
 
+bool MKLDNNBroadcastNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
+}
+
 void MKLDNNBroadcastNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

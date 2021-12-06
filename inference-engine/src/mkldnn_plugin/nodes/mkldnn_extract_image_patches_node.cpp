@@ -327,14 +327,6 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
         IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
 }
 
-void MKLDNNExtractImagePatchesNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNExtractImagePatchesNode::prepareParams() {
     const auto& srcMemPtr0 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -381,9 +373,6 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNExtractImagePatchesNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

@@ -147,15 +147,12 @@ void MKLDNNNonMaxSuppressionNode::prepareParams() {
         i.resize(num_classes);
 }
 
-void MKLDNNNonMaxSuppressionNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
-    }
+bool MKLDNNNonMaxSuppressionNode::isExecutable() const {
+    return isDynamicNode() || !hasEmptyInputTensors();
 }
 
 void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasInputZeroShapes() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
+    if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
             reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
         getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->redefineDesc(
             getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({0, 3}));

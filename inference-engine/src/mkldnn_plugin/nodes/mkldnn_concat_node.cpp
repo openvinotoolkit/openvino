@@ -31,6 +31,10 @@ namespace {
     constexpr size_t channelAxis = 1lu;
 }
 
+bool MKLDNNConcatNode::isExecutable() const {
+    return !hasEmptyOutputTensors() && !isOptimized();
+}
+
 bool MKLDNNConcatNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
@@ -336,7 +340,7 @@ bool MKLDNNConcatNode::isOptimized() const {
 }
 
 bool MKLDNNConcatNode::needPrepareParams() const {
-    if (canOptimizeNspc || getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().hasZeroDims()) {
+    if (canOptimizeNspc) {
         return false;
     }
     return inputShapesModified();
@@ -383,14 +387,6 @@ void MKLDNNConcatNode::prepareParams() {
 
     auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
     prim.reset(new concat(primitive_desc));
-}
-
-void MKLDNNConcatNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
 }
 
 size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {
@@ -493,11 +489,6 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
     }
 
     const MKLDNNMemory& dst_memory = getChildEdgeAt(0)->getMemory();
-
-    if (dst_memory.GetShape().hasZeroDims()) {
-        return;
-    }
-
     if (canOptimizeNspc) {
         execNspcSpecCase();
         return;

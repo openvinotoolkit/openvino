@@ -487,14 +487,6 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNConvolutionNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 bool MKLDNNConvolutionNode::created() const {
     return getType() == Convolution;
 }
@@ -1097,9 +1089,6 @@ void MKLDNNConvolutionNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNConvolutionNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

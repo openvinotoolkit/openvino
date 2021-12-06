@@ -64,9 +64,6 @@ std::vector<VectorDims> MKLDNNMathNode::shapeInfer() const {
 }
 
 void MKLDNNMathNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

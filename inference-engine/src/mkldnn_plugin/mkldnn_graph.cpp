@@ -384,15 +384,16 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
 void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantAndExecutableNodes");
     for (const auto& graphNode : graphNodes) {
-        if (graphNode->isConstant())
+        if (graphNode->isConstant()) {
             constantGraphNodes.emplace_back(graphNode);
-        else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()))
+        } else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) {
             /* @todo
              * Revise implementation.
              * With current way it is possible that with debug_caps enabled
              * we execute a node, which is not ready to be executed
              */
             executableGraphNodes.emplace_back(graphNode);
+        }
     }
 }
 
@@ -835,10 +836,11 @@ inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::st
     DUMP(node, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
 
-    if (node->isDynamicNode())
+    if (node->isDynamicNode()) {
         node->executeDynamic(stream);
-    else
+    } else {
         node->execute(stream);
+    }
 }
 
 void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {

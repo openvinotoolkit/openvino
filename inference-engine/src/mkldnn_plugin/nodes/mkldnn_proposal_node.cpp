@@ -156,9 +156,6 @@ void MKLDNNProposalNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNProposalNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

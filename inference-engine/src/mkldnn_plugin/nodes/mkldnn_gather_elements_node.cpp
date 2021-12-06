@@ -54,14 +54,6 @@ MKLDNNGatherElementsNode::MKLDNNGatherElementsNode(const std::shared_ptr<ngraph:
     axis_ = axis;
 }
 
-void MKLDNNGatherElementsNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNGatherElementsNode::prepareParams() {
     const auto& dataDims = getParentEdgesAtPort(dataIndex_)[0]->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
@@ -103,9 +95,6 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNGatherElementsNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

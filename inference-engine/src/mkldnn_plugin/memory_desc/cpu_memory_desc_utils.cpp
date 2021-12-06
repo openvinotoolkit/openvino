@@ -49,7 +49,7 @@ CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const Infere
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to CpuBlockedMemoryDesc";
 
-    const auto &blkDesc = desc.getBlockingDesc();
+    const auto& blkDesc = desc.getBlockingDesc();
     const auto& dims = desc.getDims();
 
     auto strides = blkDesc.getStrides();
@@ -65,7 +65,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Infe
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc";
 
-    const auto &blkDesc = desc.getBlockingDesc();
+    const auto& blkDesc = desc.getBlockingDesc();
     const auto& dims = desc.getDims();
 
     auto strides = blkDesc.getStrides();

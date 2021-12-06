@@ -230,9 +230,6 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
 }
 
 void MKLDNNSpaceToBatchNode::executeDynamicImpl(mkldnn::stream strm) {
-     if (hasZeroShapes()) {
-        return;
-    }
     return execute(strm);
 }
 

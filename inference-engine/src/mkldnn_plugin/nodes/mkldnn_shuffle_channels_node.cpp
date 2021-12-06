@@ -114,7 +114,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
                        memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c :
                        memoryDesc.hasLayoutType(LayoutType::nspc) ? LayoutType::nspc : LayoutType::ncsp;
 
-    if (inputShapesDefined()) {
+    if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();
@@ -246,9 +246,6 @@ void MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::exec(const uint8_t* src
 }
 
 void MKLDNNShuffleChannelsNode::executeDynamicImpl(mkldnn::stream strm) {
-     if (hasZeroShapes()) {
-        return;
-    }
     return execute(strm);
 }
 

@@ -105,13 +105,6 @@ void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNMultiClassNmsNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNMultiClassNmsNode::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
@@ -145,8 +138,12 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
     m_numBoxOffset.resize(m_numBatches);
 }
 
+bool MKLDNNMultiClassNmsNode::isExecutable() const {
+    return isDynamicNode() || !hasEmptyInputTensors();
+}
+
 void MKLDNNMultiClassNmsNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasInputZeroShapes()) {
+    if (hasEmptyInputTensors()) {
         getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->redefineDesc(
             getBaseMemDescAtOutputPort(NMS_SELECTEDOUTPUTS)->cloneWithNewDims({0, 6}));
         getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->redefineDesc(

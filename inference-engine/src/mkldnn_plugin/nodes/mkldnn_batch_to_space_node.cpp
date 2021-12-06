@@ -226,9 +226,6 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
 }
 
 void MKLDNNBatchToSpaceNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

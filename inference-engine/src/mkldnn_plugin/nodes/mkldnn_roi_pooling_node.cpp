@@ -419,7 +419,7 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     refParams.dst_data_size = refParams.dst_prc.size();
 
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams() && isExecutable())
             prepareParams();
         updateLastInputDims();
     }

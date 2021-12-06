@@ -84,8 +84,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
         if (shape.rank().is_dynamic()) {
-            IE_THROW(Unexpected) << "CPU plug-in doesn't support operation with dynamic rank. Type: " << getTypeStr()
-                                 << " Name: " << getName();
+            IE_THROW(Unexpected) << "CPU plug-in doesn't support " << getTypeStr() << " operation with dynamic rank. Operation name: " << getName();
         }
 
         bool isScalar = shape.rank().get_length() == 0;
@@ -100,8 +99,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto &shape = op->get_output_partial_shape(i);
             if (shape.rank().is_dynamic()) {
-                IE_THROW(Unexpected) << "CPU plug-in doesn't support operation with dynamic rank. Type: " << getTypeStr()
-                                     << " Name: " << getName();
+                IE_THROW(Unexpected) << "CPU plug-in doesn't support " << getTypeStr() << " operation with dynamic rank. Operation name: " << getName();
             }
 
             bool isScalar = shape.rank().get_length() == 0;
@@ -230,6 +228,15 @@ bool MKLDNNNode::isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const
             return false;
     }
     return true;
+}
+
+void MKLDNNNode::createPrimitive() {
+    if (inputShapesDefined() && isExecutable()) {
+        if (needPrepareParams()) {
+            prepareParams();
+        }
+        updateLastInputDims();
+    }
 }
 
 void MKLDNNNode::selectOptimalPrimitiveDescriptor() {
@@ -512,12 +519,14 @@ void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
-    if (needPrepareParams()) {
-        IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
-            " since the input shapes are not defined.";
-        prepareParams();
+    if (isExecutable()) {
+        if (needPrepareParams()) {
+            IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
+                " since the input shapes are not defined.";
+            prepareParams();
+        }
+        executeDynamicImpl(strm);
     }
-    executeDynamicImpl(strm);
     updateLastInputDims();
 }
 
@@ -1335,28 +1344,32 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
     return {scales, shifts};
 }
 
-bool MKLDNNNode::hasInputZeroShapes() const {
+bool MKLDNNNode::isInputTensorAtPortEmpty(size_t port) const {
+    if (getParentEdges().size() <= port) {
+        IE_THROW() << "Incorrect input port number for node " << getName();
+    }
+    return getParentEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
+}
+
+bool MKLDNNNode::isOutputTensorAtPortEmpty(size_t port) const {
+    if (outputShapes.size() <= port) {
+        IE_THROW() << "Incorrect input port number for node " << getName();
+    }
+    return getChildEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
+}
+
+bool MKLDNNNode::hasEmptyInputTensors() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (getParentEdgesAtPort(i)[0]->getMemory().GetShape().hasZeroDims())
+        if (isInputTensorAtPortEmpty(i))
             return true;
     }
     return false;
 }
 
-bool MKLDNNNode::hasOutputZeroShapes() const {
+bool MKLDNNNode::hasEmptyOutputTensors() const {
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        if (getChildEdgesAtPort(i)[0]->getMemory().GetShape().hasZeroDims())
+        if (isOutputTensorAtPortEmpty(i))
             return true;
-    }
-    return false;
-}
-
-bool MKLDNNNode::hasZeroShapes() const {
-    if (hasInputZeroShapes()) {
-        return true;
-    }
-    if (hasOutputZeroShapes()) {
-        return true;
     }
     return false;
 }
@@ -1383,9 +1396,6 @@ bool MKLDNNNode::shapesDefined() const {
 }
 
 bool MKLDNNNode::needPrepareParams() const {
-    if (hasZeroShapes()) {
-        return false;
-    }
     return inputShapesModified();
 }
 
@@ -1438,8 +1448,8 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
         const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
         if (partShape.is_dynamic()) {
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism. "
-                                     << "Type: " << getTypeStr() << " Name: " << getName();
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for node " << getTypeStr()
+                                     << " with internal dynamism. Operation name: " << getName();
         }
 
         newOutputShapes[i] = partShape.get_shape();

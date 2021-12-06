@@ -167,8 +167,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
     // Optimized inplace case
     // TODO [DS]: inplace
-    if (!isDynamicNode() &&
-            std::none_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape) { return shape.hasZeroDims(); })) {
+    if (!isDynamicNode()) {
         for (auto refPdIndex : pdIndexesToReuse) {
             const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
             auto config = refConfig;
@@ -195,10 +194,12 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             for (size_t i = 0; i < outputShapes.size(); i++) {
                 auto outBlockingDesc = refConfig.outConfs[i].desc->as<CpuBlockedMemoryDesc>();
                 const auto& outBlkDims = outBlockingDesc->getBlockDims();
-                const auto& dims = outBlockingDesc->getShape().getStaticDims();
+                const auto& shape = outBlockingDesc->getShape();
+                const auto& dims = shape.getStaticDims();
 
                 config.outConfs[i].inPlace = 0;
-                config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets, strides);
+                config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets,
+                                                                                 shape.hasZeroDims() ? SizeVector(numOfDim, 0) : strides);
             }
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
@@ -232,7 +233,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 }
 
 bool MKLDNNSplitNode::needPrepareParams() const {
-    if (isOptimized() || getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().hasZeroDims()) {
+    if (isOptimized()) {
         return false;
     }
     return MKLDNNNode::inputShapesModified();
@@ -273,15 +274,8 @@ void MKLDNNSplitNode::prepareParams() {
     }
 }
 
-void MKLDNNSplitNode::createPrimitive() {
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR << "Preferable primitive descriptor is not set.";
-
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
+bool MKLDNNSplitNode::isExecutable() const {
+    return !isOptimized() && !isInputTensorAtPortEmpty(0);
 }
 
 void MKLDNNSplitNode::execute(mkldnn::stream strm) {
@@ -293,11 +287,6 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
         THROW_ERROR << "Output data pointers have not been initialized.";
 
     const auto &srcMem = getParentEdgesAtPort(0)[0]->getMemory();
-
-    if (srcMem.GetShape().hasZeroDims()) {
-        return;
-    }
-
     size_t batch = srcMem.getStaticDims()[0];
     Dim MB = isDynamicNode() ? batch : batchToProcess();
 
@@ -356,13 +345,16 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto oldDesc = config.outConfs[i].desc;
             auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
+            const auto& shape = outBlockingDesc->getShape();
+            const auto& blkDims = outBlockingDesc->getBlockDims();
             config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
-                                                                             outBlockingDesc->getShape(),
-                                                                             outBlockingDesc->getBlockDims(),
+                                                                             shape,
+                                                                             blkDims,
                                                                              outBlockingDesc->getOrder(),
                                                                              firstInBlockingDesc->getOffsetPadding() + offset,
                                                                              firstInBlockingDesc->getOffsetPaddingToData(),
-                                                                             firstInBlockingDesc->getStrides());
+                                                                             (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
+                                                                              firstInBlockingDesc->getStrides()));
 
             size_t axisSize = 1;
             for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {

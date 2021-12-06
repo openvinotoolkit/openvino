@@ -52,9 +52,6 @@ void MKLDNNReorgYoloNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNReorgYoloNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

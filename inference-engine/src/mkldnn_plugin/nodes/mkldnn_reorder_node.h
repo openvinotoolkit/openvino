@@ -24,9 +24,7 @@ public:
     bool created() const override;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
-    bool isExecutable() const override {
-        return !isOptimized;
-    }
+    bool isExecutable() const override;
 
     void createPrimitive() override;
 

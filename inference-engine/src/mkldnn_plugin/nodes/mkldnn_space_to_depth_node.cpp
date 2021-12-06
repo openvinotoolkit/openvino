@@ -154,7 +154,7 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
                                  ? LayoutType::nCsp8c
                                  : memoryDesc.hasLayoutType(LayoutType::nspc) ? LayoutType::nspc : LayoutType::ncsp;
 
-    if (inputShapesDefined()) {
+    if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();
@@ -281,9 +281,6 @@ void MKLDNNSpaceToDepthNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNSpaceToDepthNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     return execute(strm);
 }
 

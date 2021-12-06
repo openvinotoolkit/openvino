@@ -203,12 +203,12 @@ void MKLDNNBucketizeNode::prepareParams() {
         std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
 }
 
-void MKLDNNBucketizeNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
+bool MKLDNNBucketizeNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
+}
+
+bool MKLDNNBucketizeNode::needPrepareParams() const {
+    return inputShapesModified();
 }
 
 std::vector<VectorDims> MKLDNNBucketizeNode::shapeInfer() const {

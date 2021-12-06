@@ -1988,10 +1988,6 @@ std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
 }
 
 void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
-
     execute(strm);
 
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
@@ -2006,9 +2002,6 @@ void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {
 }
 
 bool MKLDNNInterpolateNode::needPrepareParams() const {
-    if (hasZeroShapes()) {
-        return false;
-    }
     return (inputShapesModified() || lastOutputDims != getChildEdgesAtPort(0)[0]->getMemory().getStaticDims());
 }
 
@@ -2082,7 +2075,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
     interpAttrs.inPrc = srcMemPtr->getDesc().getPrecision();
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
 
-    if (shapesDefined()) {
+    if (shapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();

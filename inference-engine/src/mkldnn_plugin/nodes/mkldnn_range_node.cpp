@@ -84,9 +84,6 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNRangeNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

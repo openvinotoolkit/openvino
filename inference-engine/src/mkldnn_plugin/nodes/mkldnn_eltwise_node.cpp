@@ -1514,9 +1514,6 @@ void MKLDNNEltwiseNode::prepareParams() {
 }
 
 bool MKLDNNEltwiseNode::needPrepareParams() const {
-    if (hasZeroShapes()) {
-        return false;
-    }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (getParentEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
             return true;
@@ -1526,14 +1523,6 @@ bool MKLDNNEltwiseNode::needPrepareParams() const {
 
 void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
-}
-
-void MKLDNNEltwiseNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
 }
 
 void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
@@ -1687,9 +1676,6 @@ void MKLDNNEltwiseNode::executeReference(const jit_eltwise_params &jep, const ji
 }
 
 void MKLDNNEltwiseNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

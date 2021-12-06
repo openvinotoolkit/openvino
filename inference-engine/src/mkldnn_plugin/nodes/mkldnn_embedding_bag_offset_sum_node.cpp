@@ -70,14 +70,6 @@ void MKLDNNEmbeddingBagOffsetSumNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
 }
 
-void MKLDNNEmbeddingBagOffsetSumNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNEmbeddingBagOffsetSumNode::prepareParams() {
     _indicesLen = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
     _offsetsLen = getParentEdgesAtPort(OFFSETS_IDX)[0]->getMemory().getStaticDims()[0];
@@ -127,10 +119,11 @@ void MKLDNNEmbeddingBagOffsetSumNode::getIndices(int embIndex, const int*& indic
 }
 
 void MKLDNNEmbeddingBagOffsetSumNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
+}
+
+bool MKLDNNEmbeddingBagOffsetSumNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
 }
 
 void MKLDNNEmbeddingBagOffsetSumNode::execute(mkldnn::stream strm) {

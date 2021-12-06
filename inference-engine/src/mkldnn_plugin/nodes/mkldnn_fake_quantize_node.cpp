@@ -1259,10 +1259,6 @@ void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
 }
 
 bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
-    if (hasZeroShapes()) {
-        return false;
-    }
-
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
@@ -1388,13 +1384,6 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
         jqp.op_type = getAlgorithm();
 
         execPtr = std::make_shared<FakeQuantizeJitExecutor>(jqp);
-    }
-}
-
-void MKLDNNFakeQuantizeNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
     }
 }
 
@@ -1657,9 +1646,6 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
 }
 
 void MKLDNNFakeQuantizeNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

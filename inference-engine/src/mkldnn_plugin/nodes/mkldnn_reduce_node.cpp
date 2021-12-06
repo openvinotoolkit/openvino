@@ -1827,6 +1827,14 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool MKLDNNReduceNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(REDUCE_DATA);
+}
+
+bool MKLDNNReduceNode::needPrepareParams() const {
+    return inputShapesModified();
+}
+
 void MKLDNNReduceNode::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -1864,6 +1872,9 @@ void MKLDNNReduceNode::prepareParams() {
 }
 
 void MKLDNNReduceNode::createPrimitive() {
+    if (!isExecutable()) {
+        return;
+    }
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
@@ -1920,9 +1931,6 @@ void MKLDNNReduceNode::createPrimitive() {
 }
 
 void MKLDNNReduceNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

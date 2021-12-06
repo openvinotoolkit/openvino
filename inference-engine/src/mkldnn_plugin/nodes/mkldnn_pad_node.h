@@ -21,7 +21,10 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    bool needPrepareParams() const override;
     void prepareParams() override;
+
+    bool isExecutable() const override;
 
 protected:
     void executeDynamicImpl(mkldnn::stream strm) override;
@@ -70,6 +73,8 @@ private:
                 ctx.executor->padConstantCommon<T>(ctx.srcMemPtr, ctx.dstMemPtr);
             }
         };
+
+        bool cornerCase = false;
 
         struct {
             PadAttrs attrs;

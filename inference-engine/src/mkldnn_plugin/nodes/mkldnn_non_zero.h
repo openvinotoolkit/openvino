@@ -18,10 +18,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {
-        if (inputShapesDefined())
-            updateLastInputDims();
-    };
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool needShapeInfer() const override {return false;};

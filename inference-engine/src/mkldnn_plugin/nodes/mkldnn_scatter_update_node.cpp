@@ -35,6 +35,10 @@ bool MKLDNNScatterUpdateNode::isSupportedOperation(const std::shared_ptr<const n
     return true;
 }
 
+bool MKLDNNScatterUpdateNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(DATA_ID);
+}
+
 MKLDNNScatterUpdateNode::MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu), dataPrec(Precision::UNSPECIFIED), indicesPrec(Precision::UNSPECIFIED),
           axisPrec(Precision::UNSPECIFIED) {
@@ -211,36 +215,11 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
                           impl_desc_type::unknown);
 }
 
-void MKLDNNScatterUpdateNode::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
-    auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
-
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " did not allocate destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " did not allocate input memory";
-    if (!indicesMemPtr || !indicesMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " did not allocate indices memory";
-    if (!updateMemPtr || !updateMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " did not allocate update memory";
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
-
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
-}
-
 bool MKLDNNScatterUpdateNode::needPrepareParams() const {
     return false;
 }
 
 void MKLDNNScatterUpdateNode::executeDynamicImpl(mkldnn::stream strm) {
-     if (hasZeroShapes()) {
-        return;
-    }
     return execute(strm);
 }
 
@@ -271,8 +250,8 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
 }
 
 void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
     auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
 
@@ -355,6 +334,10 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             start *= dataSize;
             cpu_memcpy(dstPtr + start, srcPtr + start, size);
         });
+    }
+
+    if (isInputTensorAtPortEmpty(INDICES_ID)) {
+        return;
     }
 
     switch (scatterUpdateMode) {

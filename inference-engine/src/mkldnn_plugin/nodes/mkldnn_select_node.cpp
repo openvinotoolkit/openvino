@@ -152,11 +152,8 @@ void MKLDNNSelectNode::prepareParams() {
     }
 }
 
-void MKLDNNSelectNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
-    }
+bool MKLDNNSelectNode::needPrepareParams() const {
+    return inputShapesModified();
 }
 
 void MKLDNNSelectNode::calcOutOffset(VectorDims& offset, const VectorDims& dims) {
@@ -201,9 +198,6 @@ void MKLDNNSelectNode::execute_impl() {
 }
 
 void MKLDNNSelectNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

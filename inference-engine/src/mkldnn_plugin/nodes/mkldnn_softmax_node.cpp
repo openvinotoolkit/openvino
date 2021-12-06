@@ -66,14 +66,6 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNSoftMaxNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 bool MKLDNNSoftMaxNode::created() const {
     return getType() == Softmax;
 }
@@ -149,9 +141,6 @@ void MKLDNNSoftMaxNode::prepareParams() {
 }
 
 void MKLDNNSoftMaxNode::executeDynamicImpl(mkldnn::stream strm) {
-     if (hasZeroShapes()) {
-        return;
-    }
     return execute(strm);
 }
 

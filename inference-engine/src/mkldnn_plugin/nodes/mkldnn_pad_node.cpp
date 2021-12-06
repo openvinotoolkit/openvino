@@ -227,6 +227,14 @@ void MKLDNNPadNode::createPrimitive() {
     }
 }
 
+bool MKLDNNPadNode::isExecutable() const {
+    return !(isInputTensorAtPortEmpty(0) && isOutputTensorAtPortEmpty(0));
+}
+
+bool MKLDNNPadNode::needPrepareParams() const {
+    return inputShapesModified();
+}
+
 void MKLDNNPadNode::prepareParams() {
     execPtr = std::make_shared<PadExecutor>(attrs,
                                             getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),
@@ -237,8 +245,15 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
                                         const VectorDims& srcDims,
                                         const VectorDims& dstDims) {
     params.attrs = attrs;
-    params.srcDims = srcDims;
     params.dstDims = dstDims;
+
+    cornerCase = std::any_of(srcDims.begin(), srcDims.end(), [](size_t dim) { return dim == 0; } ) &&
+                 std::none_of(dstDims.begin(), dstDims.end(), [](size_t dim) { return dim == 0; } );
+    if (cornerCase) {
+        return;
+    }
+
+    params.srcDims = srcDims;
     params.dataSize = attrs.prc.size();
 
     size_t nDims = params.srcDims.size();
@@ -288,20 +303,47 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
     }
 }
 
+struct PadCornerContext {
+    void *dstPtr;
+    VectorDims dstDims;
+    float padValue;
+};
+
+template<typename T>
+struct PadCornerEmitter {
+    void operator()(PadCornerContext & ctx) {
+        const auto workAmount = std::accumulate(ctx.dstDims.begin(), ctx.dstDims.end(), 1, std::multiplies<size_t>());
+        T* data = reinterpret_cast<T*>(ctx.dstPtr);
+        parallel_for(workAmount, [&](size_t i) {
+            data[i] = static_cast<T>(ctx.padValue);
+        });
+    }
+};
+
 void MKLDNNPadNode::PadExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    switch (params.attrs.padMode) {
-        case CONSTANT:
-            padConstant(srcMemPtr, dstMemPtr);
-            break;
-        case EDGE:
-            padEdge(srcMemPtr, dstMemPtr);
-            break;
-        case REFLECT:
-            padReflectOrSymmetric(srcMemPtr, dstMemPtr);
-            break;
-        case SYMMETRIC:
-            padReflectOrSymmetric(srcMemPtr, dstMemPtr, true);
-            break;
+    if (cornerCase) {
+        PadCornerContext ctx { dstMemPtr->GetPtr(), dstMemPtr->getStaticDims(), params.attrs.padValue };
+        OV_SWITCH(MKLDNNPlugin, PadCornerEmitter, ctx, params.attrs.prc,
+                  OV_CASE(InferenceEngine::Precision::FP32, float),
+                  OV_CASE(InferenceEngine::Precision::I32, int32_t),
+                  OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
+                  OV_CASE(InferenceEngine::Precision::I8, int8_t),
+                  OV_CASE(InferenceEngine::Precision::U8, uint8_t));
+    } else {
+        switch (params.attrs.padMode) {
+            case CONSTANT:
+                padConstant(srcMemPtr, dstMemPtr);
+                break;
+            case EDGE:
+                padEdge(srcMemPtr, dstMemPtr);
+                break;
+            case REFLECT:
+                padReflectOrSymmetric(srcMemPtr, dstMemPtr);
+                break;
+            case SYMMETRIC:
+                padReflectOrSymmetric(srcMemPtr, dstMemPtr, true);
+                break;
+        }
     }
 }
 
@@ -313,9 +355,6 @@ void MKLDNNPadNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNPadNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

@@ -401,7 +401,8 @@ static mkldnn::memory::desc cloneDescWithNewDims(const mkldnn::memory::desc& des
     if (retCode != dnnl::impl::status::success) {
         IE_THROW() << "Can not clone DnnlBlockedMemoryDesc with dims: " << MemoryDescUtils::dims2str(dims);
     }
-    // fill_blocked set offset0 to 0
+    // dnnl::impl::fill_blocked always set offset0 to 0
+    // so we need to restore actual value
     newMklDesc.data.offset0 = offsetPadding;
     return newMklDesc;
 }
@@ -506,6 +507,7 @@ size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
 
     auto maxDims = shape.getMaxDims();
     if (shape.hasZeroDims()) {
+        // in getCurrentMemSize we check that desc is defined otherwise return UNDEFINED SIZE
         std::replace(maxDims.begin(), maxDims.end(), static_cast<Dim>(Shape::UNDEFINED_DIM), static_cast<Dim>(0));
     } else if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
                                                                          // WA: for some nodes ngraph compute upper bound depending on precision max value

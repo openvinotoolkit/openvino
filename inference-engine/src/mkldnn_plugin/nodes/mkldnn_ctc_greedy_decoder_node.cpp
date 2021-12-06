@@ -166,16 +166,7 @@ bool MKLDNNCTCGreedyDecoderNode::created() const {
 }
 
 void MKLDNNCTCGreedyDecoderNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
-}
-
-void MKLDNNCTCGreedyDecoderNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
 }
 
 bool MKLDNNCTCGreedyDecoderNode::needPrepareParams() const {

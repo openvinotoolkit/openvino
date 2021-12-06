@@ -138,9 +138,6 @@ void MKLDNNOneHotNode::one_hot(size_t prefix_size, size_t suffix_size) {
 }
 
 void MKLDNNOneHotNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

@@ -22,7 +22,6 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initDescriptor(const NodeConfig& config) override;
-    void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

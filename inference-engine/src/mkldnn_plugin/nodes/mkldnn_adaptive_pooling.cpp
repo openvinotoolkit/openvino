@@ -146,9 +146,6 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNAdaptivePoolingNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 
@@ -289,8 +286,6 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
 bool MKLDNNAdaptivePoolingNode::created() const {
     return getType() == AdaptivePooling;
 }
-
-void MKLDNNAdaptivePoolingNode::createPrimitive() {}
 
 inline void MKLDNNAdaptivePoolingNode::setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength) {
     *(startPtr) = idx * inputLength / outputLength;

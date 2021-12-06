@@ -65,7 +65,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
             }
         }
     } else {
-        if (shape.hasZeroDims() && std::any_of(strides.begin(), strides.end(), [](size_t stride) { return stride != 0 && stride != Shape::UNDEFINED_DIM; } )) {
+        if (shape.hasZeroDims() && std::any_of(strides.begin(), strides.end(), [](size_t stride) { return stride != 0; } )) {
             IE_THROW() << "Can't create CpuBlockedMemoryDesc with zero dim, but with non zero strides";
         }
         this->strides = strides;
@@ -124,6 +124,7 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
 
     auto maxDims = shape.getMaxDims();
     if (shape.hasZeroDims()) {
+        // in getCurrentMemSize we check that desc is defined otherwise return UNDEFINED SIZE
         std::replace(maxDims.begin(), maxDims.end(), static_cast<Dim>(Shape::UNDEFINED_DIM), static_cast<Dim>(0));
     } else if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
                                                                          // WA: for some nodes ngraph compute upper bound depending on precision max value
@@ -297,8 +298,12 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
 
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
     const auto orderSize = getOrder().size();
-    return std::make_shared<CpuBlockedMemoryDesc>(getPrecision(), getShape(), getBlockDims(), getOrder(), Shape::UNDEFINED_DIM,
-                                                  VectorDims(orderSize, 0), VectorDims(orderSize, Shape::UNDEFINED_DIM));
+    CpuBlockedMemoryDescPtr newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
+    newDesc->strides = VectorDims(orderSize, Shape::UNDEFINED_DIM);
+    newDesc->offsetPadding = Shape::UNDEFINED_DIM;
+    newDesc->offsetPaddingToData =  VectorDims(orderSize, 0);
+    newDesc->status = descStatus::Undefined;
+    return newDesc;
 }
 
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {

@@ -19,6 +19,10 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+bool MKLDNNReorderNode::isExecutable() const {
+    return !isOptimized && !hasEmptyInputTensors();
+}
+
 MKLDNNReorderNode::MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
         MKLDNNNode(op, eng, w_cache) {
     IE_THROW() << "Can't create reorder node from ngraph node";
@@ -101,9 +105,6 @@ void MKLDNNReorderNode::createPrimitive() {
 }
 
 void MKLDNNReorderNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

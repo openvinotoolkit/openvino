@@ -300,6 +300,10 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool MKLDNNStridedSliceNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
+}
+
 void MKLDNNStridedSliceNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
@@ -309,6 +313,10 @@ void MKLDNNStridedSliceNode::createPrimitive() {
         THROW_ERROR << "has not allocated input memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor.";
+
+    if (!isExecutable()) {
+        return;
+    }
 
     if (!srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp))
         orderParametersByLayouts(srcMemPtr);
@@ -362,6 +370,10 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts(const MKLDNNMemoryPtr& src
             sortByOrder(attrs.shrinkAxisMask);
         }
     }
+}
+
+bool MKLDNNStridedSliceNode::needPrepareParams() const {
+    return inputShapesModified();
 }
 
 void MKLDNNStridedSliceNode::prepareParams() {
@@ -676,9 +688,6 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNStridedSliceNode::executeDynamicImpl(mkldnn::stream strm) {
-    if (hasZeroShapes()) {
-        return;
-    }
     execute(strm);
 }
 

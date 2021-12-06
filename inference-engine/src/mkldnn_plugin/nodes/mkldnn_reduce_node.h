@@ -86,6 +86,7 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    bool needPrepareParams() const override;
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
@@ -96,6 +97,7 @@ public:
         return false;
     }
 
+    bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:

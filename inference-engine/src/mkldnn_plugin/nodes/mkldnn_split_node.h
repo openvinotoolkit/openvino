@@ -18,7 +18,6 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -26,9 +25,7 @@ public:
     void initOptimalPrimitiveDescriptor() override;
 
     void setDynamicBatchLim(int lim) override;
-    bool isExecutable() const override {
-        return !isOptimized();
-    }
+    bool isExecutable() const override;
 
     bool needPrepareParams() const override;
     void prepareParams() override;

@@ -854,10 +854,11 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
     }
 }
 
+bool MKLDNNNormalizeL2Node::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
+}
+
 bool MKLDNNNormalizeL2Node::needPrepareParams() const {
-    if (getParentEdgesAtPort(0)[0]->getMemory().GetShape().hasZeroDims()) {
-        return false;
-    }
     return inputShapesModified();
 }
 
@@ -868,9 +869,6 @@ void MKLDNNNormalizeL2Node::prepareParams() {
 }
 
 void MKLDNNNormalizeL2Node::executeDynamicImpl(mkldnn::stream strm) {
-    if (getParentEdgesAtPort(0)[0]->getMemory().GetShape().hasZeroDims()) {
-        return;
-    }
     execute(strm);
 }
 

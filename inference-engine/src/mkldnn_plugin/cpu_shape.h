@@ -25,6 +25,8 @@ public:
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
+
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     explicit Shape(const InferenceEngine::SizeVector& shape) {
@@ -33,6 +35,8 @@ public:
         type = ShapeType::Static;
 
         initDims();
+
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     /**
@@ -107,7 +111,7 @@ public:
     }
 
     bool hasZeroDims() const {
-        return std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
+        return hasZeroDimensions;
     }
 
     size_t getRank() const {
@@ -172,6 +176,8 @@ private:
         Static,
         Dynamic
     } type {ShapeType::Static};
+
+    bool hasZeroDimensions = false;
 
     VectorDims minDims;
     VectorDims maxDims;
