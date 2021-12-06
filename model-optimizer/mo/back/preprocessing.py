@@ -236,7 +236,8 @@ def check_suitable_for_reverse(layout: Layout, ov_input):
     if c_idx >= rank:
         raise Error('Layout {} for input {} is inconsistent with shape {}'.format(
             layout, ov_input.get_tensor().get_any_name(), ov_input.get_partial_shape()))
-    return ov_input.get_partial_shape()[c_idx] == 3
+    c_num = ov_input.get_partial_shape()[c_idx]
+    return c_num.is_dynamic or c_num.get_length() == 3
 
 
 def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_values):

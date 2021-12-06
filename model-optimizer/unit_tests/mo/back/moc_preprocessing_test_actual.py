@@ -241,6 +241,29 @@ class TestPreprocessingMOC(unittest.TestCase):
         # Verify that layout presents in function after preprocessing
         self.assertEqual(function.get_parameters()[1].layout, Layout("NHWC"))
 
+    def test_mean_scale_with_layout_dynamic(self):
+        argv = Namespace(mean_scale_values={'input2a': {'mean': np.array([1., 2., 3., 4.]),
+                                                        'scale': np.array([2., 4., 8., 9.])}},
+                         scale=None)
+        function = create_function2(shape2=[-1, -1, -1, -1])
+        function.get_parameters()[1].layout = Layout("NHWC")
+        process_function(ov_function=function, argv=argv)
+        # Verify that first is 'subtract mean', then 'scale'
+        op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[1., 2., 3., 4.], shape=[1, 1, 1, 4])
+
+        op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=[2., 4., 8., 9.], shape=[1, 1, 1, 4])
+
+        # Verify that input1 is not affected
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertEqual(op_node.get_type_name(), 'Relu')
+
+        # Verify that layout presents in function after preprocessing
+        self.assertEqual(function.get_parameters()[1].layout, Layout("NHWC"))
+
     def test_no_param_name(self):
         argv = Namespace(mean_scale_values=list(np.array([(np.array([1., 2., 3.]), np.array([2., 4., 6.])),
                                                           (np.array([7., 8., 9.]), None)],
@@ -443,6 +466,30 @@ class TestPreprocessingMOC(unittest.TestCase):
         self.assertTrue(op_node0.get_type_name() == 'Relu')
         op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node1.get_type_name() == 'Relu')
+
+    def test_reverse_input_channels_dynamic(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
+                         layout_values=None)
+        function = create_function2(shape1=[1, -1, 5, 5], shape2=[-1, -1, -1, -1])
+        process_function(ov_function=function, argv=argv)
+        # Verify that reverse_channels are NOT applied.
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() == 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() == 'Relu')
+
+    def test_reverse_input_channels_dynamic_layout(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
+                         layout_values={'input1a': { 'source_layout': 'nchw' },
+                                        'input2a': { 'source_layout': 'nhwc' }
+                                        })
+        function = create_function2(shape1=[1, -1, 5, 5], shape2=[-1, -1, -1, -1])
+        process_function(ov_function=function, argv=argv)
+        # Verify that reverse_channels are applied.
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() != 'Relu')
 
     def test_reverse_input_channels_2_channels(self):
         argv = Namespace(reverse_input_channels=True,
