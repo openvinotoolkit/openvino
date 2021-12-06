@@ -7,6 +7,7 @@
 
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 using namespace ngraph;
