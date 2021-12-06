@@ -25,7 +25,7 @@ ngraph::pass::ConvertSoftmax8ToSoftmax1::ConvertSoftmax8ToSoftmax1() {
 
         auto v8_axis = softmax_v8_node->get_axis();
         auto rank = softmax_v8_node->get_input_partial_shape(0).rank().get_length();
-        auto v1_axis = ov::normalize_axis(softmax_v8_node->description(), v8_axis, rank);
+        auto v1_axis = static_cast<size_t>(ov::normalize_axis(softmax_v8_node->description(), v8_axis, rank));
 
         auto softmax_v1_node = std::make_shared<opset1::Softmax>(softmax_v8_node->input_value(0), v1_axis);
         softmax_v1_node->set_friendly_name(softmax_v8_node->get_friendly_name());

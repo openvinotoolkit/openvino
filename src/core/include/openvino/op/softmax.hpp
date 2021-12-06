@@ -80,7 +80,7 @@ public:
     bool has_evaluate() const override;
 
 private:
-    int64_t m_axis{0};
+    int64_t m_axis{1};
 };
 }  // namespace v8
 }  // namespace op
