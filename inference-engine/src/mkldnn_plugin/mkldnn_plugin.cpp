@@ -505,6 +505,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         auto input_precision = ii.second->getPrecision();
         if (input_precision != InferenceEngine::Precision::FP64 &&
             input_precision != InferenceEngine::Precision::FP32 &&
+            input_precision != InferenceEngine::Precision::FP16 &&
             input_precision != InferenceEngine::Precision::I32 &&
             input_precision != InferenceEngine::Precision::U32 &&
             input_precision != InferenceEngine::Precision::U16 &&
