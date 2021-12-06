@@ -81,12 +81,8 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
                         uint ifm = ifm_offset + c;
                         uint filter_idx = GET_FILTER_INDEX(FILTER, conv_group, f, ifm, j, i);
 
-#ifdef LOCAL_CONVOLUTION
-                        filter_idx += FILTER_SIZE_X * FILTER_SIZE_Y * (x + OUTPUT_SIZE_X * y);
-#endif
-
                         int top_y_index    = (int)(floor(transformed_y));
-                            int left_x_index   = (int)(floor(transformed_x));
+                        int left_x_index   = (int)(floor(transformed_x));
 #if BILINEAR_INTERPOLATION_PAD
                         int bottom_y_index = top_y_index + 1;
                         int right_x_index  = left_x_index + 1;

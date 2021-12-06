@@ -41,7 +41,6 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
     k.DisableTuning();
-    k.EnableLocalConvolution();
     k.EnableGroupedConvolution();
 
     k.EnableQuantization(QuantizationType::SYMMETRIC);

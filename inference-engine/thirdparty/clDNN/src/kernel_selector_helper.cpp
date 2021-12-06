@@ -707,8 +707,6 @@ layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
     size.spatial[0] = static_cast<int32_t>(l.X().v);
     size.spatial[1] = static_cast<int32_t>(l.Y().v);
     size.spatial[2] = static_cast<int32_t>(l.Z().v);
-    size.local[0] = static_cast<int32_t>(l.LX().v);
-    size.local[1] = static_cast<int32_t>(l.LY().v);
 
     return layout(type, format, size);
 }

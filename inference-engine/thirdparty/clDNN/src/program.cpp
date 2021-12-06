@@ -1159,7 +1159,8 @@ std::string program::get_implementation_info(const primitive_id& id) const {
     try {
         const auto& node = get_node(id);
         auto impl = node.get_selected_impl();
-        return impl ? (impl->get_kernel_name() + "__" + dt_to_str(get_inference_precision(node))) : "undef";
+        auto kernel_name = impl ? impl->get_kernel_name() : "";
+        return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
     } catch (...) { }
 
     return "undef";
