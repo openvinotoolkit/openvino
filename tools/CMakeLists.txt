@@ -23,7 +23,7 @@ install(DIRECTORY deployment_manager
 # outbound requirements.txt files for openvino-dev package
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
-set(EXTRAS_LIST _ caffe caffe2 kaldi mxnet onnx pytorch tensorflow tensorflow2)
+set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
 ie_cpack_add_component(openvino_dev_req_files)
 
 foreach(EXTRAS ${EXTRAS_LIST})

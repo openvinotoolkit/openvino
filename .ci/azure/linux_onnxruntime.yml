@@ -53,7 +53,7 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(MODELS_DIR)
-      sudo apt --assume-yes install nfs-common
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
     displayName: 'Make dirs'
 
@@ -93,7 +93,7 @@ jobs:
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_VPU=OFF
-        -DENABLE_GNA=OFF
+        -DENABLE_INTEL_GNA=OFF
         -DENABLE_OPENCV=OFF
         -DENABLE_CPPLINT=OFF
         -DENABLE_TESTS=OFF

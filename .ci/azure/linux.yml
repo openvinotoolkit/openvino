@@ -147,7 +147,7 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
-        -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS)
+        -DENABLE_INTEL_GNA=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
@@ -316,8 +316,8 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Install Samples Tests'
 
-  - script: |  
-      python3 -m pip install -r $(INSTALL_DIR)/tests/smoke_tests/requirements.txt 
+  - script: |
+      python3 -m pip install -r $(INSTALL_DIR)/tests/smoke_tests/requirements.txt
     workingDirectory: $(INSTALL_DIR)
     displayName: 'Install dependencies for samples smoke tests'
     continueOnError: false
