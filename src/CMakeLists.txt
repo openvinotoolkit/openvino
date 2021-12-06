@@ -26,7 +26,7 @@ add_subdirectory(inference)
 add_subdirectory(common)
 
 
-if(OV_IR_FRONTEND_ENABLE)
+if(ENABLE_OV_IR_FRONTEND)
     if(BUILD_SHARED_LIBS)
         add_dependencies(ov_runtime_libraries ir_ov_frontend)
     endif()

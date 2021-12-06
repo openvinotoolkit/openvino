@@ -17,7 +17,7 @@ if(ENABLE_MULTI)
 endif()
 
 # remove once CVS-69781 is fixed
-if(OV_IR_FRONTEND_ENABLE)
+if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 

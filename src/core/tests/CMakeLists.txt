@@ -620,7 +620,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
     endif()
 endif()
 
-if(OV_IR_FRONTEND_ENABLE)
+if(ENABLE_OV_IR_FRONTEND)
     add_dependencies(ov_core_unit_tests ir_ov_frontend)
 endif()
 

@@ -83,7 +83,7 @@ endif()
 #
 
 if(ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
-    if(OV_USE_SYSTEM_PROTOBUF)
+    if(ENABLE_SYSTEM_PROTOBUF)
         set(Protobuf_USE_STATIC_LIBS ON)
         if(VERBOSE_BUILD)
             set(Protobuf_DEBUG ON)
@@ -111,7 +111,7 @@ if(ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
     # set public / interface compile options
     foreach(target IN LISTS Protobuf_LITE_LIBRARIES Protobuf_LIBRARIES)
         set(link_type PUBLIC)
-        if(OV_USE_SYSTEM_PROTOBUF)
+        if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)

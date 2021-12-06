@@ -32,7 +32,7 @@ set(DEPENDENCIES
     test_model_zoo
 )
 
-if(OV_IR_FRONTEND_ENABLE)
+if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 

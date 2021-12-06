@@ -12,7 +12,7 @@ if(ENABLE_OV_PDPD_FRONTEND)
     add_subdirectory(paddlepaddle)
 endif()
 
-if(OV_IR_FRONTEND_ENABLE)
+if(ENABLE_OV_IR_FRONTEND)
     add_subdirectory(ir)
 endif()
 
