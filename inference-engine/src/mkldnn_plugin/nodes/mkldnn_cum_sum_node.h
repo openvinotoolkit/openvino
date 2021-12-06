@@ -47,6 +47,13 @@ private:
 
     InferenceEngine::Precision dataPrecision;
     std::string errorPrefix;
+
+    template<typename T>
+    struct CumSumEmitter {
+        void operator()(MKLDNNCumSumNode* node) {
+            node->exec<T>();
+        }
+    };
 };
 
 }  // namespace MKLDNNPlugin

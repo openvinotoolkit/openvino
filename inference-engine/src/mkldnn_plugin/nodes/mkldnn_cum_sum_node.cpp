@@ -12,6 +12,7 @@
 #include "ie_precision.hpp"
 #include <ie_ngraph_utils.hpp>
 #include "mkldnn_cum_sum_node.h"
+#include "utils/bfloat16.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -70,8 +71,7 @@ void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
         return;
 
     dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
-    if (dataPrecision != Precision::I8 && dataPrecision != Precision::U8 && dataPrecision != Precision::I16 && dataPrecision != Precision::I32 &&
-        dataPrecision != Precision::FP32 && dataPrecision != Precision::I64 && dataPrecision != Precision::U64 && dataPrecision != Precision::BF16)
+    if (!one_of(dataPrecision, Precision::I8, Precision::U8, Precision::I16, Precision::BF16, Precision::I32, Precision::FP32, Precision::I64, Precision::U64))
         IE_THROW() << errorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
 
     if (inputShapes.size() == numOfInputs) {
@@ -95,42 +95,16 @@ void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
     if (inputShapes.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
-    switch (dataPrecision) {
-        case Precision::I8   : {
-            exec<int8_t>();
-            break;
-        }
-        case Precision::U8   : {
-            exec<uint8_t>();
-            break;
-        }
-        case Precision::I16  : {
-            exec<int16_t>();
-            break;
-        }
-        case Precision::I32  : {
-            exec<int32_t>();
-            break;
-        }
-        case Precision::FP32 : {
-            exec<float>();
-            break;
-        }
-        case Precision::I64  : {
-            exec<int64_t>();
-            break;
-        }
-        case Precision::U64  : {
-            exec<uint64_t>();
-            break;
-        }
-        default : {
-            std::string errorMsg = errorPrefix + " has unsupported 'data' input precision: " + dataPrecision.name();
-            IE_THROW() << errorMsg;
-        }
-    }
+    OV_SWITCH(MKLDNNPlugin, CumSumEmitter, this, dataPrecision,
+              OV_CASE(Precision::I8, int8_t),
+              OV_CASE(Precision::U8, uint8_t),
+              OV_CASE(Precision::I16, int16_t),
+              OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::I32, int32_t),
+              OV_CASE(Precision::FP32, float),
+              OV_CASE(Precision::I64, int64_t),
+              OV_CASE(Precision::U64, uint64_t))
 }
-
 
 template <typename dataType>
 void MKLDNNCumSumNode::exec() {
