@@ -898,13 +898,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -947,7 +947,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
                 {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
                 ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -956,7 +956,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
                 {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
                 ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -1008,13 +1008,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -1211,7 +1211,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
                 {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
                 ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -1220,7 +1220,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
                 {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
                 ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},

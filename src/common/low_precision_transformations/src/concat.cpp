@@ -57,11 +57,14 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     bool allDequantizationShiftAreZero = true;
     bool allDequantizationShiftConvertAreNotZero = true;
     bool allDequantizationMultiplyAreZero = true;
+    element::Type PrecisionBeforeConvert;
     for (const auto& dequantization : layerDequantizations) {
         if (dequantization.subtract != nullptr) {
             allDequantizationShiftAreZero = false;
             if (dequantization.subtractConvert == nullptr) {
                 allDequantizationShiftConvertAreNotZero = false;
+            } else {
+                PrecisionBeforeConvert = dequantization.subtractConstant->get_element_type();
             }
         }
 
@@ -73,6 +76,9 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             !allDequantizationShiftConvertAreNotZero) {
             break;
         }
+    }
+    if (allDequantizationShiftAreZero) {
+        allDequantizationShiftConvertAreNotZero = false;
     }
 
     // FakeQuantize constant shape must be broadcastable to the shape on data.
@@ -117,15 +123,12 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
         if (!allDequantizationShiftAreZero) {
             auto subtractInput = dequantization.subtract == nullptr ?
-                (allDequantizationShiftConvertAreNotZero ?
                     std::make_shared<ngraph::opset1::Constant>(
-                        element::u8,
+                        (allDequantizationShiftConvertAreNotZero ?
+                            PrecisionBeforeConvert :
+                            deqPrecision),
                         targetShape,
-                        std::vector<unsigned int>({ 0u })) :
-                    std::make_shared<ngraph::opset1::Constant>(
-                        deqPrecision,
-                        targetShape,
-                        std::vector<float>({ 0.f }))) :
+                        std::vector<float>({ 0.f })) :
                 broadcastElementWiseConst(dequantization.subtractConstant, targetShape);
             if (allDequantizationShiftConvertAreNotZero) {
                 if (subtractConvert == nullptr && dequantization.subtractConvert != nullptr) {
