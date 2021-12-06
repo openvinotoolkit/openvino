@@ -432,7 +432,7 @@ The Model Optimizer provides explanatory messages if it is unable to run to comp
 
 .. raw:: html
 
-    <iframe width="560" height="315"
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315"
     src="https://www.youtube.com/embed/QW6532LtiTc">
     </iframe>
 

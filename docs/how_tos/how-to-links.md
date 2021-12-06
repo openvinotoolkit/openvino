@@ -20,7 +20,7 @@ To learn about what is *custom operation* and how to work with them in the Deep 
 @sphinxdirective
 .. raw:: html
 
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/M6Nyh2JDLQs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/M6Nyh2JDLQs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 @endsphinxdirective
 
@@ -29,7 +29,7 @@ To learn about what is *custom operation* and how to work with them in the Deep 
 @sphinxdirective
 .. raw:: html
 
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/GtJPBYjuyVU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/GtJPBYjuyVU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 @endsphinxdirective
 
@@ -38,7 +38,7 @@ To learn about what is *custom operation* and how to work with them in the Deep 
 @sphinxdirective
 .. raw:: html
 
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/1_iI_4Zgufw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/1_iI_4Zgufw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 @endsphinxdirective
 
@@ -47,7 +47,7 @@ To learn about what is *custom operation* and how to work with them in the Deep 
 @sphinxdirective
 ..raw:: html
 
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/RfRCrq35LXg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/RfRCrq35LXg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 @endsphinxdirective
 
@@ -56,7 +56,7 @@ To learn about what is *custom operation* and how to work with them in the Deep 
 @sphinxdirective
 .. raw:: html
 
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 @endsphinxdirective
 
@@ -65,7 +65,7 @@ To learn about what is *custom operation* and how to work with them in the Deep 
 @sphinxdirective
 .. raw:: html
 
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/FZZD4FCvO9c" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/FZZD4FCvO9c" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 @endsphinxdirective
 
