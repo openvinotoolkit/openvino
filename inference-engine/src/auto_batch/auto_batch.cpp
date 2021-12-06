@@ -580,7 +580,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
 
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
-    while (!executableNetworkWithBatch && (metaDevice.batchForDevice !=1)) {
+    if (metaDevice.batchForDevice > 1) {
         try {
             CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
             const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
@@ -612,14 +612,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 }
             }
         } catch (...) {
-            // reload the network with smaller batch
             executableNetworkWithBatch = {nullptr, nullptr};
-            std::cout << "WA for network failure!!!" << std::endl;
-            metaDevice.batchForDevice /= 2;
         }
     }
 
-    if (metaDevice.batchForDevice == 1) {
+    if (!executableNetworkWithoutBatch) {
         executableNetworkWithBatch = executableNetworkWithoutBatch;
         std::cout << "FALLBACK to using batch1 network!!!" << std::endl;
     }
