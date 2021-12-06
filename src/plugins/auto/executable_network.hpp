@@ -132,10 +132,12 @@ class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkTh
                                      public InferenceEngine::ITaskExecutor {
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
+    friend class MultiDeviceInferRequest;
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
+        bool                                      _eligibleForBlobSharing = true;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
@@ -192,6 +194,7 @@ private:
     void TryToLoadNetWork(AutoLoadContext& context,
                           const std::string& modelPath,
                           const InferenceEngine::CNNNetwork& network);
+    bool NeedHotSwap() { return _loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready; }
 
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;

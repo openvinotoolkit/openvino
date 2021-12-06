@@ -70,7 +70,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         {
          /*TaskExecutor*/ _multiDeviceExecutableNetwork, /*task*/ [this] {
                _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
-               _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
+               _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest, _workerInferRequest->_eligibleForBlobSharing);
         }},
         // final task in the pipeline:
         { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {

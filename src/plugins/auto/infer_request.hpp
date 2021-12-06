@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include "executable_network.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -37,7 +38,7 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
-    void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
+    void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req, bool& eligbleForBlobShaing);
 
 private:
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with);
