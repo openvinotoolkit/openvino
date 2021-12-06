@@ -58,7 +58,6 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         _outputs[it.first]->allocate();
     }
 }
-
 void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
     for (const auto &it : _networkInputs) {
         auto &name = it.first;

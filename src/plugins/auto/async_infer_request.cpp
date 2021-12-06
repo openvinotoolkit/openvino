@@ -95,4 +95,5 @@ std::map<std::string, InferenceEngineProfileInfo> MultiDeviceAsyncInferRequest::
 MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {
     StopAndWait();
 }
+
 }  // namespace MultiDevicePlugin
