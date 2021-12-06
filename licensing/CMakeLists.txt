@@ -11,4 +11,7 @@ ie_cpack_add_component(licensing)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         DESTINATION .
         COMPONENT licensing
-        PATTERN CMakeLists.txt EXCLUDE)
+        PATTERN CMakeLists.txt EXCLUDE
+        PATTERN dev-third-party-programs.txt EXCLUDE
+        PATTERN documentation-third-party-programs.txt EXCLUDE
+        PATTERN third-party-programs.txt EXCLUDE)
