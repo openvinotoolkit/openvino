@@ -21,9 +21,11 @@ protected:
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
         bool inPrcSigned = function->get_parameters()[0]->get_element_type().is_signed();
+        bool inPrcFloat = info.getPrecision().is_float();
         int32_t data_start_from = -10;
         uint32_t data_range = 20;
         int32_t resolution = 32768;
+
         switch (activationType) {
             case ngraph::helpers::ActivationTypes::Log: {
                 data_start_from = 1;
@@ -53,6 +55,9 @@ protected:
         if (!inPrcSigned) {
             data_range = 15;
             data_start_from = 0;
+        }
+        if (!inPrcFloat) {
+            resolution = 1;
         }
 
         return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
@@ -91,7 +96,9 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Exp,     {}},
         {Log,     {}},
         {Sign,    {}},
-        {Abs,     {}}
+        {Abs,     {}},
+        {PReLu,   {{-0.01f}}},
+        {LeakyRelu, {{0.01f}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
