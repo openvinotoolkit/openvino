@@ -36,7 +36,7 @@ void PrePostProcessTest::SetUp() {
             func.m_shapes.push_back(input.get_shape());
         }
     }
-    init_input_shapes(ov::test::static_shapes_to_test_representation({func.m_shapes}));
+    init_input_shapes(ov::test::static_shapes_to_test_representation(func.m_shapes));
 }
 
 TEST_P(PrePostProcessTest, CompareWithRefs) {
