@@ -45,12 +45,11 @@ void shape_infer(const OneHot* op,
     auto& result_shape = output_shapes[0];
     std::vector<int64_t> depth_vals;
     bool depth_is_set = get_data_as_int64<T>(1, op, depth_vals, constant_data);
-    int64_t axis = op->get_axis();
     if (indices_shape.rank().is_static()) {
         // decide result rank
         result_shape = indices_shape;
         const auto indices_rank = indices_shape.rank().get_length();
-        axis = ov::normalize_axis(op, axis, indices_rank + 1, -indices_rank - 1, indices_rank);
+        const auto axis = ov::normalize_axis(op, op->get_axis(), indices_rank + 1, -indices_rank - 1, indices_rank);
 
         if (depth_is_set) {
             int64_t depth_val = depth_vals[0];
