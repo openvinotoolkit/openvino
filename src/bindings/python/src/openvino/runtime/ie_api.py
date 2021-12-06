@@ -47,8 +47,6 @@ class InferRequest(InferRequestBase):
     def infer(self, inputs: dict = None) -> dict:
         """Infer wrapper for InferRequest."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        # Required to return list since np.ndarray forces all of tensors data to match in
-        # dimensions. This results in errors when running ops like variadic split.
         return super().infer(inputs)
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
@@ -67,8 +65,6 @@ class ExecutableNetwork(ExecutableNetworkBase):
     def infer_new_request(self, inputs: dict = None) -> dict:
         """Infer wrapper for ExecutableNetwork."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        # Required to return list since np.ndarray forces all of tensors data to match in
-        # dimensions. This results in errors when running ops like variadic split.
         return super().infer_new_request(inputs)
 
 
