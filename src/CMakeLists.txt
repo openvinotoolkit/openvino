@@ -105,7 +105,7 @@ add_subdirectory(common)
 # endif()
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin GNAPlugin MKLDNNPlugin myriadPlugin)
+                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin MKLDNNPlugin myriadPlugin)
 
 # Export for build tree
 
