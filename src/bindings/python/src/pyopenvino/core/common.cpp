@@ -296,4 +296,83 @@ uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& ac
     }
 }
 
+py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::runtime::InferRequest& request) {
+    py::dict res;
+    for (const auto& out : outputs) {
+        ov::runtime::Tensor t{request.get_tensor(out)};
+        std::cout << t.get_element_type() << " !\n";
+        switch (t.get_element_type()) {
+        case ov::element::Type_t::i8: {
+            py::array arr(t.get_shape(), t.data<int8_t>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::i16: {
+            py::array arr(t.get_shape(), t.data<int16_t>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::i32: {
+            py::array arr(t.get_shape(), t.data<int32_t>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::i64: {
+            py::array arr(t.get_shape(), t.data<int64_t>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::u8: {
+            py::array arr(t.get_shape(), t.data<uint8_t>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::u16: {
+            py::array arr(t.get_shape(), t.data<uint16_t>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::u32: {
+            py::array arr(t.get_shape(), t.data<uint32_t>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::u64: {
+            py::array arr(t.get_shape(), t.data<uint64_t>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::bf16: {
+            py::array arr(t.get_shape(), t.data<ov::bfloat16>());
+            res[py::cast(out)] = arr.view("int16");
+            break;
+        }
+        case ov::element::Type_t::f16: {
+            py::array arr(t.get_shape(), t.data<ov::float16>());
+            res[py::cast(out)] = arr.view("int16");
+            break;
+        }
+        case ov::element::Type_t::f32: {
+            py::array arr(t.get_shape(), t.data<float>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::f64: {
+            py::array arr(t.get_shape(), t.data<double>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        case ov::element::Type_t::boolean: {
+            py::array arr(t.get_shape(), t.data<bool*>());
+            res[py::cast(out)] = arr;
+            break;
+        }
+        default: {
+            break;
+        }
+        }
+    }
+    return res;
+}
+
 };  // namespace Common
