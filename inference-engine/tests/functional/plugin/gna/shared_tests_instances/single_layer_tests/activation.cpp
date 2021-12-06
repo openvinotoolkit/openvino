@@ -94,11 +94,6 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Abs,     {}}
 };
 
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesPwlUniformDesign = {
-        {Sigmoid, {}},
-        {Tanh,    {}}
-};
-
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 50}, {{}}},
         {{1, 128}, {{}}},
@@ -114,14 +109,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 936, 513}, {{}}}
 };
 
-std::vector<std::map<std::string, std::string>> Configs = {
-    {}
-};
-
-std::vector<std::map<std::string, std::string>> ConfigsPwlUniformDesign = {
-    {{"GNA_PWL_UNIFORM_DESIGN", "YES"}}
-};
-
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
@@ -130,24 +117,9 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(Configs)
-);
-
-const auto basicCasesPwlUniformDesign = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesPwlUniformDesign)),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(ConfigsPwlUniformDesign)
+        ::testing::Values(CommonTestUtils::DEVICE_GNA)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerGNATest, basicCases, ActivationLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_PwlUniformDesign,
-    ActivationLayerGNATest, basicCasesPwlUniformDesign, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

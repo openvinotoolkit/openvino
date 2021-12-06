@@ -79,10 +79,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
         {{1, 128}, {{1}, {128}}},
 };
 
-std::vector<std::map<std::string, std::string>> Configs = {
-    {}
-};
-
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
@@ -91,8 +87,7 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(Configs)
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 const auto basicPreluCases = ::testing::Combine(
@@ -103,8 +98,7 @@ const auto basicPreluCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(Configs)
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 
