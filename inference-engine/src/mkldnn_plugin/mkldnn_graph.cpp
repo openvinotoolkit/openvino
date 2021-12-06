@@ -792,7 +792,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 
         // check for empty output blob
         if (std::any_of(outDims.begin(), outDims.end(), [](const Dim dim) {return dim == 0;})) {
-            return;
+            continue;
         }
 
         auto srcPrec = actualDesc.getPrecision();

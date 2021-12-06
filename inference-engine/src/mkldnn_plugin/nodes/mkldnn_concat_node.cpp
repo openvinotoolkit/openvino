@@ -173,7 +173,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     }
 
     // TODO [DS]: inplace
-    if (!canBeInPlace)
+    if (!canBeInPlace || std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape) { return shape.hasZeroDims(); }))
         return;
 
     // Optimized inplace case

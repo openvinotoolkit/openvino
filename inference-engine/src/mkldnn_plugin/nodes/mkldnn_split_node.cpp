@@ -167,7 +167,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
     // Optimized inplace case
     // TODO [DS]: inplace
-    if (!isDynamicNode()) {
+    if (!isDynamicNode() &&
+            std::none_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape) { return shape.hasZeroDims(); })) {
         for (auto refPdIndex : pdIndexesToReuse) {
             const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
             auto config = refConfig;
