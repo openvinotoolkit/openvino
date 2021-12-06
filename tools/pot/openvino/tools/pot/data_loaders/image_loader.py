@@ -3,6 +3,7 @@
 
 from cv2 import imread, IMREAD_GRAYSCALE
 
+from openvino.runtime import Layout, Dimension
 from ..api.data_loader import DataLoader
 from ..data_loaders.utils import prepare_image, collect_img_files
 
@@ -14,6 +15,7 @@ class ImageLoader(DataLoader):
 
         self._img_files = collect_img_files(config.data_source)
         self._shape = None
+        self._layout = config.get('layout', None)
         self._crop_central_fraction = config.get('central_fraction', None)
 
     def __getitem__(self, idx):
@@ -36,5 +38,24 @@ class ImageLoader(DataLoader):
 
         if image is None:
             raise Exception('Can not read the image: {}'.format(img_path))
+        print(image.shape)
+        return prepare_image(image, self._layout, self.shape[-2:], self._crop_central_fraction)
 
-        return prepare_image(image, self.shape[-2:], self._crop_central_fraction)
+    def get_layout(self, input):
+        if self._layout is not None:
+            if 'C' not in self._layout or 'H' not in self._layout or 'W' not in self._layout:
+                raise ValueError('Unexpected {} layout'.format(self._layout))
+            self._layout = Layout(self._layout)
+
+        image_colors_dim = Dimension(3)
+        num_dims = len(self._shape)
+        if num_dims == 4:
+            if (self._shape[1]) == image_colors_dim:
+                self._layout = Layout("NCHW")
+            elif (self._shape[3] == image_colors_dim):
+                self._layout = Layout("NHWC")
+        elif num_dims == 3:
+            if (self._shape[0]) == image_colors_dim:
+                self._layout = Layout("CHW")
+            elif (self._shape[2] == image_colors_dim):
+                self._layout = Layout("HWC")
