@@ -22,6 +22,14 @@ using namespace ov;
 
 ov::pass::DivisionByZeroFP16Resolver::DivisionByZeroFP16Resolver() {
     MATCHER_SCOPE(DivisionByZeroFP16Resolver);
+
+    // to detect the following patterns where eps is used to prevent division by zero:
+    // input_1/Maximum(input_2, eps)
+    // input_1/Add(input_2, eps)
+    // input_1/Sqrt(Maximum(input_2, eps))
+    // input_1/Sqrt(Add(input_2, eps))
+    // input_1*Pow(Maximum(input_2, eps), -z)
+    // input_1*Pow(Add(input_2, eps), -z)
     auto input_1 = pattern::any_input();
     auto input_2 = pattern::any_input();
 
@@ -29,19 +37,26 @@ ov::pass::DivisionByZeroFP16Resolver::DivisionByZeroFP16Resolver() {
     auto max = std::make_shared<opset8::Maximum>(input_2, eps_const_pattern);
     auto add = std::make_shared<opset8::Add>(input_2, eps_const_pattern);
     auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
-    auto divide = std::make_shared<opset8::Divide>(input_1, max_or_add);
+
+    auto sqrt = std::make_shared<opset8::Sqrt>(max_or_add);
+    auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});
+    // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
+    auto divide = std::make_shared<opset8::Divide>(input_1, sqrt_or_max_add);
+
     auto pow_exp = pattern::wrap_type<opset8::Constant>();
     auto pow_pattern = std::make_shared<opset8::Power>(max_or_add, pow_exp);
-    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, pow_pattern});
+    auto mul_pattern = std::make_shared<opset8::Multiply>(input_1, pow_pattern);
+    auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        const auto pow = std::dynamic_pointer_cast<opset8::Power>(m.get_match_root());
-        if (pow) {
+        const auto mul = std::dynamic_pointer_cast<opset8::Multiply>(m.get_match_root());
+        if (mul) {
+            // pattern input_1*Pow(Maximum(input_2, eps), z) or input_1*Pow(Add(input_2, eps), z) is matched
             const auto pow_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(pow_exp).get_node_shared_ptr());
             for (float val : pow_const->get_vector<float>())
-                if (val >= 0)  // only for negative exponents
+                if (val >= 0)  // continue only if exponent is negative (z < 0)
                     return false;
         }
 
@@ -61,6 +76,6 @@ ov::pass::DivisionByZeroFP16Resolver::DivisionByZeroFP16Resolver() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(div_or_pow, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div_or_mul_to_negative_pow, matcher_name);
     register_matcher(m, callback);
 }

@@ -44,6 +44,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPattern) {
         function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, PowWithNegativeExponent) {
@@ -74,6 +75,7 @@ TEST_F(TransformationTestsF, PowWithNegativeExponent) {
         function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, PowWithPositiveExponent) {
@@ -133,9 +135,10 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPatternUnchanged) {
         function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, DivisionByZeroWithMax) {
+TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithMax) {
     const float eps_value = 1.e-12;
     {
         auto input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -167,10 +170,11 @@ TEST_F(TransformationTestsF, DivisionByZeroWithMax) {
         function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 
-TEST_F(TransformationTestsF, DivisionByZeroWithAdd) {
+TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
     const float eps_value = 1.e-12;
     {
         auto input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -202,4 +206,5 @@ TEST_F(TransformationTestsF, DivisionByZeroWithAdd) {
         function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
