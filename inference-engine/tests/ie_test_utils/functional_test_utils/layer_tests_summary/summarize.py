@@ -100,6 +100,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
     op_res = dict()
 
     results = dict()
+    covered_ops = dict()
     for device in root.find("results"):
         results[device.tag] = {op.tag: op.attrib for op in device}
 
@@ -107,16 +108,20 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
         general_test_count[device.tag] = 0
         general_passed_tests[device.tag] = 0
         trusted_ops[device.tag] = 0
+        covered_ops[device.tag] = 0
         for op in results[device.tag]:
+            op_test_cnt = int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) + \
+                          int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"])
+            if op_test_cnt == 0:
+                continue
+            covered_ops[device.tag] += 1
             pass_rate = round(float(results[device.tag][op]["passrate"]), 1)
             results[device.tag][op]["passrate"] = pass_rate
 
             pass_rate_avg[device.tag] += pass_rate
             if pass_rate == 100.:
                 trusted_ops[device.tag] += 1
-            device_general_test_count = \
-                int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +\
-                int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"])
+            device_general_test_count = op_test_cnt
             general_test_count[device.tag] += device_general_test_count
             general_passed_tests[device.tag] += int(results[device.tag][op]["passed"])
 
@@ -128,7 +133,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
         general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
-        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100 / len(results[device.tag])), 1)
+        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100 / covered_ops[device.tag]), 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
 
     logger.info("Test number comparison between devices is started")
     for op in op_res:
@@ -148,14 +153,14 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
 
     devices = results.keys()
     logger.info("Statistic collecting is completed")
-    return devices, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops
+    return devices, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops
 
 
 def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str, is_conformance_mode: bool,
                    output_filename='report'):
     if is_conformance_mode:
         utils.update_conformance_test_counters(summary_root, logger)
-    device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops = \
+    device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
 
     timestamp = summary_root.attrib["timestamp"]
@@ -171,7 +176,7 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
 
     res_summary = template.render(ordered_ops=op_list, devices=device_list, results=results, timestamp=timestamp,
                                   general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,
-                                  trusted_ops=trusted_ops,
+                                  trusted_ops=trusted_ops, covered_ops=covered_ops,
                                   general_test_count=general_test_count, report_tag=report_tag)
 
     report_path = os.path.join(output_folder, f'{output_filename}.html')

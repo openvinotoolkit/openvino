@@ -93,7 +93,7 @@
             <tr>
                 <th class="table-primary" scope="row">Total: <i>{{ordered_ops|length}}</i></th>
                 {% for d in devices -%}
-                <td class="table-primary {{ d }} test_total">{{results[d]|length}}</td>
+                    <td class="table-primary {{ d }} test_total"> {% if d in covered_ops -%} {{covered_ops[d]}} {% else -%} 0 {% endif -%}</td>
                 {% endfor %}
             </tr>
             <tr>
@@ -137,17 +137,21 @@
                         {% else -%}
                             {{op}} is not implemented in {{d}} plugin
                         {% endif -%}">
-                    {% if (results[d][op].passed + results[d][op].failed + results[d][op].crashed + results[d][op].skipped) != 0 -%}
+                    {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}
                         {{ results[d][op].passrate }} %<br />
                     {% else -%}
                         N/A<br />
                     {% endif -%}
                     <div class="flex">
                         <div>
-                            <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>
-                            <span class="red" title="Failed">F:{{ results[d][op].failed }}</span>
-                            <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>
-                            <span class="dark" title="Crashed">C:{{ results[d][op].crashed }}</span>
+                            {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}
+                                <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>
+                                <span class="red" title="Failed">F:{{ results[d][op].failed }}</span>
+                                <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>
+                                <span class="dark" title="Crashed">C:{{ results[d][op].crashed }}</span>
+                            {% else -%}
+                                <span></span>
+                            {% endif -%}
                         </div>
                         <div class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></div>
                     </div>
