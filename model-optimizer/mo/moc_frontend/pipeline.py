@@ -96,5 +96,4 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             input_model.set_partial_shape(place, new_partial_shape)
 
     ngraph_function = moc_front_end.convert(input_model)
-
     return ngraph_function
