@@ -155,7 +155,7 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
         if (!new_weights)
             return false;
 
-        // Constantfold new weights only if old weights is a constant node.
+        // Constantfold new weights, only if old weights is a constant node.
         // To make sure that subgraphs with e.g. FakeQuantize don't get constant folded here.
         if (ov::is_type<opset8::Constant>(weights.get_node())) {
             if (auto constant = get_constant_from_source(new_weights)) {
