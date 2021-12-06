@@ -204,7 +204,6 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 }
                 info.layout = layout_map.at(name)[0];
                 std::transform(info.layout.begin(), info.layout.end(), info.layout.begin(), ::toupper);
-                // reshape_required = true;
             } else {
                 std::stringstream ss;
                 ss << descriptor.getLayout();

@@ -923,7 +923,7 @@ int main(int argc, char* argv[]) {
                                               });
                     for (size_t i = 0; i < app_inputs_info.size(); ++i) {
                         std::string data_shapes_string = "";
-                        data_shapes_string += std::to_string(i) + ". ";
+                        data_shapes_string += std::to_string(i + 1) + ". ";
                         for (auto& item : app_inputs_info[i]) {
                             data_shapes_string += item.first + " : " + getShapeString(item.second.dataShape) + " ";
                         }

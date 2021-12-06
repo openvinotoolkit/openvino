@@ -351,17 +351,19 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
 
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         auto input = app_inputs_info[0].at(input_name);
-        if (input.isImage()) {
-            files.second = filterFilesByExtensions(files.second, supported_image_extensions);
-        } else if (input.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
-            slog::info << "Input '" << input_name
-                       << "' probably is image info. All files for this input will"
-                          " be ignored."
-                       << slog::endl;
-            files.second = {"image_info"};
-            continue;
-        } else {
-            files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
+        if (!files.second.empty() && files.second[0] != "random" && files.second[0] != "image_info") {
+            if (input.isImage()) {
+                files.second = filterFilesByExtensions(files.second, supported_image_extensions);
+            } else if (input.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
+                slog::info << "Input '" << input_name
+                           << "' probably is image info. All files for this input will"
+                              " be ignored."
+                           << slog::endl;
+                files.second = {"image_info"};
+                continue;
+            } else {
+                files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
+            }
         }
 
         if (files.second.empty()) {
