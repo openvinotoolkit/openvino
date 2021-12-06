@@ -255,9 +255,10 @@ KERNEL(pooling_gpu)(
                 result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
     #else
                 #ifdef SECOND_OUTPUT_TYPE
-                    if (input[input_idx] > result)
+                    const current_input = input[input_idx];
+                    if (current_input > result)
                     {
-                        result = input[input_idx];
+                        result = current_input;
                         result_idx = input_idx;
                     }
                 #else
