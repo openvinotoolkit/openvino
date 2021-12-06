@@ -12,6 +12,7 @@
 
 ngraph::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
     MATCHER_SCOPE(ConvertMaxPool1ToMaxPool8);
+    // Replaces v1::MaxPool with v8::MaxPool with default dilations, axis and index_element_type attributes
 
     auto maxpool_v1_pattern = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>();
 

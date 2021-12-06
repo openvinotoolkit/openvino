@@ -26,7 +26,7 @@ TEST_F(TransformationTestsF, ConvertMaxPool1ToMaxPool8) {
         auto maxpool_1 = std::make_shared<ngraph::opset1::MaxPool>(data, strides, pads_begin, pads_end,
                                                                    kernel);
 
-        function = std::make_shared<ngraph::Function>(ngraph::OutputVector{maxpool_1->output(0)} ,
+        function = std::make_shared<ngraph::Function>(ngraph::OutputVector{maxpool_1->output(0)},
                                                       ngraph::ParameterVector{data});
 
         manager.register_pass<ngraph::pass::ConvertMaxPool1ToMaxPool8>();
