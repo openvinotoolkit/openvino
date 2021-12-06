@@ -311,6 +311,32 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         return;
     }
 
+    // if the select device is CPU, need to check the config of _loadContext[CPU]
+    // if they are same, do not need to load again
+    curDevIsCPU = (context.deviceInfo.deviceName.find("CPU") != std::string::npos);
+    if (curDevIsCPU) {
+        auto compare = [](std::map<std::string, std::string>& a,
+                std::map<std::string, std::string>& b) -> bool {
+            if (a.size() != b.size()) {
+                return false;
+            }
+            for (auto& item : a) {
+                auto bIter = b.find(item.first);
+                if (bIter != b.end()) {
+                    if (bIter->second != item.second) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (compare(context.deviceInfo.config, _loadContext[CPU].deviceInfo.config)) {
+            return;
+        }
+    }
+
     LOG_DEBUG("[AUTOPLUGIN] try to load %s", context.deviceInfo.deviceName.c_str());
     // try to load this candidate device
     TryToLoadNetWork(context, modelPath, network);
