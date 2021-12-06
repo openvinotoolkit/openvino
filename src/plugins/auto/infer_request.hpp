@@ -15,7 +15,6 @@
 #include <memory>
 #include <string>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include "multi_device_exec_network.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -31,21 +30,17 @@ public:
     using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
     explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
                                      const InferenceEngine::OutputsDataMap& networkOutputs,
-                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
-                                     MultiDeviceExecutableNetwork::WorkerInferRequest* = nullptr);
+                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with);
     explicit MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
-                                     MultiDeviceExecutableNetwork::WorkerInferRequest* = nullptr);
+                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
-    MultiDeviceExecutableNetwork::WorkerInferRequest* GetSharedWorker() { return _sharedWorker; }
 
 private:
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with);
-    MultiDeviceExecutableNetwork::WorkerInferRequest* _sharedWorker;
 };
 
 }  // namespace MultiDevicePlugin

@@ -120,9 +120,6 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
         _capacity = newCapacity;
     }
-    size_t capacity() {
-        return _capacity;
-    }
 
 protected:
     std::queue<T>   _queue;
@@ -135,13 +132,10 @@ class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkTh
                                      public InferenceEngine::ITaskExecutor {
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
-    friend class MultiDeviceAsyncInferRequest;
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
-        bool                                      _manualyDestory = false;
-        bool                                      _readyForDestroy = false;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
@@ -190,7 +184,6 @@ public:
 
 private:
     void GenerateWorkers(const std::string& device, const InferenceEngine::SoExecutableNetworkInternal& executableNetwork);
-    WorkerInferRequest* IncreaseWorkers(AutoLoadContext& loadcontext, InferenceEngine::SoIInferRequestInternal& request_to_share);
     void WaitActualNetworkReady() const;
     void WaitFirstNetworkReady();
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
@@ -211,7 +204,6 @@ private:
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
-    std::mutex                                                          _idleWorkerMutex;
     std::mutex                                                          _numRequestMutex;
 };
 

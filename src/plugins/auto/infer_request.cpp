@@ -16,19 +16,15 @@ using namespace InferenceEngine;
 // ------------------------------MultiDeviceInferRequest----------------------------
 MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                                 const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
-                                                 MultiDeviceExecutableNetwork::WorkerInferRequest* sharedWorker)
-        : IInferRequestInternal(inputs, outputs),
-          _sharedWorker(sharedWorker) {
+                                                 const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with)
+        : IInferRequestInternal(inputs, outputs) {
     CreateInferRequest(request_to_share_blobs_with);
 }
 
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
-                                                 const SoIInferRequestInternal & request_to_share_blobs_with,
-                                                 MultiDeviceExecutableNetwork::WorkerInferRequest* sharedWorker)
-        : IInferRequestInternal(networkInputs, networkOutputs),
-          _sharedWorker(sharedWorker) {
+                                                 const SoIInferRequestInternal & request_to_share_blobs_with)
+        : IInferRequestInternal(networkInputs, networkOutputs) {
     CreateInferRequest(request_to_share_blobs_with);
 }
 

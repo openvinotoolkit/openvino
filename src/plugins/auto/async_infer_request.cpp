@@ -94,10 +94,5 @@ std::map<std::string, InferenceEngineProfileInfo> MultiDeviceAsyncInferRequest::
 
 MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {
     StopAndWait();
-    //if the auto infer request is shared with optimal workers, no need to do manual release
-    if (_multiDeviceExecutableNetwork->_workModeIsAUTO) {
-        if (_inferRequest->GetSharedWorker() != nullptr)
-            _inferRequest->GetSharedWorker()->_readyForDestroy = true;
-    }
 }
 }  // namespace MultiDevicePlugin
