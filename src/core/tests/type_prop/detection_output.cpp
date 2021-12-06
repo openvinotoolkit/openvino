@@ -134,6 +134,26 @@ TEST(type_prop_layers, detection_output_no_share_location) {
     ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
+TEST(type_prop_layers, detection_output_calculated_num_prior_boxes) {
+    op::DetectionOutputAttrs attrs;
+    attrs.keep_top_k = {-1};
+    attrs.top_k = -1;
+    attrs.normalized = true;
+    attrs.num_classes = 2;
+    attrs.share_location = false;
+    auto op = create_detection_output(PartialShape{4, -1},
+                                      PartialShape::dynamic(),
+                                      PartialShape::dynamic(),
+                                      PartialShape{-1, 20},
+                                      PartialShape::dynamic(),
+                                      attrs,
+                                      element::f32,
+                                      element::f32);
+    ASSERT_EQ(op->get_shape(), (Shape{1, 1, 80, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
+}
+
+
 TEST(type_prop_layers, detection_output_top_k) {
     op::DetectionOutputAttrs attrs;
     attrs.keep_top_k = {-1};

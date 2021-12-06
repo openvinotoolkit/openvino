@@ -151,17 +151,17 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
                                   ", expected: ",
                                   num_images,
                                   ".");
-            if (num_prior_boxes.is_static()) {
-                int num_prior_boxes_val = num_prior_boxes.get_length();
-                NODE_VALIDATION_CHECK(op,
-                                      aux_class_preds_pshape[1].compatible(num_prior_boxes_val * 2),
-                                      "Additional class predictions' second dimension must be compatible with "
-                                      "num_prior_boxes * 2. Current value is: ",
-                                      aux_class_preds_pshape[1],
-                                      ", expected: ",
-                                      num_prior_boxes_val * 2,
-                                      ".");
-            }
+            NODE_VALIDATION_CHECK(op,
+                                  aux_class_preds_pshape[1].compatible(num_prior_boxes * 2),
+                                  "Additional class predictions' second dimension must be compatible with "
+                                  "num_prior_boxes * 2. Current value is: ",
+                                  aux_class_preds_pshape[1],
+                                  ", expected: ",
+                                  num_prior_boxes * 2,
+                                  ".");
+
+            if (aux_class_preds_pshape[1].is_static())
+                num_prior_boxes = aux_class_preds_pshape[1].get_length() / 2;
         }
         NODE_VALIDATION_CHECK(
             op,
@@ -179,7 +179,7 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
 
     if (attrs.keep_top_k[0] > 0) {
         ret_output_shape[2] = num_images * attrs.keep_top_k[0];
-    } else if (attrs.top_k > 0) {
+    } else if (attrs.keep_top_k[0] == -1 && attrs.top_k > 0) {
         ret_output_shape[2] = num_images * attrs.top_k * attrs.num_classes;
     } else {
         ret_output_shape[2] = num_images * num_prior_boxes * attrs.num_classes;
