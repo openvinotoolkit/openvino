@@ -422,6 +422,28 @@ class TestPreprocessingMOC(unittest.TestCase):
         op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node1.get_type_name() == 'Relu')
 
+    def test_reverse_input_channels_3d(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
+                         layout_values=None)
+        function = create_function2(shape1=[224, 224, 3], shape2=[3, 224, 224])
+        process_function(ov_function=function, argv=argv)
+        # Verify that reverse_channels are applied.
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() != 'Relu')
+
+    def test_reverse_input_channels_6d(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
+                         layout_values=None)
+        function = create_function2(shape1=[4, 4, 4, 4, 4, 3], shape2=[4, 3, 4, 4, 4, 4])
+        process_function(ov_function=function, argv=argv)
+        # Verify that reverse_channels are NOT applied.
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() == 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() == 'Relu')
+
     def test_reverse_input_channels_2_channels(self):
         argv = Namespace(reverse_input_channels=True,
                          mean_scale_values=None,

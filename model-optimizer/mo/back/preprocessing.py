@@ -66,13 +66,12 @@ def check_keys_valid(ov_function: Function, keys: list, search_outputs: bool):
     Throws if some different keys point to the same actual input/output
     """
     nodes_used = {}
+    nodes = ov_function.inputs
+    if search_outputs:
+        nodes += ov_function.outputs
+
     for name in keys:
         node_found = False
-        nodes = ov_function.inputs
-
-        if search_outputs:
-            nodes += ov_function.outputs
-
         for ov_node in nodes:
             if name in ov_node.get_tensor().get_names():
                 if ov_node in nodes_used:
@@ -227,15 +226,17 @@ def check_suitable_for_reverse(layout: Layout, ov_input):
     """
     if not layout_helpers.has_channels(layout):
         return False
+    if ov_input.get_partial_shape().rank.is_dynamic:
+        return False
+
     c_idx = layout_helpers.channels_idx(layout)
+    rank = ov_input.get_partial_shape().rank.get_length()
     if c_idx < 0:
-        if ov_input.get_partial_shape().rank.is_dynamic():
-            return False
-        c_idx += ov_input.get_partial_shape().rank.get_length()
-    if c_idx >= ov_input.get_partial_shape().rank.get_length():
+        c_idx += rank
+    if c_idx >= rank:
         raise Error('Layout {} for input {} is inconsistent with shape {}'.format(
             layout, ov_input.get_tensor().get_any_name(), ov_input.get_partial_shape()))
-    return ov_input.get_partial_shape()[c_idx] == 3 and len(ov_input.get_partial_shape()) == 4
+    return ov_input.get_partial_shape()[c_idx] == 3
 
 
 def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_values):
