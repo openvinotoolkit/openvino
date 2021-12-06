@@ -6,6 +6,7 @@ from functools import partial
 from typing import List, Optional, Tuple
 
 import numpy as np
+from ngraph.exceptions import UserInputError
 from ngraph.impl import Node
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import nameable_op
@@ -545,6 +546,102 @@ def prior_box(
     check_valid_attributes("PriorBox", attrs, requirements)
 
     return _get_node_factory_opset8().create("PriorBox", [layer_shape, as_node(image_shape)], attrs)
+
+
+@nameable_op
+def i420_to_bgr(
+        arg: NodeInput,
+        arg_u: Optional[NodeInput] = None,
+        arg_v: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs I420toBGR operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_u: The node providing U plane data. Required for separate planes.
+    @param  arg_v: The node providing V plane data. Required for separate planes.
+    @param  name: The optional name for the created output node.
+    @return The new node performing I420toBGR operation.
+    """
+    if arg_u is None and arg_v is None:
+        inputs = as_nodes(arg)
+    elif arg_u is not None and arg_v is not None:
+        inputs = as_nodes(arg, arg_u, arg_v)
+    else:
+        raise UserInputError(
+            "Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided."
+        )
+
+    return _get_node_factory_opset8().create("I420toBGR", inputs)
+
+
+@nameable_op
+def i420_to_rgb(
+        arg: NodeInput,
+        arg_u: Optional[NodeInput] = None,
+        arg_v: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs I420toRGB operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_u: The node providing U plane data. Required for separate planes.
+    @param  arg_v: The node providing V plane data. Required for separate planes.
+    @param  name: The optional name for the created output node.
+    @return The new node performing I420toRGB operation.
+    """
+    if arg_u is None and arg_v is None:
+        inputs = as_nodes(arg)
+    elif arg_u is not None and arg_v is not None:
+        inputs = as_nodes(arg, arg_u, arg_v)
+    else:
+        raise UserInputError(
+            "Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided."
+        )
+
+    return _get_node_factory_opset8().create("I420toRGB", inputs)
+
+
+@nameable_op
+def nv12_to_bgr(
+        arg: NodeInput,
+        arg_uv: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NV12toBGR operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_uv: The node providing UV plane data. Required for separate planes.
+    @param  name: The optional name for the created output node.
+    @return The new node performing NV12toBGR operation.
+    """
+    if arg_uv is None:
+        inputs = as_nodes(arg)
+    else:
+        inputs = as_nodes(arg, arg_uv)
+
+    return _get_node_factory_opset8().create("NV12toBGR", inputs)
+
+
+@nameable_op
+def nv12_to_rgb(
+        arg: NodeInput,
+        arg_uv: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NV12toRGB operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_uv: The node providing UV plane data. Required for separate planes.
+    @param  name: The optional name for the created output node.
+    @return The new node performing NV12toRGB operation.
+    """
+    if arg_uv is None:
+        inputs = as_nodes(arg)
+    else:
+        inputs = as_nodes(arg, arg_uv)
+
+    return _get_node_factory_opset8().create("NV12toRGB", inputs)
 
 
 @nameable_op
