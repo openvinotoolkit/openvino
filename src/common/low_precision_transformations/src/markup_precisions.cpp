@@ -136,6 +136,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     static std::unordered_set<std::string> precisionPreservedOps = {
         { name<opset1::Concat>() },
         { name<opset1::DepthToSpace>() },
+        { name<opset1::Interpolate>() },
         { name<opset1::MaxPool>() },
         { name<opset1::ReduceMax>() },
         { name<opset1::ReduceMin>() },
