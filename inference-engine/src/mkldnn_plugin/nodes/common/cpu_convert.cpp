@@ -4,6 +4,7 @@
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
+#include "fp16_utils.h"
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 #include <type_traits>
@@ -26,6 +27,24 @@ void convert(const void *srcPtr, void *dstPtr, const size_t size) {
             dstData[i] = static_cast<dstType>(srcData[i]);
         });
     }
+}
+
+template<>
+void convert<ie_fp16, float>(const void* src, void* dst, size_t size) {
+    const ie_fp16* srcData = reinterpret_cast<const ie_fp16*>(src);
+    float *dstData = reinterpret_cast<float *>(dst);
+    parallel_for(size, [&](size_t i) {
+        dstData[i] = f16tof32(srcData[i]);
+    });
+}
+
+template<>
+void convert<float, ie_fp16>(const void* src, void* dst, size_t size) {
+    const float *srcData = reinterpret_cast<const float*>(src);
+    ie_fp16 *dstData = reinterpret_cast<ie_fp16 *>(dst);
+    parallel_for(size, [&](size_t i) {
+        dstData[i] = f32tof16(srcData[i]);
+    });
 }
 
 template <Precision::ePrecision p>
