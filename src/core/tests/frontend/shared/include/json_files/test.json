@@ -1,0 +1,26 @@
+[
+    {
+        "custom_attributes": {
+            "test_attribute": true
+        },
+        "id": "buildin_extensions_1::TestExtension1",
+        "library": "/home/itikhonov/OpenVINO/openvino/bin/intel64/Debug/lib/libtest_builtin_extensions_1.so",
+        "match_kind": "scope"
+    },
+    {
+        "custom_attributes": {
+            "test_attribute": true
+        },
+        "id": "buildin_extensions_2::TestExtension1",
+        "library": "/home/itikhonov/OpenVINO/openvino/bin/intel64/Debug/lib/libtest_builtin_extensions_2.so",
+        "match_kind": "scope"
+    },
+    {
+        "custom_attributes": {
+            "test_attribute": true
+        },
+        "id": "buildin_extensions_2::TestExtension2",
+        "library": "/home/itikhonov/OpenVINO/openvino/bin/intel64/Debug/lib/libtest_builtin_extensions_2.so",
+        "match_kind": "scope"
+    }
+]

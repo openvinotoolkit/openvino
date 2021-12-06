@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <common/extensions/decoder_transformation_extension.hpp>
+#include <common/extensions/telemetry_extension.hpp>
 #include <common/frontend.hpp>
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -35,6 +37,7 @@ protected:
 
 private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
 };
 
 }  // namespace frontend

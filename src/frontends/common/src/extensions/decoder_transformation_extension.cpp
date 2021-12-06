@@ -1,0 +1,47 @@
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "common/extensions/decoder_transformation_extension.hpp"
+
+#include <utility>
+
+using namespace ov;
+using namespace ov::frontend;
+
+/// \brief Helper class to register user function as a FunctionPass
+class CustomFunctionPass : public ov::pass::FunctionPass {
+public:
+    explicit CustomFunctionPass(std::function<bool(std::shared_ptr<ov::Function>)> pass) : m_pass(std::move(pass)) {}
+
+    bool run_on_function(std::shared_ptr<ov::Function> f) override {
+        return m_pass(f);
+    }
+
+private:
+    std::function<bool(std::shared_ptr<ov::Function>)> m_pass;
+};
+
+/// \brief Helper class to register user matcher pass initialization as a MatcherPass
+class CustomMatcherPass : public ov::pass::MatcherPass {
+public:
+    explicit CustomMatcherPass(const std::function<void(ov::pass::MatcherPass*)>& matcher_pass_initializer) {
+        matcher_pass_initializer(this);
+    }
+};
+
+DecoderTransformationExtension::DecoderTransformationExtension(
+    const std::function<bool(std::shared_ptr<ov::Function>)>& function_pass)
+    : m_registration([&](ov::pass::Manager& manager) {
+          manager.register_pass<CustomFunctionPass>(function_pass);
+      }) {}
+
+DecoderTransformationExtension::DecoderTransformationExtension(
+    const std::function<void(ov::pass::MatcherPass*)>& matcher_pass_initializer)
+    : m_registration([&](ov::pass::Manager& manager) {
+          manager.register_pass<CustomMatcherPass>(matcher_pass_initializer);
+      }) {}
+
+void DecoderTransformationExtension::register_pass(ov::pass::Manager& manager) const {
+    m_registration(manager);
+}

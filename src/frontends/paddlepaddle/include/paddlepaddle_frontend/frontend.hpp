@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <common/telemetry_extension.hpp>
+#include <common/extensions/decoder_transformation_extension.hpp>
+#include <common/extensions/telemetry_extension.hpp>
 #include <manager.hpp>
 
 #include "exceptions.hpp"
@@ -70,6 +71,7 @@ private:
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlacePDPD>&)> func);
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
 };
 
 }  // namespace frontend

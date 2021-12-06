@@ -45,7 +45,7 @@ from mo.utils.versions_checker import check_requirements  # pylint: disable=no-n
 from mo.utils.telemetry_utils import get_tid
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, TelemetryExtension
+from openvino.frontend import FrontEndManager, TelemetryExtension, JsonConfigExtension
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -324,6 +324,7 @@ def prepare_ir(argv):
     if moc_front_end:
         t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
+        moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
         ngraph_function = moc_pipeline(argv, moc_front_end)
     else:
         t.send_event("mo", "conversion_method", "mo_legacy")

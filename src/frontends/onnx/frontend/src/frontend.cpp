@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <common/extensions/telemetry_extension.hpp>
 #include <common/frontend_exceptions.hpp>
-#include <common/telemetry_extension.hpp>
 #include <fstream>
 #include <input_model.hpp>
 #include <manager.hpp>
@@ -68,6 +68,19 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
 std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     return model_onnx->convert();
 }
 
@@ -139,5 +152,7 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
 void FrontEndONNX::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+        m_transformation_extensions.push_back(transformation);
     }
 }

@@ -531,7 +531,8 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
+                             ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)

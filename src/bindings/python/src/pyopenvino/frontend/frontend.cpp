@@ -8,7 +8,9 @@
 #include <pybind11/stl_bind.h>
 
 #include "common/frontend_exceptions.hpp"
-#include "common/telemetry_extension.hpp"
+#include "common/extensions/telemetry_extension.hpp"
+#include "common/extensions/decoder_transformation_extension.hpp"
+#include "common/extensions/json_config_extension.hpp"
 #include "manager.hpp"
 #include "pyopenvino/graph/function.hpp"
 
@@ -164,5 +166,25 @@ void regclass_frontend_TelemetryExtension(py::module m) {
         ext.def("send_event", &TelemetryExtension::send_event);
         ext.def("send_error", &TelemetryExtension::send_error);
         ext.def("send_stack_trace", &TelemetryExtension::send_stack_trace);
+    }
+}
+
+void regclass_frontend_TransformationDecoderExtension(py::module m) {
+    {
+        // MatherPass/FunctionPass in python
+    }
+}
+
+void regclass_frontend_JsonConfigExtension(py::module m) {
+    {
+        py::class_<ov::frontend::JsonConfigExtension,
+                std::shared_ptr<ov::frontend::JsonConfigExtension>,
+                ov::Extension> ext(m, "JsonConfigExtension", py::dynamic_attr());
+
+        ext.doc() = "Extension class to load and process ModelOptimizer JSON config file";
+
+        ext.def(py::init([](const std::string& path) {
+            return std::make_shared<ov::frontend::JsonConfigExtension>(path);
+        }));
     }
 }

@@ -7,9 +7,10 @@
 #include <functional>
 #include <map>
 
+#include "common/extensions/decoder_transformation_extension.hpp"
+#include "common/extensions/telemetry_extension.hpp"
 #include "common/frontend.hpp"
 #include "common/input_model.hpp"
-#include "common/telemetry_extension.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/variant.hpp"
@@ -84,6 +85,7 @@ private:
                          std::shared_ptr<ov::Function>& ng_function) const;
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
 };
 }  // namespace frontend
 }  // namespace ov

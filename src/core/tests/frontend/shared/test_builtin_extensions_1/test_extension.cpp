@@ -1,0 +1,14 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "test_extension.hpp"
+
+#include <openvino/core/core.hpp>
+
+bool TestExtension1::transform(std::shared_ptr<ov::Function>& function, const nlohmann::json& config) const {
+    function->set_friendly_name("TestFunction");
+    return true;
+}
+
+TestExtension1::TestExtension1() : ov::frontend::JsonTransformationExtension("buildin_extensions_1::TestExtension1") {}
