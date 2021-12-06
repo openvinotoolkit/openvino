@@ -9,25 +9,11 @@
 #include <string>
 #include <vector>
 #include <array>
-#include <cache/lru_cache.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
 class MKLDNNMatMulNode : public MKLDNNNode {
-public:
-    struct MatMulKey {
-        DnnlMemoryDescCPtr inp0;
-        DnnlMemoryDescCPtr inp1;
-        DnnlMemoryDescCPtr bias;
-        DnnlMemoryDescCPtr out;
-        mkldnn::primitive_attr attr;
-        impl_desc_type implType;
-
-        size_t hash() const;
-        bool operator==(const MatMulKey& rhs) const noexcept;
-    };
-
 public:
     MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
@@ -73,9 +59,6 @@ private:
 
     std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
     DnnlBlockedMemoryDescPtr outDataDesc;
-
-    using cacheType = LruCache<MatMulKey, MKLDNNPrimitive>;
-    static cacheType cache;
 };
 
 }  // namespace MKLDNNPlugin
