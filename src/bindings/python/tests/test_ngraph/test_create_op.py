@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 from openvino.runtime import PartialShape, Dimension
+from openvino.runtime.exceptions import UserInputError
 
 import openvino.runtime.opset8 as ov
 import openvino.runtime.opset1 as ov_opset1
@@ -1951,3 +1952,114 @@ def test_slice():
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
     assert tuple(node.get_output_shape(0)) == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape
+
+
+def test_i420_to_bgr():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    node_single_plane = ov.i420_to_bgr(arg_single_plane)
+
+    assert node_single_plane.get_type_name() == "I420toBGR"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == expected_output_shape
+
+    # Separate planes (three args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_u = ov.parameter([1, 240, 320, 1], name="input_u", dtype=np.float32)
+    arg_v = ov.parameter([1, 240, 320, 1], name="input_v", dtype=np.float32)
+
+    node_separate_planes = ov.i420_to_bgr(arg_y, arg_u, arg_v)
+
+    assert node_separate_planes.get_type_name() == "I420toBGR"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+    # Incorrect inputs number
+    with pytest.raises(UserInputError, match=r".*Operation I420toBGR*."):
+        node_separate_planes = ov.i420_to_bgr(arg_y, arg_v)
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toBGR*."):
+        node_separate_planes = ov.i420_to_bgr(arg_single_plane, None, arg_v)
+
+
+def test_i420_to_rgb():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    node_single_plane = ov.i420_to_rgb(arg_single_plane)
+
+    assert node_single_plane.get_type_name() == "I420toRGB"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == expected_output_shape
+
+    # Separate planes (three args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_u = ov.parameter([1, 240, 320, 1], name="input_u", dtype=np.float32)
+    arg_v = ov.parameter([1, 240, 320, 1], name="input_v", dtype=np.float32)
+
+    node_separate_planes = ov.i420_to_rgb(arg_y, arg_u, arg_v)
+
+    assert node_separate_planes.get_type_name() == "I420toRGB"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toRGB*."):
+        node_separate_planes = ov.i420_to_rgb(arg_y, arg_v)
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toRGB*."):
+        node_separate_planes = ov.i420_to_rgb(arg_single_plane, None, arg_v)
+
+
+def test_nv12_to_bgr():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    node_single_plane = ov.nv12_to_bgr(arg_single_plane)
+
+    assert node_single_plane.get_type_name() == "NV12toBGR"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == expected_output_shape
+
+    # Separate planes (two args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_uv = ov.parameter([1, 240, 320, 2], name="input_uv", dtype=np.float32)
+
+    node_separate_planes = ov.nv12_to_bgr(arg_y, arg_uv)
+
+    assert node_separate_planes.get_type_name() == "NV12toBGR"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+
+def test_nv12_to_rgb():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    node_single_plane = ov.nv12_to_rgb(arg_single_plane)
+
+    assert node_single_plane.get_type_name() == "NV12toRGB"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == expected_output_shape
+
+    # Separate planes (two args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_uv = ov.parameter([1, 240, 320, 2], name="input_uv", dtype=np.float32)
+
+    node_separate_planes = ov.nv12_to_rgb(arg_y, arg_uv)
+
+    assert node_separate_planes.get_type_name() == "NV12toRGB"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
