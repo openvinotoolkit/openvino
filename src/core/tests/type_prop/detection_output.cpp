@@ -153,7 +153,6 @@ TEST(type_prop_layers, detection_output_calculated_num_prior_boxes) {
     ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
-
 TEST(type_prop_layers, detection_output_top_k) {
     op::DetectionOutputAttrs attrs;
     attrs.keep_top_k = {-1};
