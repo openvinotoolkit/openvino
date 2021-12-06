@@ -78,37 +78,30 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     const auto& axis_tensor = inputs[1];
     const auto& split_lengths_tensor = inputs[2];
     NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(), "axis element type is not integral data type");
+    NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
+                 "split_lengths element type is not integral data type");
 
     int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
-
     axis = ngraph::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
 
-    NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
-                 "axis element type is not integral data type");
-
-    std::vector<int64_t> split_lengths = host_tensor_2_vector<int64_t>(split_lengths_tensor);
+    std::vector<ov::PartialShape> input_shapes = {data_tensor->get_partial_shape(),
+                                                  axis_tensor->get_partial_shape(),
+                                                  split_lengths_tensor->get_partial_shape()};
+    std::vector<ov::PartialShape> output_shapes;
+    shape_infer(this, input_shapes, output_shapes, {{0, data_tensor}, {1, axis_tensor}, {2, split_lengths_tensor}});
 
     const auto data_shape = data_tensor->get_shape();
-    const auto neg_one = std::find(std::begin(split_lengths), std::end(split_lengths), -1);
-    if (neg_one != std::end(split_lengths))  // negative length set
-    {
-        const auto sum_of_known_splits = std::accumulate(std::begin(split_lengths), std::end(split_lengths), 0) + 1;
-        split_lengths[std::distance(std::begin(split_lengths), neg_one)] = data_shape[axis] - sum_of_known_splits;
-    }
-
-    ov::Shape output_shape = data_shape;
     std::vector<size_t> lower_bounds(data_shape.size(), 0);
     std::vector<size_t> upper_bounds = data_shape;
-    upper_bounds.at(axis) = split_lengths[0];
+    upper_bounds[axis] = 0;
 
     size_t split_pos = 0;
     for (const auto& output : outputs) {
-        output_shape.at(axis) = split_lengths[split_pos++];
+        ov::Shape output_shape = output_shapes[split_pos++].get_shape();
+        upper_bounds[axis] += output_shape[axis];
         output->set_shape(output_shape);
         variadic_split::evaluate(data_tensor, output, lower_bounds, upper_bounds);
         lower_bounds.at(axis) = upper_bounds.at(axis);
-        if (split_pos < split_lengths.size())
-            upper_bounds.at(axis) += split_lengths[split_pos];
     }
 
     return true;
