@@ -91,7 +91,6 @@ public:
         conv_params.transposed = transposed;
         conv_params.deformable_groups = deformable_groups;
 
-        conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
         conv_params.groups = groups;
 
