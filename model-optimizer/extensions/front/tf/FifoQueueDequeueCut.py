@@ -15,7 +15,7 @@ class FifoQueueDequeueCut(FrontReplacementPattern):
     """
     Cuts FifoQueue -> QueueDequeue pattern
     in order to enable Out Of the Box (OOB) usage.
-    Pass is run only if user didn't specify any inputs names and shapes.
+    Pass runs only if user didn't specify any input names and shapes.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['cmd_params'].input is None]
