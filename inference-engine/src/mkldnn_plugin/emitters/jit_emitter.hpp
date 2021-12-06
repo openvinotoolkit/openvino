@@ -50,6 +50,8 @@ public:
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
     static std::set<InferenceEngine::Precision> get_supported_precisions();
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&,
+                                    const std::vector<size_t>&, const std::vector<size_t> &) const {}
 
 protected:
     virtual size_t aux_gprs_count() const;

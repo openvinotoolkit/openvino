@@ -71,9 +71,6 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     }
     OV_ITT_TASK_NEXT(GENERATE, "::Tiles1D")
 
-    // max tile rank - 2
-    const size_t tile_rank = 2;
-
     // wrapping into tiles1D
     std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles1D;
     auto tile = std::make_shared<ngraph::snippets::op::Tile>(lowered);
@@ -98,7 +95,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     auto tiles2DKernel = std::make_shared<ngraph::snippets::op::Kernel>(tiles2D);
     tiles2DKernel->compile_params = compile_params;
     std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::get_type_info_static())(tiles2DKernel);
-    kernel->emit_code({tile_rank, in, out}, {});
+    kernel->emit_code({in, out}, {});
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
     lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
     for (auto& op : lowered) {

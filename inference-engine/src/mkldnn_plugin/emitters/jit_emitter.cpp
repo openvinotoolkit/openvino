@@ -101,7 +101,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         aux_vec_idxs.push_back(idx);
         preserved_vec_idxs.push_back(idx);
     }
-    assert(aux_vec_idxs.size() >= aux_vecs_count());
+    if (aux_vec_idxs.size() < aux_vecs_count())
+        IE_THROW() << "Failed to allocate required number of vector registers";
 
     // Same logic but to allocate gprs
     for (auto idx : pool_gpr_idxs)
@@ -124,7 +125,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         aux_gpr_idxs.push_back(_idx);
         preserved_gpr_idxs.push_back(_idx);
     }
-//    assert(aux_gpr_idxs.size() == aux_gprs_count());
+    if (aux_gpr_idxs.size() < aux_gprs_count())
+        IE_THROW() << "Failed to allocate required number of general-purpose registers";
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
