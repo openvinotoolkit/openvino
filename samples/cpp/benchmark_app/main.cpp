@@ -193,6 +193,9 @@ int main(int argc, char* argv[]) {
         }
         // Set throughput when loading AUTO device if hint is empty.
         if (FLAGS_d == "AUTO" && FLAGS_hint.empty()) {
+            slog::warn << "-hint default value is determined as \'THROUGHPUT\' automatically for AUTO device. For more "
+                          "detailed information look at README."
+                       << slog::endl;
             FLAGS_hint = "throughput";
         }
 
