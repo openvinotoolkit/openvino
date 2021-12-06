@@ -112,7 +112,8 @@ ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFA
 
 ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
 
-ie_option (ENABLE_MULTI "Enables Multi Device Plugin" ON)
+ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
+ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
 
 ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 

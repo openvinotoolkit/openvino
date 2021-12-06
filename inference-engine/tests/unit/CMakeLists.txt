@@ -28,4 +28,6 @@ if(NGRAPH_ONNX_FRONTEND_ENABLE)
     add_subdirectory(frontends/onnx_import)
 endif()
 
-add_subdirectory(multi)
+if (ENABLE_AUTO OR ENABLE_MULTI)
+    add_subdirectory(auto)
+endif()

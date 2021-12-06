@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "MultiDevicePlugin")
+set (TARGET_NAME "ov_auto_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "MULTI"
               SOURCES ${SOURCES} 
-              VERSION_DEFINES_FOR multi_device_plugin.cpp)
+              VERSION_DEFINES_FOR plugin.cpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "AUTO"

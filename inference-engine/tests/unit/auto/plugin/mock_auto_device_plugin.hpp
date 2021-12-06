@@ -5,7 +5,7 @@
 #pragma once
 #include <gmock/gmock.h>
 #include "ie_icore.hpp"
-#include "multi_device_plugin.hpp"
+#include "plugin.hpp"
 #include <iostream>
 
 using namespace MockMultiDevicePlugin;

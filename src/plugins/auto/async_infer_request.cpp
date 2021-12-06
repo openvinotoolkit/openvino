@@ -8,7 +8,7 @@
 #include <memory>
 #include <map>
 
-#include "multi_device_async_infer_request.hpp"
+#include "async_infer_request.hpp"
 #include <ie_icore.hpp>
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
@@ -57,7 +57,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                                           "initialized) supports a remote blob created on the device named " << name;
 
                         } else {
-                            // it is ok to take the c_str() here (as pointed in the multi_device_exec_network.hpp we need to use const char*)
+                            // it is ok to take the c_str() here (as pointed in the executable_network.hpp we need to use const char*)
                             // as the original strings are from the "persistent" vector (with the right lifetime)
                             _multiDeviceExecutableNetwork->_thisPreferredDeviceName = res->deviceName.c_str();
                             break;
