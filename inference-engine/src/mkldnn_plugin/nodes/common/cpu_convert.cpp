@@ -109,7 +109,8 @@ void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision d
     MKLDNN_CVT(FP64, I64), MKLDNN_CVT(FP64, FP32), MKLDNN_CVT(FP64, BF16), MKLDNN_CVT(FP64, BOOL),
     MKLDNN_CVT(U32, U8),  MKLDNN_CVT(U32, I8),   MKLDNN_CVT(U32, U16),
     MKLDNN_CVT(U32, I16), MKLDNN_CVT(U32, I32),  MKLDNN_CVT(U32, U64),
-    MKLDNN_CVT(U32, I64), MKLDNN_CVT(U32, FP32), MKLDNN_CVT(U32, BF16), MKLDNN_CVT(U32, BOOL));
+    MKLDNN_CVT(U32, I64), MKLDNN_CVT(U32, FP32), MKLDNN_CVT(U32, BF16), MKLDNN_CVT(U32, BOOL),
+    MKLDNN_CVT(FP16, FP32), MKLDNN_CVT(FP32, FP16));
 
     if (!ctx.converted)
         IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
