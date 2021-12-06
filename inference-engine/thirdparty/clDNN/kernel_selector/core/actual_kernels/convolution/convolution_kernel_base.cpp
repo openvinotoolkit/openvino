@@ -69,10 +69,6 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         mem_consts.AddConstants({MakeJitConstant("SYMMETRIC_QUANTIZATION", 1)});
     }
 
-    if (params.local_convolution) {
-        mem_consts.AddConstants({MakeJitConstant("LOCAL_CONVOLUTION", params.local_convolution)});
-    }
-
     if (params.deformable_mode) {
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MODE", params.deformable_mode)});
