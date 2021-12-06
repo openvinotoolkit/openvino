@@ -77,7 +77,6 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
         if (req->GetBlob(name) != blob) {
-            //TODO: check the current hw ready status, and update the input to reuse the hw input if applicable
             auto exeNetwork = _exeNetwork.get();
             if (eligbleForBlobShaing && dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->NeedHotSwap() && !blob->is<RemoteBlob>()) {
                 //if pre-proc involved, stick to system blob, same as GPU plugin
@@ -85,9 +84,9 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
                 if (it != _preProcData.end()) {
                     req->SetBlob(name, blob);
                 } else {
-                    //otherwise, copy the current auto input data to the hw request
-                    //use the hw device blob thread-safely,
-                    //as this hw request is binded to current auto request
+                    // otherwise, copy the current auto input data to the hw request
+                    // use the hw device blob thread-safely
+                    // as this hw device blob has not been shared before
                     CopyBlob(blob, req->GetBlob(name));
                     SetBlob(name, req->GetBlob(name));
                     eligbleForBlobShaing = false;
