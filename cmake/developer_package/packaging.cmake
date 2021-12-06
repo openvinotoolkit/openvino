@@ -227,14 +227,14 @@ macro(ie_cpack)
         if(ENABLE_HETERO)
             set(CPACK_COMPONENT_HETERO_DESCRIPTION "OpenVINO Hetero plugin")
             set(CPACK_COMPONENT_HETERO_DEPENDS "core")
-            set(CPACK_DEBIAN_HETERO_PACKAGE_NAME "libopenvino-hetero")
+            set(CPACK_DEBIAN_HETERO_PACKAGE_NAME "liblibopenvino-hetero")
         endif()
 
         # multi / auto plugins
-        if(ENABLE_MULTI)
+        if(ENABLE_AUTO)
             set(CPACK_COMPONENT_MULTI_DESCRIPTION "OpenVINO Multi / Auto plugin")
             set(CPACK_COMPONENT_MULTI_DEPENDS "core")
-            set(CPACK_DEBIAN_MULTI_PACKAGE_NAME "libopenvino-multi")
+            set(CPACK_DEBIAN_MULTI_PACKAGE_NAME "libopenvino-auto")
         endif()
 
         # cpu
@@ -242,7 +242,7 @@ macro(ie_cpack)
             set(CPACK_COMPONENT_CPU_DESCRIPTION "OpenVINO Intel CPU plugin")
             set(CPACK_COMPONENT_CPU_DEPENDS "core")
             set(CPACK_DEBIAN_CPU_PACKAGE_NAME "libopenvino-intel-cpu")
-            set(CPACK_DEBIAN_CPU_PACKAGE_SUGGESTS "openvino-multi (= ${CPACK_PACKAGE_VERSION}), openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+            set(CPACK_DEBIAN_CPU_PACKAGE_SUGGESTS "libopenvino-multi (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
         endif()
 
         # gpu
@@ -250,7 +250,7 @@ macro(ie_cpack)
             set(CPACK_COMPONENT_GPU_DESCRIPTION "OpenVINO Intel GPU plugin")
             set(CPACK_COMPONENT_GPU_DEPENDS "core")
             set(CPACK_DEBIAN_GPU_PACKAGE_NAME "libopenvino-intel-gpu")
-            set(CPACK_DEBIAN_GPU_PACKAGE_SUGGESTS "openvino-multi (= ${CPACK_PACKAGE_VERSION}), openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+            set(CPACK_DEBIAN_GPU_PACKAGE_SUGGESTS "libopenvino-multi (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
         endif()
 
         # myriad
@@ -258,15 +258,15 @@ macro(ie_cpack)
             set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "OpenVINO Intel Myriad plugin")
             set(CPACK_COMPONENT_MYRIAD_DEPENDS "core")
             set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-myriad")
-            set(CPACK_DEBIAN_MYRIAD_PACKAGE_SUGGESTS "openvino-multi (= ${CPACK_PACKAGE_VERSION}), openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+            set(CPACK_DEBIAN_MYRIAD_PACKAGE_SUGGESTS "libopenvino-multi (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
         endif()
 
         # gna
-        if(ENABLE_GNA)
+        if(ENABLE_INTEL_GNA)
             set(CPACK_COMPONENT_GNA_DESCRIPTION "OpenVINO Intel GNA plugin")
             set(CPACK_COMPONENT_GNA_DEPENDS "core")
             set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna")
-            set(CPACK_DEBIAN_GNA_PACKAGE_SUGGESTS "openvino-multi (= ${CPACK_PACKAGE_VERSION}), openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+            set(CPACK_DEBIAN_GNA_PACKAGE_SUGGESTS "libopenvino-multi (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
         endif()
 
         #
@@ -274,12 +274,13 @@ macro(ie_cpack)
         #
 
         set(samples_build_deps "cmake, g++, gcc, libc6-dev, make")
+        set(samples_build_deps_suggest "${samples_build_deps}, libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
 
         # cpp_samples
         set(CPACK_COMPONENT_CPP_SAMPLES_DESCRIPTION "OpenVINO C++ samples")
         set(CPACK_COMPONENT_CPP_SAMPLES_DEPENDS "core_dev")
         set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_NAME "libopenvino-samples-cpp")
-        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_SUGGESTS "openvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+        set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
         set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev, ${samples_build_deps}")
         set(CPACK_DEBIAN_CPP_SAMPLES_PACKAGE_ARCHITECTURE "all")
 
@@ -287,6 +288,7 @@ macro(ie_cpack)
         set(CPACK_COMPONENT_C_SAMPLES_DESCRIPTION "OpenVINO C samples")
         set(CPACK_COMPONENT_C_SAMPLES_DEPENDS "core_c_dev")
         set(CPACK_DEBIAN_C_SAMPLES_PACKAGE_NAME "libopenvino-samples-c")
+        set(CPACK_DEBIAN_C_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
         set(CPACK_DEBIAN_C_SAMPLES_PACKAGE_DEPENDS "${samples_build_deps}")
         set(CPACK_DEBIAN_C_SAMPLES_PACKAGE_ARCHITECTURE "all")
 

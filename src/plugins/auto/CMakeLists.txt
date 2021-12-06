@@ -8,7 +8,7 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "MULTI"
-              SOURCES ${SOURCES} 
+              SOURCES ${SOURCES}
               VERSION_DEFINES_FOR plugin.cpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
