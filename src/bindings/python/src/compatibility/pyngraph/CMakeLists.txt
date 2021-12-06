@@ -54,7 +54,7 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "../")
 
-target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::core openvino::frontend::common)
+target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::core)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

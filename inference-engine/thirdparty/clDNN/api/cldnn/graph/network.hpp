@@ -168,6 +168,7 @@ public:
     void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                            const std::vector<event::ptr>& events);
     void allocate_primitives();
+    void configure_primitives_second_output();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
     stream& get_stream() const { return *_stream; }
