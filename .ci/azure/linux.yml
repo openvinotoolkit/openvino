@@ -88,7 +88,7 @@ jobs:
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(SHARE_DIR)
-      sudo apt --assume-yes install nfs-common
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
