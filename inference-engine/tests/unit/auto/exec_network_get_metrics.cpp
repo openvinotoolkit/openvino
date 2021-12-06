@@ -15,7 +15,7 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "plugin/mock_multi_device_plugin.hpp"
+#include "plugin/mock_auto_device_plugin.hpp"
 #include "cpp/ie_plugin.hpp"
 #include <chrono>
 #include <thread>
@@ -182,7 +182,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 return cpuMockExeNetwork;
                 }));
     } else {
@@ -195,7 +195,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 return gpuMockExeNetwork;
                 }));
     } else {
