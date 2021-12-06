@@ -416,22 +416,6 @@ For head pose:
 
 `-m_hp <headpose model> -d_hp <headpose hardware target>`
 
-**Example of an Entire Command (object_detection + head pose):**
-
-```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/ir/fp32/mobilenet-ssd.xml -d CPU -m_hp headpose.xml \
--d_hp CPU
-``` 
-
-**Example of an Entire Command (object_detection + head pose + age-gender):**
-
-```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/r/fp32/mobilenet-ssd.xml -d CPU -m_hp headpose.xml \
--d_hp CPU -m_ag age-gender.xml -d_ag CPU
-```
-
 You can see all the sample application’s parameters by adding the `-h` or `--help` option at the command line.
 
 
