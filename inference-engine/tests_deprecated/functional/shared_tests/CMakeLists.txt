@@ -21,8 +21,8 @@ add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 
 add_dependencies(${TARGET_NAME} inference_engine_preproc mock_engine)
 
-if(ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} ov_auto_plugin)
 endif()
 
 if(ENABLE_BATCH)

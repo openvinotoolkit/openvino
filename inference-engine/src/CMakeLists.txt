@@ -17,13 +17,6 @@ if(ENABLE_VPU)
     add_subdirectory(vpu)
 endif()
 
-if(ENABLE_GNA)
-    add_subdirectory(gna_plugin)
-endif()
-
-if(ENABLE_MULTI)
-    add_subdirectory(multi_device)
-endif()
 
 if(ENABLE_BATCH)
     add_subdirectory(auto_batch)
