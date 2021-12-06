@@ -15,5 +15,9 @@ namespace v0 {
 using ov::op::v0::DetectionOutput;
 }  // namespace v0
 using v0::DetectionOutput;
+
+namespace v8 {
+using ov::op::v8::DetectionOutput;
+}  // namespace v8
 }  // namespace op
 }  // namespace ngraph

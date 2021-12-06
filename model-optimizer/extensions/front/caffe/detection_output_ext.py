@@ -5,7 +5,6 @@ import logging as log
 
 from extensions.ops.DetectionOutput import DetectionOutput
 from mo.front.caffe.collect_attributes import merge_attrs
-from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -85,7 +84,6 @@ class DetectionOutputFrontExtractor(FrontExtractorOp):
             interp_mode += interp_mode_values[x]
 
         attrs = {
-            'num_classes': param.num_classes,
             'share_location': int(param.share_location),
             'background_label_id': param.background_label_id,
             'code_type': code_type,
@@ -131,9 +129,6 @@ class DetectionOutputFrontExtractor(FrontExtractorOp):
             attrs['objectness_score'] = param.objectness_score
 
         mapping_rule = merge_attrs(param, attrs)
-
-        # force setting infer function because it doesn't exist in proto so merge_attrs will not set it
-        mapping_rule.update({'infer': multi_box_detection_infer})
 
         # update the attributes of the node
         DetectionOutput.update_node_stat(node, mapping_rule)

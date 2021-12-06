@@ -106,6 +106,7 @@ NGRAPH_OP(MulticlassNms, op::v8)
 NGRAPH_OP(DeformableConvolution, ngraph::op::v8)
 NGRAPH_OP(If, ngraph::op::v8)
 NGRAPH_OP(GatherND, op::v8)
+NGRAPH_OP(DetectionOutput, op::v8)
 
 NGRAPH_OP(Sigmoid, op::v0)
 NGRAPH_OP(Tanh, op::v0)
