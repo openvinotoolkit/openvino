@@ -20,7 +20,7 @@ except ImportError:
 def base_args_config():
     args = argparse.Namespace()
     args.feManager = FrontEndManager()
-    args.extensions = 'dir_to_extension'
+    args.extensions = None
     args.use_legacy_frontend = False
     args.use_new_frontend = True
     args.framework = None
@@ -93,3 +93,49 @@ class TestMoFallback(unittest.TestCase):
 
         graph, ng_func = prepare_ir(args)
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+
+    @generate(*[('config.json', False, True, 'mo_legacy'),
+                ('config.json', True, False, 'mo_legacy'),
+                (None, False, True, 'onnx_frontend'),
+    ])
+    def test_fallback_if_tranformation_config_specified(self, trans_config, use_legacy, use_new_fe, expected_path):
+        args = base_args_config()
+        args.use_legacy_frontend = use_legacy
+        args.use_new_frontend = use_new_fe
+        args.input_model = "test_model_1.onnx"
+        if trans_config is not None: # trans config provided
+            with open(trans_config, 'w') as f:
+                f.write("[]") # json format
+            args.transformations_config = os.path.abspath(trans_config)
+        else:
+            args.transformations_config = trans_config
+
+        graph, ng_func = prepare_ir(args)
+        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+
+        if args.transformations_config is not None:
+            os.remove(args.transformations_config) # clean-up
+
+
+    @generate(*[('dir_to_extension', 'config.json', True, 'mo_legacy'),
+                (None, 'config.json', True, 'mo_legacy'),
+                ('dir_to_extension', None, True, 'mo_legacy'),
+                (None, None, True, 'onnx_frontend'),
+    ])
+    def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config, use_new_fe, expected_path):
+        args = base_args_config()
+        args.use_new_frontend = use_new_fe
+        args.extensions = extension
+        args.input_model = "test_model_1.onnx"
+        if trans_config is not None: # trans config provided
+            with open(trans_config, 'w') as f:
+                f.write("[]") # json format
+            args.transformations_config = os.path.abspath(trans_config)
+        else:
+            args.transformations_config = trans_config
+
+        graph, ng_func = prepare_ir(args)
+        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+
+        if args.transformations_config is not None:
+            os.remove(args.transformations_config) # clean-up

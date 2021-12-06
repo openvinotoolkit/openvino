@@ -320,7 +320,9 @@ def prepare_ir(argv : argparse.Namespace):
     graph = None
     ngraph_function = None
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
-    apply_fallback = hasattr(argv, 'extensions') and argv.extensions and len(argv.extensions) > 0
+    apply_fallback = False
+    apply_fallback |= hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0
+    apply_fallback |= hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config) > 0
     if moc_front_end and not apply_fallback:
         t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
