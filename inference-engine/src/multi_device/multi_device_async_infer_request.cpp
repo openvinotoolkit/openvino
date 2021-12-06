@@ -71,6 +71,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         {
          /*TaskExecutor*/ _multiDeviceExecutableNetwork, /*task*/ [this] {
                _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
+               _workerInferRequest->_isBinded = true;
                _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
         }},
         // final task in the pipeline:

@@ -119,13 +119,13 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
         workerRequest._inferRequest->SetCallback(
             [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
-                {
-                    auto capturedTask = std::move(workerRequestPtr->_task);
-                    capturedTask();
-                }
                 if (_workModeIsAUTO && _loadContext[CPU].isEnabled
                     &&_loadContext[ACTUALDEVICE].isAlready && device == "CPU") {
                     workerRequestPtr->_isBinded = false;
+                }
+                {
+                    auto capturedTask = std::move(workerRequestPtr->_task);
+                    capturedTask();
                 }
                 if (!workerRequestPtr->_isBinded && _workModeIsAUTO) {
                     IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};

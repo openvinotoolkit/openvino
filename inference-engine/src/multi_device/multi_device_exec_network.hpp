@@ -143,7 +143,7 @@ public:
         std::exception_ptr                        _exceptionPtr = nullptr;
         bool                                      _manualyDestory = false;
         bool                                      _readyForDestroy = false;
-        bool                                      _isBinded = true;
+        bool                                      _isBinded = false;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
