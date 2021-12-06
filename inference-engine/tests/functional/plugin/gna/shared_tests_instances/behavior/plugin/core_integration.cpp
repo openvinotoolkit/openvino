@@ -15,7 +15,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassBasicTestP, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("GNAPlugin", "GNA")));
+        ::testing::Values(std::make_pair("ov_intel_gna_plugin", "GNA")));
 
 // TODO
 INSTANTIATE_TEST_SUITE_P(

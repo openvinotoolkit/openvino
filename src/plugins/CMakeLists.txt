@@ -10,6 +10,10 @@ if(ENABLE_INTEL_GPU)
     add_subdirectory(intel_gpu)
 endif()
 
+if(ENABLE_INTEL_GNA)
+    add_subdirectory(intel_gna)
+endif()
+
 if(ENABLE_AUTO OR ENABLE_MULTI)
     add_subdirectory(auto)
 endif()

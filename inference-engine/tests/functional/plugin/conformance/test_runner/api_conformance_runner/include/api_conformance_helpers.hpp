@@ -21,7 +21,7 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
             { "VPUX", "VPUXPlugin" },
             { "AUTO", "ov_auto_plugin" },
             { "CPU", "MKLDNNPlugin" },
-            { "GNA", "GNAPlugin" },
+            { "GNA", "ov_intel_gna_plugin" },
             { "GPU", "ov_intel_gpu_plugin" },
             { "HETERO", "ov_hetero_plugin" },
             { "MULTI", "ov_multi_plugin" },

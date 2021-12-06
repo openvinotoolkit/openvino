@@ -200,7 +200,7 @@ endif()
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin GNAPlugin MKLDNNPlugin myriadPlugin)
+                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin MKLDNNPlugin myriadPlugin)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
