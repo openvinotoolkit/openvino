@@ -123,14 +123,16 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
     const auto layerName = layer_type_name + ".0";
 
     const auto mutable_precision = op->get_output_element_type(1);
+    const auto output_shape = op->get_output_shape(1);
     cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
-                                                DefaultFormatForDims(op->get_output_shape(1).size()),
-                                                CldnnTensorFromIEDims(op->get_output_shape(1)));
+                                                DefaultFormatForDims(output_shape.size()),
+                                                CldnnTensorFromIEDims(output_shape));
     const auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
     const cldnn::primitive_id maxpool_mutable_id_w = layer_type_name + "_md_write";
+    const auto op_friendly_name = op->get_friendly_name();
     const auto indices_mutable_prim = cldnn::mutable_data(maxpool_mutable_id_w,
-                                                   shared_memory,
-                                                   op->get_friendly_name());
+                                                          shared_memory,
+                                                          op_friendly_name);
     p.primitiveIDs[maxpool_mutable_id_w] = maxpool_mutable_id_w;
     p.AddPrimitive(indices_mutable_prim);
     inputPrimitives.push_back(maxpool_mutable_id_w);
@@ -138,7 +140,7 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
     const auto params = GetPoolingParameters(op->get_kernel(), op->get_strides(), op->get_pads_begin(), op->get_pads_end(), op->get_dilations());
     auto poolPrim = cldnn::pooling(layerName,
                                    inputPrimitives[0],
-                                   inputPrimitives[inputPrimitives.size() - 1],
+                                   inputPrimitives.back(),
                                    params.kernel,
                                    params.stride,
                                    params.dilation,
@@ -148,14 +150,14 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
                                    DataTypeFromPrecision(op->get_index_element_type()),
                                    CldnnTensorFromIEDims(op->get_output_shape(0)),
                                    DataTypeFromPrecision(op->get_output_element_type(0)),
-                                   op->get_friendly_name());
+                                   op_friendly_name);
     p.AddPrimitive(poolPrim);
 
     const cldnn::primitive_id maxpool_mutable_id_r = layer_type_name + ".1";
     const auto indices_mutable_id_r = cldnn::mutable_data(maxpool_mutable_id_r,
-                                                     { layerName },
-                                                     shared_memory,
-                                                     op->get_friendly_name());
+                                                          { layerName },
+                                                          shared_memory,
+                                                          op_friendly_name);
     p.primitiveIDs[maxpool_mutable_id_r] = maxpool_mutable_id_r;
     p.AddPrimitive(indices_mutable_id_r);
 

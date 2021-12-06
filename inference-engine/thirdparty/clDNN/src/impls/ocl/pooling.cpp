@@ -77,7 +77,6 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance, split);
         if (!instance.argument.argmax.empty())
             args.inputs.push_back(instance.dep_memory_ptr(1));
-        args.output = instance.output_memory_ptr();
         return args;
     }
 
@@ -103,7 +102,7 @@ public:
                     break;
                 }
                 default:
-                    throw std::runtime_error("Not supported index element type");
+                    throw std::runtime_error{"Not supported index element type"};
             }
             pool_params.poolAxis = primitive->axis;
         }
