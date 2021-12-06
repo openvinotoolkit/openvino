@@ -36,9 +36,16 @@ using namespace MockMultiDevice;
 
 using DeviceParams = std::tuple<std::string, bool>;
 
+enum MODEL {
+    GENERAL = 0,
+    LATENCY = 1,
+    THROUGHPUT = 2,
+};
+
 using ConfigParams = std::tuple<
         bool,                        // if can continue to run
         bool,                        // if select throw exception
+        MODEL,                       // config model general, latency, throughput
         std::vector<DeviceParams>,   // {device, loadSuccess}
         unsigned int,                // select count
         unsigned int,                // load count
@@ -69,7 +76,8 @@ public:
         std::vector<std::tuple<std::string, bool>> deviceConfigs;
         bool continueRun;
         bool thrExcWheSelect;
-        std::tie(continueRun, thrExcWheSelect, deviceConfigs,
+        MODEL configModel;
+        std::tie(continueRun, thrExcWheSelect, configModel, deviceConfigs,
                  selectCount, loadCount, loadSuccessCount) = obj.param;
         std::ostringstream result;
         for (auto& item : deviceConfigs) {
@@ -84,6 +92,22 @@ public:
         } else {
             result << "select_success_";
         }
+
+        switch (configModel) {
+            case GENERAL:
+                result << "GENERAL";
+                break;
+            case LATENCY:
+                result << "LATENCY";
+                break;
+            case THROUGHPUT:
+                result << "THROUGHPUT";
+                break;
+            default:
+                LOG_ERROR("should not come here");
+                break;
+        }
+
         result << "select_" << selectCount << "_loadCount_"
                << loadCount << "_loadSuccessCount_" << loadSuccessCount;
         return result.str();
@@ -139,7 +163,8 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     std::vector<std::tuple<std::string, bool>> deviceConfigs;
     bool continueRun;
     bool thrExcWheSelect;
-    std::tie(continueRun, thrExcWheSelect, deviceConfigs, selectCount,
+    MODEL configModel;
+    std::tie(continueRun, thrExcWheSelect, configModel, deviceConfigs, selectCount,
              loadCount, loadSuccessCount) = this->GetParam();
 
     // test auto plugin
@@ -160,7 +185,24 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
                         ::testing::Matcher<const Config&>(_)))
                 .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
         }
-        DeviceInformation devInfo = {deviceName, {}, 2, ""};
+        DeviceInformation devInfo;
+        switch (configModel) {
+            case GENERAL:
+                devInfo = {deviceName, {}, 2, ""};
+                break;
+            case LATENCY:
+                devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
+                    InferenceEngine::PluginConfigParams::LATENCY}}, 2, ""};
+                break;
+            case THROUGHPUT:
+                devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
+                    InferenceEngine::PluginConfigParams::THROUGHPUT}}, 2, ""};
+                break;
+            default:
+                LOG_ERROR("should not come here");
+                break;
+        }
+
         metaDevices.push_back(std::move(devInfo));
         // set the return value of SelectDevice
         // for example if there are three device, if will return GPU on the first call, and then MYRIAD
@@ -204,13 +246,13 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
 }
 
 // the test configure, for example
-// ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+// ConfigParams {true, false,  GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
 //               DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
 //                DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2},
 //
 // every element for ConfigParams
-// {continueRun, selectThrowException, deviceLoadsuccessVector, selectCount, loadCount, loadSuccessCount}
-// {       true,                false,                3 device,           2,         3,                2}
+// {continueRun, selectThrowException,  config model,  deviceLoadsuccessVector, selectCount, loadCount, loadSuccessCount}
+// {       true,                false,       GENERAL,                 3 device,           2,         3,                2}
 //
 // there are three devices for loading
 // CPU load for accelerator success, but GPU will load faild and then select MYRIAD and load again
@@ -220,52 +262,62 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
 // the inference request num is loadSuccessCount * optimalNum, in this test case optimalNum is 2
 // so inference request num is 4 (CPU 2, MYRIAD 2)
 //
-const std::vector<ConfigParams> testConfigs = {ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
+const std::vector<ConfigParams> testConfigs = {ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 2, 2},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 2, 2},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 1, 2, 1},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 1, 2, 1},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 2, 3, 1},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 3, 4, 2},
-                                               ConfigParams {false, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                               ConfigParams {false, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 3, 4, 0},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 2, 2},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 1, 2, 1},
-                                               ConfigParams {false, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                               ConfigParams {false, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 2, 3, 0},
-                                               ConfigParams {false, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false}}, 1, 1, 0},
-                                               ConfigParams {false, false, {DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 1, 1, 0},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true}}, 1, 1, 1},
-                                               ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 1, 1},
-                                               ConfigParams {false, true, {DeviceParams {CommonTestUtils::DEVICE_GPU, true}}, 1, 0, 0},
-                                               ConfigParams {false, true, {DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 0, 0},
-                                               ConfigParams {true, true, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                               ConfigParams {false, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false}}, 1, 1, 0},
+                                               ConfigParams {false, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 1, 1, 0},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true}}, 1, 1, 1},
+                                               ConfigParams {true, false, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 1, 1},
+                                               ConfigParams {false, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, true}}, 1, 0, 0},
+                                               ConfigParams {false, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 0, 0},
+                                               ConfigParams {true, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 2, 1},
-                                               ConfigParams {false, true, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                               ConfigParams {false, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, false}}, 2, 2, 0},
-                                               ConfigParams {true, true, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-                                                        DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 2, 1}
+                                               ConfigParams {true, true, GENERAL, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 2, 1},
+                                               ConfigParams {true, false, LATENCY, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_MYRIAD, false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 3, 3, 1},
+                                               ConfigParams {true, false, LATENCY, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 2, 1},
+                                               ConfigParams {true, false, THROUGHPUT, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_MYRIAD, false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 3, 4, 2},
+                                               ConfigParams {true, false, THROUGHPUT, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+                                                        DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2}
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, AutoLoadFailedTest,
