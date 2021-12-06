@@ -129,9 +129,10 @@ public:
                         uint32_t split : 1;
                         uint32_t dilation : 1;
                         uint32_t depthwise_separable_opt : 1;
-                        uint32_t local : 1;
                         uint32_t grouped : 1;
                         uint32_t deformable : 1;
+                        uint32_t bilinear_interpolation_pad : 1;
+                        uint32_t deformable_mask_enabled : 1;
                     } conv;
                     struct fc_t {
                     } fc;
@@ -285,9 +286,10 @@ public:
     void EnableSplitSupport() { key.restrict.val.dedicated.conv.split = 1; }
     void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }
     void EnableDepthwiseSeparableOpt() { key.restrict.val.dedicated.conv.depthwise_separable_opt = 1; }
-    void EnableLocalConvolution() { key.restrict.val.dedicated.conv.local = 1; }
     void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
     void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
+    void EnableBilinearInterpolationPad() { key.restrict.val.dedicated.conv.bilinear_interpolation_pad = 1; }
+    void EnableDeformableMask() { key.restrict.val.dedicated.conv.deformable_mask_enabled = 1; }
 
     void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
