@@ -102,7 +102,7 @@ KERNEL(pooling_gpu)(
     uint arg_max_idx = 0;
 #endif
 
-#ifdef CHECK_BOUNDRY
+#ifdef CHECK_BOUNDARY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
         offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y ||
         offset_z + POOL_SIZE_Z < 0 || offset_z >= INPUT0_SIZE_Z)
@@ -212,7 +212,7 @@ KERNEL(pooling_gpu)(
 
 #endif  // DYNAMIC_WITH_PADDING_KERNEL_DIVIDER
 
-#else  // CHECK_BOUNDRY
+#else  // CHECK_BOUNDARY
 
 #if  OUTPUT_DIMS == 5  // 3D
     uint input_idx = INPUT0_GET_INDEX(b, f, offset_z, offset_y, offset_x);
@@ -289,7 +289,7 @@ KERNEL(pooling_gpu)(
     const uint num_elementes = POOL_SIZE_X*POOL_SIZE_Y*POOL_SIZE_Z;
 #endif
 
-#endif // CHECK_BOUNDRY
+#endif // CHECK_BOUNDARY
 
 #if defined AVG_POOLING
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
