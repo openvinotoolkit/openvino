@@ -43,7 +43,7 @@ declared in `namespace opset8`.
 * [DeformableConvolution](convolution/DeformableConvolution_8.md)
 * [DeformablePSROIPooling](detection/DeformablePSROIPooling_1.md)
 * [DepthToSpace](movement/DepthToSpace_1.md)
-* [DetectionOutput](detection/DetectionOutput_1.md)
+* [DetectionOutput](detection/DetectionOutput_8.md)
 * [DFT](signals/DFT_7.md)
 * [Divide](arithmetic/Divide_1.md)
 * [Einsum](matrix/Einsum_7.md)
