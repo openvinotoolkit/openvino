@@ -109,7 +109,6 @@ $(document).ready(function () {
 
     function getChartOptions(title, displayLabels) {
         return {
-            responsiveAnimationDuration: 200,
             responsive: false,
             maintainAspectRatio:false,
             legend: { display: true, position: 'bottom' },
