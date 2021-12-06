@@ -1574,7 +1574,7 @@ NGRAPH_TEST(onnx_editor, get_output_ports) {
 NGRAPH_TEST(onnx_editor, add_output) {
     ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.onnx")};
 
-    editor.add_output({{OutputEdge{0, 0}}});
+    editor.add_output({OutputEdge{0, 0}});
 
     const auto edge1 = editor.find_output_edge(EditorNode{"add_node1"}, EditorOutput{"X"});
     EXPECT_TRUE(editor.is_output(edge1));
