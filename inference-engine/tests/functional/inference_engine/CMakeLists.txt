@@ -19,7 +19,7 @@ set(LINK_LIBRARIES
     inference_engine_snippets
     offline_transformations
     inference_engine
-    frontend_manager
+    frontend_common
     pugixml::static
 )
 
@@ -41,11 +41,11 @@ if(ENABLE_IR_V7_READER)
 endif()
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES HeteroPlugin)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
-if(ENABLE_MULTI)
-    list(APPEND DEPENDENCIES MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
 if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
@@ -124,12 +124,12 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_PLUGIN_API)
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/plugin_api/")
+            "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/")
     else()
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/ngraph/core/include"
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie"
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/")
+            "${OpenVINO_SOURCE_DIR}/src/core/include"
+            "${OpenVINO_SOURCE_DIR}/src/inference/include/ie"
+            "${OpenVINO_SOURCE_DIR}/src/inference/include/")
     endif()
 
     foreach(include_dir IN LISTS include_dirs)

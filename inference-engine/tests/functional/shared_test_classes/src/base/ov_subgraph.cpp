@@ -26,6 +26,11 @@
 namespace ov {
 namespace test {
 
+std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
+    os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
+    return os;
+}
+
 void SubgraphBaseTest::run() {
     auto crashHandler = [](int errCode) {
         auto& s = LayerTestsUtils::Summary::getInstance();
@@ -135,8 +140,7 @@ void SubgraphBaseTest::configure_model() {
         auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
             if (inType != ov::element::Type_t::undefined) {
-                p.input(ov::preprocess::InputInfo(i)
-                        .tensor(ov::preprocess::InputTensorInfo().set_element_type(inType)));
+                p.input(i).tensor().set_element_type(inType);
             }
         }
     }
@@ -146,8 +150,7 @@ void SubgraphBaseTest::configure_model() {
         auto results = function->get_results();
         for (size_t i = 0; i < results.size(); i++) {
             if (outType != ov::element::Type_t::undefined) {
-                p.output(ov::preprocess::OutputInfo(i)
-                             .tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+                p.output(i).tensor().set_element_type(outType);
             }
         }
     }
@@ -215,7 +218,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
         if (itr != inputs.end()) {
             auto elementType = itr->second.get_element_type();
             if (inputNodes[i].get_element_type() != elementType) {
-                p.input(ov::preprocess::InputInfo(i).tensor(ov::preprocess::InputTensorInfo().set_element_type(elementType)));
+                p.input(i).tensor().set_element_type(elementType);
             }
         } else {
             std::stringstream errMsg;
@@ -228,7 +231,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     const auto& outputs = functionToProcess->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
-            p.output(ov::preprocess::OutputInfo(i).tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+            p.output(i).tensor().set_element_type(outType);
         }
     }
 

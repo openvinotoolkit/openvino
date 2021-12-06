@@ -249,7 +249,7 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
 int main(int argc, char* argv[]) {
     try {
         // -------- Get OpenVINO runtime version --------
-        slog::info << "OpenVINO Runtime: " << ov::get_openvino_version() << slog::endl;
+        slog::info << ov::get_openvino_version() << slog::endl;
 
         // -------- Parsing and validation of input arguments --------
         if (!ParseAndCheckCommandLine(argc, argv)) {
@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
         runtime::Core core;
 
         slog::info << "Device info: " << slog::endl;
-        std::cout << core.get_versions(FLAGS_d) << std::endl;
+        slog::info << core.get_versions(FLAGS_d) << slog::endl;
 
         // -------- Step 2. Create network using ov::Function --------
 
@@ -276,23 +276,18 @@ int main(int argc, char* argv[]) {
         const Layout tensor_layout{"NHWC"};
 
         // apply preprocessing
-        // clang-format off
-        model = ov::preprocess::PrePostProcessor(model)
-            // 1) InputInfo() with no args assumes a model has a single input
-            .input(ov::preprocess::InputInfo()
-                // 2) Set input tensor information:
-                // - precision of tensor is supposed to be 'u8'
-                // - layout of data is 'NHWC'
-                .tensor(ov::preprocess::InputTensorInfo()
-                    .set_layout(tensor_layout)
-                    .set_element_type(element::u8))
-                // 3) Here we suppose model has 'NCHW' layout for input
-                .network(ov::preprocess::InputNetworkInfo()
-                    .set_layout("NCHW")))
+        auto proc = ov::preprocess::PrePostProcessor(model);
+        // 1) InputInfo() with no args assumes a model has a single input
+        auto& input_info = proc.input();
+        // 2) Set input tensor information:
+        // - layout of data is 'NHWC'
+        // - precision of tensor is supposed to be 'u8'
+        input_info.tensor().set_layout(tensor_layout).set_element_type(element::u8);
+        // 3) Here we suppose model has 'NCHW' layout for input
+        input_info.network().set_layout("NCHW");
         // 4) Once the build() method is called, the preprocessing steps
         // for layout and precision conversions are inserted automatically
-        .build();
-        // clang-format on
+        model = proc.build();
 
         // -------- Step 4. Read input images --------
 

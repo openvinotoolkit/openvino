@@ -266,11 +266,11 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
 
     if (!inFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
+                std::make_shared<ngraph::MLKDNNInputMemoryFormats>(fmts2str(inFmts, "cpu:"))});
     }
     if (!outFmts.empty()) {
         cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
+                std::make_shared<ngraph::MLKDNNOutputMemoryFormats>(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
@@ -308,6 +308,8 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
 auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
+            if (formats[i] == nCw16c)
+                formats[i] = nCw8c;
             if (formats[i] == nChw16c)
                 formats[i] = nChw8c;
             if (formats[i] == nCdhw16c)

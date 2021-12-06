@@ -6,7 +6,6 @@
 #include "fc_bias_fusion.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "reshape_1d_ops.hpp"
 #include "reshape_fc_fusion.hpp"
 #include "reshape_fully_connected.hpp"
 #include "align_matmul_input_ranks.hpp"
@@ -26,13 +25,8 @@ namespace MKLDNNPlugin {
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<Reshape1DConvolution>();
-    manager.register_pass<Reshape1DGroupConvolution>();
-    manager.register_pass<Reshape1DAvgPool>();
-    manager.register_pass<Reshape1DMaxPool>();
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
-    manager.register_pass<ConvertBroadcastToTiles>();
     manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<FullyConnectedBiasFusion>();
     manager.register_pass<ReshapeFullyConnected>();

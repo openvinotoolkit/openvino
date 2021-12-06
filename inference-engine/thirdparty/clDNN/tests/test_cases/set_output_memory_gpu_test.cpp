@@ -327,7 +327,7 @@ TEST(set_output_memory_gpu, basic_opt) {
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     network.set_output_memory(outputID, output_mem);
- 
+
     auto outputs = network.execute();
     auto output = outputs.at(outputID).get_memory();
     //  check for correct output memory setting
@@ -349,14 +349,14 @@ TEST(set_output_memory_gpu, mutable_output_data) {
     auto& engine = get_test_engine();
     const int top_k = 2;
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-    auto second_input = engine.allocate_memory({ data_types::f32, format::bfyx, { top_k, feature_num, x_size , y_size } });
-    auto final_output = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1 , 1 } });
+    auto final_output = engine.allocate_memory({ data_types::f32, format::bfyx, { top_k, feature_num, x_size , y_size } });
+    auto second_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1 , 1 } });
 
     topology topology;
     topology.add(input_layout("Add_1396", input->get_layout()));
     topology.add(cldnn::mutable_data("second_input", second_input));
     topology.add(cldnn::mutable_data("12220_md_write", final_output));
-    topology.add(arg_max_min("arg_max", { "Add_1396", "12220_md_write", "second_input" }, arg_max_min::min, top_k, arg_max_min::batch));
+    topology.add(arg_max_min("arg_max", { "Add_1396", "second_input", "12220_md_write" }, arg_max_min::min, top_k, arg_max_min::batch));
     topology.add(cldnn::mutable_data("pred/sink_port_0", {"arg_max"},final_output) );
 
     std::vector<float> input_vec = {

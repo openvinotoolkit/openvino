@@ -9,11 +9,11 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(DEPENDENCIES mock_engine)
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES HeteroPlugin)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
-if(ENABLE_MULTI)
-    list(APPEND DEPENDENCIES MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
 # remove once CVS-69781 is fixed

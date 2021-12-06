@@ -20,7 +20,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
         OVClassBasicTestP,
-        ::testing::Values(std::make_pair("clDNNPlugin", "GPU")));
+        ::testing::Values(std::make_pair("ov_intel_gpu_plugin", "GPU")));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::testing::Values("GPU"));
 
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailable
 using OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie;
-    ov::runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
     uint64_t t = p;
@@ -93,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 using OVClassGetMetricTest_GPU_UARCH_VERSION = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie;
-    ov::runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(UARCH_VERSION)));
     std::string t = p;
@@ -109,7 +109,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 using OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie;
-    ov::runtime::Parameter p;
+    ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
     int t = p;
