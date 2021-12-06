@@ -109,8 +109,7 @@ std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
         spatialDimsValue[i] = newSpatialDimsPtr[i];
     }
 
-    std::vector<VectorDims> result = {};
-    result.resize(outputShapes.size(), outputDims);
+    std::vector<VectorDims> result(outputShapes.size(), outputDims);
     return result;
 }
 

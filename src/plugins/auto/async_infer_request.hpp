@@ -12,8 +12,8 @@
 #include <string>
 
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
-#include "multi_device_infer_request.hpp"
-#include "multi_device_exec_network.hpp"
+#include "infer_request.hpp"
+#include "executable_network.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
