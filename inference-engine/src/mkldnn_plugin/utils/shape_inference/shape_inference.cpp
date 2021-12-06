@@ -9,6 +9,7 @@
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include "static_shape.hpp"
 #include "utils.hpp"
@@ -18,6 +19,8 @@
 #include "shape_nodes.hpp"
 #include "fake_quantize.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
+#include "ctc_loss_shape_inference.hpp"
+#include "fft_base_shape_inference.hpp"
 
 
 void shape_inference(ov::Node* op,
@@ -80,6 +83,12 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
         shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset4::CTCLoss>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset7::DFT>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset7::IDFT>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {

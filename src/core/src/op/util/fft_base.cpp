@@ -24,9 +24,10 @@ bool ov::op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void ov::op::util::FFTBase::validate() {
-    size_t num_of_inputs = get_input_size();
+void ov::op::util::FFTBase::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
 
+    size_t num_of_inputs = get_input_size();
     NODE_VALIDATION_CHECK(this, num_of_inputs == 2 || num_of_inputs == 3, "FFT op must have 2 or 3 inputs.");
 
     element::Type input_et = get_input_element_type(0);
@@ -45,16 +46,19 @@ void ov::op::util::FFTBase::validate() {
                               signal_size_et == element::i64 || signal_size_et == element::i32,
                               "FFT op signal_size element type must be i32 or i64");
     }
-}
-
-void ov::op::util::FFTBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
-    validate();
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
-    fft_base_shape_infer(this, input_shapes, output_shapes);
+
+    const auto& data = get_input_partial_shape(0);
+    const auto& axes = get_input_partial_shape(1);
+     if (input_values().size() == 2) {
+         input_shapes = {data, axes};
+     } else {
+         const auto& signal_size = get_input_partial_shape(2);
+         input_shapes = {data, axes, signal_size};
+     }
+
+    shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }

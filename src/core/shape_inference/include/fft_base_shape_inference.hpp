@@ -8,10 +8,10 @@
 #include "utils.hpp"
 
 template <class T>
-void fft_base_shape_infer(const ov::op::util::FFTBase* op,
-                          const std::vector<T>& input_shapes,
-                          std::vector<T>& output_shapes,
-                          const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+void shape_infer(const ov::op::util::FFTBase* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3) && output_shapes.size() == 1);
 
@@ -35,14 +35,20 @@ void fft_base_shape_infer(const ov::op::util::FFTBase* op,
 
         if (axes_shape.is_static()) {
             NODE_VALIDATION_CHECK(op,
-                                  input_rank >= static_cast<int64_t>(axes_shape.to_shape()[0] + 1),
+                                  input_rank >= static_cast<int64_t>(axes_shape[0].get_length() + 1),
                                   "The input rank must be greater than number of FFT op axes. Got "
                                   "input rank: ",
                                   input_rank,
                                   ", number of axes: ",
-                                  axes_shape.to_shape()[0]);
+                                  axes_shape[0].get_length());
         }
 
+        // FFT operation supports for negative axes to transform. More precisely, according to
+        // the FFT operation specification, axes should be integers from -(r - 1) to (r - 2)
+        // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis
+        // 'r - 1 + a'. The reason is the following: real input tensor of the shape
+        // [n_0, ..., n_{r - 1}, 2] is interpreted as a complex tensor with the shape
+        // [n_0, ..., n_{r - 1}].
         if (axes_shape.rank().is_static() && axes_are_known) {
             for (int64_t& axis : axes) {
                 if (axis < 0) {
@@ -53,7 +59,7 @@ void fft_base_shape_infer(const ov::op::util::FFTBase* op,
             ov::AxisVector axes_vector;
             ov::AxisSet axes_set;
 
-            for (const int64_t axis : axes) {
+            for (const auto& axis : axes) {
                 axes_vector.push_back(static_cast<size_t>(axis));
                 axes_set.insert(static_cast<size_t>(axis));
             }
@@ -102,7 +108,7 @@ void fft_base_shape_infer(const ov::op::util::FFTBase* op,
                 output_shape[axes[i]] = DimType(signal_size[i]);
             }
         } else if (signal_size_shape.rank().is_static()) {
-            for (int64_t axis : axes) {
+            for (int64_t& axis : axes) {
                 output_shape[axis] = ov::Dimension::dynamic();
             }
         }
@@ -112,22 +118,4 @@ void fft_base_shape_infer(const ov::op::util::FFTBase* op,
             output_shape[i] = ov::Dimension::dynamic();
         }
     }
-}
-
-template <class T>
-void shape_infer(const ov::op::v7::DFT* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3) && output_shapes.size() == 1);
-    fft_base_shape_infer(op, input_shapes, output_shapes, constant_data);
-}
-
-template <class T>
-void shape_infer(const ov::op::v7::IDFT* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3) && output_shapes.size() == 1);
-    fft_base_shape_infer(op, input_shapes, output_shapes, constant_data);
 }

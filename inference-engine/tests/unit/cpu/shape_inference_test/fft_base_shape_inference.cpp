@@ -29,6 +29,14 @@ static std::shared_ptr<op::v7::DFT> build_dft_signal() {
     return DFT_signal;
 }
 
+static std::shared_ptr<op::v7::DFT> build_dft_constant() {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 2});
+    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{512, 100});
+    auto DFT_signal = std::make_shared<ov::op::v7::DFT>(input_shape, axes, signal);
+    return DFT_signal;
+}
+
 static std::shared_ptr<op::v7::IDFT> build_idft() {
     auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
@@ -53,7 +61,7 @@ TEST(StaticShapeInferenceTest, DFTTest) {
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
 
-    shape_infer(DFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    shape_inference(DFT.get(), static_input_shapes, static_output_shapes, constant_data);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 320, 320, 2}));
 }
 
@@ -69,7 +77,17 @@ TEST(StaticShapeInferenceTest, DFTSignalTest) {
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
 
-    shape_infer(DFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    shape_inference(DFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 512, 100, 2}));
+}
+
+TEST(StaticShapeInferenceTest, DFTConstantTest) {
+    auto DFT = build_dft_constant();
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+
+    shape_inference(DFT.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 512, 100, 2}));
 }
 
@@ -81,7 +99,7 @@ TEST(StaticShapeInferenceTest, DFTSignalMissingConstDataTest) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
-    EXPECT_THROW(shape_infer(DFT.get(), static_input_shapes, static_output_shapes, constant_data),
+    EXPECT_THROW(shape_inference(DFT.get(), static_input_shapes, static_output_shapes, constant_data),
                  NodeValidationFailure);
 }
 
@@ -94,7 +112,7 @@ TEST(StaticShapeInferenceTest, IDFTTest) {
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
 
-    shape_infer(IDFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    shape_inference(IDFT.get(), static_input_shapes, static_output_shapes, constant_data);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 320, 320, 2}));
 }
 
@@ -110,7 +128,7 @@ TEST(StaticShapeInferenceTest, IDFTSignalTest) {
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
 
-    shape_infer(IDFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    shape_inference(IDFT.get(), static_input_shapes, static_output_shapes, constant_data);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 512, 100, 2}));
 }
 
@@ -122,6 +140,6 @@ TEST(StaticShapeInferenceTest, IDFTSignalMissingConstDataTest) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
-    EXPECT_THROW(shape_infer(IDFT.get(), static_input_shapes, static_output_shapes, constant_data),
+    EXPECT_THROW(shape_inference(IDFT.get(), static_input_shapes, static_output_shapes, constant_data),
                  NodeValidationFailure);
 }
