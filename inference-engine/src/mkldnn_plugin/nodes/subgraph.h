@@ -55,9 +55,6 @@ private:
 
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
-    // Original subgraph node for fallback and regression testing
-    // store it here since MKLDNN eraces CNNLayers at some point
-    std::shared_ptr<ngraph::snippets::op::Subgraph> snippet_ref;
 
     // Holds generated snippet with information about how to schedule it
     ngraph::snippets::Schedule schedule;

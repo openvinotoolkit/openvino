@@ -35,20 +35,11 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
         : MKLDNNNode(op, eng, cache) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common) ?
         dnnl::impl::cpu::x64::avx512_common : dnnl::impl::cpu::x64::avx2;
-    if ((snippet_ref = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(op))) {
-        ngraph::OutputVector subgraph_node_inputs;
-        for (const auto &input : snippet_ref->input_values()) {
-            auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
-            subgraph_node_inputs.push_back(new_input);
-        }
-        auto new_body = ngraph::clone_function(*snippet_ref->get_body().get());
-        snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
-        ngraph::copy_runtime_info(snippet_ref, snippet);
-        snippet->set_friendly_name(snippet_ref->get_friendly_name());
+
+    if ((snippet = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(op))) {
         snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
     } else {
-        snippet_ref.reset();
-        snippet.reset();
+        IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
 }
 
