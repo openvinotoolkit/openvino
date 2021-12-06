@@ -7,8 +7,6 @@
 #include "openvino/op/exp.hpp"
 #include "base_reference_test.hpp"
 
-#include "functional_test_utils/skip_tests_config.hpp"
-
 using namespace reference_tests;
 using namespace ov;
 using namespace InferenceEngine;
@@ -33,7 +31,6 @@ struct ExpParams {
 class ReferenceExpLayerTest : public testing::TestWithParam<ExpParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         auto params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType);
         inputData = {params.inputData};
@@ -163,7 +160,9 @@ std::vector<ExpParams> generateExpCombinedParams() {
         generateExpFloatParams<element::Type_t::f32>(),
         generateExpFloatParams<element::Type_t::f16>(),
         generateExpIntParams<element::Type_t::i32>(),
-        generateExpIntParams<element::Type_t::i64>()
+        generateExpIntParams<element::Type_t::i64>(),
+        generateExpUintParams<element::Type_t::u32>(),
+        generateExpUintParams<element::Type_t::u64>()
         };
     std::vector<ExpParams> combinedParams;
 
