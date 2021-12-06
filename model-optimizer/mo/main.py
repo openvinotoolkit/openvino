@@ -321,13 +321,9 @@ def prepare_ir(argv):
     ngraph_function = None
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
-    if moc_front_end:
-        t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-        moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
-        ngraph_function = moc_pipeline(argv, moc_front_end)
-    else:
-        t.send_event("mo", "conversion_method", "mo_legacy")
-        graph = unified_pipeline(argv)
+    t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
+    moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
+    ngraph_function = moc_pipeline(argv, moc_front_end)
 
     return graph, ngraph_function
 
@@ -420,8 +416,10 @@ def driver(argv: argparse.Namespace):
     graph, ngraph_function = prepare_ir(argv)
     if graph is not None:
         ret_res = emit_ir(graph, argv)
-    else:
+    elif ngraph_function is not None:
         ret_res = moc_emit_ir(ngraph_function, argv)
+    else:
+        raise ImportError("Could not import the model in any way")
 
     if ret_res != 0:
         return ret_res
