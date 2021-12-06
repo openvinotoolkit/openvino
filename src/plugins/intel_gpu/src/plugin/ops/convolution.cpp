@@ -233,61 +233,48 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
     p.AddPrimitiveToProfiler(op);
 }
 
-static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op) {
-    p.ValidateInputs(op, {3});
+static void DeformableConvolutionImpl(Program& p,
+                                      const std::shared_ptr<ngraph::Node>& op,
+                                      const ConvoltuionParameters& params,
+                                      std::int64_t deformableGroupsNum,
+                                      bool bilinearInterpolationPad = false) {
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
-
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), op->get_group());
     auto outDims = op->get_output_shape(0);
 
     std::vector<cldnn::primitive_id> weights = {inputs[2]};
-    if (params.groups > 1) {
-        auto convPrim = cldnn::convolution(layerName,
-                                           inputs[0],
-                                           inputs[1],
-                                           weights,
-                                           {},
-                                           params.groups,
-                                           op->get_deformable_group(),
-                                           params.stride,
-                                           params.padding,
-                                           params.dilation,
-                                           CldnnTensorFromIEDims(outDims),
-                                           op->get_friendly_name());
-
-        p.AddPrimitive(convPrim);
-        p.AddPrimitiveToProfiler(op);
-    } else {
+    // Remove weights from inputs
+    inputs.erase(inputs.begin() + 2);
+    if (params.groups == 1) {
         std::string defConvLayerNameInterp = layerName + "_interp";
         std::string defConvLayerNameConv = layerName;
         cldnn::tensor kernel;
         auto weights_shape = op->get_input_shape(2);
-        size_t sidx = 2 + (params.groups > 1 ? 1 : 0);
+        size_t nonSpatialDimsNum = 2;
         if (weights_shape.size() == 3) {
             kernel = cldnn::tensor(cldnn::batch(1),
                                    cldnn::feature(1),
-                                   cldnn::spatial(weights_shape[sidx + 2],
-                                                  weights_shape[sidx + 1],
-                                                  weights_shape[sidx + 0]));
+                                   cldnn::spatial(weights_shape[nonSpatialDimsNum + 2],
+                                                  weights_shape[nonSpatialDimsNum + 1],
+                                                  weights_shape[nonSpatialDimsNum + 0]));
         } else {
             kernel = cldnn::tensor(cldnn::batch(1),
                                    cldnn::feature(1),
-                                   cldnn::spatial(weights_shape[sidx + 1],
-                                                  weights_shape[sidx + 0],
+                                   cldnn::spatial(weights_shape[nonSpatialDimsNum + 1],
+                                                  weights_shape[nonSpatialDimsNum + 0],
                                                   1));
         }
 
         auto defConvPrimInterp = cldnn::deformable_interp(defConvLayerNameInterp,
-                                                          inputs[0],
-                                                          inputs[1],
+                                                          inputs,
                                                           params.groups,
-                                                          op->get_deformable_group(),
+                                                          deformableGroupsNum,
                                                           params.stride,
                                                           params.padding,
                                                           params.dilation,
                                                           CldnnTensorFromIEDims(outDims),
                                                           kernel,
+                                                          bilinearInterpolationPad,
                                                           op->get_friendly_name());
         p.AddPrimitive(defConvPrimInterp);
         p.AddInnerPrimitiveToProfiler(defConvLayerNameInterp, defConvLayerNameConv, op);
@@ -300,7 +287,35 @@ static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngra
                                                   op->get_friendly_name());
         p.AddPrimitive(defConvPrim);
         p.AddPrimitiveToProfiler(defConvLayerNameConv, op);
+    } else {
+        auto convPrim = cldnn::convolution(layerName,
+                                           inputs,
+                                           weights,
+                                           {},
+                                           params.groups,
+                                           deformableGroupsNum,
+                                           params.stride,
+                                           params.padding,
+                                           params.dilation,
+                                           CldnnTensorFromIEDims(outDims),
+                                           bilinearInterpolationPad,
+                                           op->get_friendly_name());
+
+        p.AddPrimitive(convPrim);
+        p.AddPrimitiveToProfiler(op);
     }
+}
+
+static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op) {
+    p.ValidateInputs(op, {3});
+    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), op->get_group());
+    DeformableConvolutionImpl(p, op, params, op->get_deformable_group());
+}
+
+static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v8::DeformableConvolution>& op) {
+    p.ValidateInputs(op, {3, 4});
+    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), op->get_group());
+    DeformableConvolutionImpl(p, op, params, op->get_deformable_group(), op->get_bilinear_interpolation_pad());
 }
 
 static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op) {
@@ -334,6 +349,7 @@ REGISTER_FACTORY_IMPL(v1, Convolution);
 REGISTER_FACTORY_IMPL(v1, ConvolutionBackpropData);
 REGISTER_FACTORY_IMPL(v1, GroupConvolutionBackpropData);
 REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
+REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v1, BinaryConvolution);
 
 }  // namespace CLDNNPlugin
