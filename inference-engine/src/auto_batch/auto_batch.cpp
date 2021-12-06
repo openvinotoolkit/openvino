@@ -565,11 +565,14 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
     if (deviceName.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(GetCore(), deviceName, "After Batch1") - batch1_footprint;
-        const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
-        int estimated_batch = total_mem / batch1_footprint;
-        int closest = pow(2, floor(log(estimated_batch)/log(2)));
-        std::cout << "!!! ESTIMATED BATCH: " << closest << std::endl;
-        metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
+        if (batch1_footprint) {
+            const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+            int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
+            int closest = pow(2, floor(log(estimated_batch) / log(2)));
+            closest = std::max(1, closest);
+            std::cout << "!!! ESTIMATED BATCH: " << closest << std::endl;
+            metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
+        }
     }
     // device settings + auto-batch settings
     std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
@@ -577,7 +580,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
 
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
-    do {
+    while (!executableNetworkWithBatch && (metaDevice.batchForDevice !=1)) {
         try {
             CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
             const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
@@ -614,10 +617,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             std::cout << "WA for network failure!!!" << std::endl;
             metaDevice.batchForDevice /= 2;
         }
-    } while (!executableNetworkWithBatch && (metaDevice.batchForDevice));
-    if (executableNetworkWithBatch == nullptr)
-            IE_THROW(NetworkNotLoaded) << "Failed to load Executable network to the device " << deviceName
-                << " that the BATCH device is initialized to work with";
+    }
+
+    if (metaDevice.batchForDevice == 1) {
+        executableNetworkWithBatch = executableNetworkWithoutBatch;
+        std::cout << "FALLBACK to using batch1 network!!!" << std::endl;
+    }
 
     return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkWithBatch,
                                                         executableNetworkWithoutBatch,
