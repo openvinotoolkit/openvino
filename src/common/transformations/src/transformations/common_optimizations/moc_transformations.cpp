@@ -55,6 +55,7 @@
 #include <transformations/common_optimizations/divide_fusion.hpp>
 #include <transformations/common_optimizations/subtract_fusion.hpp>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
+#include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
 #include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
@@ -145,6 +146,9 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
+    if (m_use_shapes) {
+        common_fusions->add_matcher<ngraph::pass::NearestNeighborUpsamplingFusion>();
+    }
     common_fusions->add_matcher<ngraph::pass::DivideFusion>();
     common_fusions->add_matcher<ngraph::pass::SubtractFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();

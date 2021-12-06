@@ -71,6 +71,8 @@ from openvino.runtime.opset4.ops import hswish
 from openvino.runtime.opset7.ops import idft
 from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset1.ops import interpolate
+from openvino.runtime.opset8.ops import i420_to_bgr
+from openvino.runtime.opset8.ops import i420_to_rgb
 from openvino.runtime.opset1.ops import less
 from openvino.runtime.opset1.ops import less_equal
 from openvino.runtime.opset1.ops import log
@@ -98,6 +100,8 @@ from openvino.runtime.opset5.ops import non_max_suppression
 from openvino.runtime.opset3.ops import non_zero
 from openvino.runtime.opset1.ops import normalize_l2
 from openvino.runtime.opset1.ops import not_equal
+from openvino.runtime.opset8.ops import nv12_to_bgr
+from openvino.runtime.opset8.ops import nv12_to_rgb
 from openvino.runtime.opset1.ops import one_hot
 from openvino.runtime.opset1.ops import pad
 from openvino.runtime.opset1.ops import parameter
