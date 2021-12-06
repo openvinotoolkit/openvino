@@ -138,6 +138,9 @@ ONNX_IMPORTER_API std::vector<Graph> Node::get_attribute_value(const std::string
                                                                std::vector<Graph> default_value) const;
 
 template <>
+ONNX_IMPORTER_API bool Node::get_attribute_value(const std::string& name, bool default_value) const;
+
+template <>
 ONNX_IMPORTER_API float Node::get_attribute_value(const std::string& name) const;
 
 template <>

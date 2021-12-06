@@ -340,6 +340,11 @@ std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vecto
 }
 
 template <>
+ONNX_IMPORTER_API bool Node::get_attribute_value(const std::string& name, bool default_value) const {
+    return m_pimpl->template get_attribute_value<bool>(name, std::move(default_value));
+}
+
+template <>
 float Node::get_attribute_value(const std::string& name) const {
     return m_pimpl->template get_attribute_value<float>(name);
 }
