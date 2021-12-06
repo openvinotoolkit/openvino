@@ -10,7 +10,7 @@
 #include <vector>
 #include <memory>
 #include <caseless.hpp>
-#include <cpu_lru_cache.h>
+#include <cache/cache.h>
 
 namespace MKLDNNPlugin {
 
@@ -91,16 +91,18 @@ public:
         std::vector<Type> ops_list;
         VectorDims outBlkDims;
         VectorDims outOrder;
-        std::vector<VectorDims> dims_in;
+        std::vector<VectorDims> inpDims;
         std::vector<InferenceEngine::Precision> inpPrc;
         InferenceEngine::Precision outPrc;
-        mkldnn::post_ops post_ops;
+        mkldnn::post_ops postOps;
         bool useDynBatch;
-        bool isOptimized;
+        bool useJit;
 
         size_t hash() const;
-        bool operator==(const EltwiseKey& rhs) const noexcept;
+        bool operator==(const EltwiseKey& rhs) const;
     };
+
+    using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
     MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
@@ -146,10 +148,9 @@ public:
 
 
 private:
-    using executorPtr = std::shared_ptr<IEltwiseExecutor>;
     executorPtr execPtr = nullptr;
 
-    using cacheType = LruCache<EltwiseKey, executorPtr>;
+    using cacheType = ExecutorCache<EltwiseKey, executorPtr>;
     static cacheType cache;
 
     BroadcastingPolicy broadcastingPolicy;

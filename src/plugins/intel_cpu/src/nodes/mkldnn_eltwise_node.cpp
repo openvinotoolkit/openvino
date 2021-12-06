@@ -1040,9 +1040,9 @@ public:
                        const std::vector<Type>& ops_list,
                        const VectorDims& outBlkDims,
                        const VectorDims& outOrder,
-                       std::vector<VectorDims> dims_in,
+                       std::vector<VectorDims> inpDims,
                        const std::vector<InferenceEngine::Precision>& inpPrc,
-                       InferenceEngine::Precision& outPrc,
+                       const InferenceEngine::Precision& outPrc,
                        const mkldnn::post_ops& post_ops,
                        bool useDynBatch) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
@@ -1082,16 +1082,16 @@ public:
             return any_of(start_itr, ops_list.end(), [=](Type type) { return type == type_; });
         };
 
-        if (dims_in.empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty dims_in array";
-        } else if (dims_in.front().empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty dims_in array members";
+        if (inpDims.empty()) {
+            IE_THROW() << "Can not make Eltwise executor from empty input dims array";
+        } else if (inpDims.front().empty()) {
+            IE_THROW() << "Can not make Eltwise executor from empty input dims members";
         }
 
         jit_eltwise_params jep = {};
-        size_t inputsNumber = dims_in.size();
+        size_t inputsNumber = inpDims.size();
 
-        jep.input_size = dims_in.front().size();
+        jep.input_size = inpDims.front().size();
 
         jep.dims.resize(jep.input_size, 1);
 
@@ -1104,9 +1104,9 @@ public:
             jep.dims[jep.dims.size() - 1 - i] = outBlkDims[outRank - 1 - i];
         }
 
-        for (int i = 0; i < dims_in.size(); i++) {
-            for (int j = 0; j < dims_in[i].size(); j++) {
-                if (dims_in[i][j] != jep.dims[j] && dims_in[i][j] != 1)
+        for (int i = 0; i < inpDims.size(); i++) {
+            for (int j = 0; j < inpDims[i].size(); j++) {
+                if (inpDims[i][j] != jep.dims[j] && inpDims[i][j] != 1)
                     IE_THROW() << "Eltwise executor got invalid input/output dims configuration.";
             }
         }
@@ -1153,19 +1153,19 @@ public:
             if (collapsedDims >= maxCollapsedDims)
                 break;
 
-            for (int j = 1; j < dims_in.size(); j++) {
-                if (dims_in[j].back() != dims_in[0].back()) {
+            for (int j = 1; j < inpDims.size(); j++) {
+                if (inpDims[j].back() != inpDims[0].back()) {
                     hasDifferentDims = true;
                 }
             }
 
-            if (oc_size > 1 && oc_size != dims_in[0][dims_in[0].size() - 1]) {
+            if (oc_size > 1 && oc_size != inpDims[0][inpDims[0].size() - 1]) {
                 hasDifferentDims = true;
             }
 
             bool canCollapse = true;
-            for (int i = 0; i < dims_in.size(); i++) {
-                if (dims_in[i][dims_in[i].size() - 2] != 1) {
+            for (int i = 0; i < inpDims.size(); i++) {
+                if (inpDims[i][inpDims[i].size() - 2] != 1) {
                     if (hasDifferentDims) {
                         canCollapse = false;
                         break;
@@ -1182,8 +1182,8 @@ public:
                 currentJitWorkAmount = nextJitWorkAmount;
                 collapsedDims++;
 
-                for (int i = 0; i < dims_in.size(); i++) {
-                    collapseLastDims(dims_in[i], 1);
+                for (int i = 0; i < inpDims.size(); i++) {
+                    collapseLastDims(inpDims[i], 1);
                 }
                 collapseLastDims(jep.dims, 1);
 
@@ -1211,7 +1211,7 @@ public:
 
         for (int i = 0; i < inputsNumber; i++) {
             jep.src_offsets[i].resize(jep.input_size, 1);
-            offset_in_calc(jep.src_offsets[i], dims_in[i], jep.dims);
+            offset_in_calc(jep.src_offsets[i], inpDims[i], jep.dims);
             for (int j = 0; j < jep.input_size; j++) {
                 jep.src_offsets[i][j] *= inpPrc[i].size();
             }
@@ -1221,7 +1221,7 @@ public:
 
         for (int i = 0; i < inputsNumber; i++) {
             jep.src_prc[i] = inpPrc[i];
-            jep.src_size[i] = dims_in[i][dims_in[i].size() - 1];
+            jep.src_size[i] = inpDims[i][inpDims[i].size() - 1];
         }
         jep.dst_prc = outPrc;
         jep.work_amount = jep.dst_size = jep.dims.back();
@@ -1306,20 +1306,20 @@ class EltwiseRefExecutor : public MKLDNNEltwiseNode::IEltwiseExecutor {
 public:
     EltwiseRefExecutor(MKLDNNEltwiseNode::EltwiseData opData,
                        const VectorDims& outBlkDims,
-                       std::vector<VectorDims> dims_in)
+                       std::vector<VectorDims> inpDims)
     : _opData(std::move(opData)) {
-        if (dims_in.empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty dims_in array";
-        } else if (dims_in.front().empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty dims_in array members";
+        if (inpDims.empty()) {
+            IE_THROW() << "Can not make Eltwise executor from empty input dims array";
+        } else if (inpDims.front().empty()) {
+            IE_THROW() << "Can not make Eltwise executor from empty input dims array members";
         }
 
         if (outBlkDims.empty()) {
-            IE_THROW() << "Can not make Elwtise executor from empty blocked dims vector";
+            IE_THROW() << "Can not make Elwtise executor from empty output blocked dims vector";
         }
 
-        _inputNum = dims_in.size();
-        size_t input_size = dims_in.front().size();
+        _inputNum = inpDims.size();
+        size_t input_size = inpDims.front().size();
         _batchDimIdx = input_size - outBlkDims.size();
 
         _dims.resize(input_size, 1);
@@ -1341,7 +1341,7 @@ public:
 
         for (int i = 0; i < _inputNum; i++) {
             _src_offsets[i].resize(input_size, 1);
-            EltwiseJitExecutor::offset_in_calc(_src_offsets[i], dims_in[i], _dims);
+            EltwiseJitExecutor::offset_in_calc(_src_offsets[i], inpDims[i], _dims);
             for (int j = 0; j < input_size; j++) {
                 _src_offsets[i][j] *= sizeof(float); // only FP32 inp prcs are supported
             }
@@ -1454,8 +1454,8 @@ bool MKLDNNEltwiseNode::EltwiseData::operator==(const EltwiseData &rhs) const no
 }
 
 
-bool MKLDNNEltwiseNode::EltwiseKey::operator==(const EltwiseKey &rhs) const noexcept {
-    if (dims_in.size() != rhs.dims_in.size()) {
+bool MKLDNNEltwiseNode::EltwiseKey::operator==(const EltwiseKey &rhs) const {
+    if (inpDims.size() != rhs.inpDims.size()) {
         return false;
     }
 
@@ -1465,12 +1465,12 @@ bool MKLDNNEltwiseNode::EltwiseKey::operator==(const EltwiseKey &rhs) const noex
             outOrder == rhs.outOrder &&
             inpPrc == rhs.inpPrc &&
             outPrc == rhs.outPrc &&
-            *post_ops.get() == *rhs.post_ops.get() &&
+            *postOps.get() == *rhs.postOps.get() &&
             useDynBatch == rhs.useDynBatch &&
-            isOptimized == rhs.isOptimized;
-    if (result && !dims_in.empty()) {
-        for (size_t i = 0; i < dims_in.size() && result; ++i) {
-            result = result && (dims_in[i] == rhs.dims_in[i]);
+            useJit == rhs.useJit;
+    if (result && !inpDims.empty()) {
+        for (size_t i = 0; i < inpDims.size() && result; ++i) {
+            result = result && (inpDims[i] == rhs.inpDims[i]);
         }
     }
     return result;
@@ -1494,20 +1494,40 @@ size_t MKLDNNEltwiseNode::EltwiseKey::hash() const {
     seed = get_array_hash(seed, ops_list.data(), ops_list.size());
     seed = get_array_hash(seed, outBlkDims.data(), outBlkDims.size());
     seed = get_array_hash(seed, outOrder.data(), outOrder.size());
-    for (auto&& item : dims_in) {
+    for (auto&& item : inpDims) {
         seed = get_array_hash(seed, item.data(), item.size());
     }
     std::for_each(inpPrc.begin(), inpPrc.end(), [&](const Precision& item) {
         seed = hash_combine(seed, item.getPrecVal());
     });
     seed = hash_combine(seed, outPrc.getPrecVal());
-    seed = get_post_op_hash(seed, *post_ops.get());
+    seed = get_post_op_hash(seed, *postOps.get());
     seed = hash_combine(seed, useDynBatch);
-    seed = hash_combine(seed, isOptimized);
+    seed = hash_combine(seed, useJit);
     return seed;
 }
 
-MKLDNNEltwiseNode::cacheType MKLDNNEltwiseNode::cache(100);
+static MKLDNNEltwiseNode::executorPtr buildExecutor(const MKLDNNEltwiseNode::EltwiseKey& key) {
+    MKLDNNEltwiseNode::executorPtr execPtr;
+    if (key.useJit) {
+        execPtr = std::make_shared<EltwiseJitExecutor>(key.eltwise_data,
+                                                       key.ops_list,
+                                                       key.outBlkDims,
+                                                       key.outOrder,
+                                                       key.inpDims,
+                                                       key.inpPrc,
+                                                       key.outPrc,
+                                                       key.postOps,
+                                                       key.useDynBatch);
+    } else {
+        execPtr = std::make_shared<EltwiseRefExecutor>(key.eltwise_data.front(),
+                                                       key.outBlkDims,
+                                                       key.inpDims);
+    }
+    return execPtr;
+}
+
+MKLDNNEltwiseNode::cacheType MKLDNNEltwiseNode::cache(100, buildExecutor);
 
 bool MKLDNNEltwiseNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -1590,6 +1610,10 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     // if dim rank is greater than the maximum possible, we should use the reference execution
     canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
+
+    if (!canUseOptimizedImpl && !fusedWith.empty()) {
+        IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' uses reference impl, but unexpectedly fused with other ops";
+    }
 
     size_t expectedInputsNum = getOpInputsNum();
     for (auto& postOp : fusedWith) {
@@ -1891,43 +1915,21 @@ void MKLDNNEltwiseNode::prepareParams() {
                                             eltwise->getBeta(), eltwise->getGamma()});
             }
         } else if (node->getType() == FakeQuantize) {
-            node->appendPostOps(key.post_ops, {});
+            node->appendPostOps(key.postOps, {});
         } else {
             IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
         }
     }
 
     // this is  a dirty hack actually
-    for (int i = 0; i < key.post_ops.len(); ++i) {
-        auto &data = key.post_ops.get()->entry_[i].quantization.data;
+    for (int i = 0; i < key.postOps.len(); ++i) {
+        auto &data = key.postOps.get()->entry_[i].quantization.data;
         fqDataPtrs.emplace_back();
         fqDataPtrs.back().assign(std::begin(data), std::end(data));
         memset(data, 0, sizeof(data));
     }
     // end of the dirty hack
-
-    execPtr = cache.get(key);
-    if (!execPtr) {
-        if (canUseOptimizedImpl) {
-            execPtr = std::make_shared<EltwiseJitExecutor>(key.eltwise_data,
-                                                           key.ops_list,
-                                                           key.outBlkDims,
-                                                           key.outOrder,
-                                                           key.dims_in,
-                                                           key.inpPrc,
-                                                           key.outPrc,
-                                                           key.post_ops,
-                                                           key.useDynBatch);
-        } else {
-            if (!fusedWith.empty()) {
-                IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' uses reference impl, but unexpectedly fused with other ops";
-            }
-            execPtr = std::make_shared<EltwiseRefExecutor>(key.eltwise_data.front(),
-                                                           key.outBlkDims,
-                                                           key.dims_in);
-        }
-        cache.put(key, execPtr);
-    }
+    execPtr = cache.getOrCreate(key);
 }
 
 bool MKLDNNEltwiseNode::needPrepareParams() const {
@@ -1987,7 +1989,7 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
 
         execPtr->exec(args_ptrs, dims_out);
     } else {
-        IE_THROW() << "Can't execute eltwise node. Primitive didn't created";
+        IE_THROW() << "Can't execute eltwise node. Primitive has not been created";
     }
 }
 
