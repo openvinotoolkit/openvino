@@ -34,6 +34,7 @@ class ApplyPermutation(MiddleReplacementPattern):
         self.permute_op_nodes_attrs(graph)
         self.shape_of_sub_graph_reinference(graph)
         self.permute_input_data(graph)
+        graph.dump_graph_for_graphviz(save_to_svg=True)
         graph.graph['layout'] = 'NCHW'
 
     @staticmethod

@@ -241,11 +241,11 @@ def get_replacers_order(transform_types: list):
             dependency_graph.add_edge(cls_before, replacer_cls)
 
     replacers_order = dependency_graph.determined_sort()
-
+    # dependency_graph.dump_graph_for_graphviz(save_to_svg=True)
     debug_msg_list = ['|  id  | enabled | class ']
     for i, replacer_cls in enumerate(replacers_order):
         debug_msg_list.append('|{:5} |{:^9}| {}'.format(i, str(getattr(replacer_cls, 'enabled', None)), replacer_cls))
-    log.debug('Replacers execution order: \n{}'.format('\n'.join(debug_msg_list)))
+    print('Replacers execution order: \n{}'.format('\n'.join(debug_msg_list)))
 
     return replacers_order
 

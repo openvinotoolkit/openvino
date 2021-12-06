@@ -55,7 +55,7 @@ def convert_batch_norm(graph: Graph):
 
             scale = 1. / np.sqrt(variance.data.get_value() + eps)
             shift = (mean.data.get_value() * (-1)) * scale
-
+            # comment it
             # Expand dims for current layout
             broadcast_dims_cnt = len(node.in_port(0).data.get_shape()) - 2 if graph.graph['layout'] == 'NCHW' else 0
 

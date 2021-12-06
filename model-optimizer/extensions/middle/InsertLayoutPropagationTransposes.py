@@ -74,6 +74,8 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
         # reshape from 4D-5D -> ND. Insert Transpose(NC(D)HW->N(D)HWC) before Reshape
         for reinterp_shape_node_id in graph.get_nodes_with_attributes(reinterp_shape=True):
             reinterp_shape_node = Node(graph, reinterp_shape_node_id)
+            if reinterp_shape_node.soft_get('name', reinterp_shape_node_id) == "GatherV2_5":
+                graph.dump_graph_for_graphviz(save_to_svg=True)
             assert 0 in reinterp_shape_node.in_nodes(), 'Node {} does not have 0 input. \n{}'.format(
                 reinterp_shape_node_id, graph.dump_graph_for_graphviz())
             input_shape = reinterp_shape_node.in_node(0).shape
@@ -103,6 +105,8 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
             assert 0 in reinterp_shape_node.out_nodes(), 'Node {} does not have 0 output. \n{}'.format(
                 reinterp_shape_node_id, graph.dump_graph_for_graphviz())
             output_shape = reinterp_shape_node.out_node(0).shape
+            if reinterp_shape_node.soft_get('name', reinterp_shape_node_id) == "GatherV2_5":
+                graph.dump_graph_for_graphviz(save_to_svg=True)
             if self.is_nhwc_to_nchw_transpose_needed(reinterp_shape_node):
                 permute_node = create_op_node_with_second_input(
                     graph, Transpose, PermuteAttrs().get_nhwc_to_nchw_permutation(len(output_shape)).perm,
