@@ -35,7 +35,8 @@ struct pooling_params : public base_params {
         k.EnablePoolKernelDividerMode(divMode);
 
         if (maxPoolOpset8Features) {
-            k.EnableMaxPoolOpset8Features();
+            k.EnablePoolDilation();
+            k.EnablePoolIndicesOutput();
         }
 
         return k;
