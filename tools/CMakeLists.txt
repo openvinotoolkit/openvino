@@ -24,7 +24,7 @@ install(DIRECTORY deployment_manager
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
-ie_cpack_add_component(openvino_dev_req_files)
+ie_cpack_add_component(${OV_COMP_DEV_REQ_FILES})
 
 foreach(EXTRAS ${EXTRAS_LIST})
     if(${EXTRAS} STREQUAL "_")
@@ -37,8 +37,8 @@ foreach(EXTRAS ${EXTRAS_LIST})
     configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
-        DESTINATION tools
-        COMPONENT openvino_dev_req_files
+        DESTINATION share/openvino/tools
+        COMPONENT ${OV_COMP_DEV_REQ_FILES}
         EXCLUDE_FROM_ALL)
 endforeach()
 

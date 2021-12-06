@@ -312,6 +312,11 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core)
 
+set_target_properties(inference_engine PROPERTIES
+    OUTPUT_NAME openvino
+    # SOVERSION 2022.1
+    )
+
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION include
         COMPONENT core_dev)
@@ -321,6 +326,7 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+        NAMELINK_COMPONENT core_dev
         INCLUDES DESTINATION include
                              # TODO: remove later once samples are updated
                              include/ie)
