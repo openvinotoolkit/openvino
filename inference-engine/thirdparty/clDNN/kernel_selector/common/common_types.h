@@ -71,7 +71,8 @@ enum class KernelType {
     EXTRACT_IMAGE_PATCHES,
     LOOP,
     NON_MAX_SUPPRESSION,
-    DETECTION_OUTPUT
+    DETECTION_OUTPUT,
+    EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
