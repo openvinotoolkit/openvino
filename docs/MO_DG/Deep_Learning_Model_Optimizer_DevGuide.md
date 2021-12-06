@@ -654,19 +654,19 @@ framework-specific parameters for:
 
    * - .. raw:: html
 
-           <iframe width="220"
+           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
            src="https://www.youtube.com/embed/Kl1ptVb7aI8">
            </iframe>
     
      - .. raw:: html
 
-           <iframe width="220"
+           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
            src="https://www.youtube.com/embed/BBt1rseDcy0">
            </iframe>
 
      - .. raw:: html
 
-           <iframe width="220"
+           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="220"
            src="https://www.youtube.com/embed/RF8ypHyiKrY">
            </iframe>
 

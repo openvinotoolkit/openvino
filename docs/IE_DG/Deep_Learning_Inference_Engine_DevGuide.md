@@ -44,7 +44,7 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
 
    * - .. raw:: html
 
-           <iframe height="315" width="100%"
+           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen height="315" width="100%"
            src="https://www.youtube.com/embed/e6R13V8nbak">
            </iframe>
    * - **Inference Engine Concept**. Duration: 3:43
