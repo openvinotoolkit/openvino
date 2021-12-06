@@ -189,7 +189,7 @@ public:
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
     // can be fused into next.
     bool can_fuse_reorder(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
-    bool can_fuse_reorder_to_prev(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
+    bool can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next);
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
