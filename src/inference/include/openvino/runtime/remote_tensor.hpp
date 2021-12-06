@@ -58,5 +58,6 @@ public:
      */
     std::string get_device_name() const;
 };
+
 }  // namespace runtime
 }  // namespace ov
