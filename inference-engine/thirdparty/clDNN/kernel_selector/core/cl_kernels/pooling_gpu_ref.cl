@@ -28,8 +28,8 @@ KERNEL(pooling_gpu)(
 #if MAX_WITH_ARGMAX_POOLING
 , __global float* arg_max
 #endif
-#ifdef SECOND_OUTPUT_TYPE
-, __global SECOND_OUTPUT_TYPE* indices
+#ifdef SELECTED_INDICES_TYPE
+, __global SELECTED_INDICES_TYPE* indices
 #endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
@@ -94,8 +94,8 @@ KERNEL(pooling_gpu)(
 
     ACCUMULATOR_TYPE result = INIT_VAL;
 
-#ifdef SECOND_OUTPUT_TYPE
-    SECOND_OUTPUT_TYPE result_idx = 0;
+#ifdef SELECTED_INDICES_TYPE
+    SELECTED_INDICES_TYPE result_idx = 0;
 #endif
 
 #if MAX_WITH_ARGMAX_POOLING
@@ -177,7 +177,7 @@ KERNEL(pooling_gpu)(
                             }
 #endif
                             const ACCUMULATOR_TYPE casted_input = TO_ACCUMULATOR_TYPE(input[input_idx]);
-                            #ifdef SECOND_OUTPUT_TYPE
+                            #ifdef SELECTED_INDICES_TYPE
                                 if (casted_input > result)
                                 {
                                     result = casted_input;
@@ -254,7 +254,7 @@ KERNEL(pooling_gpu)(
                 uint input_idx = INPUT0_GET_INDEX(b, f, offset_y + j, offset_x + i);
                 result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
     #else
-                #ifdef SECOND_OUTPUT_TYPE
+                #ifdef SELECTED_INDICES_TYPE
                     const current_input = input[input_idx];
                     if (current_input > result)
                     {
@@ -316,11 +316,11 @@ KERNEL(pooling_gpu)(
 #endif
     output[output_pos] = final_result;
 
-#ifdef SECOND_OUTPUT_TYPE
+#ifdef SELECTED_INDICES_TYPE
     #ifdef INDICES_UPPER_BOUND
         result_idx %= INDICES_UPPER_BOUND;
     #endif
-    indices[output_pos] = TO_SECOND_OUTPUT_TYPE(result_idx);
+    indices[output_pos] = TO_SELECTED_INDICES_TYPE(result_idx);
 #endif
 
 #if MAX_WITH_ARGMAX_POOLING

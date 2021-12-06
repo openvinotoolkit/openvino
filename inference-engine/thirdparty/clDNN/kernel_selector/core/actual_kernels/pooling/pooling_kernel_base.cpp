@@ -74,7 +74,7 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
             }
         }
 
-        mem_consts.Merge(MakeTypeJitConstants(pp.poolIndexElementType, "SECOND_OUTPUT"));
+        mem_consts.Merge(MakeTypeJitConstants(pp.poolIndexElementType, "SELECTED_INDICES"));
     }
 
     if (dispatchData.needsBoundary) {
