@@ -578,10 +578,17 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         // Create result
         auto new_result = std::make_shared<ov::op::v0::Result>(node);
         new_result->set_friendly_name(result->get_friendly_name());
+        node.get_tensor().set_names(start_out_node_names);
+
+        // Preserve runtime info of original result
+        new_result->get_rt_info() = result->get_rt_info();
+        new_result->input(0).get_rt_info() = result->input(0).get_rt_info();
+        new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
+
+        // Update layout
         if (!context.layout().empty()) {
             new_result->set_layout(context.layout());
         }
-        node.get_tensor().set_names(start_out_node_names);
 
         for (auto& old_result : results) {
             if (result == old_result) {
