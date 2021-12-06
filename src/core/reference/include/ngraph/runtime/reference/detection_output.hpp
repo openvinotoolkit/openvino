@@ -417,6 +417,22 @@ private:
     }
 
 public:
+    referenceDetectionOutput(const ngraph::op::DetectionOutputAttrs& _attrs,
+                             const ngraph::Shape& locShape,
+                             const ngraph::Shape& priorsShape,
+                             const ngraph::Shape& outShape)
+        : attrs(_attrs) {
+        numImages = locShape[0];
+        priorSize = _attrs.normalized ? 4 : 5;
+        offset = _attrs.normalized ? 0 : 1;
+        numPriors = priorsShape[2] / priorSize;
+        priorsBatchSize = priorsShape[0];
+        numClasses = _attrs.num_classes;
+        numLocClasses = _attrs.share_location ? 1 : numClasses;
+        numResults = outShape[2];
+        outTotalSize = shape_size(outShape);
+    }
+
     referenceDetectionOutput(const ngraph::op::util::DetectionOutputBase::AttributesBase& _attrs,
                              const ngraph::Shape& locShape,
                              const ngraph::Shape& classPredShape,
