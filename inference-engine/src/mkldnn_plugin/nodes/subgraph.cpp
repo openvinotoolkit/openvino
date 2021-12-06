@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
@@ -51,20 +52,9 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
     }
 }
 
-// It's actually initSupportedDescriptors by meaning
-void MKLDNNSnippetNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-}
-
 void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
-    std::vector<InferenceEngine::Precision> inputPrecisions;
-    for (const auto &i : getOriginalInputPrecisions()) {
-        inputPrecisions.push_back(i);
-    }
 
     auto hasBroadcastByC = [this]() -> bool {
         for (auto op : ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(snippet)->get_body()->get_ops()) {
@@ -97,6 +87,9 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
 
     const size_t ndims = outputShapes[0].getRank();
     const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 4, 5) && dimRanksAreEqual;
+    // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
+    //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases. So we need to pass an
+    //  additional parameter to canonicalization, see snippets::op::Subgraph::canonicalize for details.
     const bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual && !hasBroadcastByC();
     enum LayoutType {
         Planar,
@@ -148,7 +141,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             PortConfig portConfig;
-            portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == supportedPrecision) ? 0 : -1;
+            portConfig.inPlace = (!i && canBeInPlace()) ? 0 : -1;
             portConfig.constant = false;
             portConfig.desc = createMemoryDesc(inputShapes[i], supportedPrecision, offset);
             if (inputShapes[i].getDims()[0] == 1) {
@@ -480,40 +473,26 @@ void MKLDNNSnippetNode::define_schedule() {
 
 void MKLDNNSnippetNode::generate() {
     std::vector<MKLDNNEdgePtr> input_first_row;
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        auto edges = getParentEdgesAtPort(i);
-        if (getParentEdgesAtPort(i).size() != 1) {
-            IE_THROW() << "Snippet layer " << getName() << " has >= 1 number of parent edges at port " << i;
-        }
+    for (size_t i = 0; i < inputShapes.size(); i++)
+        input_first_row.push_back(getParentEdgesAtPort(i)[0]);
 
-        input_first_row.push_back(edges[0]);
-    }
-    ngraph::snippets::op::Subgraph::BlockedShapeVector input_shapes;
-    std::transform(input_first_row.begin(), input_first_row.end(), std::back_inserter(input_shapes),
-                [](const MKLDNNEdgePtr& edge) -> ngraph::snippets::op::Subgraph::BlockedShape {
+    auto edgeToBlockedShape = [](const MKLDNNEdgePtr& edge) -> ngraph::snippets::op::Subgraph::BlockedShape {
         const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
         ngraph::Shape shape(blockedDesc->getBlockDims());
         ngraph::AxisVector blocking(blockedDesc->getOrder());
-        ngraph::element::Type precision = (blockedDesc->getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
+        ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
         return std::make_tuple(shape, blocking, precision);
-    });
+    };
+    ngraph::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
+    std::transform(input_first_row.begin(), input_first_row.end(), std::back_inserter(input_blocked_shapes), edgeToBlockedShape);
 
     std::vector<MKLDNNEdgePtr> output_first_row;
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        auto edges = getChildEdgesAtPort(i);
+    for (size_t i = 0; i < outputShapes.size(); i++)
         // Can it go with difference shape or precision to different edges? I assume no.
-        output_first_row.push_back(edges[0]);
-    }
+        output_first_row.push_back(getChildEdgesAtPort(i)[0]);
 
-    ngraph::snippets::op::Subgraph::BlockedShapeVector output_shapes;
-    std::transform(output_first_row.begin(), output_first_row.end(), std::back_inserter(output_shapes),
-                [](const MKLDNNEdgePtr& edge) -> ngraph::snippets::op::Subgraph::BlockedShape {
-        const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        ngraph::Shape shape(blockedDesc->getBlockDims());
-        ngraph::AxisVector blocking(blockedDesc->getOrder());
-        ngraph::element::Type precision = (blockedDesc->getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
-        return std::make_tuple(shape, blocking, precision);
-    });
+    ngraph::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
+    std::transform(output_first_row.begin(), output_first_row.end(), std::back_inserter(output_blocked_shapes), edgeToBlockedShape);
     jit_snippets_compile_args jcp;
     jcp.output_dims = dims_out[max_rank_out_desc_idx];
     std::copy(sch_dims.begin(), sch_dims.end(), jcp.scheduler_dims);
@@ -532,20 +511,20 @@ void MKLDNNSnippetNode::generate() {
         auto b = offsets_out[i].begin();
         std::copy(b, b + harness_num_dims, &jcp.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
     }
-    schedule = snippet->generate(output_shapes, input_shapes, reinterpret_cast<void*>(&jcp));
+    schedule = snippet->generate(output_blocked_shapes, input_blocked_shapes, reinterpret_cast<void*>(&jcp));
 }
 
-void MKLDNNSnippetNode::schedule_6d(const jit_snippets_call_args& const_args) const {
+void MKLDNNSnippetNode::schedule_6d(const jit_snippets_call_args& call_args) const {
     const auto& dom = dims_out[max_rank_out_desc_idx];
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
-            schedule.get_callable<kernel>()(indexes, &const_args);
+            schedule.get_callable<kernel>()(indexes, &call_args);
         });
 }
 
-void MKLDNNSnippetNode::schedule_nt(const jit_snippets_call_args& const_args) const {
+void MKLDNNSnippetNode::schedule_nt(const jit_snippets_call_args& call_args) const {
     const auto& work_size = dims_out[max_rank_out_desc_idx];
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -559,7 +538,7 @@ void MKLDNNSnippetNode::schedule_nt(const jit_snippets_call_args& const_args) co
                 tmp /= work_size[j];
             }
 
-            schedule.get_callable<kernel>()(indexes.data(), &const_args);
+            schedule.get_callable<kernel>()(indexes.data(), &call_args);
         }
     });
 }

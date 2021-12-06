@@ -90,8 +90,6 @@ public:
 
     std::shared_ptr<Subgraph> make_canonical_from_this();
 
-//    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-//                                ngraph::pass::Manager opt = ngraph::pass::Manager());
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
                                 ngraph::pass::Manager opt = ngraph::pass::Manager(), const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,

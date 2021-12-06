@@ -133,8 +133,8 @@ std::shared_ptr<snippets::op::Subgraph> snippets::op::Subgraph::make_canonical_f
 
 // We also can think of canonization as of pass to copy original subgraph and transforming it to canonical form suitable for code generation
 // pass actual parameters and results shapes to generate for as well as channel mapping,
-// we need to distinguish between 5d tensors that represents <N, C, H, W, c> and <N, C, D, H, W> somehow like locked dimensions
-// ngraph::AxisVector to code
+// Todo: we need to distinguish between 5d tensors that represents <N, C, H, W, c> and <N, C, D, H, W> somehow like locked dimensions
+//  ngraph::AxisVector to code
 void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
