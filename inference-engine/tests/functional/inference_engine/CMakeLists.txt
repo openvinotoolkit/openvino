@@ -91,7 +91,6 @@ ie_faster_build(${TARGET_NAME}
 
 file(GLOB_RECURSE legacy_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
-    "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
     "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
     )
