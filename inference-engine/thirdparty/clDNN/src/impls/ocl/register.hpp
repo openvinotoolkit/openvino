@@ -20,6 +20,7 @@
 #include "cldnn/primitives/depth_to_space.hpp"
 #include "cldnn/primitives/detection_output.hpp"
 #include "cldnn/primitives/eltwise.hpp"
+#include "cldnn/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "cldnn/primitives/fully_connected.hpp"
 #include "cldnn/primitives/gather.hpp"
 #include "cldnn/primitives/gather_nd.hpp"
@@ -44,6 +45,7 @@
 #include "cldnn/primitives/reorg_yolo.hpp"
 #include "cldnn/primitives/reshape.hpp"
 #include "cldnn/primitives/reverse_sequence.hpp"
+#include "cldnn/primitives/roi_align.hpp"
 #include "cldnn/primitives/roi_pooling.hpp"
 #include "cldnn/primitives/scale.hpp"
 #include "cldnn/primitives/scatter_update.hpp"
@@ -92,6 +94,7 @@ REGISTER_OCL(deformable_conv);
 REGISTER_OCL(deformable_interp);
 REGISTER_OCL(depth_to_space);
 REGISTER_OCL(detection_output);
+REGISTER_OCL(experimental_detectron_roi_feature_extractor);
 REGISTER_OCL(eltwise);
 REGISTER_OCL(embed);
 REGISTER_OCL(fully_connected);
@@ -118,6 +121,7 @@ REGISTER_OCL(reorder);
 REGISTER_OCL(reorg_yolo);
 REGISTER_OCL(reshape);
 REGISTER_OCL(reverse_sequence);
+REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(scale);
 REGISTER_OCL(scatter_update);

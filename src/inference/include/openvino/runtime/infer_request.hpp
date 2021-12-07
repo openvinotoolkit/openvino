@@ -35,7 +35,7 @@ class ExecutableNetwork;
  */
 class OPENVINO_RUNTIME_API InferRequest {
     std::shared_ptr<void> _so;
-    std::shared_ptr<ie::IInferRequestInternal> _impl;
+    std::shared_ptr<InferenceEngine::IInferRequestInternal> _impl;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
@@ -43,7 +43,7 @@ class OPENVINO_RUNTIME_API InferRequest {
      * destroyed.
      * @param impl Initialized shared pointer
      */
-    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IInferRequestInternal>& impl);
+    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl);
     friend class ov::runtime::ExecutableNetwork;
 
 public:
@@ -56,31 +56,34 @@ public:
      * @brief Sets input/output data to infer
      *
      * @param name Name of input or output tensor.
-     * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
+     * @param tensor Reference to input or output tensor. The type of a tensor must match the model input/output
      * precision and size.
      */
+
     void set_tensor(const std::string& name, const Tensor& tensor);
     /**
      * @brief Sets input/output data to infer
      *
      * @param port Port of input or output tensor.
-     * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
+     * @param tensor Reference to input or output tensor. The type of a tensor must match the model input/output
      * precision and size.
      */
+
     void set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor);
     /**
      * @brief Sets input/output data to infer
      *
      * @param port Port of input or output tensor.
-     * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
+     * @param tensor Reference to input or output tensor. The type of a tensor must match the model input/output
      * precision and size.
      */
     void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
+
     /**
      * @brief Sets input tensor to infer
      *
      * @param idx Index of input tensor.
-     * @param tensor Reference to input tensor. The type of a tensor must match the network input precision and size.
+     * @param tensor Reference to input tensor. The type of a tensor must match the model input precision and size.
      */
     void set_input_tensor(size_t idx, const Tensor& tensor);
     /**
@@ -88,13 +91,15 @@ public:
      *
      * @param tensor Reference to input tensor. If model has several inputs, an exception is thrown.
      */
+
     void set_input_tensor(const Tensor& tensor);
     /**
      * @brief Sets output tensor to infer
      *
      * @param idx Index of output tensor.
-     * @param tensor Reference to output tensor. The type of a tensor must match the network output precision and size.
+     * @param tensor Reference to output tensor. The type of a tensor must match the model output precision and size.
      */
+
     void set_output_tensor(size_t idx, const Tensor& tensor);
     /**
      * @brief Sets output tensor to infer models with single output
@@ -109,6 +114,7 @@ public:
      * @param name A name of tensor to get
      * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
      */
+
     Tensor get_tensor(const std::string& name);
     /**
      * @brief Gets input/output tensor for inference
@@ -116,6 +122,7 @@ public:
      * @param port Port of tensor to get
      * @return A Tensor for the port @p port. If a tensor with specified @p port is not found, an exception is thrown.
      */
+
     Tensor get_tensor(const ov::Output<const ov::Node>& port);
     /**
      * @brief Gets input/output tensor for inference
@@ -123,6 +130,7 @@ public:
      * @param port Port of tensor to get
      * @return A Tensor for the port @p port. If a tensor with specified @p port is not found, an exception is thrown.
      */
+
     Tensor get_tensor(const ov::Output<ov::Node>& port);
     /**
      * @brief Gets input tensor for inference
@@ -131,6 +139,7 @@ public:
      * @return A Tensor with an input index @p idx. If a tensor with specified @p idx is not found, an exception is
      * thrown.
      */
+
     Tensor get_input_tensor(size_t idx);
     /**
      * @brief Gets input tensor for inference
@@ -138,6 +147,7 @@ public:
      * @return An input Tensor for the model. If model has several inputs, an exception is thrown.
      */
     Tensor get_input_tensor();
+
     /**
      * @brief Gets output tensor for inference
      *
@@ -146,6 +156,7 @@ public:
      * thrown.
      */
     Tensor get_output_tensor(size_t idx);
+
     /**
      * @brief Gets output tensor for inference
      *
@@ -170,7 +181,7 @@ public:
      * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer
      *
      * @note not all plugins provide meaningful data
-     * @return Vector of profiling information for layers in network
+     * @return Vector of profiling information for operations in model
      */
     std::vector<ProfilingInfo> get_profiling_info() const;
 
@@ -206,7 +217,7 @@ public:
     /**
      * @brief Gets state control interface for given infer request.
      *
-     * State control essential for recurrent networks
+     * State control essential for recurrent modells
      * @return A vector of Memory State objects
      */
     std::vector<VariableState> query_state();
