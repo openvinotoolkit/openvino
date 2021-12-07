@@ -34,7 +34,7 @@ namespace runtime {
  */
 class OPENVINO_RUNTIME_API AsyncInferQueue {
 public:
-    AsyncInferQueue() = delete;
+    AsyncInferQueue();
 
     /**
      * @brief Basic constructor. Creates InferRequests based on given ExecutableNetwork.
@@ -45,9 +45,9 @@ public:
      */
     AsyncInferQueue(ExecutableNetwork& net, size_t jobs = 0);
 
-    // ~AsyncInferQueue() {
-    //     _requests.clear();
-    // }
+    AsyncInferQueue(std::vector<std::reference_wrapper<ov::runtime::InferRequest>>&& ref_pool,
+                    std::queue<size_t>&& handles,
+                    std::vector<ov::Any>&& userdata);
 
     /**
      * @brief Starts asynchronous inference on next avaiable job. Blocking call if there are no free jobs.
@@ -107,6 +107,13 @@ public:
     void set_callback(std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback);
 
     /**
+     * @brief Get size of pool.
+     *
+     * @return Returns size_t equal to number of jobs in the pool.
+     */
+    size_t size();
+
+    /**
      * @brief Get InferRequest under given id from jobs pool.
      *
      * @param i Specific job id.
@@ -114,6 +121,8 @@ public:
      * @return Returns InferRequest from pool.
      */
     InferRequest& operator[](size_t i);
+
+    size_t num_of_jobs_helper(ExecutableNetwork& net);
 
 private:
     class Impl;
