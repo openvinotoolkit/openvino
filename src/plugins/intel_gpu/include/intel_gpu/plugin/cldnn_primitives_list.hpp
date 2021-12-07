@@ -205,6 +205,7 @@ REGISTER_FACTORY(v5, Loop);
 REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
 REGISTER_FACTORY(v6, MVN);
 REGISTER_FACTORY(v6, GatherElements);
+REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, Gather);
@@ -212,5 +213,6 @@ REGISTER_FACTORY(v7, Gather);
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Gather);
 REGISTER_FACTORY(v8, GatherND);
+REGISTER_FACTORY(v8, DeformableConvolution);
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

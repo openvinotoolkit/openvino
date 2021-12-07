@@ -59,8 +59,6 @@ cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" OFF
 # Inference Engine specific options
 #
 
-ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86_64" OFF)
-
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
@@ -86,7 +84,10 @@ endif()
 
 ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ON "ENABLE_TBBBIND_2_5_DEFAULT" OFF)
 
-if (ENABLE_GNA)
+ie_dependent_option (ENABLE_INTEL_GNA "GNA support for inference engine" ON
+    "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
+
+if (ENABLE_INTEL_GNA)
     if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
         set (DEFAULT_GNA_LIB GNA1)
     else()
@@ -112,7 +113,8 @@ ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFA
 
 ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
 
-ie_option (ENABLE_MULTI "Enables Multi Device Plugin" ON)
+ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
+ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
 
 ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
@@ -209,8 +211,8 @@ if (ENABLE_MKL_DNN)
     add_definitions(-DENABLE_MKL_DNN=1)
 endif()
 
-if (ENABLE_GNA)
-    add_definitions(-DENABLE_GNA)
+if (ENABLE_INTEL_GNA)
+    add_definitions(-DENABLE_INTEL_GNA)
 
     if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
         message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
