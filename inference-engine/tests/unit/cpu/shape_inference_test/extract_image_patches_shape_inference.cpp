@@ -20,11 +20,6 @@ TEST(StaticShapeInferenceTest, ExtractImagePatchesTest) {
     auto padTypePadding = op::PadType::VALID;
     auto extractImagePatches =
         std::make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padTypePadding);
-
-    // Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{64, 3, 10, 10}}, output_shapes = {PartialShape{}};
-    shape_infer(extractImagePatches.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], (PartialShape{64, 27, 2, 2}));
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{64, 3, 10, 10}}, static_output_shapes = {StaticShape{}};
 

@@ -15,10 +15,6 @@ TEST(StaticShapeInferenceTest, ReverseSequenceTest) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
     auto seq_lengths = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{4});
     auto reverse_seq = std::make_shared<op::v0::ReverseSequence>(data, seq_lengths);
-    // Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{4, 3, 2}, PartialShape{4}}, output_shapes = {PartialShape{}};
-    shape_infer(reverse_seq.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], (PartialShape{4, 3, 2}));
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{4, 3, 2}, StaticShape{4}},
                              static_output_shapes = {StaticShape{}};
