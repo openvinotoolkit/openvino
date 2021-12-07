@@ -228,8 +228,6 @@ class Config(Dict):
                 'opt_backend': None,
             },
             'TunableQuantization': {
-                'tuning_scope': None,
-                'estimator_tuning_scope': None,
                 'outlier_prob_choices': None
             },
             'MagnitudeSparsity': {
