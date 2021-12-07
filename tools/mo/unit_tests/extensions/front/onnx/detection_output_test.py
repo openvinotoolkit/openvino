@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import onnx
 
-from openvino.tools.mo.front.onnx.detection_output import DetectionOutputFrontExtractor
+from openvino.tools.mo.front.onnx.detection_output_ext import DetectionOutputFrontExtractor
 from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
 from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import PB

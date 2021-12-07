@@ -5,7 +5,7 @@ import numpy as np
 
 from openvino.tools.mo.front.onnx.softmaxONNX_to_softmax import SoftmaxONNXFrontReplacer
 from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
+from openvino.tools.mo.ops.detection_output_onnx import ExperimentalDetectronDetectionOutput
 from openvino.tools.mo.ops.parameter import Parameter
 from openvino.tools.mo.ops.roifeatureextractor_onnx import ExperimentalDetectronROIFeatureExtractor
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array

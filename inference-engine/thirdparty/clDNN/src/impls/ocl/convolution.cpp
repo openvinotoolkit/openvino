@@ -81,12 +81,16 @@ public:
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(arg.trans().get_output_layout()));
             conv_params.deformable_mode = true;
+            if (primitive->input.size() == 3) {
+                conv_params.inputs.push_back(convert_data_tensor(arg.mask().get_output_layout()));
+                conv_params.deformable_mask_enabled = true;
+            }
+            conv_params.bilinear_interpolation_pad = arg.bilinear_interpolation_pad();
         }
 
         conv_params.transposed = transposed;
         conv_params.deformable_groups = deformable_groups;
 
-        conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
         conv_params.groups = groups;
 

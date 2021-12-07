@@ -112,11 +112,14 @@ class TestBOMFile(unittest.TestCase):
                         # read two more lines from the file because it can contain shebang and empty lines
                         s = [x.strip() for x in islice(source_f, len(self.expected_header) + 2)]
                         # skip shebang and empty lines in the beginning of the file
-                        while s[0] in ('', '#!/usr/bin/env python3'):
-                            s = s[1:]
-                        for str_ind in range(0, len(self.expected_header)):
-                            if not re.match(self.expected_header[str_ind], s[str_ind]):
-                                missing_files.append(full_name)
-                                break
+                        try:
+                            while s[0] in ('', '#!/usr/bin/env python3'):
+                                s = s[1:]
+                            for str_ind in range(0, len(self.expected_header)):
+                                if not re.match(self.expected_header[str_ind], s[str_ind]):
+                                    missing_files.append(full_name)
+                                    break
+                        except:
+                            pass
         self.assertTrue(not len(missing_files),
                         '{} files with missed header: \n{}'.format(len(missing_files), '\n'.join(missing_files)))

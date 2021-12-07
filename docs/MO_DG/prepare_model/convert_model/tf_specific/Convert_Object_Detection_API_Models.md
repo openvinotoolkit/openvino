@@ -55,12 +55,18 @@ For example, if you downloaded the [pre-trained SSD InceptionV2 topology](http:/
 mo --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
 ```
 
+## OpenVINO&; Toolkit Samples and Open Model Zoo Demos
+
+Inference Engine comes with a number of samples to demonstrate use of OpenVINO API, additionally,
+Open Model Zoo provides set of demo applications to show implementation of close to real life applications
+based on deep learning in various tasks, including Image Classifiacton, Visual Object Detection, Text Recognition,
+Speech Recognition, Natural Language Processing and others. Refer to the links below for more details.
+
+
+* [Inference Engine Samples](../../../../IE_DG/Samples_Overview.md)
+* [Open Model Zoo Demos](@ref omz_demos)
+
 ## Important Notes About Feeding Input Images to the Samples
-
-Inference Engine comes with a number of samples to infer Object Detection API models including:
-
-* [Object Detection for SSD Sample](../../../../../samples/cpp/object_detection_sample_ssd/README.md) --- for RFCN, SSD and Faster R-CNNs
-* [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_cpp) --- for Mask R-CNNs
 
 There are several important notes about feeding input images to the samples:
 

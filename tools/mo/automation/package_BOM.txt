@@ -109,7 +109,7 @@ openvino/tools/mo/front/caffe/crop_ext.py
 openvino/tools/mo/front/caffe/ctcgreedydecoder_ext.py
 openvino/tools/mo/front/caffe/custom_layers_mapping.py
 openvino/tools/mo/front/caffe/CustomLayersMapping.xml.example
-openvino/tools/mo/front/caffe/detection_output.py
+openvino/tools/mo/front/caffe/detection_output_ext.py
 openvino/tools/mo/front/caffe/dropout_ext.py
 openvino/tools/mo/front/caffe/elementwise_ext.py
 openvino/tools/mo/front/caffe/eltwise_add_normalize.py
@@ -387,7 +387,8 @@ openvino/tools/mo/front/onnx/deformable_conv_ext.py
 openvino/tools/mo/front/onnx/depth_to_space_ext.py
 openvino/tools/mo/front/onnx/dequantize_linear_ext.py
 openvino/tools/mo/front/onnx/detection_output.py
-openvino/tools/mo/front/onnx/detectionoutput_ext.py
+openvino/tools/mo/front/onnx/detection_output_ext.py
+openvino/tools/mo/front/onnx/detection_output_onnx_ext.py
 openvino/tools/mo/front/onnx/dropout_ext.py
 openvino/tools/mo/front/onnx/einsum_ext.py
 openvino/tools/mo/front/onnx/elementwise_ext.py
@@ -870,8 +871,8 @@ openvino/tools/mo/ops/deconvolution.py
 openvino/tools/mo/ops/deformable_convolution.py
 openvino/tools/mo/ops/depth_to_space.py
 openvino/tools/mo/ops/dequantize_linear.py
+openvino/tools/mo/ops/detection_output_onnx.py
 openvino/tools/mo/ops/DetectionOutput.py
-openvino/tools/mo/ops/detectionoutput_onnx.py
 openvino/tools/mo/ops/dft.py
 openvino/tools/mo/ops/dropoutmask.py
 openvino/tools/mo/ops/einsum.py
