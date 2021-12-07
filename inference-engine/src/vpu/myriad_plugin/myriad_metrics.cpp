@@ -109,10 +109,8 @@ const std::unordered_set<std::string>& MyriadMetrics::OptimizationCapabilities()
 }
 
 std::string MyriadMetrics::DeviceArchitecture(const std::map<std::string, InferenceEngine::Parameter> & options) const {
-    // TODO: Task 49309. Return same architecture for devices which can share same cache
-    // E.g. when device "MYRIAD.ma2480-1" is loaded, options.at("DEVICE_ID") will be "ma2480-1"
-    // For DEVICE_ID="ma2480-0" and DEVICE_ID="ma2480-1" this method shall return same string, like "ma2480"
-    // In this case inference engine will be able to reuse cached model and total reduce load network time
+    // Since all supported devices can use the same cashe
+    // this function returns the same value for evrything
     return "MYRIAD";
 }
 
