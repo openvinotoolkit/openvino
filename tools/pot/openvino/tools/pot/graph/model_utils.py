@@ -3,6 +3,7 @@
 
 import networkx as nx
 from mo.graph.graph import Node
+from mo.middle.passes.infer import type_infer
 
 from . import editor as ge, builder as gb
 from .nx_model import NXModel
@@ -127,3 +128,9 @@ def models_union(first_model, second_model):
         union_dict['model'].graph.update(model_1.graph)
         union_dict['model'].graph.update(model_2.graph)
     return union
+
+def nx_type_infer(model):
+    """ Apply type_infer for each model in NXModel wrapper
+    """
+    for model_dict in model.models:
+        type_infer(model_dict['model'])
