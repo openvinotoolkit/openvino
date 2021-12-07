@@ -37,11 +37,11 @@ class DequantizeLinearResolver(MiddleReplacementPattern):
             model_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
             cast = Cast(graph, {'dst_type': model_data_type, 'name': node_name + '/Cast'}).create_node()
             dequantize_node.in_port(0).get_connection().set_destination(cast.in_port(0))
-            mul = Mul(graph, {}).create_node()
+            mul = Mul(graph, {'can_be_fused':False}).create_node()
 
             is_second_port_connected = dequantize_node.is_in_port_connected(2)
             if is_second_port_connected:
-                sub = Sub(graph, {'name': node_name + '/Sub'}).create_node()
+                sub = Sub(graph, {'name': node_name + '/Sub', 'can_be_fused': False}).create_node()
                 cast.out_port(0).connect(sub.in_port(0))
                 dequantize_node.in_port(2).get_connection().set_destination(sub.in_port(1))
                 sub.out_port(0).connect(mul.in_port(0))

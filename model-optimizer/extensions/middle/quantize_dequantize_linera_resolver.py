@@ -14,7 +14,7 @@ from extensions.middle.quantize_linear_resolver import QuantizeLinearResolver
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.utils.error import Error
-
+from mo.utils.graph import node_incoming_neighbourhood
 
 class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
     """
@@ -41,9 +41,14 @@ class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for dequantize_node in graph.get_op_nodes(op='DequantizeLinear'):
+
             if dequantize_node.is_in_port_connected(0):
                 quantize_node = dequantize_node.in_port(0).get_source().node
+                input = quantize_node.in_port(0).get_connection().get_source().node
+
                 if quantize_node.soft_get('op') != 'QuantizeLinear':
+                    continue
+                if input.soft_get('op')!='Const':
                     continue
                 scale_zerop_is_exist = quantize_node.is_in_port_connected(1) and \
                                     quantize_node.is_in_port_connected(2) and \
@@ -66,9 +71,6 @@ class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
                     continue
                 fq_node_with_cast = QuantizeLinearResolver.quantize_to_fakequantize(graph, quantize_node)
                 fq_node_with_cast['stop_value_propagation'] = True
-                dequantize_node.out_port(0).get_connection().set_source(fq_node_with_cast.out_port(0))
-                dq_name = dequantize_node.soft_get('name', dequantize_node.id)
-                rename_nodes([(dequantize_node, dq_name + '/to_be_removed'), (fq_node_with_cast, dq_name)])
-
-
-
+                # dequantize_node.out_port(0).get_connection().set_source(fq_node_with_cast.out_port(0))
+                # dq_name = dequantize_node.soft_get('name', dequantize_node.id)
+                # rename_nodes([(dequantize_node, dq_name + '/to_be_removed'), (fq_node_with_cast, dq_name)])
