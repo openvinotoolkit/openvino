@@ -46,9 +46,9 @@ public:
     /// \return Reference to current preprocess steps structure
     PreProcessSteps& preprocess();
 
-    /// \brief Get current input network/model information with ability to change original model's input data
+    /// \brief Get current input model information with ability to change original model's input data
     ///
-    /// \return Reference to current network's input information structure
+    /// \return Reference to current model's input information structure
     InputModelInfo& model();
 };
 

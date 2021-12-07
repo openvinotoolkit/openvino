@@ -11,11 +11,11 @@
 namespace ov {
 namespace preprocess {
 
-/// \brief Information about model's input tensor. If all information is already included to loaded network, this info
-/// may not be needed. However it can be set to specify additional information about network, like 'layout'.
+/// \brief Information about model's input tensor. If all information is already included to loaded model, this info
+/// may not be needed. However it can be set to specify additional information about model, like 'layout'.
 ///
-/// Example of usage of network 'layout':
-/// Support network has input parameter with shape {1, 3, 224, 224} and user needs to resize input image to network's
+/// Example of usage of model 'layout':
+/// Support model has input parameter with shape {1, 3, 224, 224} and user needs to resize input image to model's
 /// dimensions. It can be done like this
 ///
 /// \code{.cpp}
@@ -36,10 +36,10 @@ public:
     /// \brief Default destructor
     ~InputModelInfo();
 
-    /// \brief Set layout for network's input tensor
+    /// \brief Set layout for model's input tensor
     /// This version allows chaining for Lvalue objects
     ///
-    /// \param layout Layout for network's input tensor.
+    /// \param layout Layout for model's input tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     InputModelInfo& set_layout(const ov::Layout& layout);

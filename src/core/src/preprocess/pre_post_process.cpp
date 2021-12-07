@@ -179,13 +179,13 @@ struct InputInfo::InputInfoImpl {
         return m_preprocess.m_impl;
     }
 
-    std::unique_ptr<InputModelInfo::InputModelInfoImpl>& get_network() {
-        return m_network_data.m_impl;
+    std::unique_ptr<InputModelInfo::InputModelInfoImpl>& get_model() {
+        return m_model_data.m_impl;
     }
 
     InputTensorInfo m_tensor_info;
     PreProcessSteps m_preprocess;
-    InputModelInfo m_network_data;
+    InputModelInfo m_model_data;
     std::shared_ptr<op::v0::Parameter> m_resolved_param;
 };
 
@@ -201,13 +201,13 @@ struct OutputInfo::OutputInfoImpl {
         return m_postprocess.m_impl;
     }
 
-    std::unique_ptr<OutputModelInfo::OutputModelInfoImpl>& get_network_data() {
-        return m_network_info.m_impl;
+    std::unique_ptr<OutputModelInfo::OutputModelInfoImpl>& get_model_data() {
+        return m_model_info.m_impl;
     }
 
     OutputTensorInfo m_tensor_info;
     PostProcessSteps m_postprocess;
-    OutputModelInfo m_network_info;
+    OutputModelInfo m_model_info;
     ov::Output<ov::Node> m_output_node;
 };
 
@@ -227,7 +227,7 @@ PreProcessSteps& InputInfo::preprocess() {
 }
 
 InputModelInfo& InputInfo::model() {
-    return m_impl->m_network_data;
+    return m_impl->m_model_data;
 }
 
 //-------------- OutputInfo ------------------
@@ -237,7 +237,7 @@ OutputInfo& OutputInfo::operator=(OutputInfo&& other) noexcept = default;
 OutputInfo::~OutputInfo() = default;
 
 OutputModelInfo& OutputInfo::model() {
-    return m_impl->m_network_info;
+    return m_impl->m_model_info;
 }
 
 PostProcessSteps& OutputInfo::postprocess() {
@@ -344,9 +344,9 @@ std::shared_ptr<Function> PrePostProcessor::build() {
     bool tensor_data_updated = false;
     for (const auto& input_info : m_impl->m_inputs) {
         auto& input = input_info.m_impl;
-        // Set parameter layout from 'network' information
-        if (input->get_network()->is_layout_set() && input->m_resolved_param->get_layout().empty()) {
-            input->m_resolved_param->set_layout(input->get_network()->get_layout());
+        // Set parameter layout from 'model' information
+        if (input->get_model()->is_layout_set() && input->m_resolved_param->get_layout().empty()) {
+            input->m_resolved_param->set_layout(input->get_model()->get_layout());
         }
     }
     auto results = function->get_results();
@@ -373,7 +373,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         auto new_param_shape = net_shape;
         if (input->get_tensor_data()->is_layout_set() && !param->get_layout().empty() &&
             param->get_layout() != input->get_tensor_data()->get_layout()) {
-            // Find transpose between network and tensor layouts and update tensor shape
+            // Find transpose between model and tensor layouts and update tensor shape
             auto net_to_tensor =
                 layout::find_permutation(param->get_layout(), net_shape.rank(), input->get_tensor_data()->get_layout());
             if (!net_to_tensor.empty()) {
@@ -421,7 +421,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                         std::get<0>(existing_names).count(new_name) == 0,
                         "Error while trying to create plane input with name '",
                         new_name,
-                        "' - name already exists in network. Please specify another sub-name for set_color_format");
+                        "' - name already exists in model. Please specify another sub-name for set_color_format");
                     plane_tensor_names.insert(new_name);
                 }
                 plane_param->get_default_output().get_tensor().set_names(plane_tensor_names);
@@ -452,7 +452,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         PreprocessingContext context(input->get_tensor_data()->get_layout());
         context.color_format() = input->get_tensor_data()->get_color_format();
         context.target_layout() = param->get_layout();
-        context.network_shape() = param->get_partial_shape();
+        context.model_shape() = param->get_partial_shape();
         context.target_element_type() = param->get_element_type();
 
         // 2. Apply preprocessing
@@ -463,12 +463,12 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         }
 
         OPENVINO_ASSERT(nodes.size() == 1,
-                        "Multiple plane input is not allowed as network input. Consider using of convert_color "
+                        "Multiple plane input is not allowed as model input. Consider using of convert_color "
                         "preprocessing operation. Current format is '",
                         color_format_name(context.color_format()),
                         "'");
         OPENVINO_ASSERT(is_rgb_family(context.color_format()) || context.color_format() == ColorFormat::UNDEFINED,
-                        "Network shall have RGB/BGR color format. Consider add 'convert_color' preprocessing operation "
+                        "model shall have RGB/BGR color format. Consider add 'convert_color' preprocessing operation "
                         "to convert current color format '",
                         color_format_name(context.color_format()),
                         "'to RGB/BGR");
@@ -530,9 +530,9 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         auto start_out_node_names = node.get_tensor().get_names();
         node.get_tensor().set_names({});
         result = std::dynamic_pointer_cast<op::v0::Result>(node.get_node_shared_ptr());
-        // Set result layout from 'network' information
-        if (output->get_network_data()->is_layout_set() && result->get_layout().empty()) {
-            result->set_layout(output->get_network_data()->get_layout());
+        // Set result layout from 'model' information
+        if (output->get_model_data()->is_layout_set() && result->get_layout().empty()) {
+            result->set_layout(output->get_model_data()->get_layout());
         }
         auto parent = result->get_input_source_output(0);
         PostprocessingContext context(result->get_layout());

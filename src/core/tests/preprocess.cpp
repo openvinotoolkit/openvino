@@ -448,7 +448,7 @@ TEST(pre_post_process, convert_color_duplicate_internal_subnames_mean) {
     EXPECT_NO_THROW(f = p.build());
 }
 
-TEST(pre_post_process, unsupported_network_color_format) {
+TEST(pre_post_process, unsupported_model_color_format) {
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
     EXPECT_THROW(auto p = PrePostProcessor(f); p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
                  f = p.build(), ov::AssertFailure);
@@ -469,7 +469,7 @@ TEST(pre_post_process, unsupported_network_color_format) {
                  f = p.build(), ov::AssertFailure);
 }
 
-TEST(pre_post_process, unsupported_network_color_format_i420) {
+TEST(pre_post_process, unsupported_model_color_format_i420) {
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
     EXPECT_THROW(
         {
@@ -525,7 +525,7 @@ TEST(pre_post_process, test_2_inputs_basic) {
     EXPECT_EQ(f->get_output_element_type(1), element::f32);
 }
 
-TEST(pre_post_process, reuse_network_layout_no_tensor_info) {
+TEST(pre_post_process, reuse_model_layout_no_tensor_info) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
     f->get_parameters().front()->set_layout("NC??");
     auto p = PrePostProcessor(f);
@@ -534,7 +534,7 @@ TEST(pre_post_process, reuse_network_layout_no_tensor_info) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
 }
 
-TEST(pre_post_process, reuse_network_layout_tensor_info) {
+TEST(pre_post_process, reuse_model_layout_tensor_info) {
     auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(), 3, 2, 1});
     f->get_parameters().front()->set_layout("NC??");
     auto p = PrePostProcessor(f);
@@ -617,7 +617,7 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
 }
 
 // Error cases for 'resize'
-TEST(pre_post_process, resize_no_network_layout) {
+TEST(pre_post_process, resize_no_model_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
     EXPECT_THROW(p.input().tensor().set_layout("NHWC"); p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
@@ -1049,7 +1049,7 @@ TEST(pre_post_process, preprocess_keep_params_order) {
 }
 
 // --- PostProcess - set/convert layout ---
-TEST(pre_post_process, postprocess_set_layout_network) {
+TEST(pre_post_process, postprocess_set_layout_model) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
     p.output().model().set_layout("NCHW");

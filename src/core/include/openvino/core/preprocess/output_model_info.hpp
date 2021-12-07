@@ -36,9 +36,9 @@ public:
     /// \brief Default destructor
     ~OutputModelInfo();
 
-    /// \brief Set layout for network's output tensor
+    /// \brief Set layout for model's output tensor
     ///
-    /// \param layout Layout for network's output tensor.
+    /// \param layout Layout for model's output tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     OutputModelInfo& set_layout(const ov::Layout& layout);

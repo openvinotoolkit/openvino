@@ -35,9 +35,9 @@ public:
     /// \brief Default destructor
     ~OutputInfo();
 
-    /// \brief Get current output network/model information with ability to change original network's output data
+    /// \brief Get current output model information with ability to change original model's output data
     ///
-    /// \return Reference to current network's output information structure
+    /// \return Reference to current model's output information structure
     OutputModelInfo& model();
 
     /// \brief Get current output post-process information with ability to add more post-processing steps
