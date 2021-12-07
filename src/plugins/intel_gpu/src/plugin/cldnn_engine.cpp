@@ -732,7 +732,6 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         unsigned int closest = pow(2, floor(log(max_batch_size)/log(2)));
         std::cout << "!!!!!!!!!!!!!! (CLOSEST):" << closest << std::endl;
         batch = std::min(closest, batch);
-        batch = std::max(4u, batch); //batch 4 is a min
         batch = std::min(256u, batch); //batch 256 is a max
         std::cout << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
         IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);
@@ -796,7 +795,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
                            << " (occupied: " << occupied_device_mem << ")" << std::endl;
         }
 
-        int64_t max_batch_size = 0;
+        int64_t max_batch_size = 1;
 
         if (options.find("MODEL_PTR") == options.end()) {
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
@@ -856,55 +855,61 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         auto cloned_network = InferenceEngine::details::cloneNetwork(network);
         auto inputs_info = cloned_network.getInputsInfo();
         ICNNNetwork::InputShapes new_shapes;
-        //std::map<std::string, SizeVector>;
-        bool batch_detected = false;
-        for (auto& info : inputs_info) {
-            if (!info.second)
-                continue;
-            Layout layout = info.second->getLayout();
-            auto data = info.second->getInputData();
-            if (!data)
-                continue;
-            std::string name = info.second->getInputData()->getName();
-            auto shape = data->getTensorDesc().getDims();
-            if (layout == InferenceEngine::Layout::NCHW ||
-                layout == InferenceEngine::Layout::NHWC ||
-                layout == InferenceEngine::Layout::NCDHW ||
-                layout == InferenceEngine::Layout::NDHWC ||
-                layout == InferenceEngine::Layout::NC)  {
-                shape[0] = base_batch_size;
-                batch_detected = true;
-            } else if (layout == InferenceEngine::Layout::CN) {
-                shape[1] = base_batch_size;
-                batch_detected = true;
+        try {
+            //std::map<std::string, SizeVector>;
+            bool batch_detected = false;
+            for (auto &info : inputs_info) {
+                if (!info.second)
+                    continue;
+                Layout layout = info.second->getLayout();
+                auto data = info.second->getInputData();
+                if (!data)
+                    continue;
+                std::string name = info.second->getInputData()->getName();
+                auto shape = data->getTensorDesc().getDims();
+                if (layout == InferenceEngine::Layout::NCHW ||
+                    layout == InferenceEngine::Layout::NHWC ||
+                    layout == InferenceEngine::Layout::NCDHW ||
+                    layout == InferenceEngine::Layout::NDHWC ||
+                    layout == InferenceEngine::Layout::NC) {
+                    shape[0] = base_batch_size;
+                    batch_detected = true;
+                } else if (layout == InferenceEngine::Layout::CN) {
+                    shape[1] = base_batch_size;
+                    batch_detected = true;
+                }
+                new_shapes[name] = shape;
             }
-            new_shapes[name] = shape;
-        }
-        if (batch_detected) { // reshape only for batched layout
-            cloned_network.reshape(new_shapes);
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Reshaped base batch size to " << base_batch_size << std::endl;
+            if (batch_detected) { // reshape only for batched layout
+                cloned_network.reshape(new_shapes);
+                GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                    GPU_DEBUG_COUT << "Reshaped base batch size to " << base_batch_size << std::endl;
+                }
+            } else {
+                base_batch_size = 1;
+                GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                    GPU_DEBUG_COUT << "Batch dimension is not used in inputs." << std::endl;
+                }
             }
-        } else {
-            base_batch_size = 1;
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Batch dimension is not used in inputs." << std::endl;
-            }
-        }
 
-        auto nGraphFunc = cloned_network.getFunction();
-        TransformationsPipeline transformations(config, device_info);
-        transformations.apply(nGraphFunc);
-        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
-        std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
-        int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
-                                  static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
-        int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
-        max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
-        GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Base batch size: " << base_batch_size  << std::endl;
-            GPU_DEBUG_COUT << "Const mem usage: " << device_memory_usage.first  << std::endl;
-            GPU_DEBUG_COUT << "General mem usage: " << device_memory_usage.second  << std::endl;
+            auto nGraphFunc = cloned_network.getFunction();
+            TransformationsPipeline transformations(config, device_info);
+            transformations.apply(nGraphFunc);
+            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+            std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(
+                    0)->get_estimated_device_mem_usage();
+            int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
+                                               static_cast<int64_t>(static_cast<int64_t>(available_device_mem) -
+                                                                    device_memory_usage.first));
+            int64_t mem_per_batch = std::max(static_cast<int64_t>(1L),
+                                             (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
+            max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Base batch size: " << base_batch_size << std::endl;
+                GPU_DEBUG_COUT << "Const mem usage: " << device_memory_usage.first << std::endl;
+                GPU_DEBUG_COUT << "General mem usage: " << device_memory_usage.second << std::endl;
+            }
+        } catch (...) {
         }
         IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
     } else {
