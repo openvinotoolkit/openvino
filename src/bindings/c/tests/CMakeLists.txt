@@ -27,7 +27,7 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
 endif()
 
 if(ENABLE_BATCH)
-    add_dependencies(${TARGET_NAME} AutoBatchPlugin)
+    add_dependencies(${TARGET_NAME} ov_auto_batch_plugin)
 endif()
 
 if(ENABLE_MKL_DNN)

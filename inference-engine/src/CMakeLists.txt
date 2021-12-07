@@ -17,8 +17,3 @@ if(ENABLE_VPU)
     add_subdirectory(vpu)
 endif()
 
-
-if(ENABLE_BATCH)
-    add_subdirectory(auto_batch)
-endif()
-

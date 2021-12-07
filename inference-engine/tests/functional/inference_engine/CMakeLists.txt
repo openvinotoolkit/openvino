@@ -49,7 +49,7 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
 endif()
 
 if(ENABLE_BATCH)
-    list(APPEND DEPENDENCIES AutoBatchPlugin)
+    list(APPEND DEPENDENCIES ov_auto_batch_plugin)
 endif()
 
 if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
