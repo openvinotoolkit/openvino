@@ -29,7 +29,7 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
     for (auto input : n->inputs()) {
         auto rt = input.get_source_output().get_node_shared_ptr()->get_rt_info();
         auto it_rt = rt.find("reginfo");
-        if (it_rt == rt.end()) {
+        if (it_rt != rt.end()) {
             for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
                 rin.push_back(reg);
             }

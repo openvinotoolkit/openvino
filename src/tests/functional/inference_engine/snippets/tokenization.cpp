@@ -24,8 +24,7 @@ using namespace ngraph;
 namespace {
 void SetStartSubgraph(std::shared_ptr<Node> node) {
     auto &rt = node->get_rt_info();
-    const auto nodeType = ngraph::snippets::pass::SnippetsNodeType::SubgraphStart;
-    rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(nodeType));
+    rt["MayBeFusedInPlugin"] = ngraph::snippets::pass::SnippetsNodeType::SubgraphStart;;
 }
 }
 

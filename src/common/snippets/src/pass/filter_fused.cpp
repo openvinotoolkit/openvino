@@ -4,7 +4,6 @@
 
 #include "snippets/pass/filter_fused.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
-#include "snippets/register_info.hpp"
 #include <ngraph/opsets/opset1.hpp>
 
 namespace ngraph {
@@ -299,7 +298,7 @@ void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, SnippetsNodeType nodeTy
 void SetTopologicalOrder(std::shared_ptr<Node> node, int64_t order) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
     auto &rt = node->get_rt_info();
-    rt["TopologicalOrder"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(order));
+    rt["TopologicalOrder"] = order;
 }
 } // namespace
 
@@ -309,19 +308,11 @@ SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
     const auto rinfo = rt.find("MayBeFusedInPlugin");
     if (rinfo == rt.end())
         return SnippetsNodeType::NotSet;
-    const int64_t type_val = ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
-    // Todo: Remove the check from DEBUG also as soon as the PR is merged
-    #ifdef DEBUG
-    const int64_t lower_bound = static_cast<int64_t>(SnippetsNodeType::SubgraphStart);
-    const int64_t upper_bound = static_cast<int64_t>(SnippetsNodeType::FusedWithMisc);
-    if ((type_val < lower_bound) || (type_val > upper_bound))
-        throw ngraph_error("Invalid value of SnippetsNodeType is detected.");
-    #endif
-    return static_cast<SnippetsNodeType>(type_val);
+    return rinfo->second.as<SnippetsNodeType>();
 }
 void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
     auto &rt = node->get_rt_info();
-    rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(nodeType));
+    rt["MayBeFusedInPlugin"] = nodeType;
 }
 
 bool FilterFused::run_on_function(std::shared_ptr<Function> f) {

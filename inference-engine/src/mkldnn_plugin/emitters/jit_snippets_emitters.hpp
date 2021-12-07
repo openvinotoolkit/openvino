@@ -426,7 +426,7 @@ protected:
         size_t ea = 0;
         auto it = rt.find("effectiveAddress");
         if (it != rt.end()) {
-            ea = ov::as_type_ptr<ov::VariantWrapper<int64_t>>(it->second)->get();
+            ea = it->second.as<int64_t>();
         } else {
             throw ov::Exception("effective address for Load generation cannot be determined");
         }
