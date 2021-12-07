@@ -556,10 +556,12 @@ void GNADeviceHelper::close() {
             gnawarn() << "Request with Id " << requestId << " was not awaited successfully";
         }
     }
-    {
-        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-        const auto status = Gna2DeviceClose(nGnaDeviceIndex);
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    const auto status = Gna2DeviceClose(nGnaDeviceIndex);
+    try {
         checkGna2Status(status, "Gna2DeviceClose");
+    } catch (...) {
+        gnawarn() << "GNA Device was not successfully closed with status " << status << std::endl;
     }
 #endif
     deviceOpened = false;
