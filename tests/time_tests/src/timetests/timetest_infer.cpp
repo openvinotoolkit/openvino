@@ -27,13 +27,22 @@ int runPipeline(const std::string &model, const std::string &device, const std::
     InferRequest inferRequest;
     size_t batchSize = 0;
 
+    std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+
     // enables performance hint for specified device
     std::string performanceConfig;
     if (performanceHint == "THROUGHPUT")
       performanceConfig = CONFIG_VALUE(THROUGHPUT);
     else if (performanceHint == "LATENCY")
       performanceConfig = CONFIG_VALUE(LATENCY);
-    ie.SetConfig({{CONFIG_KEY(PERFORMANCE_HINT), performanceConfig}}, device);
+
+    if (std::find(supported_config_keys.begin(), supported_config_keys.end(), "PERFORMANCE_HINT") ==
+        supported_config_keys.end()) {
+      std::cerr << "Device " << device << " doesn't support config key 'PERFORMANCE_HINT'!\n"
+                << "Performance config was not set.";
+    }
+    else
+      ie.SetConfig({{CONFIG_KEY(PERFORMANCE_HINT), performanceConfig}}, device);
 
     // set config for VPUX device
     std::map<std::string, std::string> vpuConfig = {};
