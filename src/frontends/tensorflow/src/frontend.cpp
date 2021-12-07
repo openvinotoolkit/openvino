@@ -337,9 +337,11 @@ void FrontEndTF::convert(std::shared_ptr<ov::Function> partiallyConverted) const
             translate_framework_node(std::dynamic_pointer_cast<TFFrameworkNode>(node), m_op_translators);
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     normalize(partiallyConverted);
 }

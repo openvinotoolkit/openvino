@@ -68,8 +68,10 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(const std
 bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_ptr<ngraph::Function>& f) {
     deque<shared_ptr<Node>> nodes;
     set<shared_ptr<Node>> visited;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto& r : f->get_results())
         nodes.push_back(r);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (auto& r : f->get_sinks())
         nodes.emplace_back(r);
 

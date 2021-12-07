@@ -93,6 +93,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
     // nGraph function parameters and pre-Results operations should have unique names
     std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& param : _ngraph_function->get_parameters()) {
         if (unique_names.count(param->get_friendly_name())) {
             IE_THROW() << "Function contains several inputs with one friendly name!";
@@ -110,6 +111,7 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
         }
         unique_names.insert({name, parent});
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_type, bool input) {
@@ -154,6 +156,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     validateFunctionNames();
 
     reshape();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& layer : _ngraph_function->get_parameters()) {
         std::string outName = layer->get_friendly_name();
         IE_ASSERT(layer->get_output_size() == 1);  // Parameter as only singly output port
@@ -168,6 +171,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
 
         keep_input_info(*this, ptr);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (!_new_api) {
         for (auto& output : _outputData) {
@@ -320,7 +324,9 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     // The original code from CNNNetworkImpl just gets the first input and returns the first dimension.
     // This is not correct in general. We can follow the same semantics, but order of inputs should be
     // guaranteed to be the same.
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto params = _ngraph_function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     sort(params.begin(), params.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
         return lhs->get_friendly_name() < rhs->get_friendly_name();
     });
@@ -347,7 +353,9 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
     if (inputShapes.empty())
         return OK;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& params = _ngraph_function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Check that we need to do reshape only if input shapes will be changed
     bool needReshape = false;
@@ -396,7 +404,9 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto params = _ngraph_function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     bool parameter_replaced = false;
     for (size_t i = 0; i < params.size(); i++) {
@@ -409,7 +419,9 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
     if (parameter_replaced)
         _ngraph_function->validate_nodes_and_infer_types();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& results = _ngraph_function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool outputs_are_static = all_of(begin(results), end(results), [](const std::shared_ptr<ngraph::Node>& n) {
         return n->get_output_partial_shape(0).is_static();
     });
@@ -486,6 +498,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 std::cout << item.first << " " << shape_to_count.second << "x " << shape_to_count.first << std::endl;
 #endif
         std::unordered_set<std::string> opName;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (const auto& result : specialized_ngraph_function->get_results()) {
             addOutput(result->input_value(0));
         }
@@ -498,6 +511,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             opName.insert(outName);
             createDataForResult(parameter, outName, _data[outName]);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
@@ -592,7 +606,9 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
     try {
         if (getBatchSize() == size)
             return OK;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto original_parameters = _ngraph_function->get_parameters();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (original_parameters.empty())
             return DescriptionBuffer(GENERAL_ERROR, responseDesc)
                    << "Cannot set batch! Function doesn't contain parameters!";

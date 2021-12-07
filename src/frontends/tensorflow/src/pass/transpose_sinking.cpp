@@ -406,7 +406,9 @@ bool ov::frontend::tf::pass::TransposeSinkingOVTF::run_on_function(shared_ptr<Fu
         n->revalidate_and_infer_types();
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const ResultVector& results = f->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (const auto& r : results) {
         // make sure shapes are always materialized before results
         FRONT_END_GENERAL_CHECK(

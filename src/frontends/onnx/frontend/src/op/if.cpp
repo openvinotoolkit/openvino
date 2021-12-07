@@ -52,6 +52,7 @@ OutputVector if_op(const Node& node) {
         if_node->set_input(from_parent, nullptr, *else_param);
         else_param++;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(then_branch->get_results().size() == else_branch->get_results().size(),
                  "'then' and 'else' branches have to have the same number of outputs");
     auto else_result = else_branch->get_results().cbegin();
@@ -60,6 +61,7 @@ OutputVector if_op(const Node& node) {
         else_result++;
     }
     if_node->validate_and_infer_types();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return if_node->outputs();
 }

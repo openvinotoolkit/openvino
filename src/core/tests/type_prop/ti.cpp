@@ -11,6 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(type_prop, tensor_iterator_lstm) {
     // That which we iterate over
     const size_t N = 32;  // Batch size

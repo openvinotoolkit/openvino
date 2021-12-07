@@ -21,6 +21,7 @@ static bool call(const HostTensorVector& func_outputs,
     // map function params -> HostTensor
     std::unordered_map<descriptor::Tensor*, std::shared_ptr<HostTensor>> tensor_map;
     size_t input_count = 0;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& param : function->get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); ++i) {
             descriptor::Tensor* tensor = &param->output(i).get_tensor();
@@ -34,6 +35,7 @@ static bool call(const HostTensorVector& func_outputs,
         auto output = function->get_results()[output_count];
         results_map[output] = output_count;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // for each ordered op in the graph
     for (const auto& op : function->get_ordered_ops()) {
@@ -77,7 +79,9 @@ static bool call(const HostTensorVector& func_outputs,
 void function(const std::shared_ptr<ngraph::Function>& function,
               const HostTensorVector& inputs,
               HostTensorVector& outputs) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& parameters = function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto& parametersNumber = parameters.size();
     const auto& inputsNumber = inputs.size();
     NGRAPH_CHECK(parametersNumber == inputsNumber,
@@ -109,7 +113,9 @@ void function(const std::shared_ptr<ngraph::Function>& function,
                      " bytes");
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& results = function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     outputs.reserve(results.size());
     for (size_t i = 0; i < results.size(); ++i) {
         outputs.push_back(std::make_shared<HostTensor>());

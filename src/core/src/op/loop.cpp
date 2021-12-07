@@ -43,11 +43,13 @@ void op::v5::Loop::validate_and_infer_types() {
                           "Loop contains output descriptions for other bodies");
 
     if (m_special_body_ports.current_iteration_input_idx >= 0) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto& cur_iter_rank = m_bodies[0]
                                         ->get_parameters()
                                         .at(m_special_body_ports.current_iteration_input_idx)
                                         ->get_partial_shape()
                                         .rank();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (cur_iter_rank.is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   cur_iter_rank.compatible(1) || cur_iter_rank.compatible(0),
@@ -78,8 +80,10 @@ void op::v5::Loop::validate_and_infer_types() {
         // special body ports were not set yet, so we can't calculate output shape
         return;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& body_execution_condition =
         m_bodies[0]->get_results().at(m_special_body_ports.body_condition_output_idx)->input_value(0);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
     if (body_condition_rank.is_static()) {
         NODE_VALIDATION_CHECK(this,
@@ -101,6 +105,7 @@ void op::v5::Loop::validate_and_infer_types() {
                    body_execution_condition.get_node_shared_ptr())) {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {
                 if (const auto& cond_value = get_constant_from_source(input_value(desc->m_input_index))) {
                     auto val = cond_value->cast_vector<bool>();
@@ -115,6 +120,7 @@ void op::v5::Loop::validate_and_infer_types() {
                     }
                 }
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -157,7 +163,9 @@ void op::v5::Loop::validate_and_infer_types() {
         auto index = input_description->m_input_index;
 
         if (auto slice_input_description = ov::as_type_ptr<SliceInputDescription>(input_description)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto body_parameter = m_bodies[0]->get_parameters().at(slice_input_description->m_body_parameter_index);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             const auto& input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.rank().is_dynamic()) {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic());
@@ -169,9 +177,11 @@ void op::v5::Loop::validate_and_infer_types() {
                 body_parameter->set_partial_shape(out_shape);
             }
         } else if (auto merged_input_description = ov::as_type_ptr<MergedInputDescription>(input_description)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto body_value = m_bodies[0]->get_results().at(merged_input_description->m_body_value_index);
 
             auto body_parameter = m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
@@ -179,7 +189,9 @@ void op::v5::Loop::validate_and_infer_types() {
             body_parameter->set_partial_shape(input_partial_shape);
         } else if (auto invariant_input_description =
                        ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
@@ -195,7 +207,9 @@ void op::v5::Loop::validate_and_infer_types() {
     for (const auto& output_description : m_output_descriptions[0]) {
         auto index = output_description->m_output_index;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (auto concat_output_description =
                 ov::as_type_ptr<v0::TensorIterator::ConcatOutputDescription>(output_description)) {

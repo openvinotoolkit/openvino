@@ -295,9 +295,11 @@ void FrontEndPDPD::convert(std::shared_ptr<ov::Function> partiallyConverted) con
                                            pdpd::get_supported_ops());
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::shared_ptr<ov::Function> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {

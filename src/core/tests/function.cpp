@@ -12,6 +12,8 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/opsets/opset8.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(function, get_input_by_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");

@@ -27,7 +27,9 @@ public:
 
     template <typename T>
     void add_input(const Shape& shape, const std::vector<T>& values) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto params = m_function->get_parameters();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         NGRAPH_CHECK(m_input_index < params.size(), "All function parameters already have inputs.");
 
         const auto& input_pshape = params.at(m_input_index)->get_partial_shape();
@@ -46,7 +48,9 @@ public:
 
     template <typename T>
     void add_input(const std::vector<T>& values) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto& input_pshape = m_function->get_parameters().at(m_input_index)->get_partial_shape();
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         NGRAPH_CHECK(input_pshape.is_static(),
                      "Input number ",
@@ -94,7 +98,9 @@ public:
 
     template <typename T>
     void add_expected_output(const Shape& expected_shape, const std::vector<T>& values) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto results = m_function->get_results();
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         NGRAPH_CHECK(m_output_index < results.size(), "All function results already have expected outputs.");
 
@@ -114,7 +120,9 @@ public:
 
     template <typename T>
     void add_expected_output(const std::vector<T>& values) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto results = m_function->get_results();
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         NGRAPH_CHECK(m_output_index < results.size(), "All function results already have expected outputs.");
 

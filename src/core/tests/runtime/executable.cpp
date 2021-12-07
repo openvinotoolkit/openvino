@@ -85,8 +85,10 @@ size_t runtime::Executable::get_preferred_pipeline_depth() const {
 }
 
 void runtime::Executable::set_parameters_and_results(const Function& func) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     m_parameters = func.get_parameters();
     m_results = func.get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 vector<runtime::PerformanceCounter> runtime::Executable::get_performance_data() const {

@@ -11,6 +11,8 @@
 using namespace ov;
 using namespace ov::preprocess;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 static std::shared_ptr<Function> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");

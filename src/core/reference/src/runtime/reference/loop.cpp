@@ -34,6 +34,7 @@ void loop(const std::shared_ptr<Function>& func,
     for (int64_t i = 0; i < inputs_count; ++i)
         inputs_to_body.push_back(std::make_shared<HostTensor>(element::dynamic, PartialShape::dynamic()));
     if (cur_iter_idx >= 0 && !cur_iter_initial_value_exist) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto& cur_iter = func->get_parameters().at(cur_iter_idx);
         if (cur_iter->get_partial_shape().is_dynamic()) {
             cur_iter->set_partial_shape(Shape{1});
@@ -43,6 +44,7 @@ void loop(const std::shared_ptr<Function>& func,
         auto init = std::make_shared<opset5::Constant>(func->get_parameters().at(cur_iter_idx)->get_element_type(),
                                                        func->get_parameters().at(cur_iter_idx)->get_shape(),
                                                        0);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         inputs_to_body.at(cur_iter_idx)->initialize(init);
         // reinterpret_cast<int64_t*>(inputs_to_body.at(cur_iter_idx).data())[0] = 0;
     }
@@ -150,7 +152,9 @@ void loop(const std::shared_ptr<Function>& func,
             // If there are no rules for calculating the current iteration, just
             // increment it.
             if (cur_iter_idx >= 0 && !cur_iter_back_edge_exist) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto& cur_iter_param = func->get_parameters().at(cur_iter_idx);
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 int64_t iter_num = cur_iter + 1;
                 if (cur_iter_param->get_element_type() == element::i64)
                     inputs_to_body.at(cur_iter_idx)->write(&iter_num, cur_iter_param->get_element_type().size());
@@ -179,7 +183,9 @@ void loop(const std::shared_ptr<Function>& func,
         // Concatenate and copy all values stored in values_to_concat vector to outputs
         for (size_t i = 0; i < concat_outputs.size(); ++i) {
             const auto& concat_desc = concat_outputs[i];
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto shape = func->get_results().at(concat_desc->m_body_value_index)->get_shape();
+            OPENVINO_SUPPRESS_DEPRECATED_END
             std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
             shape.at(concat_desc->m_axis) = values_to_concat[i].size();
             out[concat_desc->m_output_index]->set_shape(shape);

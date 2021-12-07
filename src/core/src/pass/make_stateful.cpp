@@ -23,8 +23,10 @@ ov::pass::MakeStateful::ParamResPairs find_param_results_by_names(
     const shared_ptr<ngraph::Function>& func,
     const std::map<std::string, std::string>& param_res_names) {
     ov::pass::MakeStateful::ParamResPairs pairs_to_replace;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& params = func->get_parameters();
     const auto& results = func->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // find corresponding param and result by name and add to the list
     for (const auto& param_res : param_res_names) {

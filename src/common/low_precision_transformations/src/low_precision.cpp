@@ -257,9 +257,11 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
 bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function) {
     std::set<std::shared_ptr<ngraph::Node>> handledNodes;
     std::deque<std::shared_ptr<ngraph::Node>> nodes;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto result : function->get_results()) {
         nodes.push_front(result);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     while (!nodes.empty()) {
         auto node = nodes.front();

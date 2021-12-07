@@ -256,7 +256,9 @@ public:
         OPENVINO_ASSERT(f, "Function can't be nullptr for PrePostProcessor");
         for (size_t i = 0; i < m_function->inputs().size(); ++i) {
             auto info = InputInfo();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             info.m_impl->m_resolved_param = m_function->get_parameters()[i];
+            OPENVINO_SUPPRESS_DEPRECATED_END
             m_inputs.push_back(std::move(info));
         }
         for (size_t i = 0; i < m_function->outputs().size(); ++i) {
@@ -349,9 +351,11 @@ std::shared_ptr<Function> PrePostProcessor::build() {
             input->m_resolved_param->set_layout(input->get_network()->get_layout());
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto results = function->get_results();
     auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
                                                                          function->get_parameters().end());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     for (const auto& input_info : m_impl->m_inputs) {
         const auto& input = input_info.m_impl;
@@ -511,9 +515,11 @@ std::shared_ptr<Function> PrePostProcessor::build() {
 
     // Add parameters with right order
     {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         while (!function->get_parameters().empty()) {
             function->remove_parameter(*function->get_parameters().begin());
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto parameters_vec = ParameterVector(parameters_list.begin(), parameters_list.end());
         function->add_parameters(parameters_vec);
     }
@@ -598,8 +604,10 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         }
     }
     // Add results with right order
+    OPENVINO_SUPPRESS_DEPRECATED_START
     while (!function->get_results().empty())
         function->remove_result(*function->get_results().begin());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     function->add_results(results);
 
     guard.reset();

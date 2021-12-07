@@ -10,6 +10,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 // trip_count = 10
 // execution_condition = true
 // body_condition = true

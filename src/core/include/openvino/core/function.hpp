@@ -94,6 +94,7 @@ public:
     size_t get_output_size() const;
 
     /// Return the op that generates output i
+    OPENVINO_DEPRECATED("This member was deprecated. Please use output(i) instead.")
     std::shared_ptr<ov::Node> get_output_op(size_t i) const;
 
     /// Output functions
@@ -132,6 +133,7 @@ public:
     const PartialShape& get_output_partial_shape(size_t i) const;
 
     /// Check that there is a single result and return it.
+    OPENVINO_DEPRECATED("This member was deprecated. Please use output() instead.")
     std::shared_ptr<ov::Node> get_result() const;
 
     /// \brief Get the unique name of the function.
@@ -182,10 +184,12 @@ public:
     virtual bool visit_attributes(ov::AttributeVisitor& visitor);
 
     /// Return the function parameters
+    OPENVINO_DEPRECATED("This member was deprecated. Please use inputs() instead.")
     const ov::ParameterVector& get_parameters() const {
         return m_parameters;
     };
     /// Return a list of function's outputs
+    OPENVINO_DEPRECATED("This member was deprecated. Please use outputs() instead.")
     const ov::ResultVector& get_results() const {
         return m_results;
     };

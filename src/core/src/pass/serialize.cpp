@@ -844,6 +844,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     if (version >= 11) {
         std::vector<std::shared_ptr<ov::Node>> result;
         result.reserve(sorted_ops.size());
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (const auto& param : f.get_parameters()) {
             result.emplace_back(param);
         }
@@ -857,6 +858,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& res : f.get_results()) {
             result.emplace_back(res);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         sorted_ops = result;
     }
 

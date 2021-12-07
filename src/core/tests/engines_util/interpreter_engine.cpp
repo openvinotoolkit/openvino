@@ -95,7 +95,9 @@ test::INTERPRETER_Engine test::INTERPRETER_Engine::dynamic(const std::shared_ptr
 }
 
 void test::INTERPRETER_Engine::infer() {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& function_results = m_function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     NGRAPH_CHECK(m_expected_outputs.size() == function_results.size(),
                  "Expected number of outputs is different from the function's number "
                  "of results.");

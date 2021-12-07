@@ -17,7 +17,9 @@ namespace onnx_import {
 namespace detail {
 namespace {
 void remove_dangling_parameters(std::shared_ptr<Function>& function) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto parameters = function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (auto parameter : parameters) {
         const auto parameter_users = parameter->get_users();
         // if a Parameter is connected to a ONNXFrameworkNode that was not converted
@@ -36,7 +38,9 @@ void remove_dangling_parameters(std::shared_ptr<Function>& function) {
 }
 
 void remove_dangling_results(std::shared_ptr<Function>& function) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto results = function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (auto result : results) {
         // we can remove Result from function if after function conversion,
         // Result is connected to NullNode only

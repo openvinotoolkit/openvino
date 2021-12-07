@@ -62,14 +62,18 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                     // connect to the body
                     for (int64_t j = 0; j < num_iter; j++) {
                         auto idx = stride > 0 ? j : num_iter - j - 1;
+                        OPENVINO_SUPPRESS_DEPRECATED_START
                         const auto& param = body_functions[j]->get_parameters()[input_desc->m_body_parameter_index];
+                        OPENVINO_SUPPRESS_DEPRECATED_END
                         for (auto &output : param->outputs()) {
                             output.replace(split->output(idx));
                         }
                     }
                 } else {
                     // connect to the body
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     const auto& param = body_functions[0]->get_parameters()[input_desc->m_body_parameter_index];
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     for (auto &output : param->outputs()) {
                         output.replace(in_data);
                     }
@@ -78,15 +82,19 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                     desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[merged_desc->m_input_index];
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto& param = body_functions[0]->get_parameters()[merged_desc->m_body_parameter_index];
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 for (auto &output : param->outputs()) {
                     output.replace(in_data);
                 }
 
                 // Back-edge processing. Connect the copies of the body to each other.
                 for (int64_t j = 1; j < num_iter; j++) {
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     const auto& cur_param = body_functions[j]->get_parameters()[merged_desc->m_body_parameter_index];
                     const auto& prev_val = body_functions[j - 1]->get_results()[merged_desc->m_body_value_index];
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     for (auto &output : cur_param->outputs()) {
                         output.replace(prev_val->get_input_source_output(0));
                     }
@@ -96,7 +104,9 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[invariant_desc->m_input_index];
                 for (int64_t j = 0; j < num_iter; j++) {
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     auto param = body_functions[j]->get_parameters()[invariant_desc->m_body_parameter_index];
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     for (auto &output : param->outputs()) {
                         output.replace(in_data);
                     }
@@ -126,7 +136,9 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                     // Connect outputs of the bodies to the Concat layer
                     for (int64_t j = 0; j < num_iter; j++) {
                         auto idx = stride > 0 ? j : num_iter - j - 1;
+                        OPENVINO_SUPPRESS_DEPRECATED_START
                         std::shared_ptr<opset6::Result> result = body_functions[idx]->get_results()[concat_desc->m_body_value_index];
+                        OPENVINO_SUPPRESS_DEPRECATED_END
                         auto input_to_res = result->get_input_source_output(0);
                         to_concat[j] = input_to_res;
                     }
@@ -144,8 +156,10 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                     }
                 } else {
                     // Connect outputs of the bodies to the corresponding TI outputs
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     std::shared_ptr<opset6::Result> result = body_functions[0]->get_results().at(
                             concat_desc->m_body_value_index);
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     const auto& input_to_res = result->get_input_source_output(0);
                     // set output name to Tensor to store it for ngraph to cnn conversion
                     NGRAPH_SUPPRESS_DEPRECATED_START
@@ -161,7 +175,9 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                 // Connect outputs of the bodies to the corresponding TI outputs
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0? iter: num_iter - 1;
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 std::shared_ptr<opset6::Result> result = body_functions[iter]->get_results()[output_desc->m_body_value_index];
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto& in_value = result->input_value(0);
 
                 // set output name to Tensor to store it for ngraph to cnn conversion
@@ -201,7 +217,9 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
             if (need_to_remove_iteration_param) {
                 for (int64_t idx = 0; idx < num_iter; ++idx) {
                     const auto iter_idx = loop->get_special_body_ports().current_iteration_input_idx;
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     const auto &param_to_delete = body_functions[idx]->get_parameters()[iter_idx];
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     auto cur_iter_const = std::make_shared<opset6::Constant>(ngraph::element::i64, Shape{}, idx);
                     replace_node(param_to_delete, cur_iter_const);
                     body_functions[idx]->remove_parameter(param_to_delete);

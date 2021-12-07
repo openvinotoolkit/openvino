@@ -90,6 +90,7 @@ bool runtime::dynamic::DynamicExecutable::call(const std::vector<std::shared_ptr
     std::ostringstream key;
     size_t loop_count = 0;
     for (auto& input : inputs) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (m_wrapped_function->get_parameters()[loop_count]->is_relevant_to_shapes()) {
             // Caching on values of Shape relevant inputs
             int size = input->get_size_in_bytes() / (input->get_element_type().bitwidth() / 8);
@@ -104,6 +105,7 @@ bool runtime::dynamic::DynamicExecutable::call(const std::vector<std::shared_ptr
                 merged_input_shapes.emplace_back(input->get_shape()[i]);
             }
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         // -1 is the separator.
         // So if shape of Input 1 = {2, 2, 3, 3} & Input 2 = {4, 5}
         // the key would be 2, 2, 3, 3, -1, 4, 5, -1
@@ -118,7 +120,9 @@ bool runtime::dynamic::DynamicExecutable::call(const std::vector<std::shared_ptr
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_outputs;
 
         std::shared_ptr<Function> clone = m_lru->get_cloned_function(merged_input_shapes);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const ResultVector& results = clone->get_results();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         for (auto& result : results) {
             NGRAPH_CHECK(result->get_output_partial_shape(0).is_static(),
                          "Shape staticization failed for result node ",
@@ -137,7 +141,9 @@ bool runtime::dynamic::DynamicExecutable::call(const std::vector<std::shared_ptr
 
         return m_lru->get_cached_entry(merged_input_shapes)->call(wrapped_outputs, inputs);
     } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         NGRAPH_CHECK(m_wrapped_function->get_parameters().size() == inputs.size());
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_inputs;
         std::vector<element::Type> arg_element_types;
@@ -155,6 +161,7 @@ bool runtime::dynamic::DynamicExecutable::call(const std::vector<std::shared_ptr
             size_t i = 0;
 
             for (auto& input : inputs) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 if (m_wrapped_function->get_parameters()[i]->is_relevant_to_shapes()) {
                     // TODO(amprocte): Move has_storage() to runtime::Tensor?
                     if (auto dynamic_tensor = std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(input)) {
@@ -170,6 +177,7 @@ bool runtime::dynamic::DynamicExecutable::call(const std::vector<std::shared_ptr
                 } else {
                     arg_value_base_pointers[i] = nullptr;
                 }
+                OPENVINO_SUPPRESS_DEPRECATED_END
 
                 if (auto dynamic_tensor = std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(input)) {
                     NGRAPH_CHECK(dynamic_tensor->has_storage());
@@ -222,7 +230,9 @@ bool runtime::dynamic::DynamicExecutable::call(const std::vector<std::shared_ptr
 
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_outputs;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const ResultVector& results = clone->get_results();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         NGRAPH_CHECK(results.size() == outputs.size());
 
         for (size_t i = 0; i < outputs.size(); i++) {

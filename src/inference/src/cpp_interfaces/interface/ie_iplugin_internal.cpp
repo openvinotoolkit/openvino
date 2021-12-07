@@ -136,11 +136,13 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     std::shared_ptr<ov::Function> function;
     InferenceEngine::CNNNetwork network = orig_network;
     if (orig_function) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         function = std::make_shared<ov::Function>(orig_function->get_results(),
                                                   orig_function->get_sinks(),
                                                   orig_function->get_parameters(),
                                                   orig_function->get_variables(),
                                                   orig_function->get_friendly_name());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         function->get_rt_info() = orig_function->get_rt_info();
     }
     if (function && GetCore() && !GetCore()->isNewAPI()) {
@@ -307,6 +309,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
     const auto& inputsInfo = exeNetwork->GetInputsInfo();
     const auto& outputsInfo = exeNetwork->GetOutputsInfo();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
     OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
 
@@ -339,6 +342,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         }
         const_results.emplace_back(new_result);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     exeNetwork->setInputs(const_params);
     exeNetwork->setOutputs(const_results);

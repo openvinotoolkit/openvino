@@ -38,11 +38,15 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
         // connect inputs instead of body parameters
         for (const auto& input_descr : input_descriptions) {
             auto in_data = if_node->input_value(input_descr->m_input_index);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto& param = body->get_parameters()[input_descr->m_body_parameter_index];
+            OPENVINO_SUPPRESS_DEPRECATED_END
             ngraph::replace_node(param, in_data.get_node_shared_ptr());
         }
         for (const auto& output_desc : output_descriptions) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             std::shared_ptr<opset8::Result> result = body->get_results()[output_desc->m_body_value_index];
+            OPENVINO_SUPPRESS_DEPRECATED_END
             const auto& in_value = result->input_value(0);
 
             // set output name to Tensor to store it for ngraph to cnn conversion

@@ -31,7 +31,9 @@ public:
 
     template <typename T>
     void add_input(const Shape& shape, const std::vector<T>& values) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto params = m_function->get_parameters();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto tensor = m_backend->create_tensor(params.at(m_input_index)->get_element_type(), shape);
 
         copy_data(tensor, values);
@@ -43,7 +45,9 @@ public:
 
     template <typename T>
     void add_expected_output(const ngraph::Shape& expected_shape, const std::vector<T>& values) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto results = m_function->get_results();
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         const auto function_output_type = results.at(m_output_index)->get_element_type();
 

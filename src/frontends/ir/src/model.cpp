@@ -48,6 +48,7 @@ void ParsePreProcess(pugi::xml_node& root,
     inputName = XMLParseUtils::GetStrAttr(ppNode, "reference-layer-name", "");
     inputName = trim(inputName);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (inputName.empty()) {
         // fallback (old format), look for the picture in the inputs
         for (const auto& parameter : f->get_parameters()) {
@@ -72,6 +73,7 @@ void ParsePreProcess(pugi::xml_node& root,
             }
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (!input_node)
         IE_THROW() << "pre-process name ref '" << inputName << "' refers to un-existing input";

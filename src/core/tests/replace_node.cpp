@@ -9,6 +9,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 //
 // Graph before (params in [] brackets, constants in () parens, results in {} braces):
 //

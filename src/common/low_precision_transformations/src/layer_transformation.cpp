@@ -410,7 +410,9 @@ void LayerTransformation::updateOutput(
     std::string originalName) const {
     const size_t outputSize = context.function->get_output_size();
     for (size_t i = 0; i < outputSize; ++i) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
         if (outputNode.get() == lastNode.get()) {
             lastNode->set_friendly_name(originalName);

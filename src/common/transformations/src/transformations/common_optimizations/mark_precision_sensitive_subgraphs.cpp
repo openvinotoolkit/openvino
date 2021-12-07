@@ -47,8 +47,10 @@ void visit_shape_path(const shared_ptr<ov::Node>& node, unordered_set<shared_ptr
 bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_function(std::shared_ptr<ov::Function> f) {
     deque<shared_ptr<Node>> nodes;
     unordered_set<shared_ptr<Node>> visited;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto& r : f->get_results())
         nodes.push_back(r);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (auto& r : f->get_sinks())
         nodes.emplace_back(r);
 

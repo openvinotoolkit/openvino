@@ -29,9 +29,11 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
     std::stack<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>> nodes_to_do;
     std::unordered_set<std::shared_ptr<Node>> nodes_done;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& r : m_bodies[0]->get_results()) {
         nodes_to_do.push(r);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     while (nodes_to_do.size() > 0) {
         auto node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
@@ -85,7 +87,9 @@ void op::v0::TensorIterator::validate_and_infer_types() {
         auto index = input_description->m_input_index;
 
         if (auto slice_input_description = ov::as_type_ptr<SliceInputDescription>(input_description)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto body_parameter = body->get_parameters().at(slice_input_description->m_body_parameter_index);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.is_static()) {
                 auto input_shape = input_partial_shape.to_shape();
@@ -106,16 +110,20 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic(input_partial_shape.rank()));
             }
         } else if (auto merged_input_description = ov::as_type_ptr<MergedInputDescription>(input_description)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto body_value = m_bodies[0]->get_results().at(merged_input_description->m_body_value_index)->input(0);
             ends.push_back(body_value.get_node()->shared_from_this());
 
             auto body_parameter = m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             body_parameter->set_partial_shape(input_partial_shape);
         } else if (auto invariant_input_description = ov::as_type_ptr<InvariantInputDescription>(input_description)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
@@ -132,7 +140,9 @@ void op::v0::TensorIterator::validate_and_infer_types() {
     for (const auto& output_description : m_output_descriptions[0]) {
         auto index = output_description->m_output_index;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (auto concat_output_description = ov::as_type_ptr<ConcatOutputDescription>(output_description)) {
             const auto& body_value_partial_shape = body_value.get_partial_shape();
@@ -199,6 +209,7 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
 
 std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto op = make_shared<op::v0::TensorIterator>(new_args);
     NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
     op->set_output_size(m_output_descriptions[0].size());
@@ -238,5 +249,6 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
         op->m_output_descriptions[0].push_back(output_description->copy());
     }
     op->validate_and_infer_types();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return op;
 }

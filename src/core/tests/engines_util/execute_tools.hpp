@@ -123,7 +123,9 @@ std::vector<std::shared_ptr<ngraph::runtime::Tensor>> prepare_and_run(const std:
                                                                       const std::string& backend_id) {
     auto backend = ngraph::runtime::Backend::create(backend_id);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto parms = function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (parms.size() != t1args.size() + t2args.size()) {
         throw ngraph::ngraph_error("number of parameters and arguments don't match");
@@ -149,7 +151,9 @@ std::vector<std::shared_ptr<ngraph::runtime::Tensor>> prepare_and_run(const std:
         total_arg_count++;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto results = function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> result_tensors(results.size());
 
     for (size_t i = 0; i < results.size(); i++) {

@@ -2090,7 +2090,9 @@ namespace ti_v0 {
 runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr<ngraph::Function>& function,
                                                            const HostTensorVector& inputs,
                                                            HostTensorVector& outputs) -> void {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& parameters = function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto& parametersNumber = parameters.size();
     const auto& inputsNumber = inputs.size();
     NGRAPH_CHECK(parametersNumber == inputsNumber,
@@ -2127,7 +2129,9 @@ runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr
         inputTensors.push_back(tensor);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& results = function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
     outputTensors.reserve(results.size());
     for (size_t i = 0; i < results.size(); ++i) {

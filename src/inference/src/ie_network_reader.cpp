@@ -323,6 +323,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             {
                 std::vector<std::string> result_names;
                 std::vector<ov::Output<ov::Node>> prevPorts;
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 result_names.reserve(function->get_results().size());
                 prevPorts.reserve(function->get_results().size());
 
@@ -334,6 +335,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 for (const auto& param : function->get_parameters()) {
                     param->output(0).get_tensor().add_names({param->get_friendly_name()});
                 }
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
 
             const auto outputs = function->outputs();
@@ -352,7 +354,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto& parameters = function->get_parameters();
+            OPENVINO_SUPPRESS_DEPRECATED_END
             for (size_t i = 0; i < parameters.size(); ++i) {
                 const auto& parameter = parameters[i];
                 ov::RTMap& rtInfo = parameter->get_rt_info();
@@ -377,7 +381,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 }
             }
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto& results = function->get_results();
+            OPENVINO_SUPPRESS_DEPRECATED_END
             for (size_t i = 0; i < results.size(); ++i) {
                 const auto& result = results[i];
                 ov::RTMap& rtInfo = result->get_rt_info();

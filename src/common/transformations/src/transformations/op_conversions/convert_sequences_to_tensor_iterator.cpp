@@ -190,7 +190,9 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
             tensor_iterator->set_merged_input(body_params.at(0), init_val_curr_iter, body_results.at(0));
             // set initial value and back edge for aggregated H
             tensor_iterator->set_merged_input(body_params.at(1), aggregated_Y_h, body_results.at(1));
+            OPENVINO_SUPPRESS_DEPRECATED_START
             H_out = tensor_iterator->get_function()->get_results()[1];
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         tensor_iterator->get_iter_value(H_out);
         tensor_iterator->set_friendly_name(sequence->get_friendly_name());
@@ -349,7 +351,9 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
             tensor_iterator->set_merged_input(body_params.at(0), init_val_curr_iter, body_results.at(0));
             // set initial value and back edge for aggregated H
             tensor_iterator->set_merged_input(body_params.at(1), aggregated_Y_h, body_results.at(1));
+            OPENVINO_SUPPRESS_DEPRECATED_START
             H_out = tensor_iterator->get_function()->get_results()[1];
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         tensor_iterator->get_iter_value(H_out);
         tensor_iterator->set_friendly_name(sequence->get_friendly_name());
@@ -528,8 +532,10 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
             tensor_iterator->set_merged_input(body_params.at(1), aggregated_Y_h, body_results.at(1));
             // set initial value and back edge for aggregated H
             tensor_iterator->set_merged_input(body_params.at(2), aggregated_Y_c, body_results.at(2));
+            OPENVINO_SUPPRESS_DEPRECATED_START
             H_out = tensor_iterator->get_function()->get_results()[1];
             C_out = tensor_iterator->get_function()->get_results()[2];
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         tensor_iterator->get_iter_value(H_out);
         tensor_iterator->get_iter_value(C_out);

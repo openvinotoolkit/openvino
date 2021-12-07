@@ -155,6 +155,7 @@ public:
         }
 
         // save result input tensor names and friendly name for future comparison
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (auto r : f->get_results()) {
             const auto& tensor_names = r->input_value(0).get_names();
             m_result_tensor_names[r.get()].insert(tensor_names.begin(), tensor_names.end());
@@ -165,6 +166,7 @@ public:
             // helps FunctionComparator to compare Functions with multiple Results.
             r->set_friendly_name(generate_friendly_name());
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     void check_unique_names(std::shared_ptr<Function> f) {
@@ -195,6 +197,7 @@ public:
             }
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (auto r : f->get_results()) {
             // Check that old tensor names for results were preserved
             const auto& ref_tensor_names = m_result_tensor_names.at(r.get());
@@ -226,6 +229,7 @@ public:
                 throw ngraph_error(ss.str());
             }
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     void enable_soft_names_comparison() {

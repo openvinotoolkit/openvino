@@ -269,6 +269,7 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
         return nodes;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& r : get_results()) {
         nodes.emplace_back(r);
     }
@@ -278,6 +279,7 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
     for (auto& param : get_parameters()) {
         nodes.push_back(param);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto order = m_topological_sorter(nodes);
 
@@ -296,6 +298,7 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
 void ov::Function::map_unordered_ops(std::function<void(Node*)> f) const {
     std::unordered_set<Node*> unordered_ops;
     std::stack<Node*, std::vector<Node*>> remaining_ops;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto& r : get_results()) {
         remaining_ops.push(r.get());
     }
@@ -306,6 +309,7 @@ void ov::Function::map_unordered_ops(std::function<void(Node*)> f) const {
     for (auto& param : get_parameters()) {
         remaining_ops.push(param.get());
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     while (!remaining_ops.empty()) {
         Node* op = remaining_ops.top();
         remaining_ops.pop();
@@ -426,12 +430,14 @@ void ov::Function::set_topological_sort(topological_sort_t sorter) {
 
 int64_t ov::Function::get_parameter_index(const std::shared_ptr<ngraph::op::Parameter>& parameter) const {
     int64_t pos = 0;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto p : get_parameters()) {
         if (p == parameter) {
             return pos;
         }
         pos++;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return -1;
 }
 
@@ -440,6 +446,7 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
 }
 
 int64_t ov::Function::get_result_index(const Output<const Node>& value) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t pos = 0;
     if (is_type<ngraph::op::Result>(value.get_node_shared_ptr())) {
         auto result = value.get_node_shared_ptr();
@@ -459,6 +466,7 @@ int64_t ov::Function::get_result_index(const Output<const Node>& value) const {
             pos++;
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return -1;
 }
 
@@ -810,7 +818,9 @@ void ov::Function::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape
     if (partial_shapes.empty())
         return;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& params = get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> new_param_shapes;
 
     // Check that we need to do reshape only if input shapes will be changed

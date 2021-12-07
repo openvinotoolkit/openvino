@@ -48,11 +48,13 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
 
         bool match = false;
         auto func = ti->get_body();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (const auto& res : func->get_results()) {
             match = matcher.match((res->get_input_source_output(0)));
             if (match)
                 break;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         // support for opset1::LSTMCell
         auto cell_v1 = std::make_shared<ngraph::opset1::LSTMCell>(squeeze, input_H_state, input_C_state,
@@ -61,23 +63,29 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
             unsqueeze = std::make_shared<ngraph::opset5::Reshape>(cell_v1, pattern_2, false);
             matcher.clear_state();
             matcher.m_pattern_node = unsqueeze;
+            OPENVINO_SUPPRESS_DEPRECATED_START
             for (const auto& res : func->get_results()) {
                 match = matcher.match((res->get_input_source_output(0)));
                 if (match)
                     break;
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
         // All nodes are in the TI body should be matched in pattern
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (!match || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         auto pattern_map = matcher.get_pattern_map();
         std::shared_ptr<Node>& found_cell = pattern_map[cell];
         if (!found_cell)
             found_cell = pattern_map[cell_v1];
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto params = func->get_parameters();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         std::vector<std::shared_ptr<ngraph::opset5::TensorIterator::InputDescription>> ordered_in_descs(3);
         int64_t stride = 0, slice_axis = 0;
         size_t batch_size = 0;
@@ -110,7 +118,9 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
             }
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto results = func->get_results();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         std::vector<std::shared_ptr<ngraph::opset5::TensorIterator::OutputDescription>> ordered_out_descs(3);
         for (const auto& output_desc : ti->get_output_descriptions()) {
             std::shared_ptr<opset5::Result> res = results[output_desc->m_body_value_index];
@@ -228,19 +238,25 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
 
         bool match = false;
         auto func = ti->get_body();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (const auto& res : func->get_results()) {
             match = matcher.match((res->get_input_source_output(0)));
             if (match)
                 break;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         // All nodes are in the TI body should be matched in pattern
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (!match || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         auto pattern_map = matcher.get_pattern_map();
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto params = func->get_parameters();
+        OPENVINO_SUPPRESS_DEPRECATED_END
         std::vector<std::shared_ptr<ngraph::opset5::TensorIterator::InputDescription>> ordered_in_descs(3);
         int64_t stride = 0, slice_axis = 0;
         size_t batch_size = 0;
@@ -272,7 +288,9 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
 
         auto seq_lengths = ngraph::opset5::Constant::create(element::i32, Shape{batch_size}, {ti->get_num_iterations()});
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto results = func->get_results();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::vector<std::shared_ptr<ngraph::opset5::TensorIterator::OutputDescription>> ordered_out_descs(2);
         for (const auto& output_desc : ti->get_output_descriptions()) {
             std::shared_ptr<opset5::Result> res = results[output_desc->m_body_value_index];

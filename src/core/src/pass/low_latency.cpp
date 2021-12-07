@@ -95,8 +95,10 @@ void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_g
                            const shared_ptr<ov::Function>& outer_f) {
     using namespace ngraph::opset7;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& params = sub_graph_op->get_function()->get_parameters();
     const auto& results = sub_graph_op->get_function()->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // before: Layer1 -> TI [input -> bodyParameter -> Layer2 -> ...]
     // after:  Layer1 -> Layer2 ->...
@@ -156,7 +158,9 @@ bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
         if (const auto& sub_graph_op = dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
             int64_t variable_id = 0;
             const auto& func = sub_graph_op->get_function();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto& params = func->get_parameters();
+            OPENVINO_SUPPRESS_DEPRECATED_END
             for (const auto& in : sub_graph_op->get_input_descriptions()) {
                 // Process all back edges
                 if (const auto& merged_in =
@@ -176,8 +180,10 @@ bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
                         return false;
                     }
 
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     const auto& param =
                         sub_graph_op->get_function()->get_parameters().at(merged_in->m_body_parameter_index);
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     for (const auto& in_to : param->output(0).get_target_inputs()) {
                         if (dynamic_cast<ngraph::op::ReadValueBase*>(in_to.get_node()) != nullptr) {
                             NGRAPH_DEBUG << "LowLatency2 transformation cannot be applied because the "
@@ -216,7 +222,9 @@ bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
                         });
                     // Create new output if it doesn't exist.
                     if (!is_output_exist) {
+                        OPENVINO_SUPPRESS_DEPRECATED_START
                         sub_graph_op->get_iter_value(func->get_results().at(merged_in->m_body_value_index));
+                        OPENVINO_SUPPRESS_DEPRECATED_END
                     }
                     for (const auto& out : sub_graph_op->get_output_descriptions()) {
                         if (out->m_body_value_index == merged_in->m_body_value_index) {

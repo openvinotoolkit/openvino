@@ -27,6 +27,8 @@
 using namespace ngraph;
 using namespace std;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 class ControlDependencyOp : public ngraph::op::Op {
 public:
     static constexpr NodeTypeInfo type_info{"ControlDependencyOp", 0};

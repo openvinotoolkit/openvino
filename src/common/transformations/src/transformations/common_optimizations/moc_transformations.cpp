@@ -64,10 +64,12 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     // transformations we restore original shapes to the nGraph Function back
     std::unordered_map<ngraph::op::Parameter*, PartialShape> input_shapes;
     if (!m_use_shapes) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (auto &&param : f->get_parameters()) {
             input_shapes[param.get()] = param->get_partial_shape();
             param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         f->validate_nodes_and_infer_types();
     }
 
@@ -180,9 +182,11 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     if (!m_use_shapes) {
         // Restore original shapes to the nGraph Function
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (auto &&param : f->get_parameters()) {
             param->set_partial_shape(input_shapes.at(param.get()));
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         f->validate_nodes_and_infer_types();
     }
 

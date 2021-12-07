@@ -75,7 +75,9 @@ void op::v8::If::validate_and_infer_type_body(
     for (const auto& input_description : input_descriptors) {
         auto index = input_description->m_input_index;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto input_partial_shape = input_value(index).get_partial_shape();
         body_parameter->set_partial_shape(input_partial_shape);
     }
@@ -120,7 +122,9 @@ void op::v8::If::validate_and_infer_types() {
 
         // shape and type inference for outputs from If operations
         for (const auto& output_descr : m_output_descriptions[cond_index]) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto body_value = body->get_results().at(output_descr->m_body_value_index)->input_value(0);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             const auto& body_value_partial_shape = body_value.get_partial_shape();
             set_output_type(output_descr->m_output_index, body_value.get_element_type(), body_value_partial_shape);
         }
@@ -153,11 +157,13 @@ void op::v8::If::validate_and_infer_types() {
             auto then_desc = then_outputs_map.at(output_index);
             auto else_desc = else_outputs_map.at(output_index);
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto then_node_result =
                 m_bodies[THEN_BODY_INDEX]->get_results().at(then_desc->m_body_value_index)->input_value(0);
 
             auto else_node_result =
                 m_bodies[ELSE_BODY_INDEX]->get_results().at(else_desc->m_body_value_index)->input_value(0);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             NODE_VALIDATION_CHECK(this,
                                   then_node_result.get_element_type() == else_node_result.get_element_type(),

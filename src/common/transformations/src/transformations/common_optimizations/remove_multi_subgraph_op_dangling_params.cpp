@@ -33,7 +33,9 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
         to_remove_descriptors_indexes.resize(subgraphs_size);
         for (size_t body_idx=0; body_idx < subgraphs_size; ++body_idx) {
             auto& body_func = multi_subgraph_op->get_function(body_idx);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto& body_params = body_func->get_parameters();
+            OPENVINO_SUPPRESS_DEPRECATED_END
             auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(body_idx);
             // collect all descriptors which should be removed and reqired inputs
             for (size_t i = 0; i < body_in_descriptors.size(); ++i) {
@@ -69,7 +71,9 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
             for (size_t body_idx=0; body_idx < subgraphs_size; ++body_idx) {
                 auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(body_idx);
                 auto& body_func = multi_subgraph_op->get_function(body_idx);
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 auto& body_params = body_func->get_parameters();
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector updated_body_in_descriptors;
                 for (size_t desc_idx = 0; desc_idx < body_in_descriptors.size(); ++desc_idx) {
                     if (std::count(std::begin(to_remove_descriptors_indexes[body_idx]), std::end(to_remove_descriptors_indexes[body_idx]), desc_idx) > 0) {

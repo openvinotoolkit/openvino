@@ -14,6 +14,8 @@
 using namespace ngraph;
 using namespace std;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 template <typename T>
 static std::vector<T> get_result_constant(std::shared_ptr<Function> f, size_t pos) {
     auto new_const = ov::as_type_ptr<op::Constant>(f->get_results().at(pos)->input_value(0).get_node_shared_ptr());

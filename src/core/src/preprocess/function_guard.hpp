@@ -20,6 +20,7 @@ class FunctionGuard {
 
 public:
     FunctionGuard(const std::shared_ptr<Function>& f) : m_function(f) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         m_parameters = f->get_parameters();
         for (const auto& param : f->get_parameters()) {
             m_backup.insert({param, param->output(0).get_target_inputs()});
@@ -28,10 +29,12 @@ public:
         for (const auto& result : m_results) {
             m_result_tensors.push_back(result->get_default_output().get_tensor().get_names());
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     virtual ~FunctionGuard() {
         if (!m_done) {
             try {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 auto params = m_function->get_parameters();
                 // Remove parameters added by preprocessing
                 for (const auto& param : params) {
@@ -57,6 +60,7 @@ public:
                     m_results[i]->get_default_output().get_tensor().set_names(m_result_tensors[i]);
                 }
                 m_function->add_results(m_results);
+                OPENVINO_SUPPRESS_DEPRECATED_END
             } catch (std::exception& ex) {
                 // Stress condition, can't recover function to original state
                 std::cerr << "Unrecoverable error occurred during preprocessing. Function is corrupted, exiting\n";

@@ -330,7 +330,9 @@ private:
 std::vector<NodeAndInputDescription> extract_inputs(ov::op::util::SubGraphOp* sub) {
     std::vector<NodeAndInputDescription> nodes;
     const auto& fn_body = sub->get_function();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& fn_parameters = fn_body->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     for (const auto& in_desc : sub->get_input_descriptions()) {
         const auto parameter = fn_parameters.at(in_desc->m_body_parameter_index).get();
@@ -343,7 +345,9 @@ std::vector<NodeAndInputDescription> extract_inputs(ov::op::util::SubGraphOp* su
 std::vector<NodeAndOutputDescription> extract_outputs(ov::op::util::SubGraphOp* sub) {
     std::vector<NodeAndOutputDescription> nodes;
     const auto& fn_body = sub->get_function();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& fs_results = fn_body->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     for (const auto& out_desc : sub->get_output_descriptions()) {
         const auto result = fs_results.at(out_desc->m_body_value_index).get();
@@ -358,8 +362,10 @@ std::vector<BackEdge> extract_backedges(ov::op::util::SubGraphOp* sub) {
     std::vector<BackEdge> edges;
     const auto& fn_body = sub->get_function();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& fs_parameters = fn_body->get_parameters();
     const auto& fs_results = fn_body->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     for (const auto& in_desc : sub->get_input_descriptions()) {
         if (const auto& merged_in_desc = ngraph::as_type_ptr<const MergedInputDescription>(in_desc)) {
@@ -405,15 +411,19 @@ bool equal_body_ports(ov::opset8::Loop* lhs, ov::opset8::Loop* rhs) {
                                 rhs_sbp.current_iteration_input_idx != port_not_provided;
 
     if (input_provided) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto& lhs_parameter = lhs_fn_body->get_parameters().at(lhs_sbp.current_iteration_input_idx);
         const auto& rhs_parameter = rhs_fn_body->get_parameters().at(rhs_sbp.current_iteration_input_idx);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!NodeAndInputDescription::equal_parameters(lhs_parameter.get(), rhs_parameter.get())) {
             return false;
         }
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& lhs_result = lhs_fn_body->get_results().at(lhs_sbp.body_condition_output_idx);
     const auto& rhs_result = rhs_fn_body->get_results().at(rhs_sbp.body_condition_output_idx);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return NodeAndOutputDescription::equal_results(lhs_result.get(), rhs_result.get());
 }
@@ -547,8 +557,10 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
      * + Check node attributes by Visitor API
      */
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto f1_results = f1->get_results();
     auto f2_results = f2->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto cmp = less_by_name;
     // In case if Result source output has more than one name so the Result may have any of this names as a friendly
