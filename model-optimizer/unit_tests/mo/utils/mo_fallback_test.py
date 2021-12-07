@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import Mock
 
 from mo.main import prepare_ir
-from openvino.frontend import FrontEndManager
+from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import argparse
 import os
