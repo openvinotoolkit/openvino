@@ -12,7 +12,9 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 CLDNNRemoteAllocator CLDNNRemoteBlobImpl::m_allocator;
 
 CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
@@ -100,7 +102,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
 }
 
 void CLDNNRemoteBlobImpl::allocate() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::Allocate");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNRemoteBlobImpl::Allocate");
     assert(m_memObject == nullptr);
 
     auto _impl = getContextImpl(m_context.lock());
@@ -164,7 +166,7 @@ std::string CLDNNRemoteBlobImpl::getDeviceName() const noexcept {
     return getContextImpl(m_context.lock())->getDeviceName();
 };
 
-std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
+std::shared_ptr<InferenceEngine::RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
     return m_context.lock();
 }
 
@@ -334,4 +336,6 @@ std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
     return devName;
 }
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

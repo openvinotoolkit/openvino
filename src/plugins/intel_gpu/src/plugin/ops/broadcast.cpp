@@ -12,7 +12,9 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::AxisSet axis_mapping) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
@@ -119,4 +121,6 @@ static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::
 REGISTER_FACTORY_IMPL(v1, Broadcast);
 REGISTER_FACTORY_IMPL(v3, Broadcast);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

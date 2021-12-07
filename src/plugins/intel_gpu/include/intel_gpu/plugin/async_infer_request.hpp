@@ -9,7 +9,9 @@
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 class CLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
@@ -29,4 +31,6 @@ private:
     InferenceEngine::ITaskExecutor::Ptr _waitExecutor;
 };
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

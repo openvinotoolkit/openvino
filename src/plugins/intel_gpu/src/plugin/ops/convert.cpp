@@ -10,7 +10,9 @@
 
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvertLike>& op) {
     p.ValidateInputs(op, {2});
@@ -52,4 +54,6 @@ static void CreateConvertOp(Program& p, const std::shared_ptr<ngraph::op::v0::Co
 REGISTER_FACTORY_IMPL(v0, Convert);
 REGISTER_FACTORY_IMPL(v1, ConvertLike);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

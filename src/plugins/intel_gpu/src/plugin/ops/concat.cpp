@@ -9,7 +9,9 @@
 
 #include "intel_gpu/primitives/concatenation.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::concatenation::concatenation_axis GetConcatAxis(int32_t axis, size_t rank) {
     unsigned cldnn_axis = axis >= 0 ? axis : axis + static_cast<int32_t>(rank);
@@ -54,4 +56,6 @@ static void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Con
 
 REGISTER_FACTORY_IMPL(v0, Concat);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

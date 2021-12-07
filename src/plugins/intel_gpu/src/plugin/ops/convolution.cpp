@@ -19,7 +19,9 @@
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 struct ConvoltuionParameters {
     cldnn::tensor stride;
@@ -352,4 +354,6 @@ REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v1, BinaryConvolution);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

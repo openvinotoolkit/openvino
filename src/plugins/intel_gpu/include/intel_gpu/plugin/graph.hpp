@@ -26,7 +26,9 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/program.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 class CLDNNGraph {
 public:
@@ -102,4 +104,6 @@ protected:
                                                                        bool filter_const_primitives = true);
 };
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

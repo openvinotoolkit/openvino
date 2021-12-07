@@ -11,7 +11,9 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& op) {
     p.ValidateInputs(op, {3});
@@ -89,4 +91,6 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
 REGISTER_FACTORY_IMPL(v1, Select);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

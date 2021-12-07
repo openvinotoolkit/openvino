@@ -14,7 +14,9 @@
 
 #include "transformations/utils/utils.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::op::v3::EmbeddingBagOffsetsSum>& op) {
     p.ValidateInputs(op, {3, 4, 5});
@@ -176,4 +178,6 @@ REGISTER_FACTORY_IMPL(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY_IMPL(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY_IMPL(v3, EmbeddingSegmentsSum);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

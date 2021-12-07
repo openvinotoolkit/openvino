@@ -12,7 +12,9 @@
 
 #include <algorithm>
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                               bool across_channels, bool normalize_variance, float eps, bool eps_inside_sqrt = true) {
@@ -65,4 +67,6 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& 
 REGISTER_FACTORY_IMPL(v0, MVN);
 REGISTER_FACTORY_IMPL(v6, MVN);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

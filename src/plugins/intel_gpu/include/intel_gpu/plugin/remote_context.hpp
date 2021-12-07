@@ -29,7 +29,9 @@
 #include <memory>
 #include <atomic>
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 class CLDNNRemoteAllocator;
 
 class CLDNNRemoteBlobImpl : public InferenceEngine::gpu::details::param_map_obj_getter {
@@ -564,4 +566,6 @@ inline CLDNNExecutionContextImpl* getContextImpl(InferenceEngine::gpu::ClContext
     return nullptr;
 }
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

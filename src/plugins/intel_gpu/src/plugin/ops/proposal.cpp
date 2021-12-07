@@ -11,7 +11,9 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
     p.ValidateInputs(op, {3});
@@ -153,4 +155,6 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 REGISTER_FACTORY_IMPL(v0, Proposal);
 REGISTER_FACTORY_IMPL(v4, Proposal);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

@@ -9,7 +9,9 @@
 
 #include "intel_gpu/primitives/grn.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateGRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::GRN>& op) {
     p.ValidateInputs(op, {1});
@@ -28,4 +30,6 @@ static void CreateGRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::GRN>& 
 
 REGISTER_FACTORY_IMPL(v0, GRN);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

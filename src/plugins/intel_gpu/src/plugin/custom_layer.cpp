@@ -3,6 +3,9 @@
 //
 
 #include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/plugin/simple_math.hpp"
+#include "intel_gpu/plugin/itt.hpp"
+
 #include "xml_parse_utils.h"
 #include <description_buffer.hpp>
 #include <map>
@@ -13,9 +16,6 @@
 #ifdef _WIN32
 # include <windows.h>
 #endif
-
-#include "intel_gpu/plugin/simple_math.hpp"
-#include "intel_gpu/plugin/itt.hpp"
 
 using namespace InferenceEngine;
 using namespace XMLParseUtils;
@@ -29,7 +29,9 @@ using namespace XMLParseUtils;
 #define CheckIntAttrAndReturnError(node, attr, value) \
     CheckAndReturnError(GetIntAttr(node, attr, -1) != (value), "Wrong attribute value! expected: " << value << " found: " << GetIntAttr(node, attr, -1))
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 void CLDNNCustomLayer::LoadSingleLayer(const pugi::xml_node & node) {
     // Root checks
@@ -225,7 +227,7 @@ cldnn::format CLDNNCustomLayer::FormatFromString(const std::string & str) {
 }
 
 void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLayerMap& customLayers, bool can_be_missed) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNCustomLayer::LoadFromFile");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNCustomLayer::LoadFromFile");
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
     if (res.status != pugi::status_ok) {
@@ -278,4 +280,6 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
     }
 }
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

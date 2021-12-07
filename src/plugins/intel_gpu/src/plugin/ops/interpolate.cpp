@@ -11,7 +11,9 @@
 
 #include "intel_gpu/primitives/resample.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::coordinate_transformation_mode GetCoordinateTransformationMode(ngraph::op::v4::Interpolate::CoordinateTransformMode mode) {
     switch (mode) {
@@ -202,4 +204,6 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
 
 REGISTER_FACTORY_IMPL(v4, Interpolate);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

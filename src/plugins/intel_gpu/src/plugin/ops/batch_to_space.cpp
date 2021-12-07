@@ -10,7 +10,9 @@
 
 #include "intel_gpu/primitives/batch_to_space.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v1::BatchToSpace>& op) {
     p.ValidateInputs(op, {4});
@@ -51,4 +53,6 @@ static void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
 REGISTER_FACTORY_IMPL(v1, BatchToSpace);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

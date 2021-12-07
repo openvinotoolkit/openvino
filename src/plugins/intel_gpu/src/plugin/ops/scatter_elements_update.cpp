@@ -10,7 +10,9 @@
 
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static inline cldnn::scatter_elements_update::scatter_elements_update_axis GetScatterElementsUpdateAxis(int axis, unsigned rank) {
     if (axis < 0)
@@ -66,4 +68,6 @@ static void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngra
 
 REGISTER_FACTORY_IMPL(v3, ScatterElementsUpdate);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

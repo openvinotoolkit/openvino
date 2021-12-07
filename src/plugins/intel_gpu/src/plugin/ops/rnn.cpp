@@ -15,7 +15,9 @@
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 static cldnn::activation_func GetActivationFunc(std::string name) {
     static const std::map<std::string, cldnn::activation_func> name_mapping = {
         {"sigmoid", cldnn::activation_func::logistic},
@@ -353,4 +355,6 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
 REGISTER_FACTORY_IMPL(v4, LSTMCell);
 REGISTER_FACTORY_IMPL(v5, LSTMSequence);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

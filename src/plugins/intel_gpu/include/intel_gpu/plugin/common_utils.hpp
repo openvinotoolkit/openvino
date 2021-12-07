@@ -9,7 +9,9 @@
 
 #include "ngraph/type/element_type.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
@@ -185,4 +187,6 @@ inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie
     return cldnn_order;
 }
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

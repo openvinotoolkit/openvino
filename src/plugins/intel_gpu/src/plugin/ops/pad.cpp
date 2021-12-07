@@ -10,7 +10,9 @@
 
 #include "intel_gpu/primitives/border.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::border_type GetBorderType(ngraph::op::PadMode mode) {
     switch (mode) {
@@ -73,4 +75,6 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
 
 REGISTER_FACTORY_IMPL(v1, Pad);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

@@ -43,7 +43,9 @@
 
 #include "intel_gpu/primitives/activation.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                           cldnn::activation_func func, cldnn::activation_additional_params params) {
@@ -313,4 +315,6 @@ REGISTER_FACTORY_IMPL(v0, Sign);
 REGISTER_FACTORY_IMPL(v5, HSigmoid);
 REGISTER_FACTORY_IMPL(v5, Round);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

@@ -4,17 +4,21 @@
 
 /**
  * @brief Defines openvino domains for tracing
- * @file cldnn_itt.h
+ * @file itt.hpp
  */
 
 #pragma once
 
 #include <openvino/itt.hpp>
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(CLDNNPlugin);
-}
-}
-}
+    OV_ITT_DOMAIN(intel_gpu_plugin);
+}  // namespace domains
+}  // namespace itt
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

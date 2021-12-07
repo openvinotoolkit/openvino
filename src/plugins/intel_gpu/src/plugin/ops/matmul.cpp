@@ -15,7 +15,9 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 /*
 *  get_aligned_shapes function align two input shapes to have the same size and
@@ -285,4 +287,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
 REGISTER_FACTORY_IMPL(v0, MatMul);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

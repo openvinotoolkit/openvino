@@ -30,7 +30,9 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::eltwise_mode mode) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
@@ -194,4 +196,6 @@ REGISTER_FACTORY_IMPL(v1, Power);
 REGISTER_FACTORY_IMPL(v1, FloorMod);
 REGISTER_FACTORY_IMPL(v1, Mod);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

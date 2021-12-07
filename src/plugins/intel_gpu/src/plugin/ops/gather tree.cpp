@@ -10,7 +10,9 @@
 #include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1::GatherTree>& op) {
     p.ValidateInputs(op, {4});
@@ -55,4 +57,6 @@ static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1:
 
 REGISTER_FACTORY_IMPL(v1, GatherTree);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

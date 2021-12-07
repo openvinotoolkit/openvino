@@ -11,7 +11,9 @@
 
 #include "intel_gpu/primitives/roi_pooling.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::pooling_mode GetPoolingMode(std::string method) {
     if (method == "bilinear")
@@ -126,4 +128,6 @@ REGISTER_FACTORY_IMPL(v1, DeformablePSROIPooling);
 REGISTER_FACTORY_IMPL(v0, PSROIPooling);
 REGISTER_FACTORY_IMPL(v0, ROIPooling);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

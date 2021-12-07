@@ -12,7 +12,9 @@
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 template<typename T>
 static inline std::string vecToString(std::vector<T> vec) {
@@ -255,4 +257,6 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
     p.primitiveIDs[genericLayerName] = prevLayerName;
 }
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

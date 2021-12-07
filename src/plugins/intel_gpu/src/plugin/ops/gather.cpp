@@ -10,7 +10,9 @@
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::gather::gather_axis GetGatherAxis(int32_t axis, cldnn::format inputFormat) {
     if (axis == 0) {
@@ -125,4 +127,6 @@ static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v8::Gat
 
 REGISTER_FACTORY_IMPL(v8, Gather);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

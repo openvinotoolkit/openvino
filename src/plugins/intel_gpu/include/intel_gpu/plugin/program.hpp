@@ -40,7 +40,9 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
        });                                                                                        \
 }
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 std::string layer_type_lower(const ngraph::Node* op);
 std::string layer_type_name_ID(const ngraph::Node* op);
@@ -135,7 +137,7 @@ public:
     template<typename PType>
     void AddPrimitive(PType prim) {
         if (m_topology == nullptr) {
-            IE_THROW() << "m_topology object was not created in clDNNPlugin::Program";
+            IE_THROW() << "m_topology object was not created in ov::runtime::intel_gpu::Program";
         }
 
         m_topology->add(prim);
@@ -179,4 +181,6 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, 
 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

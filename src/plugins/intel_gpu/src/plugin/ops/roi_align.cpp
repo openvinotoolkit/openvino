@@ -7,7 +7,9 @@
 #include "intel_gpu/primitives/roi_align.hpp"
 #include <memory>
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 namespace {
 
@@ -39,4 +41,6 @@ void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v3::ROIAlign
 
 REGISTER_FACTORY_IMPL(v3, ROIAlign);
 
-} // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

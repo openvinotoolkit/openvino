@@ -10,7 +10,9 @@
 
 #include "intel_gpu/primitives/gather_elements.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::gather_elements::gather_elements_axis GetGatherAxis(int axis, unsigned rank) {
     if (axis < 0)
@@ -64,4 +66,6 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
 
 REGISTER_FACTORY_IMPL(v6, GatherElements);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

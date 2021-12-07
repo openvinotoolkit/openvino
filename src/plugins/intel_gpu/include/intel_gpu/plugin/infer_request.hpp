@@ -12,7 +12,9 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include <threading/ie_istreams_executor.hpp>
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 struct buf_info {
     size_t buf_offset;
@@ -102,4 +104,6 @@ private:
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;
 };
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

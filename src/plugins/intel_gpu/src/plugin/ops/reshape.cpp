@@ -12,7 +12,9 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
     p.ValidateInputs(op, {1, 2});
@@ -74,4 +76,6 @@ REGISTER_FACTORY_IMPL(v1, Reshape);
 REGISTER_FACTORY_IMPL(v0, Squeeze);
 REGISTER_FACTORY_IMPL(v0, Unsqueeze);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

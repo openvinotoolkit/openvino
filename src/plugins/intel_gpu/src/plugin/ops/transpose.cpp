@@ -10,7 +10,9 @@
 
 #include "intel_gpu/primitives/permute.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpose>& op) {
     p.ValidateInputs(op, {1, 2});
@@ -46,4 +48,6 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
 
 REGISTER_FACTORY_IMPL(v1, Transpose);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

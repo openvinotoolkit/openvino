@@ -11,7 +11,9 @@
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/data.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0::NormalizeL2>& op) {
     p.ValidateInputs(op, {2});
@@ -61,4 +63,6 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
 
 REGISTER_FACTORY_IMPL(v0, NormalizeL2);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

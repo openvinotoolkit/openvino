@@ -10,6 +10,7 @@
 #include "intel_gpu/plugin/simple_math.hpp"
 #include <cldnn/cldnn_config.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
+#include "intel_gpu/plugin/itt.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -33,12 +34,13 @@
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/ngraph.hpp>
-#include "intel_gpu/plugin/itt.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
     : m_context(context)
@@ -61,7 +63,7 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
 }
 
 void CLDNNGraph::UpdateLayersMaps() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdateLayersMaps");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::UpdateLayersMaps");
     primitiveIDs = m_program->primitiveIDs;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
     profilingIDs = m_program->profilingIDs;
@@ -70,7 +72,7 @@ void CLDNNGraph::UpdateLayersMaps() {
 }
 
 void CLDNNGraph::Build() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::Build");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::Build");
     UpdateLayersMaps();
 
     if (GetMaxDynamicBatchSize() > 1) {
@@ -98,7 +100,7 @@ bool CLDNNGraph::use_external_queue() const {
 }
 
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::BuildNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::BuildNetwork");
     std::shared_ptr<cldnn::network> network = nullptr;
 
     auto impl = getContextImpl(m_context);
@@ -131,7 +133,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
 
 std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetExecGraphInfoByPrimitivesInfo");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::GetExecGraphInfoByPrimitivesInfo");
     if (m_config.useProfiling) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
@@ -289,7 +291,7 @@ std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
     auto desc_from_layout = [&](cldnn::layout layout) -> TensorDesc {
         Precision precision = data_type_to_precision(layout.data_type);
         SizeVector dims;
-        Layout l = Layout::NCHW;
+        auto l = InferenceEngine::Layout::NCHW;
         auto size = layout.size;
         if (layout.format.dimension() == 4) {
             dims = {static_cast<size_t>(size.batch[0]),
@@ -302,7 +304,7 @@ std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                     static_cast<size_t>(size.spatial[2]),
                     static_cast<size_t>(size.spatial[1]),
                     static_cast<size_t>(size.spatial[0])};
-            l = Layout::NCDHW;
+            l = InferenceEngine::Layout::NCDHW;
         } else if (layout.format.dimension() == 6) {
             dims = {static_cast<size_t>(size.batch[0]),
                     static_cast<size_t>(size.feature[0]),
@@ -311,7 +313,7 @@ std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                     static_cast<size_t>(size.spatial[1]),
                     static_cast<size_t>(size.spatial[0])};
             // Should be NC?DHW but there is no such layout yet
-            l = Layout::BLOCKED;
+            l = InferenceEngine::Layout::BLOCKED;
         }
         TensorDesc dst{precision, dims, l};
         return dst;
@@ -472,7 +474,7 @@ std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfo() {
 
 
 void CLDNNGraph::UpdatePerfStatistics() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdatePerfStatistics");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::UpdatePerfStatistics");
     if (GetNetworksCount() == 0) {
         return;
     }
@@ -544,7 +546,7 @@ bool CLDNNGraph::IsLoaded() const {
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::GetPerformanceCounts() const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetPerformanceCounts");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::GetPerformanceCounts");
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> result;
     bool combinePrimByIRLayers = false;
     unsigned i = 0;
@@ -624,7 +626,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
         return true;
     };
 
-    // Step 1. Get all primitives in execution order which was added by clDNNPlugin
+    // Step 1. Get all primitives in execution order which was added by GPU plugin
     for (auto& primId : profilingIDs) {
         getFromProfiling(primId);
     }
@@ -693,7 +695,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
         }
     }
 
-    // Step 3. Checking primitives which has been deleted from execution order but added by clDNNPlugin
+    // Step 3. Checking primitives which has been deleted from execution order but added by GPU plugin
     for (auto& primId : profilingIDs) {
         if (std::find(allIds.begin(), allIds.end(), primId) == allIds.end()) {
             getFromProfiling(primId);
@@ -763,4 +765,6 @@ InferenceEngine::SizeVector CLDNNGraph::GetOutputSize(std::string outName) const
     return sz;
 }
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

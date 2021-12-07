@@ -25,7 +25,9 @@
 
 using namespace InferenceEngine;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void createDirectory(std::string _path) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -57,7 +59,7 @@ static int getNumberOfCores(const IStreamsExecutor::Config::PreferredCoreType co
 
 IE_SUPPRESS_DEPRECATED_START
 void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Config::UpdateFromMap");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Config::UpdateFromMap");
     for (auto& kvp : configMap) {
         std::string key = kvp.first;
         std::string val = kvp.second;
@@ -329,7 +331,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
 }
 
 void Config::adjustKeyMapValues() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Config::AdjustKeyMapValues");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Config::AdjustKeyMapValues");
     if (useProfiling)
         key_config_map[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::YES;
     else
@@ -465,4 +467,6 @@ Config& Configs::GetDefaultDeviceConfig() {
 
 IE_SUPPRESS_DEPRECATED_END
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

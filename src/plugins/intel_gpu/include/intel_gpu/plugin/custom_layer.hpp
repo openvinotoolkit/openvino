@@ -12,7 +12,9 @@
 #include "pugixml.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 using CLDNNCustomLayerPtr = std::shared_ptr<class CLDNNCustomLayer>;
 using CLDNNCustomLayerMap = std::map<std::string, CLDNNCustomLayerPtr>;
@@ -82,4 +84,6 @@ protected:
     std::string m_ErrorMessage;
 };
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

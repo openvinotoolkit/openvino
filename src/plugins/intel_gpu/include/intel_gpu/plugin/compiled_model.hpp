@@ -17,7 +17,9 @@
 #include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 class CLDNNExecNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
@@ -43,4 +45,6 @@ public:
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
 };
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

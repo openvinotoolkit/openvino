@@ -11,7 +11,9 @@
 
 using namespace InferenceEngine;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
     OutputsDataMap networkOutputs = p.GetNetworkOutputs();
@@ -73,4 +75,6 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
 REGISTER_FACTORY_IMPL(v0, Result);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

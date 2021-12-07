@@ -20,7 +20,9 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
     cldnn::tensor constTensor;
@@ -216,4 +218,6 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 
 REGISTER_FACTORY_IMPL(v0, Constant);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

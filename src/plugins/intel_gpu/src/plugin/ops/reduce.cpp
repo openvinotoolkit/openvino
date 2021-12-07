@@ -20,7 +20,9 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
     p.ValidateInputs(op, {2});
@@ -173,4 +175,6 @@ REGISTER_FACTORY_IMPL(v1, ReduceSum);
 REGISTER_FACTORY_IMPL(v4, ReduceL1);
 REGISTER_FACTORY_IMPL(v4, ReduceL2);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

@@ -41,7 +41,9 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 #define FACTORY_DECLARATION(op_version, op_name) \
     void __register ## _ ## op_name ## _ ## op_version();
@@ -60,7 +62,7 @@ void clDNNEngine::RegisterPrimitives() {
 }
 
 struct clDNNEngine::impl {
-    CLDNNPlugin::Configs m_configs;
+    Configs m_configs;
 };
 
 std::string clDNNEngine::GetDeviceIDFromConfig(const std::map<std::string, std::string>& config) const {
@@ -85,8 +87,8 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
 }
 
 InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
-                                                                  const CLDNNPlugin::Config& config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::CloneAndTransformNetwork");
+                                                                  const Config& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
     if (clonedNetwork.getFunction()) {
@@ -164,8 +166,8 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     }
 };
 
-void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::UpdateConfig");
+void clDNNEngine::UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::UpdateConfig");
     auto device_info = GetDeviceInfo(params);
     conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(params);
@@ -175,7 +177,7 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
 }
 
 void clDNNEngine::UpdateStatistics(const CLDNNRemoteCLContext::Ptr& context) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::UpdateStatistics");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::UpdateStatistics");
     {
         std::lock_guard<std::mutex> lock(engine_mutex);
 
@@ -195,7 +197,7 @@ void clDNNEngine::UpdateStatistics(const CLDNNRemoteCLContext::Ptr& context) con
 
 std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
         const std::map<std::string, std::string>& network_config,
-        const CLDNNPlugin::Config& plugin_config) const {
+        const Config& plugin_config) const {
     // deduces the actual settings from the performance hints and returns fully-defined config
     auto config = network_config;
     const auto &mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
@@ -225,14 +227,14 @@ std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                 const std::map<std::string, std::string> &orig_config) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
-    CLDNNPlugin::Configs confs = _impl->m_configs;
+    Configs confs = _impl->m_configs;
     std::string device_id = GetDeviceIDFromConfig(orig_config);
-    CLDNNPlugin::Config conf = confs.GetConfig(device_id);
+    Config conf = confs.GetConfig(device_id);
 
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
@@ -263,7 +265,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     };
 
     {
-        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateContext");
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
         if (!canReuseDefaultContext()) {
             m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), conf));
@@ -274,7 +276,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
-        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateExeNetwork");
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::LoadExeNetworkImpl::CreateExeNetwork");
         CLDNNExecNetwork::Ptr exeNetwork = std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
         UpdateStatistics(context);
         return exeNetwork;
@@ -282,7 +284,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
 }
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const RemoteContext::Ptr &context,
+                                                                const InferenceEngine::RemoteContext::Ptr &context,
                                                                 const std::map<std::string, std::string> &orig_config) {
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
@@ -292,7 +294,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
         IE_THROW() << "Invalid context";
     }
 
-    CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
+    Config conf = getContextImpl(casted)->GetConfig();
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
@@ -300,7 +302,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
 }
 
-RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
+InferenceEngine::RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     // parameter map is non-empty
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
@@ -317,7 +319,7 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     }
 }
 
-RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
+InferenceEngine::RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
         m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig()));
     }
@@ -347,11 +349,11 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
 
 QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                                              const std::map<std::string, std::string>& config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::QueryNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::QueryNetwork");
     QueryNetworkResult res;
-    CLDNNPlugin::Configs confs = _impl->m_configs;
+    Configs confs = _impl->m_configs;
     std::string device_id = GetDeviceIDFromConfig(config);
-    CLDNNPlugin::Config conf = confs.GetConfig(device_id);
+    Config conf = confs.GetConfig(device_id);
 
     UpdateConfig(conf, network, config);
 
@@ -569,7 +571,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
 }
 
 Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetConfig");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::GetConfig");
     Parameter result;
 
     std::string device_id;
@@ -656,7 +658,7 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
 }
 
 Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetMetric");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "clDNNEngine::GetMetric");
     std::string device_id = GetConfig(CONFIG_KEY(DEVICE_ID), options);
 
     auto iter = device_map.find(device_id);
@@ -835,7 +837,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         for (auto& info : inputs_info) {
             if (!info.second)
                 continue;
-            Layout layout = info.second->getLayout();
+            InferenceEngine::Layout layout = info.second->getLayout();
             auto data = info.second->getInputData();
             if (!data)
                 continue;
@@ -885,7 +887,9 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         IE_THROW() << "Unsupported metric key " << name;
     }
 }
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov
 
-static const Version version = { {2, 1}, CI_BUILD_NUMBER, "clDNNPlugin" };
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(CLDNNPlugin::clDNNEngine, version)
+static const Version version = { {2, 1}, CI_BUILD_NUMBER, "Intel GPU plugin" };
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::runtime::intel_gpu::clDNNEngine, version)

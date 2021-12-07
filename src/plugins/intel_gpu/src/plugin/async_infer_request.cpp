@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "async_infer_request.hpp"
+#include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include <memory>
 
-CLDNNPlugin::CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const CLDNNInferRequest::Ptr &inferRequest,
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
+
+CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const CLDNNInferRequest::Ptr &inferRequest,
                                                             const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
                                                             const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
                                                             const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
@@ -16,7 +20,7 @@ CLDNNPlugin::CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const CLDNNInferRequ
     if (!_inferRequest->use_external_queue()) {
         _pipeline.push_back({taskExecutor,
                     [this] {
-                        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNAsyncInferRequest::PreprocessingAndStartPipeline");
+                        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNAsyncInferRequest::PreprocessingAndStartPipeline");
                         _inferRequest->setup_stream_graph();
                         _inferRequest->preprocess();
                         _inferRequest->enqueue();
@@ -25,13 +29,13 @@ CLDNNPlugin::CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const CLDNNInferRequ
     } else {
         _pipeline.push_back({ _waitExecutor,
                         [this] {
-                            OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNAsyncInferRequest::WaitPipeline");
+                            OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNAsyncInferRequest::WaitPipeline");
                             _inferRequest->wait_notify();
                         } });
     }
 }
 
-void CLDNNPlugin::CLDNNAsyncInferRequest::Infer_ThreadUnsafe() {
+void CLDNNAsyncInferRequest::Infer_ThreadUnsafe() {
     if (_inferRequest->use_external_queue()) {
         _inferRequest->setup_stream_graph();
         _inferRequest->preprocess_notify();
@@ -40,7 +44,7 @@ void CLDNNPlugin::CLDNNAsyncInferRequest::Infer_ThreadUnsafe() {
     Parent::Infer_ThreadUnsafe();
 }
 
-void CLDNNPlugin::CLDNNAsyncInferRequest::StartAsync_ThreadUnsafe() {
+void CLDNNAsyncInferRequest::StartAsync_ThreadUnsafe() {
     if (_inferRequest->use_external_queue()) {
         _inferRequest->setup_stream_graph();
         _inferRequest->preprocess_notify();
@@ -49,6 +53,11 @@ void CLDNNPlugin::CLDNNAsyncInferRequest::StartAsync_ThreadUnsafe() {
     Parent::StartAsync_ThreadUnsafe();
 }
 
-CLDNNPlugin::CLDNNAsyncInferRequest::~CLDNNAsyncInferRequest() {
+CLDNNAsyncInferRequest::~CLDNNAsyncInferRequest() {
     StopAndWait();
 }
+
+
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

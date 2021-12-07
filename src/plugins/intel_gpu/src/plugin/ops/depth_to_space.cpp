@@ -9,7 +9,9 @@
 
 #include "intel_gpu/primitives/depth_to_space.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::depth_to_space_mode GetDepthMode(ngraph::op::v0::DepthToSpace::DepthToSpaceMode mode) {
     switch (mode) {
@@ -42,4 +44,6 @@ static void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
 REGISTER_FACTORY_IMPL(v0, DepthToSpace);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

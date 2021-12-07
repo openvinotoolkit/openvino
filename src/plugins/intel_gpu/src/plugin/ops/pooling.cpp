@@ -10,7 +10,9 @@
 
 #include "intel_gpu/primitives/pooling.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 struct PoolingParameters {
     cldnn::tensor kernel;
@@ -100,4 +102,6 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Ma
 REGISTER_FACTORY_IMPL(v1, MaxPool);
 REGISTER_FACTORY_IMPL(v1, AvgPool);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

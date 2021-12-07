@@ -2,48 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "ie_metric_helpers.hpp"
-#include <chrono>
-#include <cmath>
-#include <algorithm>
-
-#include "ie_metric_helpers.hpp"
-#include <chrono>
-#include <cmath>
-#include <algorithm>
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/plugin/infer_request.hpp"
+#include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/async_infer_request.hpp"
 
 #include <description_buffer.hpp>
-#include "intel_gpu/plugin/infer_request.hpp"
 #include <threading/ie_executor_manager.hpp>
-#include "async_infer_request.hpp"
-#include <fstream>
-#include <utility>
-#include <sys/types.h>
-
-#include "intel_gpu/plugin/compiled_model.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "ie_icore.hpp"
 
+#include <fstream>
+#include <utility>
+#include <sys/types.h>
+#include <chrono>
+#include <cmath>
+#include <algorithm>
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<RemoteContext> context, Config config) :
-    InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config) :
+    InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
         if (config.exclusiveAsyncRequests) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return ExecutorManager::getInstance()->getExecutor("GPU");
         }  else if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"CLDNNPlugin executor", config.throughput_streams});
+                IStreamsExecutor::Config{"Intel GPU plugin executor", config.throughput_streams});
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"CLDNNPlugin executor", 1});
+                IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
         }
     }()},
     m_config(config),
@@ -66,7 +62,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::sh
 
 IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                     OutputsDataMap networkOutputs) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     auto ptr = std::make_shared<CLDNNInferRequest>(networkInputs, networkOutputs,
                                                    std::static_pointer_cast<CLDNNExecNetwork>(shared_from_this()));
     if (m_config.throughput_streams > 1) {
@@ -84,7 +80,7 @@ IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMa
 
 IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     auto ptr = std::make_shared<CLDNNInferRequest>(inputs, outputs,
                                                    std::static_pointer_cast<CLDNNExecNetwork>(shared_from_this()));
     if (m_config.throughput_streams > 1) {
@@ -102,7 +98,7 @@ IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(const std::v
 }
 
 IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequest");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNExecNetwork::CreateInferRequest");
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
     if (m_graphs.empty()) {
         IE_THROW(NetworkNotLoaded);
@@ -171,8 +167,10 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
     }
 }
 
-std::shared_ptr<RemoteContext> CLDNNExecNetwork::GetContext() const {
+std::shared_ptr<InferenceEngine::RemoteContext> CLDNNExecNetwork::GetContext() const {
     return m_context;
 }
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

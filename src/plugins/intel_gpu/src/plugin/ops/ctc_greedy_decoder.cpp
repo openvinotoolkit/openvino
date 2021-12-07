@@ -15,7 +15,9 @@
 
 #include "transformations/utils/utils.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::Node>& op, bool ctc_merge_repeated) {
     p.ValidateInputs(op, {2, 3});
@@ -131,4 +133,6 @@ static void CreateCTCGreedyDecoderSeqLenOp(Program& p, const std::shared_ptr<ngr
 REGISTER_FACTORY_IMPL(v0, CTCGreedyDecoder);
 REGISTER_FACTORY_IMPL(v6, CTCGreedyDecoderSeqLen);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov
