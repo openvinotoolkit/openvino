@@ -124,5 +124,5 @@ accuracy-aware scenario.
 
 If you do not achieve the desired accuracy and performance after applying the 
 `AccuracyAwareQuantization` algorithm or you need an accurate fully-quantized model,
-we recommend either using layer-wise hyperparameters tuning using 
+we recommend using layer-wise hyperparameters tuning using 
 Quantization-Aware training from [the supported frameworks](LowPrecisionOptimizationGuide.md).
