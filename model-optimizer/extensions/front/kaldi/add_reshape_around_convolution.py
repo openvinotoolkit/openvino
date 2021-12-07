@@ -6,7 +6,7 @@ import numpy as np
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Div
 from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import float32_array, int64_array
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph, Node, Port
@@ -155,11 +155,11 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
             N, H = node_to_get_shape_value_of_indices(i_shape, [0]), node_to_get_shape_value_of_indices(i_shape, [1])
 
             div = create_op_with_const_inputs(
-                graph, Div, {1: float32_array([frame_height * time_dim])}, {'name': node_name + '/div_stride_h'})
+                graph, Div, {1: int64_array([frame_height * time_dim])}, {'name': node_name + '/div_stride_h'})
             div.in_port(0).connect(H.out_port(0))
 
-            concat = create_op_with_const_inputs(graph, Concat, {index_const: float32_array([frame_height]),
-                                                                 1: float32_array([time_dim])},
+            concat = create_op_with_const_inputs(graph, Concat, {index_const: int64_array([frame_height]),
+                                                                 1: int64_array([time_dim])},
                                                  {'name': node_name + '/concat_all_dims', 'in_ports_count': 4,
                                                   'axis': 0})
             concat.in_port(0).connect(N.out_port(0))
