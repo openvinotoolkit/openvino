@@ -442,7 +442,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                     plane_param->output(0).get_rt_info().erase(TensorInfoMemoryType::get_type_info_static());
                 } else {
                     plane_param->output(0).get_rt_info()[TensorInfoMemoryType::get_type_info_static()] =
-                        std::make_shared<TensorInfoMemoryType>(input->get_tensor_data()->get_memory_type());
+                        TensorInfoMemoryType(input->get_tensor_data()->get_memory_type());
                 }
             }
             new_params.push_back(plane_param);
@@ -486,9 +486,11 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         }
 
         auto node = nodes[0];
-
+        if (node.get_partial_shape() != param->get_partial_shape()) {
+            tensor_data_updated = true;  // Trigger revalidation if input parameter shape is changed
+        }
         // Check final shape
-        OPENVINO_ASSERT(node.get_partial_shape().refines(param->get_partial_shape()),
+        OPENVINO_ASSERT(node.get_partial_shape().compatible(param->get_partial_shape()),
                         "Resulting shape '",
                         node.get_partial_shape(),
                         "' after preprocessing is not aligned with original parameter's shape: ",
@@ -578,10 +580,17 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         // Create result
         auto new_result = std::make_shared<ov::op::v0::Result>(node);
         new_result->set_friendly_name(result->get_friendly_name());
+        node.get_tensor().set_names(start_out_node_names);
+
+        // Preserve runtime info of original result
+        new_result->get_rt_info() = result->get_rt_info();
+        new_result->input(0).get_rt_info() = result->input(0).get_rt_info();
+        new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
+
+        // Update layout
         if (!context.layout().empty()) {
             new_result->set_layout(context.layout());
         }
-        node.get_tensor().set_names(start_out_node_names);
 
         for (auto& old_result : results) {
             if (result == old_result) {

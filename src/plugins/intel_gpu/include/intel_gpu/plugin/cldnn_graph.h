@@ -17,8 +17,8 @@
 #include "ie_blob.h"
 #include "cpp/ie_cnn_network.h"
 
-#include <cldnn/graph/network.hpp>
-#include <cldnn/graph/topology.hpp>
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/topology.hpp"
 
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "cldnn_custom_layer.h"

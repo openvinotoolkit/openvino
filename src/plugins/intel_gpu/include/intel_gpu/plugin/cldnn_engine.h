@@ -7,7 +7,7 @@
 #include <map>
 #include <string>
 #include <memory>
-#include <cldnn/runtime/engine.hpp>
+#include "intel_gpu/runtime/engine.hpp"
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cldnn_remote_context.h"

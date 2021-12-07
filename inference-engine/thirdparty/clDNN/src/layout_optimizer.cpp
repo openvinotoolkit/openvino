@@ -4,7 +4,8 @@
 
 #include "layout_optimizer.h"
 #include "primitive_inst.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "program_helpers.h"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"
@@ -191,6 +192,20 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             return true;
         return false;
     };
+
+    // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
+    if (next.get_preferred_impl_type() == impl_types::onednn) {
+        for (auto& fused_op : next.get_fused_primitives()) {
+            if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+                auto eltw_in_layout = next.get_dependency(fused_op.dep_start_idx).get_output_layout();
+                auto out_layout = next.get_output_layout();
+                if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout) &&
+                    program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout) &&
+                    prev.get_output_layout().format != out_layout.format)
+                    return false;
+            }
+        }
+    }
 
     if (next.is_type<reorder>()) {
         // Avoid fusing current reorder to fuse next reorder
