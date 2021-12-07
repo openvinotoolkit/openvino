@@ -55,14 +55,14 @@ protected:
     /// \param params Can be path to folder which contains __model__ file or path to
     /// .pdmodel file
     /// \return InputModel::Ptr
-    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
+    bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
     /// \brief Reads model from 1 or 2 given file names or 1 or 2 std::istream containing
     /// model in protobuf format and weights
     /// \param params Can contain path to folder with __model__ file or path to .pdmodel
     /// file or 1 or 2 streams with model and weights
     /// \return InputModel::Ptr
-    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 private:
     static std::shared_ptr<Model> convert_each_node(

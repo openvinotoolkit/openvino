@@ -43,7 +43,6 @@ bool compare_rt_keys(const Node& node1, const Node& node2) {
     // The "opset" parameter in RT info is optional
     // and mandatory only for TypeRelaxed operations.
     // Therefore, we ignore this key when comparing RT keys.
-
     const auto& first_node_rt_info = node1->get_rt_info();
     const auto& second_node_rt_info = node2->get_rt_info();
 
@@ -51,6 +50,10 @@ bool compare_rt_keys(const Node& node1, const Node& node2) {
     auto second_node_rt_info_it = second_node_rt_info.begin();
 
     while (first_node_rt_info_it != first_node_rt_info.end() && second_node_rt_info_it != second_node_rt_info.end()) {
+        std::stringstream strm;
+        first_node_rt_info_it->second.print(strm);
+        strm << " ";
+        second_node_rt_info_it->second.print(strm);
         bool is_continue = false;
         if (first_node_rt_info_it->first == "opset") {
             ++first_node_rt_info_it;

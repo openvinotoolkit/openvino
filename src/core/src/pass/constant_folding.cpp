@@ -88,7 +88,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
             if (status) {
                 for (const auto& node : order) {
                     const auto& rt_info = node->get_rt_info();
-                    if (rt_info.count("disabled_constant_folding_0")) {
+                    if (rt_info.count(DisableConstantFolding::get_type_info_static())) {
                         status = false;
                         break;
                     }
@@ -122,16 +122,13 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
 }
 
 void ov::pass::disable_constant_folding(const std::shared_ptr<Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    rt_info[DisableConstantFolding::get_type_info_static()] = std::make_shared<DisableConstantFolding>(true);
+    node->get_rt_info().emplace(DisableConstantFolding::get_type_info_static(), DisableConstantFolding{});
 }
 
 void ov::pass::enable_constant_folding(const std::shared_ptr<Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    rt_info.erase(DisableConstantFolding::get_type_info_static());
+    node->get_rt_info().erase(DisableConstantFolding::get_type_info_static());
 }
 
 bool ov::pass::constant_folding_is_disabled(const std::shared_ptr<Node>& node) {
-    const auto& rt_info = node->get_rt_info();
-    return rt_info.count(DisableConstantFolding::get_type_info_static());
+    return node->get_rt_info().count(DisableConstantFolding::get_type_info_static());
 }

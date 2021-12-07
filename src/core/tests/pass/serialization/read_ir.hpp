@@ -16,9 +16,9 @@ inline std::shared_ptr<ov::Model> readModel(const std::string& model_path, const
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::VariantVector params{ov::make_variant(model_path)};
+    ov::RuntimeAttributeVector params{model_path};
     if (!weights_path.empty())
-        params.emplace_back(ov::make_variant(weights_path));
+        params.emplace_back(weights_path);
 
     FE = manager.load_by_model(params);
     if (FE)
@@ -37,7 +37,7 @@ inline std::shared_ptr<ov::Model> readModel(const std::string& model) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
-    ov::VariantVector params{ov::make_variant(&modelStream)};
+    ov::RuntimeAttributeVector params{&modelStream};
 
     FE = manager.load_by_model(params);
     if (FE)

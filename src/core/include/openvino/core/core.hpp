@@ -29,11 +29,11 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/core/variant.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/core/visibility.hpp"
 
