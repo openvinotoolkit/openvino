@@ -35,7 +35,7 @@ void shape_infer(const TopK* op,
     auto output_shape = input_shape;
     if (input_shape.rank().is_static()) {
         ov::PartialShape k_as_shape;
-        auto input_rank = input_shape.size();
+        auto input_rank = static_cast<int64_t>(input_shape.size());
         auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_rank, -input_rank, input_rank - 1);
         auto& dim_axis = output_shape[normalized_axis];
 

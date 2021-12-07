@@ -265,12 +265,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_random_cpu",
     ),
     (
-        xfail_issue_44854,
-        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_cpu",
-    ),
-    (
         xfail_issue_44858,
         "OnnxBackendNodeModelTest.test_unsqueeze_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_axis_1_cpu",
