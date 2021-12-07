@@ -28,7 +28,7 @@ static const char target_device_message[] =
 
 /// @brief message for vpu argument
 static const char performance_hint_message[] =
-    "Required. Enables performance hint for specified device.";
+    "Not required. Enables performance hint for specified device. Available hints are LATENCY and THROUGHPUT.";
 
 /// @brief message for cache argument
 static const char cpu_cache_message[] =
@@ -36,7 +36,7 @@ static const char cpu_cache_message[] =
 
 /// @brief message for vpu argument
 static const char vpu_compiler_message[] =
-    "Not required. Use this key to run timetests using MLIR VPUX compiler type.";
+    "Not required. Use this key to run timetests using MLIR or MCM VPUX compiler type.";
 
 /// @brief message for statistics path argument
 static const char statistics_path_message[] =

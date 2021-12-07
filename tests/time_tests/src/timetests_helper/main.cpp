@@ -33,10 +33,6 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
     throw std::logic_error(
         "Statistics file path is required but not set. Please set -s option.");
 
-  if (FLAGS_p.empty())
-    throw std::logic_error(
-        "Performance hint is required but not set. Please set -p option.");
-
   return true;
 }
 
