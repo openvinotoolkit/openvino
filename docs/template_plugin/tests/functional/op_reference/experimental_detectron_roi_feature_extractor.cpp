@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& inputs) {
+    std::shared_ptr<Model> create_function(const std::vector<Tensor>& inputs) {
         op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
         attrs.aligned = false;
         attrs.output_size = 3;

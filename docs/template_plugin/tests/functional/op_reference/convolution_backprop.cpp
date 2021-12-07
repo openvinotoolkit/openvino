@@ -93,7 +93,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ConvolutionBackpropParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ConvolutionBackpropParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);

@@ -62,8 +62,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const OneHotParams& params) {
-        std::shared_ptr<Function> function;
+    static std::shared_ptr<Model> CreateFunction(const OneHotParams& params) {
+        std::shared_ptr<Model> function;
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto depth = std::make_shared<op::v0::Constant>(params.depthTensor.type, params.depthTensor.shape,
                                                               params.depthTensor.data.data());

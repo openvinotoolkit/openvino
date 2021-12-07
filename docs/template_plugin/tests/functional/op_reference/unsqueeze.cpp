@@ -73,7 +73,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const element::Type_t& input_type,
+    static std::shared_ptr<Model> CreateFunction(const element::Type_t& input_type,
                                                     const Shape& input_shape,
                                                     const element::Type& axes_type,
                                                     const Shape& axes_shape,

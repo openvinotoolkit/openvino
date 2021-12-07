@@ -153,7 +153,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DeformablePSROIPoolingParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DeformablePSROIPoolingParams& params) {
         const auto input = std::make_shared<op::v0::Parameter>(params.inputType, params.inputShape);
         const auto rois = std::make_shared<op::v0::Parameter>(params.roisType, params.roisShape);
         if (params.offsetsShape.size() != 0) {

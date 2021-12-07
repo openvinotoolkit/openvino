@@ -66,7 +66,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const SeluParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const SeluParams& params) {
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.pshape);
         const auto alpha = std::make_shared<op::v0::Parameter>(params.inType, params.alphaShape);
         const auto lambda = std::make_shared<op::v0::Parameter>(params.inType, params.lambdaShape);

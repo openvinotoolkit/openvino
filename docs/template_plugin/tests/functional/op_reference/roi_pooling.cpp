@@ -76,7 +76,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const size_t i_h, const size_t i_w, const size_t ch, const size_t roi_count,
+    static std::shared_ptr<Model> CreateFunction(const size_t i_h, const size_t i_w, const size_t ch, const size_t roi_count,
                                                     const size_t o_h, const size_t o_w, const float spat_scale, const std::string mode,
                                                     const ov::element::Type& type) {
         Shape feat_map_shape{1, ch, i_h, i_w};

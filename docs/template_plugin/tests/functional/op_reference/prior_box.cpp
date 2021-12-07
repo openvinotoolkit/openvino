@@ -110,7 +110,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PriorBoxParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const PriorBoxParams& params) {
         auto LS =
             std::make_shared<op::v0::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
         auto IS =
@@ -141,7 +141,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PriorBoxV8Params& params) {
+    static std::shared_ptr<Model> CreateFunction(const PriorBoxV8Params& params) {
         auto LS =
             std::make_shared<op::v0::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
         auto IS =

@@ -42,7 +42,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GatherTreeParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GatherTreeParams& params) {
         const auto stepIds = std::make_shared<op::v0::Parameter>(params.stepIdsTensor.type, params.stepIdsTensor.shape);
         const auto parentIds = std::make_shared<op::v0::Parameter>(params.parentIdsTensor.type, params.parentIdsTensor.shape);
         const auto maxSeqLen = std::make_shared<op::v0::Parameter>(params.maxSeqLenTensor.type, params.maxSeqLenTensor.shape);

@@ -33,7 +33,7 @@ namespace test {
 namespace behavior {
 
 std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<OVInferRequestDynamicParams> obj) {
-    std::shared_ptr<Function> func;
+    std::shared_ptr<Model> func;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

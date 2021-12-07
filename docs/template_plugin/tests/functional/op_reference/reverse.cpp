@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ReverseParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ReverseParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto constant = std::make_shared<op::v0::Constant>(params.constantTensor.type,
                                                                  params.constantTensor.shape,

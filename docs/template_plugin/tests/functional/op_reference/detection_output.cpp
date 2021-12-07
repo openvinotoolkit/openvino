@@ -179,7 +179,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DetectionOutputParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DetectionOutputParams& params) {
         const auto loc = std::make_shared<op::v0::Parameter>(params.inType, params.locShape);
         const auto conf = std::make_shared<op::v0::Parameter>(params.inType, params.confShape);
         const auto priorBoxes = std::make_shared<op::v0::Parameter>(params.inType, params.priorBoxesShape);
@@ -224,7 +224,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DetectionOutputParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DetectionOutputParams& params) {
         const auto loc = std::make_shared<op::v0::Parameter>(params.inType, params.locShape);
         const auto conf = std::make_shared<op::v0::Parameter>(params.inType, params.confShape);
         const auto priorBoxes = std::make_shared<op::v0::Parameter>(params.inType, params.priorBoxesShape);

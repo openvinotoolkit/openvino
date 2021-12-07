@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Tensor& input, const ngraph::AxisSet& reductionAxes, const bool acrossChannels,
+    static std::shared_ptr<Model> CreateFunction(const Tensor& input, const ngraph::AxisSet& reductionAxes, const bool acrossChannels,
                                                     const bool normalizeVariance, const double eps) {
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
         auto mvn = std::make_shared<op::v0::MVN>(in, acrossChannels, normalizeVariance, eps);
@@ -177,7 +177,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Tensor& input, const Tensor& reductionAxes, const bool normalizeVariance, const double eps,
+    static std::shared_ptr<Model> CreateFunction(const Tensor& input, const Tensor& reductionAxes, const bool normalizeVariance, const double eps,
                                                     const op::MVNEpsMode epsMode) {
         std::vector<int64_t> dataVector(reductionAxes.shape[0]);
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);

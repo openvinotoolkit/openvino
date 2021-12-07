@@ -77,7 +77,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ExperimentalGPParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ExperimentalGPParams& params) {
         const auto im_info = std::make_shared<op::v0::Parameter>(params.inType, params.imageSizeInfoShape);
         const auto anchors = std::make_shared<op::v0::Parameter>(params.inType, params.anchorsShape);
         const auto deltas = std::make_shared<op::v0::Parameter>(params.inType, params.deltasShape);

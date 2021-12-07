@@ -79,7 +79,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ExperimentalDOParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ExperimentalDOParams& params) {
         const auto rois = std::make_shared<op::v0::Parameter>(params.inType, params.roisShape);
         const auto deltas = std::make_shared<op::v0::Parameter>(params.inType, params.deltasShape);
         const auto scores = std::make_shared<op::v0::Parameter>(params.inType, params.scoresShape);

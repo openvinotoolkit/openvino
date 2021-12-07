@@ -112,8 +112,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const StridedSliceParams& params) {
-        std::shared_ptr<Function> function;
+    static std::shared_ptr<Model> CreateFunction(const StridedSliceParams& params) {
+        std::shared_ptr<Model> function;
         if (params.dynamicDataShape.is_static()) {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
             const auto beginOp = std::make_shared<op::v0::Constant>(params.beginTensor.type, params.beginTensor.shape,
@@ -174,8 +174,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const StridedSliceStrideOptionalParams& params) {
-        std::shared_ptr<Function> function;
+    static std::shared_ptr<Model> CreateFunction(const StridedSliceStrideOptionalParams& params) {
+        std::shared_ptr<Model> function;
         if (params.dynamicDataShape.is_static()) {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
             const auto beginOp = std::make_shared<op::v0::Constant>(params.beginTensor.type, params.beginTensor.shape,

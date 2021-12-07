@@ -55,13 +55,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GatherParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GatherParams& params) {
         const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A = op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape,
                                                 params.axisTensor.data.data());
         const auto G = std::make_shared<op::v1::Gather>(P, I, A);
-        const auto f = std::make_shared<Function>(G, ParameterVector{P, I});
+        const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }
 };
@@ -115,13 +115,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GatherParamsV7& params) {
+    static std::shared_ptr<Model> CreateFunction(const GatherParamsV7& params) {
         const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A = op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape,
                                                 params.axisTensor.data.data());
         const auto G = std::make_shared<op::v7::Gather>(P, I, A, params.batchDims);
-        const auto f = std::make_shared<Function>(G, ParameterVector{P, I});
+        const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }
 };

@@ -87,7 +87,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PSROIPoolingParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const PSROIPoolingParams& params) {
         const auto image = std::make_shared<op::v0::Parameter>(params.imageInputType, params.imageShape);
         const auto coords = std::make_shared<op::v0::Parameter>(params.coordsInputType, params.coordsShape);
         const auto PSROIPooling = std::make_shared<op::v0::PSROIPooling>(image,

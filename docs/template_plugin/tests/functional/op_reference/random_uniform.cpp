@@ -58,7 +58,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const std::vector<int64_t>& out_shape,
+    static std::shared_ptr<Model> CreateFunction(const std::vector<int64_t>& out_shape,
                                                     const Tensor& min_val,
                                                     const Tensor& max_val,
                                                     const ov::element::Type& out_type,

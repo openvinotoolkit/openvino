@@ -160,7 +160,7 @@ void SubgraphBaseTest::configure_model() {
 void SubgraphBaseTest::compile_model() {
     configure_model();
     if (functionRefs == nullptr) {
-        functionRefs = ov::clone_function(*function);
+        functionRefs = ov::clone_model(*function);
     }
     executableNetwork = core->compile_model(function, targetDevice, configuration);
 }
@@ -196,7 +196,7 @@ void SubgraphBaseTest::infer() {
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
 
-    auto functionToProcess = ov::clone_function(*functionRefs);
+    auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
     static const precisions_array precisions = {
             { ngraph::element::bf16, ngraph::element::f32 },

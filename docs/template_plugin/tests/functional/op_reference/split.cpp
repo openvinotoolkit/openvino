@@ -56,7 +56,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const SplitParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const SplitParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto axis = std::make_shared<op::v0::Constant>(params.axisTensor.type,
                                                                  params.axisTensor.shape,
