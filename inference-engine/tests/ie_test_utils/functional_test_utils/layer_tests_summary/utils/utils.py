@@ -19,10 +19,15 @@ def update_passrates(results: ET.SubElement):
             for attrib in op.attrib:
                 if attrib == "passrate":
                     continue
+                if attrib == "implemented":
+                    continue
                 if attrib == "passed":
                     passed_tests = int(op.attrib.get(attrib))
                 total_tests += int(op.attrib.get(attrib))
-            passrate = float(passed_tests * 100 / total_tests) if passed_tests < total_tests else 100
+            if total_tests == 0:
+                passrate = 0
+            else:
+                passrate = float(passed_tests * 100 / total_tests) if passed_tests < total_tests else 100
             op.set("passrate", str(round(passrate, 1)))
 
 

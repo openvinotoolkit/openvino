@@ -61,7 +61,7 @@ protected:
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
 
-    LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();;
+    LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
 
 private:
     std::vector<ov::runtime::Tensor> calculate_refs();
