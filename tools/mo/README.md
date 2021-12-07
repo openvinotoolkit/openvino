@@ -47,7 +47,7 @@ source .env3/bin/activate
 2. Clone the OpenVINO™ repository and change dir to model-optimizer
 ```
 git clone https://github.com/openvinotoolkit/openvino
-cd openvino/model-optimizer
+cd openvino/tools/mo/
 ```
 
 3. Install openvino-mo package for development:
