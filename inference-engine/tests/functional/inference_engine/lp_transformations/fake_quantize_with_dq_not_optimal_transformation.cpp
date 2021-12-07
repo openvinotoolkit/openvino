@@ -198,7 +198,9 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             {},
             {
                 {},
-                { std::vector<float>(64, 127.f), ngraph::element::f32, {64, 1, 1, 1}, false, 1ul, ngraph::element::i8, false, {"disabled_constant_folding_0"}},
+                { std::vector<float>(64, 127.f), ngraph::element::f32,
+                 {64, 1, 1, 1}, false, 1ul, ngraph::element::i8, false,
+                 {ov::pass::DisableConstantFolding::get_type_info_static()}},
                 {}
             },
             {
