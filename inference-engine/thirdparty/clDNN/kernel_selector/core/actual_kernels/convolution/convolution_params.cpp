@@ -55,16 +55,16 @@ ParamsKey convolution_params::GetParamsKey() const {
         k.EnableDepthwiseSeparableOpt();
     }
 
-    if (local_convolution) {
-        k.EnableLocalConvolution();
-    }
-
     if (groups > 1 && !depthwise_separable_opt) {
         k.EnableGroupedConvolution();
     }
 
     if (deformable_mode) {
         k.EnableDeformableMode();
+        if (bilinear_interpolation_pad)
+            k.EnableBilinearInterpolationPad();
+        if (deformable_mask_enabled)
+            k.EnableDeformableMask();
     }
 
     k.EnableQuantization(quantization);
