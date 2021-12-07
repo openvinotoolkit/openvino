@@ -38,7 +38,10 @@ target_include_directories(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+set_property(SOURCE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_manager.cpp
+        APPEND PROPERTY COMPILE_DEFINITIONS
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 

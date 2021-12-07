@@ -91,18 +91,8 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
 template <typename T, typename VecT = T>
 void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
     TF_OP_VALIDATION_CHECK(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
-    const auto* decoder = node.get_decoder();
-    auto dt1 = decoder->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::get_type_info_static());
-    FRONT_END_GENERAL_CHECK(dt1 != nullptr);
-    auto dt = std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::DataType>>(dt1)->get();
-
-    auto tensor_proto_var =
-        decoder->get_attribute("value", ::ov::VariantWrapper<::tensorflow::TensorProto>::get_type_info_static());
-    FRONT_END_GENERAL_CHECK(tensor_proto_var != nullptr);
-
-    auto tensor_proto =
-        std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::TensorProto>>(tensor_proto_var)->get();
-
+    auto dt = node.get_attribute<::tensorflow::DataType>("dtype");
+    auto tensor_proto = node.get_attribute<::tensorflow::TensorProto>("value");
     const tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     tf_shape_to_ov_shape(shape, &pshape);
