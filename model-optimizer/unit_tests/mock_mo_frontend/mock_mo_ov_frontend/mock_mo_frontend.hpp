@@ -414,10 +414,10 @@ class MOCK_API FrontEndMockPy : public FrontEnd
 public:
     FrontEndMockPy() {}
 
-    std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override
+    std::shared_ptr<ov::Function> convert(InputModel::Ptr model) const override
     {
         m_stat.m_convert_model++;
-        return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
+        return std::make_shared<ov::Function>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
     static FeStat get_stat() { return m_stat; }
@@ -425,22 +425,22 @@ public:
     static void clear_stat() { m_stat = {}; }
 
 private:
-    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override
     {
-        if (params.size() > 0 && ov::is_type<VariantWrapper<std::string>>(params[0]))
+        if (params.size() > 0 && params[0].is<std::string>())
         {
-            auto path = ov::as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+            auto path = params[0].as<std::string>();
             m_stat.m_load_paths.push_back(path);
         }
         return std::make_shared<InputModelMockPy>();
     }
 
-    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
+    bool supported_impl(const std::vector<ov::Any>& params) const override
     {
         m_stat.m_supported++;
-        if (params.size() > 0 && ov::is_type<VariantWrapper<std::string>>(params[0]))
+        if (params.size() > 0 && params[0].is<std::string>())
         {
-            auto path = ov::as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+            auto path = params[0].as<std::string>();
             if (path.find(".test_mo_mock_mdl") != std::string::npos)
             {
                 return true;

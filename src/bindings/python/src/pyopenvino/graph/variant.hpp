@@ -6,8 +6,11 @@
 
 #include <pybind11/pybind11.h>
 
+#include <sstream>
+#include <string>
+
 #include "Python.h"
-#include "openvino/core/any.hpp"
+#include "openvino/core/any.hpp" // ov::RuntimeAttribute
 
 namespace py = pybind11;
 

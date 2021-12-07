@@ -162,9 +162,9 @@ public:
             testValues.actual.convertAfter,
             testValues.actual.dequantizationAfter,
             {
-                ngraph::builder::subgraph::make_shared_attribute_ptr<PrecisionPreservedAttribute>(true),
-                ngraph::builder::subgraph::make_shared_attribute_ptr<IntervalsAlignmentAttribute>(interval, 256),
-                ngraph::builder::subgraph::make_shared_attribute_ptr<QuantizationAlignmentAttribute>(false)
+                PrecisionPreservedAttribute(true),
+                IntervalsAlignmentAttribute(interval, 256),
+                QuantizationAlignmentAttribute(false)
             },
             ngraph::element::undefined,
             {},
@@ -209,9 +209,9 @@ public:
             testValues.result.convertAfter,
             testValues.result.dequantizationAfter,
             {
-                ngraph::builder::subgraph::make_shared_attribute_ptr<PrecisionPreservedAttribute>(true),
-                ngraph::builder::subgraph::make_shared_attribute_ptr<IntervalsAlignmentAttribute>(interval, 256),
-                ngraph::builder::subgraph::make_shared_attribute_ptr<QuantizationAlignmentAttribute>(false)
+                PrecisionPreservedAttribute(true),
+                IntervalsAlignmentAttribute(interval, 256),
+                QuantizationAlignmentAttribute(false)
             },
             testValues.result.precisionAfterOperation,
             {},
@@ -242,7 +242,7 @@ TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 
     const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes)) <<
         "PrecisionsAttribute are not the same";
 }
 
