@@ -1,6 +1,10 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
 
 #include "op_impl_check/op_impl_check.hpp"
 
