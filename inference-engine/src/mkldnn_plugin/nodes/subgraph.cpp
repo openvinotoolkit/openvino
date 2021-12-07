@@ -52,6 +52,7 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
     } else {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
+    std::cerr << "Subgraph node " << op->get_friendly_name() << "created" << std::endl;
 }
 
 void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
@@ -231,6 +232,7 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     } else {
         schedule_nt(call_args);
     }
+    std::cerr << "Subgraph node " << getName() << "executed" << std::endl;
 }
 
 bool MKLDNNSnippetNode::created() const {

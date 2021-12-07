@@ -318,6 +318,7 @@ void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) 
 bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
     RUN_ON_FUNCTION_SCOPE(FulterFused);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::FilterFused")
+    std::cerr << "FilterFused started" << std::endl;
     auto ordered_ops = f->get_ordered_ops();
     for (size_t order = 0; order < ordered_ops.size(); order++) {
         auto &node = ordered_ops[order];
@@ -378,6 +379,7 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
             }
         }
     }
+    std::cerr << "FilterFused passed" << std::endl;
     return true;
 }
 } // namespace pass

@@ -222,6 +222,7 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
                   << " with " << subgraph->inputs().size()
                   << " inputs and " << subgraph->outputs().size()
                   << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
+        std::cerr << "Start Subgraph executed" << std::endl;
         return true;
     };
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);
@@ -540,7 +541,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                     << " with " << subgraph->inputs().size()
                     << " inputs and " << subgraph->outputs().size()
                     << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
-
+        std::cerr << "Attach to Subgraph executed" << std::endl;
         return true;
     };
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);
