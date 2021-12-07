@@ -675,6 +675,23 @@ TEST(pre_post_process, preprocess_convert_layout_default) {
     EXPECT_EQ(f->get_parameters()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
 }
 
+TEST(pre_post_process, preprocess_convert_layout_same_various) {
+    for (size_t i = 1; i < 100; i++) {
+        auto f = create_simple_function(element::f32, PartialShape::dynamic(static_cast<int64_t>(i)));
+        auto p = PrePostProcessor(f);
+        std::stringstream stream;
+        stream << "[0";
+        for (auto j = 1; j < i; j++) {
+            stream << "," << std::to_string(j);
+        }
+        stream << "]";
+        auto l = stream.str();
+        p.input().tensor().set_layout(ov::Layout(l));
+        p.input().network().set_layout(ov::Layout(std::string(i, '?')));
+        EXPECT_NO_THROW(p.build());
+    }
+}
+
 TEST(pre_post_process, preprocess_convert_layout_same) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     auto size_old = f->get_ordered_ops().size();
@@ -1152,6 +1169,29 @@ TEST(pre_post_process, postprocess_convert_layout_invalid_dims_dyn_shape) {
 }
 
 // Postprocessing - other
+
+TEST(pre_post_process, postprocess_preserve_rt_info) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f->get_results()[0]->get_rt_info()["someKey"] = ov::make_variant("someValue");
+    f->input().get_rt_info()["someKey_in"] = ov::make_variant("someValue_in");
+    f->output().get_rt_info()["someKey_out"] = ov::make_variant("someValue_out");
+    auto p = PrePostProcessor(f);
+    p.output().tensor().set_element_type(element::u8);
+    f = p.build();
+    EXPECT_EQ(f->output().get_element_type(), element::u8);
+
+    ASSERT_EQ(f->get_results()[0]->get_rt_info().count("someKey"), 1);
+    auto var0 = std::dynamic_pointer_cast<VariantImpl<std::string>>(f->get_results()[0]->get_rt_info()["someKey"]);
+    EXPECT_EQ(var0->get(), "someValue");
+
+    ASSERT_EQ(f->input().get_rt_info().count("someKey_in"), 1);
+    auto var0_in = std::dynamic_pointer_cast<VariantImpl<std::string>>(f->input().get_rt_info()["someKey_in"]);
+    EXPECT_EQ(var0_in->get(), "someValue_in");
+
+    ASSERT_EQ(f->output().get_rt_info().count("someKey_out"), 1);
+    auto var0_out = std::dynamic_pointer_cast<VariantImpl<std::string>>(f->output().get_rt_info()["someKey_out"]);
+    EXPECT_EQ(var0_out->get(), "someValue_out");
+}
 
 TEST(pre_post_process, postprocess_custom_step) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});

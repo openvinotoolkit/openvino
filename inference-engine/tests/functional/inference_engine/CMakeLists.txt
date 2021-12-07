@@ -44,8 +44,8 @@ if(ENABLE_HETERO)
     list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
-if(ENABLE_MULTI)
-    list(APPEND DEPENDENCIES MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
 if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
