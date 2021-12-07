@@ -365,6 +365,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                     const auto old_api_map_type = old_api_map_attr->get();
                     const auto param_type = parameter->get_element_type();
 
+                    // In the following code we add Convert node from old_api_map_type to Parameter type
+                    // using PrePostProcessor. As some plugins do not support uint8 type, Convert to uint8 leads
+                    // to error, so for such case type is set directly to Parameter node instead of inserting Convert.
                     if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
                         parameter->set_element_type(old_api_map_type);
                         need_validate_nodes_and_infer_types = true;
