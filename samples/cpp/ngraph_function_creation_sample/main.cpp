@@ -258,18 +258,20 @@ int main(int argc, char* argv[]) {
         const Layout tensor_layout{"NHWC"};
 
         // apply preprocessing
-        auto proc = ov::preprocess::PrePostProcessor(model);
+        ov::preprocess::PrePostProcessor ppp = ov::preprocess::PrePostProcessor(model);
+
         // 1) InputInfo() with no args assumes a model has a single input
-        auto& input_info = proc.input();
+        ov::preprocess::InputInfo& input_info = ppp.input();
         // 2) Set input tensor information:
         // - layout of data is 'NHWC'
         // - precision of tensor is supposed to be 'u8'
         input_info.tensor().set_layout(tensor_layout).set_element_type(element::u8);
         // 3) Here we suppose model has 'NCHW' layout for input
         input_info.model().set_layout("NCHW");
+
         // 4) Once the build() method is called, the preprocessing steps
         // for layout and precision conversions are inserted automatically
-        model = proc.build();
+        model = ppp.build();
 
         // Set batch size using images count
         const size_t batch_size = digits.size();
@@ -294,7 +296,7 @@ int main(int argc, char* argv[]) {
 
         // Iterate over all input images and copy data to input tensor
         for (size_t image_id = 0; image_id < digits.size(); ++image_id) {
-            const size_t image_size = shape_size(input_shape) / batch_size;
+            const size_t image_size = shape_size(model->input().get_shape()) / batch_size;
             std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size, digits[image_id], image_size);
         }
 

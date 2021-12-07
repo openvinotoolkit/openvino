@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
-        auto model = core.read_model(model_path);
+        std::shared_ptr<ov::Function> model = core.read_model(model_path);
         printInputAndOutputsInfo(*model);
 
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
@@ -110,10 +110,11 @@ int main(int argc, char* argv[]) {
         std::string input_tensor_name = model->input().get_any_name();
         std::string output_tensor_name = model->output().get_any_name();
 
-        // -------- Step 3. Add preprocessing  --------
-        PrePostProcessor preproc = PrePostProcessor(model);
+        // -------- Step 3. Configure preprocessing  --------
+        PrePostProcessor ppp = PrePostProcessor(model);
+
         // 1) Select input with 'input_tensor_name' tensor name
-        InputInfo& input_info = preproc.input(input_tensor_name);
+        InputInfo& input_info = ppp.input(input_tensor_name);
         // 2) Set input type
         // - as 'u8' precision
         // - set color format to NV12 (single plane)
@@ -131,15 +132,16 @@ int main(int argc, char* argv[]) {
             .convert_color(ColorFormat::BGR)
             .resize(ResizeAlgorithm::RESIZE_LINEAR);
         // 4) Set model data layout (Assuming model accepts images in NCHW layout)
-        input_info.network().set_layout("NCHW");
+        input_info.model().set_layout("NCHW");
+
         // 5) Apply preprocessing to an input with 'input_tensor_name' name of loaded model
-        model = preproc.build();
+        model = ppp.build();
 
         // -------- Step 4. Loading a model to the device --------
-        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
+        ov::runtime::ExecutableNetwork compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 5. Create an infer request --------
-        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
+        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
 
         // -------- Step 6. Prepare input data  --------
         std::shared_ptr<unsigned char> image_data = reader->getData(input_width, input_height);

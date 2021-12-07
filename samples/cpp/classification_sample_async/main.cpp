@@ -90,12 +90,12 @@ int main(int argc, char* argv[]) {
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
         OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
 
-        // -------- Step 3. Apply preprocessing --------
+        // -------- Step 3. Configure preprocessing --------
         const ov::Layout tensor_layout{"NHWC"};
 
-        ov::preprocess::PrePostProcessor proc(model);
+        ov::preprocess::PrePostProcessor ppp(model);
         // 1) input() with no args assumes a model has a single input
-        ov::preprocess::InputInfo& input_info = proc.input();
+        ov::preprocess::InputInfo& input_info = ppp.input();
         // 2) Set input tensor information:
         // - precision of tensor is supposed to be 'u8'
         // - layout of data is 'NHWC'
@@ -105,10 +105,11 @@ int main(int argc, char* argv[]) {
         // 4) output() with no args assumes a model has a single result
         // - output() with no args assumes a model has a single result
         // - precision of tensor is supposed to be 'f32'
-        proc.output().tensor().set_element_type(ov::element::f32);
+        ppp.output().tensor().set_element_type(ov::element::f32);
+
         // 5) Once the build() method is called, the pre(post)processing steps
         // for layout and precision conversions are inserted automatically
-        model = proc.build();
+        model = ppp.build();
 
         // -------- Step 4. read input images --------
         slog::info << "Read input images" << slog::endl;
@@ -138,9 +139,8 @@ int main(int argc, char* argv[]) {
         // -------- Step 5. Loading model to the device --------
         // Setting batch size using image count
         const size_t batchSize = images_data.size();
-        input_shape[ov::layout::batch_idx(tensor_layout)] = batchSize;
-        slog::info << "Reshape model for batch size " << std::to_string(batchSize) << slog::endl;
-        model->reshape({{model->input().get_any_name(), input_shape}});
+        slog::info << "Set batch size " << std::to_string(batchSize) << slog::endl;
+        ov::set_batch(model, batchSize);
         printInputAndOutputsInfo(*model);
 
         // -------- Step 6. Loading model to the device --------
@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
             slog::info << "Completed " << cur_iteration << " async request execution" << slog::endl;
             if (cur_iteration < num_iterations) {
                 // here a user can read output containing inference results and put new
-                // input to repeat async request again */
+                // input to repeat async request again
                 infer_request.start_async();
             } else {
                 // continue sample execution after last Asynchronous inference request
