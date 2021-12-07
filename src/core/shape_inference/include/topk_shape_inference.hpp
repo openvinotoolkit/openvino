@@ -61,8 +61,8 @@ void shape_infer(const TopK* op,
                                   " elements).");
             if (k_as_shape[0].is_static()) {
                 NODE_VALIDATION_CHECK(op,
-                                      k_as_shape[0].get_max_length() > 0,
-                                      "The value of 'K' must be a positive number.",
+                                      k_as_shape[0].get_max_length() >= 0,
+                                      "The value of 'K' must not be a negative number.",
                                       " (got ",
                                       k_as_shape[0].get_max_length(),
                                       ").");
