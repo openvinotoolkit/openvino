@@ -60,6 +60,23 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
         MakeJitConstant(toString(pp.divMode) + "_KERNEL_DIVIDER", 1),
     });
 
+    if (pp.maxPoolOpset8Features) {
+        mem_consts.AddConstants({MakeJitConstant("DILATION", pp.poolDilation)});
+
+        if (pp.poolAxis != 0) {
+            size_t indices_upper_bound = 1;
+            const auto& dims = pp.inputs[0].GetDims();
+            for (auto d = dims.crbegin() + pp.poolAxis; d != dims.crend(); ++d) {
+                indices_upper_bound *= d->v;
+            }
+            if (indices_upper_bound != 0 && indices_upper_bound != 1) {
+                mem_consts.AddConstants({MakeJitConstant("INDICES_UPPER_BOUND", indices_upper_bound)});
+            }
+        }
+
+        mem_consts.Merge(MakeTypeJitConstants(pp.poolIndexElementType, "SELECTED_INDICES"));
+    }
+
     if (dispatchData.needsBoundary) {
         mem_consts.AddConstant(MakeJitConstant("CHECK_BOUNDRY", 1));
     }
@@ -77,6 +94,8 @@ bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
     const auto& output = pp.output;
 
     if (pp.poolPad.x != 0 || pp.poolPad.y != 0 || pp.poolPad.z != 0) {
+        return true;
+    } else if (pp.poolDilation.x > 1 || pp.poolDilation.y > 1 || pp.poolDilation.z > 1) {
         return true;
     } else if ((((input.X().v - pp.poolSize.x) / pp.poolStride.x) + 1) < output.X().v ||
                (((input.Y().v - pp.poolSize.y) / pp.poolStride.y) + 1) < output.Y().v ||
@@ -181,9 +200,13 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, DEFAULT, false, false, 1,
                      GetFusedPrimitiveInputsCount(params));
+    uint32_t param_idx = 1;
     if (orgParams.poolType == PoolType::MAX_WITH_ARGMAX)
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, param_idx++});
 
+    if (orgParams.maxPoolOpset8Features) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, param_idx++});
+    }
 
     return {kd};
 }
