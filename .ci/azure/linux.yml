@@ -88,7 +88,7 @@ jobs:
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(SHARE_DIR)
-      sudo apt --assume-yes install nfs-common
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
@@ -162,7 +162,7 @@ jobs:
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ls -alR $(BUILD_DIR)/temp/
+  - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
   - script: ccache --zero-stats --max-size=1T --show-config
@@ -207,7 +207,7 @@ jobs:
       set -e
       mkdir $(INSTALL_DIR)/opencv/
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
-      cp -R $(BUILD_DIR)/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
+      cp -R $(REPO_DIR)/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 

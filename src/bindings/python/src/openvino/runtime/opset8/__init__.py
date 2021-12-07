@@ -38,7 +38,7 @@ from openvino.runtime.opset3.ops import cum_sum as cumsum
 from openvino.runtime.opset8.ops import deformable_convolution
 from openvino.runtime.opset1.ops import deformable_psroi_pooling
 from openvino.runtime.opset1.ops import depth_to_space
-from openvino.runtime.opset1.ops import detection_output
+from openvino.runtime.opset8.ops import detection_output
 from openvino.runtime.opset7.ops import dft
 from openvino.runtime.opset1.ops import divide
 from openvino.runtime.opset7.ops import einsum
