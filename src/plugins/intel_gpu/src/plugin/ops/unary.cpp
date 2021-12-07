@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
+#include "intel_gpu/plugin/program.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "ngraph/op/tanh.hpp"

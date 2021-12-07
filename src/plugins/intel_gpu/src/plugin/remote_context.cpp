@@ -3,9 +3,9 @@
 //
 
 #include <memory>
-#include "cldnn_remote_context.h"
-#include "cldnn_itt.h"
-#include "cldnn_engine.h"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 
 using namespace InferenceEngine;

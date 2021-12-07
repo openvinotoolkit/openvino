@@ -6,12 +6,13 @@
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/plugin/device_config.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+
 #include <ie_parameter.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <blob_factory.hpp>
 #include <ie_remote_context.hpp>
-#include "cldnn_config.h"
-#include "cldnn_common_utils.h"
 
 #ifndef NOMINMAX
 # define NOMINMAX

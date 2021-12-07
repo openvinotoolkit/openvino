@@ -7,7 +7,7 @@
 #include <string>
 #include <map>
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
-#include "cldnn_infer_request.h"
+#include "intel_gpu/plugin/infer_request.hpp"
 
 namespace CLDNNPlugin {
 

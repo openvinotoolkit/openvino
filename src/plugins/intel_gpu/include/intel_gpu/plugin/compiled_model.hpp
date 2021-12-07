@@ -13,9 +13,9 @@
 #include "ie_blob.h"
 #include "cpp/ie_cnn_network.h"
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include "cldnn_graph.h"
-#include "cldnn_config.h"
-#include "cldnn_remote_context.h"
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/plugin/device_config.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
 
 namespace CLDNNPlugin {
 

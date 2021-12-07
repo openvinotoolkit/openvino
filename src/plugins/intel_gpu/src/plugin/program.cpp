@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
+#include "intel_gpu/plugin/program.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace InferenceEngine;

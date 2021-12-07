@@ -12,18 +12,18 @@
 #include <chrono>
 #include <cmath>
 #include <algorithm>
-#include "cldnn_graph.h"
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/plugin/itt.hpp"
 
 #include <description_buffer.hpp>
-#include "cldnn_infer_request.h"
+#include "intel_gpu/plugin/infer_request.hpp"
 #include <threading/ie_executor_manager.hpp>
-#include "cldnn_async_infer_request.h"
+#include "async_infer_request.hpp"
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
 
-#include "cldnn_executable_network.h"
+#include "intel_gpu/plugin/compiled_model.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "ie_icore.hpp"

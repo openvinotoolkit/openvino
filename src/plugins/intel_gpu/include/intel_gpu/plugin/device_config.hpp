@@ -7,7 +7,7 @@
 #include <map>
 #include <string>
 
-#include "cldnn_custom_layer.h"
+#include "intel_gpu/plugin/custom_layer.hpp"
 #include <ie_performance_hints.hpp>
 #include "intel_gpu/graph/network.hpp"
 #include <threading/ie_cpu_streams_executor.hpp>

@@ -8,7 +8,7 @@
 
 #include <ngraph/function.hpp>
 
-#include "cldnn_config.h"
+#include "intel_gpu/plugin/device_config.hpp"
 
 namespace CLDNNPlugin {
 

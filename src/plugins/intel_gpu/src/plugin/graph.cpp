@@ -6,10 +6,10 @@
 #include "intel_gpu/runtime/profiling.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "cldnn_graph.h"
-#include "simple_math.h"
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/plugin/simple_math.hpp"
 #include <cldnn/cldnn_config.hpp>
-#include "cldnn_infer_request.h"
+#include "intel_gpu/plugin/infer_request.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -33,7 +33,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/ngraph.hpp>
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/itt.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

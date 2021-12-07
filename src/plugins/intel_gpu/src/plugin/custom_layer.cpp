@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_custom_layer.h"
+#include "intel_gpu/plugin/custom_layer.hpp"
 #include "xml_parse_utils.h"
 #include <description_buffer.hpp>
 #include <map>
@@ -14,8 +14,8 @@
 # include <windows.h>
 #endif
 
-#include "simple_math.h"
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/simple_math.hpp"
+#include "intel_gpu/plugin/itt.hpp"
 
 using namespace InferenceEngine;
 using namespace XMLParseUtils;

@@ -12,7 +12,7 @@
 #include <cctype>
 #include <memory>
 
-#include "cldnn_transformations_pipeline.h"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
 
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
@@ -86,7 +86,7 @@
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
 
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/itt.hpp"
 
 namespace {
 template<typename T>

@@ -15,7 +15,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/compatibility.hpp>
 
-#include "cldnn_config.h"
+#include "intel_gpu/plugin/device_config.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/topology.hpp"

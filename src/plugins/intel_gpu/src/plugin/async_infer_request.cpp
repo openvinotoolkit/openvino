@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_async_infer_request.h"
-#include "cldnn_itt.h"
+#include "async_infer_request.hpp"
+#include "intel_gpu/plugin/itt.hpp"
 #include <memory>
 
 CLDNNPlugin::CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const CLDNNInferRequest::Ptr &inferRequest,

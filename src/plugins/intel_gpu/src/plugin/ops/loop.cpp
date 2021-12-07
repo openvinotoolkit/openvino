@@ -3,9 +3,9 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
-#include "cldnn_engine.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
 
 #include <cpp/ie_cnn_network.h>
 

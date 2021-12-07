@@ -10,7 +10,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
-#include "cldnn_remote_context.h"
+#include "intel_gpu/plugin/remote_context.hpp"
 
 namespace CLDNNPlugin {
 

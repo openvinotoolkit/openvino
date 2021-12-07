@@ -9,7 +9,7 @@
 #include <vector>
 #include <memory>
 #include <atomic>
-#include "cldnn_graph.h"
+#include "intel_gpu/plugin/graph.hpp"
 #include <threading/ie_istreams_executor.hpp>
 
 namespace CLDNNPlugin {

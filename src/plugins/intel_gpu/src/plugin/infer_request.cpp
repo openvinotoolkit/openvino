@@ -8,10 +8,10 @@
 #include <functional>
 #include <utility>
 #include <description_buffer.hpp>
-#include "cldnn_infer_request.h"
-#include "cldnn_remote_context.h"
-#include "cldnn_executable_network.h"
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/infer_request.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <ie_algorithm.hpp>
 #include <debug.h>

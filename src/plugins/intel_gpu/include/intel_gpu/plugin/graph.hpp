@@ -21,10 +21,10 @@
 #include "intel_gpu/graph/topology.hpp"
 
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include "cldnn_custom_layer.h"
-#include "cldnn_config.h"
-#include "cldnn_remote_context.h"
-#include "cldnn_program.h"
+#include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/plugin/device_config.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/program.hpp"
 
 namespace CLDNNPlugin {
 

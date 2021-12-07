@@ -16,11 +16,11 @@
 #include <ie_ngraph_utils.hpp>
 #include <ie_algorithm.hpp>
 
-#include "cldnn_engine.h"
-#include "cldnn_executable_network.h"
-#include "cldnn_transformations_pipeline.h"
-#include "cldnn_custom_layer.h"
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/plugin.hpp"
+#include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/plugin/itt.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
@@ -50,12 +50,12 @@ namespace CLDNNPlugin {
     __register ## _ ## op_name ## _ ## op_version();
 
 #define REGISTER_FACTORY(op_version, op_name) FACTORY_DECLARATION(op_version, op_name)
-#include "cldnn_primitives_list.hpp"
+#include "intel_gpu/plugin/primitives_list.hpp"
 #undef REGISTER_FACTORY
 
 void clDNNEngine::RegisterPrimitives() {
     #define REGISTER_FACTORY(op_version, op_name) FACTORY_CALL(op_version, op_name)
-    #include "cldnn_primitives_list.hpp"
+    #include "intel_gpu/plugin/primitives_list.hpp"
     #undef REGISTER_FACTORY
 }
 
