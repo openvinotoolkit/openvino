@@ -63,12 +63,6 @@ install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
 # for InferenceEngineUnitTest
-if(WIN32)
-    install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-else()
-    install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
-endif()
+install(TARGETS ${TARGET_NAME} LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
 ov_install_static_lib(${TARGET_NAME} core)
