@@ -25,6 +25,7 @@
 #include "condition_inst.h"
 #include "loop_inst.h"
 #include "kernel_selector_helper.h"
+#include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 
 #include <algorithm>
@@ -505,13 +506,10 @@ void network::allocate_primitives() {
                     if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
                         continue;
 
-                    if (eltw_in_layout.size == out_layout.size &&
-                        eltw_in_layout.format == out_layout.format &&
-                        eltw_in_layout.data_padding == out_layout.data_padding &&
-                        data_type_traits::size_of(eltw_in_layout.data_type) == data_type_traits::size_of(out_layout.data_type)) {
-                        if (eltw_dep > 0) {
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout)) {
+                        if (eltw_dep > 0)
                             throw std::runtime_error("Unsupported multiple full size tensors.");
-                        }
+
                         eltw_dep = fused_op.dep_start_idx;
                         can_reuse_eltwise_mem = true;
                     }

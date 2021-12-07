@@ -175,4 +175,15 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
 
     return {false, false};
 }
+
+// check if input and output layouts are identical to reuse memory in fused_ops of onednn
+bool program_helpers::are_layouts_identical_for_onednn_sum_post_op(layout input_layout, layout output_layout) {
+    if (input_layout.size == output_layout.size && input_layout.format == output_layout.format &&
+        input_layout.data_padding == output_layout.data_padding &&
+        data_type_traits::size_of(input_layout.data_type) == data_type_traits::size_of(output_layout.data_type))
+        return true;
+
+    return false;
+}
+
 }  // namespace cldnn

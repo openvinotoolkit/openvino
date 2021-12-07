@@ -124,6 +124,8 @@ struct program_helpers {
         }
     }
     static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
+
+    static bool are_layouts_identical_for_onednn_sum_post_op(layout input_layout, layout output_layout);
 };
 
 // Base class for performing pattern match style optimizations.
