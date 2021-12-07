@@ -198,14 +198,9 @@ cd C:\Program Files (x86)\Intel\openvino_2022\tools\model_optimizer\install_prer
    install_prerequisites_caffe.bat
    ```
 
-   * For **TensorFlow 1.x**:<br>
-   ```sh
-   install_prerequisites_tf.bat
-   ```
-
    * For **TensorFlow 2.x**:<br>
    ```sh
-   install_prerequisites_tf2.bat
+   install_prerequisites_tf.bat
    ```
 
    * For **MXNet**:<br>

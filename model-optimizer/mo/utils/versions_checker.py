@@ -256,7 +256,7 @@ def check_requirements(framework=None):
         framework_suffix = ""
     elif framework == "tf":
         if "tensorflow" in env_setup and env_setup["tensorflow"] < LooseVersion("2.0.0"):
-            log.error('\t\nTensorFlow1 usage detected. Since OV 2022.1 release it`s usage is deprecated.\n',
+            log.error('\t\nTensorFlow1 usage detected. Since OpenVINO 2022.1 release it`s usage is deprecated.\n',
                       extra={'is_warning': True})
 
     file_name = "requirements{}.txt".format(framework_suffix)

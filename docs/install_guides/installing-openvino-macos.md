@@ -213,14 +213,9 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
    sudo ./install_prerequisites_caffe.sh
    ```
 
-   - For **TensorFlow 1.x**:
-   ```sh
-   sudo ./install_prerequisites_tf.sh
-   ```
-
    - For **TensorFlow 2.x**:
    ```sh
-   sudo ./install_prerequisites_tf2.sh
+   sudo ./install_prerequisites_tf.sh
    ```
 
    - For **MXNet**:
