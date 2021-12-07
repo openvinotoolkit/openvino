@@ -3,7 +3,6 @@
 //
 
 #include <memory>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -18,13 +17,13 @@
 // clang-format on
 
 // thickness of a line (in pixels) to be used for bounding boxes
-#define BBOX_THICKNESS 2
+constexpr int BBOX_THICKNESS = 2;
 
 using namespace ov::preprocess;
 
 int main(int argc, char* argv[]) {
     try {
-        // -------- Get OpenVINO runtime version --------
+        // -------- Get OpenVINO runtime version -----------------------------
         slog::info << ov::get_openvino_version() << slog::endl;
 
         // --------------------------- Parsing and validation of input arguments
@@ -35,17 +34,18 @@ int main(int argc, char* argv[]) {
         const std::string model_path{argv[1]};
         const std::string image_path{argv[2]};
         const std::string device_name{argv[3]};
-        // -----------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------
 
         // Step 1. Initialize inference engine core
         ov::runtime::Core core;
-        // -----------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------
 
         // Step 2. Read a model
         slog::info << "Loading model files: " << model_path << slog::endl;
-        auto model = core.read_model(model_path);
+        std::shared_ptr<ov::Function> model = core.read_model(model_path);
         printInputAndOutputsInfo(*model);
 
+        // Step 3. Validate model inputs and outputs
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
         OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
 
@@ -58,9 +58,9 @@ int main(int argc, char* argv[]) {
         if (it == ops.end()) {
             throw std::logic_error("model does not contain DetectionOutput layer");
         }
-        // -----------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------
 
-        // Step 3. Configure input & output
+        // Step 4. Read input image
 
         // Read input image without resize
         FormatReader::ReaderPtr reader(image_path.c_str());
@@ -73,11 +73,12 @@ int main(int argc, char* argv[]) {
         size_t image_channels = 3;
         size_t image_width = reader->width();
         size_t image_height = reader->height();
+        // -------------------------------------------------------------------
 
+        // Step 5. Reshape model to image size and batch size
         // assume model layout NCHW
         const ov::Layout model_layout{"NCHW"};
 
-        // reshape model to image size and batch size
         ov::Shape tensor_shape = model->input().get_shape();
 
         size_t batch_size = 1;
@@ -90,43 +91,48 @@ int main(int argc, char* argv[]) {
         std::cout << "Reshape network to the image size = [" << image_height << "x" << image_width << "] " << std::endl;
         model->reshape({{model->input().get_any_name(), tensor_shape}});
         printInputAndOutputsInfo(*model);
+        // -------------------------------------------------------------------
 
-        // Step 4. Apply preprocessing
+        // Step 6. Configure model preprocessing
         const ov::Layout tensor_layout{"NHWC"};
 
         // clang-format off
-        auto proc = ov::preprocess::PrePostProcessor(model);
-        // 1) InputInfo() with no args assumes a model has a single input
-        auto& input_info = proc.input();
+        ov::preprocess::PrePostProcessor ppp = ov::preprocess::PrePostProcessor(model);
+
+        // 1) input() with no args assumes a model has a single input
+        ov::preprocess::InputInfo& input_info = ppp.input();
         // 2) Set input tensor information:
         // - precision of tensor is supposed to be 'u8'
         // - layout of data is 'NHWC'
-        // - set static spatial dimensions to input tensor to resize from
         input_info.tensor().
               set_element_type(ov::element::u8).
               set_layout(tensor_layout);
         // 3) Adding explicit preprocessing steps:
         // - convert u8 to f32
         // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
-        proc.input().preprocess().
+        ppp.input().preprocess().
             convert_element_type(ov::element::f32).
             convert_layout("NCHW");
         // 4) Here we suppose model has 'NCHW' layout for input
-        input_info.network().set_layout("NCHW");
-        auto& output_info = proc.output();
+        input_info.model().set_layout("NCHW");
+        // 5) output () with no args assumes a model has a single output
+        ov::preprocess::OutputInfo& output_info = ppp.output();
+        // 6) declare output element type as FP32
         output_info.tensor().set_element_type(ov::element::f32);
-        // 6) Apply preprocessing modifing the original 'model'
-        model = proc.build();
+
+        // 7) Apply preprocessing modifing the original 'model'
+        model = ppp.build();
         // clang-format on
+        // -------------------------------------------------------------------
 
-        // Step 5. Loading a model to the device
-        // -------------------------------------------------
-        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
+        // Step 7. Loading a model to the device
+        ov::runtime::ExecutableNetwork compiled_model = core.compile_model(model, device_name);
+        // -------------------------------------------------------------------
 
-        // Step 6. Create an infer request
-        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
+        // Step 8. Create an infer request
+        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
 
-        // Step 7. Prepare input
+        // Step 9. Fill model with input data
         ov::runtime::Tensor input_tensor = infer_request.get_input_tensor();
 
         // copy NHWC data from image to tensor with batch
@@ -136,65 +142,65 @@ int main(int argc, char* argv[]) {
         for (size_t i = 0; i < image_size; i++) {
             tensor_data_ptr[i] = image_data_ptr[i];
         }
+        // -------------------------------------------------------------------
 
-        // Step 8. Do inference synchronously
+        // Step 10. Do inference synchronously
         infer_request.infer();
 
-        // Step 9. Process output
+        // Step 11. Get output data from the model
         ov::runtime::Tensor output_tensor = infer_request.get_output_tensor();
 
         ov::Shape output_shape = model->output().get_shape();
-        const size_t max_proposal_count = output_shape[2];
-        const size_t object_size = output_shape[3];
+        const size_t ssd_object_count = output_shape[2];
+        const size_t ssd_object_size = output_shape[3];
 
-        const float* detection = output_tensor.data<const float>();
+        const float* detections = output_tensor.data<const float>();
+        // -------------------------------------------------------------------
 
-        std::vector<std::vector<int>> boxes(batch_size);
-        std::vector<std::vector<int>> classes(batch_size);
+        std::vector<int> boxes;
+        std::vector<int> classes;
 
-        for (size_t cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
-            auto image_id = static_cast<int>(detection[cur_proposal * object_size + 0]);
+        // Step 12. Parse SSD output
+        for (size_t object = 0; object < ssd_object_count; object++) {
+            int image_id = static_cast<int>(detections[object * ssd_object_size + 0]);
             if (image_id < 0) {
                 break;
             }
 
             // detection, has the format: [image_id, label, conf, x_min, y_min, x_max, y_max]
-            int label = static_cast<int>(detection[cur_proposal * object_size + 1]);
-            float confidence = detection[cur_proposal * object_size + 2];
-            int xmin = static_cast<int>(detection[cur_proposal * object_size + 3] * image_width);
-            int ymin = static_cast<int>(detection[cur_proposal * object_size + 4] * image_height);
-            int xmax = static_cast<int>(detection[cur_proposal * object_size + 5] * image_width);
-            int ymax = static_cast<int>(detection[cur_proposal * object_size + 6] * image_height);
+            int label = static_cast<int>(detections[object * ssd_object_size + 1]);
+            float confidence = detections[object * ssd_object_size + 2];
+            int xmin = static_cast<int>(detections[object * ssd_object_size + 3] * image_width);
+            int ymin = static_cast<int>(detections[object * ssd_object_size + 4] * image_height);
+            int xmax = static_cast<int>(detections[object * ssd_object_size + 5] * image_width);
+            int ymax = static_cast<int>(detections[object * ssd_object_size + 6] * image_height);
 
             if (confidence > 0.5f) {
-                // Drawing only objects with >50% probability
-                classes[image_id].push_back(label);
-                boxes[image_id].push_back(xmin);
-                boxes[image_id].push_back(ymin);
-                boxes[image_id].push_back(xmax - xmin);
-                boxes[image_id].push_back(ymax - ymin);
+                // collect only objects with >50% probability
+                classes.push_back(label);
+                boxes.push_back(xmin);
+                boxes.push_back(ymin);
+                boxes.push_back(xmax - xmin);
+                boxes.push_back(ymax - ymin);
 
-                std::cout << "[" << cur_proposal << "," << label << "] element, prob = " << confidence << ",    ("
+                std::cout << "[" << object << "," << label << "] element, prob = " << confidence << ",    ("
                           << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")" << std::endl;
             }
         }
 
-        for (size_t batch_id = 0; batch_id < batch_size; ++batch_id) {
-            addRectangles(image_data.get(),
-                          image_height,
-                          image_width,
-                          boxes[batch_id],
-                          classes[batch_id],
-                          BBOX_THICKNESS);
-            std::stringstream os;
-            os << "hello_reshape_ssd_batch_" << batch_id << ".bmp";
-            const std::string image_path = os.str();
-            if (writeOutputBmp(image_path, image_data.get(), image_height, image_width)) {
-                std::cout << "The resulting image was saved in the file: " + image_path << std::endl;
-            } else {
-                throw std::logic_error(std::string("Can't create a file: ") + image_path);
-            }
+        // draw bounding boxes on the image
+        addRectangles(image_data.get(),
+                      image_height, image_width,
+                      boxes, classes,
+                      BBOX_THICKNESS);
+
+        const std::string image_name = "hello_reshape_ssd_output.bmp";
+        if (writeOutputBmp(image_name, image_data.get(), image_height, image_width)) {
+            std::cout << "The resulting image was saved in the file: " + image_name << std::endl;
+        } else {
+            throw std::logic_error(std::string("Can't create a file: ") + image_name);
         }
+
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;
         return EXIT_FAILURE;
