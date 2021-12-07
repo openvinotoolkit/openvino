@@ -236,7 +236,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         },
         py::arg("type"),
         R"(
-                Set initial client's tensor element type. If type is not the same as network's element type,
+                Set initial client's tensor element type. If type is not the same as model's element type,
                 conversion of element type will be done automatically.
                 Parameters
                 ----------
@@ -284,7 +284,7 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         },
         py::arg("type"),
         R"(
-                Set client's output tensor element type. If type is not the same as network's element type,
+                Set client's output tensor element type. If type is not the same as model's element type,
                 conversion of element type will be done automatically.
                 Parameters
                 ----------
@@ -310,8 +310,8 @@ static void regclass_graph_InputInfo(py::module m) {
     inp.def("preprocess", [](ov::preprocess::InputInfo& me) {
         return &me.preprocess();
     });
-    inp.def("network", [](ov::preprocess::InputInfo& me) {
-        return &me.network();
+    inp.def("model", [](ov::preprocess::InputInfo& me) {
+        return &me.model();
     });
 }
 
@@ -325,29 +325,29 @@ static void regclass_graph_OutputInfo(py::module m) {
     out.def("postprocess", [](ov::preprocess::OutputInfo& me) {
         return &me.postprocess();
     });
-    out.def("network", [](ov::preprocess::OutputInfo& me) {
-        return &me.network();
+    out.def("model", [](ov::preprocess::OutputInfo& me) {
+        return &me.model();
     });
 }
 
-static void regclass_graph_OutputNetworkInfo(py::module m) {
-    py::class_<ov::preprocess::OutputNetworkInfo, Common::ref_wrapper<ov::preprocess::OutputNetworkInfo>> info(
+static void regclass_graph_OutputModelInfo(py::module m) {
+    py::class_<ov::preprocess::OutputModelInfo, Common::ref_wrapper<ov::preprocess::OutputModelInfo>> info(
         m,
-        "OutputNetworkInfo");
-    info.doc() = "openvino.impl.preprocess.OutputNetworkInfo wraps ov::preprocess::OutputNetworkInfo";
+        "OutputModelInfo");
+    info.doc() = "openvino.impl.preprocess.OutputModelInfo wraps ov::preprocess::OutputModelInfo";
 
-    info.def("set_layout", [](ov::preprocess::OutputNetworkInfo& me, const ov::Layout& layout) {
+    info.def("set_layout", [](ov::preprocess::OutputModelInfo& me, const ov::Layout& layout) {
         return &me.set_layout(layout);
     });
 }
 
-static void regclass_graph_InputNetworkInfo(py::module m) {
-    py::class_<ov::preprocess::InputNetworkInfo, Common::ref_wrapper<ov::preprocess::InputNetworkInfo>> info(
+static void regclass_graph_InputModelInfo(py::module m) {
+    py::class_<ov::preprocess::InputModelInfo, Common::ref_wrapper<ov::preprocess::InputModelInfo>> info(
         m,
-        "InputNetworkInfo");
-    info.doc() = "openvino.impl.preprocess.InputNetworkInfo wraps ov::preprocess::InputNetworkInfo";
+        "InputModelInfo");
+    info.doc() = "openvino.impl.preprocess.InputModelInfo wraps ov::preprocess::InputModelInfo";
 
-    info.def("set_layout", [](ov::preprocess::InputNetworkInfo& me, const ov::Layout& layout) {
+    info.def("set_layout", [](ov::preprocess::InputModelInfo& me, const ov::Layout& layout) {
         return &me.set_layout(layout);
     });
 }
@@ -381,8 +381,8 @@ void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_OutputInfo(m);
     regclass_graph_InputTensorInfo(m);
     regclass_graph_OutputTensorInfo(m);
-    regclass_graph_InputNetworkInfo(m);
-    regclass_graph_OutputNetworkInfo(m);
+    regclass_graph_InputModelInfo(m);
+    regclass_graph_OutputModelInfo(m);
     regenum_graph_ColorFormat(m);
     regenum_graph_ResizeAlgorithm(m);
     py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
