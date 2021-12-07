@@ -101,15 +101,21 @@ const std::vector<ElementType> inputPrecisions = {
 
 std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
                                                                  ngraph::op::RecurrentSequenceDirection::REVERSE};
-std::vector<InputShape> inputs = {
-        {{-1, 12, -1}, {{10, 12, 10}, {10, 12, 10}, {1, 12, 2}, {5, 12, 3}}},
-        {{-1, 12, -1}, {{1, 12, 1}, {1, 12, 1}, {5, 12, 2}, {5, 12, 3}}},
+std::vector<std::vector<InputShape>> inputs = {
+        {
+                {{-1, 12, -1}, {{10, 12, 10}, {10, 12, 10}, {1, 12, 2}, {5, 12, 3}}},
+                {{-1, 12, -1}, {{1, 12, 1}, {1, 12, 1}, {5, 12, 2}, {5, 12, 3}}},
+        },
+        {
+                {{{1, 12}, 5, {1, 12}}, {{1, 5, 1}, {5, 5, 5}, {1, 5, 1}, {5, 5, 5}}},
+                {{{1, 12}, 5, {1, 12}}, {{1, 5, 1}, {1, 5, 1}, {5, 5, 1}, {5, 5, 5}}},
+        }
 };
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_TensorIteratorSimple, TensorIteratorCPUTest,
                          ::testing::Combine(
-                                 ::testing::Values(inputs),
+                                 ::testing::ValuesIn(inputs),
                                  ::testing::ValuesIn(direction),
                                  ::testing::ValuesIn(inputPrecisions)),
                          TensorIteratorCPUTest::getTestCaseName);

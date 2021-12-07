@@ -10,6 +10,7 @@
 using namespace InferenceEngine;
 using namespace ov;
 using namespace test;
+using namespace ngraph::helpers;
 
 namespace CPULayerTestsDefinitions {
 
@@ -19,9 +20,7 @@ enum LOOP_IN_TYPE {
 };
 
 using LoopParams = typename std::tuple<
-        bool,                                                              // ExecuteFirstIteration
-        bool,                                                              // BodyCondition is a constant?
-        bool,                                                              // BodyCondition value, if it is a Const
+        InputLayerType,                                                    // TripCount is a constant?
         int64_t,                                                           // TripCount, -1 means infinity
         std::vector<InputShape>,                                           // InputShapes
         std::vector<LOOP_IN_TYPE>,                                         // Type
@@ -32,14 +31,12 @@ class LoopLayerCPUTest : public testing::WithParamInterface<LoopParams>,
                          virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LoopParams> obj) {
-        bool execute_first_iteration;
-        bool is_body_condition_const;
-        bool body_condition; // works only if is_body_condition_const ==
+        InputLayerType trip_count_type;
         int64_t trip_count;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
         ElementType netType;
-        std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, shapes, types, netType) = obj.param;
+        std::tie(trip_count_type, trip_count, shapes, types, netType) = obj.param;
 
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
@@ -49,27 +46,47 @@ public:
             for (const auto& item : shapes[i].second) {
                 result << CommonTestUtils::vec2str(item) << "_";
             }
-            result << "types=" << types[i] << "_";
         }
-
-        result << "execute_first_iteration" << execute_first_iteration << "_";
-        result << "is_body_condition_const=" << is_body_condition_const << "_";
-        result << "body_condition=" << body_condition << "_";
+        result << "types=";
+        for (auto type : types)
+            result << type << "_";
+        result << "trip_count_type=" << trip_count_type << "_";
         result << "trip_count=" << trip_count << "_";
         result << "netType=" << netType;
         return result.str();
 }
 
 protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+
+        // trip count
+        int i = 0;
+        if (funcInputs[i].get_node_shared_ptr()->get_friendly_name() == "trip_count") {
+            const auto& funcInput = funcInputs[i];
+            ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                                 funcInput.get_shape(), 10, 1);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+            i++;
+        }
+
+        // parameters for body
+        for (; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                                 targetInputStaticShapes[i], 15, 0, 32768);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
+
     void SetUp() override {
-        bool execute_first_iteration;
-        bool is_body_condition_const;
-        bool body_condition; // works only if is_body_condition_const ==
+        InputLayerType trip_count_type;
         int64_t trip_count;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
         ElementType netType;
-        std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, shapes, types, netType) = this->GetParam();
+        std::tie(trip_count_type, trip_count, shapes, types, netType) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
@@ -79,19 +96,26 @@ protected:
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
         const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
-        auto current_iteration = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
-
         ngraph::ParameterVector body_params;
         for (const auto &pshape : body_params_shapes) {
             auto paramNode = std::make_shared<ngraph::opset1::Parameter>(netType, pshape);
             body_params.push_back(paramNode);
         }
 
-        std::shared_ptr<ngraph::Node> body_condition_const;
-        if (is_body_condition_const)
-            body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, body_condition);
-        auto trip_count_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, trip_count);
-        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, execute_first_iteration);
+        auto body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        std::shared_ptr<ngraph::Node> trip_count_input;
+        int shift = 0;
+        if (trip_count_type == InputLayerType::PARAMETER) {
+            for (auto& target : targetStaticShapes)
+                target.insert(target.begin(), ngraph::Shape{});
+            trip_count_input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
+            trip_count_input->set_friendly_name("trip_count");
+            params.insert(params.begin(), ov::as_type_ptr<ngraph::opset5::Parameter>(trip_count_input));
+            shift++;
+        } else {
+            trip_count_input = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, trip_count);
+        }
 
         // Body
         std::shared_ptr<ngraph::Node> Zo = body_params[0];
@@ -102,17 +126,17 @@ protected:
         auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{body_condition_const, Zo},
                                                        body_params);
 
-        auto loop = std::make_shared<ngraph::opset5::Loop>(trip_count_const, exec_condition);
+        auto loop = std::make_shared<ngraph::opset5::Loop>(trip_count_input, exec_condition);
         loop->set_function(body);
         loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
         for (int i = 0; i < body_params.size(); ++i) {
             if (types[i] == LOOP_IN_TYPE::INVARIANT) {
-                loop->set_invariant_input(body_params[i], params[i]);
+                loop->set_invariant_input(body_params[i], params[shift + i]);
             } else if (types[i] == LOOP_IN_TYPE::MERGED) {
                 // todo: support several merged inputs
                 // now supported only one in this sample
-                loop->set_merged_input(body_params[i], params[i], Zo);
+                loop->set_merged_input(body_params[i], params[shift + i], Zo);
             }
         }
 
@@ -130,102 +154,61 @@ protected:
     }
 };
 
-class LoopLayerForWithCondCPUTest : public testing::WithParamInterface<LoopParams>,
-                                    virtual public SubgraphBaseTest {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<LoopParams> obj) {
-        return LoopLayerCPUTest::getTestCaseName(obj);
-    }
-
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        inputs.clear();
-        const auto& funcInputs = function->inputs();
-        // trip count
-        {
-            const auto& funcInput = funcInputs[0];
-            ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                                 funcInput.get_shape(), 10, 1);
-            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-        }
-
-        // parameters for body
-        for (int i = 1; i < funcInputs.size(); ++i) {
-            const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                                 targetInputStaticShapes[i], 15, 0, 32768);
-            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-        }
-    }
-
+class LoopWhileLayerCPUTest : public LoopLayerCPUTest {
 protected:
     void SetUp() override {
-        bool execute_first_iteration;
-        bool is_body_condition_const;
-        bool body_condition;
-        int64_t trip_count; // doesn't work because it's dynamic
+        InputLayerType trip_count_type;
+        int64_t trip_count;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
         ElementType netType;
-        std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, shapes, types, netType) = this->GetParam();
+        std::tie(trip_count_type, trip_count, shapes, types, netType) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
-        for (auto& target : targetStaticShapes) {
+        for (auto& target : targetStaticShapes)
             target.insert(target.begin(), ngraph::Shape{});
-        }
 
         auto params = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
 
-        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
         const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
-        auto current_iteration = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
-
-        ngraph::ParameterVector body_params;
+        ngraph::ParameterVector body_params = { std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ngraph::Shape{}) };
         for (const auto &pshape : body_params_shapes) {
             auto paramNode = std::make_shared<ngraph::opset1::Parameter>(netType, pshape);
             body_params.push_back(paramNode);
         }
 
-        std::shared_ptr<ngraph::Node> body_condition_const;
-        if (is_body_condition_const)
-            body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, body_condition);
-        auto trip_count_param = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
-        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, execute_first_iteration);
-        params.insert(params.begin(), trip_count_param);
+        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+        auto trip_count_input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ngraph::Shape{});
+        trip_count_input->set_friendly_name("trip_count");
+        params.insert(params.begin(), trip_count_input);
 
         // Body
-        std::shared_ptr<ngraph::Node> Zo = body_params[0];
-        for (int i = 1; i < body_params.size(); ++i) {
-            Zo = std::make_shared<ngraph::op::v1::Add>(body_params[i], Zo);
-        }
+        auto const_body_cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 5);
+        auto const_body_step = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
+        auto less = std::make_shared<ngraph::opset5::Less>(body_params[0], const_body_cond);
+        auto exec_idx = std::make_shared<ngraph::opset5::Add>(body_params[0], const_body_step);
 
-        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{body_condition_const, Zo}, body_params);
+        const std::vector<int64_t> begin(inputDynamicShapes[0].rank().get_length(), 1);
+        const std::vector<int64_t> end(inputDynamicShapes[0].rank().get_length(), 0);
+        auto pad = ngraph::builder::makePad(body_params[1], begin, end, .0f, PadMode::CONSTANT);
+
+        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{less, exec_idx, pad}, body_params);
+
         auto loop = std::make_shared<ngraph::opset5::Loop>(params[0], exec_condition);
         loop->set_function(body);
         loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
-        for (int i = 0; i < body_params.size(); ++i) {
-            if (types[i] == LOOP_IN_TYPE::INVARIANT) {
-                loop->set_invariant_input(body_params[i], params[i + 1]);
-            } else if (types[i] == LOOP_IN_TYPE::MERGED) {
-                // todo: support several merged inputs
-                // now supported only one in this sample
-                loop->set_merged_input(body_params[i], params[i + 1], Zo);
-            }
-        }
+        loop->set_merged_input(body_params[0], params[0], exec_idx);
+        loop->set_merged_input(body_params[1], params[1], pad);
 
-        // Output 0 is last Zo
-        auto out0 = loop->get_iter_value(body_condition_const, -1);
-        auto out1 = loop->get_iter_value(Zo, -1);
-        // Output 1 is concat of Zos
-        // start=0, stride=1, part_size=1, end=-1, axis=1
-        auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 1);
+        auto out0 = loop->get_iter_value(exec_idx, -1);
+        auto out1 = loop->get_iter_value(pad, -1);
 
         auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
         auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
-        auto result2 = std::make_shared<ngraph::opset5::Result>(out2);
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result0, result1, result2}, params, "loop");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result0, result1 }, params, "loop");
     }
 };
 
@@ -235,7 +218,7 @@ TEST_P(LoopLayerCPUTest, CompareWithRefs) {
     run();
 }
 
-TEST_P(LoopLayerForWithCondCPUTest, CompareWithRefs) {
+TEST_P(LoopWhileLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
@@ -249,40 +232,51 @@ const std::vector<ElementType> inputPrecisions = {
         ElementType::i8
 };
 
-std::vector<bool> execute_first_iteration{true};
-std::vector<bool> is_body_condition_const{true};
-std::vector<bool> body_condition{true, false}; // works only if is_body_condition_const == true
-std::vector<int64_t> trip_count{1, 5};
-std::vector<InputShape> inputs = {
-        {{-1, 1, -1}, {{10, 1, 10}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}},
-        {{-1, 1, -1}, {{1, 1, 1}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}},
-        {{-1, 1, -1}, {{10, 1, 10}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}}
+std::vector<InputLayerType> trip_count_type { InputLayerType::CONSTANT, InputLayerType::PARAMETER };
+std::vector<int64_t> trip_count { 1, 5 }; // works only if trip_count_type is constant
+
+std::vector<std::vector<InputShape>> inputs = {
+        {
+                {{-1, 1, -1}, {{10, 1, 10}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}},
+                {{-1, 1, -1}, {{1, 1, 1}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}},
+                {{-1, 1, -1}, {{10, 1, 10}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}}
+        },
+        {
+                {{{1, 10}, 1, {1, 10}}, {{8, 1, 8}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}}},
+                {{{1, 8}, 1, {1, 8}}, {{8, 1, 8}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}},
+                {{{1, 10}, 1, {1, 10}}, {{8, 1, 8}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}}
+        },
 };
 std::vector<LOOP_IN_TYPE> types = {
         LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::MERGED
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LoopCommonZeroClip, LoopLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LoopForCommon, LoopLayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(execute_first_iteration),
-                                 ::testing::ValuesIn(is_body_condition_const),
-                                 ::testing::ValuesIn(body_condition),
+                                 ::testing::ValuesIn(trip_count_type),
                                  ::testing::ValuesIn(trip_count),
-                                 ::testing::Values(inputs),
+                                 ::testing::ValuesIn(inputs),
                                  ::testing::Values(types),
                                  ::testing::ValuesIn(inputPrecisions)),
                          LoopLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_LoopCommonForWithCond, LoopLayerForWithCondCPUTest,
+std::vector<std::vector<InputShape>> inputs_2 = {
+        {
+                {{-1, -1}, {{10, 10}, {1, 1}, {1, 1}, {5, 3}}},
+        },
+        {
+                {{{1, 10}, {1, 10}}, {{5, 2}, {2, 5}, {5, 5}, {5, 5}}},
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LoopWhileCommon, LoopWhileLayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(execute_first_iteration),
-                                 ::testing::ValuesIn(is_body_condition_const),
-                                 ::testing::ValuesIn(body_condition),
-                                 ::testing::Values(trip_count.front()), // ignore
-                                 ::testing::Values(inputs),
-                                 ::testing::Values(types),
+                                 ::testing::Values(trip_count_type[0]),
+                                 ::testing::Values(-1),
+                                 ::testing::ValuesIn(inputs_2),
+                                 ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
                                  ::testing::ValuesIn(inputPrecisions)),
-                         LoopLayerForWithCondCPUTest::getTestCaseName);
+                         LoopWhileLayerCPUTest::getTestCaseName);
 
 }  // namespace
 } // namespace CPULayerTestsDefinitions
