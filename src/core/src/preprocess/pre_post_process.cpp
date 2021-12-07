@@ -125,7 +125,9 @@ public:
     }
 
     void set_shape(const PartialShape& shape) {
-        OPENVINO_ASSERT(!m_spatial_shape_set, "'set_spatial_static_shape', 'set_spatial_dynamic_shape', 'set_shape' shall not be used together");
+        OPENVINO_ASSERT(
+            !m_spatial_shape_set,
+            "'set_spatial_static_shape', 'set_spatial_dynamic_shape', 'set_shape' shall not be used together");
         m_shape = shape;
         m_shape_set = true;
     }
