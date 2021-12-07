@@ -249,7 +249,7 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     _config{config},
     _needPerfCounters{needPerfCounters} {
     // WA for gcc 4.8 ( fails compilation with member init-list)
-    _device= networkDevice;
+    _device = networkDevice;
 }
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
