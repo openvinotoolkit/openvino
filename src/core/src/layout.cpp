@@ -425,10 +425,14 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
 }
 
 bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
-    std::string layout_str = m_value.to_string();
+    std::string layout_str = value.to_string();
     visitor.on_attribute("layout", layout_str);
-    m_value = Layout(layout_str);
+    value = Layout(layout_str);
     return true;
+}
+
+std::string LayoutAttribute::to_string() const {
+    return value.to_string();
 }
 
 }  // namespace ov

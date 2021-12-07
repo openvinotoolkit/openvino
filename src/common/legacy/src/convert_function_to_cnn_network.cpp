@@ -1629,7 +1629,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
                 << " attribute is set in " << node->get_friendly_name() << " node";
         }
 
-        auto getStringValue = [] (const std::shared_ptr<ngraph::Variant> & variant) {
+        auto getStringValue = [] (const ov::Any& variant) {
             auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(variant);
             IE_ASSERT(castedVariant != nullptr);
             return castedVariant->get();
@@ -1932,13 +1932,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
 
         // Copy runtime info attributes from Nodes to CNNLayers if they have VariantWrapper<std::string> type
-        using VariantString = ::ngraph::VariantWrapper<std::string>;
         for (const auto &rt : rt_info) {
-            if (auto str_attr = std::dynamic_pointer_cast<VariantString>(rt.second)) {
+            if (rt.second.is<std::string>()) {
+                auto str_attr = rt.second.as<std::string>();
                 if (details::CaselessEq<std::string>()(rt.first, "affinity")) {
-                    cnnLayer->affinity = str_attr->get();
+                    cnnLayer->affinity = str_attr;
                 } else {
-                    cnnLayer->params[rt.first] = str_attr->get();
+                    cnnLayer->params[rt.first] = str_attr;
                 }
             }
         }

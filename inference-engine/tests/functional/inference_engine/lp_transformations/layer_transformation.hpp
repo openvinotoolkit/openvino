@@ -83,10 +83,9 @@ public:
         for (size_t nodeIndex = 0ul; nodeIndex < nodes.size(); nodeIndex++) {
             auto& rt = nodes[nodeIndex]->get_rt_info();
             for (auto& it : rt) {
-                auto reference = std::dynamic_pointer_cast<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>>(it.second);
-                assert(reference != nullptr);
-                if ((reference->get()->sharedValue->combinedInterval.low != intervalLow) &&
-                    (reference->get()->sharedValue->combinedInterval.high != intervalHigh)) {
+                auto& reference = it.second.as<IntervalsAlignmentAttribute>();
+                if ((reference.value().combinedInterval.low != intervalLow) &&
+                    (reference.value().combinedInterval.high != intervalHigh)) {
                     return false;
                 }
             }
@@ -96,10 +95,10 @@ public:
     }
 
     static bool compare(
-        const std::shared_ptr<IntervalsAlignmentAttribute>& value1,
-        const std::shared_ptr<IntervalsAlignmentAttribute>& value2) {
-        if ((value1->sharedValue->combinedInterval.low != value2->sharedValue->combinedInterval.low) ||
-            (value1->sharedValue->combinedInterval.high != value2->sharedValue->combinedInterval.high)) {
+        const IntervalsAlignmentAttribute& value1,
+        const IntervalsAlignmentAttribute& value2) {
+        if ((value1.value().combinedInterval.low != value2.value().combinedInterval.low) ||
+            (value1.value().combinedInterval.high != value2.value().combinedInterval.high)) {
             return false;
         }
         return true;
@@ -124,10 +123,8 @@ public:
                     return false;
                 }
 
-                auto reference = std::dynamic_pointer_cast<VariantWrapper<Operation>>(referenceIt->second);
-                auto actual = std::dynamic_pointer_cast<VariantWrapper<Operation>>(actualIt.second);
-                if ((actual != nullptr) && (reference != nullptr)) {
-                    if (!compare(reference->get(), actual->get())) {
+                if (!referenceIt->second.empty() && !actualIt.second.empty()) {
+                    if (!compare(referenceIt->second.template as<Operation>(), actualIt.second.template as<Operation>())) {
                         return false;
                     }
                 }
@@ -139,24 +136,22 @@ public:
 
     template <class Attribute>
     static bool checkIfOutputAttributesAreTheSame(const NodeVector& nodes) {
-        void* first = nullptr;
+        ov::Any first;
         for (auto node : nodes) {
             for (auto output : node->outputs()) {
                 auto& rt = output.get_rt_info();
-                const std::string& name = VariantWrapper<Attribute>::type_info.name;
+                const std::string& name = Attribute::get_type_info_static();
                 auto it = rt.find(name);
                 if (it == rt.end()) {
                     return false;
                 }
 
                 auto value = it->second;
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                if (first == nullptr) {
-                    first = value.get();
-                } else if (value.get() != first) {
+                if (first.empty()) {
+                    first = value;
+                } else if (value.template as<Attribute>().attribute != first.template as<Attribute>().attribute) {
                     return false;
                 }
-                OPENVINO_SUPPRESS_DEPRECATED_END
             }
         }
         return true;
@@ -164,15 +159,15 @@ public:
 
     template <class Attribute>
     static bool checkIfOutputAttributesSharedValuesAreTheSame(const NodeVector& nodes) {
-        std::shared_ptr<Variant> first = nullptr;
+        ov::Any first;
         for (auto node : nodes) {
             for (auto output : node->outputs()) {
                 auto value = ngraph::pass::low_precision::getAttributeFromOutput<Attribute>(output);
-                if (first == nullptr) {
+                if (first.empty()) {
                     first = value;
                 } else {
-                    const auto sharedValue1 = std::dynamic_pointer_cast<ngraph::VariantWrapper<Attribute>>(value)->get()->sharedValue;
-                    const auto sharedValue2 = std::dynamic_pointer_cast<ngraph::VariantWrapper<Attribute>>(first)->get()->sharedValue;
+                    const auto sharedValue1 = value.template as<Attribute>().attribute->sharedValue;
+                    const auto sharedValue2 = first.template as<Attribute>().attribute->sharedValue;
                     if (sharedValue1 != sharedValue2) {
                         return false;
                     }
@@ -184,18 +179,18 @@ public:
 
     template <class Attribute>
     static bool checkIfAttributesSharedValuesAreTheSame(const NodeVector& nodes) {
-        std::shared_ptr<Variant> first = nullptr;
+        ov::Any first;
         for (auto node : nodes) {
             auto value = ngraph::pass::low_precision::getAttribute<Attribute>(node);
-            if (value == nullptr) {
+            if (value.empty()) {
                 return false;
             }
 
-            if (first == nullptr) {
+            if (first.empty()) {
                 first = value;
             } else {
-                const auto sharedValue1 = std::dynamic_pointer_cast<ngraph::VariantWrapper<Attribute>>(value)->get()->sharedValue;
-                const auto sharedValue2 = std::dynamic_pointer_cast<ngraph::VariantWrapper<Attribute>>(first)->get()->sharedValue;
+                const auto sharedValue1 = value.template as<Attribute>().attribute->sharedValue;
+                const auto sharedValue2 = first.template as<Attribute>().attribute->sharedValue;
                 if (sharedValue1 != sharedValue2) {
                     return false;
                 }
@@ -206,16 +201,16 @@ public:
 
     template <class Attribute>
     static bool checkIfAttributesAreTheSame(const NodeVector& nodes) {
-        Variant* first = nullptr;
+        ov::Any first;
         for (auto node : nodes) {
             auto value = ngraph::pass::low_precision::getAttribute<Attribute>(node);
-            if (value == nullptr) {
+            if (value.empty()) {
                 return false;
             }
 
-            if (first == nullptr) {
-                first = value.get();
-            } else if (value.get() != first) {
+            if (first.empty()) {
+                first = value;
+            } else if (value.template as<Attribute>().attribute != first.template as<Attribute>().attribute) {
                 return false;
             }
         }

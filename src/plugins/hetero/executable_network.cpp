@@ -82,10 +82,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         auto& nodeInfo = node->get_rt_info();
         auto itInfo = nodeInfo.find("affinity");
         if (itInfo != nodeInfo.end()) {
-            IE_ASSERT((ngraph::is_type<ngraph::VariantWrapper<std::string>>(itInfo->second)));
-            queryNetworkResult.supportedLayersMap.emplace(
-                node->get_friendly_name(),
-                ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(itInfo->second)->get());
+            IE_ASSERT(itInfo->second.is<std::string>());
+            queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itInfo->second.as<std::string>());
             allEmpty = false;
         }
     }

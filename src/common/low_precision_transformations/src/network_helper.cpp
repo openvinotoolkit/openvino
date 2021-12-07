@@ -668,13 +668,12 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
 
 bool NetworkHelper::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node) {
     auto& rt = node->get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name);
+    auto it = rt.find(PrecisionPreservedAttribute::get_type_info_static());
     if (it == rt.end()) {
         return false;
     }
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(it->second);
-    assert(attribute != nullptr);
-    return attribute->get()->sharedValue->value;
+    auto attribute = it->second;
+    return attribute.as<PrecisionPreservedAttribute>().value();
 }
 
 size_t NetworkHelper::calculateLevels(
@@ -1854,15 +1853,11 @@ bool NetworkHelper::isDQByDynamicDimension(const std::shared_ptr<Node>& layer, s
 
 bool isDisabled(const std::shared_ptr<Node>& node) {
     for (const auto& input : node->inputs()) {
-        auto precisionAttribute = getAttribute<std::shared_ptr<PrecisionsAttribute>>(input);
-        if (precisionAttribute == nullptr) {
+        auto precisionAttribute = getAttribute<PrecisionsAttribute>(input);
+        if (precisionAttribute.empty()) {
             continue;
         }
-
-        assert(precisionAttribute->get() != nullptr);
-        assert(precisionAttribute->get()->sharedValue != nullptr);
-
-        const auto& precisionRestrictions = precisionAttribute->get()->sharedValue->precisions;
+        const auto& precisionRestrictions = precisionAttribute.as<PrecisionsAttribute>().value();
         if (precisionRestrictions.empty()) {
             return true;
         }

@@ -51,22 +51,16 @@ void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
 ov::Layout op::Parameter::get_layout() const {
     auto it = output(0).get_rt_info().find(ov::LayoutAttribute::get_type_info_static());
     if (it == output(0).get_rt_info().end()) {
-        return "";
+        return {};
     }
-    auto layout = std::dynamic_pointer_cast<ov::LayoutAttribute>(it->second);
-    OPENVINO_ASSERT(layout,
-                    "'",
-                    ov::LayoutAttribute::get_type_info_static(),
-                    "' runtime info for parameter is invalid, use set_layout API");
-    return layout->get();
+    return it->second.as<ov::LayoutAttribute>().value;
 }
 
 void op::Parameter::set_layout(const ov::Layout& layout) {
     if (layout.empty()) {
         output(0).get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
     } else {
-        output(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] =
-            std::make_shared<ov::LayoutAttribute>(layout);
+        output(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = ov::LayoutAttribute(layout);
     }
 }
 

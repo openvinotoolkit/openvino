@@ -7,6 +7,6 @@
 using namespace ov;
 
 bool OldApiMapOrder::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("value", m_value);
+    visitor.on_attribute("value", value);
     return true;
 }

@@ -18,7 +18,7 @@ bool ngraph::pass::low_precision::AlignQuantizationIntervals::run_on_function(st
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> intervalsAlignment = manager.register_pass<ngraph::pass::GraphRewrite>();
-    intervalsAlignment->add_matcher<low_precision::CreateAttribute<IntervalsAlignmentAttributePtr, opset1::FakeQuantize>>();
+    intervalsAlignment->add_matcher<low_precision::CreateAttribute<IntervalsAlignmentAttribute, opset1::FakeQuantize>>();
     intervalsAlignment->add_matcher<low_precision::PropagateThroughPrecisionPreserved<IntervalsAlignmentAttribute>>();
     manager.run_passes(f);
     return false;

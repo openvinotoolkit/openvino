@@ -13,18 +13,20 @@
 namespace ov {
 namespace preprocess {
 
-class OPENVINO_API TensorInfoMemoryType : public VariantImpl<std::string> {
+class OPENVINO_API TensorInfoMemoryType : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("memory_type", "0");
 
     TensorInfoMemoryType() = default;
 
-    explicit TensorInfoMemoryType(const std::string& value) : VariantImpl<std::string>(value) {}
+    explicit TensorInfoMemoryType(const std::string& value) : value(value) {}
 
     bool visit_attributes(AttributeVisitor& visitor) override {
-        visitor.on_attribute("value", m_value);
+        visitor.on_attribute("value", value);
         return true;
     }
+
+    std::string value;
 };
 
 /// \brief Information about user's input tensor. By default, it will be initialized to same data (type/shape/etc) as

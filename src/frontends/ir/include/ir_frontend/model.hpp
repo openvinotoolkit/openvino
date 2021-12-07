@@ -9,6 +9,7 @@
 
 #include "ir_frontend/utility.hpp"
 #include "manager.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 
 namespace ov {
 namespace frontend {

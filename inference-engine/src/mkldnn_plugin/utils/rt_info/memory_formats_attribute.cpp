@@ -11,25 +11,25 @@
 using namespace ngraph;
 using namespace ov;
 
-MLKDNNInputMemoryFormats::~MLKDNNInputMemoryFormats() = default;
+MKLDNNInputMemoryFormats::~MKLDNNInputMemoryFormats() = default;
 
-std::string ngraph::getMLKDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
-    auto it_info = node->get_rt_info().find(MLKDNNInputMemoryFormatsAttr);
+std::string ngraph::getMKLDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+    auto it_info = node->get_rt_info().find(MKLDNNInputMemoryFormats::get_type_info_static());
     if (it_info != node->get_rt_info().end()) {
-        if (auto ptr = it_info->second.as<std::shared_ptr<MLKDNNInputMemoryFormats>>()) {
-            return ptr->getMemoryFormats();
+        if (it_info->second.is<MKLDNNInputMemoryFormats>()) {
+            return it_info->second.as<MKLDNNInputMemoryFormats>().getMemoryFormats();
         }
     }
     return {};
 }
 
-MLKDNNOutputMemoryFormats::~MLKDNNOutputMemoryFormats() = default;
+MKLDNNOutputMemoryFormats::~MKLDNNOutputMemoryFormats() = default;
 
-std::string ngraph::getMLKDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
-    auto it_info = node->get_rt_info().find(MLKDNNOutputMemoryFormatsAttr);
+std::string ngraph::getMKLDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+    auto it_info = node->get_rt_info().find(MKLDNNOutputMemoryFormats::get_type_info_static());
     if (it_info != node->get_rt_info().end()) {
-        if (auto ptr = it_info->second.as<std::shared_ptr<MLKDNNOutputMemoryFormats>>()) {
-            return ptr->getMemoryFormats();
+        if (it_info->second.is<MKLDNNOutputMemoryFormats>()) {
+            return it_info->second.as<MKLDNNOutputMemoryFormats>().getMemoryFormats();
         }
     }
     return {};

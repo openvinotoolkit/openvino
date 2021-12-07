@@ -174,7 +174,8 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             },
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false, { "disabled_constant_folding_0" } },
+                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
+                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
                 {}
             },
             { std::vector<float>{ 100.f }, ngraph::element::i8},
@@ -349,7 +350,8 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             },
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false, { "disabled_constant_folding_0" } },
+                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
+                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
                 {}
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},
@@ -417,7 +419,8 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             },
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false, { "disabled_constant_folding_0" } },
+                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
+                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
                 {}
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},

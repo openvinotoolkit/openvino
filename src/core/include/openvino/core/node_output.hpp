@@ -11,9 +11,9 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/variant.hpp"
 
 namespace ov {
 class Node;

@@ -20,7 +20,7 @@
 
 namespace py = pybind11;
 
-using PyRTMap = std::map<std::string, ov::Any>;
+using PyRTMap = ngraph::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
@@ -34,5 +34,8 @@ void regclass_pyngraph_PyRTMap(py::module m) {
     });
     py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const int64_t v) {
         m[k] = v;
+    });
+    py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) {
+        return m.at(k).as<std::shared_ptr<ngraph::Variant>>();
     });
 }

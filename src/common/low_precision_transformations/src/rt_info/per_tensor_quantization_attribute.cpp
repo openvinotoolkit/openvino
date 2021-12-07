@@ -7,5 +7,4 @@
 using namespace ngraph;
 using namespace ov;
 
-template class ngraph::VariantImpl<PerTensorQuantizationAttribute>;
-constexpr VariantTypeInfo VariantWrapper<PerTensorQuantizationAttribute>::type_info;
+PerTensorQuantizationAttribute::~PerTensorQuantizationAttribute() = default;

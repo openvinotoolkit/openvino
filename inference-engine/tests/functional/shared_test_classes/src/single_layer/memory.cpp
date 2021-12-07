@@ -46,9 +46,9 @@ namespace LayerTestsDefinitions {
         }
 
         auto hostTensor = std::make_shared<HostTensor>(ngPrc, inputShape);
-        auto variable_context = std::make_shared<VariantWrapper<VariableContext>>(VariableContext());
+        auto variable_context = VariableContext();
         auto variable_value = std::make_shared<VariableValue>(hostTensor);
-        variable_context->get().set_variable_value(function->get_variable_by_id("v0"), variable_value);
+        variable_context.set_variable_value(function->get_variable_by_id("v0"), variable_value);
         eval_context["VariableContext"] = variable_context;
     }
 

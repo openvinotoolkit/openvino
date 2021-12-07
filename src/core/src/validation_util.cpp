@@ -1212,8 +1212,15 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
 
                 auto& rt_info = consumer->get_rt_info();
                 for (const auto& it : orig_rt_info) {
-                    if (rt_info.find(it.first) == rt_info.end() && it.second->is_copyable())
-                        rt_info[it.first] = it.second;
+                    if (rt_info.find(it.first) == rt_info.end()) {
+                        bool copy = true;
+                        if (it.second.is<ov::RuntimeAttribute>()) {
+                            copy = it.second.as<ov::RuntimeAttribute>().is_copyable();
+                        }
+                        if (copy) {
+                            rt_info[it.first] = it.second;
+                        }
+                    }
                 }
             }
         }

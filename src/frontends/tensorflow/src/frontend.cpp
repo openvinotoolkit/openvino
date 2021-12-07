@@ -268,38 +268,38 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
-bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
+bool FrontEndTF::supported_impl(const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() != 1)
         return false;
 
     // Validating first path, it must contain a model
-    if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
+    if (variants[0].is<std::string>()) {
         std::string suffix = ".pb";
-        std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+        std::string model_path = variants[0].as<std::string>();
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
-    } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
+    } else if (variants[0].is<GraphIterator::Ptr>()) {
         return true;
     }
     return false;
 }
 
-ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
+ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() == 1) {
         // a case when binary protobuf format is provided
-        if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
+        if (variants[0].is<std::string>()) {
             std::string suffix = ".pb";
-            std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+            std::string model_path = variants[0].as<std::string>();
             if (ov::util::ends_with(model_path, suffix.c_str())) {
                 return std::make_shared<InputModelTF>(
                     std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path),
                     m_telemetry);
             }
-        } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
-            auto graph_iterator = ov::as_type_ptr<VariantWrapper<GraphIterator::Ptr>>(variants[0])->get();
+        } else if (variants[0].is<GraphIterator::Ptr>()) {
+            auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
             return std::make_shared<InputModelTF>(graph_iterator, m_telemetry);
         }
     }

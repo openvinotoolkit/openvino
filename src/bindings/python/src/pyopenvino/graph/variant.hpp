@@ -10,7 +10,7 @@
 #include <sstream>
 #include <string>
 
-#include "openvino/core/any.hpp" // ov::Variant
+#include "openvino/core/any.hpp" // ov::RuntimeAttribute
 
 namespace py = pybind11;
 

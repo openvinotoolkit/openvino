@@ -45,8 +45,8 @@ namespace {
 // 2. Precisions on port
 DataPrecision getDataPrecisionByOutputPortAndFakeQuantize(std::shared_ptr<opset1::FakeQuantize> layer) {
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
-    auto precisionsAttribute = getAttributeFromOutput<std::shared_ptr<PrecisionsAttribute>>(layer->output(0));
-    if (precisionsAttribute == nullptr) {
+    auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
+    if (precisionsAttribute.empty()) {
         // TODO: explore this case in more details:
         // 1. we should not be here
         assert(true);
@@ -60,7 +60,7 @@ DataPrecision getDataPrecisionByOutputPortAndFakeQuantize(std::shared_ptr<opset1
             precisionDetailsAtOutputIntervals.hasZeroPoint);
     }
 
-    const auto& precisions = precisionsAttribute->get()->sharedValue->precisions;
+    const auto& precisions = precisionsAttribute.as<PrecisionsAttribute>().value();
 
     ngraph::element::Type precision;
     bool hasZeroPoint;
@@ -77,7 +77,7 @@ DataPrecision getDataPrecisionByOutputPortAndFakeQuantize(std::shared_ptr<opset1
         }
 
         // update shared attribute to affect all operations in subgraph
-        precisionsAttribute->get()->sharedValue->precisions = { precision };
+        precisionsAttribute.as<PrecisionsAttribute>().value() = { precision };
     } else {
         // use only available precision
         precision = *precisions.begin();
@@ -100,8 +100,8 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
     const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
     const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
 
-    auto precisionsAttribute = getAttributeFromOutput<std::shared_ptr<PrecisionsAttribute>>(layer->output(0));
-    if (precisionsAttribute == nullptr) {
+    auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
+    if (precisionsAttribute.empty()) {
         // TODO: explore this case in more details:
         // 1. we should not be here
         assert(true);
@@ -119,7 +119,7 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
             precisionDetailsAtOutputIntervals.hasZeroPoint);
     }
 
-    const auto& precisions = precisionsAttribute->get()->sharedValue->precisions;
+    const auto& precisions = precisionsAttribute.as<PrecisionsAttribute>().value();
     std::vector<element::Type> precisionsForLevels{};
     switch (levels) {
         case 65536:
@@ -153,7 +153,7 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
         }
 
         // update shared attribute to affect all operations in subgraph
-        precisionsAttribute->get()->sharedValue->precisions = { precision };
+        precisionsAttribute.as<PrecisionsAttribute>().value() = { precision };
     } else {
         // use only available precision
         precision = *resultPrecisions.begin();
@@ -175,14 +175,14 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
 std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
     MatcherPass* matcherPass,
     std::shared_ptr<opset1::FakeQuantize>& layer,
-    const std::shared_ptr<IntervalsAlignmentAttribute>& intervalsAlignment,
+    const ov::Any& intervalsAlignment,
     const DataPrecision& dataPrecision,
     const bool updatePrecisions,
     const element::Type deqPrecision) {
     std::shared_ptr<ngraph::Node> dequantize;
     std::shared_ptr<ngraph::Node> newFQ;
 
-    if (intervalsAlignment != nullptr) {
+    if (!intervalsAlignment.empty()) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "decomposeFakeQuantize1");
         const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
         const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
@@ -194,8 +194,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         const size_t levels = NetworkHelper::calculateLevels(
             dataPrecision.min,
             dataPrecision.max,
-            intervalsAlignment->sharedValue->combinedInterval.low,
-            intervalsAlignment->sharedValue->combinedInterval.high,
+            intervalsAlignment.as<IntervalsAlignmentAttribute>().value().combinedInterval.low,
+            intervalsAlignment.as<IntervalsAlignmentAttribute>().value().combinedInterval.high,
             outputLowValues[0],
             outputHighValues[0],
             dequantizationMul,
@@ -286,8 +286,8 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         return false;
     }
 
-    auto attribute = getAttributeFromOutput<std::shared_ptr<PrecisionsAttribute>>(layer->output(0));
-    if ((attribute == nullptr) || (attribute->get()->sharedValue->precisions.empty())) {
+    auto attribute = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
+    if (attribute.empty() || (attribute.as<PrecisionsAttribute>().value().empty())) {
         return false;
     }
 
@@ -320,42 +320,33 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
 
-    std::shared_ptr<PrecisionsAttribute> precisionsAttribute;
+    PrecisionsAttribute precisionsAttribute;
     {
         // TODO: LPT: return attribute (not wrapper)
-        auto attributeWrapper = getAttributeFromOutput<std::shared_ptr<PrecisionsAttribute>>(layer->output(0));
-        if (attributeWrapper == nullptr) {
+        auto attributeWrapper = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
+        if (attributeWrapper.empty()) {
             THROW_IE_LPT_EXCEPTION(*layer) << "PrecisionAttribute is absent";
         }
-        precisionsAttribute = attributeWrapper->get();
-        if (precisionsAttribute == nullptr) {
-            THROW_IE_LPT_EXCEPTION(*layer) << "PrecisionAttribute is absent";
-        }
+        precisionsAttribute = attributeWrapper.as<PrecisionsAttribute>();
     }
 
-    std::shared_ptr<QuantizationAlignmentAttribute> quantizationAlignment;
+    ov::Any quantizationAlignment;
     for (const auto& input : layer->output(0).get_target_inputs()) {
-        const auto alignmentValueWrapper = low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentAttribute>>(input.get_node()->shared_from_this());
-        if (alignmentValueWrapper != nullptr) {
-            quantizationAlignment = alignmentValueWrapper->get();
-            if (quantizationAlignment->sharedValue->value) {
+        quantizationAlignment = low_precision::getAttribute<QuantizationAlignmentAttribute>(input.get_node()->shared_from_this());
+        if (!quantizationAlignment.empty()) {
+            if (quantizationAlignment.as<QuantizationAlignmentAttribute>().value()) {
                 break;
             }
         }
     }
 
-    std::shared_ptr<IntervalsAlignmentAttribute> intervalsAlignment;
-    {
-        if ((quantizationAlignment != nullptr) && quantizationAlignment->sharedValue->value) {
-            auto intervalsAlignmentWrapper = low_precision::getAttribute<std::shared_ptr<IntervalsAlignmentAttribute>>(layer);
-            if (intervalsAlignmentWrapper != nullptr) {
-                intervalsAlignment = intervalsAlignmentWrapper->get();
-            }
-        }
+    ov::Any intervalsAlignment;
+    if (!quantizationAlignment.empty() && quantizationAlignment.as<QuantizationAlignmentAttribute>().value()) {
+        intervalsAlignment = low_precision::getAttribute<IntervalsAlignmentAttribute>(layer);
     }
 
     // FakeQuantize operations are combined in supported cascade (per tensor quantization)
-    if ((intervalsAlignment != nullptr) && (intervalsAlignment->sharedValue->minLevels <= 2ul)) {
+    if (!intervalsAlignment.empty() && (intervalsAlignment.as<IntervalsAlignmentAttribute>().value().minLevels <= 2ul)) {
         return false;
     }
 
@@ -366,20 +357,20 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         const auto levels = layer->get_levels();
         const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
         const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
-        if (intervalsAlignment == nullptr) {
+        if (intervalsAlignment.empty()) {
             // define precision by FakeQuantize intervals
             LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(
                 levels,
                 outputLowValues,
                 outputHighValues);
             const auto foundIt = std::find(
-                precisionsAttribute->sharedValue->precisions.begin(),
-                precisionsAttribute->sharedValue->precisions.end(),
+                precisionsAttribute.value().begin(),
+                precisionsAttribute.value().end(),
                 precisionDetailsAtOutputIntervals.precision);
 
             bool hasZeroPoint;
-            if (foundIt == precisionsAttribute->sharedValue->precisions.end()) {
-                precision = *precisionsAttribute->sharedValue->precisions.begin();
+            if (foundIt == precisionsAttribute.value().end()) {
+                precision = *precisionsAttribute.value().begin();
                 hasZeroPoint = true;
             } else {
                 precision = precisionDetailsAtOutputIntervals.precision;
@@ -393,12 +384,12 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
                 hasZeroPoint);
         } else {
             // define precision by attribute
-            if (intervalsAlignment->sharedValue->preferablePrecisions.empty()) {
+            if (intervalsAlignment.as<IntervalsAlignmentAttribute>().value().preferablePrecisions.empty()) {
                 // TODO: LPT: add user defined preferredPrecision
-                precision = *precisionsAttribute->sharedValue->precisions.begin();
+                precision = *precisionsAttribute.value().begin();
             } else {
                 // TODO: LPT: add user defined preferredPrecision
-                precision = *intervalsAlignment->sharedValue->preferablePrecisions.begin();
+                precision = *intervalsAlignment.as<IntervalsAlignmentAttribute>().value().preferablePrecisions.begin();
             }
 
             dataPrecision = DataPrecision(
@@ -425,8 +416,8 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     updateOutput(context, dequantize, newFakeQuantize);
 
-    if (precisionsAttribute->sharedValue->precisions.size() != 1ul) {
-        precisionsAttribute->sharedValue->precisions = { dataPrecision.precision };
+    if (precisionsAttribute.value().size() != 1ul) {
+        precisionsAttribute.value() = { dataPrecision.precision };
     }
 
     return true;

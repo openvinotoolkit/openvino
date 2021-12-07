@@ -218,9 +218,9 @@ public:
             testValues.result.dequantization2,
             true,
             {
-                make_shared_attribute_ptr<PrecisionPreservedAttribute>(true),
-                make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
-                make_shared_attribute_ptr<QuantizationAlignmentAttribute>(false)
+                PrecisionPreservedAttribute(true),
+                IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
+                QuantizationAlignmentAttribute(false)
             },
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter,
@@ -258,14 +258,14 @@ TEST_P(ConcatWithNotQuantizedParentTransformation, CompareFunctions) {
             break;
         }
     }
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes)) <<
         "PrecisionsAttribute are not the same";
 
     ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(GetParam());
     if (testValues.checkIntervalsAlignmentAttributes) {
         auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
         operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
+        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(operations)) <<
             "IntervalsAlignmentAttribute are not the same";
     }
 }

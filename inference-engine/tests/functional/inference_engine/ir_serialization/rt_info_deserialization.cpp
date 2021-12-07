@@ -40,7 +40,7 @@ protected:
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
-        ov::VariantVector params{ov::make_variant(&modelStream)};
+        ov::RuntimeAttributeVector params{&modelStream};
 
         FE = manager.load_by_model(params);
         if (FE)
@@ -119,7 +119,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     ASSERT_NE(nullptr, f);
 
     auto check_rt_info = [](const RTMap& info) {
-        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+        const std::string& key = ngraph::FusedNames::get_type_info_static();
         EXPECT_FALSE(info.count(key));
 
         const std::string& key_old_api_order = ov::OldApiMapOrder::get_type_info_static();
@@ -278,7 +278,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     ASSERT_NE(nullptr, f);
 
     auto check_rt_info = [](const RTMap& info) {
-        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+        const std::string& key = ngraph::FusedNames::get_type_info_static();
         ASSERT_FALSE(info.count(key));
     };
 
@@ -421,27 +421,22 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     ASSERT_NE(nullptr, f);
 
     auto check_fused_names = [](const RTMap& info, const std::string& names) {
-        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+        const std::string& key = ngraph::FusedNames::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
-        ASSERT_TRUE(fused_names_attr);
-        EXPECT_EQ(fused_names_attr->get().getNames(), names);
+        auto fused_names_attr = info.at(key).as<ngraph::FusedNames>();
+        EXPECT_EQ(fused_names_attr.getNames(), names);
     };
 
     auto check_old_api_map_order = [](const RTMap & info, const std::vector<uint64_t> & order) {
         const std::string & old_api_map_key = ov::OldApiMapOrder::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
-        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(info.at(old_api_map_key));
-        ASSERT_TRUE(old_api_map_attr);
-        auto old_api_map_attr_val = old_api_map_attr->get();
+        auto old_api_map_attr_val = info.at(old_api_map_key).as<ov::OldApiMapOrder>().value;
         EXPECT_EQ(old_api_map_attr_val, order);
     };
     auto check_old_api_map_type = [](const RTMap & info, const ngraph::element::Type& type) {
         const std::string & old_api_map_key = ov::OldApiMapElementType::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
-        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapElementType>(info.at(old_api_map_key));
-        ASSERT_TRUE(old_api_map_attr);
-        auto old_api_map_attr_val = old_api_map_attr->get();
+        auto old_api_map_attr_val = info.at(old_api_map_key).as<ov::OldApiMapElementType>().value;
         EXPECT_EQ(old_api_map_attr_val, type);
     };
 
@@ -501,8 +496,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         auto round = std::make_shared<opset8::Round>(convert_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         // TODO: runtime information should migrate as well?
-        round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-            std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
+        round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
 
         // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
         auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::u64,
@@ -722,20 +716,20 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     check_version(f, 11);
 
     auto check_fused_names = [](const RTMap& info, const std::string& names) {
-        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+        const std::string& key = ngraph::FusedNames::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
-        ASSERT_TRUE(fused_names_attr);
-        ASSERT_EQ(fused_names_attr->get().getNames(), names);
+        auto fused_names_attr = info.at(key).as<ngraph::FusedNames>();
+        ASSERT_EQ(fused_names_attr.getNames(), names);
     };
 
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
     EXPECT_EQ(param->get_layout(), "NCHW");
-    auto var0 = std::dynamic_pointer_cast<ov::preprocess::TensorInfoMemoryType>(
-            f->input(0).get_rt_info()[ov::preprocess::TensorInfoMemoryType::get_type_info_static()]);
-    EXPECT_EQ(var0->get(), "test_memory_type");
+    auto var0 = f->input(0).get_rt_info()
+        .at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
+        .as<ov::preprocess::TensorInfoMemoryType>().value;
+    EXPECT_EQ(var0, "test_memory_type");
 
     auto result = f->get_result();
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");

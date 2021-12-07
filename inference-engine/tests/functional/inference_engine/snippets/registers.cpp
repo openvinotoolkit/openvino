@@ -9,7 +9,6 @@
 #include <ngraph/variant.hpp>
 
 #include <snippets/snippets_isa.hpp>
-#include <snippets/register_info.hpp>
 #include <snippets/pass/assign_registers.hpp>
 
 #include <transformations/init_node_info.hpp>
@@ -53,7 +52,7 @@ TEST(TransformationTests, AssignRegisters) {
 
             auto it_rinfo = rt.find("reginfo");
             if (it_rinfo != rt.end()) {
-                auto reginfo = ov::as_type_ptr<VariantWrapper<std::vector<size_t>>>(it_rinfo->second)->get();
+                auto reginfo = it_rinfo->second.as<std::vector<size_t>>();
                 auto reg = reginfo[0];
                 ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
                 total_ops++;
@@ -127,7 +126,7 @@ TEST(TransformationTests, AssignRegisters2) {
             auto& rt = op->get_rt_info();
             auto it_rinfo = rt.find("reginfo");
             if (it_rinfo != rt.end()) {
-                auto reginfo = ov::as_type_ptr<VariantWrapper<std::vector<size_t>>>(it_rinfo->second)->get();
+                auto reginfo = it_rinfo->second.as<std::vector<size_t>>();
                 auto reg = reginfo[0];
                 ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
                 total_ops++;

@@ -17,10 +17,6 @@
 using namespace ov;
 using namespace ov::frontend;
 
-using VariantString = VariantWrapper<std::string>;
-using VariantWString = VariantWrapper<std::wstring>;
-using VariantIstreamPtr = VariantWrapper<std::istream*>;
-
 ONNX_FRONTEND_C_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
@@ -34,29 +30,29 @@ ONNX_FRONTEND_C_API void* GetFrontEndData() {
     return res;
 }
 
-InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+InputModel::Ptr FrontEndONNX::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() == 0) {
         return nullptr;
     }
-    if (ov::is_type<VariantString>(variants[0])) {
-        const auto path = ov::as_type_ptr<VariantString>(variants[0])->get();
+    if (variants[0].is<std::string>()) {
+        const auto path = variants[0].as<std::string>();
         return std::make_shared<InputModelONNX>(path, m_telemetry);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    if (ov::is_type<VariantWString>(variants[0])) {
-        const auto path = ov::as_type_ptr<VariantWString>(variants[0])->get();
+    if (variants[0].is<std::wstring>()) {
+        const auto path = variants[0].as<std::wstring>();
         return std::make_shared<InputModelONNX>(path, m_telemetry);
     }
 #endif
-    if (ov::is_type<VariantIstreamPtr>(variants[0])) {
-        const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
-        if (variants.size() > 1 && ov::is_type<VariantString>(variants[1])) {
-            const auto path = ov::as_type_ptr<VariantString>(variants[1])->get();
+    if (variants[0].is<std::istream*>()) {
+        const auto stream = variants[0].as<std::istream*>();
+        if (variants.size() > 1 && variants[1].is<std::string>()) {
+            const auto path = variants[0].as<std::string>();
             return std::make_shared<InputModelONNX>(*stream, path, m_telemetry);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        if (variants.size() > 1 && ov::is_type<VariantWString>(variants[1])) {
-            const auto path = ov::as_type_ptr<VariantWString>(variants[1])->get();
+        if (variants.size() > 1 && variants[1].is<std::wstring>()) {
+            const auto path = variants[1].as<std::wstring>();
             return std::make_shared<InputModelONNX>(*stream, path, m_telemetry);
         }
 #endif
@@ -107,18 +103,18 @@ private:
 };
 }  // namespace
 
-bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+bool FrontEndONNX::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() == 0) {
         return false;
     }
     std::ifstream model_stream;
-    if (ov::is_type<VariantString>(variants[0])) {
-        const auto path = ov::as_type_ptr<VariantString>(variants[0])->get();
+    if (variants[0].is<std::string>()) {
+        const auto path = variants[0].as<std::string>();
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (ov::is_type<VariantWString>(variants[0])) {
-        const auto path = ov::as_type_ptr<VariantWString>(variants[0])->get();
+    else if (variants[0].is<std::wstring>()) {
+        const auto path = variants[0].as<std::wstring>();
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
 #endif
@@ -128,11 +124,12 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         model_stream.close();
         return is_valid_model;
     }
-    if (ov::is_type<VariantIstreamPtr>(variants[0])) {
-        const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
+    if (variants[0].is<std::istream*>()) {
+        const auto stream = variants[0].as<std::istream*>();
         StreamRewinder rwd{*stream};
         return ngraph::onnx_common::is_valid_model(*stream);
     }
+
     return false;
 }
 

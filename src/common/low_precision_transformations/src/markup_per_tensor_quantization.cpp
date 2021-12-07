@@ -33,8 +33,8 @@ bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_function(s
         auto createAttribute = [](Input<Node>& input){
             auto &rt = input.get_rt_info();
             rt.emplace(
-                    ngraph::VariantWrapper<PerTensorQuantizationAttribute>::type_info.name,
-                    std::make_shared<::ngraph::VariantWrapper<PerTensorQuantizationAttribute>>(PerTensorQuantizationAttribute()));
+                    PerTensorQuantizationAttribute::get_type_info_static(),
+                    PerTensorQuantizationAttribute());
         };
 
         if (restrictedPorts.empty()) {

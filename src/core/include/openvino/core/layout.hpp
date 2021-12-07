@@ -11,7 +11,7 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 
@@ -161,15 +161,19 @@ protected:
     std::string m_dump;
 };
 
-class OPENVINO_API LayoutAttribute : public VariantImpl<Layout> {
+class OPENVINO_API LayoutAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("layout", "0");
 
     LayoutAttribute() = default;
 
-    explicit LayoutAttribute(const Layout& value) : VariantImpl<Layout>(value) {}
+    explicit LayoutAttribute(const Layout& value) : value(value) {}
 
     bool visit_attributes(AttributeVisitor& visitor) override;
+
+    std::string to_string() const override;
+
+    Layout value;
 };
 
 }  // namespace ov

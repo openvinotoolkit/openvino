@@ -14,24 +14,9 @@
 #include "attribute_parameters.hpp"
 
 namespace ngraph {
-class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute {
+class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute : public ov::RuntimeAttribute {
+public:
+    OPENVINO_RTTI("LowPrecision::PerTensorQuantization", "", ov::RuntimeAttribute, 0);
+    ~PerTensorQuantizationAttribute();
 };
 } // namespace ngraph
-
-namespace ov {
-
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<ngraph::PerTensorQuantizationAttribute>;
-
-template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<ngraph::PerTensorQuantizationAttribute> : public VariantImpl<ngraph::PerTensorQuantizationAttribute> {
-public:
-    static constexpr VariantTypeInfo type_info { "LowPrecision::PerTensorQuantization", 0 };
-
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-} // namespace ov
