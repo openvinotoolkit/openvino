@@ -5,36 +5,36 @@
 
 
 int readBmpImage(const char* fileName, BitMap* image) {
-    FILE* input;
+    FILE* input = fopen(fileName, "rb");
 
-    if (fopen_s(&input, fileName, "rb") != 0) {
-        printf_s("[BMP] file %s is not opened\n", fileName);
+    if (input == NULL) {
+        printf("[BMP] file %s is not opened\n", fileName);
         return 1;
     }
 
-    fread_s(&image->header.type, 2, 2, 1, input);
+    fread(&image->header.type, 2, 1, input);
 
     if (image->header.type != 'M' * 256 + 'B') {
-        printf_s("[BMP] file is not bmp type\n");
+        printf("[BMP] file is not bmp type\n");
         return 2;
     }
 
-    fread_s(&image->header.size, 4, 4, 1, input);
-    fread_s(&image->header.reserved, 4, 4, 1, input);
-    fread_s(&image->header.offset, 4, 4, 1, input);
+    fread(&image->header.size, 4, 1, input);
+    fread(&image->header.reserved, 4, 1, input);
+    fread(&image->header.offset, 4, 1, input);
 
-    fread_s(&image->infoHeader, sizeof(BmpInfoHeader), sizeof(BmpInfoHeader), 1, input);
+    fread(&image->infoHeader, sizeof(BmpInfoHeader), 1, input);
 
     image->width = image->infoHeader.width;
     image->height = image->infoHeader.height;
 
     if (image->infoHeader.bits != 24) {
-        printf_s("[BMP] 24bpp only supported. But input has: %d\n", image->infoHeader.bits);
+        printf("[BMP] 24bpp only supported. But input has: %d\n", image->infoHeader.bits);
         return 3;
     }
 
     if (image->infoHeader.compression != 0) {
-        printf_s("[BMP] compression not supported\n");
+        printf("[BMP] compression not supported\n");
         return 4;
     }
 
@@ -49,8 +49,8 @@ int readBmpImage(const char* fileName, BitMap* image) {
     // reading by rows in invert vertically
     for (int i = 0; i < image->height; i++) {
         unsigned int storeAt = image->infoHeader.height < 0 ? i : (unsigned int)image->height - 1 - i;
-        fread_s(image->data + image->width * 3 * storeAt, image->width * 3, image->width * 3, 1, input);
-        fread_s(pad, padSize, padSize, 1, input);
+        fread(image->data + image->width * 3 * storeAt, image->width * 3, 1, input);
+        fread(pad, padSize, 1, input);
     }
 
     fclose(input);
