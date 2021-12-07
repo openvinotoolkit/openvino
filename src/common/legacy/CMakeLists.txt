@@ -57,6 +57,8 @@ add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
+set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION 2022.1.1)
+
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Legacy library")
 
@@ -83,7 +85,8 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+            NAMELINK_COMPONENT core_dev)
 else()
     ov_install_static_lib(${TARGET_NAME} core)
 endif()

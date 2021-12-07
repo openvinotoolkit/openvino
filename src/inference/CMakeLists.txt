@@ -312,10 +312,8 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core)
 
-set_target_properties(inference_engine PROPERTIES
-    OUTPUT_NAME openvino
-    # SOVERSION 2022.1
-    )
+set_target_properties(inference_engine PROPERTIES OUTPUT_NAME openvino
+                                                  SOVERSION 2022.1.1)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION include

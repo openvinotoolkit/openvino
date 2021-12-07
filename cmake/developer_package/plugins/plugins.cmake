@@ -77,6 +77,8 @@ function(ie_add_plugin)
             endif()
         endif()
 
+        set_target_properties(${IE_PLUGIN_NAME} PROPERTIES SOVERSION 2022.1.1)
+
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
             FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
@@ -142,7 +144,8 @@ function(ie_add_plugin)
             if(BUILD_SHARED_LIBS)
                 install(TARGETS ${IE_PLUGIN_NAME}
                         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
-                        COMPONENT ${install_component})
+                        COMPONENT ${install_component}
+                        NAMELINK_SKIP)
             else()
                 ov_install_static_lib(${IE_PLUGIN_NAME} ${install_component})
             endif()

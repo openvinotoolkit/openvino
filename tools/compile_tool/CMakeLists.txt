@@ -38,9 +38,9 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 # TODO: check the proper location
 install(TARGETS compile_tool
         RUNTIME DESTINATION bin
-        COMPONENT core_dev)
+        COMPONENT ${OV_COMP_CORE_TOOLS})
 
 # TODO
 # install(FILES README.md
 #         DESTINATION share/openvino/tools/compile_tool
-#         COMPONENT core_dev)
+#         COMPONENT ${OV_COMP_CORE_TOOLS})

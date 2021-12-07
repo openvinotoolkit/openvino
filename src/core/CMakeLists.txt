@@ -114,7 +114,8 @@ target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
 # Export for build tree
 #-----------------------------------------------------------------------------------------------
 
-set_target_properties(ngraph PROPERTIES EXPORT_NAME core)
+set_target_properties(ngraph PROPERTIES EXPORT_NAME core
+                                        SOVERSION 2022.1.1)
 export(TARGETS ngraph NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
@@ -126,6 +127,7 @@ install(TARGETS ngraph EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+        NAMELINK_COMPONENT core_dev
         INCLUDES DESTINATION include)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/

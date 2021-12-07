@@ -120,7 +120,7 @@ add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 set(library_sources $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 if(BUILD_SHARED_LIBS)
-    set(library_type MODULE)
+    set(library_type SHARED)
 else()
     if(ENABLE_GAPI_PREPROCESSING)
         set(library_type STATIC)
@@ -148,6 +148,8 @@ else()
     # for static linkage the dependencies are in opposite order
     target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
 endif()
+
+set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION 2022.1.1)
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -203,7 +205,8 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)
+            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+            NAMELINK_COMPONENT core_dev)
 else()
     ov_install_static_lib(${TARGET_NAME} core)
 endif()

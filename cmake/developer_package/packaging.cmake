@@ -57,10 +57,11 @@ set(OV_COMP_CORE "core")
 set(OV_COMP_CORE_C "core_c")
 set(OV_COMP_CORE_DEV "core_dev")
 set(OV_COMP_CORE_C_DEV "core_c_dev")
+set(OV_COMP_CORE_TOOLS "core_tools")
 set(OV_COMP_CPP_SAMPLES "cpp_samples")
 set(OV_COMP_C_SAMPLES "c_samples")
 set(OV_COMP_PYTHON_SAMPLES "python_samples")
-set(OV_COMP_PYTHON_IE_API "peie")
+set(OV_COMP_PYTHON_IE_API "pyie")
 set(OV_COMP_PYTHON_NGRAPH "pyngraph")
 set(OV_COMP_PYTHON_OPENVINO "pyopenvino")
 set(OV_COMP_DEV_REQ_FILES "openvino_dev_req_files")
@@ -79,6 +80,8 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     set(OV_COMP_C_SAMPLES "samples")
     # move requirements.txt to core-dev
     set(OV_COMP_DEV_REQ_FILES "${OV_COMP_CORE_DEV}")
+    # move core_tools to core-dev
+    set(OV_COMP_CORE_TOOLS "${OV_COMP_CORE_DEV}")
 endif()
 
 macro(ie_cpack)
@@ -162,13 +165,22 @@ macro(ie_cpack)
         # enable dependencies between components
         set(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
         # control file permissions
-        set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
+        set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION OFF)
         # homepage
         set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
         # enable for debug cpack run
         if(NOT DEFINED CPACK_DEBIAN_PACKAGE_DEBUG)
             set(CPACK_DEBIAN_PACKAGE_DEBUG OFF)
         endif()
+
+        # WA: dpkg-shlibdeps requires folder with libraries
+        # proper way is to use -l (path to libs) and -L (path to shlibs) for other already installed components
+        # but it require CMake source code changes
+        # with current WA automatic deps detection via dpkg-shlibdeps for "our libraries"
+        # is ignored; but dependnencies between our components are here because of
+        # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
+        # More proper WA is try to enable INSTALL_RPATH
+        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 
         # automatic dependencies discovering
         set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
@@ -184,14 +196,9 @@ macro(ie_cpack)
             list(APPEND lines "copyright-without-copyright-notice")
             # TODO: fix
             list(APPEND lines "changelog-file-missing-in-native-package")
-            # add SOVERSION
-            list(APPEND lines "package-must-activate-ldconfig-trigger")
-            # add SOVERSION
-            list(APPEND lines "shlib-without-versioned-soname")
-            # add SOVERSION
-            list(APPEND lines "sharedobject-in-library-directory-missing-soname")
-            list(APPEND lines "maintscript-calls-ldconfig postinst")
-            list(APPEND lines "maintscript-calls-ldconfig postrm")
+            # TODO: remove them
+            list(APPEND lines "maintainer-script-empty postinst")
+            list(APPEND lines "maintainer-script-empty postrm")
 
             string(TOUPPER "${comp}" ucomp)
             if(NOT DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
@@ -217,6 +224,15 @@ macro(ie_cpack)
                     COMPONENT ${comp})
         endfunction()
 
+        # needed to override cmake auto generated files
+        set(def_postinst "${OpenVINO_BINARY_DIR}/_CPack_Packages/postinst")
+        set(def_postrm "${OpenVINO_BINARY_DIR}/_CPack_Packages/postrm")
+        set(triggers_content "activate-noawait ldconfig")
+        set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers/${package_name}/triggers")
+        file(WRITE "${def_postinst}" "#!/bin/sh\n\nset -e\n\n")
+        file(WRITE "${def_postrm}" "#!/bin/sh\n\nset -e\n\n")
+        file(WRITE "${def_triggers}" "${triggers_content}")
+
         #
         # OpenVINO Core components including frontends
         #
@@ -227,6 +243,8 @@ macro(ie_cpack)
         set(CPACK_COMPONENT_CORE_DEPENDS "install_dependencies;licensing")
         # TODO: build with system pugixml and depend on libpugixml1v5
         # set(CPACK_DEBIAN_CORE_PACKAGE_DEPENDS "libpugixml1v5")
+        set(CPACK_DEBIAN_CORE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+
         ov_add_lintian_suppression(core
             # OpenVINO runtime library is named differently
             "package-name-doesnt-match-sonames")
@@ -250,6 +268,7 @@ macro(ie_cpack)
             set(CPACK_COMPONENT_HETERO_DESCRIPTION "OpenVINO Hetero plugin")
             set(CPACK_COMPONENT_HETERO_DEPENDS "core")
             set(CPACK_DEBIAN_HETERO_PACKAGE_NAME "libopenvino-hetero")
+            set(CPACK_DEBIAN_HETERO_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
         endif()
 
         # multi / auto plugins
@@ -257,6 +276,7 @@ macro(ie_cpack)
             set(CPACK_COMPONENT_MULTI_DESCRIPTION "OpenVINO Multi / Auto plugin")
             set(CPACK_COMPONENT_MULTI_DEPENDS "core")
             set(CPACK_DEBIAN_MULTI_PACKAGE_NAME "libopenvino-auto")
+            set(CPACK_DEBIAN_MULTI_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
         endif()
 
         # cpu
@@ -265,6 +285,7 @@ macro(ie_cpack)
             set(CPACK_COMPONENT_CPU_DEPENDS "core")
             set(CPACK_DEBIAN_CPU_PACKAGE_NAME "libopenvino-intel-cpu")
             set(CPACK_DEBIAN_CPU_PACKAGE_SUGGESTS "libopenvino-multi (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+            set(CPACK_DEBIAN_CPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
         endif()
 
         # gpu
@@ -273,6 +294,7 @@ macro(ie_cpack)
             set(CPACK_COMPONENT_GPU_DEPENDS "core")
             set(CPACK_DEBIAN_GPU_PACKAGE_NAME "libopenvino-intel-gpu")
             set(CPACK_DEBIAN_GPU_PACKAGE_SUGGESTS "libopenvino-multi (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+            set(CPACK_DEBIAN_GPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
         endif()
 
         # myriad
@@ -281,14 +303,17 @@ macro(ie_cpack)
             set(CPACK_COMPONENT_MYRIAD_DEPENDS "core")
             set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-myriad")
             set(CPACK_DEBIAN_MYRIAD_PACKAGE_SUGGESTS "libopenvino-multi (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+            set(CPACK_DEBIAN_MYRIAD_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
         endif()
 
         # gna
         if(ENABLE_INTEL_GNA)
             set(CPACK_COMPONENT_GNA_DESCRIPTION "OpenVINO Intel GNA plugin")
             set(CPACK_COMPONENT_GNA_DEPENDS "core")
+            set(CPACK_DEFIAN_GNA_PACKAGE_SHLIBDEPS OFF)
             set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna")
             set(CPACK_DEBIAN_GNA_PACKAGE_SUGGESTS "libopenvino-multi (= ${CPACK_PACKAGE_VERSION}), libopenvino-hetero (= ${CPACK_PACKAGE_VERSION})")
+            set(CPACK_DEBIAN_GNA_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
         endif()
 
         #
@@ -329,6 +354,11 @@ macro(ie_cpack)
         set(CPACK_DEBIAN_INSTALL_DEPENDENCIES_PACKAGE_DEPENDS "python3, TODO")
         set(CPACK_DEBIAN_INSTALL_DEPENDENCIES_PACKAGE_ARCHITECTURE "all")
 
+        # install dependencies
+        set(CPACK_COMPONENT_CORE_TOOLS_DESCRIPTION "OpenVINO Tools")
+        set(CPACK_COMPONENT_CORE_TOOLS_DEPENDS "core")
+        set(CPACK_DEBIAN_CORE_TOOLS_PACKAGE_NAME "libopenvino-tools")
+
         # licensing
         set(CPACK_COMPONENT_LICENSING_DESCRIPTION "OpenVINO lincences")
         set(CPACK_DEBIAN_LICENSING_PACKAGE_NAME "libopenvino-licensing")
@@ -346,6 +376,15 @@ macro(ie_cpack)
                     RENAME copyright)
 
             # TODO: changelog
+
+            # triggers
+            set(triggers_content "activate-noawait ldconfig")
+            set(triggers_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers/${package_name}/triggers")
+            file(REMOVE ${triggers_file})
+            file(WRITE ${triggers_file} ${triggers_content})
+            install(FILES ${triggers_file}
+                    DESTINATION ../DEBIAN/
+                    COMPONENT ${comp})
         endforeach()
     endif()
 

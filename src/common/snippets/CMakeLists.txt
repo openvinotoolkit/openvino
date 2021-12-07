@@ -42,6 +42,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 ie_mark_target_as_cc(${TARGET_NAME})
 
+set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION 2022.1.1)
+
 # LTO
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
@@ -64,4 +66,6 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 # TODO: remove once install commands above are commented out
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        NAMELINK_COMPONENT core_dev
+        OPTIONAL)

@@ -30,7 +30,8 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 # export
 
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c
+                                                SOVERSION 2022.1.1)
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
@@ -45,6 +46,7 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${OV_COMP_CORE_C}
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${OV_COMP_CORE_C}
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${OV_COMP_CORE_C}
+        NAMELINK_COMPONENT ${OV_COMP_CORE_C_DEV}
         INCLUDES DESTINATION include/ie)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/

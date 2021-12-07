@@ -176,6 +176,8 @@ macro(ov_add_frontend)
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+    set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION 2022.1.1)
+
     target_link_libraries(${TARGET_NAME} PRIVATE frontend_common::static ${OV_FRONTEND_LINK_LIBRARIES})
 
     # WA for TF frontends which always requires protobuf (not protobuf-lite)
@@ -218,7 +220,8 @@ macro(ov_add_frontend)
             install(TARGETS ${TARGET_NAME} ${export_set}
                     RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
                     ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+                    NAMELINK_COMPONENT core_dev)
         else()
             ov_install_static_lib(${TARGET_NAME} core)
         endif()

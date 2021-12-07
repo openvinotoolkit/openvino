@@ -36,6 +36,8 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION 2022.1.1)
+
 # LTO
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
@@ -50,6 +52,7 @@ if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+            NAMELINK_COMPONENT core_dev
             OPTIONAL)
 else()
     ov_install_static_lib(${TARGET_NAME} core)
