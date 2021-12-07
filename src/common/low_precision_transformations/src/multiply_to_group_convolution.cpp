@@ -66,10 +66,10 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
 
         // if restrictions are absent precisions attribute is used
         if (weightsPrecision == element::undefined) {
-            const auto precisionsAttribute = getAttribute<PrecisionsAttributePtr>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
+            const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
             const auto precisions = precisionsAttribute == nullptr ?
                 PrecisionsAttribute::defaultPrecisions :
-                precisionsAttribute->get()->sharedValue->precisions;
+                precisionsAttribute.as<PrecisionsAttribute>().value();
             weightsPrecision = precisions[0];
         }
     } else {

@@ -57,6 +57,11 @@ struct AutoLoadContext {
     std::string networkPrecision;
     std::string errMessage;
     InferenceEngine::Task task;
+    //ACTUALDEVICE's workName is same as it's deviceName,
+    //CPU_HELP's workName is "CPU_HELP", and  deviceName is "CPU"
+    //add workName is because of ACTUALDEVICE and CPU maybe all CPU,
+    //they can't use the same workerQueue
+    std::string workName = "";
 };
 
 enum AutoLoadContextIndex {

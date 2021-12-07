@@ -807,6 +807,7 @@ mo/back/__init__.py
 mo/back/ie_ir_ver_2/__init__.py
 mo/back/ie_ir_ver_2/emitter.py
 mo/back/offline_transformations.py
+mo/back/preprocessing.py
 mo/back/replacement.py
 mo/front/__init__.py
 mo/front/caffe/__init__.py

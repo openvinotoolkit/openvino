@@ -442,7 +442,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                     plane_param->output(0).get_rt_info().erase(TensorInfoMemoryType::get_type_info_static());
                 } else {
                     plane_param->output(0).get_rt_info()[TensorInfoMemoryType::get_type_info_static()] =
-                        std::make_shared<TensorInfoMemoryType>(input->get_tensor_data()->get_memory_type());
+                        TensorInfoMemoryType(input->get_tensor_data()->get_memory_type());
                 }
             }
             new_params.push_back(plane_param);
