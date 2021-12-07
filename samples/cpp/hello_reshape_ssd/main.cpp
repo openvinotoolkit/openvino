@@ -183,16 +183,13 @@ int main(int argc, char* argv[]) {
                 boxes.push_back(xmax - xmin);
                 boxes.push_back(ymax - ymin);
 
-                std::cout << "[" << object << "," << label << "] element, prob = " << confidence << ",    ("
-                          << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")" << std::endl;
+                std::cout << "[" << object << "," << label << "] element, prob = " << confidence << ",    (" << xmin
+                          << "," << ymin << ")-(" << xmax << "," << ymax << ")" << std::endl;
             }
         }
 
         // draw bounding boxes on the image
-        addRectangles(image_data.get(),
-                      image_height, image_width,
-                      boxes, classes,
-                      BBOX_THICKNESS);
+        addRectangles(image_data.get(), image_height, image_width, boxes, classes, BBOX_THICKNESS);
 
         const std::string image_name = "hello_reshape_ssd_output.bmp";
         if (writeOutputBmp(image_name, image_data.get(), image_height, image_width)) {
