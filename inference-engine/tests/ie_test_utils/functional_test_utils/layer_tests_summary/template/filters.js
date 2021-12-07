@@ -178,7 +178,7 @@ function calculateColumnStatistics(device) {
     $('#statistic .table-primary[scope="row"] i').text(total);
     // trusted op
     count_trusted_op = $("#report #data tr:not(:hidden) ." + device + ".value[value^='100'][crashed='0'][failed='0'][skipped='0']").length;
-    all_operations = $("#report #data tr:not(:hidden) .value." + device).length;
+    all_operations = $("#report #data tr:not(:hidden) .value[value!='N/A'][value!='---']." + device).length;
     if (!all_operations) {
         trusted_op = "---";
     } else {
@@ -192,10 +192,12 @@ function calculateColumnStatistics(device) {
     passed_tested_op_count = 0;
     $("#report #data tr:not(:hidden) ." + device + ".value span").each(function () {
         text = $(this).text().split(':')[1];
-        if ($(this).hasClass('green')) {
-            passed_tested_op_count += +text;
+        if (text) {
+            if ($(this).hasClass('green')) {
+                passed_tested_op_count += +text;
+            }
+            tested_op_count += +text;
         }
-        tested_op_count += +text;
     });
 
     // General Pass Rate
@@ -211,7 +213,9 @@ function calculateColumnStatistics(device) {
     // AVG Pass Rate
     sum_pass_rate = 0;
     $("#report #data tr:not(:hidden) ." + device + ".value").each(function () {
-        sum_pass_rate += +$(this).attr('value');
+        if ($(this).attr('value') != 'N/A' && $(this).attr('value') != '---') {
+            sum_pass_rate += +$(this).attr('value');
+        }
     });
     if (all_operations == 0) {
         $('#statistic .table-primary.' + device + '.avg_pass_rate').text('---');

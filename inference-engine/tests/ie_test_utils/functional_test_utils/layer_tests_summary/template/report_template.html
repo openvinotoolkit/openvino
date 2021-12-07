@@ -35,6 +35,11 @@
                 <span class="grey">S:2</span><span>Skipped</span>
                 <span class="dark">C:0</span><span>Crashed</span>
             </div>
+            <div>
+                <span><b>Plugin operation implementation status:</b></span>
+                <div class="checkmark"></div><div>Implemented</div>
+                <div class="check"></div><div>Not implemented</div>
+            </div>
         </div>
     </div>
     <!-- Filters block -->
@@ -49,6 +54,10 @@
                 <select id="opsetNumber" class="form-control"></select>
             </div>
             <div class="form-group">
+                <label for="devices"><b>Devices</b></label>
+                <select id="devices" class="form-control"></select>
+            </div>
+            <div class="form-group">
                 <label for="implementation"><b>Plugin Implementation</b></label>
                 <select id="implementation" class="form-control">
                     <option value="0">All</option>
@@ -56,10 +65,6 @@
                     <option value="ni">Not implemented</option>
                     <option value="ns">No status</option>
                 </select>
-            </div>
-            <div class="form-group">
-                <label for="devices"><b>Devices</b></label>
-                <select id="devices" class="form-control"></select>
             </div>
 
 
@@ -131,7 +136,7 @@
                 <td class="value {{ d }} {% if results[d][op].implemented == 'true' -%} impl {% else -%} not_impl {% endif -%}"
                     passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
                     skipped="{{ results[d][op].skipped }}" crashed="{{ results[d][op].crashed }}"
-                    value="{{ results[d][op].passrate }}"
+                    value="{% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}{{ results[d][op].passrate }}{% else -%}N/A{% endif -%}"
                     title="{% if results[d][op].implemented == 'true' -%}
                             {{op}} is implemented in {{d}} plugin
                         {% else -%}
@@ -140,7 +145,7 @@
                     {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}
                         {{ results[d][op].passrate }} %<br />
                     {% else -%}
-                        N/A<br />
+                        ---<br />
                     {% endif -%}
                     <div class="flex">
                         <div>
@@ -150,7 +155,6 @@
                                 <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>
                                 <span class="dark" title="Crashed">C:{{ results[d][op].crashed }}</span>
                             {% else -%}
-                                <span></span>
                             {% endif -%}
                         </div>
                         <div class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></div>
