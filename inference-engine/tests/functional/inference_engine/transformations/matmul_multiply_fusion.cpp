@@ -136,21 +136,21 @@ TEST_P(MatMulMultiplyFusionDynamicShapes, FusionTest) {
 }
 
 std::vector<MatMulMultiplyFusionParams> params = {
-    {PartialShape::dynamic(), {2, 3}, false, {}, {2, 3}, true},
-    {PartialShape::dynamic(), {2, 3}, false, {1}, {2, 3}, true},
-    {PartialShape::dynamic(), {2, 3}, false, {1, 3}, {2, 3}, true},
-    {PartialShape::dynamic(), {3, 2}, true, {1, 3}, {3, 2}, true},
-    {PartialShape::dynamic(2), {2, 3}, false, {1, 3}, {2, 3}, true},
-    {PartialShape::dynamic(2), {3, 2}, true, {1, 3}, {3, 2}, true},
-    {PartialShape::dynamic(4), {2, 3}, false, {1, 1, 1, 3}, {1, 1, 2, 3}, true},
-    {PartialShape::dynamic(4), {3, 2}, true, {1, 1, 1, 3}, {1, 1, 3, 2}, true},
-    {PartialShape::dynamic(4), {2, 3}, false, {1, 1, 3}, {1, 2, 3}, true},
-    {PartialShape::dynamic(4), {3, 2}, true, {1, 1, 3}, {1, 3, 2}, true},
-    {{2, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}, Shape{2, 3}, false, Shape{2, 1, 1, 3}, Shape{2, 1, 2, 3}, true},
-    {{Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}, Shape{2, 3}, false, Shape{1, 3, 1, 3}, Shape{1, 3, 2, 3}, true},
-    {{2, 3, Dimension::dynamic(), Dimension::dynamic()}, Shape{2, 3}, false, Shape{2, 3, 1, 3}, Shape{2, 3, 2, 3}, true},
-    {PartialShape::dynamic(), {2, 3}, false, {1, 1, 1}, {2, 3}, false},
-    {PartialShape::dynamic(2), {2, 3}, false, {1, 1, 1}, {2, 3}, false},
+    MatMulMultiplyFusionParams(PartialShape::dynamic(), {2, 3}, false, {}, {2, 3}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(), {2, 3}, false, {1}, {2, 3}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(), {2, 3}, false, {1, 3}, {2, 3}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(), {3, 2}, true, {1, 3}, {3, 2}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(2), {2, 3}, false, {1, 3}, {2, 3}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(2), {3, 2}, true, {1, 3}, {3, 2}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(4), {2, 3}, false, {1, 1, 1, 3}, {1, 1, 2, 3}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(4), {3, 2}, true, {1, 1, 1, 3}, {1, 1, 3, 2}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(4), {2, 3}, false, {1, 1, 3}, {1, 2, 3}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(4), {3, 2}, true, {1, 1, 3}, {1, 3, 2}, true),
+    MatMulMultiplyFusionParams({2, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}, {2, 3}, false, {2, 1, 1, 3}, {2, 1, 2, 3}, true),
+    MatMulMultiplyFusionParams({Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}, {2, 3}, false, {1, 3, 1, 3}, {1, 3, 2, 3}, true),
+    MatMulMultiplyFusionParams({2, 3, Dimension::dynamic(), Dimension::dynamic()}, {2, 3}, false, {2, 3, 1, 3}, {2, 3, 2, 3}, true),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(), {2, 3}, false, {1, 1, 1}, {2, 3}, false),
+    MatMulMultiplyFusionParams(PartialShape::dynamic(2), {2, 3}, false, {1, 1, 1}, {2, 3}, false),
 };
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests, MatMulMultiplyFusionDynamicShapes, ::testing::ValuesIn(params));
