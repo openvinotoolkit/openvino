@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/compounds.hpp"
-#include "cldnn/runtime/layout.hpp"
+#include "intel_gpu/runtime/compounds.hpp"
+#include "intel_gpu/runtime/layout.hpp"
 
 #include <algorithm>
 #include <string>

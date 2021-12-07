@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/primitives/experimental_detectron_roi_feature_extractor.hpp"
+#include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"

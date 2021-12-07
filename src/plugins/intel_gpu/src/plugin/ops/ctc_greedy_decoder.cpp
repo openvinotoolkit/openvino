@@ -8,10 +8,10 @@
 #include "ngraph/op/ctc_greedy_decoder.hpp"
 #include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 
-#include "cldnn/primitives/ctc_greedy_decoder.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "transformations/utils/utils.hpp"
 

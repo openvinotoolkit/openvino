@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/stream.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "build_options.hpp"
 
 #include <list>
