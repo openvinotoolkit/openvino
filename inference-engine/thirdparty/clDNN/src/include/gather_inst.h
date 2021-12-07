@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/gather.hpp"
+#include "intel_gpu/primitives/gather.hpp"
 #include "primitive_inst.h"
 
 #include <string>

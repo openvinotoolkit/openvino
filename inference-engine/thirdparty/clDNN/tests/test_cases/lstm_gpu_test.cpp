@@ -6,13 +6,13 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/lstm.hpp>
-#include <cldnn/primitives/split.hpp>
-#include <cldnn/primitives/crop.hpp>
-#include <cldnn/primitives/reshape.hpp>
-#include <cldnn/primitives/concatenation.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/lstm.hpp>
+#include <intel_gpu/primitives/split.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <sstream>
 #include <iomanip>

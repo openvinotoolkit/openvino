@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "cldnn/runtime/tensor.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
 
 #include <map>
 #include <ostream>

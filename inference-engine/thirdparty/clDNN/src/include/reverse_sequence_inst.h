@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/reverse_sequence.hpp"
+#include "intel_gpu/primitives/reverse_sequence.hpp"
 #include "primitive_inst.h"
 
 #include <string>

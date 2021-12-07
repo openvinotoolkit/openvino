@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/kernel.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/kernel.hpp"
 
 #include <map>
 #include <mutex>

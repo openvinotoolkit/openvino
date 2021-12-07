@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/average_unpooling.hpp"
+#include "intel_gpu/primitives/average_unpooling.hpp"
 #include "primitive_inst.h"
 
 #include <string>

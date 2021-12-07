@@ -7,7 +7,7 @@
 
 #include "ngraph/op/concat.hpp"
 
-#include "cldnn/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
 
 namespace CLDNNPlugin {
 

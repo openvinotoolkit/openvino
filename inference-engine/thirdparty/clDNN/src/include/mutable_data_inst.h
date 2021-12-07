@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #include "primitive_inst.h"
 
 #include <string>

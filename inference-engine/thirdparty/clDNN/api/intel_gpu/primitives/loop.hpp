@@ -7,7 +7,7 @@
 #include <vector>
 #include <functional>
 #include "primitive.hpp"
-#include "cldnn/graph/topology.hpp"
+#include "intel_gpu/graph/topology.hpp"
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {

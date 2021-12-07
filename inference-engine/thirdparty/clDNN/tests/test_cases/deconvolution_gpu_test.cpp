@@ -6,11 +6,11 @@
 
 #include "test_utils/test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/deconvolution.hpp>
-#include <cldnn/primitives/crop.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/deconvolution.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 namespace cldnn {
 template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };

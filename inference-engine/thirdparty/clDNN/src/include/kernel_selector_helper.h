@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "cldnn/runtime/utils.hpp"
-#include "cldnn/runtime/tensor.hpp"
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/primitives/eltwise.hpp"
-#include "cldnn/primitives/scale.hpp"
-#include "cldnn/primitives/quantize.hpp"
-#include "cldnn/primitives/activation.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/scale.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"

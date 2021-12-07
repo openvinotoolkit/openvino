@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/softmax.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
 #include "primitive_inst.h"
 
 #include <string>

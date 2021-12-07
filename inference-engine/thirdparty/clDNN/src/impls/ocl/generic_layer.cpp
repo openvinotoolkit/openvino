@@ -3,7 +3,7 @@
 //
 
 #include "generic_layer_inst.h"
-#include "cldnn/runtime/engine.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
 #include "register.hpp"

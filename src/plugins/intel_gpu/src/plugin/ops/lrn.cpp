@@ -8,7 +8,7 @@
 #include "ngraph/op/lrn.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/lrn.hpp"
+#include "intel_gpu/primitives/lrn.hpp"
 
 namespace CLDNNPlugin {
 

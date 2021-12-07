@@ -4,11 +4,11 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/reshape.hpp>
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/shuffle_channels.hpp>
-#include <cldnn/primitives/strided_slice.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/shuffle_channels.hpp>
+#include <intel_gpu/primitives/strided_slice.hpp>
 
 using namespace cldnn;
 using namespace ::tests;

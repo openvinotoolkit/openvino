@@ -5,10 +5,10 @@
 #include "test_utils.h"
 #include "opencl_helper_instance.hpp"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/activation.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/runtime/device_query.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/runtime/device_query.hpp>
 
 using namespace cldnn;
 using namespace ::tests;

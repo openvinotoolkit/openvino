@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/border.hpp"
+#include "intel_gpu/primitives/border.hpp"
 #include "primitive_inst.h"
 
 #include <string>

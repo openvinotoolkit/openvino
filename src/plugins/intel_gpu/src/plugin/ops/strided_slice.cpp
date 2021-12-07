@@ -8,9 +8,9 @@
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/strided_slice.hpp"
-#include "cldnn/primitives/reshape.hpp"
-#include "cldnn/primitives/crop.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/crop.hpp"
 
 namespace CLDNNPlugin {
 

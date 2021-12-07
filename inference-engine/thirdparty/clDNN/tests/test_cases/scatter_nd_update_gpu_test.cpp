@@ -4,12 +4,12 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/scatter_update.hpp>
-#include <cldnn/primitives/scatter_nd_update.hpp>
-#include <cldnn/runtime/memory.hpp>
-#include <cldnn/graph/topology.hpp>
-#include <cldnn/graph/network.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/scatter_update.hpp>
+#include <intel_gpu/primitives/scatter_nd_update.hpp>
+#include <intel_gpu/runtime/memory.hpp>
+#include <intel_gpu/graph/topology.hpp>
+#include <intel_gpu/graph/network.hpp>
 
 #include <cstddef>
 

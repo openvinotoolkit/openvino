@@ -6,33 +6,33 @@
 
 #pragma once
 
-#include <cldnn/runtime/memory.hpp>
-#include <cldnn/runtime/tensor.hpp>
-#include <cldnn/runtime/engine.hpp>
-#include <cldnn/runtime/stream.hpp>
-#include <cldnn/graph/program.hpp>
-#include <cldnn/graph/network.hpp>
-#include <cldnn/graph/topology.hpp>
-#include <cldnn/primitives/primitive.hpp>
-#include <cldnn/primitives/concatenation.hpp>
-#include <cldnn/primitives/lrn.hpp>
-#include <cldnn/primitives/roi_pooling.hpp>
-#include <cldnn/primitives/scale.hpp>
-#include <cldnn/primitives/softmax.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/normalize.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/activation.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/runtime/memory.hpp>
+#include <intel_gpu/runtime/tensor.hpp>
+#include <intel_gpu/runtime/engine.hpp>
+#include <intel_gpu/runtime/stream.hpp>
+#include <intel_gpu/graph/program.hpp>
+#include <intel_gpu/graph/network.hpp>
+#include <intel_gpu/graph/topology.hpp>
+#include <intel_gpu/primitives/primitive.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/lrn.hpp>
+#include <intel_gpu/primitives/roi_pooling.hpp>
+#include <intel_gpu/primitives/scale.hpp>
+#include <intel_gpu/primitives/softmax.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/normalize.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "float16.h"
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
-#include <src/include/to_string_utils.h>
+#include "to_string_utils.h"
 
 #include <iostream>
 #include <limits>

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/primitives/primitive.hpp"
-#include "cldnn/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
 
 #include <map>
 #include <memory>

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "cldnn/runtime/tensor.hpp"
-#include "cldnn/runtime/layout.hpp"
-#include "cldnn/runtime/device.hpp"
-#include "cldnn/primitives/primitive.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
 
 
 #include <string>

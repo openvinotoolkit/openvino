@@ -7,7 +7,7 @@
 
 #include "ngraph/op/reverse_sequence.hpp"
 
-#include "cldnn/primitives/reverse_sequence.hpp"
+#include "intel_gpu/primitives/reverse_sequence.hpp"
 
 namespace CLDNNPlugin {
 

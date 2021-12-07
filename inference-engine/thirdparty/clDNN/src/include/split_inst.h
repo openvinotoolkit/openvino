@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/split.hpp"
+#include "intel_gpu/primitives/split.hpp"
 #include "primitive_inst.h"
 
 #include <string>

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "cldnn/runtime/profiling.hpp"
+#include "intel_gpu/runtime/profiling.hpp"
 #include "ocl_base_event.hpp"
 #include <memory>
 #include <list>

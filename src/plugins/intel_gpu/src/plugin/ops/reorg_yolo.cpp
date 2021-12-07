@@ -7,7 +7,7 @@
 
 #include "ngraph/op/reorg_yolo.hpp"
 
-#include "cldnn/primitives/reorg_yolo.hpp"
+#include "intel_gpu/primitives/reorg_yolo.hpp"
 
 namespace CLDNNPlugin {
 

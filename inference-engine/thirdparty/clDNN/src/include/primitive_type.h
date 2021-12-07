@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/runtime/layout.hpp"
+#include "intel_gpu/runtime/layout.hpp"
 
 #include <memory>
 #include <string>

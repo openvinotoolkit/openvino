@@ -18,13 +18,7 @@ if(ENABLE_LTO)
 endif()
 
 if (ENABLE_INTEL_GPU)
-    if (ENABLE_TESTS)
-        set(CLDNN__INCLUDE_TESTS ON CACHE BOOL "" FORCE)
-    else()
-        set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
-    endif()
     add_subdirectory(clDNN)
-    ov_install_static_lib(clDNN_lib gpu)
 endif()
 
 function(ie_add_mkldnn)

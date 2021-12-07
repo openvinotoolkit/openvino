@@ -8,7 +8,7 @@
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/avg_pool.hpp"
 
-#include "cldnn/primitives/pooling.hpp"
+#include "intel_gpu/primitives/pooling.hpp"
 
 namespace CLDNNPlugin {
 

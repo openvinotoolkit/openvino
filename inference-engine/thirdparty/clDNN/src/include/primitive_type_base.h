@@ -5,13 +5,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/runtime/engine.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 
 #include "meta_utils.h"
 #include "primitive_type.h"
 #include "program_node.h"
 #include "primitive_inst.h"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/graph/network.hpp"
 #include "impls/implementation_map.hpp"
 
 #include <memory>

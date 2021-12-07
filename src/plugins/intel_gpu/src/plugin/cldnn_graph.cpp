@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cldnn/graph/network.hpp>
-#include <cldnn/runtime/profiling.hpp>
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/runtime/profiling.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "cldnn_graph.h"
 #include "simple_math.h"

@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "cldnn/primitives/condition.hpp"
-#include "cldnn/primitives/loop.hpp"
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/primitives/input_layout.hpp"
-#include "cldnn/primitives/prior_box.hpp"
+#include "intel_gpu/primitives/condition.hpp"
+#include "intel_gpu/primitives/loop.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/prior_box.hpp"
 
 
 namespace cldnn {

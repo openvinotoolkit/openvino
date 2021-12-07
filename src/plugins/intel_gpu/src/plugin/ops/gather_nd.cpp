@@ -8,7 +8,7 @@
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/gather_nd.hpp"
+#include "intel_gpu/primitives/gather_nd.hpp"
 
 namespace CLDNNPlugin {
 

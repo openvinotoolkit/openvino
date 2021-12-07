@@ -6,9 +6,9 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/embedding_bag.hpp>
-#include <cldnn/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/embedding_bag.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 #include <cstddef>
 

@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/crop.hpp"
+#include "intel_gpu/primitives/crop.hpp"
 #include "primitive_inst.h"
 
 #include <string>

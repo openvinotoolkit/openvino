@@ -4,30 +4,30 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/quantize.hpp>
-#include <cldnn/primitives/eltwise.hpp>
-#include <cldnn/primitives/fully_connected.hpp>
-#include <cldnn/primitives/gemm.hpp>
-#include <cldnn/primitives/binary_convolution.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/resample.hpp>
-#include <cldnn/primitives/mvn.hpp>
-#include <cldnn/primitives/deconvolution.hpp>
-#include <cldnn/primitives/permute.hpp>
-#include <cldnn/primitives/gather.hpp>
-#include <cldnn/primitives/gather_nd.hpp>
-#include <cldnn/primitives/gather_elements.hpp>
-#include <cldnn/primitives/scatter_update.hpp>
-#include <cldnn/primitives/scatter_nd_update.hpp>
-#include <cldnn/primitives/scatter_elements_update.hpp>
-#include <cldnn/primitives/depth_to_space.hpp>
-#include <cldnn/primitives/space_to_depth.hpp>
-#include <cldnn/primitives/batch_to_space.hpp>
-#include <cldnn/primitives/space_to_batch.hpp>
-#include <cldnn/primitives/reduce.hpp>
-#include <cldnn/primitives/crop.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/gemm.hpp>
+#include <intel_gpu/primitives/binary_convolution.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/resample.hpp>
+#include <intel_gpu/primitives/mvn.hpp>
+#include <intel_gpu/primitives/deconvolution.hpp>
+#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/gather.hpp>
+#include <intel_gpu/primitives/gather_nd.hpp>
+#include <intel_gpu/primitives/gather_elements.hpp>
+#include <intel_gpu/primitives/scatter_update.hpp>
+#include <intel_gpu/primitives/scatter_nd_update.hpp>
+#include <intel_gpu/primitives/scatter_elements_update.hpp>
+#include <intel_gpu/primitives/depth_to_space.hpp>
+#include <intel_gpu/primitives/space_to_depth.hpp>
+#include <intel_gpu/primitives/batch_to_space.hpp>
+#include <intel_gpu/primitives/space_to_batch.hpp>
+#include <intel_gpu/primitives/reduce.hpp>
+#include <intel_gpu/primitives/crop.hpp>
 
 #include <cmath>
 

@@ -8,7 +8,7 @@
 #include "ngraph/op/scatter_update.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/scatter_update.hpp"
+#include "intel_gpu/primitives/scatter_update.hpp"
 
 namespace CLDNNPlugin {
 

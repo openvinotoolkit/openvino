@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/utils.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"

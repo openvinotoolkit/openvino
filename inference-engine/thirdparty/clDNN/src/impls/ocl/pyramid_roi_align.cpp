@@ -7,7 +7,7 @@
 #include "kernel_selector_helper.h"
 #include "pyramid_roi_align/pyramid_roi_align_kernel_selector.h"
 #include "pyramid_roi_align/pyramid_roi_align_kernel_base.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "pyramid_roi_align_inst.h"
 
 #include <cmath>

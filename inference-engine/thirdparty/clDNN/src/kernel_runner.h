@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/runtime/engine.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include "kernel_selector_common.h"
 #include "kernel_selector_helper.h"
 #include "kernel_runner_interface.h"

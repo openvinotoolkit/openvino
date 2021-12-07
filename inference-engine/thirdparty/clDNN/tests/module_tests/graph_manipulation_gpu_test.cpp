@@ -4,16 +4,16 @@
 
 #include "test_utils.h"
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 
-#include "cldnn/graph/topology.hpp"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "activation_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/graph/network.hpp"
 #include "reshape_inst.h"
 #include "pass_manager.h"
 

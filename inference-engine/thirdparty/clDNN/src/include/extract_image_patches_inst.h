@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/extract_image_patches.hpp"
+#include "intel_gpu/primitives/extract_image_patches.hpp"
 #include "primitive_inst.h"
 
 namespace cldnn {

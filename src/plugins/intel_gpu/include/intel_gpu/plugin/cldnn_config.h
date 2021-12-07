@@ -9,7 +9,7 @@
 
 #include "cldnn_custom_layer.h"
 #include <ie_performance_hints.hpp>
-#include <cldnn/graph/network.hpp>
+#include "intel_gpu/graph/network.hpp"
 #include <threading/ie_cpu_streams_executor.hpp>
 
 namespace CLDNNPlugin {

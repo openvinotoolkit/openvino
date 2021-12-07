@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/permute.hpp"
+#include "intel_gpu/primitives/permute.hpp"
 #include "primitive_inst.h"
 
 #include <string>

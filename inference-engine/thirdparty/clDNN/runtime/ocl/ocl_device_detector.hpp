@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "cldnn/runtime/device.hpp"
+#include "intel_gpu/runtime/device.hpp"
 
 #include <list>
 #include <string>

@@ -7,8 +7,8 @@
 
 #include "ngraph/op/gather.hpp"
 
-#include "cldnn/primitives/gather.hpp"
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 

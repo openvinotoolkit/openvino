@@ -7,15 +7,15 @@
 #include <gtest/gtest.h>
 #include "test_utils/test_utils.h"
 
-#include <cldnn/runtime/engine.hpp>
-#include <cldnn/runtime/layout.hpp>
-#include <cldnn/runtime/memory.hpp>
-#include <cldnn/runtime/tensor.hpp>
+#include <intel_gpu/runtime/engine.hpp>
+#include <intel_gpu/runtime/layout.hpp>
+#include <intel_gpu/runtime/memory.hpp>
+#include <intel_gpu/runtime/tensor.hpp>
 
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/fully_connected.hpp>
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/primitive.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/primitive.hpp>
 
 #include <map>
 #include <set>

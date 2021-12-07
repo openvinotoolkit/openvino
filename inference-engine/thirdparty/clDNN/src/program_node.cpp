@@ -3,7 +3,7 @@
 //
 
 #include "program_node.h"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "primitive_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

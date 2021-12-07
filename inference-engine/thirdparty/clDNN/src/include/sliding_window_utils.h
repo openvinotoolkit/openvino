@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/layout.hpp"
-#include "cldnn/runtime/tensor.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
 
 #include "meta_utils.h"
 

@@ -6,10 +6,10 @@
 #include <fstream>
 #include <vector>
 
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/memory_pool.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory_pool.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <list>
 #include <string>

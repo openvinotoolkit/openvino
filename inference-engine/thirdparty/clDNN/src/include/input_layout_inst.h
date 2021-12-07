@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
 #include "primitive_inst.h"
 
 #include <string>

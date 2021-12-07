@@ -4,12 +4,12 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/average_unpooling.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/mutable_data.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/average_unpooling.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 using namespace cldnn;
 using namespace ::tests;

@@ -6,10 +6,10 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/mutable_data.hpp>
-#include <cldnn/primitives/non_max_suppression.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
+#include <intel_gpu/primitives/non_max_suppression.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -151,7 +151,7 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
     topo.add(input_layout("boxes", this->boxes_layout));
     topo.add(input_layout("scores", this->scores_layout));
     topo.add(data("num_per_class", num_per_class_mem));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 
+    topo.add(non_max_suppression("nms", "boxes", "scores",
         this->batch_size * this->classes_num * 1, false, true, "num_per_class"));
 
     build_options bo;

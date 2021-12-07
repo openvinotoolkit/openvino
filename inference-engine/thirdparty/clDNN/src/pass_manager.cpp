@@ -4,7 +4,7 @@
 
 #include "pass_manager.h"
 #include "program_dump_graph.h"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include <chrono>
 #include <ctime>

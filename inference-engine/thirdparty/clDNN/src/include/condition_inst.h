@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <cldnn/primitives/condition.hpp>
+#include "intel_gpu/primitives/condition.hpp"
 #include "primitive_inst.h"
 
 #include <string>

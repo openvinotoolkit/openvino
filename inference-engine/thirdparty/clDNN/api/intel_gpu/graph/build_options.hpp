@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/primitives/implementation_desc.hpp"
 
 #include "topology.hpp"
 

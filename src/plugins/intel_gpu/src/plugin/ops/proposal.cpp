@@ -7,9 +7,9 @@
 
 #include "ngraph/op/proposal.hpp"
 
-#include "cldnn/primitives/proposal.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/primitives/proposal.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace CLDNNPlugin {
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "cldnn/primitives/convolution.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
 
 namespace cldnn {
 namespace onednn {

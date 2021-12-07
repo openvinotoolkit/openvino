@@ -9,7 +9,7 @@
 #include "reduce/reduce_kernel_selector.h"
 #include "reduce/reduce_kernel_ref.h"
 #include "reduce/reduce_kernel_b_fs_yx_fsv16.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "data_inst.h"
 
 using namespace cldnn;

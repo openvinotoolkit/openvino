@@ -4,14 +4,14 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/mutable_data.hpp>
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/lstm.hpp>
-#include <cldnn/primitives/lstm_dynamic.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/lstm_dynamic_input.hpp>
-#include <cldnn/primitives/lstm_dynamic_timeloop.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/lstm.hpp>
+#include <intel_gpu/primitives/lstm_dynamic.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/lstm_dynamic_input.hpp>
+#include <intel_gpu/primitives/lstm_dynamic_timeloop.hpp>
 
 #include <chrono>
 #include <sstream>

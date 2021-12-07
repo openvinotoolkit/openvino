@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/shuffle_channels.hpp"
 #include "primitive_inst.h"
 
 #include <string>

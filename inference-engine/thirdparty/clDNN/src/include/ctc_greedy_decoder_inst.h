@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/ctc_greedy_decoder.hpp"
+#include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
 #include "primitive_inst.h"
 
 #include <string>

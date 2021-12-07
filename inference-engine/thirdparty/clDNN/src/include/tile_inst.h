@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/tile.hpp"
+#include "intel_gpu/primitives/tile.hpp"
 #include "primitive_inst.h"
 
 #include <string>

@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "space_to_batch/space_to_batch_kernel_selector.h"
 #include "space_to_batch/space_to_batch_kernel_ref.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "data_inst.h"
 #include <vector>
 

@@ -7,8 +7,8 @@
 
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/primitives/experimental_detectron_roi_feature_extractor.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 
 namespace CLDNNPlugin {
 

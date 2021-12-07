@@ -6,7 +6,7 @@
 
 #include "kernel_runner.h"
 #include "runtime/kernels_cache.hpp"
-#include "cldnn/runtime/stream.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "weight_bias_params.h"
 #include "kernel_selector_helper.h"
 #include <chrono>

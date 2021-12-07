@@ -6,7 +6,7 @@
 #include "cldnn_remote_context.h"
 #include "cldnn_itt.h"
 #include "cldnn_engine.h"
-#include "cldnn/runtime/device_query.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;

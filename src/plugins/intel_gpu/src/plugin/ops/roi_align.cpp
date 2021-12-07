@@ -4,7 +4,7 @@
 #include "cldnn_program.h"
 #include "cldnn_common_utils.h"
 #include "ngraph/op/roi_align.hpp"
-#include "cldnn/primitives/roi_align.hpp"
+#include "intel_gpu/primitives/roi_align.hpp"
 #include <memory>
 
 namespace CLDNNPlugin {

@@ -7,8 +7,8 @@
 #pragma once
 
 #include "program_node.h"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 
 #include <string>

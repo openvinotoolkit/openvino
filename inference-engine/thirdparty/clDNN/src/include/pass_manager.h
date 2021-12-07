@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
 #include "split_inst.h"
 #include "lstm_inst.h"

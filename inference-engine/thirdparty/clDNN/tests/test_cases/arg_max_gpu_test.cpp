@@ -4,10 +4,10 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/arg_max_min.hpp>
-#include <cldnn/primitives/mutable_data.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/arg_max_min.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 using namespace cldnn;
 using namespace ::tests;

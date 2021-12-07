@@ -9,11 +9,11 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 
-#include "cldnn/primitives/gemm.hpp"
-#include "cldnn/primitives/fully_connected.hpp"
-#include "cldnn/primitives/reshape.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/permute.hpp"
+#include "intel_gpu/primitives/gemm.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/permute.hpp"
 
 namespace CLDNNPlugin {
 

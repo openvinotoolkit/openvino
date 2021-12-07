@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "scatter_update/scatter_nd_update_kernel_selector.h"
 #include "scatter_update/scatter_nd_update_kernel_ref.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 using namespace cldnn;
 
