@@ -360,9 +360,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto it_type = rtInfo.find(old_api_map_key_type);
                 auto& pre_input = prepost.input(i);
                 if (it_type != rtInfo.end()) {
-                    const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapElementType>(it_type->second);
-                    OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapElementType");
-                    const auto old_api_map_type = it->second.as<ov::OldApiMapElementType>().value;
+                    const auto old_api_map_type = it_type->second.as<ov::OldApiMapElementType>().value;
                     const auto param_type = parameter->get_element_type();
 
                     // In the following code we add Convert node from old_api_map_type to Parameter type
