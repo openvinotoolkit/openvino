@@ -724,9 +724,9 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
         op->validate_and_infer_types();
         clone_op->validate_and_infer_types();
 
-        // dynamic_to_static function converts dynamic dimensions to static using
+        // dynamic_to_undefined function converts dynamic dimensions to undefined using
         // upperbound (get_max_length) dimension value.
-        auto dynamic_to_static = [&op](const PartialShape& shape) -> PartialShape {
+        auto dynamic_to_undefined = [&op](const PartialShape& shape) -> PartialShape {
             if (shape.is_static() || shape.rank().is_dynamic()) {
                 return shape;
             }
@@ -735,7 +735,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
                            std::end(shape),
                            std::back_inserter(out_shape),
                            [](const Dimension& d) -> Dimension {
-                               return d.get_max_length();
+                               return -1;
                            });
             return out_shape;
         };
@@ -745,7 +745,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
             for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
                 clone_op->set_output_type(output_id,
                                           clone_op->output(output_id).get_element_type(),
-                                          dynamic_to_static(clone_op->output(output_id).get_partial_shape()));
+                                          dynamic_to_undefined(clone_op->output(output_id).get_partial_shape()));
                 op->set_output_type(output_id,
                                     clone_op->output(output_id).get_element_type(),
                                     clone_op->output(output_id).get_partial_shape());
