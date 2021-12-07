@@ -105,6 +105,19 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     InputTensorInfo& set_memory_type(const std::string& memory_type);
+
+    /// \brief By default, input shape is inherited from model's input shape. Use this method to specify different
+    /// input data shape. If it is needed to change only input height & width of input image, consider define layout and
+    /// use `set_spatial_static_shape' or 'set_spatial_dynamic_shape' instead. This method allows defining any custom
+    /// input shape and can be useful for custom preprocessing operations
+    ///
+    /// \note Methods 'set_spatial_dynamic_shape', 'set_spatial_static_shape' are also intended to modify input shape,
+    /// using those methods together will throw ov::AssertFailure exception
+    ///
+    /// \param shape New shape for input tensor.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo& set_shape(const ov::PartialShape& shape);
 };
 
 }  // namespace preprocess
