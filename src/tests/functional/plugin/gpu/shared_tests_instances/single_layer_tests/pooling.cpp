@@ -34,7 +34,7 @@ const std::vector<int64_t> axes = {0, 2};
 const std::vector<size_t > inputShapeSmall = {1, 3, 30, 30};
 const std::vector<size_t > inputShapeLarge = {1, 3, 50, 50};
 
-////* ========== Max Polling ========== */
+////* ========== Max Pooling ========== */
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
         ::testing::Values(PoolingTypes::MAX),
@@ -47,7 +47,7 @@ const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
         ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
                                 ::testing::ValuesIn(netPrecisions),
@@ -72,7 +72,7 @@ const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
         ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
                                 ::testing::ValuesIn(netPrecisions),
@@ -136,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTe
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
-////* ========== Avg and Max Polling Cases ========== */
+////* ========== Avg and Max Pooling Cases ========== */
 /*    ========== Valid Pad Rounding Not Applicable ========== */
 const auto allPools_ValidPad_Params = ::testing::Combine(
         ::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
