@@ -78,7 +78,7 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         auto blob = GetBlob(name);
         if (req->GetBlob(name) != blob) {
             auto exeNetwork = _exeNetwork.get();
-            if (eligbleForBlobShaing && dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->NeedHotSwap() && !blob->is<RemoteBlob>()) {
+            if (eligbleForBlobShaing && dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->NeedHotSwap()) {
                 //if pre-proc involved, stick to system blob, same as GPU plugin
                 auto it = _preProcData.find(name);
                 if (it != _preProcData.end()) {
