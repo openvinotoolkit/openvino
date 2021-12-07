@@ -1,6 +1,8 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from mo.middle.passes.infer import type_infer
+
 from .editor import add_fullname_for_nodes
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
 from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
@@ -45,6 +47,8 @@ class GraphTransformer:
 
         self.nodes_marker.mark_ignored_blocks(graph, self.target_device)
         graph.clean_up()
+
+        type_infer(graph)
 
         self.fq_insertion.find_and_replace_pattern(graph)
         graph.clean_up()

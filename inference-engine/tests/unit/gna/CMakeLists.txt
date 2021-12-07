@@ -18,7 +18,7 @@ addIeTargetTest(
                 ngraphFunctions
             gmock
             commonTestUtils_s
-            GNAPlugin_test_static
+            ov_intel_gna_plugin_test_static
             engines_test_util
         ADD_CPPLINT
         LABELS
