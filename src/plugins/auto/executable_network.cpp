@@ -500,7 +500,7 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
             return n->GetContext();
         } catch (const NotImplemented&) {}
     }
-    IE_THROW(NotImplemented) << "None of the devices in the " << _multiPlugin->GetName() << "has an associated remote context."
+    IE_THROW(NotImplemented) << "None of the devices in the MULTI plugin has an associated remote context."
                              << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
