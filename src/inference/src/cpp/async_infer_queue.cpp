@@ -11,8 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "ie/ie_plugin_config.hpp"
-
 namespace ov {
 namespace runtime {
 class AsyncInferQueue::Impl {
@@ -22,7 +20,7 @@ public:
     Impl(ExecutableNetwork& net, size_t jobs) {
         // Automatically set number of jobs
         if (jobs == 0) {
-            jobs = num_of_jobs_helper(net);
+            jobs = helpers::num_of_jobs_helper(net);
         }
 
         for (size_t handle = 0; handle < jobs; handle++) {
@@ -43,13 +41,11 @@ public:
           m_idle_handles{std::move(handles)},
           m_userdata{std::move(userdata)} {}
 
-    size_t num_of_jobs_helper(ExecutableNetwork& net);
-
     InferRequest& get_request(size_t i);
     size_t get_pool_size();
 
-    size_t get_idle_id();
-    size_t pop_idle_id();
+    size_t get_idle_handle();
+    size_t pop_idle_handle();
 
     void start_async(const ov::Any userdata);
     void start_async(std::map<size_t, ov::runtime::Tensor>& inputs, const ov::Any userdata);
@@ -59,6 +55,8 @@ public:
     void wait_all();
 
     void set_callback(std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback);
+    void set_job_callback(size_t handle,
+                          std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback);
 
 private:
     void set_default_callback();
@@ -71,26 +69,6 @@ private:
     std::vector<ov::Any> m_userdata;
 };
 
-size_t AsyncInferQueue::Impl::num_of_jobs_helper(ExecutableNetwork& net) {
-    try {
-        auto parameter_value = net.get_metric(METRIC_KEY(SUPPORTED_METRICS));
-        auto supported_metrics = parameter_value.as<std::vector<std::string>>();
-        const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
-        if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            parameter_value = net.get_metric(key);
-            if (parameter_value.is<unsigned int>())
-                return parameter_value.as<unsigned int>();
-            else
-                throw ov::Exception("Unsupported format for " + key + "! Please specify number of jobs explicitly!");
-        } else {
-            throw ov::Exception("Can't load model: " + key +
-                                " is not supported! Please specify number of jobs explicitly!");
-        }
-    } catch (const std::exception& ex) {
-        throw ov::Exception(ex.what());
-    }
-}
-
 InferRequest& AsyncInferQueue::Impl::get_request(size_t i) {
     return m_ref_pool[i];
 }
@@ -99,54 +77,54 @@ size_t AsyncInferQueue::Impl::get_pool_size() {
     return m_ref_pool.size();
 }
 
-size_t AsyncInferQueue::Impl::get_idle_id() {
+size_t AsyncInferQueue::Impl::get_idle_handle() {
     std::unique_lock<std::mutex> lock(m_mutex);
     m_cv.wait(lock, [this] {
         return !m_idle_handles.empty();
     });
 
-    size_t request_id = m_idle_handles.front();
+    size_t handle = m_idle_handles.front();
 
-    return request_id;
+    return handle;
 }
 
-size_t AsyncInferQueue::Impl::pop_idle_id() {
+size_t AsyncInferQueue::Impl::pop_idle_handle() {
     // Get idle request id and pop it from queue
-    size_t idle_request_id = get_idle_id();
+    size_t idle_handle = get_idle_handle();
     std::unique_lock<std::mutex> lock(m_mutex);
     m_idle_handles.pop();
 
-    return idle_request_id;
+    return idle_handle;
 }
 
 void AsyncInferQueue::Impl::start_async(ov::Any userdata) {
-    auto request_id = pop_idle_id();
+    auto handle = pop_idle_handle();
     if (!userdata.empty()) {
-        m_userdata[request_id] = userdata;
+        m_userdata[handle] = userdata;
     }
-    m_ref_pool[request_id].get().start_async();
+    m_ref_pool[handle].get().start_async();
 }
 
 void AsyncInferQueue::Impl::start_async(std::map<size_t, ov::runtime::Tensor>& inputs, ov::Any userdata) {
-    size_t request_id = pop_idle_id();
+    size_t handle = pop_idle_handle();
     if (!userdata.empty()) {
-        m_userdata[request_id] = userdata;
+        m_userdata[handle] = userdata;
     }
     for (auto const& t : inputs) {
-        m_ref_pool[request_id].get().set_input_tensor(t.first, t.second);
+        m_ref_pool[handle].get().set_input_tensor(t.first, t.second);
     }
-    m_ref_pool[request_id].get().start_async();
+    m_ref_pool[handle].get().start_async();
 }
 
 void AsyncInferQueue::Impl::start_async(std::map<std::string, ov::runtime::Tensor>& inputs, ov::Any userdata) {
-    size_t request_id = pop_idle_id();
+    size_t handle = pop_idle_handle();
     if (!userdata.empty()) {
-        m_userdata[request_id] = userdata;
+        m_userdata[handle] = userdata;
     }
     for (auto const& t : inputs) {
-        m_ref_pool[request_id].get().set_tensor(t.first, t.second);
+        m_ref_pool[handle].get().set_tensor(t.first, t.second);
     }
-    m_ref_pool[request_id].get().start_async();
+    m_ref_pool[handle].get().start_async();
 }
 
 bool AsyncInferQueue::Impl::is_ready() {
@@ -180,15 +158,21 @@ void AsyncInferQueue::Impl::set_default_callback() {
 void AsyncInferQueue::Impl::set_callback(
     std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback) {
     for (size_t handle = 0; handle < m_ref_pool.size(); handle++) {
-        m_ref_pool[handle].get().set_callback([this, callback, handle /* ... */](std::exception_ptr e) {
-            callback(e, m_ref_pool[handle], m_userdata[handle]);
-            // Add idle handle to queue
-            std::unique_lock<std::mutex> lock(m_mutex);
-            m_idle_handles.push(handle);
-            // Notify locks
-            m_cv.notify_one();
-        });
+        set_job_callback(handle, callback);
     }
+}
+
+void AsyncInferQueue::Impl::set_job_callback(
+    size_t handle,
+    std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback) {
+    m_ref_pool[handle].get().set_callback([this, callback, handle /* ... */](std::exception_ptr e) {
+        callback(e, m_ref_pool[handle], m_userdata[handle]);
+        // Add idle handle to queue
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_idle_handles.push(handle);
+        // Notify locks
+        m_cv.notify_one();
+    });
 }
 
 AsyncInferQueue::AsyncInferQueue()
@@ -208,8 +192,8 @@ AsyncInferQueue::AsyncInferQueue(std::vector<std::reference_wrapper<ov::runtime:
                   delete impl;
               }} {}
 
-size_t AsyncInferQueue::get_idle_id() {
-    return m_pimpl->get_idle_id();
+size_t AsyncInferQueue::get_idle_handle() {
+    return m_pimpl->get_idle_handle();
 }
 
 void AsyncInferQueue::start_async(const ov::Any userdata) {
@@ -237,16 +221,18 @@ void AsyncInferQueue::set_callback(
     m_pimpl->set_callback(callback);
 }
 
+void AsyncInferQueue::set_job_callback(
+    size_t handle,
+    std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback) {
+    m_pimpl->set_job_callback(handle, callback);
+}
+
 size_t AsyncInferQueue::size() {
     return m_pimpl->get_pool_size();
 }
 
 InferRequest& AsyncInferQueue::operator[](size_t i) {
     return m_pimpl->get_request(i);
-}
-
-size_t AsyncInferQueue::num_of_jobs_helper(ExecutableNetwork& net) {
-    return m_pimpl->num_of_jobs_helper(net);
 }
 
 }  // namespace runtime
