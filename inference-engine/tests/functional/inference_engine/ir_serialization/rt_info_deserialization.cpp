@@ -640,8 +640,7 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
 
     auto round = std::make_shared<opset8::Round>(transpose_param,
                                                  ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
-    round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-            std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
+    round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
     auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::u64,
                                                               ngraph::Shape{4},
                                                               std::vector<uint64_t>{0, 3, 1, 2});
