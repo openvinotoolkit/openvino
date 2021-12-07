@@ -32,7 +32,7 @@ std::string runtime::Backend::s_backend_shared_library_search_directory;
 // This finds the full path of the containing shared library
 static string find_my_pathname() {
 #ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ngraph" SHARED_LIB_SUFFIX);
+    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ov_runtime" SHARED_LIB_SUFFIX);
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
     wstring ws(wpath);
