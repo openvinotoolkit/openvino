@@ -244,11 +244,12 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     InferenceEngine::ExecutableNetworkThreadSafeDefault(
             nullptr,
             std::make_shared<InferenceEngine::ImmediateExecutor>()),
-    _device{networkDevice},
     _network{networkWithBatch},
     _networkWithoutBatch{networkWithoutBatch},
     _config{config},
     _needPerfCounters{needPerfCounters} {
+    // WA for gcc 4.8 ( fails compilation with member init-list)
+    _device= networkDevice;
 }
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {

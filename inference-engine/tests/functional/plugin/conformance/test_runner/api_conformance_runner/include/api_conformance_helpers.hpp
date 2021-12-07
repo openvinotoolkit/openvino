@@ -24,7 +24,7 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
             { "GNA", "ov_intel_gna_plugin" },
             { "GPU", "ov_intel_gpu_plugin" },
             { "HETERO", "ov_hetero_plugin" },
-            { "BATCH", "AutoBatchPlugin" },
+            { "BATCH", "ov_auto_batch_plugin" },
             { "MULTI", "ov_multi_plugin" },
             { "MYRIAD", "myriadPlugin" },
             { "TEMPLATE", "templatePlugin" },
