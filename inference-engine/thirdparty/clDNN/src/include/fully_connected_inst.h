@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
 #include "primitive_inst.h"
 
 #include <string>

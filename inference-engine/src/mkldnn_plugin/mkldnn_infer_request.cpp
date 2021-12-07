@@ -84,27 +84,27 @@ MKLDNNPlugin::MKLDNNInferRequest::~MKLDNNInferRequest() {
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision inPrec) {
-    bool needConvert = inPrec != inputBlob->getTensorDesc().getPrecision();
+    auto& tensorDesc = inputBlob->getTensorDesc();
+    bool needConvert = inPrec != tensorDesc.getPrecision();
 
-    if (inputBlob->cbuffer().as<const void *>() == nullptr) {
+    const void* srcData = inputBlob->cbuffer().as<const void *>();
+    if (srcData == nullptr) {
         IE_THROW() << "Input blob has no allocated memory";
     }
 
     InferenceEngine::Blob::Ptr iconv;
     if (needConvert) {
-        iconv = make_blob_with_precision(inPrec, InferenceEngine::TensorDesc(inPrec, inputBlob->getTensorDesc().getDims(),
-                                         inputBlob->getTensorDesc().getLayout()));
+        iconv = make_blob_with_precision(inPrec, InferenceEngine::TensorDesc(inPrec, tensorDesc.getDims(), tensorDesc.getLayout()));
         iconv->allocate();
         if (inputBlob->size() != iconv->size())
             IE_THROW() << "Can't copy tensor: input and converted tensors have different number of elements: " << inputBlob->size() << " and "
                                << iconv->size();
 
-        void *srcData = inputBlob->cbuffer().as<void *>();
         void *dstData = iconv->buffer().as<void *>();
         if (dstData == nullptr) {
             IE_THROW() << "Converted input blob has no allocated memory";
         }
-        cpu_convert(srcData, dstData, inputBlob->getTensorDesc().getPrecision(), iconv->getTensorDesc().getPrecision(), iconv->size());
+        cpu_convert(srcData, dstData, tensorDesc.getPrecision(), iconv->getTensorDesc().getPrecision(), iconv->size());
     }
 
     graph->PushInputData(inputName, needConvert ? iconv : inputBlob);
@@ -112,27 +112,30 @@ void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, I
 
 void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
     for (auto input : _inputs) {
-        if (!_networkInputs[input.first]) {
-            IE_THROW() << "Input blobs map contains not registered during IInferencePlugin::LoadNetwork blob with name " << input.first;
+        auto inputName = input.first;
+        if (!_networkInputs[inputName]) {
+            IE_THROW() << "Input blobs map contains not registered during IInferencePlugin::LoadNetwork blob with name " << inputName;
         }
-        auto inPrec = input.second->getTensorDesc().getPrecision();
-        if (graph->hasMeanImageFor(input.first) && one_of(inPrec, InferenceEngine::Precision::U8, InferenceEngine::Precision::BOOL)) {
+        auto inputBlob = input.second;
+        auto& inputTensorDesc = inputBlob->getTensorDesc();
+        auto inPrec = inputTensorDesc.getPrecision();
+        if (graph->hasMeanImageFor(inputName) && one_of(inPrec, InferenceEngine::Precision::U8, InferenceEngine::Precision::BOOL)) {
             inPrec = InferenceEngine::Precision::FP32;
         } else {
             inPrec = normalizeToSupportedPrecision(inPrec);
         }
 
         if (inPrec == InferenceEngine::Precision::UNSPECIFIED) {
-            IE_THROW() << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
+            IE_THROW() << "Unsupported input precision " << inputTensorDesc.getPrecision();
         }
 
         // User can initialize input via setBlob API using tensorDesc with default (ANY) layout.
         // Currently IE doesn't specify behavior in such scenario, so we assume real layout is equal to the network input.
-        if (input.second->getTensorDesc().getLayout() == InferenceEngine::ANY) {
-            input.second->getTensorDesc().setLayout(_networkInputs[input.first]->getLayout());
+        if (inputTensorDesc.getLayout() == InferenceEngine::ANY) {
+            inputTensorDesc.setLayout(_networkInputs[inputName]->getLayout());
         }
 
-        pushInput(input.first, input.second, inPrec);
+        pushInput(inputName, inputBlob, inPrec);
     }
 }
 
@@ -502,71 +505,107 @@ static inline void changeEdgePtr(const MKLDNNPlugin::MKLDNNEdgePtr &edge, void *
 
 void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
     for (auto& it : externalPtr) {
-        auto input = graph->GetInputNodesMap().find(it.first);
-        if (input != graph->GetInputNodesMap().end()) {
-            if (input->second->getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle() == it.second)
+        const auto& inputNodesMap = graph->GetInputNodesMap();
+        auto input = inputNodesMap.find(it.first);
+        if (input != inputNodesMap.end()) {
+            MKLDNNNodePtr inputNodePtr = input->second;
+            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle() == it.second)
                 continue;
+            auto& childEdges = inputNodePtr->getChildEdges();
             // Input cannot be in-place with other primitives
             bool canBeInPlace = true;
-            for (size_t i = 0; canBeInPlace && i < input->second->getChildEdges().size(); i++) {
-                auto& child = input->second->getChildEdgeAt(i)->getChild();
-                if (child->isConstant())
-                    canBeInPlace = false;
+            for (auto& childEdge : childEdges) {
+                auto ce = childEdge.lock();
+                if (!ce)
+                    IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
 
-                auto* concat = dynamic_cast<MKLDNNConcatNode *>(child.get());
-                if (canBeInPlace && concat && concat->isOptimized())
-                    canBeInPlace = false;
+                auto& child = ce->getChild();
 
-                // Cannot be in-place before split because split is using different ptrs without offsets
-                auto* split = dynamic_cast<MKLDNNSplitNode *>(child.get());
-                if (canBeInPlace && split)
-                    canBeInPlace = false;
-
-                if (child->isInplace())
-                    canBeInPlace = false;
-                for (size_t j = 0; canBeInPlace && j < child->getChildEdges().size(); j++) {
-                    if (child->getChildEdgeAt(j)->getMemory().GetPrimitive().get_data_handle() ==
-                            input->second->getChildEdgeAt(i)->getMemory().GetPrimitive().get_data_handle())
-                        canBeInPlace = false;
-                }
-            }
-            for (size_t i = 0; canBeInPlace && i < input->second->getChildEdges().size(); i++) {
-                changeEdgePtr(input->second->getChildEdgeAt(i), it.second);
-            }
-            continue;
-        }
-
-        MKLDNNNodePtr output;
-        for (auto& out : graph->GetOutputNodesMap()) {
-            if (out.first == it.first) {
-                output = out.second;
-                break;
-            }
-        }
-        if (output) {
-            if (output->getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle() == it.second)
-                continue;
-            bool canBeInPlace = true;
-            void * defaultPtr = output->getParentEdgeAt(0)->getMemory().GetPrimitivePtr()->get_data_handle();
-            // Cannot be in-place after concat because concat is using different ptrs without offsets
-            auto parent = output->getParentEdgeAt(0)->getParent();
-            MKLDNNNodePtr previousParent;
-            do {
-                previousParent = parent;
-                if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInplace()) {
+                if (child->isConstant()) {
                     canBeInPlace = false;
                     break;
                 }
 
-                for (size_t i = 0; i < parent->getParentEdges().size(); i++) {
-                    if (parent->getParentEdgeAt(i)->getMemory().GetPrimitivePtr()->get_data_handle() == defaultPtr) {
-                        parent = parent->getParentEdgeAt(i)->getParent();
+                if (child->getType() == Concatenation) {
+                    auto concat = dynamic_cast<MKLDNNConcatNode*>(child.get());
+                    if (concat && concat->isOptimized()) {
+                        canBeInPlace = false;
+                        break;
+                    }
+                }
+
+                // Cannot be in-place before split because split is using different ptrs without offsets
+                if (child->getType() == Split) {
+                    canBeInPlace = false;
+                    break;
+                }
+
+                if (child->isInPlace()) {
+                    canBeInPlace = false;
+                    break;
+                }
+
+                auto& edges = child->getChildEdges();
+                for (auto& edge : edges) {
+                    auto e = edge.lock();
+                    if (!e)
+                        IE_THROW() << "Node " << child->getName() << " contains empty child edge";
+
+                    if (e->getMemory().GetPrimitive().get_data_handle() == ce->getMemory().GetPrimitive().get_data_handle()) {
+                        canBeInPlace = false;
+                        break;
+                    }
+                }
+
+                if (!canBeInPlace)
+                    break;
+            }
+            if (canBeInPlace) {
+                for (auto& edge : childEdges) {
+                    auto e = edge.lock();
+                    if (!e)
+                        IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
+
+                    changeEdgePtr(e, it.second);
+                }
+            }
+
+            continue;
+        }
+
+        const auto& outputNodesMap = graph->GetOutputNodesMap();
+        auto output = outputNodesMap.find(it.first);
+        if (output != outputNodesMap.end()) {
+            auto parentEdge = output->second->getParentEdgeAt(0);
+            if (parentEdge->getMemory().GetPrimitive().get_data_handle() == it.second)
+                continue;
+
+            bool canBeInPlace = true;
+            void* defaultPtr = parentEdge->getMemory().GetPrimitivePtr()->get_data_handle();
+            // Cannot be in-place after concat because concat is using different ptrs without offsets
+            auto parent = parentEdge->getParent();
+            MKLDNNNodePtr previousParent;
+            do {
+                previousParent = parent;
+                if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
+                    canBeInPlace = false;
+                    break;
+                }
+
+                auto& parentEdges = parent->getParentEdges();
+                for (auto& edge : parentEdges) {
+                    auto e = edge.lock();
+                    if (!e)
+                        IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
+
+                    if (e->getMemory().GetPrimitivePtr()->get_data_handle() == defaultPtr) {
+                        parent = e->getParent();
                         break;
                     }
                 }
             } while (previousParent != parent);
             if (canBeInPlace)
-                changeEdgePtr(output->getParentEdgeAt(0), it.second);
+                changeEdgePtr(parentEdge, it.second);
             continue;
         }
         IE_THROW() << "Cannot find input/output blob: " << it.first;

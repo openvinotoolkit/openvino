@@ -47,8 +47,8 @@ public:
             }
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreateAttribute");
-                const auto attribute = ngraph::VariantWrapper<AttributeType>::create(op, params);
-                if (attribute == nullptr) {
+                const auto attribute = AttributeType::create(op, params);
+                if (attribute.empty()) {
                     return false;
                 }
             }

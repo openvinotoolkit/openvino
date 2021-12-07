@@ -10,10 +10,10 @@
 
 #include "frontend_defs.hpp"
 #include "input_model.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/function.hpp"
 #include "openvino/core/op_extension.hpp"
-#include "openvino/core/variant.hpp"
 
 namespace ov {
 namespace frontend {
@@ -36,7 +36,7 @@ public:
     /// \return true if model recognized, false - otherwise.
     template <typename... Types>
     inline bool supported(const Types&... vars) const {
-        return supported_impl({ov::make_variant(vars)...});
+        return supported_impl({ov::Any(vars)...});
     }
 
     /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
@@ -48,10 +48,10 @@ public:
     /// \return Loaded input model.
     template <typename... Types>
     inline InputModel::Ptr load(const Types&... vars) const {
-        return load_impl({ov::make_variant(vars)...});
+        return load_impl({ov::Any{vars}...});
     }
 
-    inline InputModel::Ptr load(const ov::VariantVector& vars) const {
+    inline InputModel::Ptr load(const ov::RuntimeAttributeVector& vars) const {
         return load_impl(vars);
     }
 
@@ -125,12 +125,12 @@ public:
     }
 
 protected:
-    virtual bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;
-    virtual InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;
+    virtual bool supported_impl(const std::vector<ov::Any>& variants) const;
+    virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
 };
 
 template <>
-inline bool FrontEnd::supported(const std::vector<std::shared_ptr<Variant>>& variants) const {
+inline bool FrontEnd::supported(const std::vector<ov::Any>& variants) const {
     return supported_impl(variants);
 }
 

@@ -4,11 +4,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
 #include "device_cache_reader.h"
@@ -455,11 +455,6 @@ void program::build_program(bool is_internal) {
 void program::init_graph() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
-
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layout();
-    }
 
     apply_opt_pass<calculate_prior_boxes>();
 
@@ -1164,7 +1159,8 @@ std::string program::get_implementation_info(const primitive_id& id) const {
     try {
         const auto& node = get_node(id);
         auto impl = node.get_selected_impl();
-        return impl ? (impl->get_kernel_name() + "__" + dt_to_str(get_inference_precision(node))) : "undef";
+        auto kernel_name = impl ? impl->get_kernel_name() : "";
+        return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
     } catch (...) { }
 
     return "undef";
