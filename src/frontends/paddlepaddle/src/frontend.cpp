@@ -19,6 +19,13 @@
 #include "paddlepaddle_frontend/place.hpp"
 #include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
+#include "pass/quant_pass.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "ngraph_ops/fake_dequant_internal.hpp"
+#include "ngraph_ops/fake_quant_dequant_internal.hpp"
+#include "ngraph_ops/fake_quant_internal.hpp"
+#include "ngraph_ops/channel_fake_quant_internal.hpp"
 
 using namespace ov::opset7;
 using namespace ov;
@@ -47,6 +54,18 @@ NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
                                     op_desc.type(),
                                     " wasn't found. It may happen if model was cut incorrectly.");
             named_inputs[input_port.parameter()].push_back(node_it->second);
+        }
+    }
+    // fake_channel_wise_quantize_dequantize_abs_max only stores the scale in OutScale, we also pass them in inputs, ref:
+    //    https://github.com/PaddlePaddle/Paddle/blob/21b307ca4e59173a7588281b92a037cd9cf1dcd6/python/paddle/nn/quant/quant_layers.py#L298
+    if (op_desc.type() == "fake_channel_wise_quantize_dequantize_abs_max") {
+        for (const auto& output_port : op_desc.outputs()) {
+            for (const auto& out_tensor_name : output_port.arguments()) {
+                auto node_it = nodes.find(out_tensor_name);
+                if (node_it != nodes.end()) {
+                    named_inputs[output_port.parameter()].push_back(node_it->second);
+                }
+            }
         }
     }
     NamedOutputs outputs;
@@ -284,6 +303,9 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert(InputModel::Ptr model) const {
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlacePDPD>& op_place) {
             return pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
         });
+
+    normalize(f);
+
     return f;
 }
 
@@ -297,6 +319,7 @@ void FrontEndPDPD::convert(std::shared_ptr<ov::Model> partiallyConverted) const 
     for (auto result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
+    normalize(partiallyConverted);
 }
 
 std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {
@@ -313,6 +336,7 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(InputModel::Ptr model
             }
             return named_outputs;
         });
+    normalize(f);
     return f;
 }
 
@@ -321,6 +345,35 @@ std::shared_ptr<ov::Model> FrontEndPDPD::decode(InputModel::Ptr model) const {
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
     return f;
+}
+
+bool FrontEndPDPD::is_function_quantized(const std::shared_ptr<ngraph::Function>& function) const {
+    for (auto& node : function->get_ordered_ops()) {
+        static const auto fake_ops_type = {
+            &ngraph::op::internal::ChannelFakeQuantInternal::get_type_info_static(),
+            &ngraph::op::internal::FakeDequantInternal::get_type_info_static(),
+            &ngraph::op::internal::FakeQuantDequantInternal::get_type_info_static(),
+            &ngraph::op::internal::FakeQuantInternal::get_type_info_static()
+            };
+        if (std::any_of(fake_ops_type.begin(), fake_ops_type.end(), [node](const ov::DiscreteTypeInfo* info) {
+            return &node->get_type_info() == info;
+            })) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void FrontEndPDPD::normalize(std::shared_ptr<ov::Function> function) const {
+    if (is_function_quantized(function)) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ConstantFolding>();
+        manager.register_pass<ov::frontend::pass::FuseQuant>();
+        manager.register_pass<ov::frontend::pass::FuseDequant>();
+        manager.register_pass<ov::frontend::pass::FuseChannelDequant>();
+        manager.register_pass<ov::frontend::pass::FuseQuantDequant>();
+        manager.run_passes(function);
+    }
 }
 
 std::string FrontEndPDPD::get_name() const {

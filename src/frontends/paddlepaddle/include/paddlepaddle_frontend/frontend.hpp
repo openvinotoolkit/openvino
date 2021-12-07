@@ -42,6 +42,10 @@ public:
     /// \return OV Model after decoding
     std::shared_ptr<Model> decode(InputModel::Ptr model) const override;
 
+    /// \brief Runs normalization passes on function that was loaded with partial conversion
+    /// \param function partially converted ov function
+    void normalize(std::shared_ptr<ov::Function> function) const override;
+
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model
     ///
@@ -69,6 +73,8 @@ private:
         const std::shared_ptr<InputModelPDPD>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlacePDPD>&)> func);
+    bool is_function_quantized(const std::shared_ptr<ngraph::Function>& function) const;
+
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 

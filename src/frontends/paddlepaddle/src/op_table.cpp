@@ -33,6 +33,13 @@ OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
 OP_CONVERTER(exp);
 OP_CONVERTER(expand_v2);
+OP_CONVERTER(fake_channel_wise_quantize_dequantize_abs_max);
+OP_CONVERTER(fake_channel_wise_dequantize_max_abs);
+OP_CONVERTER(fake_dequantize_max_abs);
+OP_CONVERTER(fake_quantize_dequantize_abs_max);
+OP_CONVERTER(fake_quantize_dequantize_moving_average_abs_max);
+OP_CONVERTER(fake_quantize_moving_average_abs_max);
+OP_CONVERTER(fake_quantize_range_abs_max);
 OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(fill_constant);
@@ -47,6 +54,7 @@ OP_CONVERTER(log);
 OP_CONVERTER(logical_not);
 OP_CONVERTER(matmul);
 OP_CONVERTER(matmul_v2);
+OP_CONVERTER(mul);
 OP_CONVERTER(matrix_nms);
 OP_CONVERTER(multiclass_nms);
 OP_CONVERTER(nearest_interp_v2);
@@ -103,6 +111,13 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"equal", op::elementwise_equal},
             {"exp", op::exp},
             {"expand_v2", op::expand_v2},
+            {"fake_channel_wise_quantize_dequantize_abs_max", op::fake_channel_wise_quantize_dequantize_abs_max},
+            {"fake_channel_wise_dequantize_max_abs", op::fake_channel_wise_dequantize_max_abs},
+            {"fake_dequantize_max_abs", op::fake_dequantize_max_abs},
+            {"fake_quantize_dequantize_abs_max", op::fake_quantize_dequantize_abs_max},
+            {"fake_quantize_dequantize_moving_average_abs_max", op::fake_quantize_dequantize_moving_average_abs_max},
+            {"fake_quantize_moving_average_abs_max", op::fake_quantize_moving_average_abs_max},
+            {"fake_quantize_range_abs_max", op::fake_quantize_range_abs_max},
             {"fill_any_like", op::fill_any_like},
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
             {"fill_constant", op::fill_constant},
@@ -120,6 +135,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"matmul", op::matmul},
             {"matmul_v2", op::matmul_v2},
             {"max_pool2d_with_index", op::pool2d},
+            {"mul", op::mul},
             {"matrix_nms", op::matrix_nms},
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
