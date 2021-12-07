@@ -115,7 +115,6 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
 
         detection_output_node = DetectionOutput(graph, dict(
             name='detections',
-            num_classes=int(replacement_descriptions['num_classes']),
             share_location=1,
             background_label_id=int(replacement_descriptions['num_classes']) + 1,
             nms_threshold=replacement_descriptions['nms_threshold'],
