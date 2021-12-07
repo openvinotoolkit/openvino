@@ -143,9 +143,7 @@ extensions/front/interpolate_reshape.py
 extensions/front/InterpolateNormalizer.py
 extensions/front/InterpolateV1ToInterpolate.py
 extensions/front/kaldi/__init__.py
-extensions/front/kaldi/add_permute_after_convolution.py
 extensions/front/kaldi/add_reshape_around_convolution.py
-extensions/front/kaldi/add_reshape_around_pooling.py
 extensions/front/kaldi/apply_counts.py
 extensions/front/kaldi/logsoftmax_component_ext.py
 extensions/front/kaldi/memory_offset_adjustment.py

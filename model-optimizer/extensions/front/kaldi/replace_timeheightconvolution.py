@@ -18,11 +18,10 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
         return [MoveEmbeddedInputsToInputs]
 
     def run_before(self):
-        from extensions.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
         from extensions.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
         from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
         from extensions.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
-        return [MemoryOffsetAdjustment, ReplaceConvolutionReshape, ReplaceConvolutionTranspose,
+        return [MemoryOffsetAdjustment, ReplaceConvolutionReshape,
                 SplitRecurrentMemoryOffset]
 
     def find_and_replace_pattern(self, graph: Graph):
