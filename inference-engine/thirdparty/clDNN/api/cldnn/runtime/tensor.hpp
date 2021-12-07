@@ -34,8 +34,6 @@ struct format_traits {
     size_t feature_num;
     /// @brief Number of spatial (x,y) dimensions in a format.
     size_t spatial_num;
-    /// @brief Number of local (x,y) dimensions in a format.
-    size_t local_num;
     /// @brief Number of groups in a format.
     size_t group_num;
     /// @brief Dimensions changing order from rare to often.
@@ -50,8 +48,6 @@ struct format_traits {
     static const char* feature_chars() { return "fic"; }
     /// @brief Characters representing spatial dimensions in an order.
     static const char* spatial_chars() { return "xyzhsw"; }
-    /// @brief Characters representing local dimensions in an order.
-    static const char* local_chars() { return "kl"; }
     /// @brief Characters representing group dimensions in an order.
     static const char* group_chars() { return "g"; }
     /// @brief Checks if @p c represents batch dimension.
@@ -60,8 +56,6 @@ struct format_traits {
     static bool is_feature_char(char c) { return std::string(feature_chars()).find_first_of(c) != std::string::npos; }
     /// @brief Checks if @p c represents spatial dimension.
     static bool is_spatial_char(char c) { return std::string(spatial_chars()).find_first_of(c) != std::string::npos; }
-    /// @brief Checks if @p c represents local dimensions.
-    static bool is_local_char(char c) { return std::string(local_chars()).find_first_of(c) != std::string::npos; }
     /// @brief Checks if @p c represents group dimensions.
     static bool is_group_char(char c) { return std::string(group_chars()).find_first_of(c) != std::string::npos; }
 };
@@ -235,139 +229,138 @@ struct format {
                 // B - number of Batch dimensions
                 // F - number of Feature dimensions
                 // S - number of Spatial dimensions
-                // L - number of Local dimensions
                 // G - number of Group dimensions
                 // Order - dims changing order from rare to often
                 // Inner order - dims order for internal storage in _sizes array
                 // Block sizes - vector of pairs of dimension number (by inner order) and block size ordered from rare to often
-                // Format                  B  F  S  L  G  Order  Inner order  Block sizes
-                { yxfb,                  { 1, 1, 2, 0, 0, "yxfb",   "bfxy?",  {}}},
-                { byxf,                  { 1, 1, 2, 0, 0, "byxf",   "bfxy?",  {}}},
-                { bfyx,                  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
-                { fyxb,                  { 1, 1, 2, 0, 0, "fyxb",   "bfxy?",  {}}},
-                { b_fs_yx_fsv16,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy",   {{1, 16}}}},
-                { b_fs_yx_fsv32,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy",   {{1, 32}}}},
-                { b_fs_zyx_fsv32,        { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{1, 32}}}},
-                { bs_xs_xsv8_bsv8,       { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{2, 8}, {0, 8}}}},
-                { bs_xs_xsv8_bsv16,      { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{2, 8}, {0, 16}}}},
-                { bs_x_bsv16,            { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{0, 16}}}},
-                { winograd_2x3_s1_data,  { 1, 1, 2, 0, 0, "bxyf",   "bfxy?",  {}}},
-                { b_fs_yx_fsv4,          { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{1, 4}}}},
-                { bfzyx,                 { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {}}},
-                { bfwzyx,                { 1, 1, 4, 0, 0, "bfwzyx", "bfxyzw", {}}},
-                { fs_b_yx_fsv32,         { 1, 1, 2, 0, 0, "fbyx",   "bfxy?",  {{1, 32}}}},
-                { b_fs_yx_32fp,          { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
-                { b_fs_zyx_fsv16,        { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{1, 16}}}},
-                { bs_fs_zyx_bsv16_fsv16, { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}}},
-                { bs_fs_yx_bsv16_fsv16,  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}}},
-                { bs_fs_yx_bsv4_fsv4,    { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{0, 4 }, {1, 4}}}},
-                { bs_fs_yx_bsv4_fsv2,    { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{0, 4 }, {1, 2}}}},
-                { bs_fs_zyx_bsv4_fsv4,   { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{0, 4 }, {1, 4}}}},
-                { bs_fs_zyx_bsv4_fsv2,   { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{0, 4 }, {1, 2}}}},
-                { bs_fs_zyx_bsv32_fsv32, { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{0, 32 }, {1, 32}}}},
-                { bs_fs_zyx_bsv32_fsv16, { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{0, 32 }, {1, 16}}}},
-                { bs_fs_yx_bsv32_fsv32,  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{0, 32 }, {1, 32}}}},
-                { bs_fs_yx_bsv32_fsv16,  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{0, 32 }, {1, 16}}}},
-                { nv12,                  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
-                { image_2d_rgba,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
+                // Format                  B  F  S  G  Order  Inner order  Block sizes
+                { yxfb,                  { 1, 1, 2, 0, "yxfb",   "bfxy?",  {}}},
+                { byxf,                  { 1, 1, 2, 0, "byxf",   "bfxy?",  {}}},
+                { bfyx,                  { 1, 1, 2, 0, "bfyx",   "bfxy?",  {}}},
+                { fyxb,                  { 1, 1, 2, 0, "fyxb",   "bfxy?",  {}}},
+                { b_fs_yx_fsv16,         { 1, 1, 2, 0, "bfyx",   "bfxy",   {{1, 16}}}},
+                { b_fs_yx_fsv32,         { 1, 1, 2, 0, "bfyx",   "bfxy",   {{1, 32}}}},
+                { b_fs_zyx_fsv32,        { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{1, 32}}}},
+                { bs_xs_xsv8_bsv8,       { 1, 1, 1, 0, "bx",     "b?x??",  {{2, 8}, {0, 8}}}},
+                { bs_xs_xsv8_bsv16,      { 1, 1, 1, 0, "bx",     "b?x??",  {{2, 8}, {0, 16}}}},
+                { bs_x_bsv16,            { 1, 1, 1, 0, "bx",     "b?x??",  {{0, 16}}}},
+                { winograd_2x3_s1_data,  { 1, 1, 2, 0, "bxyf",   "bfxy?",  {}}},
+                { b_fs_yx_fsv4,          { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{1, 4}}}},
+                { bfzyx,                 { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {}}},
+                { bfwzyx,                { 1, 1, 4, 0, "bfwzyx", "bfxyzw", {}}},
+                { fs_b_yx_fsv32,         { 1, 1, 2, 0, "fbyx",   "bfxy?",  {{1, 32}}}},
+                { b_fs_yx_32fp,          { 1, 1, 2, 0, "bfyx",   "bfxy?",  {}}},
+                { b_fs_zyx_fsv16,        { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{1, 16}}}},
+                { bs_fs_zyx_bsv16_fsv16, { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}}},
+                { bs_fs_yx_bsv16_fsv16,  { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}}},
+                { bs_fs_yx_bsv4_fsv4,    { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 4 }, {1, 4}}}},
+                { bs_fs_yx_bsv4_fsv2,    { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 4 }, {1, 2}}}},
+                { bs_fs_zyx_bsv4_fsv4,   { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 4 }, {1, 4}}}},
+                { bs_fs_zyx_bsv4_fsv2,   { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 4 }, {1, 2}}}},
+                { bs_fs_zyx_bsv32_fsv32, { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 32 }, {1, 32}}}},
+                { bs_fs_zyx_bsv32_fsv16, { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 32 }, {1, 16}}}},
+                { bs_fs_yx_bsv32_fsv32,  { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 32 }, {1, 32}}}},
+                { bs_fs_yx_bsv32_fsv16,  { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 32 }, {1, 16}}}},
+                { nv12,                  { 1, 1, 2, 0, "bfyx",   "bfxy?",  {}}},
+                { image_2d_rgba,         { 1, 1, 2, 0, "bfyx",   "bfxy?",  {}}},
 
-                { oiyx,                                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {}}},
-                { ioyx,                                        { 1, 1, 2, 0, 0, "ioyx",   "oixy",       {}}},
-                { iyxo,                                        { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {}}},
-                { yxio,                                        { 1, 1, 2, 0, 0, "yxio",   "oixy?",      {}}},
-                { oizyx,                                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {}}},
-                { iozyx,                                       { 1, 1, 3, 0, 0, "iozyx",  "oixyz",      {}}},
-                { os_is_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
-                { o_is_yx_isv16,                               { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{1, 16}}}},
-                { os_yxi_osv16,                                { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {{0, 16}}}},
-                { os_iyx_osv16,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 16}}}},
-                { os_iyx_osv32,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}}}},
-                { os_iyx_osv64,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 64}}}},
-                { winograd_2x3_s1_weights,                     { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
-                { winograd_2x3_s1_fused_weights,               { 1, 1, 2, 0, 0, "xyio",   "oixy?",      {}}},
-                { winograd_6x3_s1_fused_weights,               { 1, 1, 2, 0, 0, "xyio",   "oixy?",      {}}},
-                { image_2d_weights_winograd_6x3_s1_fbxyb,      { 1, 1, 2, 0, 0, "xyio",   "oixy?",      {}}},
-                { image_2d_weights_winograd_6x3_s1_xfbyb,      { 1, 1, 2, 0, 0, "xyio",   "oixy?",      {}}},
-                { image_2d_weights_c4_fyx_b,                   { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
-                { image_2d_weights_c1_b_fyx,                   { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
-                { lstm_weights_dio,                            { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {}}},
-                { os_is_yx_isa8_osv8_isv4,                     { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
-                { os_is_yx_isa8_osv16_isv4,                    { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
-                { os_is_yx_isa8_osv8_isv4_swizzled_by_4,       { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
-                { os_is_yx_osa4_isa8_osv8_isv2,                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}, {1, 16}}}},
-                { os_is_yx_osa4_isa8_osv8_isv4,                { 1, 1, 2, 0, 0, "oiyx",   "oixy",      {{0, 32}, {1, 32}}}},
-                { os_is_zyx_osa4_isa8_osv8_isv2,               { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 16}}}},
-                { os_is_zyx_osa4_isa8_osv8_isv4,               { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
-                { os_is_yx_osa2_isa8_osv16_isv2,               { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{0, 32}, {1, 16}}}},
-                { os_is_yx_osa2_isa8_osv16_isv4,               { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{0, 32}, {1, 32}}}},
-                { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 8}, {1, 4}}}},
-                { os_is_zyx_isa8_osv16_isv4,                   { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 4}}}},
-                { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}, {1, 32}}}},
-                { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
-                { is_o_yx_isv32,                               { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {{1, 32}}}},
-                { is_o32_yx_isv32_swizzled_by_4,               { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {}}},
-                { os_is_y_x8_osv8_isv4,                        { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {}}},
-                { os_is_y_x8_osv8_isv4_swizzled_by_4,          { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {}}},
-                { os_is_yx_osv16_isv4,                         { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {{0, 16}, {1, 4}}}},
-                { os_is_yx_osv8_isv4,                          { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 4}, {0, 8}}}},
-                { os_is_yx_osv8_isv2,                          { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 2}, {0, 8}}}},
-                { os_is_zyx_osv16_isv16,                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 16}, {1, 16}}}},
-                { os_is_yx_osv32_isv4_swizzled_by_2,           { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {{0, 32}, {1, 4}}}},
-                { os_is_yx_osv32_isv4,                         { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {{0, 32}, {1, 4}}}},
-                { os_is_zyx_osv32_isv4,                        { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 4}}}},
-                { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, 0, "oixy",   "oixy?",      {}}},
-                { os_is_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 16}, {1, 16}}}},
-                { is_os_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "iozyx",  "oixyz",      {{1, 16}, {0, 16}}}},
-                { is_os_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "ioyx",   "oixyz",      {{1, 16}, {0, 16}}}},
-                { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, 0, "oixy",   "oixy?",      {{0, 32}, {1, 32}}}},
-                { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 2}}}},
-                { os_zyxi_osv16,                               { 1, 1, 3, 0, 0, "ozyxi",  "oixyz",      {{0, 16}}}},
-                { os_is_yx_isv8_osv16_isv2,                    { 1, 1, 2, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 2}}}},
-                { os_is_yx_osv16_isv16,                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
-                { os_is_zyx_osv32_isv16,                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 16}}}},
-                { os_is_zyx_osv64_isv16,                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 64}, {1, 16}}}},
-                { os_iyx_osv32__ai32,                          { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{0, 32}}}},
-                { i_yxs_os_yxsv2_osv16,                        { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {{0, 16}}}},
-                { iy_xs_os_xsv2_osv8__ao32,                    { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {{2, 2}, {0, 8}}}},
-                { iy_xs_os_xsv2_osv16__ao32,                   { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {{2, 2}, {0, 16}}}},
-                { os_i_yxs_osv4_yxsv4,                         { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{0, 4}}}},
+                { oiyx,                                        { 1, 1, 2, 0, "oiyx",   "oixy",       {}}},
+                { ioyx,                                        { 1, 1, 2, 0, "ioyx",   "oixy",       {}}},
+                { iyxo,                                        { 1, 1, 2, 0, "iyxo",   "oixy",       {}}},
+                { yxio,                                        { 1, 1, 2, 0, "yxio",   "oixy?",      {}}},
+                { oizyx,                                       { 1, 1, 3, 0, "oizyx",  "oixyz",      {}}},
+                { iozyx,                                       { 1, 1, 3, 0, "iozyx",  "oixyz",      {}}},
+                { os_is_yx_isv16_osv16,                        { 1, 1, 2, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
+                { o_is_yx_isv16,                               { 1, 1, 2, 0, "oiyx",   "oixy?",      {{1, 16}}}},
+                { os_yxi_osv16,                                { 1, 1, 2, 0, "oyxi",   "oixy?",      {{0, 16}}}},
+                { os_iyx_osv16,                                { 1, 1, 2, 0, "oiyx",   "oixy?",      {{0, 16}}}},
+                { os_iyx_osv32,                                { 1, 1, 2, 0, "oiyx",   "oixy?",      {{0, 32}}}},
+                { os_iyx_osv64,                                { 1, 1, 2, 0, "oiyx",   "oixy?",      {{0, 64}}}},
+                { winograd_2x3_s1_weights,                     { 1, 1, 2, 0, "oiyx",   "oixy?",      {}}},
+                { winograd_2x3_s1_fused_weights,               { 1, 1, 2, 0, "xyio",   "oixy?",      {}}},
+                { winograd_6x3_s1_fused_weights,               { 1, 1, 2, 0, "xyio",   "oixy?",      {}}},
+                { image_2d_weights_winograd_6x3_s1_fbxyb,      { 1, 1, 2, 0, "xyio",   "oixy?",      {}}},
+                { image_2d_weights_winograd_6x3_s1_xfbyb,      { 1, 1, 2, 0, "xyio",   "oixy?",      {}}},
+                { image_2d_weights_c4_fyx_b,                   { 1, 1, 2, 0, "oiyx",   "oixy?",      {}}},
+                { image_2d_weights_c1_b_fyx,                   { 1, 1, 2, 0, "oiyx",   "oixy?",      {}}},
+                { lstm_weights_dio,                            { 1, 1, 2, 0, "oixy",   "oixy?",      {}}},
+                { os_is_yx_isa8_osv8_isv4,                     { 1, 1, 2, 0, "oiyx",   "oixy?",      {}}},
+                { os_is_yx_isa8_osv16_isv4,                    { 1, 1, 2, 0, "oiyx",   "oixy?",      {}}},
+                { os_is_yx_isa8_osv8_isv4_swizzled_by_4,       { 1, 1, 2, 0, "oiyx",   "oixy?",      {}}},
+                { os_is_yx_osa4_isa8_osv8_isv2,                { 1, 1, 2, 0, "oiyx",   "oixy?",      {{0, 32}, {1, 16}}}},
+                { os_is_yx_osa4_isa8_osv8_isv4,                { 1, 1, 2, 0, "oiyx",   "oixy",      {{0, 32}, {1, 32}}}},
+                { os_is_zyx_osa4_isa8_osv8_isv2,               { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 16}}}},
+                { os_is_zyx_osa4_isa8_osv8_isv4,               { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
+                { os_is_yx_osa2_isa8_osv16_isv2,               { 1, 1, 2, 0, "oiyx",   "oixy",       {{0, 32}, {1, 16}}}},
+                { os_is_yx_osa2_isa8_osv16_isv4,               { 1, 1, 2, 0, "oiyx",   "oixy",       {{0, 32}, {1, 32}}}},
+                { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 8}, {1, 4}}}},
+                { os_is_zyx_isa8_osv16_isv4,                   { 1, 1, 3, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 4}}}},
+                { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, "oiyx",   "oixy?",      {{0, 32}, {1, 32}}}},
+                { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
+                { is_o_yx_isv32,                               { 1, 1, 2, 0, "oyxi",   "oixy?",      {{1, 32}}}},
+                { is_o32_yx_isv32_swizzled_by_4,               { 1, 1, 2, 0, "oyxi",   "oixy?",      {}}},
+                { os_is_y_x8_osv8_isv4,                        { 1, 1, 2, 0, "oyxi",   "oixy?",      {}}},
+                { os_is_y_x8_osv8_isv4_swizzled_by_4,          { 1, 1, 2, 0, "oyxi",   "oixy?",      {}}},
+                { os_is_yx_osv16_isv4,                         { 1, 1, 2, 0, "oixy",   "oixy?",      {{0, 16}, {1, 4}}}},
+                { os_is_yx_osv8_isv4,                          { 1, 1, 2, 0, "oiyx",   "oixy",       {{1, 4}, {0, 8}}}},
+                { os_is_yx_osv8_isv2,                          { 1, 1, 2, 0, "oiyx",   "oixy",       {{1, 2}, {0, 8}}}},
+                { os_is_zyx_osv16_isv16,                       { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 16}, {1, 16}}}},
+                { os_is_yx_osv32_isv4_swizzled_by_2,           { 1, 1, 2, 0, "oixy",   "oixy?",      {{0, 32}, {1, 4}}}},
+                { os_is_yx_osv32_isv4,                         { 1, 1, 2, 0, "oixy",   "oixy?",      {{0, 32}, {1, 4}}}},
+                { os_is_zyx_osv32_isv4,                        { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 4}}}},
+                { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, "oixy",   "oixy?",      {}}},
+                { os_is_zyx_isv16_osv16,                       { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 16}, {1, 16}}}},
+                { is_os_zyx_isv16_osv16,                       { 1, 1, 3, 0, "iozyx",  "oixyz",      {{1, 16}, {0, 16}}}},
+                { is_os_yx_isv16_osv16,                        { 1, 1, 2, 0, "ioyx",   "oixyz",      {{1, 16}, {0, 16}}}},
+                { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, "oixy",   "oixy?",      {{0, 32}, {1, 32}}}},
+                { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 2}}}},
+                { os_zyxi_osv16,                               { 1, 1, 3, 0, "ozyxi",  "oixyz",      {{0, 16}}}},
+                { os_is_yx_isv8_osv16_isv2,                    { 1, 1, 2, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 2}}}},
+                { os_is_yx_osv16_isv16,                        { 1, 1, 2, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
+                { os_is_zyx_osv32_isv16,                       { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 16}}}},
+                { os_is_zyx_osv64_isv16,                       { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 64}, {1, 16}}}},
+                { os_iyx_osv32__ai32,                          { 1, 1, 2, 0, "oiyx",   "oixy",       {{0, 32}}}},
+                { i_yxs_os_yxsv2_osv16,                        { 1, 1, 2, 0, "iyxo",   "oixy",       {{0, 16}}}},
+                { iy_xs_os_xsv2_osv8__ao32,                    { 1, 1, 2, 0, "iyxo",   "oixy",       {{2, 2}, {0, 8}}}},
+                { iy_xs_os_xsv2_osv16__ao32,                   { 1, 1, 2, 0, "iyxo",   "oixy",       {{2, 2}, {0, 16}}}},
+                { os_i_yxs_osv4_yxsv4,                         { 1, 1, 2, 0, "oiyx",   "oixy",       {{0, 4}}}},
 
-                { goiyx,                                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {}}},
-                { gioyx,                                       { 1, 1, 2, 0, 1, "gioyx",  "oixy????g",  {}}},
-                { goizyx,                                      { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {}}},
-                { giozyx,                                      { 1, 1, 3, 0, 1, "giozyx", "oixyz???g",  {}}},
-                { g_os_iyx_osv16,                              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 16}}}},
-                { g_os_iyx_osv32,                              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 32}}}},
-                { gs_oiyx_gsv16,                               { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 16}}}},
-                { gs_oizyx_gsv16,                              { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{8, 16}}}},
-                { gs_oiyx_gsv32,                               { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 32}}}},
-                { gyxio,                                       { 1, 1, 2, 0, 1, "gyxio",  "oixy????g",  {}}},
-                { g_is_os_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "giozyx", "oixyz???g",  {{1, 16}, {0, 16}}}},
-                { g_is_os_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "gioyx",  "oixy????g",  {{1, 16}, {0, 16}}}},
-                { g_os_is_zyx_isv8_osv16_isv2,                 { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{1, 8}, {0, 16}, {1, 2}}}},
-                { g_os_is_yx_isv8_osv16_isv2,                  { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{1, 8}, {0, 16}, {1, 2}}}},
-                { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{0, 16}, {1, 16}}}},
-                { g_os_is_yx_osv16_isv4,                       { 1, 1, 2, 0, 1, "goixy",  "oixy????g",  {{0, 16}, {1, 4}}}},
-                { g_os_is_zyx_osv16_isv16,                     { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{0, 16}, {1, 16}}}},
-                { g_os_zyx_is_osv16_isv4,                      { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 16}, {1, 4}}}},
-                { g_os_zyx_is_osv16_isv16,                     { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 16}, {1, 16}}}},
-                { g_os_zyx_is_osv16_isv32,                     { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 16}, {1, 32}}}},
-                { g_os_zyx_is_osv32_isv4,                      { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 32}, {1, 4}}}},
-                { g_os_zyx_is_osv32_isv16,                     { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 32}, {1, 16}}}},
-                { g_os_zyx_is_osv32_isv32,                     { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 32}, {1, 32}}}},
-                { g_os_is_yx_osa4_isa8_osv8_isv4,              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 32}, {1, 32}}}},
-                { g_os_is_zyx_osa4_isa8_osv8_isv4,             { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{0, 32}, {1, 32}}}},
-                { g_os_is_yx_osa4_isa8_osv8_isv2,              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 32}, {1, 16}}}},
-                { g_os_is_zyx_osa4_isa8_osv8_isv2,             { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{0, 32}, {1, 16}}}},
-                { g_os_is_yx_osa2_isa8_osv16_isv4,             { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 32}, {1, 32}}}},
-                { g_os_is_yx_osa2_isa8_osv16_isv2,             { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 32}, {1, 16}}}},
-                { gs_oi_yxs_gsv4_yxsv4,                        { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 4}}}},
-                { gs_oi_yxs_gsv16_yxsv4,                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 16}}}},
-                { gs_oi_yxs_gsv32_yxsv4,                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 32}}}},
-                { g_os_is_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{1, 16}, {0, 16}}}},
-                { gi_yxs_os_yxsv2_osv16,                       { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{0, 16}}}},
-                { giy_xs_os_xsv2_osv8__ao32,                   { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 8}}}},
-                { giy_xs_os_xsv2_osv16__ao32,                  { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 16}}}},
+                { goiyx,                                       { 1, 1, 2, 1, "goiyx",  "oixy??g",  {}}},
+                { gioyx,                                       { 1, 1, 2, 1, "gioyx",  "oixy??g",  {}}},
+                { goizyx,                                      { 1, 1, 3, 1, "goizyx", "oixyz?g",  {}}},
+                { giozyx,                                      { 1, 1, 3, 1, "giozyx", "oixyz?g",  {}}},
+                { g_os_iyx_osv16,                              { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{0, 16}}}},
+                { g_os_iyx_osv32,                              { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{0, 32}}}},
+                { gs_oiyx_gsv16,                               { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{6, 16}}}},
+                { gs_oizyx_gsv16,                              { 1, 1, 3, 1, "goizyx", "oixyz?g",  {{6, 16}}}},
+                { gs_oiyx_gsv32,                               { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{6, 32}}}},
+                { gyxio,                                       { 1, 1, 2, 1, "gyxio",  "oixy??g",  {}}},
+                { g_is_os_zyx_isv16_osv16,                     { 1, 1, 3, 1, "giozyx", "oixyz?g",  {{1, 16}, {0, 16}}}},
+                { g_is_os_yx_isv16_osv16,                      { 1, 1, 2, 1, "gioyx",  "oixy??g",  {{1, 16}, {0, 16}}}},
+                { g_os_is_zyx_isv8_osv16_isv2,                 { 1, 1, 3, 1, "goizyx", "oixyz?g",  {{1, 8}, {0, 16}, {1, 2}}}},
+                { g_os_is_yx_isv8_osv16_isv2,                  { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{1, 8}, {0, 16}, {1, 2}}}},
+                { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 1, "goizyx", "oixyz?g",  {{0, 16}, {1, 16}}}},
+                { g_os_is_yx_osv16_isv4,                       { 1, 1, 2, 1, "goixy",  "oixy??g",  {{0, 16}, {1, 4}}}},
+                { g_os_is_zyx_osv16_isv16,                     { 1, 1, 3, 1, "goizyx", "oixyz?g",  {{0, 16}, {1, 16}}}},
+                { g_os_zyx_is_osv16_isv4,                      { 1, 1, 3, 1, "gozyxi", "oixyz?g",  {{0, 16}, {1, 4}}}},
+                { g_os_zyx_is_osv16_isv16,                     { 1, 1, 3, 1, "gozyxi", "oixyz?g",  {{0, 16}, {1, 16}}}},
+                { g_os_zyx_is_osv16_isv32,                     { 1, 1, 3, 1, "gozyxi", "oixyz?g",  {{0, 16}, {1, 32}}}},
+                { g_os_zyx_is_osv32_isv4,                      { 1, 1, 3, 1, "gozyxi", "oixyz?g",  {{0, 32}, {1, 4}}}},
+                { g_os_zyx_is_osv32_isv16,                     { 1, 1, 3, 1, "gozyxi", "oixyz?g",  {{0, 32}, {1, 16}}}},
+                { g_os_zyx_is_osv32_isv32,                     { 1, 1, 3, 1, "gozyxi", "oixyz?g",  {{0, 32}, {1, 32}}}},
+                { g_os_is_yx_osa4_isa8_osv8_isv4,              { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{0, 32}, {1, 32}}}},
+                { g_os_is_zyx_osa4_isa8_osv8_isv4,             { 1, 1, 3, 1, "goizyx", "oixyz?g",  {{0, 32}, {1, 32}}}},
+                { g_os_is_yx_osa4_isa8_osv8_isv2,              { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{0, 32}, {1, 16}}}},
+                { g_os_is_zyx_osa4_isa8_osv8_isv2,             { 1, 1, 3, 1, "goizyx", "oixyz?g",  {{0, 32}, {1, 16}}}},
+                { g_os_is_yx_osa2_isa8_osv16_isv4,             { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{0, 32}, {1, 32}}}},
+                { g_os_is_yx_osa2_isa8_osv16_isv2,             { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{0, 32}, {1, 16}}}},
+                { gs_oi_yxs_gsv4_yxsv4,                        { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{6, 4}}}},
+                { gs_oi_yxs_gsv16_yxsv4,                       { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{6, 16}}}},
+                { gs_oi_yxs_gsv32_yxsv4,                       { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{6, 32}}}},
+                { g_os_is_yx_isv16_osv16,                      { 1, 1, 2, 1, "goiyx",  "oixy??g",  {{1, 16}, {0, 16}}}},
+                { gi_yxs_os_yxsv2_osv16,                       { 1, 1, 2, 1, "giyxo",  "oixy??g",  {{0, 16}}}},
+                { giy_xs_os_xsv2_osv8__ao32,                   { 1, 1, 2, 1, "giyxo",  "oixy??g",  {{2, 2}, {0, 8}}}},
+                { giy_xs_os_xsv2_osv16__ao32,                  { 1, 1, 2, 1, "giyxo",  "oixy??g",  {{2, 2}, {0, 16}}}},
         };
         if (traits.find(fmt) == traits.end()) {
             throw std::runtime_error("[clDNN] Format description is missing in fmt traits");
@@ -381,8 +374,6 @@ struct format {
     static size_t feature_num(type fmt) { return traits(fmt).feature_num; }
     /// @brief Returns number of spatial dimensions for a @p format.
     static size_t spatial_num(type fmt) { return traits(fmt).spatial_num; }
-    /// @brief Returns number of local dimensions for a @p format.
-    static size_t local_num(type fmt) { return traits(fmt).local_num; }
     /// @brief Returns number of group dimensions for a @p format.
     static size_t group_num(type fmt) { return traits(fmt).group_num; }
     /// @brief Returns an order of dimensions for a @ format.
@@ -442,8 +433,6 @@ struct format {
     size_t feature_num() const { return traits(value).feature_num; }
     /// @brief Returns number of spatial dimensions.
     size_t spatial_num() const { return traits(value).spatial_num; }
-    /// @brief Returns number of local dimensions.
-    size_t local_num() const { return traits(value).local_num; }
     /// @brief Returns number of group dimensions.
     size_t group_num() const { return traits(value).group_num; }
     /// @brief Returns an order of dimensions in form of string.
@@ -483,9 +472,8 @@ struct format {
 constexpr int32_t tensor_batch_dim_max = 1;
 constexpr int32_t tensor_feature_dim_max = 1;
 constexpr int32_t tensor_spatial_dim_max = 4;
-constexpr int32_t tensor_local_dim_max = 2;
 constexpr int32_t tensor_group_dim_max = 1;
-constexpr int32_t tensor_dim_max = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_local_dim_max + tensor_group_dim_max;
+constexpr int32_t tensor_dim_max = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_group_dim_max;
 
 struct tensor;
 
@@ -496,7 +484,6 @@ enum class dim_vec_kind {
     batch,
     feature,
     spatial,
-    local,
     group
 };
 
@@ -525,15 +512,9 @@ struct dim_vec_limits<dim_vec_kind::spatial> {
 };
 
 template <>
-struct dim_vec_limits<dim_vec_kind::local> {
-    static constexpr int32_t max_dimentionality = tensor_local_dim_max;
-    static constexpr int32_t dim_offset = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max;
-};
-
-template <>
 struct dim_vec_limits<dim_vec_kind::group> {
     static constexpr int32_t max_dimentionality = tensor_group_dim_max;
-    static constexpr int32_t dim_offset = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_local_dim_max;
+    static constexpr int32_t dim_offset = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max;
 };
 
 /// @brief Template class used in tensor constructor using dim_vec_kinds
@@ -571,11 +552,6 @@ details::dim_vec_kind_init<details::dim_vec_kind::spatial> spatial(InitTys&&... 
 }
 
 template <typename... InitTys>
-details::dim_vec_kind_init<details::dim_vec_kind::local> local(InitTys&&... inits) {
-    return details::dim_vec_kind_init<details::dim_vec_kind::local>(std::forward<InitTys>(inits)...);
-}
-
-template <typename... InitTys>
 details::dim_vec_kind_init<details::dim_vec_kind::group> group(InitTys&&... inits) {
     return details::dim_vec_kind_init<details::dim_vec_kind::group>(std::forward<InitTys>(inits)...);
 }
@@ -585,7 +561,6 @@ struct tensor {
     friend class details::dim_vec_kind_init<details::dim_vec_kind::batch>;
     friend class details::dim_vec_kind_init<details::dim_vec_kind::feature>;
     friend class details::dim_vec_kind_init<details::dim_vec_kind::spatial>;
-    friend class details::dim_vec_kind_init<details::dim_vec_kind::local>;
     friend class details::dim_vec_kind_init<details::dim_vec_kind::group>;
 
     typedef int32_t value_type;  ///< Values type stored in tensor.
@@ -594,7 +569,6 @@ struct tensor {
     mutable_array_ref<value_type> batch;    ///< Batch dimensions.
     mutable_array_ref<value_type> feature;  ///< Feature maps.
     mutable_array_ref<value_type> spatial;  ///< Spatial dimensions.
-    mutable_array_ref<value_type> local;    ///< Local dimensions.
     mutable_array_ref<value_type> group;    ///< Group dimensions.
 
 private:
@@ -606,8 +580,7 @@ public:
         batch(_sizes, tensor_batch_dim_max),
         feature(_sizes + tensor_batch_dim_max, tensor_feature_dim_max),
         spatial(_sizes + tensor_batch_dim_max + tensor_feature_dim_max, tensor_spatial_dim_max),
-        local(_sizes + tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max, tensor_local_dim_max),
-        group(_sizes + tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_local_dim_max, tensor_group_dim_max) {
+        group(_sizes + tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max, tensor_group_dim_max) {
         std::fill_n(_sizes, tensor_dim_max, default_size);
     }
 

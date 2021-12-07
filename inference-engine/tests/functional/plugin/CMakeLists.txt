@@ -12,7 +12,7 @@ if (ENABLE_INTEL_GPU)
     add_subdirectory(gpu)
 endif()
 
-if (ENABLE_GNA)
+if (ENABLE_INTEL_GNA)
     add_subdirectory(gna)
 endif()
 

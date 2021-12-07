@@ -456,11 +456,6 @@ void program::init_graph() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
 
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layout();
-    }
-
     apply_opt_pass<calculate_prior_boxes>();
 
     apply_opt_pass<mark_nodes>();
@@ -1164,7 +1159,8 @@ std::string program::get_implementation_info(const primitive_id& id) const {
     try {
         const auto& node = get_node(id);
         auto impl = node.get_selected_impl();
-        return impl ? (impl->get_kernel_name() + "__" + dt_to_str(get_inference_precision(node))) : "undef";
+        auto kernel_name = impl ? impl->get_kernel_name() : "";
+        return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
     } catch (...) { }
 
     return "undef";

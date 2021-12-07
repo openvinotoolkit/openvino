@@ -277,7 +277,7 @@ Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& 
 std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank, const Layout& dst) {
     auto check_trivial = [](std::vector<int64_t>& res) -> std::vector<int64_t>& {
         size_t i = 0;
-        while (res[i] == i && i < res.size()) {
+        while (i < res.size() && res[i] == i) {
             i++;
         }
         if (i == res.size()) {
@@ -425,10 +425,14 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
 }
 
 bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
-    std::string layout_str = m_value.to_string();
+    std::string layout_str = value.to_string();
     visitor.on_attribute("layout", layout_str);
-    m_value = Layout(layout_str);
+    value = Layout(layout_str);
     return true;
+}
+
+std::string LayoutAttribute::to_string() const {
+    return value.to_string();
 }
 
 }  // namespace ov

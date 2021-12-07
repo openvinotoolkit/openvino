@@ -189,6 +189,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
 endif()
 
 #
+# nlohmann json
+#
+if(ENABLE_SAMPLES OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE)
+    add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
+endif()
+
+#
 # Install
 #
 

@@ -199,6 +199,54 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
     }
 }
 
+/** @brief Fill a memory area with a sorted sequence of unique elements randomly generated.
+ *
+ *  This function generates and fills a blob of a certain precision, with a
+ *  sorted sequence of unique elements.
+ *
+ * @param rawBlobDataPtr pointer to destination memory area
+ * @param size number of elements in destination memory
+ * @param range Values range
+ * @param start_from Value from which range should start
+ * @param k Resolution of floating point numbers.
+ * - With k = 1 every random number will be basically integer number.
+ * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
+ * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
+ * @param seed seed of random generator
+ */
+template <typename T>
+void inline fill_random_unique_sequence(T* rawBlobDataPtr,
+                                        std::size_t size,
+                                        uint64_t range,
+                                        int64_t start_from = 0,
+                                        const int64_t k = 1,
+                                        const int32_t seed = 1) {
+    if (start_from < 0 && !std::is_signed<T>::value) {
+        start_from = 0;
+    }
+
+    if (range < size) {
+        range = size * 2;
+    }
+
+    std::mt19937 generator(seed);
+    std::uniform_int_distribution<int64_t> dist(k * start_from, k * (start_from + range));
+
+    std::set<T> elems;
+    while (elems.size() != size) {
+        auto value = static_cast<float>(dist(generator));
+        value /= static_cast<float>(k);
+        if (std::is_same<ngraph::float16, T>::value) {
+            elems.insert(static_cast<T>(ngraph::float16(value).to_bits()));
+        } else if (std::is_same<ngraph::bfloat16, T>::value) {
+            elems.insert(static_cast<T>(ngraph::bfloat16(value).to_bits()));
+        } else {
+            elems.insert(static_cast<T>(value));
+        }
+    }
+    std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
+}
+
 /** @brief Fill blob with random data.
  *
  * @param blob Target blob
@@ -368,6 +416,18 @@ void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::
                                                                int32_t start_from,
                                                                const int32_t k, const int seed) {
     fill_data_random_float<InferenceEngine::Precision::BF16>(blob, range, start_from, k, seed);
+}
+
+template <class T>
+static ov::runtime::Tensor create_tensor(
+        const ov::element::Type& element_type,
+        const ov::Shape& shape,
+        const std::vector<T>& values,
+        const size_t size = 0) {
+    const size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
+    ov::runtime::Tensor tensor { element_type, shape };
+    std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
+    return tensor;
 }
 
 template<typename T>

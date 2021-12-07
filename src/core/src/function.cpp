@@ -513,9 +513,7 @@ bool ov::Function::evaluate(const HostTensorVector& output_tensors,
 bool ov::Function::evaluate(ov::runtime::TensorVector& output_tensors,
                             const ov::runtime::TensorVector& input_tensors,
                             ov::EvaluationContext evaluation_context) const {
-    if (evaluation_context.find("VariableContext") == evaluation_context.end())
-        evaluation_context["VariableContext"] =
-            std::make_shared<VariantWrapper<ov::op::util::VariableContext>>(ov::op::util::VariableContext());
+    evaluation_context.emplace("VariableContext", ov::op::util::VariableContext());
     std::map<RawNodeOutput, ov::runtime::Tensor> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i) {
         value_map[m_parameters.at(i)->output(0)] = input_tensors.at(i);

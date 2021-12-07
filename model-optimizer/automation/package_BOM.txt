@@ -85,7 +85,7 @@ extensions/front/caffe/conv_ext.py
 extensions/front/caffe/crop_ext.py
 extensions/front/caffe/ctcgreedydecoder_ext.py
 extensions/front/caffe/CustomLayersMapping.xml.example
-extensions/front/caffe/detection_output.py
+extensions/front/caffe/detection_output_ext.py
 extensions/front/caffe/dropout_ext.py
 extensions/front/caffe/elementwise_ext.py
 extensions/front/caffe/eltwise_add_normalize.py
@@ -269,8 +269,8 @@ extensions/front/onnx/cumsum_ext.py
 extensions/front/onnx/deformable_conv_ext.py
 extensions/front/onnx/depth_to_space_ext.py
 extensions/front/onnx/dequantize_linear_ext.py
-extensions/front/onnx/detection_output.py
-extensions/front/onnx/detectionoutput_ext.py
+extensions/front/onnx/detection_output_ext.py
+extensions/front/onnx/detection_output_onnx_ext.py
 extensions/front/onnx/dropout_ext.py
 extensions/front/onnx/einsum_ext.py
 extensions/front/onnx/elementwise_ext.py
@@ -678,8 +678,8 @@ extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
 extensions/ops/depth_to_space.py
 extensions/ops/dequantize_linear.py
+extensions/ops/detection_output_onnx.py
 extensions/ops/DetectionOutput.py
-extensions/ops/detectionoutput_onnx.py
 extensions/ops/dft.py
 extensions/ops/einsum.py
 extensions/ops/elementwise.py
@@ -805,6 +805,7 @@ mo/back/__init__.py
 mo/back/ie_ir_ver_2/__init__.py
 mo/back/ie_ir_ver_2/emitter.py
 mo/back/offline_transformations.py
+mo/back/preprocessing.py
 mo/back/replacement.py
 mo/front/__init__.py
 mo/front/caffe/__init__.py
@@ -835,7 +836,6 @@ mo/front/common/partial_infer/concat.py
 mo/front/common/partial_infer/crop.py
 mo/front/common/partial_infer/elemental.py
 mo/front/common/partial_infer/eltwise.py
-mo/front/common/partial_infer/multi_box_detection.py
 mo/front/common/partial_infer/multi_box_prior.py
 mo/front/common/partial_infer/roipooling.py
 mo/front/common/partial_infer/utils.py
