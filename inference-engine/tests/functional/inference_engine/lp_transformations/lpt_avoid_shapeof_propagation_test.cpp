@@ -227,9 +227,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationFakeQuantizeDecompositionTransf
     auto shapeOf = std::make_shared<opset1::ShapeOf>(fakeQuantize);
 
     auto& outInfo = fakeQuantize->output(0).get_rt_info();
-    auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(element::TypeVector{ element::u8, element::i8 });
-    auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
-    outInfo.emplace(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name, attributeWrapper);
+    outInfo.emplace(PrecisionsAttribute::get_type_info_static(), PrecisionsAttribute(element::TypeVector{ element::u8, element::i8 }));
 
     auto result1 = std::make_shared<opset1::Result>(fakeQuantize);
     auto result2 = std::make_shared<opset1::Result>(shapeOf);

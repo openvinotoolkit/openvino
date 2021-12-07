@@ -284,7 +284,8 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
         {
             ngraph::element::u8,
             {{}, { { 128.f }, ngraph::element::f32, {}, false }, {}},
-            {{}, { { 2.f }, ngraph::element::f32, {1, 2, 1, 1}, true, 1ul, element::i8, false, { "disabled_constant_folding_0" }  }, {}},
+            {{}, { { 2.f }, ngraph::element::f32, {1, 2, 1, 1}, true, 1ul, element::i8, false,
+                   { ov::pass::DisableConstantFolding::get_type_info_static() }  }, {}},
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
             true

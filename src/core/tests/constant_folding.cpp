@@ -3177,7 +3177,7 @@ TEST(constant_folding, disable_constant_folding) {
     auto constant_shape = op::Constant::create(element::i64, Shape{1}, {3});
     auto dyn_reshape = make_shared<op::v1::Reshape>(input, constant_shape, true);
     auto& rt_info = dyn_reshape->get_rt_info();
-    rt_info["disabled_constant_folding_0"];
+    rt_info[ov::pass::DisableConstantFolding::get_type_info_static()];
     auto f = make_shared<Function>(dyn_reshape, ParameterVector{input});
 
     pass::Manager pass_manager;
