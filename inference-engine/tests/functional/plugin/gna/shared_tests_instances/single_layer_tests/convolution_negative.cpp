@@ -69,7 +69,7 @@ const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 const std::vector<std::vector<size_t >> dilations2DInvalid = { {2, 2},
 };
 const std::vector<size_t> numOutChannels2D = { 32 };
-const std::vector<size_t> numOutChannels2DInvalid = { 1, 7, 9, 400 };
+const std::vector<size_t> numOutChannels2DInvalid = { 1, 7, 9, 1032 };
 
 const std::vector<std::vector<size_t>> input2DNCHWFine = { { 1, 8, 20, 16 } };
 

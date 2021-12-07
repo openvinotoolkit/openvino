@@ -103,7 +103,7 @@ class Validator {
     RangeLimit2D inputHWLimit{ { 16, 384, "input height"} , { 16, 240, "input width"} };
     RangeMultipleLimit inputChannelsNumberLimit{ {8, 384, "number of input channels"}, 8 };
 
-    RangeMultipleLimit kernelNumberLimit{ {8, 256, "number of kernels"}, 8 };
+    RangeMultipleLimit kernelNumberLimit{ {8, 1024, "number of kernels"}, 8 };
     RectLimitByChannelsAndPrecision kernelLimit {
         { { {96, {7, 7}},
             {136, {7, 5}},
