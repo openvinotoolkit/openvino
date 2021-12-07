@@ -336,12 +336,29 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
                                                ev_ze,
                                                0,
                                                nullptr));
-
+    _ze_stream.finish();
     return ev;
 }
 
-event::ptr gpu_usm::copy_from(stream& /* stream */, const void* /* host_ptr */) {
-    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_usm");
+event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
+    //throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_usm");
+    auto& _ze_stream = downcast<const ze_stream>(stream);
+    //auto& casted = downcast<const gpu_usm>(other);
+    auto dst_ptr = get_buffer().get();
+    auto src_ptr = host_ptr;//downcast<const gpu_usm>(other).get_buffer().get();
+    //_ze_stream.get_usm_helper().enqueue_memcpy(_ze_stream.get_queue(),
+    auto ev = stream.create_user_event(true);
+    auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
+    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
+                                               dst_ptr,
+                                               src_ptr,
+                                               _bytes_count,
+                                               ev_ze,
+                                               0,
+                                               nullptr));
+    //ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
+    _ze_stream.finish();
+    return ev;
 }
 
 shared_mem_params gpu_usm::get_internal_params() const {
