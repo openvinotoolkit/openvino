@@ -95,7 +95,6 @@ setup(
     entry_points={
         'console_scripts': [
             'mo = openvino.tools.mo.__main__:main',
-            'summarize_graph = openvino.tools.mo.utils.summarize_graph:main'
         ],
     },
     package_data={

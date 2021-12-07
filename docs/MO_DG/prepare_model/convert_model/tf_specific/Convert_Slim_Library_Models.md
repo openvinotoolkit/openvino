@@ -41,7 +41,7 @@ python3 tf_models/research/slim/export_inference_graph.py \
 Model Optimizer comes with the summarize graph utility, which identifies graph input and output nodes. Run the utility to determine input/output nodes of the Inception V1 model:
     
 ```sh
-python3 mo/utils/summarize_graph.py --input_model ./inception_v1_inference_graph.pb
+python3 <PYTHON_SITE_PACKAGES>/openvino/tools/mo/utils/summarize_graph.py --input_model ./inception_v1_inference_graph.pb
 ```
 
 The output looks as follows:<br>
