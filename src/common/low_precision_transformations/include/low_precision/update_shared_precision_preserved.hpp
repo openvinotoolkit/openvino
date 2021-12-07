@@ -51,11 +51,9 @@ public:
 
                 // TODO: check if node can be quantized, if not, then doesn't update
                 for (auto input : node->inputs()) {
-                    auto precisionsAttributeWrapper = getAttribute<PrecisionsAttributePtr>(input);
-                    if (precisionsAttributeWrapper != nullptr) {
-                        const auto precisionsAttribute = precisionsAttributeWrapper->get();
-                        assert(precisionsAttribute != nullptr);
-                        if (precisionsAttribute->sharedValue->precisions.empty()) {
+                    auto precisionsAttributeWrapper = getAttribute<PrecisionsAttribute>(input);
+                    if (!precisionsAttributeWrapper.empty()) {
+                        if (precisionsAttributeWrapper.as<PrecisionsAttribute>().value().empty()) {
                             return false;
                         }
                     }
@@ -63,16 +61,15 @@ public:
 
                 for (auto input : node->inputs()) {
                     if (needToCheckExpectedAttributeType) {
-                        if (getAttribute<ExpectedAttributeType>(input) == nullptr) {
+                        if (getAttribute<ExpectedAttributeType>(input).empty()) {
                             return false;
                         }
                     }
                     auto parentAttribute = getSourceAttribute(input);
-                    if (parentAttribute == nullptr) {
+                    if (parentAttribute.empty()) {
                         continue;
                     }
-
-                    parentAttribute->get()->sharedValue->value = true;
+                    parentAttribute.template as<AttributeType>().value() = true;
                 }
             }
 
@@ -95,11 +92,11 @@ private:
         return input;
     }
 
-    std::shared_ptr<ngraph::VariantWrapper<AttributeType>> getSourceAttribute(const Input<Node>& input) {
+    ov::Any getSourceAttribute(const Input<Node>& input) {
         const auto dequantizationInput = getDequantizationInput(input);
         const auto output = dequantizationInput.get_source_output();
         auto attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
-        if (attribute == nullptr) {
+        if (attribute.empty()) {
             attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node_shared_ptr());
         }
         return attribute;
