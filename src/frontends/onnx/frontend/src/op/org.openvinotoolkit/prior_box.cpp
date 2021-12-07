@@ -51,7 +51,7 @@ OutputVector prior_box(const Node& node) {
     attrs.fixed_ratio = node.get_attribute_value<std::vector<float>>("fixed_ratio", {});
     attrs.fixed_size = node.get_attribute_value<std::vector<float>>("fixed_size", {});
     attrs.density = node.get_attribute_value<std::vector<float>>("density", {});
-    attrs.min_max_aspect_ratios_order = node.get_attribute_value<bool>("min_max_aspect_ratios_order", true);
+    attrs.min_max_aspect_ratios_order = node.get_attribute_value<int64_t>("min_max_aspect_ratios_order", 1);
 
     auto axes = default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
 
