@@ -16,7 +16,8 @@
 #include "format_reader_ptr.h"
 
 #include "inputs_filling.hpp"
-#include "shared_blob_allocator.h"
+#include "shared_blob_allocator.hpp"
+#include "utils.hpp"
 // clang-format on
 
 using namespace InferenceEngine;
@@ -158,8 +159,18 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
     char* data = new char[blob_size * sizeof(T)];
 
+    // adjust batch size
+    std::stringstream ss;
+    ss << inputInfo.originalLayout;
+    std::string layout = ss.str();
+    if (layout.find("N") == std::string::npos) {
+        batchSize = 1;
+    } else if (inputInfo.batch() != batchSize) {
+        batchSize = inputInfo.batch();
+    }
+
     for (size_t b = 0; b < batchSize; ++b) {
-        auto inputIndex = (inputId + b) % files.size();
+        size_t inputIndex = (inputId + b) % files.size();
         std::ifstream binaryFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
         if (!binaryFile) {
             IE_THROW() << "Cannot open " << files[inputIndex];
