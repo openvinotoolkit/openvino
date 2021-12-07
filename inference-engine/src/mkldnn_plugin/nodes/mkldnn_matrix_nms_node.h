@@ -48,10 +48,10 @@ private:
     static const size_t NMS_SELECTED_INDICES = 1;
     static const size_t NMS_VALID_OUTPUTS = 2;
 
-    size_t m_numBatches;
-    size_t m_numBoxes;
-    size_t m_numClasses;
-    size_t m_maxBoxesPerBatch;
+    size_t m_numBatches = 0;
+    size_t m_numBoxes = 0;
+    size_t m_numClasses = 0;
+    size_t m_maxBoxesPerBatch = 0;
 
     MatrixNmsSortResultType m_sortResultType;
     bool m_sortResultAcrossBatch;

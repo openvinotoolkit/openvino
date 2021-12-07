@@ -26,9 +26,10 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
     k.DisableTuning();
-    k.EnableLocalConvolution();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();
+    k.EnableDeformableMask();
+    k.EnableBilinearInterpolationPad();
     return k;
 }
 
@@ -68,6 +69,9 @@ JitConstants DeformableConvolutionKernel_bfyx_interp::GetJitConstants(const conv
                      });
     jit.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});
     jit.AddConstants({MakeJitConstant("DEFORMABLE_MODE", params.deformable_mode)});
+    jit.AddConstants({MakeJitConstant("DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
+    jit.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
+
     return jit;
 }
 

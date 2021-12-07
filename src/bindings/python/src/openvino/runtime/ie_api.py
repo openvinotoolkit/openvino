@@ -38,19 +38,16 @@ def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
 
 def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
     """Get all precisions from object inputs."""
-    return {i.get_node().get_friendly_name(): i.get_node().get_element_type() for i in obj.inputs}
+    return {i.get_any_name(): i.get_element_type() for i in obj.inputs}
 
 
 class InferRequest(InferRequestBase):
     """InferRequest wrapper."""
 
-    def infer(self, inputs: dict = None) -> List[np.ndarray]:
+    def infer(self, inputs: dict = None) -> dict:
         """Infer wrapper for InferRequest."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        res = super().infer(inputs)
-        # Required to return list since np.ndarray forces all of tensors data to match in
-        # dimensions. This results in errors when running ops like variadic split.
-        return [copy.deepcopy(tensor.data) for tensor in res]
+        return super().infer(inputs)
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for InferRequest."""
@@ -65,13 +62,10 @@ class ExecutableNetwork(ExecutableNetworkBase):
         """Create new InferRequest object."""
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: dict = None) -> List[np.ndarray]:
+    def infer_new_request(self, inputs: dict = None) -> dict:
         """Infer wrapper for ExecutableNetwork."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        res = super().infer_new_request(inputs)
-        # Required to return list since np.ndarray forces all of tensors data to match in
-        # dimensions. This results in errors when running ops like variadic split.
-        return [copy.deepcopy(tensor.data) for tensor in res]
+        return super().infer_new_request(inputs)
 
 
 class AsyncInferQueue(AsyncInferQueueBase):

@@ -238,12 +238,12 @@ For general details on the heterogeneous plugin, refer to the [corresponding sec
 
 ### Trying the Heterogeneous Plugin with Inference Engine Samples <a name="heterogeneous-plugin-with-samples"></a>
 
-Every Inference Engine sample supports the `-d` (device) option.
+Target device cand be specified from command line for every Inference Engine sample. 
 
-For example, here is a command to run an [Object Detection Sample SSD Sample](../../samples/cpp/object_detection_sample_ssd/README.md):
+For example, here is a command to run an [Classification Sample Async](../../samples/cpp/classification_sample_async/README.md):
 
 ```sh
-./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:GPU,CPU
+./classification_sample_async -m  <path_to_model>/Model.xml -i <path_to_pictures>/picture.jpg -d HETERO:GPU,CPU
 ```
 
 where:
