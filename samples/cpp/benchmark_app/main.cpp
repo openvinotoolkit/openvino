@@ -734,8 +734,8 @@ int main(int argc, char* argv[]) {
                 slog::warn << "Only " << nireq << " test configs will be used." << slog::endl;
             size_t i = 0;
             for (auto& inferRequest : inferRequestsQueue.requests) {
-                auto input = app_inputs_info[i % app_inputs_info.size()];
-                for (auto& item : input) {
+                auto inputs = app_inputs_info[i % app_inputs_info.size()];
+                for (auto& item : inputs) {
                     auto inputName = item.first;
                     const auto& inputBlob = inputsData.at(inputName)[i % inputsData.at(inputName).size()];
                     // for remote blobs setBlob is used, they are already allocated on the device
@@ -767,12 +767,12 @@ int main(int argc, char* argv[]) {
         }
 
         if (!inferenceOnly) {
-            auto input = app_inputs_info[0];
+            auto inputs = app_inputs_info[0];
 
-            for (auto& item : input) {
-                auto input_name = item.first;
-                const auto& data = inputsData.at(input_name)[0];
-                inferRequest->setBlob(input_name, data);
+            for (auto& item : inputs) {
+                auto inputName = item.first;
+                const auto& data = inputsData.at(inputName)[0];
+                inferRequest->setBlob(inputName, data);
             }
 
             if (useGpuMem) {
@@ -816,20 +816,20 @@ int main(int argc, char* argv[]) {
             }
 
             if (!inferenceOnly) {
-                auto input = app_inputs_info[iteration % app_inputs_info.size()];
+                auto inputs = app_inputs_info[iteration % app_inputs_info.size()];
 
                 if (FLAGS_pcseq) {
                     inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
                 }
 
                 if (isDynamicNetwork) {
-                    batchSize = getBatchSize(input);
+                    batchSize = getBatchSize(inputs);
                 }
 
-                for (auto& item : input) {
-                    auto input_name = item.first;
-                    const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
-                    inferRequest->setBlob(input_name, data);
+                for (auto& item : inputs) {
+                    auto inputName = item.first;
+                    const auto& data = inputsData.at(inputName)[iteration % inputsData.at(inputName).size()];
+                    inferRequest->setBlob(inputName, data);
                 }
 
                 if (useGpuMem) {
