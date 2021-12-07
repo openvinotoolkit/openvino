@@ -255,7 +255,13 @@ static void regclass_graph_InputTensorInfo(py::module m) {
     });
     info.def("set_spatial_static_shape", [](ov::preprocess::InputTensorInfo& me, size_t height, size_t width) {
         return &me.set_spatial_static_shape(height, width);
-        ;
+    });
+    info.def("set_shape", [](ov::preprocess::InputTensorInfo& me, const ov::PartialShape& shape) {
+        return &me.set_shape(shape);
+    });
+    // Allow to use set_shape([1,2,3]) in Python code, not set_shape(PartialShape([1,2,3]))
+    info.def("set_shape", [](ov::preprocess::InputTensorInfo& me, const std::vector<int64_t>& shape) {
+        return &me.set_shape(shape);
     });
     info.def("set_color_format",
              [](ov::preprocess::InputTensorInfo& me,
