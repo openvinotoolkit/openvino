@@ -183,12 +183,13 @@ public:
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     bool are_data_types_suitable_for_onednn(program_node& node);
+    bool are_layouts_suitable_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
     // can be fused into next.
     bool can_fuse_reorder(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
-    bool can_fuse_reorder_to_prev(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
+    bool can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next);
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
@@ -202,5 +203,11 @@ public:
     size_t get_total_conv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
+
+    /// @brief Validates if this convolution satisfies condition to support mixed format execution from bfyx to blocked fsv16 or fsv32.
+    /// This validation is used by selecting onednn type as preferred impl and handling reorders at reorder_inputs and remove_redundant_reorders.
+    /// As an example, if a reorder has 2 reorder users that each reorder has a convolution user, then merge is not done when those 2 convolutions
+    /// have different result from this function.
+    bool needs_onednn_bfyx_to_blocked(format fmt_prev, format fmt_next, layout& prev_output_layout, const convolution_node& node);
 };
 }  // namespace cldnn

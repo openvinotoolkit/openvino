@@ -91,11 +91,12 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
 
     json_composite interp_info;
     interp_info.add("stride", strd.to_string());
-    interp_info.add("input offset", desc->input_offset.to_string());
+    interp_info.add("pad", desc->pad.to_string());
     interp_info.add("split", split);
     interp_info.add("dilation", dilation.to_string());
     interp_info.add("deformable_groups", desc->deformable_groups);
     interp_info.add("groups", desc->groups);
+    interp_info.add("bilinear_interpolation_pad", desc->bilinear_interpolation_pad);
 
     json_composite ud_out_size_info;
     ud_out_size_info.add("size", desc->output_size.to_string());

@@ -113,7 +113,7 @@ When the script completes, you see the label and confidence for the top-10 categ
 
 Top 10 results:
 
-Image /home/user/dldt/inference-engine/samples/sample_data/car.png
+Image /home/user/openvino/samples/cpp/sample_data/car.png
 
 classid probability label
 ------- ----------- -----
@@ -366,7 +366,7 @@ When the Sample Application completes, you see the label and confidence for the 
 ```sh
 Top 10 results:
 
-Image /home/user/dldt/inference-engine/samples/sample_data/car.png
+Image /home/user/openvino/samples/cpp/sample_data/car.png
 
 classid probability label
 ------- ----------- -----
@@ -432,13 +432,6 @@ Template to call sample code or a demo application:
 <path_to_app> -i <path_to_media> -m <path_to_model> -d <target_device>
 ```
 
-With the sample information specified, the command might look like this:
-
-```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/ir/fp32/mobilenet-ssd.xml -d CPU
-```
-
 ## <a name="advanced-samples"></a> Advanced Demo Use
 
 Some demo applications let you use multiple models for different purposes. In these cases, the output of the first model is usually used as the input for later models.
@@ -452,22 +445,6 @@ In these cases, the use pattern in the last part of the template above is usuall
 For head pose:
 
 `-m_hp <headpose model> -d_hp <headpose hardware target>`
-
-**Example of an Entire Command (object_detection + head pose):**
-
-```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/ir/fp32/mobilenet-ssd.xml -d CPU -m_hp headpose.xml \
--d_hp CPU
-``` 
-
-**Example of an Entire Command (object_detection + head pose + age-gender):**
-
-```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/r/fp32/mobilenet-ssd.xml -d CPU -m_hp headpose.xml \
--d_hp CPU -m_ag age-gender.xml -d_ag CPU
-```
 
 You can see all the sample application’s parameters by adding the `-h` or `--help` option at the command line.
 

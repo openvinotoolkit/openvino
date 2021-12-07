@@ -21,6 +21,7 @@ public:
             : parent(prim, prog),
               split(this->get_primitive()->split()),
               depthwise_sep_opt(false),
+              transposed(false),
               groups(this->get_primitive()->groups) {
         support_padding_all(true);
     }
@@ -132,6 +133,7 @@ public:
 
     program_node& input() const { return get_dependency(0); }
     program_node& trans() const { return get_dependency(1); }
+    program_node& mask() const { return get_dependency(2); }
 
 private:
     int32_t split;
@@ -155,6 +157,7 @@ public:
     typed_primitive_inst(network& network, deformable_interp_node const& node);
 
     memory& trans_memory() const { return dep_memory(1); }
+    memory& mask_memory() const { return dep_memory(2); }
 };
 
 using deformable_interp_inst = typed_primitive_inst<deformable_interp>;

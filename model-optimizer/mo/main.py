@@ -45,7 +45,7 @@ from mo.utils.versions_checker import check_requirements  # pylint: disable=no-n
 from mo.utils.telemetry_utils import get_tid
 
 # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEndManager
+from openvino.frontend import FrontEndManager, TelemetryExtension
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -205,7 +205,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     except Exception as e:
         raise_ie_not_found()
 
-    if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
+    # temporary disable new FP16 generation
+    if False and 'data_type' in argv and argv.data_type in ['FP16', 'half']:
         argv.data_type = 'FP32'
         argv.compress_fp16 = True
     else:
@@ -315,13 +316,17 @@ def arguments_post_parsing(argv: argparse.Namespace):
 def prepare_ir(argv):
     argv = arguments_post_parsing(argv)
 
+    t = tm.Telemetry()
     graph = None
     ngraph_function = None
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     if moc_front_end:
+        t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
+        moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
         ngraph_function = moc_pipeline(argv, moc_front_end)
     else:
+        t.send_event("mo", "conversion_method", "mo_legacy")
         graph = unified_pipeline(argv)
 
     return graph, ngraph_function
@@ -365,7 +370,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                                          "--input_model", orig_model_name,
                                          "--framework", argv.framework,
                                          "--transform", argv.transform]
-                if argv.compress_fp16:
+                if "compress_fp16" in argv and argv.compress_fp16:
                     cmd += ["--compress_fp16"]
                     # restore data_type cmd parameter
                     argv.data_type = 'FP16'

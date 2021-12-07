@@ -125,28 +125,47 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
         const uint out_f = idx_f;
         const uint out_b = idx_b;
     #else
-        uint pitch_acc = 1;
-        uint output_batch_size = 0;
-        for (int i = BATCH_DIMS - 1; i >= 0; i--) {
-            output_batch_size += (idx_arr[i] * pitch_acc);
-            pitch_acc *= idx_dim[i];
-        }
+        #if BATCH_MERGED_OUTPUT
+            uint pitch_acc = 1;
+            uint output_batch_size = 0;
+            for (int i = BATCH_DIMS - 1; i >= 0; i--) {
+                output_batch_size += (idx_arr[i] * pitch_acc);
+                pitch_acc *= idx_dim[i];
+            }
 
-        #if OUTPUT_DIMS == 4
-            const uint out_x = idx_arr[BATCH_DIMS+2];
-            const uint out_y = idx_arr[BATCH_DIMS+1];
-        #elif OUTPUT_DIMS == 5
-            const uint out_x = idx_arr[BATCH_DIMS+3];
-            const uint out_y = idx_arr[BATCH_DIMS+2];
-            const uint out_z = idx_arr[BATCH_DIMS+1];
+            #if OUTPUT_DIMS == 4
+                const uint out_x = idx_arr[BATCH_DIMS+2];
+                const uint out_y = idx_arr[BATCH_DIMS+1];
+            #elif OUTPUT_DIMS == 5
+                const uint out_x = idx_arr[BATCH_DIMS+3];
+                const uint out_y = idx_arr[BATCH_DIMS+2];
+                const uint out_z = idx_arr[BATCH_DIMS+1];
+            #else
+                const uint out_x = idx_arr[BATCH_DIMS+4];
+                const uint out_y = idx_arr[BATCH_DIMS+3];
+                const uint out_z = idx_arr[BATCH_DIMS+2];
+                const uint out_w = idx_arr[BATCH_DIMS+1];
+            #endif
+            const uint out_f = idx_arr[BATCH_DIMS+0];
+            const uint out_b = output_batch_size;
         #else
-            const uint out_x = idx_arr[BATCH_DIMS+4];
-            const uint out_y = idx_arr[BATCH_DIMS+3];
-            const uint out_z = idx_arr[BATCH_DIMS+2];
-            const uint out_w = idx_arr[BATCH_DIMS+1];
+            #if OUTPUT_DIMS == 4
+                const uint out_x = idx_arr[3];
+                const uint out_y = idx_arr[2];
+            #elif OUTPUT_DIMS == 5
+                const uint out_x = idx_arr[4];
+                const uint out_y = idx_arr[3];
+                const uint out_z = idx_arr[2];
+            #else
+                const uint out_x = idx_arr[5];
+                const uint out_y = idx_arr[4];
+                const uint out_z = idx_arr[3];
+                const uint out_w = idx_arr[2];
+            #endif
+            const uint out_f = idx_arr[1];
+            const uint out_b = idx_arr[0];
+
         #endif
-        const uint out_f = idx_arr[BATCH_DIMS+0];
-        const uint out_b = output_batch_size;
     #endif
 
     const uint output_idx = GET_OUTPUT_INDEX(OUT_ORDER);

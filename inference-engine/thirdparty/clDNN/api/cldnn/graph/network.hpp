@@ -160,6 +160,7 @@ public:
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::string get_primitive_info(const primitive_id& id) const;
+    std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     bool has_event(const primitive_id& id) const { return _events.count(id); }
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
@@ -167,6 +168,7 @@ public:
     void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                            const std::vector<event::ptr>& events);
     void allocate_primitives();
+    void configure_primitives_second_output();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
     stream& get_stream() const { return *_stream; }
@@ -181,6 +183,9 @@ public:
                                     std::set<primitive_id> dependencies,
                                     allocation_type type,
                                     bool reusable = true);
+    memory_pool& get_memory_pool() {
+        return *_memory_pool;
+    }
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;

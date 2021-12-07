@@ -195,14 +195,14 @@ public:
         return engine;
     }
 
+    bool isInPlace();
+
     // must be called only after MKLDNNGraph::InitEdges()
     virtual bool isExecutable() const {
         return true;
     }
 
     bool isConstant();
-
-    bool isInplace() const;
 
     bool isFusedWith(Type type) const;
 
@@ -336,6 +336,10 @@ public:
             selectedPrimitiveDescriptorIndex = -1;
         else
             selectedPrimitiveDescriptorIndex = index;
+
+        // Each primitive descriptor has its own InPlace status. So after new primitive descriptor selection
+        // we should reset InPlace type to definite new status for node using MKLDNNNode::isInPlace()
+        inplace = InPlaceType::Unknown;
     }
 
     std::string getPrimitiveDescriptorType();
@@ -388,7 +392,8 @@ public:
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                return srcDescs[i]->isCompatible(*selectedDescs[i].desc);
+                if (!srcDescs[i]->isCompatible(*selectedDescs[i].desc))
+                    return false;
             }
             return true;
         };
@@ -615,11 +620,17 @@ protected:
     bool permanent = false;
     bool temporary = false;
     int dynBatchLim = 0;
+    enum class InPlaceType {
+        Unknown,
+        InPlace,
+        NoInPlace
+    };
     enum class ConstantType {
         Unknown,
         Const,
         NoConst
     };
+    InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
@@ -706,6 +717,8 @@ protected:
     bool isDynamic = false;
 
     bool inputShapesDefined() const;
+    bool outputShapesDefined() const;
+    bool shapesDefined() const;
     void updateLastInputDims();
 
     bool inputShapesModified() const;
@@ -725,7 +738,6 @@ protected:
     }
 
     std::vector<VectorDims> lastInputDims = {};
-
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
 private:
