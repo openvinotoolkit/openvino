@@ -628,6 +628,43 @@ TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
                  p.build(), ov::AssertFailure);
 }
 
+TEST(pre_post_process, tensor_set_shape_incompatible) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    auto p = PrePostProcessor(f);
+    EXPECT_THROW(p.input().tensor().set_shape({1, 4, 224, 224});
+                         p.build(), ov::AssertFailure);
+}
+
+// Check that 'set_shape' shall not be used together with set_spatial_..._shape
+// This test can be removed if this requirement is relaxed in future releases
+TEST(pre_post_process, tensor_set_shape_with_spatial) {
+    auto f = create_simple_function(element::f32, PartialShape{-1, -1, -1, -1});
+    {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        EXPECT_THROW(p.input().tensor().set_shape({1, 3, 224, 224}).set_spatial_static_shape(448, 448);
+                             p.build(), ov::AssertFailure);
+    }
+    {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        EXPECT_THROW(p.input().tensor().set_spatial_static_shape(448, 448).set_shape({1, 3, 224, 224});
+                             p.build(), ov::AssertFailure);
+    }
+    {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        EXPECT_THROW(p.input().tensor().set_shape({1, 3, 224, 224}).set_spatial_dynamic_shape();
+                             p.build(), ov::AssertFailure);
+    }
+    {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        EXPECT_THROW(p.input().tensor().set_spatial_dynamic_shape().set_shape({1, 3, 224, 224});
+                             p.build(), ov::AssertFailure);
+    }
+}
+
 TEST(pre_post_process, resize_no_tensor_height) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);

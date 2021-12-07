@@ -69,12 +69,14 @@ public:
     }
 
     void set_spatial_dynamic_shape() {
+        OPENVINO_ASSERT(!m_shape_set, "'set_spatial_dynamic_shape' and 'set_shape' shall not be used together");
         m_spatial_shape_set = true;
         m_spatial_width = -1;
         m_spatial_height = -1;
     }
 
     void set_spatial_static_shape(size_t height, size_t width) & {
+        OPENVINO_ASSERT(!m_shape_set, "'set_spatial_static_shape' and 'set_shape' shall not be used together");
         m_spatial_shape_set = true;
         m_spatial_height = static_cast<int>(height);
         m_spatial_width = static_cast<int>(width);
@@ -122,6 +124,20 @@ public:
         return m_memory_type_set;
     }
 
+    void set_shape(const PartialShape& shape) {
+        OPENVINO_ASSERT(!m_spatial_shape_set, "'set_spatial_static_shape', 'set_spatial_dynamic_shape', 'set_shape' shall not be used together");
+        m_shape = shape;
+        m_shape_set = true;
+    }
+
+    bool is_shape_set() const {
+        return m_shape_set;
+    }
+
+    const PartialShape& get_shape() const {
+        return m_shape;
+    }
+
 private:
     ColorFormat m_color_format = ColorFormat::UNDEFINED;
     std::vector<std::string> m_planes_sub_names;
@@ -138,6 +154,9 @@ private:
 
     std::string m_memory_type = {};
     bool m_memory_type_set = false;
+
+    PartialShape m_shape = {};
+    bool m_shape_set = false;
 };
 
 class OutputTensorInfo::OutputTensorInfoImpl : public TensorInfoImplBase {};
@@ -371,6 +390,9 @@ std::shared_ptr<Function> PrePostProcessor::build() {
 
         auto net_shape = param->get_partial_shape();
         auto new_param_shape = net_shape;
+        if (input->get_tensor_data()->is_shape_set()) {
+            new_param_shape = input->get_tensor_data()->get_shape();
+        }
         if (input->get_tensor_data()->is_layout_set() && !param->get_layout().empty() &&
             param->get_layout() != input->get_tensor_data()->get_layout()) {
             // Find transpose between network and tensor layouts and update tensor shape
@@ -488,7 +510,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         auto node = nodes[0];
 
         // Check final shape
-        OPENVINO_ASSERT(node.get_partial_shape().refines(param->get_partial_shape()),
+        OPENVINO_ASSERT(node.get_partial_shape().compatible(param->get_partial_shape()),
                         "Resulting shape '",
                         node.get_partial_shape(),
                         "' after preprocessing is not aligned with original parameter's shape: ",
@@ -647,6 +669,11 @@ InputTensorInfo& InputTensorInfo::set_color_format(const ov::preprocess::ColorFo
 
 InputTensorInfo& InputTensorInfo::set_memory_type(const std::string& memory_type) {
     m_impl->set_memory_type(memory_type);
+    return *this;
+}
+
+InputTensorInfo& InputTensorInfo::set_shape(const PartialShape& shape) {
+    m_impl->set_shape(shape);
     return *this;
 }
 

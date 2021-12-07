@@ -766,6 +766,36 @@ static RefPreprocessParams convert_color_i420_single_plane() {
     return res;
 }
 
+static RefPreprocessParams set_shape_custom_crop() {
+    RefPreprocessParams res("set_shape_custom_crop");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{2, 2, 2, 2});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_shape({-1, -1, -1, -1});
+        p.input().preprocess().custom([](const Output<Node>& node) {
+            // Add custom crop to model's dimensions using 'Slice' operation
+            // Middle part 2x2x2x2 of original user's 4x4x4x4 input tensor will be extracted
+            auto start = opset8::Constant::create(element::i32, {4}, {1, 1, 1, 1});
+            auto stop = opset8::Constant::create(element::i32, {4}, {3, 3, 3, 3});
+            auto step = opset8::Constant::create(element::i32, {4}, {1, 1, 1, 1});
+            auto axis = opset8::Constant::create(element::i32, {4}, {0, 1, 2, 3});
+            auto slice = std::make_shared<opset8::Slice>(node, start, stop, step, axis);
+            return slice;
+        });
+        p.build();
+        return f;
+    };
+    auto input_size = 4 * 4 * 4 * 4;
+    std::vector<float> input_values(input_size);
+    std::iota(input_values.begin(), input_values.end(), 0);
+    res.inputs.emplace_back(element::f32, Shape{4, 4, 4, 4}, input_values);
+    res.expected.emplace_back(Shape{2, 2, 2, 2}, element::f32, std::vector<float>{ 85,  86,  89,  90,
+                                                                                  101, 102, 105, 106,
+                                                                                  149, 150, 153, 154,
+                                                                                  165, 166, 169, 170});
+    return res;
+}
+
 static RefPreprocessParams postprocess_2_inputs_basic() {
     RefPreprocessParams res("postprocess_2_inputs_basic");
     res.function = []() {
@@ -1018,6 +1048,7 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
             element_type_before_convert_color_nv12(),
             convert_color_i420_to_bgr_three_planes(),
             convert_color_i420_single_plane(),
+            set_shape_custom_crop(),
             postprocess_2_inputs_basic(),
             post_convert_layout_by_dims(),
             post_convert_layout_by_dims_multi(),
