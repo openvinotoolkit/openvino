@@ -218,8 +218,8 @@ public:
     static void replaceAttributeInNodes(
         std::shared_ptr<ngraph::Function> f,
         const std::string& name,
-        const std::shared_ptr<ngraph::Variant> newAttribute,
-        const std::shared_ptr<ngraph::Variant> oldAttribute,
+        const ov::Any& newAttribute,
+        const ov::Any& oldAttribute,
         const std::shared_ptr<ngraph::Node>& initialNode) {
         std::set<std::shared_ptr<Node>> visited;
         std::deque<std::shared_ptr<Node>> nodes;
@@ -246,7 +246,7 @@ public:
                     auto it = rt.find(name);
                     if (it != rt.end()) {
                         const auto currentAttribute = it->second;
-                        if (oldAttribute == as_type_ptr<ngraph::Variant>(currentAttribute)) {
+                        if (oldAttribute == currentAttribute) {
                             rt[name] = newAttribute;
                         }
                         handleConnectedNodes = true;
@@ -296,10 +296,10 @@ public:
         }
     }
 
-    template <typename SharedValueType, typename SharedAttributeType>
+    template <typename SharedAttribute>
     static void reassign(
-        const std::shared_ptr<SharedValueType>& sharedValue,
-        const std::vector<std::weak_ptr<SharedAttributeType>>& attributes) {
+        const std::shared_ptr<typename SharedAttribute::SharedValueAttribute::SharedValue>& sharedValue,
+        const std::vector<std::weak_ptr<typename SharedAttribute::SharedValueAttribute>>& attributes) {
         for (const auto attributeWeakPtr : attributes) {
             auto attribute = attributeWeakPtr.lock();
             if (attribute == nullptr) {
@@ -415,52 +415,36 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
 }
 
 template <typename T>
-std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const std::shared_ptr<Node>& inputNode) {
-    auto& rt = inputNode->get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+ov::Any getAttribute(const std::shared_ptr<Node>& node) {
+    auto& rt = node->get_rt_info();
+    auto it = rt.find(T::get_type_info_static());
     if (it == rt.end()) {
-        return nullptr;
+        return {};
     }
-
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
-    assert(attribute != nullptr);
-    return attribute;
+    return it->second;
 }
 
 template <typename T>
-std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const Input<Node>& input) {
+ov::Any getAttribute(const Input<Node>& input) {
     auto& rt = input.get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    auto it = rt.find(T::get_type_info_static());
     if (it == rt.end()) {
-        return nullptr;
+        return {};
     }
-
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
-    assert(attribute != nullptr);
-    return attribute;
+    return it->second;
 }
 
 template <typename T>
-std::shared_ptr<ngraph::VariantWrapper<T>> getAttributeFromOutput(const Output<Node>& output) {
+ov::Any getAttributeFromOutput(const Output<Node>& output) {
     auto& rt = output.get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    auto it = rt.find(T::get_type_info_static());
     if (it == rt.end()) {
-        return nullptr;
+        return {};
     }
-
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
-    assert(attribute != nullptr);
-    return attribute;
+    return it->second;
 }
 
 bool isDisabled(const std::shared_ptr<Node>& node);
-
-template <typename T, typename ... Args>
-std::shared_ptr<T> make_shared_attribute(Args&& ... args) {
-    std::shared_ptr<T> attribute = std::make_shared<T>(std::forward<Args>(args)...);
-    attribute->sharedValue->attributes.push_back(attribute);
-    return attribute;
-}
 
 }  // namespace low_precision
 }  // namespace pass

@@ -12,7 +12,6 @@
 #include "common/telemetry_extension.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/core/variant.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
@@ -72,9 +71,9 @@ public:
 
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
-    bool supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
+    bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
-    ov::frontend::InputModel::Ptr load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
+    ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
 private:
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
