@@ -43,9 +43,15 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
         if (values.size() == 1) {
             shape = Shape{1};
         } else {
-            shape = construct_mean_scale_shape(nodes[0].get_node_shared_ptr(), values.size(), context);
+            shape = construct_mean_scale_shape(nodes[0], values.size(), context);
         }
-        auto constant = op::v0::Constant::create(element::f32, shape, values);
+        auto element_type = nodes[0].get_element_type();
+        OPENVINO_ASSERT(element_type.is_real(),
+                        "Scale preprocessing can be applied to 'float' inputs. Consider using of "
+                        "'convert_element_type' before scaling. Current type is: ",
+                        element_type);
+
+        auto constant = op::v0::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
@@ -66,7 +72,13 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
         } else {
             shape = construct_mean_scale_shape(nodes[0], values.size(), context);
         }
-        auto constant = op::v0::Constant::create(element::f32, shape, values);
+        auto element_type = nodes[0].get_element_type();
+        OPENVINO_ASSERT(element_type.is_real(),
+                        "Mean preprocessing can be applied to 'float' inputs. Consider using of 'convert_element_type' "
+                        "before scaling. Current type is: ",
+                        element_type);
+
+        auto constant = op::v0::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);

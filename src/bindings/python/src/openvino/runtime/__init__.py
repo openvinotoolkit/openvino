@@ -44,6 +44,7 @@ from openvino.runtime.impl import Function
 from openvino.runtime.impl import Node
 from openvino.runtime.impl import PartialShape
 from openvino.runtime.impl import Layout
+from openvino.runtime.impl import layout_helpers
 
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import ExecutableNetwork
