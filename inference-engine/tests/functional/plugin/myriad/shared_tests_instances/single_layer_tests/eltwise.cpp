@@ -32,6 +32,9 @@ std::vector<ov::test::ElementType> fpTypes = {
 
 std::vector<ov::test::ElementType> intTypes = {
         ov::element::i32,
+        ov::element::u32,
+        ov::element::i64,
+        ov::element::u64,
 };
 
 std::vector<CommonTestUtils::OpType> opTypes = {

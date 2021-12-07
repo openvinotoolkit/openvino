@@ -236,6 +236,9 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
         case InferenceEngine::Precision::I32:
             callCompare<int32_t>(expected, reinterpret_cast<const int32_t *>(actualBuffer), size, threshold, abs_threshold);
             break;
+        case InferenceEngine::Precision::U32:
+            callCompare<uint32_t>(expected, reinterpret_cast<const uint32_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
         case InferenceEngine::Precision::I64:
             callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, threshold, abs_threshold);
             break;

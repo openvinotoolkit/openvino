@@ -26,8 +26,6 @@ using namespace vpu;
 using namespace vpu::MyriadPlugin;
 using namespace InferenceEngine;
 
-#define MEMCPY(dst, src, bytes) std::copy_n((src), (bytes), (dst))
-
 MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                        const std::vector<std::shared_ptr<const ov::Node>>& outputs,
@@ -119,6 +117,104 @@ void MyriadInferRequest::InferImpl() {
     GetResult();
 }
 
+static bool needsTypeConvert(const Precision& precision) {
+    switch (precision) {
+        case Precision::FP16:
+        case Precision::FP32:
+        case Precision::I32:
+            return false;
+        case Precision::I64:
+        case Precision::U64:
+        case Precision::BOOL:
+            return true;
+        default:
+            return false;
+    }
+    return false;
+}
+
+template <typename T, typename U>
+static void convert(const T* const src, U* dst, size_t n) {
+    std::transform(src, src + n, dst, [] (T i) -> U { return static_cast<U>(i); });
+}
+
+static const char* const NOT_ENOUGH_INPUT_SPACE_ERR_MSG = "Not enough space available in inputBuffer. Either input offset or input size is too big";
+
+static void convertInput(const uint8_t* const src, uint8_t* dst, const Precision& precision, size_t size, size_t remainingSize) {
+    size_t numElements = 0;
+    // U32 -> I32 is handled in copyInput by std::copy_n, unless blob layout != vpuLayout
+    // then assert "Unimplemented blob transformation from precision .. to .." in ie::blob_copy fires
+    switch (precision) {
+        case Precision::I64:
+            numElements = size / sizeof(int64_t);
+            IE_ASSERT((numElements * sizeof(int32_t)) <= remainingSize) << NOT_ENOUGH_INPUT_SPACE_ERR_MSG;
+            convert(reinterpret_cast<const int64_t* const>(src), reinterpret_cast<int32_t*>(dst), numElements);
+            return;
+        case Precision::U64:
+            numElements = size / sizeof(uint64_t);
+            IE_ASSERT((numElements * sizeof(int32_t)) <= remainingSize) << NOT_ENOUGH_INPUT_SPACE_ERR_MSG;
+            convert(reinterpret_cast<const uint64_t* const>(src), reinterpret_cast<int32_t*>(dst), numElements);
+            return;
+        case Precision::BOOL:
+            numElements = size / sizeof(bool);
+            IE_ASSERT((numElements * sizeof(int32_t)) <= remainingSize) << NOT_ENOUGH_INPUT_SPACE_ERR_MSG;
+            convert(reinterpret_cast<const bool* const>(src), reinterpret_cast<int32_t*>(dst), numElements);
+            return;
+        default:
+            return;
+    }
+}
+
+static void convertOutput(const uint8_t* src, uint8_t* dst, const Precision& precision, size_t size) {
+    switch (precision) {
+        case Precision::I64:
+            convert(reinterpret_cast<const int32_t*>(src), reinterpret_cast<int64_t*>(dst), size / sizeof(int64_t));
+            return;
+        case Precision::U64:
+            convert(reinterpret_cast<const int32_t*>(src), reinterpret_cast<uint64_t*>(dst), size / sizeof(uint64_t));
+            return;
+        case Precision::BOOL:
+            convert(reinterpret_cast<const int32_t*>(src), reinterpret_cast<bool*>(dst), size / sizeof(bool));
+            return;
+        default:
+            return;
+    }
+}
+
+static void copyInput(const ie::Blob::Ptr& inputBlob, uint8_t* dst, size_t size, size_t remainingSize, ie::Layout layout, ie::Layout vpuLayout) {
+    const auto& precision = inputBlob->getTensorDesc().getPrecision();
+    bool needsConvert = needsTypeConvert(precision);
+    if (!needsConvert) {
+        IE_ASSERT(size <= remainingSize) << NOT_ENOUGH_INPUT_SPACE_ERR_MSG;
+        if (layout != vpuLayout) {
+            copyBlob(inputBlob, vpuLayout, dst);
+        } else {
+            std::copy_n(inputBlob->buffer().as<uint8_t*>(), size, dst);
+        }
+    } else {
+        IE_ASSERT(layout == vpuLayout) << "Can't convert blob with layout not matching vpu layout";
+        convertInput(inputBlob->buffer().as<uint8_t*>(), dst, precision, size, remainingSize);
+    }
+}
+
+static void copyOutput(uint8_t* src, const ie::Blob::Ptr& outputBlob, const Precision& outPrec, const SizeVector& outDims, ie::Layout vpuLayout) {
+    bool needsConvert = needsTypeConvert(outPrec);
+    const auto layout = outputBlob->getTensorDesc().getLayout();
+    if (!needsConvert) {
+        if (layout != vpuLayout) {
+            // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
+            const auto tempTensorDesc = ie::TensorDesc{outPrec, outDims, vpuLayout};
+            const auto tmpBlob = make_blob_with_precision(tempTensorDesc, src);
+            copyBlob(tmpBlob, outputBlob);
+        } else {
+            std::copy_n(src, outputBlob->byteSize(), outputBlob->buffer().as<uint8_t*>());
+        }
+    } else {
+        IE_ASSERT(layout == vpuLayout) << "Can't convert blob with layout not matching vpu layout";
+        convertOutput(src, outputBlob->buffer().as<uint8_t*>(), outPrec, outputBlob->byteSize());
+    }
+}
+
 void MyriadInferRequest::InferAsync() {
     if (_isNetworkConstant) {
         return;
@@ -151,21 +247,13 @@ void MyriadInferRequest::InferAsync() {
 
         const auto offset = getOffset(name);
         const auto byteSize = blob->byteSize();
-        const auto requiredSize = vpu::checked_cast<size_t>(offset) + byteSize;
-        IE_ASSERT(requiredSize <= inputBuffer.size())  << "MyriadInferRequest::InferAsync()\n"
-                                                    << "Input offset is too big. "
-                                                    << "Required size: " << requiredSize
-                                                    << ", Input buffer size: " << inputBuffer.size();
-
+        const auto remainingSize = inputBuffer.size() - vpu::checked_cast<size_t>(offset);
         const auto foundBlob = getNetInputInfo(name);
         const auto vpuLayout = foundBlob->second->getTensorDesc().getLayout();
         const auto layout = blob->getTensorDesc().getLayout();
 
-        if (layout != vpuLayout) {
-            copyBlob(blob, vpuLayout, &inputBuffer[offset]);
-        } else {
-            MEMCPY(&inputBuffer[offset], blob->buffer().as<uint8_t*>(), byteSize);
-        }
+        copyInput(blob, &inputBuffer[offset], byteSize, remainingSize, layout, vpuLayout);
+
         const auto offsetShape = inputInfo.offset.find(name+"_real_shape");
         if (offsetShape == inputInfo.offset.end()) {
             continue;
@@ -182,14 +270,20 @@ void MyriadInferRequest::InferAsync() {
     _executor->queueInference(_graphDesc, inputBuffer.data(),
                             _inputInfo.totalSize, nullptr, 0);
 }
+
 static void copyBlobAccordingUpperBound(
     const Blob::Ptr& in,
     const Blob::Ptr& out) {
-    const auto inLayout = in->getTensorDesc().getLayout();
-    const auto outLayout = out->getTensorDesc().getLayout();
+    const auto& inDesc = in->getTensorDesc();
+    const auto& outDesc = out->getTensorDesc();
+    const auto inLayout = inDesc.getLayout();
+    const auto outLayout = outDesc.getLayout();
 
-    const auto& inBlockingDesc = in->getTensorDesc().getBlockingDesc();
-    const auto& outBlockingDesc = out->getTensorDesc().getBlockingDesc();
+    const auto& outPrec = outDesc.getPrecision();
+    bool needsConvert = needsTypeConvert(outPrec);
+
+    const auto& inBlockingDesc = inDesc.getBlockingDesc();
+    const auto& outBlockingDesc = outDesc.getBlockingDesc();
 
     const auto& inDims = inBlockingDesc.getBlockDims();
     const auto& outDims = outBlockingDesc.getBlockDims();
@@ -226,7 +320,11 @@ static void copyBlobAccordingUpperBound(
         }
         if (!isGarbageLine) {
             // We transfer outLineByteSize bytes, so garbage data at the end of the line is not copied.
-            std::copy_n(inPtr + inByteOffset, outLineByteSize, outPtr + outByteOffset);
+            if (!needsConvert) {
+                std::copy_n(inPtr + inByteOffset, outLineByteSize, outPtr + outByteOffset);
+            } else {
+                convertOutput(inPtr + inByteOffset, outPtr + outByteOffset, outPrec, outLineByteSize);
+            }
             outByteOffset += outLineByteSize;
         }
     }
@@ -261,7 +359,7 @@ void MyriadInferRequest::GetResult() {
         const auto& name = (*it).first;
         const auto& blob = (*it).second;
 
-        if (blob->getTensorDesc().getLayout() == getVpuLayout(name)) {
+        if (blob->getTensorDesc().getLayout() == getVpuLayout(name) && !needsTypeConvert(blob->getTensorDesc().getPrecision())) {
             _executor->getResult(_graphDesc, blob->buffer(), static_cast<unsigned>(blob->byteSize()));
             return;
         }
@@ -324,11 +422,7 @@ void MyriadInferRequest::GetResult() {
 
             copyBlobAccordingUpperBound(tmpBlob, ieBlob);
         } else {
-            // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
-            const auto tempTensorDesc = ie::TensorDesc{ieOutPrc, ieOutDims, getVpuLayout(ieBlobName)};
-            const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset(ieBlobName));
-
-            copyBlob(tmpBlob, ieBlob);
+            copyOutput(resultBuffer.data() + resultOffset(ieBlobName), ieBlob, ieOutPrc, ieOutDims, getVpuLayout(ieBlobName));
         }
     }
 }
