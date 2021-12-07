@@ -55,7 +55,7 @@ private:
                                                     const element::Type& expected_output_type, const int64_t axis) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto LogSoftmax = std::make_shared<op::v5::LogSoftmax>(in, axis);
-        return std::make_shared<ov::Function>(NodeVector {LogSoftmax}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {LogSoftmax}, ParameterVector {in});
     }
 };
 

@@ -112,7 +112,7 @@ private:
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto axes_data = std::make_shared<op::v0::Constant>(element::Type_t::i32, Shape{axes.size()}, axes);
         auto normalize = std::make_shared<op::v0::NormalizeL2>(in, axes_data, eps, eps_mode);
-        return std::make_shared<ov::Function>(normalize, ParameterVector{in});
+        return std::make_shared<ov::Model>(normalize, ParameterVector{in});
     }
 };
 

@@ -12,7 +12,7 @@
 
 using namespace std;
 
-bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f) {
+bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Model> f) {
     bool rewritten = pre_calculated_values_folding(f);
 
     for (const auto& node : f->get_ordered_ops()) {

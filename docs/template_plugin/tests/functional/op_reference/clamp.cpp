@@ -57,7 +57,7 @@ private:
                                                     const ov::element::Type& expected_output_type, const double min, const double max) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Clamp = std::make_shared<op::v0::Clamp>(in, min, max);
-        return std::make_shared<ov::Function>(NodeVector {Clamp}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {Clamp}, ParameterVector {in});
     }
 };
 

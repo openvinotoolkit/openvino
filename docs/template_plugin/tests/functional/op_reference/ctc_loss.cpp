@@ -69,7 +69,7 @@ private:
         const auto E = std::make_shared<op::v0::Parameter>(params.blankIdx.type, params.blankIdx.shape);    // blankIdx
 
         const auto ctcLoss = std::make_shared<op::v4::CTCLoss>(A, B, C, D, E, params.preprocessCollapseRepeated, params.ctcMergeRepeated, params.unique);
-        return std::make_shared<ov::Function>(NodeVector {ctcLoss}, ParameterVector {A, B, C, D, E});
+        return std::make_shared<ov::Model>(NodeVector {ctcLoss}, ParameterVector {A, B, C, D, E});
     }
 };
 

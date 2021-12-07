@@ -127,11 +127,11 @@ void CPUTestsBase::CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &exe
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
-    auto function = execNet.get_runtime_function();
+    auto function = execNet.get_runtime_model();
     CheckPluginRelatedResultsImpl(function, std::move(nodeType));
 }
 
-void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
     ASSERT_NE(nullptr, function);
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();

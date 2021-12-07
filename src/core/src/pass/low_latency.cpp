@@ -92,7 +92,7 @@ NGRAPH_SUPPRESS_DEPRECATED_END
 namespace {
 
 void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_graph_op,
-                           const shared_ptr<ov::Function>& outer_f) {
+                           const shared_ptr<ov::Model>& outer_f) {
     using namespace ngraph::opset7;
 
     const auto& params = sub_graph_op->get_function()->get_parameters();
@@ -148,7 +148,7 @@ ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::u
 
 }  // namespace
 
-bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
+bool ov::pass::LowLatency2::run_on_function(shared_ptr<Model> f) {
     using namespace ngraph::opset7;
 
     ngraph::SinkVector assigns;

@@ -203,12 +203,12 @@ public:
     OPENVINO_DEPRECATED("Use MatcherPass instead")
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m, const ov::graph_rewrite_callback& callback);
 
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Model> f) override;
 
     void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
 protected:
-    bool apply_matcher_passes(std::shared_ptr<Function> f, std::deque<std::weak_ptr<Node>> nodes_to_run);
+    bool apply_matcher_passes(std::shared_ptr<Model> f, std::deque<std::weak_ptr<Node>> nodes_to_run);
 
     bool m_enable_shape_inference = false;
 
@@ -223,7 +223,7 @@ public:
 
     explicit BackwardGraphRewrite(const std::shared_ptr<MatcherPass>& pass) : GraphRewrite(pass) {}
 
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Model> f) override;
 };
 
 class OPENVINO_API RecurrentGraphRewrite : public FunctionPass {
@@ -238,7 +238,7 @@ public:
     void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
                      const ov::recurrent_graph_rewrite_callback& callback);
 
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Model> f) override;
 
 private:
     size_t m_num_iters;

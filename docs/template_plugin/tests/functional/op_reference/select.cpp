@@ -61,7 +61,7 @@ private:
         auto A = std::make_shared<op::v0::Parameter>(element::boolean, select_pshape);
         auto B = std::make_shared<op::v0::Parameter>(data_type, if_pshape);
         auto C = std::make_shared<op::v0::Parameter>(data_type, else_pshape);
-        return std::make_shared<ov::Function>(std::make_shared<op::v1::Select>(A, B, C, broadcast), ParameterVector {A, B, C});
+        return std::make_shared<ov::Model>(std::make_shared<op::v1::Select>(A, B, C, broadcast), ParameterVector {A, B, C});
     }
 };
 

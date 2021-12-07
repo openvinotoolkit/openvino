@@ -50,7 +50,7 @@ private:
                                                     const element::Type& HSwishected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto HSwish = std::make_shared<op::v4::HSwish>(in);
-        return std::make_shared<ov::Function>(NodeVector {HSwish}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {HSwish}, ParameterVector {in});
     }
 };
 

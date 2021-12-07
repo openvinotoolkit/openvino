@@ -72,7 +72,7 @@ private:
         const auto offValue = std::make_shared<op::v0::Constant>(params.offValueTensor.type, params.offValueTensor.shape,
                                                               params.offValueTensor.data.data());
         const auto oneHot = std::make_shared<op::v1::OneHot>(data, depth, onValue, offValue, params.axis);
-        function = std::make_shared<ov::Function>(oneHot, ParameterVector{data});
+        function = std::make_shared<ov::Model>(oneHot, ParameterVector{data});
         return function;
     }
 };

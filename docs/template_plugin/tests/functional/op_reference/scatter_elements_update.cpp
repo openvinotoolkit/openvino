@@ -62,7 +62,7 @@ private:
         const auto C = std::make_shared<op::v0::Parameter>(params.updates.type, params.updates.shape);
         const auto D = std::make_shared<op::v0::Parameter>(params.axis.type, params.axis.shape);
         auto scatterElts = std::make_shared<op::v3::ScatterElementsUpdate>(A, B, C, D);
-        return std::make_shared<ov::Function>(NodeVector{scatterElts}, ParameterVector{A, B, C, D});
+        return std::make_shared<ov::Model>(NodeVector{scatterElts}, ParameterVector{A, B, C, D});
     }
 };
 

@@ -89,7 +89,7 @@ private:
                                                                     scores,
                                                                     im_info,
                                                                     params.attrs);
-        return std::make_shared<ov::Function>(ExperimentalDO->outputs(), ParameterVector {rois, deltas, scores, im_info});
+        return std::make_shared<ov::Model>(ExperimentalDO->outputs(), ParameterVector {rois, deltas, scores, im_info});
     }
 };
 

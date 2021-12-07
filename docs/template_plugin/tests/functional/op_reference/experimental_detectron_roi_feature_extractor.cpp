@@ -62,7 +62,7 @@ private:
         }
 
         auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(node_vector, attrs);
-        auto fun = std::make_shared<ov::Function>(OutputVector{roi->output(0), roi->output(1)}, parameter_vector);
+        auto fun = std::make_shared<ov::Model>(OutputVector{roi->output(0), roi->output(1)}, parameter_vector);
         return fun;
     }
 };

@@ -838,7 +838,7 @@ void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
     }
 }
 
-void ReadAndCompareAttributes::verify_function(const std::string& name, FunctionAccessor& adapter) {
+void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAccessor& adapter) {
     if (should_return()) {
         return;
     }

@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "transformations_visibility.hpp"
-#include "openvino/pass/pass.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pass.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API ConvertCompressedOnlyToLegacy;
 class ov::pass::ConvertPrecisionCompressedOnly : public ov::pass::FunctionPass {
 public:
     OPENVINO_RTTI("ConvertPrecisionCompressedOnly", "0");
-    bool run_on_function(std::shared_ptr<Function> f) override;
+    bool run_on_function(std::shared_ptr<Model> f) override;
 };
 
 /**
@@ -46,5 +46,5 @@ public:
 class ov::pass::ConvertCompressedOnlyToLegacy : public ov::pass::FunctionPass {
 public:
     OPENVINO_RTTI("ConvertCompressedOnlyToLegacy", "0");
-    bool run_on_function(std::shared_ptr<Function> f) override;
+    bool run_on_function(std::shared_ptr<Model> f) override;
 };

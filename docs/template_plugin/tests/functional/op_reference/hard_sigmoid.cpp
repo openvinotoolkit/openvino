@@ -63,7 +63,7 @@ private:
         const auto alpha = ngraph::op::Constant::create(input_type, Shape{}, {alphaData});
         const auto beta = ngraph::op::Constant::create(input_type, Shape{}, {betaData});
         const auto HardSigmoid = std::make_shared<op::v0::HardSigmoid>(in, alpha, beta);
-        return std::make_shared<ov::Function>(NodeVector {HardSigmoid}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {HardSigmoid}, ParameterVector {in});
     }
 };
 

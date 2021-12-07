@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-
 #include <ngraph/function.hpp>
 
 #include "cldnn_config.h"
@@ -14,9 +13,10 @@ namespace CLDNNPlugin {
 
 class TransformationsPipeline {
 public:
-    explicit TransformationsPipeline(const Config &conf, const cldnn::device_info &device_info)
-        : config(conf), device_info(device_info) {}
-    void apply(std::shared_ptr<ov::Function> func);
+    explicit TransformationsPipeline(const Config& conf, const cldnn::device_info& device_info)
+        : config(conf),
+          device_info(device_info) {}
+    void apply(std::shared_ptr<ov::Model> func);
 
 private:
     Config config;

@@ -33,11 +33,11 @@ def test_get_config(device):
     assert config == "NO"
 
 
-def test_get_runtime_function(device):
+def test_get_runtime_model(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    runtime_func = exec_net.get_runtime_function()
+    runtime_func = exec_net.get_runtime_model()
     assert isinstance(runtime_func, Function)
 
 

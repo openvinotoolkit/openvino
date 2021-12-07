@@ -224,7 +224,7 @@ def run(args):
                                           [
                                               ('load network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_model().get_parameters())
             batch_size = get_batch_size(app_inputs_info)
             if batch_size.is_dynamic and benchmark.api_type == 'sync':
                 raise Exception("Dynamic batch size is supported only in async mode")
@@ -306,7 +306,7 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_model().get_parameters())
             batch_size = get_batch_size(app_inputs_info)
             if batch_size.is_dynamic and benchmark.api_type == 'sync':
                 raise Exception("Dynamic batch size is supported only in async mode")

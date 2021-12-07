@@ -116,7 +116,7 @@ private:
         auto IS =
             std::make_shared<op::v0::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBox = std::make_shared<op::v0::PriorBox>(LS, IS, params.attrs);
-        return std::make_shared<ov::Function>(NodeVector{PriorBox}, ParameterVector{});
+        return std::make_shared<ov::Model>(NodeVector{PriorBox}, ParameterVector{});
     }
 };
 
@@ -147,7 +147,7 @@ private:
         auto IS =
             std::make_shared<op::v0::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBoxV8 = std::make_shared<op::v8::PriorBox>(LS, IS, params.attrs);
-        return std::make_shared<ov::Function>(NodeVector{PriorBoxV8}, ParameterVector{});
+        return std::make_shared<ov::Model>(NodeVector{PriorBoxV8}, ParameterVector{});
     }
 };
 

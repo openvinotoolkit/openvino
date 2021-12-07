@@ -10,7 +10,7 @@
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pass.hpp"
@@ -885,9 +885,9 @@ private:
 
     void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
 
-    using FunctionAccessor = ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>;
+    using ModelAccessor = ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>;
 
-    void verify_function(const std::string& name, FunctionAccessor& adapter);
+    void verify_function(const std::string& name, ModelAccessor& adapter);
 
     void verify_others(const std::string& name, ngraph::ValueAccessor<void>& adapter);
     //-- DATA --

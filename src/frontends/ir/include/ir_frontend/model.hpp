@@ -23,7 +23,7 @@ public:
                  const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                  const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
 
-    std::shared_ptr<Function> convert();
+    std::shared_ptr<Model> convert();
 };
 
 }  // namespace frontend

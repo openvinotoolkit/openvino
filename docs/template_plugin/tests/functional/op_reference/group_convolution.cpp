@@ -82,7 +82,7 @@ private:
                                                                        params.padEnd,
                                                                        params.dialations,
                                                                        auto_pad);
-        return std::make_shared<ov::Function>(NodeVector {GroupConvolution}, ParameterVector {in, filter});
+        return std::make_shared<ov::Model>(NodeVector {GroupConvolution}, ParameterVector {in, filter});
     }
 };
 

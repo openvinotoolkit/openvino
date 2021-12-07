@@ -25,9 +25,9 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
-class FunctionAccessor;
+class ModelAccessor;
 /// A user-defined function.
-class OPENVINO_API Function : public std::enable_shared_from_this<Function> {
+class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
         static const ::ov::DiscreteTypeInfo type_info{"Function", 0};
@@ -39,57 +39,55 @@ public:
     OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.")
     static const ov::DiscreteTypeInfo type_info;
 
-    Function(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
+    Model(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
-    Function(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
+    Model(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
-    Function(const std::shared_ptr<ov::Node>& result,
-             const ov::ParameterVector& parameters,
-             const std::string& name = "");
+    Model(const std::shared_ptr<ov::Node>& result, const ov::ParameterVector& parameters, const std::string& name = "");
 
-    Function(const ov::ResultVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
+    Model(const ov::ResultVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
-    Function(const ov::ResultVector& results,
-             const ov::SinkVector& sinks,
-             const ov::ParameterVector& parameters,
-             const std::string& name = "");
+    Model(const ov::ResultVector& results,
+          const ov::SinkVector& sinks,
+          const ov::ParameterVector& parameters,
+          const std::string& name = "");
 
-    Function(const ov::OutputVector& results,
-             const ov::SinkVector& sinks,
-             const ov::ParameterVector& parameters,
-             const std::string& name = "");
+    Model(const ov::OutputVector& results,
+          const ov::SinkVector& sinks,
+          const ov::ParameterVector& parameters,
+          const std::string& name = "");
 
-    Function(const ov::ResultVector& results,
-             const ov::SinkVector& sinks,
-             const ov::ParameterVector& parameters,
-             const ov::op::util::VariableVector& variables,
-             const std::string& name = "");
+    Model(const ov::ResultVector& results,
+          const ov::SinkVector& sinks,
+          const ov::ParameterVector& parameters,
+          const ov::op::util::VariableVector& variables,
+          const std::string& name = "");
 
-    Function(const ov::OutputVector& results,
-             const ov::SinkVector& sinks,
-             const ov::ParameterVector& parameters,
-             const ov::op::util::VariableVector& variables,
-             const std::string& name = "");
+    Model(const ov::OutputVector& results,
+          const ov::SinkVector& sinks,
+          const ov::ParameterVector& parameters,
+          const ov::op::util::VariableVector& variables,
+          const std::string& name = "");
 
-    Function(const ov::ResultVector& results,
-             const ov::ParameterVector& parameters,
-             const ov::op::util::VariableVector& variables,
-             const std::string& name = "");
+    Model(const ov::ResultVector& results,
+          const ov::ParameterVector& parameters,
+          const ov::op::util::VariableVector& variables,
+          const std::string& name = "");
 
-    Function(const ov::OutputVector& results,
-             const ov::ParameterVector& parameters,
-             const ov::op::util::VariableVector& variables,
-             const std::string& name = "");
+    Model(const ov::OutputVector& results,
+          const ov::ParameterVector& parameters,
+          const ov::op::util::VariableVector& variables,
+          const std::string& name = "");
 
     /// Constructs a Function. Lists of parameters and variables will be generated automatically
     /// based on traversing the graph from the results.
-    explicit Function(const ov::OutputVector& results, const std::string& name = "");
+    explicit Model(const ov::OutputVector& results, const std::string& name = "");
 
     /// Constructs a Function. Lists of parameters and variables will be generated automatically
     /// based on traversing the graph from the results and the sinks.
-    Function(const ov::OutputVector& results, const ov::SinkVector& sinks, const std::string& name = "");
+    Model(const ov::OutputVector& results, const ov::SinkVector& sinks, const std::string& name = "");
 
-    virtual ~Function() = default;
+    virtual ~Model() = default;
     /// Return the number of outputs for this function.
     size_t get_output_size() const;
 
@@ -297,13 +295,13 @@ public:
         return m_rt_info;
     }
 
-    Function(const Function&) = delete;
-    Function(Function&&) = delete;
-    Function& operator=(const Function&) = delete;
-    Function& operator=(Function&&) = delete;
+    Model(const Model&) = delete;
+    Model(Model&&) = delete;
+    Model& operator=(const Model&) = delete;
+    Model& operator=(Model&&) = delete;
 
 private:
-    friend class ov::FunctionAccessor;
+    friend class ov::ModelAccessor;
 
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Function
@@ -341,14 +339,13 @@ private:
 };
 
 OPENVINO_API
-std::ostream& operator<<(std::ostream&, const Function&);
+std::ostream& operator<<(std::ostream&, const Model&);
 
 template <>
-class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Function>>
-    : public DirectValueAccessor<std::shared_ptr<ov::Function>> {
+class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Model>>
+    : public DirectValueAccessor<std::shared_ptr<ov::Model>> {
 public:
-    AttributeAdapter(std::shared_ptr<ov::Function>& value)
-        : DirectValueAccessor<std::shared_ptr<ov::Function>>(value) {}
+    AttributeAdapter(std::shared_ptr<ov::Model>& value) : DirectValueAccessor<std::shared_ptr<ov::Model>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Function>");
     BWDCMP_RTTI_DECLARATION;

@@ -130,7 +130,7 @@ private:
             lrn = std::make_shared<op::v0::LRN>(in, alpah, beta, bias, size);
         }
 
-        return std::make_shared<ov::Function>(lrn, ParameterVector{in});
+        return std::make_shared<ov::Model>(lrn, ParameterVector{in});
     }
 };
 

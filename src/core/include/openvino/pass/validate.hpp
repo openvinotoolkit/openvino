@@ -26,7 +26,7 @@ public:
     OPENVINO_RTTI("ov::pass::Validate");
 
     Validate() : FunctionPass() {}
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Model> f) override;
 };
 }  // namespace pass
 }  // namespace ov

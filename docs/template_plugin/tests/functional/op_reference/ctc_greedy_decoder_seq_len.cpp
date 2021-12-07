@@ -80,7 +80,7 @@ private:
         auto blank_index = std::make_shared<op::v0::Constant>(params.blankIndexTensor.type, params.blankIndexTensor.shape,
                                                               params.blankIndexTensor.data.data());
         const auto decoder = std::make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, blank_index, params.mergeRepeated);
-        function = std::make_shared<ov::Function>(decoder->outputs(), ParameterVector{data, seq_len});
+        function = std::make_shared<ov::Model>(decoder->outputs(), ParameterVector{data, seq_len});
         return function;
     }
 };
@@ -119,7 +119,7 @@ private:
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto seq_len = std::make_shared<op::v0::Parameter>(params.seqLenTensor.type, params.seqLenTensor.shape);
         const auto decoder = std::make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, params.mergeRepeated);
-        function = std::make_shared<ov::Function>(decoder->outputs(), ParameterVector{data, seq_len});
+        function = std::make_shared<ov::Model>(decoder->outputs(), ParameterVector{data, seq_len});
         return function;
     }
 };

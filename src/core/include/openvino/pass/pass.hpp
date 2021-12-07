@@ -11,7 +11,7 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/enum_mask.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/pass/pass_config.hpp"
 
@@ -91,7 +91,7 @@ class OPENVINO_API FunctionPass : public PassBase {
 public:
     OPENVINO_RTTI("ov::pass::FunctionPass");
     ~FunctionPass() override;
-    virtual bool run_on_function(std::shared_ptr<ov::Function>) = 0;
+    virtual bool run_on_function(std::shared_ptr<ov::Model>) = 0;
 };
 
 class Manager;

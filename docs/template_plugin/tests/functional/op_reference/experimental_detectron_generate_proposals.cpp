@@ -87,7 +87,7 @@ private:
                                                                     deltas,
                                                                     scores,
                                                                     params.attrs);
-        return std::make_shared<ov::Function>(ExperimentalGP->outputs(), ParameterVector {im_info, anchors, deltas, scores});
+        return std::make_shared<ov::Model>(ExperimentalGP->outputs(), ParameterVector {im_info, anchors, deltas, scores});
     }
 };
 

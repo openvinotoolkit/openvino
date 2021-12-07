@@ -1039,7 +1039,7 @@ std::string provide_bin_path(const std::string& xmlPath, const std::string& binP
 
 void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
-                   std::shared_ptr<ov::Function> f,
+                   std::shared_ptr<ov::Model> f,
                    ov::pass::Serialize::Version ver,
                    const std::map<std::string, ngraph::OpSet>& custom_opsets,
                    bool deterministic = false) {
@@ -1256,7 +1256,7 @@ public:
 };
 }  // namespace
 
-bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
+bool pass::Hash::run_on_function(std::shared_ptr<ov::Model> f) {
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);

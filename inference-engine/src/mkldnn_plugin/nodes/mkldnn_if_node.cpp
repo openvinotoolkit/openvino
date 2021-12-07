@@ -52,8 +52,8 @@ MKLDNNIfNode::MKLDNNIfNode(const std::shared_ptr<ov::Node>& op, const mkldnn::en
 void MKLDNNIfNode::getSupportedDescriptors() {
     auto ifOp = ov::as_type_ptr<ov::op::v8::If>(ovOp);
 
-    const std::shared_ptr<const ov::Function>& thenBody = ifOp->get_then_body();
-    const std::shared_ptr<const ov::Function>& elseBody = ifOp->get_else_body();
+    const std::shared_ptr<const ov::Model>& thenBody = ifOp->get_then_body();
+    const std::shared_ptr<const ov::Model>& elseBody = ifOp->get_else_body();
     subGraphThen.CreateGraph(thenBody, ext_mng, weightCache);
     subGraphElse.CreateGraph(elseBody, ext_mng, weightCache);
 

@@ -91,7 +91,7 @@ private:
                                                                 params.m_pad_type,
                                                                 params.m_indices_type,
                                                                 params.m_axis);
-        return std::make_shared<ov::Function>(max_pool, ParameterVector{in});
+        return std::make_shared<ov::Model>(max_pool, ParameterVector{in});
     }
 };
 

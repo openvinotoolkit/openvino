@@ -165,7 +165,7 @@ void SubgraphBaseTest::compile_model() {
     executableNetwork = core->compile_model(function, targetDevice, configuration);
 }
 
-void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
+void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
     ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
 }
 

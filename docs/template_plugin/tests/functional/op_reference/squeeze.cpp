@@ -100,7 +100,7 @@ private:
             squeeze = std::make_shared<op::v0::Squeeze>(in);
         }
 
-        return std::make_shared<ov::Function>(squeeze, ParameterVector{in});
+        return std::make_shared<ov::Model>(squeeze, ParameterVector{in});
     }
 };
 

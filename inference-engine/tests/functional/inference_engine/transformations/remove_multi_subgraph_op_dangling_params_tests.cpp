@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-#include <openvino/core/function.hpp>
+#include <openvino/core/model.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>

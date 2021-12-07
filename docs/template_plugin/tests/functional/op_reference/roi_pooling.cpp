@@ -87,7 +87,7 @@ private:
         const auto feat_map = std::make_shared<op::v0::Parameter>(type, feat_map_shape);
         const auto rois = std::make_shared<op::v0::Parameter>(type, rois_shape);
         const auto roi_pooling = std::make_shared<op::v0::ROIPooling>(feat_map, rois, pooled_shape, spat_scale, mode);
-        return std::make_shared<ov::Function>(roi_pooling, ParameterVector{feat_map, rois});
+        return std::make_shared<ov::Model>(roi_pooling, ParameterVector{feat_map, rois});
     }
 };
 

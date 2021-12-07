@@ -55,7 +55,7 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1", "Result1"});
-    return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
 TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_i420_full_color_range) {

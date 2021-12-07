@@ -48,7 +48,7 @@ private:
         const auto maxSeqLen = std::make_shared<op::v0::Parameter>(params.maxSeqLenTensor.type, params.maxSeqLenTensor.shape);
         const auto endToken = std::make_shared<op::v0::Parameter>(params.endTokenTensor.type, params.endTokenTensor.shape);
         const auto gatherTree = std::make_shared<op::v1::GatherTree>(stepIds, parentIds, maxSeqLen, endToken);
-        return std::make_shared<ov::Function>(NodeVector {gatherTree}, ParameterVector {stepIds, parentIds, maxSeqLen, endToken});
+        return std::make_shared<ov::Model>(NodeVector {gatherTree}, ParameterVector {stepIds, parentIds, maxSeqLen, endToken});
     }
 };
 

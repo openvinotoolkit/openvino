@@ -61,7 +61,7 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace pass
 }  // namespace ov
 
-bool ov::pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
+bool ov::pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ov::Model> f) {
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -70,7 +70,7 @@ bool ov::pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ov::Functio
     return apply_matcher_passes(f, std::move(nodes_to_run));
 }
 
-bool ov::pass::GraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
+bool ov::pass::GraphRewrite::run_on_function(std::shared_ptr<ov::Model> f) {
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -79,7 +79,7 @@ bool ov::pass::GraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
     return apply_matcher_passes(f, std::move(nodes_to_run));
 }
 
-bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Function> f,
+bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                                                   std::deque<std::weak_ptr<Node>> nodes_to_run) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
@@ -312,7 +312,7 @@ void ov::pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern:
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
 }
 
-bool ov::pass::RecurrentGraphRewrite::run_on_function(std::shared_ptr<Function> f) {
+bool ov::pass::RecurrentGraphRewrite::run_on_function(std::shared_ptr<Model> f) {
     bool changed = false;
     size_t i = 0;
 

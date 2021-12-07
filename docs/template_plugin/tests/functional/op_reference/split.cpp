@@ -62,7 +62,7 @@ private:
                                                                  params.axisTensor.shape,
                                                                  params.axisTensor.data.data());
         const auto split = std::make_shared<op::v1::Split>(data, axis, params.numSplits);
-        return std::make_shared<ov::Function>(split->outputs(), ParameterVector {data});
+        return std::make_shared<ov::Model>(split->outputs(), ParameterVector {data});
     }
 };
 

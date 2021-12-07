@@ -102,7 +102,7 @@ private:
                                                                        params.mode,
                                                                        params.padValue,
                                                                        auto_pad);
-        return std::make_shared<ov::Function>(NodeVector {BinaryConvolution}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {BinaryConvolution}, ParameterVector {in});
     }
 };
 

@@ -18,7 +18,7 @@ public:
     TransposeSinkingOVTF() {
         set_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
-    bool run_on_function(std::shared_ptr<ov::Function> function) override;
+    bool run_on_function(std::shared_ptr<ov::Model> function) override;
 };
 
 }  // namespace pass

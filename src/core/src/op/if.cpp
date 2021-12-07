@@ -70,7 +70,7 @@ bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v8::If::validate_and_infer_type_body(
-    const std::shared_ptr<Function>& body,
+    const std::shared_ptr<Model>& body,
     const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors) {
     for (const auto& input_description : input_descriptors) {
         auto index = input_description->m_input_index;
@@ -180,8 +180,8 @@ std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_
 
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_then_body(clone_function(*get_then_body()));
-    op->set_else_body(clone_function(*get_else_body()));
+    op->set_then_body(clone_model(*get_then_body()));
+    op->set_else_body(clone_model(*get_else_body()));
 
     for (auto body_index = 0; body_index < 2; ++body_index) {
         for (const auto& m_input_descr : m_input_descriptions[body_index]) {

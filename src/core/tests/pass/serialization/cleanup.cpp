@@ -28,7 +28,7 @@ std::shared_ptr<ngraph::Function> CreateTestFunction(const std::string& name, co
     const auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ps);
     const auto convert = std::make_shared<ov::opset8::Convert>(param, ov::element::f32);
     const auto result = std::make_shared<ov::opset8::Result>(convert);
-    return std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{param}, name);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, name);
 }
 }  // namespace
 

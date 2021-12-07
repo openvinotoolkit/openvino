@@ -68,7 +68,7 @@ private:
         const auto max_val_param = std::make_shared<opset8::Parameter>(max_val.type, max_val.shape);
         auto out_shape_ = std::make_shared<opset8::Constant>(element::i64, Shape{out_shape.size()}, out_shape);
 
-        return std::make_shared<ov::Function>(NodeVector{std::make_shared<opset8::RandomUniform>(out_shape_,
+        return std::make_shared<ov::Model>(NodeVector{std::make_shared<opset8::RandomUniform>(out_shape_,
                                                                                              min_val_param,
                                                                                              max_val_param,
                                                                                              out_type,

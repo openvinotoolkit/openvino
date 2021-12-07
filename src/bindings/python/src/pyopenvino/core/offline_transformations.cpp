@@ -41,7 +41,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_moc_transformations",
-        [](std::shared_ptr<ov::Function> function, bool cf) {
+        [](std::shared_ptr<ov::Model> function, bool cf) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::MOCTransformations>(cf);
             manager.run_passes(function);
@@ -51,7 +51,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_pot_transformations",
-        [](std::shared_ptr<ov::Function> function, std::string device) {
+        [](std::shared_ptr<ov::Model> function, std::string device) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::POTTransformations>(std::move(device));
             manager.run_passes(function);
@@ -61,7 +61,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_low_latency_transformation",
-        [](std::shared_ptr<ov::Function> function, bool use_const_initializer = true) {
+        [](std::shared_ptr<ov::Model> function, bool use_const_initializer = true) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::LowLatency2>(use_const_initializer);
             manager.run_passes(function);
@@ -80,7 +80,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "generate_mapping_file",
-        [](std::shared_ptr<ov::Function> function, std::string path, bool extract_names) {
+        [](std::shared_ptr<ov::Model> function, std::string path, bool extract_names) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
             manager.run_passes(function);
@@ -91,7 +91,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_make_stateful_transformation",
-        [](std::shared_ptr<ov::Function> function, const std::map<std::string, std::string>& param_res_names) {
+        [](std::shared_ptr<ov::Model> function, const std::map<std::string, std::string>& param_res_names) {
             ngraph::pass::Manager manager;
             manager.register_pass<ov::pass::MakeStateful>(param_res_names);
             manager.run_passes(function);
@@ -101,7 +101,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "compress_model_transformation",
-        [](std::shared_ptr<ov::Function> function) {
+        [](std::shared_ptr<ov::Model> function) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
             manager.register_pass<ov::pass::CompressFloatConstants>();
@@ -112,7 +112,7 @@ void regmodule_offline_transformations(py::module m) {
     // todo: remove as serialize as part of passManager api will be merged
     m_offline_transformations.def(
         "serialize",
-        [](std::shared_ptr<ov::Function> function,
+        [](std::shared_ptr<ov::Model> function,
            const std::string& path_to_xml,
            const std::string& path_to_bin,
            const std::string& version) {

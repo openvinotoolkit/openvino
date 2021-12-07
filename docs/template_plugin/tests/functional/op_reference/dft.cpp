@@ -75,14 +75,14 @@ private:
         auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
         auto dft = std::make_shared<op::v7::DFT>(in, p.m_axes);
 
-        return std::make_shared<ov::Function>(dft, ParameterVector{in});
+        return std::make_shared<ov::Model>(dft, ParameterVector{in});
     }
 
     static std::shared_ptr<Function> CreateFunctionWithSignal(DFTParams& p) {
         auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
         auto dft = std::make_shared<op::v7::DFT>(in, p.m_axes, p.m_signal);
 
-        return std::make_shared<ov::Function>(dft, ParameterVector{in});
+        return std::make_shared<ov::Model>(dft, ParameterVector{in});
     }
 };
 

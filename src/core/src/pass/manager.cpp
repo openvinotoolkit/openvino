@@ -48,7 +48,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
+void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
 

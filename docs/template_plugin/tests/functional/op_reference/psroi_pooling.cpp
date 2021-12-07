@@ -98,7 +98,7 @@ private:
                                                                          params.spatialBinsX,
                                                                          params.spatialBinsY,
                                                                          params.mode);
-        return std::make_shared<ov::Function>(NodeVector {PSROIPooling}, ParameterVector {image, coords});
+        return std::make_shared<ov::Model>(NodeVector {PSROIPooling}, ParameterVector {image, coords});
     }
 };
 

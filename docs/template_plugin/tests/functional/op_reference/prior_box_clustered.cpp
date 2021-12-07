@@ -75,7 +75,7 @@ private:
         auto LS = std::make_shared<opset1::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
         auto IS = std::make_shared<opset1::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBoxClustered = std::make_shared<op::v0::PriorBoxClustered>(LS, IS, params.attrs);
-        return std::make_shared<ov::Function>(NodeVector {PriorBoxClustered}, ParameterVector {});
+        return std::make_shared<ov::Model>(NodeVector {PriorBoxClustered}, ParameterVector {});
     }
 };
 

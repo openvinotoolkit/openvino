@@ -60,7 +60,7 @@ private:
                                                                  params.constantTensor.shape,
                                                                  params.constantTensor.data.data());
         const auto reverse = std::make_shared<op::v1::Reverse>(data, constant, params.reverseMode);
-        return std::make_shared<ov::Function>(NodeVector {reverse}, ParameterVector {data});
+        return std::make_shared<ov::Model>(NodeVector {reverse}, ParameterVector {data});
     }
 };
 
@@ -83,7 +83,7 @@ TEST_P(ReferenceReverseTest, CompareWithRefs) {
 TEST_P(ReferenceReverseTestAxesRankIndexMode, CompareWithRefs) {
     const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
     const auto Rev_Axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 1});   // correct: 1D
-    EXPECT_THROW(std::make_shared<ov::Function>(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
+    EXPECT_THROW(std::make_shared<ov::Model>(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                                                 ParameterVector{Data, Rev_Axes}),
                  ngraph::NodeValidationFailure);
 }

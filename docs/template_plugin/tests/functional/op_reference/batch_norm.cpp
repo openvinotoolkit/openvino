@@ -88,7 +88,7 @@ private:
         auto variance = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
         auto batch_norm = std::make_shared<op::v0::BatchNormInference>(in, gamma, beta, mean, variance, epsilon);
 
-        return std::make_shared<ov::Function>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
+        return std::make_shared<ov::Model>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
     }
 };
 
@@ -113,7 +113,7 @@ private:
         auto variance = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
         auto batch_norm = std::make_shared<op::v5::BatchNormInference>(in, gamma, beta, mean, variance, epsilon);
 
-        return std::make_shared<ov::Function>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
+        return std::make_shared<ov::Model>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
     }
 };
 

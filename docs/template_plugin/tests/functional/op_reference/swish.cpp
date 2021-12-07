@@ -85,7 +85,7 @@ private:
             return std::make_shared<Function>(NodeVector {Swish}, ParameterVector {in, BETA});
         } else {
             const auto Swish = std::make_shared<op::v4::Swish>(in);
-            return std::make_shared<ov::Function>(NodeVector {Swish}, ParameterVector {in});
+            return std::make_shared<ov::Model>(NodeVector {Swish}, ParameterVector {in});
         }
     }
 };

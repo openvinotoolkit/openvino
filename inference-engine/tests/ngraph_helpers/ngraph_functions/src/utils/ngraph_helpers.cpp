@@ -934,7 +934,7 @@ std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::DecayFunction typ
     return os;
 }
 
-void resize_function(std::shared_ptr<ov::Function> function,
+void resize_function(std::shared_ptr<ov::Model> function,
                      const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputs = function->inputs();
     std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;

@@ -56,7 +56,7 @@ void regclass_ExecutableNetwork(py::module m) {
         },
         py::arg("name"));
 
-    cls.def("get_runtime_function", &ov::runtime::ExecutableNetwork::get_runtime_function);
+    cls.def("get_runtime_model", &ov::runtime::ExecutableNetwork::get_runtime_model);
 
     cls.def_property_readonly("inputs", &ov::runtime::ExecutableNetwork::inputs);
 
