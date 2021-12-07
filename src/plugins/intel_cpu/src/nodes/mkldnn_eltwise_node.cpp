@@ -194,6 +194,8 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
         mov(reg_dst, ptr[reg_const_params + GET_OFF(dst_ptr)]);
         init_ptrs_with_offsets(reg_dst, jep.dst_offsets);
 
+        mov(reg_post_op_ptrs, ptr[reg_const_params + GET_OFF(post_op_data)]);
+
         xor_(reg_oc_off, reg_oc_off);
         init_ptrs_with_offsets(reg_oc_off, jep.oc_offsets);
 
@@ -384,6 +386,7 @@ private:
         return Xmm(get_vmm_reg(idx).getIdx());
     }
 
+    Reg64 reg_post_op_ptrs = rax;
     Reg64 reg_dst = rbx;
     Reg64 reg_work_amount = rdx;
 
@@ -563,21 +566,17 @@ private:
                 bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwise_data_.size() - 1;
                 int s_idx = vmm_dst.getIdx();
 
-                push(reg_const_params);
-                mov(reg_const_params, ptr[reg_const_params + GET_OFF(post_op_data)]);
+                size_t ptrs_table_off = quantization_post_op_idx * quantization_injectors[quantization_post_op_idx]->memoryStep();
 
-                size_t ptrs_buff_off = quantization_post_op_idx * sizeof(const void*);
-
-                quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(ptr[reg_const_params + ptrs_buff_off], reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(reg_post_op_ptrs + ptrs_table_off, reg_oc_off);
                 quantization_injectors[quantization_post_op_idx]->compute_crop(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
 
-                quantization_injectors[quantization_post_op_idx]->init_input_scale_shift_ptrs(ptr[reg_const_params + ptrs_buff_off], reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->init_input_scale_shift_ptrs(reg_post_op_ptrs + ptrs_table_off, reg_oc_off);
                 quantization_injectors[quantization_post_op_idx]->compute_input_scale_shift(s_idx, s_idx + 1, offset, do_rounding,
                                                                                             is_scalar, jep_.oc_size == 1);
 
-                quantization_injectors[quantization_post_op_idx]->init_output_scale_shift_ptrs(ptr[reg_const_params + ptrs_buff_off], reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->init_output_scale_shift_ptrs(reg_post_op_ptrs + ptrs_table_off, reg_oc_off);
                 quantization_injectors[quantization_post_op_idx]->compute_output_scale_shift(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
-                pop(reg_const_params);
 
                 quantization_post_op_idx++;
             } else {
@@ -1924,8 +1923,7 @@ void MKLDNNEltwiseNode::prepareParams() {
     // this is  a dirty hack actually
     for (int i = 0; i < key.postOps.len(); ++i) {
         auto &data = key.postOps.get()->entry_[i].quantization.data;
-        fqDataPtrs.emplace_back();
-        fqDataPtrs.back().assign(std::begin(data), std::end(data));
+        fqDataPtrs.insert(fqDataPtrs.end(), std::begin(data), std::end(data));
         memset(data, 0, sizeof(data));
     }
     // end of the dirty hack
@@ -1981,11 +1979,8 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
         }
 
         std::vector<const void*> vecPostOpData(fqDataPtrs.size());
-        for (int i = 0; i < fqDataPtrs.size(); ++i) {
-            vecPostOpData[i] = fqDataPtrs[i].data();
-        }
 
-        args_ptrs.post_op_data = vecPostOpData.data();
+        args_ptrs.post_op_data = fqDataPtrs.data();
 
         execPtr->exec(args_ptrs, dims_out);
     } else {

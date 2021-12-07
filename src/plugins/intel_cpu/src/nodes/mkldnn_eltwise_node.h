@@ -39,7 +39,7 @@ struct jit_eltwise_params {
 struct jit_eltwise_call_args_ptrs {
     const void *src_ptr[MAX_ELTWISE_INPUTS];
     void *dst_ptr;
-    //ptr to flat buffer of postop data pointer
+    //ptr to array of post op inputs pointers (flat list)
     const void** post_op_data;
 };
 
@@ -177,7 +177,7 @@ private:
     std::vector<float> shiftsBuffer = {};
 
     std::vector<MKLDNNMemoryPtr> memPtrs = {};
-    std::vector<std::vector<const float*>> fqDataPtrs;
+    std::vector<const void*> fqDataPtrs;
 
     using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
     static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
