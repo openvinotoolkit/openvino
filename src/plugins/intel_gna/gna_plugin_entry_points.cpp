@@ -16,7 +16,7 @@ static const Version gnaPluginDescription = {
         "_with_GNA_LIB_VER==2"
 #endif
         ,
-        "GNAPlugin"
+        "ov_intel_gna_plugin"
 };
 
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(GNAPluginInternal, gnaPluginDescription)
