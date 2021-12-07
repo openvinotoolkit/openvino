@@ -11,6 +11,7 @@
 #include "pass/transpose_sinking.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
 #include "tf_framework_node.hpp"
+#include "so_extension.hpp"
 #include "utils.hpp"
 
 using namespace ::ov::frontend;
@@ -33,7 +34,7 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
         named_inputs[input_port_idx++] = {input};
     }
 
-    NodeContext node_ctx(*node->get_decoder(), named_inputs);
+    ov::frontend::tf::NodeContext node_ctx(*node->get_decoder(), named_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
 
     auto new_output = new_node_outputs.begin();
@@ -353,5 +354,11 @@ void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
 void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+        add_extension(so_ext->extension());
+        m_so_extensions.push_back(so_ext);
+    } else if (const auto& conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtensionBase>(extension)) {
+        m_op_translators.insert({conv_ext->get_op_type(), conv_ext->get_converter()});
+        m_conversion_extensions.push_back(conv_ext);
     }
 }

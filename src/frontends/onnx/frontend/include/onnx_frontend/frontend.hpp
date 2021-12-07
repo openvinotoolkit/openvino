@@ -23,6 +23,7 @@ namespace ov {
 namespace frontend {
 class ONNX_FRONTEND_API FrontEndONNX : public FrontEnd {
 public:
+    using CreatorFunction = std::function<::ov::OutputVector(const NodeContext&)>;
     std::shared_ptr<ov::Function> convert(InputModel::Ptr model) const override;
     void convert(std::shared_ptr<ov::Function> partially_converted) const override;
     std::shared_ptr<ov::Function> decode(InputModel::Ptr model) const override;
@@ -35,6 +36,8 @@ protected:
 
 private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<Extension>> m_extensions;
+    std::vector<std::shared_ptr<ConversionExtensionBase>> m_conversion_extensions;
 };
 
 }  // namespace frontend

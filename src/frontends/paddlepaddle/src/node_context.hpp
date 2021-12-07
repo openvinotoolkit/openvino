@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "common/node_context.hpp"
 #include "ngraph/compatibility.hpp"
 #include "openvino/core/any.hpp"
 #include "paddlepaddle_frontend/exceptions.hpp"
@@ -46,12 +47,18 @@ public:
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class NodeContext {
+class NodeContext : public ov::frontend::NodeContext {
     const DecoderBase& decoder;
     const NamedInputs& name_map;
 
+    ov::Any get_attribute_as_any(const std::string& name) const override {
+        return ov::Any();
+    }
 public:
-    NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map) : decoder(_decoder), name_map(_name_map) {}
+    NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map) :
+        ov::frontend::NodeContext(decoder.get_op_type(), name_map),
+        decoder(_decoder),
+        name_map(_name_map) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <class T>

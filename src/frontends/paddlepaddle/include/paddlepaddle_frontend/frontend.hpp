@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include <common/conversion_extension.hpp>
+#include <common/node_context.hpp>
 #include <common/telemetry_extension.hpp>
 #include <manager.hpp>
 
 #include "exceptions.hpp"
 #include "model.hpp"
+
 
 namespace ov {
 namespace frontend {
@@ -16,7 +19,12 @@ class OpPlacePDPD;
 
 class PDPD_API FrontEndPDPD : public FrontEnd {
 public:
-    FrontEndPDPD() = default;
+    using OutPortName = std::string;
+    using NamedOutputs = std::map<OutPortName, OutputVector>;
+    using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
+    using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
+
+    FrontEndPDPD();
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted OV function
@@ -64,12 +72,16 @@ protected:
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
+    TranslatorDictionaryType m_op_translators;
+
 private:
     static std::shared_ptr<Function> convert_each_node(
         const std::shared_ptr<InputModelPDPD>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlacePDPD>&)> func);
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<Extension>> m_extensions;
+    std::vector<std::shared_ptr<ConversionExtensionBase>> m_conversion_extensions;
 };
 
 }  // namespace frontend

@@ -13,7 +13,7 @@
 namespace ov {
 namespace frontend {
 namespace pdpd {
-using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
+using CreatorFunction = std::function<NamedOutputs(const ov::frontend::NodeContext&)>;
 
 std::map<std::string, CreatorFunction> get_supported_ops();
 

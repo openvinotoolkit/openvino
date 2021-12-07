@@ -5,6 +5,7 @@
 #pragma once
 #include <openvino/core/any.hpp>
 
+#include "common/node_context.hpp"
 #include "exceptions.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
@@ -21,12 +22,18 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class NodeContext {
+class NodeContext : public ov::frontend::NodeContext {
     const DecoderBase& m_decoder;
     const NamedInputs& m_name_map;
 
+    ov::Any get_attribute_as_any(const std::string& name) const override {
+        return ov::Any();
+    }
 public:
-    NodeContext(const DecoderBase& decoder, const NamedInputs& name_map) : m_decoder(decoder), m_name_map(name_map) {}
+    NodeContext(const DecoderBase& decoder, const NamedInputs& name_map) :
+    ov::frontend::NodeContext(m_decoder.get_op_type(), name_map.at(0)),
+    m_decoder(decoder),
+    m_name_map(name_map) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <typename T>

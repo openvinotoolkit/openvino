@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 
+#include "common/conversion_extension.hpp"
 #include "common/frontend.hpp"
 #include "common/input_model.hpp"
 #include "common/telemetry_extension.hpp"
@@ -16,23 +17,11 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
-class NodeContext;
-}
-}  // namespace frontend
-}  // namespace ov
-
-namespace ov {
-namespace frontend {
 class TF_API FrontEndTF : public ov::frontend::FrontEnd {
 public:
-    using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
+    using CreatorFunction = std::function<::ov::OutputVector(const NodeContext&)>;
     using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
 
-private:
-    TranslatorDictionaryType m_op_translators;
-
-public:
     FrontEndTF();
 
     /// \brief Completely convert the model
@@ -74,6 +63,7 @@ protected:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
+    TranslatorDictionaryType m_op_translators;
 
 private:
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
@@ -83,6 +73,8 @@ private:
                          std::shared_ptr<ov::Function>& ng_function) const;
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<Extension>> m_so_extensions;
+    std::vector<std::shared_ptr<ConversionExtensionBase>> m_conversion_extensions;
 };
 }  // namespace frontend
 }  // namespace ov

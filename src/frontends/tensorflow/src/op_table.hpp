@@ -17,7 +17,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
+using CreatorFunction = std::function<::ov::OutputVector(const ov::frontend::NodeContext&)>;
 
 const std::map<const std::string, const CreatorFunction> get_supported_ops();
 }  // namespace op

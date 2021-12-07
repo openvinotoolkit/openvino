@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <common/conversion_extension.hpp>
 #include <common/frontend_exceptions.hpp>
 #include <common/telemetry_extension.hpp>
 #include <fstream>
@@ -11,8 +12,11 @@
 #include <onnx_import/onnx.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
+#include <onnx_import/onnx_utils.hpp>
 
 #include "onnx_common/onnx_model_validator.hpp"
+#include "conversion_extension.hpp"
+#include "node_context.hpp"
 
 using namespace ov;
 using namespace ov::frontend;
@@ -136,5 +140,21 @@ bool FrontEndONNX::supported_impl(const std::vector<ov::Any>& variants) const {
 void FrontEndONNX::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+        add_extension(so_ext->extension());
+        m_extensions.push_back(so_ext);
+    } else if (const auto& conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtensionBase>(extension)) {
+        if (conv_ext) {
+            // TODO: register for all opsets
+            for (int i = 1; i < 13; ++i)
+                ngraph::onnx_import::register_operator(
+                        conv_ext->get_op_type(),
+                    i,
+                    "",
+                    [=](const ngraph::onnx_import::Node& context) -> OutputVector {
+                        return conv_ext->get_converter()(ov::frontend::onnx::NodeContext(context));
+                    });
+        }
+        m_conversion_extensions.push_back(conv_ext);
     }
 }
