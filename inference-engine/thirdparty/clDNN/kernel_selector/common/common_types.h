@@ -21,6 +21,7 @@ enum class KernelType {
     NORMALIZE,
     POOLING,
     ROI_POOLING,
+    ROI_ALIGN,
     FULLY_CONNECTED,
     ACTIVATION,
     SOFT_MAX,
