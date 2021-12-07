@@ -3,6 +3,7 @@
 
 from openvino.tools.mo.front.common.partial_infer.concat import concat_infer
 from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 
 class Concat(Op):
@@ -16,6 +17,7 @@ class Concat(Op):
             'version': 'opset1',
             'axis': 1,
             'infer': concat_infer,
+            'reverse_infer': reverse_bypass_infer,
             'out_ports_count': 1,
         }, attrs)
 

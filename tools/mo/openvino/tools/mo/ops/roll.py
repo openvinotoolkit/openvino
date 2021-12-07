@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op
@@ -20,6 +21,7 @@ class Roll(Op):
             'op': self.op,
             'version': 'opset7',
             'infer': roll_infer,
+            'reverse_infer': reverse_bypass_infer,
             'in_ports_count': 3,
             'out_ports_count': 1
         }, attrs)

@@ -3,7 +3,7 @@
 
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op
-
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 class BatchNormInference(Op):
     """
@@ -20,15 +20,9 @@ class BatchNormInference(Op):
             'in_ports_count': 5,
             'out_ports_count': 1,
             'infer': self.infer,
-            'reverse_infer': self.reverse_infer
+            'reverse_infer': reverse_bypass_infer,
         }, attrs)
 
     @staticmethod
     def infer(node):
         node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
-
-    @staticmethod
-    def reverse_infer(node):
-        output_shape = node.out_port(0).data.get_shape()
-        if output_shape is not None and node.in_port(0).data.get_shape() is None:
-            node.in_port(0).data.set_shape(output_shape)

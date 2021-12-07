@@ -4,7 +4,7 @@
 from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
-
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 class ConvertLike(Op):
     op = 'ConvertLike'
@@ -17,6 +17,7 @@ class ConvertLike(Op):
             'version': 'opset1',
 
             'infer': copy_shape_infer,
+            'reverse_infer': reverse_bypass_infer,
             'type_infer': self.type_infer,
 
             'in_ports_count': 2,

@@ -10,6 +10,7 @@ from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_pr
     np_data_type_to_destination_type, packed_I4, packed_U4
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 
 class Cast(Op):
@@ -22,6 +23,7 @@ class Cast(Op):
             'type': 'Convert',
             'version': 'opset1',
             'infer': self.infer,
+            'reverse_infer': reverse_bypass_infer,
             'type_infer': self.type_infer,
             'dst_type': None,
             'in_ports_count': 1,

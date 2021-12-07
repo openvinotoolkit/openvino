@@ -3,7 +3,7 @@
 
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op
-
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 class LRN(Op):
     op = 'LRN'
@@ -24,6 +24,7 @@ class LRN(Op):
             'version': 'opset1',
 
             'infer': self.infer,
+            'reverse_infer': reverse_bypass_infer,
 
             'in_ports_count': 2,
             'out_ports_count': 1,

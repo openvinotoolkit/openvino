@@ -7,6 +7,7 @@ from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.clamp import AttributedClamp
 from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 activation_ops = ['Sigmoid', 'Tanh', 'ReLU6', 'Exp', 'Elu', 'LogicalNot', 'Floor', 'Ceiling']
 
@@ -24,6 +25,7 @@ class Activation(Op):
             'operation': self.operation,
             'version': self.version,
             'infer': self.infer,
+            'reverse_infer': reverse_bypass_infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)

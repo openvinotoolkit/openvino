@@ -3,7 +3,7 @@
 
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op
-
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 class Identity(Op):
     op = 'Identity'
@@ -16,7 +16,7 @@ class Identity(Op):
 
             'identity': True,
             'infer': self.infer,
-            'reverse_infer': self.reverse_infer,
+            'reverse_infer': reverse_bypass_infer,
 
             'in_ports_count': 1,
             'out_ports_count': 1,
@@ -28,15 +28,6 @@ class Identity(Op):
         if node.in_port(0).data.get_value() is not None:
             node.out_port(0).data.set_value(node.in_port(0).data.get_value())
 
-    @staticmethod
-    def reverse_infer(node):
-        out_shape = node.out_port(0).data.get_shape()
-        if out_shape is not None:
-            node.in_port(0).data.set_shape(out_shape)
-
-        out_value = node.out_port(0).data.get_value()
-        if out_value is not None:
-            node.in_port(0).data.set_value(out_value)
 
 class IdentityN(Op):
     op = 'IdentityN'

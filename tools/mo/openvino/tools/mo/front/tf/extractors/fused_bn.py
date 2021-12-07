@@ -7,18 +7,12 @@ import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array
 from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
-
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 def tf_fused_bn_infer(node):
     output_shape = np.array(node.in_node(0).shape)
     for port, out_node in node.out_nodes().items():
         out_node.shape = shape_array(output_shape)
-
-
-def fused_bn_reverse_infer(node):
-    output_shape = node.out_port(0).data.get_shape()
-    if output_shape is not None and node.in_port(0).data.get_shape() is None:
-        node.in_port(0).data.set_shape(output_shape)
 
 
 def tf_fused_bn_extractor(pb):
@@ -31,6 +25,6 @@ def tf_fused_bn_extractor(pb):
         'data_type': tf_dtype_extractor(pb.attr["T"].type),
         'eps': pb.attr['epsilon'].f,
         'infer': tf_fused_bn_infer,
-        'reverse_infer': fused_bn_reverse_infer,
+        'reverse_infer': reverse_bypass_infer,
         'is_training': is_training
     }

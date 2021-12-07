@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension, shape_delete
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension, shape_delete, reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
@@ -129,6 +129,7 @@ class VariadicSplit(VariadicSplitBase):
             'type': self.op,
 
             'infer': self.infer,
+            'reverse_infer': reverse_bypass_infer,
 
             'in_ports_count': 3,
         }, attrs)
@@ -154,6 +155,7 @@ class AttributedVariadicSplit(VariadicSplitBase):
             'version': 'opset1',
 
             'infer': self.infer,
+            'reverse_infer': reverse_bypass_infer,
 
             'in_ports_count': 1,
         }, attrs)
@@ -227,6 +229,7 @@ class Split(SplitBase):
             'version': 'opset1',
 
             'infer': self.infer,
+            'reverse_infer': reverse_bypass_infer,
 
             'in_ports_count': 2,
         }, attrs)
@@ -255,6 +258,7 @@ class AttributedSplit(SplitBase):
             'axis': 1,
 
             'infer': self.infer,
+            'reverse_infer': reverse_bypass_infer,
 
             'in_ports_count': 1,
         }, attrs)

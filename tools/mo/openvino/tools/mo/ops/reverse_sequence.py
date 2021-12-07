@@ -3,6 +3,7 @@
 
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 
 class ReverseSequence(Op):
@@ -18,6 +19,7 @@ class ReverseSequence(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'infer': self.infer,
+            'reverse_infer': reverse_bypass_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 

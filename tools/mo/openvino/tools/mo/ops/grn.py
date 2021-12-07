@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -16,7 +17,8 @@ class GRNOp(Op):
             'version': 'opset1',
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': copy_shape_infer
+            'infer': copy_shape_infer,
+            'reverse_infer': reverse_bypass_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 

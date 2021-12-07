@@ -5,7 +5,6 @@ import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.graph.graph import Node
 
 
 def eltwise_infer(node, op=None, **kwargs):
