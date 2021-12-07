@@ -37,7 +37,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if ((portIndex == 2) && (inputDataType == cldnn::data_types::i64)) {
-            // clDNN primitive supports only i32 data type for 'max_output_boxes_per_class' input
+            // GPU primitive supports only i32 data type for 'max_output_boxes_per_class' input
             // so we need additional reorder if it's provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -56,7 +56,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
         }
     }
 
-    // clDNN primitive supports only i32 as output data type
+    // GPU primitive supports only i32 as output data type
     auto out_type = op->get_output_element_type(0);
     if (out_type == ngraph::element::i64) {
         out_type = ngraph::element::i32;
@@ -79,7 +79,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             cldnn::layout mutableLayoutSecond = cldnn::layout(
                 DataTypeFromPrecision(mutable_precision_second),
                 DefaultFormatForDims(op->get_output_shape(2).size()),
-                CldnnTensorFromIEDims(op->get_output_shape(2)));
+                tensor_from_dims(op->get_output_shape(2)));
 
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;

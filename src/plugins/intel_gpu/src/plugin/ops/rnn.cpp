@@ -278,7 +278,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
     std::vector<size_t> WRreshapeSize = { 4 * size_t(lstm_hidden_size), size_t(lstm_input_size + lstm_hidden_size) };
     cldnn::primitive_id WRreshapeID = WRconcatID + "_reshape";
-    auto reshapeInPrim = cldnn::reshape(WRreshapeID, WRconcatID, CldnnTensorFromIEDims(WRreshapeSize), op->get_friendly_name());
+    auto reshapeInPrim = cldnn::reshape(WRreshapeID, WRconcatID, tensor_from_dims(WRreshapeSize), op->get_friendly_name());
     p.AddPrimitive(reshapeInPrim);
     p.AddInnerPrimitiveToProfiler(WRreshapeID, op->get_friendly_name(), op);
 

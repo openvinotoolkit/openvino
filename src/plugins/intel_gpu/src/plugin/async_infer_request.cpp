@@ -10,17 +10,17 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const CLDNNInferRequest::Ptr &inferRequest,
-                                                            const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
-                                                            const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
-                                                            const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
+AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
+                                     const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
+                                     const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
+                                     const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
     : AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor), _inferRequest(inferRequest), _waitExecutor(waitExecutor) {
     _pipeline = {};
 
     if (!_inferRequest->use_external_queue()) {
         _pipeline.push_back({taskExecutor,
                     [this] {
-                        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNAsyncInferRequest::PreprocessingAndStartPipeline");
+                        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "AsyncInferRequest::PreprocessingAndStartPipeline");
                         _inferRequest->setup_stream_graph();
                         _inferRequest->preprocess();
                         _inferRequest->enqueue();
@@ -29,13 +29,13 @@ CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const CLDNNInferRequest::Ptr &inf
     } else {
         _pipeline.push_back({ _waitExecutor,
                         [this] {
-                            OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNAsyncInferRequest::WaitPipeline");
+                            OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "AsyncInferRequest::WaitPipeline");
                             _inferRequest->wait_notify();
                         } });
     }
 }
 
-void CLDNNAsyncInferRequest::Infer_ThreadUnsafe() {
+void AsyncInferRequest::Infer_ThreadUnsafe() {
     if (_inferRequest->use_external_queue()) {
         _inferRequest->setup_stream_graph();
         _inferRequest->preprocess_notify();
@@ -44,7 +44,7 @@ void CLDNNAsyncInferRequest::Infer_ThreadUnsafe() {
     Parent::Infer_ThreadUnsafe();
 }
 
-void CLDNNAsyncInferRequest::StartAsync_ThreadUnsafe() {
+void AsyncInferRequest::StartAsync_ThreadUnsafe() {
     if (_inferRequest->use_external_queue()) {
         _inferRequest->setup_stream_graph();
         _inferRequest->preprocess_notify();
@@ -53,10 +53,9 @@ void CLDNNAsyncInferRequest::StartAsync_ThreadUnsafe() {
     Parent::StartAsync_ThreadUnsafe();
 }
 
-CLDNNAsyncInferRequest::~CLDNNAsyncInferRequest() {
+AsyncInferRequest::~AsyncInferRequest() {
     StopAndWait();
 }
-
 
 }  // namespace intel_gpu
 }  // namespace runtime

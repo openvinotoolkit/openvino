@@ -73,7 +73,7 @@ static cldnn::resample::resample_axis GetInterpolationAxis(int32_t axis, uint32_
     if (axis < 0 || axis >= sz)
         IE_THROW() << "Interpolate axis is not correspond to number of dimensions";
 
-    // Difference in dimension ordering between IE and clDNN,
+    // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     uint32_t cldnn_axis = axis;
     if (axis >= 2) {
@@ -113,7 +113,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
     auto attrs = op->get_attrs();
     auto inputRank = op->get_input_shape(0).size();
     auto outDims = op->get_output_shape(0).size();
-    auto outTensor = CldnnTensorFromIEDims(op->get_output_shape(0));
+    auto outTensor = tensor_from_dims(op->get_output_shape(0));
 
     std::vector<int> pad_begin(attrs.pads_begin.begin(), attrs.pads_begin.end());
     std::vector<int> pad_end(attrs.pads_end.begin(), attrs.pads_end.end());

@@ -63,7 +63,7 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 
         cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
                                                     DefaultFormatForDims(op->get_output_shape(1).size()),
-                                                    CldnnTensorFromIEDims(op->get_output_shape(1)));
+                                                    tensor_from_dims(op->get_output_shape(1)));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {

@@ -21,11 +21,11 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-class CLDNNExecNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    typedef std::shared_ptr<CLDNNExecNetwork> Ptr;
+    typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
+    CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
@@ -38,7 +38,7 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
 
-    std::vector<std::shared_ptr<CLDNNGraph>> m_graphs;
+    std::vector<std::shared_ptr<Graph>> m_graphs;
     InferenceEngine::gpu::ClContext::Ptr m_context;
     Config m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;

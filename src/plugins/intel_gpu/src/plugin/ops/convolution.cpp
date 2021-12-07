@@ -84,7 +84,7 @@ static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::o
                                        params.stride,
                                        params.padding,
                                        params.dilation,
-                                       CldnnTensorFromIEDims(outDims),
+                                       tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
                                        weights_have_group_dim,
                                        op->get_friendly_name());
@@ -113,7 +113,7 @@ static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1
                                        params.stride,
                                        params.padding,
                                        params.dilation,
-                                       CldnnTensorFromIEDims(outDims),
+                                       tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
                                        weights_have_group_dim,
                                        op->get_friendly_name());
@@ -170,7 +170,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
                                            params.groups,
                                            params.stride,
                                            params.padding,
-                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim,
                                            op->get_friendly_name());
 
@@ -227,7 +227,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
                                            params.groups,
                                            params.stride,
                                            params.padding,
-                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim,
                                            op->get_friendly_name());
 
@@ -274,7 +274,7 @@ static void DeformableConvolutionImpl(Program& p,
                                                           params.stride,
                                                           params.padding,
                                                           params.dilation,
-                                                          CldnnTensorFromIEDims(outDims),
+                                                          tensor_from_dims(outDims),
                                                           kernel,
                                                           bilinearInterpolationPad,
                                                           op->get_friendly_name());
@@ -285,7 +285,7 @@ static void DeformableConvolutionImpl(Program& p,
                                                   weights,
                                                   {},
                                                   params.groups,
-                                                  CldnnTensorFromIEDims(outDims),
+                                                  tensor_from_dims(outDims),
                                                   op->get_friendly_name());
         p.AddPrimitive(defConvPrim);
         p.AddPrimitiveToProfiler(defConvLayerNameConv, op);
@@ -299,7 +299,7 @@ static void DeformableConvolutionImpl(Program& p,
                                            params.stride,
                                            params.padding,
                                            params.dilation,
-                                           CldnnTensorFromIEDims(outDims),
+                                           tensor_from_dims(outDims),
                                            bilinearInterpolationPad,
                                            op->get_friendly_name());
 
@@ -336,7 +336,7 @@ static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::
                                               params.stride,
                                               params.padding,
                                               params.dilation,
-                                              CldnnTensorFromIEDims(outDims),
+                                              tensor_from_dims(outDims),
                                               params.groups,
                                               op->get_pad_value(),
                                               calc_precision,

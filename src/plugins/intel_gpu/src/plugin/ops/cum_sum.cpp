@@ -20,7 +20,7 @@ static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t 
     if (axis < 0 || axis >= rank)
         IE_THROW() << "CumSum axis is not correspond to number of dimensions";
 
-    // Difference in dimension ordering between IE and clDNN,
+    // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     uint32_t cldnn_axis = axis;
     if (axis >= 2) {

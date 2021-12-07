@@ -18,7 +18,7 @@ static cldnn::concatenation::concatenation_axis GetConcatAxis(int32_t axis, size
     if (cldnn_axis >= rank)
         IE_THROW() << "Concatenation axis exceeds number of dimensions";
 
-    // Difference in dimension ordering between IE and clDNN,
+    // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     if (cldnn_axis >= 2) {
         auto spatial_axis = cldnn_axis - 2;

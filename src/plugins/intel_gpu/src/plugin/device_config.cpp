@@ -201,7 +201,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             std::istream_iterator<std::string> end;
             std::vector<std::string> configFiles(begin, end);
             for (auto& file : configFiles) {
-                CLDNNCustomLayer::LoadFromFile(file, customLayers);
+                CustomLayer::LoadFromFile(file, customLayers);
             }
         } else if (key.compare(PluginConfigParams::KEY_TUNING_MODE) == 0) {
             if (val.compare(PluginConfigParams::TUNING_DISABLED) == 0) {

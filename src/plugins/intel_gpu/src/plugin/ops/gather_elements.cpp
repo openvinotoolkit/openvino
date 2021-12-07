@@ -20,7 +20,7 @@ static cldnn::gather_elements::gather_elements_axis GetGatherAxis(int axis, unsi
     if (axis < 0 || axis >= rank)
         IE_THROW() << "GatherElements axis is not correspond to number of dimensions";
 
-    // Difference in dimension ordering between IE and clDNN,
+    // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     unsigned cldnn_axis = axis;
     if (axis >= 2) {
@@ -56,7 +56,7 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
                                             inputPrimitives[0],
                                             inputPrimitives[1],
                                             outLayout,
-                                            CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                            tensor_from_dims(op->get_output_shape(0)),
                                             GetGatherAxis(axis, rank),
                                             op->get_friendly_name());
 

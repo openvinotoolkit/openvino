@@ -20,7 +20,7 @@ static inline cldnn::scatter_elements_update::scatter_elements_update_axis GetSc
     if (axis < 0 || axis >= rank)
         IE_THROW() << "ScatterElementsUpdate axis is not correspond to number of dimensions";
 
-    // Difference in dimension ordering between IE and clDNN,
+    // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     unsigned cldnn_axis = axis;
     if (axis >= 2) {

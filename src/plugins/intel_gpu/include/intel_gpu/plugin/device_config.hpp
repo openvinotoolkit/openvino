@@ -63,7 +63,7 @@ struct Config {
     cldnn::priority_mode_types queuePriority;
     cldnn::throttle_mode_types queueThrottle;
     int max_dynamic_batch;
-    CLDNNCustomLayerMap customLayers;
+    CustomLayerMap customLayers;
     cldnn::tuning_config_options tuningConfig;
     std::string graph_dumps_dir;
     std::string sources_dumps_dir;

@@ -44,7 +44,7 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
-            // clDNN primitive supports only i32 data type for indices inputs,
+            // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -66,7 +66,7 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::offsets_sum,
-                                                 CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                 tensor_from_dims(op->get_output_shape(0)),
                                                  defaultIndex,
                                                  op->get_friendly_name());
 
@@ -85,7 +85,7 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if ((portIndex == 1) && (inputDataType == cldnn::data_types::i64)) {
-            // clDNN primitive supports only i32 data type for indices input,
+            // GPU primitive supports only i32 data type for indices input,
             // so we need additional reorder if it's provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -107,7 +107,7 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::packed_sum,
-                                                 CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                 tensor_from_dims(op->get_output_shape(0)),
                                                  -1,
                                                  op->get_friendly_name());
 
@@ -144,7 +144,7 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
-            // clDNN primitive supports only i32 data type for indices inputs,
+            // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -166,7 +166,7 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::segments_sum,
-                                                 CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                 tensor_from_dims(op->get_output_shape(0)),
                                                  defaultIndex,
                                                  op->get_friendly_name());
 

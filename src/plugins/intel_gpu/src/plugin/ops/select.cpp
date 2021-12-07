@@ -63,7 +63,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                 // Extend input dimensions to the same size as output dimensions by prepending ones
                 inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
 
-                auto targetShape = CldnnTensorFromIEDims(inputDims);
+                auto targetShape = tensor_from_dims(inputDims);
 
                 auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
 

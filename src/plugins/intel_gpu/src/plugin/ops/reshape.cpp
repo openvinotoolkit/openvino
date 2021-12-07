@@ -23,7 +23,7 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
 
     auto inDims = op->get_input_shape(0);
     auto outDims = op->get_output_shape(0);
-    auto outTensor = CldnnTensorFromIEDims(outDims);
+    auto outTensor = tensor_from_dims(outDims);
 
     // if we convert from or to 5D/6D, additional reorder also required to change format
     cldnn::primitive_id reshapeInputId = inputPrimitives[0];

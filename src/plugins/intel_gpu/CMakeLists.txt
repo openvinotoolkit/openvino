@@ -18,7 +18,7 @@ endif()
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
-addVersionDefines(src/plugin/plugin.cpp CI_BUILD_NUMBER CLDNN_VERSION)
+addVersionDefines(src/plugin/plugin.cpp CI_BUILD_NUMBER)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"

@@ -42,7 +42,7 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
@@ -52,7 +52,7 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr
     Build();
 }
 
-CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
+Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
         : m_context(graph->m_context)
         , m_program(graph->m_program)
         , m_networkName(graph->m_networkName)
@@ -62,8 +62,8 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
     Build();
 }
 
-void CLDNNGraph::UpdateLayersMaps() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::UpdateLayersMaps");
+void Graph::UpdateLayersMaps() {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::UpdateLayersMaps");
     primitiveIDs = m_program->primitiveIDs;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
     profilingIDs = m_program->profilingIDs;
@@ -71,8 +71,8 @@ void CLDNNGraph::UpdateLayersMaps() {
     outputDims = m_program->outputDims;
 }
 
-void CLDNNGraph::Build() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::Build");
+void Graph::Build() {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::Build");
     UpdateLayersMaps();
 
     if (GetMaxDynamicBatchSize() > 1) {
@@ -94,13 +94,13 @@ void CLDNNGraph::Build() {
     }
 }
 
-bool CLDNNGraph::use_external_queue() const {
+bool Graph::use_external_queue() const {
     auto impl = getContextImpl(m_context);
     return impl->GetExternalQueue() != nullptr;
 }
 
-std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::BuildNetwork");
+std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::BuildNetwork");
     std::shared_ptr<cldnn::network> network = nullptr;
 
     auto impl = getContextImpl(m_context);
@@ -131,9 +131,9 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
     return network;
 }
 
-std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
-                                                                               bool filter_const_primitives) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::GetExecGraphInfoByPrimitivesInfo");
+std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
+                                                                          bool filter_const_primitives) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::GetExecGraphInfoByPrimitivesInfo");
     if (m_config.useProfiling) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
@@ -467,14 +467,14 @@ std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
-std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
     return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }
 
 
-void CLDNNGraph::UpdatePerfStatistics() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::UpdatePerfStatistics");
+void Graph::UpdatePerfStatistics() {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::UpdatePerfStatistics");
     if (GetNetworksCount() == 0) {
         return;
     }
@@ -541,12 +541,12 @@ void CLDNNGraph::UpdatePerfStatistics() {
     }
 }
 
-bool CLDNNGraph::IsLoaded() const {
+bool Graph::IsLoaded() const {
     return GetNetwork() != nullptr;
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::GetPerformanceCounts() const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNGraph::GetPerformanceCounts");
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPerformanceCounts() const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::GetPerformanceCounts");
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> result;
     bool combinePrimByIRLayers = false;
     unsigned i = 0;
@@ -720,7 +720,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
     return result;
 }
 
-std::shared_ptr<cldnn::network> CLDNNGraph::GetNetwork(size_t idx) const {
+std::shared_ptr<cldnn::network> Graph::GetNetwork(size_t idx) const {
     if (idx >= GetNetworksCount())
         IE_THROW() << "Unable to find network with id=" << idx << ". Stored networks count: " << GetNetworksCount();
 
@@ -728,7 +728,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::GetNetwork(size_t idx) const {
 }
 
 
-std::string CLDNNGraph::MapOutputName(std::string outName) const {
+std::string Graph::MapOutputName(std::string outName) const {
     auto networkOutputsIDs = GetNetwork()->get_output_ids();
     auto allPrimitiveIds = GetNetwork()->get_all_primitives();
 
@@ -753,7 +753,7 @@ std::string CLDNNGraph::MapOutputName(std::string outName) const {
     return outputID;
 }
 
-InferenceEngine::SizeVector CLDNNGraph::GetOutputSize(std::string outName) const {
+InferenceEngine::SizeVector Graph::GetOutputSize(std::string outName) const {
     auto res_output = outputDims.find(outName);
 
     InferenceEngine::SizeVector sz;

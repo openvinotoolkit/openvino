@@ -30,17 +30,17 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-class CLDNNGraph {
+class Graph {
 public:
     enum class Stage : uint32_t {
         PREPROC = 1,
         EXECUTE = 2,
         POSTPROC = 4
     };
-    typedef std::shared_ptr<CLDNNGraph> Ptr;
+    typedef std::shared_ptr<Graph> Ptr;
 
-    CLDNNGraph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
-    explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
+    Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
+    explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     bool IsLoaded() const;

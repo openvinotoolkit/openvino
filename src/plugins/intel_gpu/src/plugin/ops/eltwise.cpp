@@ -67,7 +67,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
             // Extend input dimensions by prepending ones
             inputShape.insert(inputShape.begin(), outRank - inputRank, 1ul);
 
-            auto targetShape = CldnnTensorFromIEDims(inputShape);
+            auto targetShape = tensor_from_dims(inputShape);
 
             auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);

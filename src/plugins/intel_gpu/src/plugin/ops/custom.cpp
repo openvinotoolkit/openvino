@@ -102,7 +102,7 @@ protected:
     std::map<std::string, std::string> m_values;
 };
 
-void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCustomLayerPtr customLayer) {
+void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomLayerPtr customLayer) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -132,7 +132,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
     cldnn::format outputFormat(cldnn::format::any);
     for (const auto& param : customLayer->KernelParams()) {
         switch (param.type) {
-        case CLDNNCustomLayer::ParamType::Input: {
+        case CustomLayer::ParamType::Input: {
             kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1) ? kernelParameters.size() : size_t(param.paramIndex + 1));
             kernelParameters[param.paramIndex].type = cldnn::custom_gpu_primitive::arg_input;
             kernelParameters[param.paramIndex].index =
@@ -161,7 +161,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
             }
             break;
         }
-        case CLDNNCustomLayer::ParamType::Output: {
+        case CustomLayer::ParamType::Output: {
             kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1) ? kernelParameters.size() : size_t(param.paramIndex + 1));
             kernelParameters[param.paramIndex].type = cldnn::custom_gpu_primitive::arg_output;
             kernelParameters[param.paramIndex].index =

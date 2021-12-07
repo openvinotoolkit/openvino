@@ -51,7 +51,7 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
 
     auto oneHotPrim = cldnn::one_hot(layerName,
                                      inputPrimitives[0],
-                                     CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                     tensor_from_dims(op->get_output_shape(0)),
                                      DataTypeFromPrecision(op->get_output_element_type(0)),
                                      static_cast<uint16_t>(axis),
                                      on_value,

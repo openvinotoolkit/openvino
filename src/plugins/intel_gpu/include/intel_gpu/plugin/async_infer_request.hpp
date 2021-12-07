@@ -13,21 +13,21 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-class CLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class AsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     using Parent = InferenceEngine::AsyncInferRequestThreadSafeDefault;
-    CLDNNAsyncInferRequest(const CLDNNInferRequest::Ptr &inferRequest,
-                           const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
-                           const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
-                           const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
+    AsyncInferRequest(const InferRequest::Ptr &inferRequest,
+                      const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
+                      const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
+                      const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
-    ~CLDNNAsyncInferRequest();
+    ~AsyncInferRequest();
 
     void Infer_ThreadUnsafe() override;
     void StartAsync_ThreadUnsafe() override;
 
 private:
-    CLDNNInferRequest::Ptr _inferRequest;
+    InferRequest::Ptr _inferRequest;
     InferenceEngine::ITaskExecutor::Ptr _waitExecutor;
 };
 

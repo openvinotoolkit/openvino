@@ -37,7 +37,7 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
         }
         inputs.emplace_back(format, sizes, default_size);
     }
-    auto out_size = CldnnTensorFromIEDims(op->get_output_shape(0));
+    auto out_size = tensor_from_dims(op->get_output_shape(0));
 
     auto batchToSpacePrim = cldnn::space_to_batch(layerName,
                                                   inputPrimitives[0], // input

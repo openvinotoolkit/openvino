@@ -33,7 +33,7 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-void CLDNNCustomLayer::LoadSingleLayer(const pugi::xml_node & node) {
+void CustomLayer::LoadSingleLayer(const pugi::xml_node & node) {
     // Root checks
     CheckNodeTypeAndReturnError(node, "CustomLayer");
     CheckStrAttrAndReturnError(node, "type", "SimpleGPU");
@@ -48,7 +48,7 @@ void CLDNNCustomLayer::LoadSingleLayer(const pugi::xml_node & node) {
     ProcessWorkSizesNode(node.child("WorkSizes"));
 }
 
-void CLDNNCustomLayer::ProcessKernelNode(const pugi::xml_node & node) {
+void CustomLayer::ProcessKernelNode(const pugi::xml_node & node) {
     CheckNodeTypeAndReturnError(node, "Kernel");
     CheckAndReturnError(m_kernelSource.length() > 0, "Multiple definition of Kernel");
     m_kernelEntry = GetStrAttr(node, "entry", "");
@@ -91,7 +91,7 @@ void CLDNNCustomLayer::ProcessKernelNode(const pugi::xml_node & node) {
     }
 }
 
-void CLDNNCustomLayer::ProcessBuffersNode(const pugi::xml_node & node) {
+void CustomLayer::ProcessBuffersNode(const pugi::xml_node & node) {
     CheckNodeTypeAndReturnError(node, "Buffers");
     FOREACH_CHILD(tensorNode, node, "Tensor") {
         KerenlParam kp;
@@ -122,7 +122,7 @@ void CLDNNCustomLayer::ProcessBuffersNode(const pugi::xml_node & node) {
     }
 }
 
-void CLDNNCustomLayer::ProcessCompilerOptionsNode(const pugi::xml_node & node) {
+void CustomLayer::ProcessCompilerOptionsNode(const pugi::xml_node & node) {
     if (node.empty()) {
         return;  // Optional node doesn't exist
     }
@@ -131,7 +131,7 @@ void CLDNNCustomLayer::ProcessCompilerOptionsNode(const pugi::xml_node & node) {
     m_compilerOptions = GetStrAttr(node, "options", "");
 }
 
-void CLDNNCustomLayer::ProcessWorkSizesNode(const pugi::xml_node & node) {
+void CustomLayer::ProcessWorkSizesNode(const pugi::xml_node & node) {
     if (node.empty()) {
         return;  // Optional node doesn't exist
     }
@@ -182,7 +182,7 @@ void CLDNNCustomLayer::ProcessWorkSizesNode(const pugi::xml_node & node) {
     }
 }
 
-bool CLDNNCustomLayer::IsLegalSizeRule(const std::string & rule) {
+bool CustomLayer::IsLegalSizeRule(const std::string & rule) {
     SimpleMathExpression expr;
     expr.SetVariables({
         { 'b', 1 }, { 'B', 1 },
@@ -202,7 +202,7 @@ bool CLDNNCustomLayer::IsLegalSizeRule(const std::string & rule) {
     return true;
 }
 
-cldnn::format CLDNNCustomLayer::FormatFromString(const std::string & str) {
+cldnn::format CustomLayer::FormatFromString(const std::string & str) {
     static const std::map<std::string, cldnn::format> FormatNameToType = {
         { "BFYX" , cldnn::format::bfyx },
         { "bfyx" , cldnn::format::bfyx },
@@ -226,8 +226,8 @@ cldnn::format CLDNNCustomLayer::FormatFromString(const std::string & str) {
         return cldnn::format::format_num;
 }
 
-void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLayerMap& customLayers, bool can_be_missed) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CLDNNCustomLayer::LoadFromFile");
+void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& customLayers, bool can_be_missed) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CustomLayer::LoadFromFile");
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
     if (res.status != pugi::status_ok) {
@@ -269,7 +269,7 @@ void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLay
     }
 
     for (auto r = xmlDoc.document_element(); r; r = r.next_sibling()) {
-        CLDNNCustomLayerPtr layer = std::make_shared<CLDNNCustomLayer>(CLDNNCustomLayer(dir_path));
+        CustomLayerPtr layer = std::make_shared<CustomLayer>(CustomLayer(dir_path));
         layer->LoadSingleLayer(r);
         if (layer->Error()) {
             customLayers.clear();

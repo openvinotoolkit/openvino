@@ -43,7 +43,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
                                                         const int32_t output_idx) {
     const auto precision = DataTypeFromPrecision(op->get_output_element_type(output_idx));
     const auto format = DefaultFormatForDims(op->get_output_shape(output_idx).size());
-    const auto tensor = CldnnTensorFromIEDims(op->get_output_shape(output_idx));
+    const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.GetEngine().allocate_memory(output_layout);
     auto md = cldnn::mutable_data(id, {input}, mem, op->get_friendly_name()); // cldnn::data cannot set dependency

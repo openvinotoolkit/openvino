@@ -40,7 +40,7 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
                                                                 strides,
                                                                 rates,
                                                                 auto_pad,
-                                                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                                tensor_from_dims(op->get_output_shape(0)),
                                                                 op->get_friendly_name());
 
     p.AddPrimitive(extractImagePatchesPrim);

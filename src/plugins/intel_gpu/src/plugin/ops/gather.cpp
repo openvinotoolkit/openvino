@@ -72,7 +72,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if (inputDataType == cldnn::data_types::i64) {
-            // clDNN primitive does not support i64 inputs,
+            // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -97,7 +97,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                     reorderedInputs[1],
                                     GetGatherAxis(axis, DefaultFormatForDims(op->get_input_shape(0).size())),
                                     outLayout,
-                                    CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                    tensor_from_dims(op->get_output_shape(0)),
                                     batch_dim,
                                     support_neg_ind,
                                     op->get_friendly_name());
