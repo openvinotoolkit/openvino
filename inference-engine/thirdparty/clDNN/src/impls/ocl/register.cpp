@@ -54,6 +54,7 @@ void register_implementations() {
     REGISTER_OCL(reorg_yolo);
     REGISTER_OCL(reshape);
     REGISTER_OCL(reverse_sequence);
+    REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(scale);
     REGISTER_OCL(scatter_update);
