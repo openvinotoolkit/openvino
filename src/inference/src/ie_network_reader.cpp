@@ -301,7 +301,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         using namespace ov::preprocess;
         PrePostProcessor prepost(function);
 
-        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
+        auto ir_version_impl = it->second.as<std::shared_ptr<ov::RuntimeAttributeWrapper<int64_t>>>();
         OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
         const int64_t ir_version = ir_version_impl->get();
 
@@ -347,7 +347,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             function = prepost.build();
 
             // Set version to 10
-            rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
+            rt_info["version"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(10);
         } else if (ir_version == 11 && !newAPI) {
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
@@ -380,9 +380,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 }
                 const auto it_order = rtInfo.find(old_api_map_key_order);
                 if (it_order != rtInfo.end()) {
-                    const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(it_order->second);
-                    OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
-                    const auto order = old_api_map_attr->get();
+                    const auto order = it_order->second.as<ov::OldApiMapOrder>().value;
                     pre_input.preprocess().convert_layout(order);
                     rtInfo.erase(it_order);
                 }
@@ -396,9 +394,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (it == rtInfo.end())
                     continue;
 
-                const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(it->second);
-                OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
-                const auto order = old_api_map_attr->get();
+                const auto order = it->second.as<ov::OldApiMapOrder>().value;
                 auto& post_output = prepost.output(i);
                 post_output.postprocess().convert_layout(order);
 
@@ -410,7 +406,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 function->validate_nodes_and_infer_types();
 
             // Set version to 10
-            rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
+            rt_info["version"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(10);
 
             function = prepost.build();
         }
@@ -473,7 +469,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::VariantVector params{ov::make_variant(model_path)};
+    ov::RuntimeAttributeVector params{model_path};
 
     if (!binPath.empty()) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -481,7 +477,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #else
         const std::string& weights_path = binPath;
 #endif
-        params.emplace_back(ov::make_variant(weights_path));
+        params.emplace_back(weights_path);
     }
 
     FE = manager.load_by_model(params);
@@ -539,12 +535,12 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::VariantVector params{ov::make_variant(&modelStream)};
+    ov::RuntimeAttributeVector params{&modelStream};
     if (weights) {
         char* data = weights->cbuffer().as<char*>();
         std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =
             std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
-        params.emplace_back(ov::make_variant(weights_buffer));
+        params.emplace_back(weights_buffer);
     }
 
     FE = manager.load_by_model(params);

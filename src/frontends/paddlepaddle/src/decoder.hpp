@@ -9,6 +9,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <openvino/core/any.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -26,7 +27,7 @@ class DecoderPDPDProto : public pdpd::DecoderBase {
 public:
     explicit DecoderPDPDProto(const std::shared_ptr<OpPlacePDPD>& op) : op_place(op) {}
 
-    std::shared_ptr<Variant> get_attribute(const std::string& name, const VariantTypeInfo& type_info) const override;
+    ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const override;
 
     std::vector<pdpd::OutPortName> get_output_names() const override;
 
