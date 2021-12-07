@@ -78,7 +78,7 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
     }
 
     if (dispatchData.needsBoundary) {
-        mem_consts.AddConstant(MakeJitConstant("CHECK_BOUNDRY", 1));
+        mem_consts.AddConstant(MakeJitConstant("CHECK_BOUNDARY", 1));
     }
 
     if (EnableRound(pp)) {
