@@ -83,6 +83,8 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset4::Broadcast>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Broadcast>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {

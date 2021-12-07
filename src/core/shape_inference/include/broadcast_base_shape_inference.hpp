@@ -286,5 +286,17 @@ void shape_infer(const ov::op::v3::Broadcast* op,
 }
 }  // namespace v3
 
+namespace v1 {
+template <class T>
+void shape_infer(const ov::op::v1::Broadcast* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    NODE_VALIDATION_CHECK(op, output_shapes.size() == 1 && (input_shapes.size() == 2 || input_shapes.size() == 3));
+
+    broadcase_base_shape_infer(op, input_shapes, output_shapes, constant_data);
+}
+}  // namespace v1
+
 }  // namespace op
 }  // namespace ov
