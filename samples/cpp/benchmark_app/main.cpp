@@ -456,7 +456,7 @@ int main(int argc, char* argv[]) {
                                            });
 
             // use batch size according to provided layout and shapes (static case)
-            if (!isDynamicNetwork) {
+            if (batchSize == 0 || !isDynamicNetwork) {
                 batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
             }
 
@@ -530,9 +530,8 @@ int main(int argc, char* argv[]) {
         bool inferenceOnly = FLAGS_inference_only;
         if (isDynamicNetwork) {
             if (isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() != 1) {
-                slog::warn << "Dynamic models with different input data shapes must be benchmarked only in full mode."
-                              " -inference_only flag will be ignored"
-                           << slog::endl;
+                throw std::logic_error(
+                    "Dynamic models with different input data shapes must be benchmarked only in full mode.");
             }
             inferenceOnly = isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() == 1;
         }
@@ -873,6 +872,7 @@ int main(int argc, char* argv[]) {
 
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
+
         LatencyMetrics generalLatency(inferRequestsQueue.getLatencies());
         std::vector<LatencyMetrics> groupLatencies = {};
         if (FLAGS_pcseq && app_inputs_info.size() > 1) {
