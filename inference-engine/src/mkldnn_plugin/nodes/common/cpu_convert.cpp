@@ -4,7 +4,8 @@
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
-#include "utils/bfloat16.hpp"
+#include <utils/bfloat16.hpp>
+#include <utils/general_utils.h>
 #include <mkldnn_selective_build.h>
 #include <ie_parallel.hpp>
 #include <openvino/core/type/float16.hpp>
@@ -22,7 +23,39 @@ using namespace Xbyak;
 
 namespace {
 
+inline void parallel_loop(const size_t& D0, const std::function<void(size_t)>& func) {
+    parallel_for(D0, func);
+}
+
 template <typename src_t, typename dst_t>
+void convert_vec(jit_generator & gen,
+                 const RegExp & src,
+                 const RegExp & dst);
+
+template <>
+void convert_vec<ov::float16, float>(jit_generator & gen,
+                                     const RegExp & src,
+                                     const RegExp & dst) {
+    auto const & f16vec = gen.xmm3;
+    auto const & f32vec = gen.ymm4;
+
+    gen.movdqu(f16vec, gen.xword[src]);
+    gen.vcvtph2ps(f32vec, f16vec);
+    gen.vmovups(gen.yword[dst], f32vec);
+}
+
+template <>
+void convert_vec<float, ov::float16>(jit_generator & gen,
+                                     const RegExp & src,
+                                     const RegExp & dst) {
+    auto const & f16vec = gen.xmm3;
+    auto const & f32vec = gen.ymm4;
+
+    gen.vmovups(f32vec, gen.yword[src]);
+    gen.vcvtps2ph(f16vec, f32vec, 0);
+    gen.movdqu(gen.xword[dst], f16vec);
+}
+
 class jit_convert_array : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_convert_array)
 
@@ -47,9 +80,9 @@ class jit_convert_array : public jit_generator {
         shr(r8, vlen_log2);
 
         foreach(rsi, 1, r8, [&, this](const Xbyak::Reg64& idx) {
-            convert_vec(reg_src, reg_dst);
-            add(reg_src, sizeof(src_t) * vlen);
-            add(reg_dst, sizeof(dst_t) * vlen);
+            _convert_vec(*this, reg_src, reg_dst);
+            add(reg_src, _src_size * vlen);
+            add(reg_dst, _dst_size * vlen);
         });
 
         L(tail);
@@ -67,9 +100,9 @@ class jit_convert_array : public jit_generator {
         vmovups(yword[r8], ymm4);
 
         // Tail conversion
-        copy<src_t>(r8, reg_src, reg_sz);
-        convert_vec(r8, r8);
-        copy<dst_t>(reg_dst, r8, reg_sz);
+        copy(r8, reg_src, reg_sz, _src_size);
+        _convert_vec(*this, r8, r8);
+        copy(reg_dst, r8, reg_sz, _dst_size);
 
         // Free the array on stack
         add(rsp, vlen * sizeof(float));
@@ -96,13 +129,10 @@ class jit_convert_array : public jit_generator {
         L(exit);
     }
 
-    void convert_vec(const RegExp & src,
-                     const RegExp & dst);
-
-    template<typename T>
     void copy(const Xbyak::Reg64& dst,
               const Xbyak::Reg64& src,
-              const Xbyak::Reg64& size) {
+              const Xbyak::Reg64& size,
+              size_t item_size) {
         push(rsi);
         push(r15);
 
@@ -120,11 +150,11 @@ class jit_convert_array : public jit_generator {
             return ptr;
         };
 
-        const auto & addr_frame = address_frame(sizeof(T));
+        const auto & addr_frame = address_frame(item_size);
 
         foreach(rsi, 1, size, [&, this](const Xbyak::Reg64& idx) {
-            mov(r15, addr_frame[src + idx * sizeof(T)]);
-            mov(addr_frame[dst + idx * sizeof(T)], r15);
+            mov(r15, addr_frame[src + idx * item_size]);
+            mov(addr_frame[dst + idx * item_size], r15);
         });
 
         pop(r15);
@@ -133,50 +163,45 @@ class jit_convert_array : public jit_generator {
 
 public:
     typedef struct {
-        const src_t* src;
-        dst_t* out;
+        const void* src;
+        void* out;
         const size_t count;
     } args_t;
 
     typedef void (*fn_t)(const args_t*);
 
+    typedef void (*convert_vec_t)(jit_generator &,
+                                  const RegExp &,
+                                  const RegExp &);
+
+    jit_convert_array(convert_vec_t convert_vec,
+                      size_t src_size,
+                      size_t dst_size)
+        : _convert_vec(convert_vec)
+        , _src_size(src_size)
+        , _dst_size(dst_size) {}
+
+    template<typename src_t, typename dst_t>
     static fn_t get() {
         if (mayiuse(avx2) && cpu().has(util::Cpu::tF16C)) {
-            static jit_convert_array converter;
+            static jit_convert_array converter(convert_vec<src_t, dst_t>, sizeof(src_t), sizeof(dst_t));
             auto & generator = static_cast<jit_generator&>(converter);
             generator.create_kernel();
             return (fn_t)generator.jit_ker();
         }
         return nullptr;
     }
+
+private:
+    convert_vec_t _convert_vec;
+    size_t _src_size;
+    size_t _dst_size;
 };
-
-template <>
-void jit_convert_array<ov::float16, float>::convert_vec(const RegExp & src,
-                                                        const RegExp & dst) {
-    auto f16vec = xmm3;
-    auto f32vec = ymm4;
-
-    movdqu(f16vec, xword[src]);
-    vcvtph2ps(f32vec, f16vec);
-    vmovups(yword[dst], f32vec);
-}
-
-template <>
-void jit_convert_array<float, ov::float16>::convert_vec(const RegExp & src,
-                                                        const RegExp & dst) {
-    auto f16vec = xmm3;
-    auto f32vec = ymm4;
-
-    vmovups(f32vec, yword[src]);
-    vcvtps2ph(f16vec, f32vec, 0);
-    movdqu(xword[dst], f16vec);
-}
 
 template <typename TI, typename TO>
 void jit_convert(const TI* arg, TO* out, size_t count) {
-    using jit_impl = jit_convert_array<TI, TO>;
-    static auto converter = jit_impl::get();
+    using jit_impl = jit_convert_array;
+    static auto converter = jit_impl::get<TI, TO>();
 
     if (converter) {
         typename jit_impl::args_t args = { arg, out, count };
@@ -223,7 +248,7 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertContext & ctx) {
         auto src = static_cast<const src_t *>(ctx.srcPtr);
         auto dst = static_cast<dst_t *>(ctx.dstPtr);
-        parallel_for(ctx.size, [&](size_t i) {
+        parallel_loop(ctx.size, [&](size_t i) {
             dst[i] = static_cast<dst_t>(src[i]);
         });
         ctx.converted = true;
@@ -237,10 +262,10 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
         auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
-        const size_t iterations = (ctx.size + batch - 1) / batch;
+        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        parallel_for(iterations, [&](size_t i) {
+        parallel_loop(iterations, [&](size_t i) {
             batch_type tmp;
             const size_t offset = i * batch;
             const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -260,10 +285,10 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         auto dst = static_cast<dst_t *>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
-        const size_t iterations = (ctx.size + batch - 1) / batch;
+        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        parallel_for(iterations, [&](size_t i) {
+        parallel_loop(iterations, [&](size_t i) {
             batch_type tmp;
             const size_t offset = i * batch;
             const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -272,6 +297,16 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 dst[offset + j] = static_cast<dst_t>(tmp[j]);
         });
 
+        ctx.converted = true;
+    }
+};
+
+template<>
+struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
+    void operator()(ConvertContext & ctx) {
+        auto src = static_cast<const ov::float16 *>(ctx.srcPtr);
+        auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
+        cpu_memcpy(dst, src, ctx.size * sizeof(ov::float16));
         ctx.converted = true;
     }
 };
@@ -350,7 +385,7 @@ struct TruncateContext {
         auto range_1 = commonRange<src_t, dst_t>();
 
         return std::make_pair(std::max(std::get<0>(range_0), std::get<0>(range_1)),
-                              std::min(std::get<1>(range_0), std::get<1>(range_0)));
+                              std::min(std::get<1>(range_0), std::get<1>(range_1)));
     }
 };
 
@@ -368,12 +403,119 @@ struct TruncatePrecision<std::tuple<src_t, dst_t>> {
         if (std::is_integral<src_t>::value
             || ctx.interimPrc.is_float()
             || std::is_integral<dst_t>::value) {
-            parallel_for(ctx.size, [&](size_t i) {
+            parallel_loop(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
             });
         } else {
-            parallel_for(ctx.size, [&](size_t i) {
+            parallel_loop(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template<typename src_t>
+struct TruncatePrecision<std::tuple<src_t, ov::float16>> {
+    void operator()(TruncateContext & ctx) {
+        auto src = static_cast<const src_t *>(ctx.srcPtr);
+        auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
+
+        constexpr size_t batch = 64;
+        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        typedef float batch_type[batch];
+
+        src_t lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<src_t, ov::float16>();
+
+        if (std::is_integral<src_t>::value
+            || ctx.interimPrc.is_float()) {
+            parallel_loop(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
+                    tmp[j] = static_cast<float>(std::max(std::min(src[i], ubound), lbound));
+                jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
+            });
+        } else {
+            parallel_loop(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
+                    tmp[j] = static_cast<float>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+                jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template<typename dst_t>
+struct TruncatePrecision<std::tuple<ov::float16, dst_t>> {
+    void operator()(TruncateContext & ctx) {
+        auto src = static_cast<const ov::float16 *>(ctx.srcPtr);
+        auto dst = static_cast<dst_t *>(ctx.dstPtr);
+
+        constexpr size_t batch = 64;
+        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        typedef float batch_type[batch];
+
+        float lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<dst_t, ov::float16>();
+
+        if (ctx.interimPrc.is_float()
+            || std::is_integral<dst_t>::value) {
+            parallel_loop(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, tmp, current_batch_size);     // fp16 -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j)         // fp32 -> dst_t
+                    dst[offset + j] = static_cast<dst_t>(std::max(std::min(tmp[j], ubound), lbound));
+            });
+        } else {
+            parallel_loop(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, tmp, current_batch_size);     // fp16 -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j)         // fp32 -> dst_t
+                    dst[offset + j] = static_cast<dst_t>(std::trunc(std::max(std::min(tmp[j], ubound), lbound)));
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template<>
+struct TruncatePrecision<std::tuple<ov::float16, ov::float16>> {
+    void operator()(TruncateContext & ctx) {
+        auto src = static_cast<const ov::float16 *>(ctx.srcPtr);
+        auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
+
+        constexpr size_t batch = 64;
+        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        typedef float batch_type[batch];
+
+        float lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<ov::float16, ov::float16>();
+
+        if (ctx.interimPrc.is_float()) {
+            cpu_memcpy(dst, src, ctx.size * sizeof(ov::float16));
+        } else {
+            parallel_loop(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, tmp, current_batch_size);     // fp16 -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j)         // truncate fp32
+                    tmp[j] = std::trunc(std::max(std::min(tmp[j], ubound), lbound));
+                jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
             });
         }
 
@@ -431,9 +573,7 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
     MKLDNN_CVT(FP64, FP32), MKLDNN_CVT(FP64, FP16), MKLDNN_CVT(FP64, BF16), MKLDNN_CVT(FP64, BOOL), \
     MKLDNN_CVT(BOOL, U8),   MKLDNN_CVT(BOOL, I8),   MKLDNN_CVT(BOOL, U16),  MKLDNN_CVT(BOOL, I16),  \
     MKLDNN_CVT(BOOL, U32),  MKLDNN_CVT(BOOL, I32),  MKLDNN_CVT(BOOL, U64),  MKLDNN_CVT(BOOL, I64),  \
-    MKLDNN_CVT(BOOL, FP32), MKLDNN_CVT(BOOL, FP16), MKLDNN_CVT(BOOL, BF16), MKLDNN_CVT(BOOL, FP64)
-
-#define MKLDNN_TRUNC_LIST                                                                           \
+    MKLDNN_CVT(BOOL, FP32), MKLDNN_CVT(BOOL, FP16), MKLDNN_CVT(BOOL, BF16), MKLDNN_CVT(BOOL, FP64), \
     MKLDNN_CVT(U8, U8),     MKLDNN_CVT(I8, I8),     MKLDNN_CVT(U16, U16),   MKLDNN_CVT(I16, I16),   \
     MKLDNN_CVT(U32, U32),   MKLDNN_CVT(I32, I32),   MKLDNN_CVT(U64, U64),   MKLDNN_CVT(I64, I64),   \
     MKLDNN_CVT(FP32, FP32), MKLDNN_CVT(FP16, FP16), MKLDNN_CVT(BF16, BF16), MKLDNN_CVT(FP64, FP64), \
@@ -459,7 +599,8 @@ void cpu_convert(const void *srcPtr,
                  InferenceEngine::Precision interimPrc,
                  InferenceEngine::Precision dstPrc,
                  const size_t size) {
-    if (!isConversionTruncatesRange(srcPrc, interimPrc)) {
+    if (interimPrc == dstPrc
+        || !isConversionTruncatesRange(srcPrc, interimPrc)) {
         cpu_convert(srcPtr, dstPtr, srcPrc, dstPrc, size);
     } else {
         if (srcPtr == nullptr || dstPtr == nullptr)
@@ -472,10 +613,6 @@ void cpu_convert(const void *srcPtr,
             false
         };
         OV_SWITCH(MKLDNNPlugin, TruncatePrecision, ctx, std::tie(srcPrc, dstPrc), MKLDNN_CVT_LIST);
-
-        if (!ctx.converted)
-            OV_SWITCH(MKLDNNPlugin, TruncatePrecision, ctx, std::tie(srcPrc, dstPrc), MKLDNN_TRUNC_LIST);
-
         if (!ctx.converted)
             IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
     }
