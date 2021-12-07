@@ -29,8 +29,6 @@
 #include "ngraph/variant.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/preprocess/input_network_info.hpp"
-#include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/shared_object.hpp"

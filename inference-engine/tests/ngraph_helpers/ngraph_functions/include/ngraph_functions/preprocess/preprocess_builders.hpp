@@ -232,7 +232,7 @@ inline std::shared_ptr<Function> resize_linear() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(20, 20);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -243,7 +243,7 @@ inline std::shared_ptr<Function> resize_nearest() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(20, 20);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -254,7 +254,7 @@ inline std::shared_ptr<Function> resize_linear_nhwc() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(20, 20);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NHWC");
+    p.input().model().set_layout("NHWC");
     function = p.build();
     return function;
 }
@@ -265,7 +265,7 @@ inline std::shared_ptr<Function> resize_cubic() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(10, 10);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -276,7 +276,7 @@ inline std::shared_ptr<Function> resize_and_convert_layout() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_layout("NHWC").set_spatial_static_shape(40, 30);
     p.input().preprocess().convert_layout().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -296,7 +296,7 @@ inline std::shared_ptr<Function> resize_and_convert_layout_i8() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_layout("NHWC").set_spatial_static_shape(40, 30);
     p.input().preprocess().convert_layout().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -334,7 +334,7 @@ inline std::shared_ptr<Function> cvt_color_nv12_cvt_layout_resize() {
             .convert_layout()
             .convert_element_type(element::f32)
             .resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }

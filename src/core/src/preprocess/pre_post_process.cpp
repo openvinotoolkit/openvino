@@ -142,10 +142,10 @@ private:
 
 class OutputTensorInfo::OutputTensorInfoImpl : public TensorInfoImplBase {};
 
-/// \brief InputNetworkInfoImpl - internal data structure
-class NetworkInfoImpl {
+/// \brief ModelInfoImpl - internal data structure
+class ModelInfoImpl {
 public:
-    NetworkInfoImpl() = default;
+    ModelInfoImpl() = default;
 
     void set_layout(const Layout& layout) {
         m_layout = layout;
@@ -163,9 +163,9 @@ private:
     bool m_layout_set = false;
 };
 
-class InputNetworkInfo::InputNetworkInfoImpl : public NetworkInfoImpl {};
+class InputModelInfo::InputModelInfoImpl : public ModelInfoImpl {};
 
-class OutputNetworkInfo::OutputNetworkInfoImpl : public NetworkInfoImpl {};
+class OutputModelInfo::OutputModelInfoImpl : public ModelInfoImpl {};
 
 /// \brief InputInfoImpl - internal data structure
 struct InputInfo::InputInfoImpl {
@@ -179,13 +179,13 @@ struct InputInfo::InputInfoImpl {
         return m_preprocess.m_impl;
     }
 
-    std::unique_ptr<InputNetworkInfo::InputNetworkInfoImpl>& get_network() {
+    std::unique_ptr<InputModelInfo::InputModelInfoImpl>& get_network() {
         return m_network_data.m_impl;
     }
 
     InputTensorInfo m_tensor_info;
     PreProcessSteps m_preprocess;
-    InputNetworkInfo m_network_data;
+    InputModelInfo m_network_data;
     std::shared_ptr<op::v0::Parameter> m_resolved_param;
 };
 
@@ -201,13 +201,13 @@ struct OutputInfo::OutputInfoImpl {
         return m_postprocess.m_impl;
     }
 
-    std::unique_ptr<OutputNetworkInfo::OutputNetworkInfoImpl>& get_network_data() {
+    std::unique_ptr<OutputModelInfo::OutputModelInfoImpl>& get_network_data() {
         return m_network_info.m_impl;
     }
 
     OutputTensorInfo m_tensor_info;
     PostProcessSteps m_postprocess;
-    OutputNetworkInfo m_network_info;
+    OutputModelInfo m_network_info;
     ov::Output<ov::Node> m_output_node;
 };
 
@@ -226,7 +226,7 @@ PreProcessSteps& InputInfo::preprocess() {
     return m_impl->m_preprocess;
 }
 
-InputNetworkInfo& InputInfo::network() {
+InputModelInfo& InputInfo::model() {
     return m_impl->m_network_data;
 }
 
@@ -236,7 +236,7 @@ OutputInfo::OutputInfo(OutputInfo&& other) noexcept = default;
 OutputInfo& OutputInfo::operator=(OutputInfo&& other) noexcept = default;
 OutputInfo::~OutputInfo() = default;
 
-OutputNetworkInfo& OutputInfo::network() {
+OutputModelInfo& OutputInfo::model() {
     return m_impl->m_network_info;
 }
 
@@ -630,11 +630,11 @@ InputTensorInfo& InputTensorInfo::set_spatial_static_shape(size_t height, size_t
     return *this;
 }
 
-// --------------------- InputNetworkInfo ------------------
-InputNetworkInfo::InputNetworkInfo() : m_impl(std::unique_ptr<InputNetworkInfoImpl>(new InputNetworkInfoImpl())) {}
-InputNetworkInfo::~InputNetworkInfo() = default;
+// --------------------- InputModelInfo ------------------
+InputModelInfo::InputModelInfo() : m_impl(std::unique_ptr<InputModelInfoImpl>(new InputModelInfoImpl())) {}
+InputModelInfo::~InputModelInfo() = default;
 
-InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) {
+InputModelInfo& InputModelInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
     return *this;
 }
@@ -740,11 +740,11 @@ OutputTensorInfo& OutputTensorInfo::set_layout(const Layout& layout) {
     return *this;
 }
 
-// --------------------- OutputNetworkInfo ------------------
-OutputNetworkInfo::OutputNetworkInfo() : m_impl(std::unique_ptr<OutputNetworkInfoImpl>(new OutputNetworkInfoImpl())) {}
-OutputNetworkInfo::~OutputNetworkInfo() = default;
+// --------------------- OutputModelInfo ------------------
+OutputModelInfo::OutputModelInfo() : m_impl(std::unique_ptr<OutputModelInfoImpl>(new OutputModelInfoImpl())) {}
+OutputModelInfo::~OutputModelInfo() = default;
 
-OutputNetworkInfo& OutputNetworkInfo::set_layout(const Layout& layout) {
+OutputModelInfo& OutputModelInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
     return *this;
 }

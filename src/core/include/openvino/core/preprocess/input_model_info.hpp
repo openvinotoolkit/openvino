@@ -11,7 +11,7 @@
 namespace ov {
 namespace preprocess {
 
-/// \brief Information about network's input tensor. If all information is already included to loaded network, this info
+/// \brief Information about model's input tensor. If all information is already included to loaded network, this info
 /// may not be needed. However it can be set to specify additional information about network, like 'layout'.
 ///
 /// Example of usage of network 'layout':
@@ -19,22 +19,22 @@ namespace preprocess {
 /// dimensions. It can be done like this
 ///
 /// \code{.cpp}
-/// <network has input parameter with shape {1, 3, 224, 224}>
+/// <model has input parameter with shape {1, 3, 224, 224}>
 /// auto proc = PrePostProcessor(function);
 /// proc.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-/// proc.input().network().set_layout("NCHW");
+/// proc.input().model().set_layout("NCHW");
 /// \endcode
-class OPENVINO_API InputNetworkInfo final {
-    class InputNetworkInfoImpl;
-    std::unique_ptr<InputNetworkInfoImpl> m_impl;
+class OPENVINO_API InputModelInfo final {
+    class InputModelInfoImpl;
+    std::unique_ptr<InputModelInfoImpl> m_impl;
     friend class InputInfo;
 
     /// \brief Default empty constructor
-    InputNetworkInfo();
+    InputModelInfo();
 
 public:
     /// \brief Default destructor
-    ~InputNetworkInfo();
+    ~InputModelInfo();
 
     /// \brief Set layout for network's input tensor
     /// This version allows chaining for Lvalue objects
@@ -42,7 +42,7 @@ public:
     /// \param layout Layout for network's input tensor.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputNetworkInfo& set_layout(const ov::Layout& layout);
+    InputModelInfo& set_layout(const ov::Layout& layout);
 };
 
 }  // namespace preprocess

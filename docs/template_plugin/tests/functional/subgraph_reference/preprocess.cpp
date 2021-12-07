@@ -284,7 +284,7 @@ static RefPreprocessParams resize_to_network_height() {
         p.input()
                 .tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-        p.input().network().set_layout("NHWC");
+        p.input().model().set_layout("NHWC");
         p.build();
         return f;
     };
@@ -301,7 +301,7 @@ static RefPreprocessParams resize_to_network_width() {
         p.input()
                 .tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
@@ -319,7 +319,7 @@ static RefPreprocessParams resize_from_spatial_dims() {
         p.input()
                 .tensor().set_spatial_static_shape(1, 4);
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
@@ -337,7 +337,7 @@ static RefPreprocessParams resize_i8() {
                 .tensor()
                 .set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
@@ -356,7 +356,7 @@ static RefPreprocessParams resize_to_network_width_height() {
         p.input()
                 .tensor().set_spatial_static_shape(5, 5);
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST);
-        p.input().network().set_layout("...HW");
+        p.input().model().set_layout("...HW");
         p.build();
         return f;
     };
@@ -386,7 +386,7 @@ static RefPreprocessParams resize_to_specified_width_height() {
         p.input()
                 .tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST, 4, 4);
-        p.input().network().set_layout("...HW");
+        p.input().model().set_layout("...HW");
         p.build();
         return f;
     };
@@ -524,7 +524,7 @@ static RefPreprocessParams resize_and_convert_layout() {
         p.input().preprocess()
                 .resize(ResizeAlgorithm::RESIZE_LINEAR)
                 .convert_layout();
-        p.input().network().set_layout("NHWC");
+        p.input().model().set_layout("NHWC");
         p.build();
         return f;
     };
@@ -639,7 +639,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
                 .convert_layout()
                 .convert_element_type(element::f32)
                 .resize(ResizeAlgorithm::RESIZE_NEAREST);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
@@ -676,7 +676,7 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
         p.input().preprocess()
                 .convert_element_type(element::f32)
                 .convert_color(ColorFormat::RGB);
-        p.input().network().set_layout("NHWC");
+        p.input().model().set_layout("NHWC");
         p.build();
         return f;
     };
@@ -772,7 +772,7 @@ static RefPreprocessParams postprocess_2_inputs_basic() {
         auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
         auto p = PrePostProcessor(f);
         p.output("tensor_output1")
-                .network().set_layout("NCHW");
+                .model().set_layout("NCHW");
         p.output("tensor_output1").postprocess().convert_layout();
         p.output("tensor_output1").tensor().set_layout("NHWC");
         p.output("tensor_output2")
@@ -838,7 +838,7 @@ static RefPreprocessParams pre_and_post_processing() {
         p.input(0).preprocess().convert_element_type(element::f32).mean(1.f);
         p.input(1).preprocess().scale(2.f);
         p.output("tensor_output1")
-                .network().set_layout("NCHW");
+                .model().set_layout("NCHW");
         p.output("tensor_output1").postprocess().convert_layout();
         p.output("tensor_output1").tensor().set_layout("NHWC");
         p.output("tensor_output2")
