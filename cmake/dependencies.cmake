@@ -5,7 +5,7 @@
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it
-set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
+set_temp_directory(TEMP "${CMAKE_BINARY_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)

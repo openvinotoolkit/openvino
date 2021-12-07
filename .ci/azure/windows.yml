@@ -136,7 +136,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
-  - script: dir $(REPO_DIR)\temp\ /s
+  - script: dir $(BUILD_DIR)\temp\ /s
     displayName: 'List temp SDKs'
 
   - script: |
