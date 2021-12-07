@@ -257,7 +257,7 @@ The `squeezenet1.1` model is downloaded in the Caffe* format. You must use the M
    cd <INSTALL_DIR>\tools\model_optimizer
    ```
    ```bat
-   python .\mo --input_model <model_dir>\<model_file> --data_type <model_precision> --output_dir <ir_dir>
+   mo --input_model <model_dir>\<model_file> --data_type <model_precision> --output_dir <ir_dir>
    ```
    The produced IR files are in the `<ir_dir>` directory.
 

@@ -10,7 +10,7 @@ from openvino.tools.mo.graph.graph import Graph, Node, rename_node
 
 
 class Sub(FrontReplacementPattern):
-    # This transformation is called directly from the 'model-optimizer/openvino/tools/mo/middle/fusings.py' transformation
+    # This transformation is called directly from the 'openvino/tools/mo/middle/fusings.py' transformation
     enabled = False
 
     @staticmethod
