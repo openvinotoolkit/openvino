@@ -11,6 +11,8 @@ import argparse
 import os
 import onnx
 from generator import generator, generate
+from mo.ops.op import Op
+from extensions.ops.activation_ops import Elu
 
 try:
     import openvino_telemetry as tm
@@ -23,7 +25,7 @@ def base_args_config():
     args.extensions = None
     args.use_legacy_frontend = False
     args.use_new_frontend = True
-    args.framework = None
+    args.framework = 'onnx'
     args.model_name = None
     args.input_model = None
     args.silent = True
@@ -50,6 +52,7 @@ def base_args_config():
     args.data_type = None
     return args
 
+
 @generator
 class TestMoFallback(unittest.TestCase):
     def setUp(self):
@@ -68,7 +71,24 @@ class TestMoFallback(unittest.TestCase):
         graph = make_graph([add], "test_graph", input_tensors, output_tensors)
         model = make_model(graph, producer_name="MO tests",
                                                 opset_imports=[onnx.helper.make_opsetid("", 13)])
-        self.models["test_model_1.onnx"] = model
+        self.models["test_model.onnx"] = model
+
+        fake_squeeze = onnx.helper.make_node(
+            'FakeElu',
+            inputs=['x'],
+            outputs=['y'],
+            axes=[0],
+        )
+        input_tensors = [
+            make_tensor_value_info("x", onnx.TensorProto.FLOAT, (2, 2)),
+        ]
+        output_tensors = [
+            make_tensor_value_info("y", onnx.TensorProto.FLOAT, (2, 2)),
+        ]
+        graph = make_graph([fake_squeeze], "test_graph", input_tensors, output_tensors)
+        model = make_model(graph, producer_name="MO tests",
+                                                opset_imports=[onnx.helper.make_opsetid("", 13)])
+        self.models["fake_elu.onnx"] = model
 
         for name, model in self.models.items():
             onnx.save(model, name)
@@ -89,9 +109,9 @@ class TestMoFallback(unittest.TestCase):
         args.extensions = extension
         args.use_legacy_frontend = use_legacy
         args.use_new_frontend = use_new_fe
-        args.input_model = "test_model_1.onnx"
+        args.input_model = "test_model.onnx"
 
-        graph, ng_func = prepare_ir(args)
+        prepare_ir(args)
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
 
     @generate(*[('config.json', False, True, 'mo_legacy'),
@@ -102,7 +122,7 @@ class TestMoFallback(unittest.TestCase):
         args = base_args_config()
         args.use_legacy_frontend = use_legacy
         args.use_new_frontend = use_new_fe
-        args.input_model = "test_model_1.onnx"
+        args.input_model = "test_model.onnx"
         if trans_config is not None: # trans config provided
             with open(trans_config, 'w') as f:
                 f.write("[]") # json format
@@ -110,7 +130,7 @@ class TestMoFallback(unittest.TestCase):
         else:
             args.transformations_config = trans_config
 
-        graph, ng_func = prepare_ir(args)
+        prepare_ir(args)
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
 
         if args.transformations_config is not None:
@@ -126,7 +146,7 @@ class TestMoFallback(unittest.TestCase):
         args = base_args_config()
         args.use_new_frontend = use_new_fe
         args.extensions = extension
-        args.input_model = "test_model_1.onnx"
+        args.input_model = "test_model.onnx"
         if trans_config is not None: # trans config provided
             with open(trans_config, 'w') as f:
                 f.write("[]") # json format
@@ -134,8 +154,27 @@ class TestMoFallback(unittest.TestCase):
         else:
             args.transformations_config = trans_config
 
-        graph, ng_func = prepare_ir(args)
+        prepare_ir(args)
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
 
         if args.transformations_config is not None:
             os.remove(args.transformations_config) # clean-up
+
+
+    @generate(*[(True, False, 'mo_legacy'),
+                (False, False, 'mo_legacy'),
+    ])
+    def test_fallback_if_frontend_path_failed(self, use_new_fe, use_legacy, expected_path):
+        args = base_args_config()
+        args.use_legacy_frontend = True
+        args.extensions='ext_path'
+        args.use_new_frontend = False
+        args.input_model = "fake_elu.onnx"
+        # FakeElu is supported only by legacy path
+        Op.registered_ops['FakeElu'] = Elu
+
+        graph, ng_func = prepare_ir(args)
+
+        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+        assert graph
+        assert not ng_func

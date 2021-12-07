@@ -326,10 +326,13 @@ def prepare_ir(argv : argparse.Namespace):
     if moc_front_end and not apply_fallback:
         t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
-        ngraph_function = moc_pipeline(argv, moc_front_end)
-    else:
-        t.send_event("mo", "conversion_method", "mo_legacy")
-        graph = unified_pipeline(argv)
+        try:
+            ngraph_function = moc_pipeline(argv, moc_front_end)
+            return graph, ngraph_function
+        except:
+            pass # TODO Handle event
+    t.send_event("mo", "conversion_method", "mo_legacy")
+    graph = unified_pipeline(argv)
 
     return graph, ngraph_function
 
