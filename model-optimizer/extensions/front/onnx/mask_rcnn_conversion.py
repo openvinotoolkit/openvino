@@ -5,7 +5,7 @@ import numpy as np
 
 from extensions.front.onnx.softmaxONNX_to_softmax import SoftmaxONNXFrontReplacer
 from extensions.ops.Cast import Cast
-from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
+from extensions.ops.detection_output_onnx import ExperimentalDetectronDetectionOutput
 from extensions.ops.parameter import Parameter
 from extensions.ops.roifeatureextractor_onnx import ExperimentalDetectronROIFeatureExtractor
 from mo.front.common.partial_infer.utils import int64_array
