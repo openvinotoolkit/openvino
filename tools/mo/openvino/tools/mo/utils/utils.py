@@ -5,15 +5,22 @@ import functools
 import os
 import re
 import warnings
-
 from typing import Callable
 
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import openvino.tools.mo.utils.telemetry_stub as tm
+
 
 def refer_to_faq_msg(question_num: int):
+    t = tm.Telemetry()
+    t.send_event('mo', 'error_info', "faq:" + str(question_num))
+
     return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
            '(https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
            '?question={0}#question-{0})'.format(question_num)

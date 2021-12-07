@@ -13,11 +13,11 @@
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-#include "cldnn/primitives/convolution.hpp"
-#include "cldnn/primitives/deconvolution.hpp"
-#include "cldnn/primitives/binary_convolution.hpp"
-#include "cldnn/primitives/permute.hpp"
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/deconvolution.hpp"
+#include "intel_gpu/primitives/binary_convolution.hpp"
+#include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 

@@ -62,6 +62,7 @@ openvino/tools/mo/back/op_versioning.py
 openvino/tools/mo/back/OptimizeTransposeReshapeSequence.py
 openvino/tools/mo/back/PackBinaryWeights.py
 openvino/tools/mo/back/pass_separator.py
+openvino/tools/mo/back/preprocessing.py
 openvino/tools/mo/back/priorbox_mutation.py
 openvino/tools/mo/back/ProposalMutation.py
 openvino/tools/mo/back/ReduceMerge.py

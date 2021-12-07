@@ -6,9 +6,9 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/extract_image_patches.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/extract_image_patches.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 
 using namespace cldnn;
