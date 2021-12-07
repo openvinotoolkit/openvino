@@ -318,6 +318,7 @@ void Summary::saveReport() {
                 (implStatus || obj.isImplemented)
                     ? entry.attribute("implemented").set_value(true)
                     : entry.attribute("implemented").set_value(false);
+                entry.attribute("passed").set_value(obj.passed);
                 entry.attribute("failed").set_value(obj.failed);
                 entry.attribute("skipped").set_value(obj.skipped);
                 entry.attribute("crashed").set_value(obj.crashed);
