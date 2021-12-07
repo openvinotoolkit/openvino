@@ -81,7 +81,7 @@ void shape_infer(const TopK* op,
                 dim_axis = Dimension(lower, upper);
             }
         } else {
-            dim_axis = Dimension::dynamic();
+            dim_axis = Dimension(0, dim_axis.get_max_length());
         }
     }
 
