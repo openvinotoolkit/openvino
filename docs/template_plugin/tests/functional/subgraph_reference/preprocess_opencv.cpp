@@ -165,7 +165,7 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_u8_simple_linear) {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(2, 2);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
 
     const auto &param = function->get_parameters()[0];
@@ -203,7 +203,7 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_u8_large_picture_linear) {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(input_height, input_width);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
 
     const auto &param = function->get_parameters()[0];
@@ -240,7 +240,7 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_f32_large_picture_linear) {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(input_height, input_width);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
 
     const auto &param = function->get_parameters()[0];
@@ -268,7 +268,7 @@ TEST_F(PreprocessOpenCVReferenceTest, DISABLED_resize_f32_large_picture_cubic_sm
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(input_height, input_width);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
 
     inputData.emplace_back(element_type, input_shape, input_img.data());

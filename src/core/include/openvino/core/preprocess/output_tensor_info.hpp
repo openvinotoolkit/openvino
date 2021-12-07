@@ -12,7 +12,7 @@ namespace ov {
 namespace preprocess {
 
 /// \brief Information about user's desired output tensor. By default, it will be initialized to same data
-/// (type/shape/etc) as network's output parameter. User application can override particular parameters (like
+/// (type/shape/etc) as model's output parameter. User application can override particular parameters (like
 /// 'element_type') according to application's data and specify appropriate conversions in post-processing steps
 ///
 /// \code{.cpp}

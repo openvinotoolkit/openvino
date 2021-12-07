@@ -103,7 +103,7 @@ TEST_F(ReferencePreprocessLegacyTest, resize) {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_layout("NCHW").set_spatial_static_shape(42, 30);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     p.build();
 
     auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
@@ -126,7 +126,7 @@ TEST_F(ReferencePreprocessLegacyTest, bgrx_to_bgr) {
     auto& input = p.input();
     input.tensor().set_color_format(ColorFormat::BGRX).set_element_type(element::u8);
     input.preprocess().convert_color(ColorFormat::BGR);
-    input.network().set_layout("NCHW");
+    input.model().set_layout("NCHW");
     function = p.build();
     inputData.emplace_back(element::u8, Shape{1, h, w, 4}, rgbx_input.data());
 
@@ -156,7 +156,7 @@ TEST_F(ReferencePreprocessLegacyTest, rgbx_to_bgr) {
     auto& input = p.input();
     input.tensor().set_color_format(ColorFormat::RGBX).set_element_type(element::u8);
     input.preprocess().convert_color(ColorFormat::BGR);
-    input.network().set_layout("NCHW");
+    input.model().set_layout("NCHW");
     function = p.build();
     inputData.emplace_back(element::u8, Shape{1, h, w, 4}, rgbx_input.data());
 
@@ -184,7 +184,7 @@ public:
         auto p = PrePostProcessor(function);
         p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
         p.input().preprocess().convert_color(ColorFormat::BGR);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
 
         const auto &param = function->get_parameters()[0];
@@ -261,7 +261,7 @@ public:
         auto& input_info = p.input();
         input_info.tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
         input_info.preprocess().convert_color(ColorFormat::BGR);
-        input_info.network().set_layout("NCHW");
+        input_info.model().set_layout("NCHW");
         function = p.build();
 
         const auto &param = function->get_parameters()[0];

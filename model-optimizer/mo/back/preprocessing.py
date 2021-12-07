@@ -363,9 +363,9 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     for node_name, layout_value in layout_values.items():
         if layout_value.get('source_layout'):
             if layout_value.get('is_input'):
-                prep.input(node_name).network().set_layout(Layout(layout_value['source_layout']))
+                prep.input(node_name).model().set_layout(Layout(layout_value['source_layout']))
             else:
-                prep.output(node_name).network().set_layout(Layout(layout_value['source_layout']))
+                prep.output(node_name).model().set_layout(Layout(layout_value['source_layout']))
         if layout_value.get('target_layout'):
             if layout_value.get('is_input'):
                 prep.input(node_name).tensor().set_layout(Layout(layout_value['target_layout']))

@@ -186,10 +186,10 @@ def test_ngraph_preprocess_spatial_static_shape():
     inp = p.input()
     inp.tensor().set_layout(layout).set_spatial_static_shape(2, 2).set_color_format(color_format, [])
     inp.preprocess().convert_element_type(Type.f32).mean([1., 2.])
-    inp.network().set_layout(layout)
+    inp.model().set_layout(layout)
     out = p.output()
     out.tensor().set_layout(layout).set_element_type(Type.f32)
-    out.network().set_layout(layout)
+    out.model().set_layout(layout)
     function = p.build()
 
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.int32)

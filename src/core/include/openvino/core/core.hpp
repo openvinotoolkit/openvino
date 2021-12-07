@@ -45,10 +45,10 @@
 // Preprocessing
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/input_info.hpp"
-#include "openvino/core/preprocess/input_network_info.hpp"
+#include "openvino/core/preprocess/input_model_info.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/output_info.hpp"
-#include "openvino/core/preprocess/output_network_info.hpp"
+#include "openvino/core/preprocess/output_model_info.hpp"
 #include "openvino/core/preprocess/output_tensor_info.hpp"
 #include "openvino/core/preprocess/postprocess_steps.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
