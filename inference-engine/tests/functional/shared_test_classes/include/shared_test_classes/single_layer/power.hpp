@@ -15,15 +15,14 @@
 namespace LayerTestsDefinitions {
 
     using PowerParamsTuple = typename std::tuple<
-        std::vector<std::vector<size_t>>,     //input shapes
-        InferenceEngine::Precision,           //Network precision
-        InferenceEngine::Precision,           // Input precision
-        InferenceEngine::Precision,           // Output precision
-        InferenceEngine::Layout,              // Input layout
-        InferenceEngine::Layout,              // Output layout
-        std::string,                          //Device name
-        std::vector<float>,                   //power
-        std::map<std::string, std::string>>;  // Configuration
+        std::vector<std::vector<size_t>>, //input shapes
+        InferenceEngine::Precision,       //Network precision
+        InferenceEngine::Precision,       // Input precision
+        InferenceEngine::Precision,       // Output precision
+        InferenceEngine::Layout,          // Input layout
+        InferenceEngine::Layout,          // Output layout
+        std::string,                      //Device name
+        std::vector<float>>;               //power
 
 class PowerLayerTest:
         public testing::WithParamInterface<PowerParamsTuple>,

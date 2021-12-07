@@ -120,6 +120,7 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA)
 );
 
+
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerGNATest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

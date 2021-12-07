@@ -12,8 +12,7 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Layout inLayout, outLayout;
         std::string targetName;
         std::vector<float> power;
-        std::map<std::string, std::string> configuration;
-        std::tie(inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName, power, configuration) = obj.param;
+        std::tie(inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName, power) = obj.param;
         std::ostringstream results;
 
         results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -24,9 +23,6 @@ namespace LayerTestsDefinitions {
         results << "inL=" << inLayout << "_";
         results << "outL=" << outLayout << "_";
         results << "trgDev=" << targetName << "_";
-        for (auto const& configItem : configuration) {
-            results << "_configItem=" << configItem.first << "_" << configItem.second;
-        }
         return results.str();
     }
 
@@ -36,7 +32,7 @@ namespace LayerTestsDefinitions {
         std::vector<std::vector<size_t>> inputShapes;
         InferenceEngine::Precision netPrecision;
         std::vector<float> power;
-        std::tie(inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice, power, configuration) = this->GetParam();
+        std::tie(inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice, power) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
 

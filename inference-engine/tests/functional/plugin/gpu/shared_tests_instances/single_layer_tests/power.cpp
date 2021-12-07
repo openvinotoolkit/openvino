@@ -34,10 +34,6 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    std::vector<std::map<std::string, std::string>> configs = {
-        {}
-    };
-
     INSTANTIATE_TEST_SUITE_P(smoke_power, PowerLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inShapes),
@@ -47,7 +43,6 @@ namespace {
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                    ::testing::ValuesIn(Power),
-                                    ::testing::ValuesIn(configs)),
+                                    ::testing::ValuesIn(Power)),
                             PowerLayerTest::getTestCaseName);
 }  // namespace
