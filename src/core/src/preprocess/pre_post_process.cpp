@@ -486,9 +486,11 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         }
 
         auto node = nodes[0];
-
+        if (node.get_partial_shape() != param->get_partial_shape()) {
+            tensor_data_updated = true;  // Trigger revalidation if input parameter shape is changed
+        }
         // Check final shape
-        OPENVINO_ASSERT(node.get_partial_shape().refines(param->get_partial_shape()),
+        OPENVINO_ASSERT(node.get_partial_shape().compatible(param->get_partial_shape()),
                         "Resulting shape '",
                         node.get_partial_shape(),
                         "' after preprocessing is not aligned with original parameter's shape: ",
