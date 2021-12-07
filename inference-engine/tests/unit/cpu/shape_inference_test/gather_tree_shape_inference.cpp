@@ -19,15 +19,7 @@ TEST(StaticShapeInferenceTest, GatherTreeTest) {
     auto max_seq_len = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
     auto end_token = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{Shape{}});
     auto gather_tree = std::make_shared<op::v1::GatherTree>(step_ids, parent_idx, max_seq_len, end_token);
-    //Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{1, 2, 3},
-                                              PartialShape{1, 2, 3},
-                                              PartialShape{2},
-                                              PartialShape{Shape{}}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(gather_tree.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], (PartialShape{1, 2, 3}));
-    //Test StaticShape
+    // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 2, 3},
                                                     StaticShape{1, 2, 3},
                                                     StaticShape{2},

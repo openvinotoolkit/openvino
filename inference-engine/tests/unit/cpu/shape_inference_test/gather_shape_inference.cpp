@@ -18,11 +18,6 @@ TEST(StaticShapeInferenceTest, GatherV1Test) {
     auto I = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1, -1});
     auto A = op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = std::make_shared<op::v1::Gather>(P, I, A);
-    // Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{3, 2}, PartialShape{2, 2}, PartialShape{1}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(G.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], (PartialShape{2, 2, 2}));
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2}, StaticShape{2, 2}, StaticShape{1}},
                              static_output_shapes = {StaticShape{}};
@@ -38,11 +33,6 @@ TEST(StaticShapeInferenceTest, GatherV1TestNonConstantA) {
     auto hostTensor = std::make_shared<HostTensor>(element::i32, Shape{});
     int32_t val_a = 1;
     hostTensor->write(&val_a, sizeof(int32_t));
-    // Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{3, 2}, PartialShape{2, 2}, PartialShape{1}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(G.get(), input_shapes, output_shapes, {{2, hostTensor}});
-    ASSERT_EQ(output_shapes[0], (PartialShape{3, 2, 2}));
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2}, StaticShape{2, 2}, StaticShape{}},
                              static_output_shapes = {StaticShape{}};
@@ -55,11 +45,6 @@ TEST(StaticShapeInferenceTest, GatherV7Test) {
     auto I = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1, -1});
     auto A = op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = std::make_shared<op::v7::Gather>(P, I, A);
-    //Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{3, 2}, PartialShape{2, 2}, PartialShape{1}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(G.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], (PartialShape{2, 2, 2}));
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2}, StaticShape{2, 2}, StaticShape{1}},
                              static_output_shapes = {StaticShape{}};
@@ -75,11 +60,6 @@ TEST(StaticShapeInferenceTest, GatherV7TestNonConstantA) {
     auto hostTensor = std::make_shared<HostTensor>(element::i32, Shape{});
     int32_t val_a = 0;
     hostTensor->write(&val_a, sizeof(int32_t));
-    // Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{3, 2}, PartialShape{2, 2}, PartialShape{1}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(G.get(), input_shapes, output_shapes, {{2, hostTensor}});
-    ASSERT_EQ(output_shapes[0], (PartialShape{2, 2, 2}));
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2}, StaticShape{2, 2}, StaticShape{}},
                              static_output_shapes = {StaticShape{}};
@@ -92,11 +72,6 @@ TEST(StaticShapeInferenceTest, GatherV8Test) {
     auto I = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1, -1});
     auto A = op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = std::make_shared<op::v8::Gather>(P, I, A);
-    // Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{3, 2}, PartialShape{2, 2}, PartialShape{1}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(G.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], (PartialShape{2, 2, 2}));
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2}, StaticShape{2, 2}, StaticShape{1}},
                              static_output_shapes = {StaticShape{}};
@@ -112,12 +87,6 @@ TEST(StaticShapeInferenceTest, GatherV8TestNonConstantA) {
     auto hostTensor = std::make_shared<HostTensor>(element::i32, Shape{});
     int32_t val_a = 0;
     hostTensor->write(&val_a, sizeof(int32_t));
-    // Test PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{3, 2}, PartialShape{2, 2}, PartialShape{1}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(G.get(), input_shapes, output_shapes, {{2, hostTensor}});
-    ASSERT_EQ(output_shapes[0], (PartialShape{2, 2, 2}));
-
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2}, StaticShape{2, 2}, StaticShape{}},
                              static_output_shapes = {StaticShape{}};
