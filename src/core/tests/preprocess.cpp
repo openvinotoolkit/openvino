@@ -895,6 +895,20 @@ TEST(pre_post_process, preprocess_reverse_channels_no_c_dim) {
                  p.build(), ov::AssertFailure);
 }
 
+TEST(pre_post_process, preprocess_reverse_channels_no_shape_inference) {
+    auto f = create_simple_function(element::f32,
+                                    PartialShape{Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()});
+    auto out_shape = f->output(0).get_partial_shape();
+
+    using namespace ov::preprocess;
+    PrePostProcessor p(f);
+    p.input(0).tensor().set_layout("NCHW");
+    p.input(0).preprocess().reverse_channels();
+    ASSERT_NO_THROW(p.build());
+    // Ensure that {?,3,?,?} is not transformed to {?,?,?,?}
+    EXPECT_EQ(out_shape, f->output(0).get_partial_shape());
+}
+
 TEST(pre_post_process, preprocess_preserve_rt_info) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     f->get_parameters()[0]->get_rt_info()["someKey"] = "someValue";

@@ -972,6 +972,25 @@ static RefPreprocessParams reverse_dyn_shape() {
     return res;
 }
 
+static RefPreprocessParams reverse_dyn_channels() {
+    RefPreprocessParams res("reverse_dyn_channels");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(),
+                                                                  2,
+                                                                  Dimension::dynamic(),
+                                                                  Dimension::dynamic()});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        p.input().preprocess().reverse_channels();
+        p.build();
+        return f;
+    };
+
+    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    return res;
+}
+
 static RefPreprocessParams reverse_fully_dyn_shape() {
     RefPreprocessParams res("reverse_fully_dyn_shape");
     res.function = []() {
@@ -1028,6 +1047,7 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
             reverse_channels_nchw(),
             reverse_channels_dyn_layout(),
             reverse_dyn_shape(),
+            reverse_dyn_channels(),
             reverse_fully_dyn_shape()
     };
 }
