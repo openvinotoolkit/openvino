@@ -206,7 +206,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const st
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
                                                                                const std::map<std::string, std::string>& config) {
     if (network.getFunction() == nullptr) {
-        IE_THROW() << GetName() << " device supports just ngraph network representation";
+        IE_THROW() << GetName() << " plugin supports just ngraph network representation";
     }
 
     auto networkPrecision = GetNetworkPrecision(network);
@@ -222,7 +222,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
 
     if (modelPath.empty() && network.getFunction() == nullptr) {
-        IE_THROW() << GetName() << " device supports just ngraph network representation";
+        IE_THROW() << GetName() << " plugin supports just ngraph network representation";
     }
 
     auto fullConfig = mergeConfigs(_config, config);
@@ -273,7 +273,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
-        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
+        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " plugin";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
         metaDevices = ParseMetaDevices(priorities->second, fullConfig);
         multiNetworkConfig.insert(*priorities);
@@ -310,8 +310,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                                      IStreamsExecutor::ThreadBindingType::NONE});
     executor->runAndWait(loads);
     if (executableNetworkPerDevice.empty())
-        IE_THROW(NotFound) << "Failed to load network to any device "
-                           <<  "that the " << GetName() << " device is initialized to work with";
+        IE_THROW(NotFound) << "Failed to load network to any plugin"
+                           <<  "that the " << GetName() << " plugin is initialized to work with";
 
     // checking the perf counters config from the loaded network to respect both device's plugin and load-specific setting
     size_t num_plugins_supporting_perf_counters = 0;
@@ -348,7 +348,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     }
 
     if (network.getFunction() == nullptr) {
-        IE_THROW() << GetName() << " device supports just ngraph network representation";
+        IE_THROW() << GetName() << " plugin supports just ngraph network representation";
     }
 
     queryResult.rc = StatusCode::OK;
@@ -357,7 +357,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     auto fullConfig = mergeConfigs(_config, config);
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == fullConfig.end()) {
-        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() <<  " device";
+        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() <<  " plugin";
     }
     auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
     std::unordered_set<std::string> supportedLayers;
