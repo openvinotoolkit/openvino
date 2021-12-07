@@ -21,20 +21,21 @@ class PlaceholderFrontExtractor(FrontExtractorOp):
         if len(extracted_shape) != 0 and not node.pb.attr["shape"].shape.unknown_rank:
             shape = extracted_shape
 
-        # Extract output shape from `_output_shapes` attribute if it is possible
-        extracted_output_shapes = node.pb.attr["_output_shapes"].list.shape
-        if len(extracted_output_shapes) == 1:   # check if attribute not empty
-            extracted_output_shapes = tf_tensor_shape(extracted_output_shapes[0])
+        else:
+            # Extract output shape from `_output_shapes` attribute if it is possible
+            extracted_output_shapes = node.pb.attr["_output_shapes"].list.shape
+            if len(extracted_output_shapes) == 1:   # check if attribute not empty
+                extracted_output_shapes = tf_tensor_shape(extracted_output_shapes[0])
 
-        # Check equality of extracted shapes. We know some cases then Placeholder operation has empty `shape` attribute
-        # value and non-empty `_output_shapes` attribute value and need co handle and support it.
-        if len(extracted_output_shapes) > len(extracted_shape):
-            log.warning('Extracted shapes for Placeholder operation {} have different lengths: `shape` {} and '
-                        '`_output_shapes` {}. Please, check if model is consistent'.format(node.pb.name,
-                                                                                           extracted_shape,
-                                                                                           extracted_output_shapes))
-            if len(extracted_output_shapes) != 0 and not node.pb.attr["shape"].shape.unknown_rank:
-                shape = extracted_output_shapes
+            # Check equality of extracted shapes. We know some cases then Placeholder operation has empty `shape` attribute
+            # value and non-empty `_output_shapes` attribute value and need co handle and support it.
+            if len(extracted_output_shapes) > len(extracted_shape):
+                log.warning('Extracted shapes for Placeholder operation {} have different lengths: `shape` {} and '
+                            '`_output_shapes` {}. Please, check if model is consistent'.format(node.pb.name,
+                                                                                               extracted_shape,
+                                                                                               extracted_output_shapes))
+                if len(extracted_output_shapes) != 0 and not node.pb.attr["shape"].shape.unknown_rank:
+                    shape = extracted_output_shapes
 
         attrs = {
             'data_type': tf_dtype_extractor(node.pb.attr["dtype"].type),
