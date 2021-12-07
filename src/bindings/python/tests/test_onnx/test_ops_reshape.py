@@ -318,6 +318,7 @@ def test_split_2d_splits_input():
     ng_results = run_node(node, [data, splits])
     assert all_arrays_equal(ng_results, expected_outputs)
 
+
 def test_split_1d():
     # 1D
     data = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).astype(np.float32)
