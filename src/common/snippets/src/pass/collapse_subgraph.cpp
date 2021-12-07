@@ -332,7 +332,9 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
                     input_subgraphs.insert(input_node);
 
                     auto f = clones[input_node];
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     const auto& input_body_parameters = f->get_parameters();
+                    OPENVINO_SUPPRESS_DEPRECATED_END
 
                     for (size_t i = 0; i < input_body_parameters.size(); ++i) {
                         auto found = std::find(external_inputs.begin(), external_inputs.end(), subgraph->input_value(i));
@@ -358,7 +360,9 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
                                 for (auto consumer : output.get_target_inputs()) {
                                     if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
                                         auto other_body = clones[subgraph->input_value(i).get_node_shared_ptr()];
+                                        OPENVINO_SUPPRESS_DEPRECATED_START
                                         auto other_body_result = other_body->get_results()[consumer.get_source_output().get_index()];
+                                        OPENVINO_SUPPRESS_DEPRECATED_END
                                         auto result_producer = other_body_result->input(0).get_source_output();
 
                                         consumer.replace_source_output(result_producer.get_node_shared_ptr());
@@ -376,7 +380,9 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
                 // internal output index == external output index
                 auto& input_body = clones[input_node];
                 size_t source_output_index = input.get_source_output().get_index();
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 auto source_result = input_body->get_results()[source_output_index];
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
             } else {
@@ -420,7 +426,9 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
                     if (!input_subgraphs.count(target_node) && target_node != node) {
                         if (first_side_consumer) {
                             auto& input_subgraph_body = clones[subgraph];
+                            OPENVINO_SUPPRESS_DEPRECATED_START
                             body_results.push_back(std::make_shared<opset1::Result>(input_subgraph_body->get_results()[output.get_index()]->input_value(0)));
+                            OPENVINO_SUPPRESS_DEPRECATED_END
                             subgraph_result_inputs.push_back({});
 
                             first_side_consumer = false;
@@ -459,6 +467,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
         }
 
         auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
@@ -468,6 +477,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
         for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
             act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (subgraph->get_output_size() != subgraph_result_inputs.size()) {
             throw ngraph_error("newly create subgraph doesn't much number of results");
@@ -508,9 +518,11 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
         subgraph->validate_and_infer_types();
 
         auto act_body1 = subgraph->get_body();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()

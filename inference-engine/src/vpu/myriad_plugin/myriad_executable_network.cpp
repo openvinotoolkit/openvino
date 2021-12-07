@@ -81,6 +81,7 @@ ExecutableNetwork::ExecutableNetwork(
     if (copyNetwork.getFunction() && copyNetwork.getFunction()->is_dynamic()) {
         copyNetwork = InferenceEngine::details::cloneNetwork(network);
         auto function = copyNetwork.getFunction();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         for (const auto& input : function->get_parameters()) {
             if (input->get_partial_shape().is_dynamic()) {
                 auto inputShape = input->get_partial_shape();
@@ -98,6 +99,7 @@ ExecutableNetwork::ExecutableNetwork(
                 function->add_parameters({inDataShapeParam, inDataParam});
             }
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         copyNetwork = ie::CNNNetwork(function);
         for (const auto& inputInf : network.getInputsInfo()) {
             copyNetwork.getInputsInfo()[inputInf.first]->setPrecision(inputInf.second->getPrecision());

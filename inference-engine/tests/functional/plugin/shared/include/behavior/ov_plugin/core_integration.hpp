@@ -17,6 +17,8 @@
 #    include <functional_test_utils/skip_tests_config.hpp>
 #endif
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 namespace ov {
 namespace test {
 namespace behavior {
@@ -1193,3 +1195,4 @@ TEST_P(OVClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
+    OPENVINO_SUPPRESS_DEPRECATED_END

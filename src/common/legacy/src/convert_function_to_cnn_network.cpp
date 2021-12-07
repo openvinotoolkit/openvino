@@ -115,8 +115,10 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     }
 
     // inputs/outputs of TensorIterator (ngraph representation)
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto parameters = sub_graph->get_function()->get_parameters();
     auto results = sub_graph->get_function()->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Convert body (ngraph representation) to CNNNetwork.
     // This network will contain nodes of type = "Input" and data nodes with wrong names.

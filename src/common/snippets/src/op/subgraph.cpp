@@ -41,9 +41,11 @@ std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const Output
 void snippets::op::Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
     ngraph::ParameterVector old_parameters;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto op : m_body->get_parameters()) {
         old_parameters.push_back(op);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     for (size_t i = 0; i < get_input_size(); ++i) {
         m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
@@ -51,9 +53,11 @@ void snippets::op::Subgraph::validate_and_infer_types() {
 
     m_body->validate_nodes_and_infer_types();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (size_t i = 0; i < m_body->get_parameters().size(); i++) {
         m_body->get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     set_output_size(m_body->get_output_size());
     for (size_t i = 0; i < get_output_size(); ++i) {
@@ -101,6 +105,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
     }
@@ -108,6 +113,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
     if (subgraph->get_output_size() != body->get_results().size()) {
         throw ngraph::ngraph_error("newly create subgraph doesn't much number of original node results");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return subgraph;
 }
@@ -133,6 +139,7 @@ std::shared_ptr<snippets::op::Subgraph> snippets::op::Subgraph::make_canonical_f
 // ngraph::AxisVector to code
 void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes) {
     INTERNAL_OP_SCOPE(Subgraph);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(this, input_shapes.size() == m_body->get_parameters().size(),
         "Number of parameters for snippet doesn't much passed to generate method: ", input_shapes.size(), " vs ", m_body->get_parameters().size(), ".");
 
@@ -189,6 +196,7 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
         NODE_VALIDATION_CHECK(this, isCompatible, "Inferend and passed results shapes are difference for snippet : ",
                                                   result->get_shape(), " vs ", std::get<0>(output_shapes[i]), ".");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
@@ -332,6 +340,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
 
     auto body = this->get_body();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::cout << this->get_friendly_name()
                 << ";" << this
                 << ";" << body->get_ops().size()
@@ -340,6 +349,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
                 << ";" << countConstants(body)
                 << ";" << getFunctionInventory(body)
                 << ";" << getNodeInventory(this->shared_from_this()) << std::endl;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (verbose) {
         this->print();

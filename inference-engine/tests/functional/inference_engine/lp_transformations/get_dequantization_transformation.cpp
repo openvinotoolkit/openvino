@@ -23,6 +23,8 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 class GetDequantizationTestValues {
 public:
     FakeQuantizeOnData fakeQuantize;

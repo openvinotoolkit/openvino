@@ -24,6 +24,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 using namespace testing;
 using namespace ngraph;
 

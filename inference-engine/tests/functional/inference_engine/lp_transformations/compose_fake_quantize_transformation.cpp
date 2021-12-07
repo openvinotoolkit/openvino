@@ -23,6 +23,8 @@ using namespace testing;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 class ComposeFakeQuantizeTransformationParams {
 public:
     class Values {

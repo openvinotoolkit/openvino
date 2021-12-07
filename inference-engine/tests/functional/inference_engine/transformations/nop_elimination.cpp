@@ -23,6 +23,8 @@
 
 #include <ngraph/pass/manager.hpp>
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 using namespace std;
 

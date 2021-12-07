@@ -135,6 +135,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
 
 void SubgraphBaseTest::configure_model() {
     // configure input precision
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::preprocess::PrePostProcessor p(function);
     {
         auto& params = function->get_parameters();
@@ -154,6 +155,7 @@ void SubgraphBaseTest::configure_model() {
             }
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     function = p.build();
 }
 

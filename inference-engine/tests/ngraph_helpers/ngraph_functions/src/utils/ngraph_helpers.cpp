@@ -86,7 +86,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto &parameters = function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto &parametersNumber = parameters.size();
     const auto &inputsNumber = inputs.size();
     NGRAPH_CHECK(parametersNumber == inputsNumber,
@@ -125,7 +127,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
     }
 
     auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto &results = function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
     }
@@ -184,7 +188,9 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
     }
 
     std::vector<std::shared_ptr<runtime::Tensor>> outputTensors;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto &results = function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
     }
@@ -204,7 +210,9 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
 std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function,
                                        const std::vector<std::vector<std::uint8_t>> &inputs,
                                        const std::vector<ngraph::element::Type> &inputTypes) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto &parameters = function->get_parameters();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto &parametersNumber = parameters.size();
     const auto &inputsNumber = inputs.size();
     NGRAPH_CHECK(parametersNumber == inputsNumber,
@@ -259,7 +267,9 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getConstData(const std::shared_ptr<Function> &function) {
     size_t numOutputs = function->get_output_size();
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs(numOutputs);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto funcResults = function->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (size_t i = 0; i < numOutputs; i++) {
         outputs[i].first = funcResults[i]->get_element_type();
         const auto &output = function->output(i).get_node_shared_ptr();

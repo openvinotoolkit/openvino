@@ -23,6 +23,8 @@
 #include "simple_low_precision_transformer.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 namespace {
 
 using namespace testing;

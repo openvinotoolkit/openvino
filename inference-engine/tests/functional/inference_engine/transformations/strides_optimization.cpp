@@ -14,6 +14,8 @@
 
 using namespace testing;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 // Tests are based on model-optimizer/mo/middle/passes/fusing/resnet_optimization_test.py
 // In description of unit tests below will be used next syntax: Operation(NxM,XxY), where NxM - kernel size, XxY - stride
 

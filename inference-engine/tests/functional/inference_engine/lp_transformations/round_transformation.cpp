@@ -13,6 +13,7 @@
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "low_precision/network_helper.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace {
 using namespace testing;

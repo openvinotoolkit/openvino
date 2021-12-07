@@ -9,6 +9,8 @@
 #include <cpp/ie_cnn_network.h>
 
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(SmartReshapeTests, SS_Squeeze) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {

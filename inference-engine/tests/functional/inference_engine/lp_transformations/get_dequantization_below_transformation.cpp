@@ -22,6 +22,8 @@ using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 class GetDequantizationBelowTestValues {
 public:
     builder::subgraph::FakeQuantizeOnData fakeQuantize;

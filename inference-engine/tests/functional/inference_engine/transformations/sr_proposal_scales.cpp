@@ -9,6 +9,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <cpp/ie_cnn_network.h>
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(SmartReshapeTests, Proposal1Scales) {
     std::shared_ptr<ngraph::Function> f(nullptr);

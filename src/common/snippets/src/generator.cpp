@@ -43,8 +43,10 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     if (!target->is_supported())
         throw ngraph_error("unsupported architecture for code genration");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto params = f->get_parameters();
     auto results = f->get_results();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto nptrs = results.size() + params.size();
 
     if (nptrs > 7) {

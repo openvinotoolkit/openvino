@@ -10,6 +10,8 @@
 
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {

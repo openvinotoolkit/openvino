@@ -16,6 +16,8 @@
 #include "low_precision/network_helper.hpp"
 
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 namespace {
 using namespace testing;
 using namespace ngraph;

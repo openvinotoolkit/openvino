@@ -151,7 +151,9 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Fu
 
         // store only effective address
         if (auto result = std::dynamic_pointer_cast<snippets::op::Store>(n)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_result_index(result) + f->get_parameters().size());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             rt["effectiveAddress"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(ea));
             continue;
         }
@@ -163,7 +165,9 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Fu
                 auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameter_index(param));
                 rt["effectiveAddress"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(ea));
             } else if (auto constant = ov::as_type_ptr<opset1::Constant>(source)) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameters().size() + f->get_results().size() + 1 + constantID);
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 rt["effectiveAddress"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(ea));
                 constantID++;
             } else {

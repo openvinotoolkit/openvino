@@ -88,7 +88,9 @@ void dynamicToStaticShapeLoop(std::shared_ptr<ngraph::Node> node) {
         const auto& index = outputDescription->m_output_index;
         auto replacement = staticShapeLoop->output(index).get_node_shared_ptr();
         if (const auto& concatOutputDescription = ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(outputDescription)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto& bodyOutput = body->get_results().at(concatOutputDescription->m_body_value_index)->input_value(0);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             VPU_THROW_UNLESS(bodyOutput.get_partial_shape().is_static(),
                              "Encountered loop {} with dynamic body output {}, but only static body is supported", loop, bodyOutput);

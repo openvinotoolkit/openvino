@@ -23,6 +23,8 @@ using namespace ngraph;
 using namespace opset7;
 using namespace std;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 Output<Node> create_init_subgraph(const Output<Node>& in_node) {
     auto const_zero = make_shared<Constant>(in_node.get_element_type(), Shape{1}, 0);
     auto shape_of = make_shared<ShapeOf>(in_node);

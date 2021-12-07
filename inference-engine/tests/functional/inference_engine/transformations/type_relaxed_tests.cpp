@@ -10,6 +10,8 @@
 
 #include <ngraph/pass/manager.hpp>
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 namespace element = ngraph::element;
 using std::make_shared;
 using TypeVector = element::TypeVector;

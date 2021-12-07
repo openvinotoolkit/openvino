@@ -20,6 +20,8 @@
 
 using namespace testing;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(TransformationTests, ConstFoldingPriorBox) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 

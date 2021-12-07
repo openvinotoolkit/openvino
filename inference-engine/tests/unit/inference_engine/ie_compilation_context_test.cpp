@@ -24,6 +24,8 @@ using namespace ngraph;
 using namespace ::testing;
 using namespace std::chrono;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 static std::string generateTestFilePrefix() {
     // Generate unique file names based on test name, thread id and timestamp
     // This allows execution of tests in parallel (stress mode)

@@ -7,6 +7,8 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 namespace ov {
 namespace test {
 

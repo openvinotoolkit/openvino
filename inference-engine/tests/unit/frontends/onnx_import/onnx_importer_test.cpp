@@ -11,6 +11,8 @@
 #include "openvino/util/file_util.hpp"
 #include "onnx_import/onnx.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(ONNX_Importer_Tests, ImportBasicModel) {
     auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
         ov::util::path_join({ONNX_MODELS_DIR, "add_abc_initializers.onnx"}));

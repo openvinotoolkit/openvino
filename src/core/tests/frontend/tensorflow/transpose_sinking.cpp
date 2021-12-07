@@ -17,6 +17,8 @@ using namespace ov;
 using namespace opset8;
 using namespace frontend::tf::pass;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 template <class T>
 int64_t count_ops_of_type(const shared_ptr<Function>& f) {
     int64_t cnt = 0;
