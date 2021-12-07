@@ -193,7 +193,7 @@ def groupconv_to_conv(op: Node):
     elif weights_node.type == 'Convert':
         # Support new FP16 IRs
         const_node = weights_node.in_port(0).get_source().node
-        assert const_node.type == 'Const', \
+        assert const_node.has_valid('value'), \
             'Weights of GroupConv node {} have incorrect format'.format(op.name)
         const_node.value = np.reshape(const_node.value, new_shape)
 
