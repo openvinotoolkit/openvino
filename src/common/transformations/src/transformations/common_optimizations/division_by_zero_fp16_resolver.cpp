@@ -49,18 +49,18 @@ ov::pass::DivisionByZeroFP16Resolver::DivisionByZeroFP16Resolver() {
     auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_value_map();
+        const auto& pattern_to_output = m.get_pattern_map();
 
         const auto mul = std::dynamic_pointer_cast<opset8::Multiply>(m.get_match_root());
         if (mul) {
             // pattern input_1*Pow(Maximum(input_2, eps), z) or input_1*Pow(Add(input_2, eps), z) is matched
-            const auto pow_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(pow_exp).get_node_shared_ptr());
+            const auto pow_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(pow_exp));
             for (float val : pow_const->get_vector<float>())
                 if (val >= 0)  // continue only if exponent is negative (z < 0)
                     return false;
         }
 
-        const auto eps_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(eps_const_pattern).get_node_shared_ptr());
+        const auto eps_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(eps_const_pattern));
         if (!eps_const || eps_const->get_element_type() != ov::element::f32)
             return false;
 
