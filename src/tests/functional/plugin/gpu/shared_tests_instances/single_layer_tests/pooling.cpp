@@ -9,6 +9,7 @@
 
 using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
+using namespace ngraph::element;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -20,12 +21,18 @@ const std::vector<std::vector<size_t >> kernels = {{3, 3},
                                                           {3, 5}};
 const std::vector<std::vector<size_t >> strides = {{1, 1},
                                                           {1, 2}};
+const std::vector<std::vector<size_t >> dilations = {{1, 1},
+                                                          {1, 2}};
 const std::vector<std::vector<size_t >> padBegins = {{0, 0},
                                                             {0, 2}};
 const std::vector<std::vector<size_t >> padEnds = {{0, 0},
                                                           {0, 2}};
 const std::vector<ngraph::op::RoundingType> roundingTypes = {ngraph::op::RoundingType::CEIL,
                                                              ngraph::op::RoundingType::FLOOR};
+const std::vector<ngraph::element::Type_t> indexElementTypes = {ngraph::element::Type_t::i32};
+const std::vector<int64_t> axes = {0, 2};
+const std::vector<size_t > inputShapeSmall = {1, 3, 30, 30};
+const std::vector<size_t > inputShapeLarge = {1, 3, 50, 50};
 
 ////* ========== Max Polling ========== */
 /* +========== Explicit Pad Floor Rounding ========== */
@@ -48,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTe
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 50, 50})),
+                                ::testing::Values(inputShapeLarge),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -73,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTes
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 50, 50})),
+                                ::testing::Values(inputShapeLarge),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -100,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTes
                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                ::testing::Values(InferenceEngine::Layout::ANY),
                                ::testing::Values(InferenceEngine::Layout::ANY),
-                               ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                               ::testing::Values(inputShapeSmall),
                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                        PoolingLayerTest::getTestCaseName);
 
@@ -125,7 +132,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTe
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(inputShapeSmall),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -151,7 +158,61 @@ INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({1, 3, 50, 50})),
+                                ::testing::Values(inputShapeLarge),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
+
+
+
+////* ========== MaxPool v8 ========== */
+///* +========== Explicit Pad Floor Rounding ========== */
+const auto maxPool8_ExplicitPad_FloorRounding_Params = ::testing::Combine(
+        ::testing::ValuesIn(kernels),
+        ::testing::ValuesIn(strides),
+        ::testing::ValuesIn(dilations),
+        ::testing::ValuesIn(padBegins),
+        ::testing::ValuesIn(padEnds),
+        ::testing::ValuesIn(indexElementTypes),
+        ::testing::ValuesIn(axes),
+        ::testing::Values(ngraph::op::RoundingType::FLOOR),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_FloorRounding, MaxPoolingV8LayerTest,
+                        ::testing::Combine(
+                                maxPool8_ExplicitPad_FloorRounding_Params,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(inputShapeSmall),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         MaxPoolingV8LayerTest::getTestCaseName);
+
+/* ========== Explicit Pad Ceil Rounding ========== */
+const auto maxPool8_ExplicitPad_CeilRounding_Params = ::testing::Combine(
+        ::testing::ValuesIn(kernels),
+        ::testing::Values(std::vector<size_t>({1, 1})),
+        ::testing::ValuesIn(dilations),
+        ::testing::ValuesIn(padBegins),
+        ::testing::ValuesIn(padEnds),
+        ::testing::ValuesIn(indexElementTypes),
+        ::testing::ValuesIn(axes),
+        ::testing::Values(ngraph::op::RoundingType::CEIL),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_CeilRounding, MaxPoolingV8LayerTest,
+                         ::testing::Combine(
+                                 maxPool8_ExplicitPad_CeilRounding_Params,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(inputShapeSmall),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         MaxPoolingV8LayerTest::getTestCaseName);
+
 }  // namespace
