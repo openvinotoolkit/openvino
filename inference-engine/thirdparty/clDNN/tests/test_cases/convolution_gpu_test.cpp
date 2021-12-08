@@ -344,8 +344,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1_
             data("biases", biases),
             convolution(
                     "conv",
-                    "input",
-                    "trans",
+                    {"input", "trans"},
                     { "weights" },
                     { "biases" },
                     1,
@@ -476,8 +475,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1)
             data("biases", biases),
             convolution(
                     "conv",
-                    "input",
-                    "trans",
+                    {"input", "trans"},
                     { "weights" },
                     { "biases" },
                     1,
@@ -640,8 +638,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution) {
             data("biases", biases),
             convolution(
                     "conv",
-                    "input",
-                    "trans",
+                    {"input", "trans"},
                     { "weights" },
                     { "biases" },
                     1,

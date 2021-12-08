@@ -8,11 +8,11 @@ from typing import Dict, List, Union
 
 import numpy as np
 
-from openvino import Core
+from openvino.runtime import Core
 
-from openvino.exceptions import UserInputError
-from openvino.impl import Function, Node, PartialShape, Type
-from openvino.utils.types import NumericData, get_shape, get_dtype
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.impl import Function, Node, PartialShape, Type
+from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
 
 import tests
 
@@ -83,12 +83,13 @@ class Computation(object):
     def convert_buffers(self, source_buffers, target_dtypes):
         converted_buffers = []
         for i in range(len(source_buffers)):
+            k = list(source_buffers)[i]
             target_dtype = target_dtypes[i]
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:
-                converted_buffers.append((source_buffers[i].view(np.uint32) >> 16).astype(np.uint16))
+                converted_buffers.append((source_buffers[k].view(np.uint32) >> 16).astype(np.uint16))
             else:
-                converted_buffers.append(source_buffers[i].astype(target_dtype))
+                converted_buffers.append(source_buffers[k].astype(target_dtype))
         return converted_buffers
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:

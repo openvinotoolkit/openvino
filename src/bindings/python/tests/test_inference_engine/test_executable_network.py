@@ -6,9 +6,9 @@ import pytest
 import numpy as np
 
 from ..conftest import model_path, read_image
-from openvino.impl import Function, ConstOutput, Shape
+from openvino.runtime.impl import Function, ConstOutput, Shape
 
-from openvino import Core, Tensor
+from openvino.runtime import Core, Tensor
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -231,7 +231,7 @@ def test_infer_new_request_numpy(device):
     img = read_image()
     exec_net = ie.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    assert np.argmax(res) == 2
+    assert np.argmax(res[list(res)[0]]) == 2
 
 
 def test_infer_new_request_tensor_numpy_copy(device):
@@ -242,8 +242,8 @@ def test_infer_new_request_tensor_numpy_copy(device):
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res_tensor) == 2
-    assert np.argmax(res_tensor) == np.argmax(res_img)
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 2
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
 def test_infer_tensor_numpy_shared_memory(device):
@@ -255,8 +255,8 @@ def test_infer_tensor_numpy_shared_memory(device):
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res_tensor) == 2
-    assert np.argmax(res_tensor) == np.argmax(res_img)
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 2
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
 def test_infer_new_request_wrong_port_name(device):
@@ -292,7 +292,7 @@ def test_infer_numpy_model_from_buffer(device):
     img = read_image()
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    assert np.argmax(res) == 2
+    assert np.argmax(res[list(res)[0]]) == 2
 
 
 def test_infer_tensor_model_from_buffer(device):
@@ -306,4 +306,4 @@ def test_infer_tensor_model_from_buffer(device):
     tensor = Tensor(img)
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res) == 2
+    assert np.argmax(res[list(res)[0]]) == 2
