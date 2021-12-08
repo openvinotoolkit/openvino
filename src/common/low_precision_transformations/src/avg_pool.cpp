@@ -54,7 +54,7 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
     return !dequantization.empty();
 }
 
-bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const {
     return NetworkHelper::isPrecisionPreserved(layer);
 }
 

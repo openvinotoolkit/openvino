@@ -260,7 +260,7 @@ public:
 
     // return true if operation can be preserved for precision
     // note: dequantization operations on activations are absent during method execution
-    virtual bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept = 0;
+    virtual bool isPrecisionPreserved(std::shared_ptr<Node> layer) const = 0;
 
     // weights specific
     static DataPrecision getDataPrecision(
