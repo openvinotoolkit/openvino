@@ -9,7 +9,7 @@
 #include <vector>
 #include <memory>
 
-#include "../base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/preprocess/preprocess_builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -21,7 +21,7 @@ using preprocessParamsTuple = std::tuple<
         std::string>;                              // Device name
 
 class PrePostProcessTest : public testing::WithParamInterface<preprocessParamsTuple>,
-                        virtual public LayerTestsUtils::LayerTestsCommon {
+                           virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<preprocessParamsTuple> &obj);
 
