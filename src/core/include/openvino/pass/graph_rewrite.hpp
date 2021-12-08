@@ -91,6 +91,8 @@ protected:
                           const graph_rewrite_callback& callback,
                           const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
 
+    matcher_pass_callback callback;
+    std::shared_ptr<Node> pattern_root;
 private:
     handler_callback m_handler;
     std::shared_ptr<pattern::Matcher> m_matcher;

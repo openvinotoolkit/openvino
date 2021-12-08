@@ -21,68 +21,286 @@
 
 using namespace testing;
 using namespace ngraph;
+using namespace opset8;
+
+namespace {
+std::shared_ptr<Convolution> create_conv(Output<Node> input, const Shape & weigts_shape) {
+    auto weights = Constant::create(element::f32, weigts_shape, {0.1});
+    return std::make_shared<Convolution>(input, weights, ov::Strides{1, 1},
+                                                         ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
+                                                         ov::Strides{1, 1});
+}
+
+std::shared_ptr<GroupConvolution> create_group_conv(Output<Node> input, const Shape & weigts_shape) {
+    auto weights = Constant::create(element::f32, weigts_shape, {0.1});
+    return std::make_shared<GroupConvolution>(input, weights, ov::Strides{1, 1},
+                                              ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
+                                              ov::Strides{1, 1});
+}
+
+std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input, const Shape & weigts_shape, const std::vector<int64_t> & order) {
+    auto weights = Constant::create(element::f32, weigts_shape, {0.1});
+    auto gather = std::make_shared<Gather>(weights, Constant::create(element::i64, Shape{order.size()}, order),
+                                                   Constant::create(element::i64, Shape{1}, {1}));
+    return std::make_shared<Convolution>(input, gather, ov::Strides{1, 1},
+                                                         ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
+                                                         ov::Strides{1, 1});
+}
+
+std::shared_ptr<Parameter> create_param(const PartialShape & shape) {
+    return std::make_shared<Parameter>(element::f32, shape);
+}
+
+std::shared_ptr<Gather> create_gather(Output<Node> input, std::vector<int64_t> order, int64_t axis) {
+    auto order_const = Constant::create(element::i64, Shape{order.size()}, order);
+    auto axis_const = Constant::create(element::i64, Shape{1}, {axis});
+    return std::make_shared<Gather>(input, order_const, axis_const);
+}
+
+void apply_reverse_input_channels(std::shared_ptr<Function> f, std::vector<std::pair<int64_t, std::string>> data) {
+    using namespace ov::preprocess;
+    PrePostProcessor p(f);
+    for (auto item : data) {
+        p.input(item.first).tensor().set_layout(ov::Layout(item.second));
+        p.input(item.first).preprocess().reverse_channels();
+    }
+    p.build();
+}
+} // namespace
 
 TEST_F(TransformationTestsF, RICFusionSimple) {
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape{ 1, 3, 64, 64 });
-        auto relu = std::make_shared<ngraph::opset8::Relu>(input);
-        auto conv = std::make_shared<ngraph::opset8::Convolution>(relu, opset8::Constant::create(element::f32, Shape{6, 3, 3, 3}, {0.1}),
-                                                                  ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto relu = std::make_shared<Relu>(input);
+        auto conv = create_conv(relu, {6, 3, 3, 3});
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ conv }, ngraph::ParameterVector{ input });
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        using namespace ov::preprocess;
-        PrePostProcessor p(function);
-        p.input().tensor().set_layout("NCHW");
-        p.input(0).preprocess().reverse_channels();
-        p.build();
-
-        manager.register_pass<ngraph::pass::Serialize>("/tmp/before.xml", "/tmp/before.bin");
-        manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
-        manager.register_pass<ngraph::pass::Serialize>("/tmp/after.xml", "/tmp/after.bin");
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape{ 1, 3, 64, 64 });
-        auto relu = std::make_shared<ngraph::opset8::Relu>(input);
-        auto conv = std::make_shared<ngraph::opset8::Convolution>(relu, opset8::Constant::create(element::f32, Shape{6, 3, 3, 3}, {0.1}),
-                                                                  ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ conv }, ngraph::ParameterVector{ input });
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto relu = std::make_shared<Relu>(input);
+        auto conv = create_conv_with_gather(relu, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
     }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionHard) {
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape{ -1, 3, -1, -1 });
-        auto relu = std::make_shared<ngraph::opset8::Relu>(input);
+        auto input = create_param({ -1, 3, -1, -1 });
+        auto relu = std::make_shared<Relu>(input);
 
-        auto input2 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape{ -1, 3, -1, -1 });
-        auto eltwise = std::make_shared<ngraph::opset8::Add>(relu, input2);
+        auto input2 = create_param({ -1, 3, -1, -1 });
+        auto eltwise = std::make_shared<Add>(relu, input2);
+        auto prelu = std::make_shared<PRelu>(eltwise, Constant::create(element::f32, Shape{}, {6.0f}));
 
-        auto conv = std::make_shared<ngraph::opset8::Convolution>(eltwise, opset8::Constant::create(element::f32, Shape{6, 3, 3, 3}, {0.1}),
-                                                                  ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+        auto gconv = create_group_conv(prelu, {3, 4, 1, 3, 3});
 
-        auto conv2 = std::make_shared<ngraph::opset8::Convolution>(input2, opset8::Constant::create(element::f32, Shape{6, 3, 3, 3}, {0.1}),
-                                                                  ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+        auto pow = std::make_shared<Power>(gconv, Constant::create(element::f32, Shape{}, {-1.0f}));
+        auto convert1 = std::make_shared<Convert>(pow, element::f16);
+        auto convert2 = std::make_shared<Convert>(convert1, element::f32);
 
-        auto concat = std::make_shared<opset8::Concat>(OutputVector{conv, conv2}, 1);
+        auto gconv2 = create_group_conv(convert2, {12, 1, 1, 3, 3});
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input, input2 });
+        auto conv = create_conv(gconv2, {6, 12, 3, 3});
+        auto conv2 = create_conv(input2, {6, 3, 3, 3});
 
-        using namespace ov::preprocess;
-        PrePostProcessor p(function);
-        p.input(0).tensor().set_layout("NCHW");
-        p.input(1).tensor().set_layout("NCHW");
-        p.input(0).preprocess().reverse_channels();
-        p.input(1).preprocess().reverse_channels();
-        p.build();
+        function = std::make_shared<Function>(NodeVector{ conv, conv2 }, ParameterVector{ input, input2 });
 
-        manager.register_pass<ngraph::pass::Serialize>("/tmp/before.xml", "/tmp/before.bin");
-        manager.register_pass<ngraph::pass::ConstantFolding>();
-        manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
-        manager.register_pass<ngraph::pass::Serialize>("/tmp/after.xml", "/tmp/after.bin");
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        apply_reverse_input_channels(function, {{0, "NCHW"}, {1, "NCHW"}});
+
+        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::Serialize>("/tmp/before.xml", "/tmp/before.bin");
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::Serialize>("/tmp/after.xml", "/tmp/after.bin");
+    }
+    {
+        auto input = create_param({ -1, 3, -1, -1 });
+        auto relu = std::make_shared<Relu>(input);
+
+        auto input2 = create_param({ -1, 3, -1, -1 });
+        auto eltwise = std::make_shared<Add>(relu, input2);
+        auto prelu = std::make_shared<PRelu>(eltwise, Constant::create(element::f32, Shape{}, {6.0f}));
+        //       0            1            2                 2              1            0
+        // [0, 1, 2, 3]-[4, 5, 6, 7]-[8, 9, 10, 11] -> [8, 9, 10, 11]-[4, 5, 6, 7]-[0, 1, 2, 3]
+        auto gconv = create_group_conv(prelu, {3, 4, 1, 3, 3});
+
+        auto pow = std::make_shared<Power>(gconv, Constant::create(element::f32, Shape{}, {-1.0f}));
+        auto convert1 = std::make_shared<Convert>(pow, element::f16);
+        auto convert2 = std::make_shared<Convert>(convert1, element::f32);
+
+        auto gconv2 = create_group_conv(convert2, {12, 1, 1, 3, 3});
+
+        auto conv = create_conv_with_gather(gconv2, {6, 12, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
+        auto conv2 = create_conv_with_gather(input2, {6, 3, 3, 3}, {2, 1, 0});
+
+        function_ref = std::make_shared<Function>(NodeVector{ conv, conv2 }, ParameterVector{ input, input2 });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwise1) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{3, 1, 1}, {0.2}));
+        auto conv = create_conv(add, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gather = create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {0.2}), {2, 1, 0}, 0);
+        auto add = std::make_shared<Add>(input, gather);
+        auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwise2) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{1, 1, 1}, {0.2}));
+        auto conv = create_conv(add, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{1, 1, 1}, {0.2}));
+        auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwise3) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{1}, {0.2}));
+        auto conv = create_conv(add, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{1}, {0.2}));
+        auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwise4) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(Constant::create(element::f32, Shape{3, 1, 1}, {0.2}), input);
+        auto conv = create_conv(add, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gather = create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {0.2}), {2, 1, 0}, 0);
+        auto add = std::make_shared<Add>(gather, input);
+        auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwise5) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(Constant::create(element::f32, Shape{1, 3, 1, 1}, {0.2}), input);
+        auto conv = create_conv(add, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gather = create_gather(Constant::create(element::f32, Shape{1, 3, 1, 1}, {0.2}), {2, 1, 0}, 1);
+        auto add = std::make_shared<Add>(gather, input);
+        auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionGroupConv) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gconv = create_group_conv(input, {3, 2, 1, 3, 3});
+        auto relu = std::make_shared<Relu>(gconv);
+        auto conv = create_conv(relu, {3, 6, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gconv = create_group_conv(input, {3, 2, 1, 3, 3});
+        //    0     1      2          2     1      0
+        // [0, 1]-[2, 3]-[4, 5] -> [4, 5]-[2, 3]-[0, 1]
+        auto relu = std::make_shared<Relu>(gconv);
+        auto conv = create_conv_with_gather(relu, {3, 6, 3, 3}, {4, 5, 2, 3, 0, 1});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gconv = create_group_conv(input, {1, 3, 3, 3, 3});
+        auto relu = std::make_shared<Relu>(gconv);
+        auto conv = create_conv(relu, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
     }
 }
