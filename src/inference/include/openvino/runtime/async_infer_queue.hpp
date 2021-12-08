@@ -55,7 +55,7 @@ namespace runtime {
  * Advanced workflow can be managed via callbacks and blocking functions like
  * wait_all() or is_ready().
  *
- * @note AsyncInferQueue provides simple and unifed interface for multiple asynchronous
+ * @note AsyncInferQueue provides simple and unified interface for multiple asynchronous
  * calls to OpenVINO's InferRequests.
  */
 class OPENVINO_RUNTIME_API AsyncInferQueue {
