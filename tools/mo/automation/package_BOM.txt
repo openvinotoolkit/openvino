@@ -709,7 +709,6 @@ openvino/tools/mo/main_tf.py
 openvino/tools/mo/middle/__init__.py
 openvino/tools/mo/middle/AddFakeQuantizeFuse.py
 openvino/tools/mo/middle/AddIsCyclicAttribute.py
-openvino/tools/mo/middle/AddMeanScaleValues.py
 openvino/tools/mo/middle/ApplyNHWCtoNCHWpermutation.py
 openvino/tools/mo/middle/ApplyPermutations.py
 openvino/tools/mo/middle/ArgOpsToTopK.py
@@ -802,7 +801,6 @@ openvino/tools/mo/middle/reverse_tensor_iterator.py
 openvino/tools/mo/middle/ReverseTransposeNormalization.py
 openvino/tools/mo/middle/ReverseV2ToReverseSequence.py
 openvino/tools/mo/middle/RNNSequenceNormalizeToIE.py
-openvino/tools/mo/middle/ScaleInput.py
 openvino/tools/mo/middle/SharedWeightsDuplication.py
 openvino/tools/mo/middle/SliceConverter.py
 openvino/tools/mo/middle/SliceLikeToStridedSlice.py

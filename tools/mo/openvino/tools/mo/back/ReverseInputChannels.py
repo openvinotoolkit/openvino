@@ -43,67 +43,6 @@ class ReverseChannels(Op):
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
 
 
-class InsertReverseChannels(BackReplacementPattern):
-    """
-    Searches for all suitable nodes with type=Parameter and inserts internal ReverseChannels op right after them
-    TODO: we should provide user an ability to explicitly specify nodes for input channel reversing
-    """
-    enabled = False
-
-    @staticmethod
-    def get_fw_index(node: Node, idx: int) -> int:
-        if not node.has_valid('rt_info'):
-            return idx
-
-        rt_info = node.rt_info
-        if not rt_info.contains('old_api_map_order'):
-            return idx
-
-        old_api_map_version = rt_info.get_attribute_version('old_api_map_order')
-        old_api_map = rt_info.info['old_api_map_order', old_api_map_version]
-        if 'inverse_order' not in old_api_map.info:
-            return idx
-
-        order = old_api_map.info['inverse_order']
-        node_name = node.soft_get('name', node.id)
-
-        if idx < 0:
-            assert not node.out_port(0).disconnected(), 'Cannot normalize negative axis {} in node {} ' \
-                                                        'as out port is disconnected.'.format(idx, node_name)
-            data_rank = len(list(node.out_port(0).data.get_shape()))
-            idx = data_rank + idx
-
-        assert len(order) > idx >= 0, \
-            'Channel index {} is incompatible with old_api_map in node {}.'.format(idx, node_name)
-        return list(order).index(idx)
-
-    def find_and_replace_pattern(self, graph: Graph):
-        all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
-                      for p in graph.get_op_nodes(type='Parameter')]
-        suitable_params = [(name, p, shape) for name, p, shape in all_params if
-                           len(shape) == 4 and shape[self.get_fw_index(p, 1)] == 3]
-
-        log.debug('All network inputs: {}'.format({name: shape for name, _, shape in all_params}))
-        log.debug('Will reverse input channels for: {}'.format({name: shape for name, _, shape in suitable_params}))
-        if len(suitable_params) < len(all_params):
-            log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
-                      'Suitable for input channel reversing inputs are 4-dimensional with 3 channels\nAll inputs: {}\n'
-                      'Suitable inputs {}'.format(len(all_params), len(suitable_params),
-                                                  {name: shape for name, _, shape in all_params},
-                                                  {name: shape for name, _, shape in suitable_params}),
-                      extra={'is_warning': True})
-
-        for name, parameter, _ in suitable_params:
-            reverse_index = int64_array(self.get_fw_index(parameter, 1))
-
-            if parameter.out_port(0).disconnected():
-                continue
-
-            reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels',
-                                                       'axis': reverse_index}).create_node()
-            parameter.out_port(0).get_connection().insert_node(reverse_channels, attributes_save_mode='source')
-
-
 class ReverseChannelsPropagationDown(BackReplacementPattern):
     """
     Propagates ReverseChannels operations down through nodes that we have rules for
@@ -536,7 +475,7 @@ class DecomposeReverseChannels(BackReplacementPattern):
 
 class ApplyReverseChannels(BackReplacementPattern):
     """
-    Reverses input channels for suitable Parameter operation if requested by user
+    Reverses input channels for suitable Parameter operation
     Optimizes channel reversing by fusion to Convolution weights if applicable
     """
     enabled = True
@@ -548,8 +487,6 @@ class ApplyReverseChannels(BackReplacementPattern):
         """
         Following transformations should run in strict order, that is why we disabled them all and run here 
         """
-        if graph.graph['cmd_params'].reverse_input_channels:
-            InsertReverseChannels().find_and_replace_pattern(graph)
         ReverseChannelsPropagationDown().find_and_replace_pattern(graph)
         ReverseChannelsPropagationUp().find_and_replace_pattern(graph)
         DecomposeReverseChannels().find_and_replace_pattern(graph)

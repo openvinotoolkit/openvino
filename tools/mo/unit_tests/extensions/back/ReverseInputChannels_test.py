@@ -5,8 +5,7 @@ import unittest
 
 import numpy as np
 
-from openvino.tools.mo.back.ReverseInputChannels import ReverseChannelsPropagationUp, ReverseChannelsPropagationDown, \
-    InsertReverseChannels
+from openvino.tools.mo.back.ReverseInputChannels import ReverseChannelsPropagationUp, ReverseChannelsPropagationDown
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
@@ -228,16 +227,3 @@ class ReverseInputChannelsTest(unittest.TestCase):
         reverse_channels = Node(graph, 'reverse_channels_down')
         self.assertTrue(reverse_channels.axis == 1)
         self.assertTrue(type(reverse_channels.axis) == np.ndarray)
-
-    def test_get_fw_index(self):
-        graph = build_graph(nodes, [*connect('placeholder1', 'result')])
-        node = Node(graph, 'placeholder1')
-        old_api_map = OldAPIMapOrder(version=0)
-        node.rt_info.info[('old_api_map_order', old_api_map.get_version())] = old_api_map
-        node.rt_info.info[('old_api_map_order', old_api_map.get_version())].old_api_transpose_parameter([0, 2, 3, 1])
-        self.assertTrue(InsertReverseChannels.get_fw_index(node, 0) == 0)
-        self.assertTrue(InsertReverseChannels.get_fw_index(node, 1) == 3)
-        self.assertTrue(InsertReverseChannels.get_fw_index(node, 2) == 1)
-        self.assertTrue(InsertReverseChannels.get_fw_index(node, 3) == 2)
-        self.assertTrue(InsertReverseChannels.get_fw_index(node, -2) == 1)
-        self.assertTrue(type(InsertReverseChannels.get_fw_index(node, 0)) == int)
