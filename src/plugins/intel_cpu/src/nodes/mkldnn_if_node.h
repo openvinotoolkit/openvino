@@ -33,8 +33,8 @@ protected:
     bool needShapeInfer() const override { return false; }
 
 private:
-    void prepareBeforeMappers(const bool is_then, const dnnl::engine& eng);
-    void prepareAfterMappers(const bool is_then, const dnnl::engine& eng);
+    void prepareBeforeMappers(const bool isThen, const dnnl::engine& eng);
+    void prepareAfterMappers(const bool isThen, const dnnl::engine& eng);
 
     struct PortMap {
         int from; /**< Index of external/internal out data */

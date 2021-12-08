@@ -146,14 +146,14 @@ void MKLDNNIfNode::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < inputShapes.size(); i++) {
         PortConfig dataConf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.desc = descCreator->createSharedDesc(getOriginalInputPrecisionAtPort(i), inputShapes[i]);
+        dataConf.desc = descCreator->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i));
         config.inConfs.emplace_back(dataConf);
     }
 
     for (size_t i = 0; i < outputShapes.size(); i++) {
         PortConfig dataConf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.desc = descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), outputShapes[i]);
+        dataConf.desc = descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i));
         config.outConfs.push_back(dataConf);
     }
 
@@ -188,10 +188,11 @@ void MKLDNNIfNode::prepareParams() {
     }
 }
 
-void MKLDNNIfNode::prepareBeforeMappers(const bool is_then, const dnnl::engine& eng) {
-    auto &inputPortMap = is_then ? thenInputPortMap : elseInputPortMap;
-    auto &inputMems = is_then ? inputMemThen : inputMemElse;
-    auto &beforeMappers = is_then ? beforeThenMappers : beforeElseMappers;
+void MKLDNNIfNode::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
+    auto &inputPortMap = isThen ? thenInputPortMap : elseInputPortMap;
+    auto &inputMems = isThen ? inputMemThen : inputMemElse;
+    auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
+    beforeMappers.clear();
     for (auto& map_rule : inputPortMap) {
         auto &fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &toMem = inputMems[map_rule.to];
@@ -204,6 +205,7 @@ void MKLDNNIfNode::prepareAfterMappers(const bool is_then, const dnnl::engine& e
     auto &outputPortMap = is_then ? thenOutputPortMap : elseOutputPortMap;
     auto &outputMems = is_then ? outputMemThen : outputMemElse;
     auto &afterMappers = is_then ? afterThenMappers : afterElseMappers;
+    afterMappers.clear();
     for (auto& map_rule : outputPortMap) {
         auto &toMem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &fromMem = outputMems[map_rule.to];
