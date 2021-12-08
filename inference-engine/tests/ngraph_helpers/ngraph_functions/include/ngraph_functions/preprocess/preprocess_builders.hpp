@@ -386,7 +386,7 @@ inline std::shared_ptr<Function> resize_dynamic() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_dynamic_shape();
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
