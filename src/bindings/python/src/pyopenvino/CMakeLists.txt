@@ -44,6 +44,10 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(-Wno-deprecated-declarations -Wno-undef)
 endif()
 
+if(ENABLE_TESTS)
+    add_subdirectory(test_utils)
+endif()
+
 # create target
 
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
