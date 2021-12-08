@@ -55,6 +55,28 @@
   <depend>plaidml2</depend>
   -->
 
+  <buildtool_depend>automake</buildtool_depend>
+  <buildtool_depend>libtool</buildtool_depend>
+
+  <depend>wget</depend>
+  <depend>libssl-dev</depend>
+  <depend>gtk2</depend>
+  <depend>unzip</depend>
+  <depend>autoconf</depend>
+  <depend>libcairo2-dev</depend>
+  <depend>libusb-1.0-dev</depend>
+  <depend>libpng-dev</depend>
+  <depend>pkg-config</depend>
+  <depend>ffmpeg</depend>
+  <depend>libopenblas-dev</depend>
+  <depend>libboost-regex-dev</depend>
+  <depend>libglib-dev</depend>
+  <depend>libswscale-dev</depend>
+  <depend>gstreamer1.0</depend>
+  <depend>gstreamer1.0-plugins-base</depend>
+  <depend>ca-certificates</depend>
+  <depend>curl</depend>
+
   <export>
     <build_type>cmake</build_type>
   </export>
