@@ -74,10 +74,10 @@ class Benchmark:
             requests[0].infer()
             return requests[0].latency
         else:
-            id = requests.get_idle_request_id()
+            handle = requests.get_idle_handle()
             requests.start_async()
             requests.wait_all()
-            return requests[id].latency
+            return requests[handle].latency
 
     def update_progress_bar(self, progress_bar, exec_time, progress_count):
         if self.duration_seconds:
@@ -124,11 +124,11 @@ class Benchmark:
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (iteration % self.nireq):
-            idle_id = infer_queue.get_idle_request_id()
-            if idle_id in in_fly:
-                times.append(infer_queue[idle_id].latency)
+            handle = infer_queue.get_idle_handle()
+            if handle in in_fly:
+                times.append(infer_queue[handle].latency)
             else:
-                in_fly.add(idle_id)
+                in_fly.add(handle)
             infer_queue.start_async()
             iteration += 1
 
@@ -156,15 +156,15 @@ class Benchmark:
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (iteration % num_groups):
             processed_frames += data_queue.get_next_batch_size()
-            idle_id = infer_queue.get_idle_request_id()
-            if idle_id in in_fly:
-                times.append(infer_queue[idle_id].latency)
+            handle = infer_queue.get_idle_handle()
+            if handle in in_fly:
+                times.append(infer_queue[handle].latency)
                 if pcseq:
-                    self.latency_groups[infer_queue.userdata[idle_id]].times.append(infer_queue[idle_id].latency)
+                    self.latency_groups[infer_queue.userdata[handle]].times.append(infer_queue[handle].latency)
             else:
-                in_fly.add(idle_id)
+                in_fly.add(handle)
             group_id = data_queue.current_group_id
-            infer_queue[idle_id].set_input_tensors(data_queue.get_next_input())
+            infer_queue[handle].set_input_tensors(data_queue.get_next_input())
             infer_queue.start_async(userdata=group_id)
             iteration += 1
 
