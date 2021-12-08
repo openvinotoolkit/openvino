@@ -135,6 +135,10 @@ def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
         print("\nExtracting of samples_smoke_tests_data.zip...")
         with zipfile.ZipFile(samples_path, 'r') as samples_zip:
             samples_zip.extractall(Environment.env['smoke_tests_path'])
+        nameFolder = str(Environment.env['samples_data_zip'])[Environment.env['samples_data_zip'].rfind('/')+1:][:-4]
+        smoke_tests_path = os.path.join(Environment.env['smoke_tests_path'])
+        if os.path.exists(os.path.join(smoke_tests_path,nameFolder)):
+            os.rename(os.path.join(smoke_tests_path, nameFolder), os.path.join(smoke_tests_path, 'samples_smoke_tests_data') )
         if os.path.exists(samples_path):
             print("\nRemoving samples_smoke_tests_data.zip...")
             os.remove(samples_path)	
@@ -169,10 +173,16 @@ class SamplesCommonTestClass():
 
     @staticmethod
     def reset_models_path(model):
-        if ('FP32' in os.path.split(model)[0] or 'FP16' in os.path.split(model)[0]):
-            model = search_model_path_recursively(config_key=Environment.env['icv_model_zoo_models'], model_name=model)
-        else:
-            model = os.path.join(Environment.env['public_models'], model)
+        pathList = model.split(os.sep)
+        modelName = pathList[len(pathList)-1]
+        precision = pathList[len(pathList)-2]
+        for root, subFolder, files in os.walk(Environment.env['models_path']):
+            for item in files:
+                if item.endswith(modelName) :
+                    if precision in root :
+                        model = str(os.path.join(root,item))
+                    else :
+                        model = os.path.join(Environment.env['models_path'], model)
         return model
 
     @staticmethod
@@ -328,10 +338,8 @@ class SamplesCommonTestClass():
     def setup_class(cls):
         getting_samples_data_zip(Environment.env['samples_data_zip'], Environment.env['samples_path'])
         assert os.environ.get('IE_APP_PATH') is not None, "IE_APP_PATH environment variable is not specified!"
-        assert os.path.exists(Environment.env['public_models']), \
-            "Path for public models {} is not exist!".format(Environment.env['public_models'])
-        assert os.path.exists(Environment.env['icv_model_zoo_models']), \
-            "Path for icv models {} is not exist!".format(Environment.env['icv_model_zoo_models'])
+        assert os.path.exists(Environment.env['models_path']), \
+            "Path for public models {} is not exist!".format(Environment.env['models_path'])
         assert os.path.exists(Environment.env['test_data']), \
             "Path for test data {} is not exist!".format(Environment.env['test_data'])
         cls.output_dir = Environment.env['out_directory']

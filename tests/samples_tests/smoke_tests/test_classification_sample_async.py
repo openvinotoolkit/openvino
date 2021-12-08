@@ -21,7 +21,7 @@ from common.samples_common_test_clas import get_tests
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'caffe_squeezenet_v1_1_FP32_batch_1_seqlen_[1]_v10.xml')],
+                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'nt': ['1'],
                                        'sample_type': ['C++','Python'],
                                        'batch': [1, 2, 4],
@@ -30,7 +30,7 @@ test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')]
                            )
 
 test_data_fp16 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'caffe_squeezenet_v1_1_FP16_batch_1_seqlen_[1]_v10.xml')],
+                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'nt': ['1'],
                                        'sample_type': ['C++','Python'],
                                        'batch': [1, 2, 4],

@@ -26,15 +26,13 @@ import shutil
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1',
-                                                          'caffe_squeezenet_v1_1_FP32_batch_1_seqlen_[1]_v10.xml')],
+                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'd': ['CPU'],
                                        'sample_type': ['C++', 'C']},
                            use_device=['d'])
 
 test_data_fp32_unicode = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                               'm': [os.path.join('squeezenet1.1',
-                                                                  'caffe_squeezenet_v1_1_FP32_batch_1_seqlen_[1]_v10.xml')],
+                                               'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                                'd': ['CPU'],
                                                'sample_type': ['C++', 'C']},
                                    use_device=['d'])
@@ -91,8 +89,8 @@ class TestHello(SamplesCommonTestClass):
 
         # Copy files
         shutil.copy(Path(Environment.env['test_data']) / Path(param['i']), tmp_image_dir)
-        shutil.copy(Path(Environment.env['public_models']) / Path(param['m']), tmp_model_dir)
-        shutil.copy(Path(Environment.env['public_models']) / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
+        shutil.copy(Path(Environment.env['models_path']) / 'public' / Path(param['m']), tmp_model_dir)
+        shutil.copy(Path(Environment.env['models_path']) / 'public' / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
 
         image_path = tmp_image_dir / Path(param['i']).name
         original_image_name = image_path.name.split(sep='.')[0]
