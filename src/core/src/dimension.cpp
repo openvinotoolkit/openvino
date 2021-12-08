@@ -14,8 +14,14 @@ using namespace ngraph;
 std::ostream& ov::operator<<(std::ostream& str, const Dimension& dimension) {
     if (dimension.is_static()) {
         return str << dimension.get_length();
+    } else if (dimension.get_min_length() > 0) {
+        str << dimension.get_min_length() << "..";
+        if (dimension.get_interval().has_upper_bound())
+            return str << dimension.get_max_length();
+        else
+            return str;
     } else if (dimension.get_interval().has_upper_bound()) {
-        return str << "[" << dimension.get_min_length() << ", " << dimension.get_max_length() << "]";
+        return str << ".." << dimension.get_max_length();
     } else {
         return str << "?";
     }

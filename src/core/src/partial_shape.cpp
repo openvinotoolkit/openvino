@@ -124,7 +124,6 @@ ov::PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2) {
 
 std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
     if (shape.m_rank_is_static) {
-        str << "{";
         bool first = true;
         for (auto& d : shape.m_dimensions) {
             if (!first) {
@@ -133,9 +132,9 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             str << d;
             first = false;
         }
-        return (str << "}");
+        return str;
     } else {
-        return (str << "?");
+        return (str << "...");
     }
 }
 

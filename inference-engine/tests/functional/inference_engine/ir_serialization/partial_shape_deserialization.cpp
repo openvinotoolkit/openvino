@@ -205,3 +205,69 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestCase2) {
     auto res = fc.compare(f, f_11_ref);
     EXPECT_TRUE(res.valid) << res.message;
 }
+
+TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRank) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f16" shape="..."/>
+            <output>
+                <port id="0" precision="FP16" names="input_tensor">
+                </port>
+            </output>
+        </layer>
+        <layer name="Round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <input>
+                <port id="1" precision="FP16">
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP16" names="output_tensor">
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <input>
+                <port id="0" precision="FP16">
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
+
+    ov::PartialShape shape = ov::PartialShape::dynamic();
+    auto type = ov::element::f16;
+    auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+
+    param->set_friendly_name("in1");
+    param->get_output_tensor(0).set_names({"input_tensor"});
+
+    auto round = std::make_shared<ov::opset8::Round>(param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+
+    round->set_friendly_name("Round");
+    round->get_output_tensor(0).set_names({"output_tensor"});
+
+    auto result = std::make_shared<ov::opset8::Result>(round);
+    result->set_friendly_name("output");
+
+    auto f_11_ref = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{param});
+    f_11_ref->set_friendly_name("Network");
+
+    const auto fc = FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::RUNTIME_KEYS)
+            .enable(FunctionsComparator::NAMES)
+            .enable(FunctionsComparator::CONST_VALUES);
+    auto res = fc.compare(f, f_11_ref);
+    EXPECT_TRUE(res.valid) << res.message;
+}

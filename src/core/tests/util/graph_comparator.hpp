@@ -14,6 +14,8 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/serialize.hpp"
+
 
 class FunctionsComparator {
 public:
@@ -461,8 +463,8 @@ public:
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
                storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number() +
-               storage<ngraph::PartialShape>().get_attributes_number() +
-               storage<ngraph::Dimension>().get_attributes_number();
+               storage<ov::PartialShape>().get_attributes_number() +
+               storage<ov::Dimension>().get_attributes_number();
     }
 };
 
@@ -745,11 +747,7 @@ struct Equal<std::shared_ptr<Constant>> {
 template <>
 struct Equal<std::shared_ptr<ov::Dimension>> {
     static bool equal_value(const std::shared_ptr<ov::Dimension>& dim1, const std::shared_ptr<ov::Dimension>& dim2) {
-        if (dim1->is_dynamic() != dim2->is_dynamic())
-            return false;
-        if (dim1->get_min_length() != dim2->get_min_length())
-            return false;
-        return (dim1->get_max_length() == dim2->get_max_length());
+        return dim1 == dim2;
     }
 };
 
@@ -757,20 +755,7 @@ template <>
 struct Equal<std::shared_ptr<ov::PartialShape>> {
     static bool equal_value(const std::shared_ptr<ov::PartialShape>& shape1,
                             const std::shared_ptr<ov::PartialShape>& shape2) {
-        if (shape1->rank().is_dynamic() != shape2->rank().is_dynamic())
-            return false;
-        if (shape1->rank().is_dynamic())
-            return true;
-        if (shape1->size() != shape2->size())
-            return false;
-
-        for (auto i = 0; i < shape1->size(); i++) {
-            const auto dim1 = std::make_shared<ov::Dimension>((*shape1)[i]);
-            const auto dim2 = std::make_shared<ov::Dimension>((*shape2)[i]);
-            if (!equal::Equal<std::shared_ptr<ov::Dimension>>::equal_value(dim1, dim2))
-                return false;
-        }
-        return true;
+        return shape1 == shape2;
     }
 };
 
@@ -839,31 +824,19 @@ struct Get<ov::op::util::FrameworkNodeAttrs, void> {
 
 template <>
 struct Get<ov::Dimension, void> {
-    static std::string value(const ov::Dimension& attrs) {
-        std::stringstream oss;
-
-        if (attrs.is_dynamic() && !attrs.get_interval().has_upper_bound() && (attrs.get_min_length() == 0))
-            return "[dynamic_dim]";
-        if (attrs.is_static()) {
-            return "[" + std::to_string(attrs.get_length()) + "]";
-        }
-        std::string min_bound = std::to_string(attrs.get_min_length());
-        std::string max_bound = std::to_string(attrs.get_max_length());
-        return "[" + min_bound + ".." + max_bound + "]";
+    static std::string value(const ov::Dimension& dim) {
+        std::stringstream dim_str;
+        dim_str << dim;
+        return dim_str.str();
     }
 };
 
 template <>
 struct Get<ov::PartialShape, void> {
-    static std::string value(const ov::PartialShape& attrs) {
-        std::stringstream oss;
-        const auto& a = attrs;
-        oss << "[";
-        for (const auto& item : a) {
-            oss << Get<ov::Dimension>::value(item) << " ";
-        }
-        oss << "]";
-        return "[" + oss.str() + "]";
+    static std::string value(const ov::PartialShape& shape) {
+        std::stringstream shape_str;
+        shape_str << shape;
+        return shape_str.str();
     }
 };
 

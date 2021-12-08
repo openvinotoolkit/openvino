@@ -23,7 +23,7 @@ bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::s
     return true;
 }
 
-Dimension strToDimension(const std::string& value) {
+Dimension str_to_dimension(const std::string& value) {
     if (value.find('?') != std::string::npos) {
         return {-1};
     }
@@ -47,8 +47,8 @@ Dimension strToDimension(const std::string& value) {
     return {min_value, max_value};
 }
 
-PartialShape strToPartialShape(const std::string& value) {
-    if (value.find("...") != std::string::npos) {
+PartialShape str_to_partial_shape(const std::string& value) {
+    if (value == "...") {
         return PartialShape::dynamic();
     }
     PartialShape res;
@@ -57,24 +57,24 @@ PartialShape strToPartialShape(const std::string& value) {
     while (getline(ss, field, ',')) {
         if (field.empty())
             IE_THROW() << "Cannot get vector of dimensions! \"" << value << "\" is incorrect";
-        res.insert(res.end(), strToDimension(field));
+        res.insert(res.end(), str_to_dimension(field));
     }
     return res;
 }
 
-bool getPartialShapeFromAttribute(const pugi::xml_node& node, const std::string& name, PartialShape& value) {
+bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::string& name, PartialShape& value) {
     std::string param;
     if (!getStrAttribute(node, name, param))
         return false;
-    value = strToPartialShape(param);
+    value = str_to_partial_shape(param);
     return true;
 }
 
-bool getDimensionFromAttribute(const pugi::xml_node& node, const std::string& name, Dimension& value) {
+bool get_dimension_from_attribute(const pugi::xml_node& node, const std::string& name, Dimension& value) {
     std::string param;
     if (!getStrAttribute(node, name, param))
         return false;
-    value = strToDimension(param);
+    value = str_to_dimension(param);
     return true;
 }
 
