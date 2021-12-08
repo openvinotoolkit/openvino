@@ -380,7 +380,7 @@ inline std::shared_ptr<Model> cvt_color_bgrx_to_bgr() {
     return p.build();
 }
 
-inline std::shared_ptr<Function> resize_dynamic() {
+inline std::shared_ptr<Model> resize_dynamic() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 20, 20});
     auto p = PrePostProcessor(function);
