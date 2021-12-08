@@ -5,7 +5,7 @@
 #include "deformable_convolution_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "convolution/convolution_kernel_selector.h"
@@ -111,6 +111,11 @@ public:
         conv_params.weights = convert_weights_tensor(weights_layout);
 
         conv_params.inputs.push_back(convert_data_tensor(arg.trans().get_output_layout()));
+        if (primitive->input.size() == 3) {
+            conv_params.inputs.push_back(convert_data_tensor(arg.mask().get_output_layout()));
+            conv_params.deformable_mask_enabled = true;
+        }
+        conv_params.bilinear_interpolation_pad = primitive->bilinear_interpolation_pad;
         conv_params.deformable_groups = deformable_groups;
 
         conv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),

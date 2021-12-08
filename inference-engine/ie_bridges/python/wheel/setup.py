@@ -78,12 +78,6 @@ LIB_INSTALL_CFG = {
         'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
-    'myriad_plugin': {
-        'name': 'myriad',
-        'prefix': 'libs.core',
-        'install_dir': OV_RUNTIME_LIBS_DIR,
-        'rpath': LIBS_RPATH,
-    },
     'ngraph_libs': {
         'name': 'ngraph',
         'prefix': 'libs.core',
@@ -183,7 +177,7 @@ class CustomBuild(build):
             self.spawn(['cmake', '-H' + str(openvino_root_dir), '-B' + self.build_temp,
                         '-DCMAKE_BUILD_TYPE={type}'.format(type=self.config),
                         '-DENABLE_PYTHON=ON',
-                        '-DNGRAPH_ONNX_FRONTEND_ENABLE=ON'])
+                        '-DENABLE_OV_ONNX_FRONTEND=ON'])
 
             self.announce('Building binaries', level=3)
             self.spawn(['cmake', '--build', self.build_temp,

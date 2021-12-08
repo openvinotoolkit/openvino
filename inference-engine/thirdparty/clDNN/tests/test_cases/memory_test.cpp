@@ -6,14 +6,14 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/activation.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/concatenation.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/reshape.hpp>
-#include <cldnn/primitives/crop.hpp>
-#include <cldnn/primitives/scale.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/scale.hpp>
 
 using namespace cldnn;
 using namespace ::tests;

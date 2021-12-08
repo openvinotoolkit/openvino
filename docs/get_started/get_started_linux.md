@@ -279,7 +279,7 @@ The `squeezenet1.1` model is downloaded in the Caffe* format. You must use the M
    cd /opt/intel/openvino_2022/tools/model_optimizer
    ```
    ```sh  
-   python3 ./mo.py --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
+    mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
    ```
    The produced IR files are in the `<ir_dir>` directory.
 
@@ -292,7 +292,7 @@ The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP
    cd /opt/intel/openvino_2022/tools/model_optimizer
    ```
    ```sh  
-   python3 ./mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/models/public/squeezenet1.1/ir
+    mo --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/models/public/squeezenet1.1/ir
    ```
 
 After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `~/models/public/squeezenet1.1/ir` directory.
@@ -432,13 +432,6 @@ Template to call sample code or a demo application:
 <path_to_app> -i <path_to_media> -m <path_to_model> -d <target_device>
 ```
 
-With the sample information specified, the command might look like this:
-
-```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/ir/fp32/mobilenet-ssd.xml -d CPU
-```
-
 ## <a name="advanced-samples"></a> Advanced Demo Use
 
 Some demo applications let you use multiple models for different purposes. In these cases, the output of the first model is usually used as the input for later models.
@@ -452,22 +445,6 @@ In these cases, the use pattern in the last part of the template above is usuall
 For head pose:
 
 `-m_hp <headpose model> -d_hp <headpose hardware target>`
-
-**Example of an Entire Command (object_detection + head pose):**
-
-```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/ir/fp32/mobilenet-ssd.xml -d CPU -m_hp headpose.xml \
--d_hp CPU
-``` 
-
-**Example of an Entire Command (object_detection + head pose + age-gender):**
-
-```sh
-./object_detection_demo_ssd_async -i ~/Videos/catshow.mp4 \
--m ~/r/fp32/mobilenet-ssd.xml -d CPU -m_hp headpose.xml \
--d_hp CPU -m_ag age-gender.xml -d_ag CPU
-```
 
 You can see all the sample application’s parameters by adding the `-h` or `--help` option at the command line.
 
