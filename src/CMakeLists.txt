@@ -125,6 +125,7 @@ if(BUILD_SHARED_LIBS)
             COMPONENT core)
 
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 # install TBB

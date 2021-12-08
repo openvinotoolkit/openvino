@@ -64,5 +64,6 @@ install(TARGETS ${TARGET_NAME}
 
 # for InferenceEngineUnitTest
 install(TARGETS ${TARGET_NAME} LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+install(TARGETS ${TARGET_NAME} LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
 
 ov_install_static_lib(${TARGET_NAME} core)
