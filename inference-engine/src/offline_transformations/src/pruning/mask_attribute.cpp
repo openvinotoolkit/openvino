@@ -14,28 +14,22 @@ namespace ngraph {
 
 Mask::Ptr getMask(const Output<const Node> & output) {
     auto &rtInfo = output.get_rt_info();
-    using MaskWrapper = VariantWrapper<Mask::Ptr>;
+    if (!rtInfo.count(Mask::get_type_info_static())) return nullptr;
 
-    if (!rtInfo.count(MaskWrapper::get_type_info_static().name)) return nullptr;
-
-    const auto &attr = rtInfo.at(MaskWrapper::get_type_info_static().name);
-    return ov::as_type_ptr<MaskWrapper>(attr)->get();
+    const auto &attr = rtInfo.at(Mask::get_type_info_static());
+    return attr.as<Mask::Ptr>();
 }
 
 Mask::Ptr getMask(const Output<Node> & output) {
     auto &rtInfo = output.get_rt_info();
-    using MaskWrapper = VariantWrapper<Mask::Ptr>;
-
-    if (!rtInfo.count(MaskWrapper::get_type_info_static().name)) return nullptr;
-
-    const auto &attr = rtInfo.at(MaskWrapper::get_type_info_static().name);
-    return ov::as_type_ptr<MaskWrapper>(attr)->get();
+    if (!rtInfo.count(Mask::get_type_info_static())) return nullptr;
+    const auto &attr = rtInfo.at(Mask::get_type_info_static());
+    return attr.as<Mask::Ptr>();
 }
 
 void setMask(Output<Node> output, const Mask::Ptr & mask) {
     auto &rtInfo = output.get_rt_info();
-    using MaskWrapper = VariantWrapper<Mask::Ptr>;
-    rtInfo[MaskWrapper::get_type_info_static().name] = MaskWrapper::create(mask);
+    rtInfo[Mask::get_type_info_static()] = mask;
 }
 
 std::ostream & operator<< (std::ostream & out, const Mask & mask) {
@@ -54,11 +48,3 @@ std::ostream & operator<< (std::ostream & out, const Mask & mask) {
 }
 
 }  // namespace ngraph
-
-namespace ov {
-
-template class ngraph::VariantImpl<ngraph::Mask::Ptr>;
-
-BWDCMP_RTTI_DEFINITION(VariantWrapper<ngraph::Mask::Ptr>);
-
-}  // namespace ov

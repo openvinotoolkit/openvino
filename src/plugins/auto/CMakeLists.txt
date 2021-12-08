@@ -6,15 +6,28 @@ set (TARGET_NAME "ov_auto_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp)
 
-ie_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "MULTI"
-              SOURCES ${SOURCES}
-              VERSION_DEFINES_FOR plugin.cpp)
+if(ENABLE_AUTO AND ENABLE_MULTI)
+    ie_add_plugin(NAME ${TARGET_NAME}
+                  DEVICE_NAME "MULTI"
+                  SOURCES ${SOURCES}
+                  VERSION_DEFINES_FOR plugin.cpp)
 
-ie_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "AUTO"
-              PSEUDO_PLUGIN_FOR "MULTI"
-              DEFAULT_CONFIG "MULTI_WORK_MODE_AS_AUTO:YES")
+    ie_add_plugin(NAME ${TARGET_NAME}
+                  DEVICE_NAME "AUTO"
+                  PSEUDO_PLUGIN_FOR "MULTI"
+                  DEFAULT_CONFIG "MULTI_WORK_MODE_AS_AUTO:YES")
+elseif(ENABLE_AUTO)
+    ie_add_plugin(NAME ${TARGET_NAME}
+                  DEVICE_NAME "AUTO"
+                  SOURCES ${SOURCES}
+                  VERSION_DEFINES_FOR plugin.cpp
+                  DEFAULT_CONFIG "MULTI_WORK_MODE_AS_AUTO:YES")
+elseif(ENABLE_MULTI)
+    ie_add_plugin(NAME ${TARGET_NAME}
+                  DEVICE_NAME "MULTI"
+                  SOURCES ${SOURCES}
+                  VERSION_DEFINES_FOR plugin.cpp)
+endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph inference_engine_transformations)
 

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_memory.hpp"
 

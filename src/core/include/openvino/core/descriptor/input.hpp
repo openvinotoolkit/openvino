@@ -9,7 +9,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 class Node;

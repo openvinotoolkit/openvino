@@ -217,7 +217,7 @@ public:
     /**
      * @brief Gets state control interface for given infer request.
      *
-     * State control essential for recurrent modells
+     * State control essential for recurrent models
      * @return A vector of Memory State objects
      */
     std::vector<VariableState> query_state();

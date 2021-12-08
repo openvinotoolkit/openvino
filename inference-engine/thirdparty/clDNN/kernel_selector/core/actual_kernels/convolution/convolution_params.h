@@ -25,7 +25,6 @@ struct convolution_params : public weight_bias_zero_point_params {
     bool depthwise_separable_opt = false;
     bool transposed = false;
     QuantizationType quantization = QuantizationType::NONE;
-    bool local_convolution = false;
     bool deformable_mode = false;
     uint32_t groups = 1;
     uSize kernelSize;

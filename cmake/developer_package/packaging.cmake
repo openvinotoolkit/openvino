@@ -272,11 +272,20 @@ macro(ie_cpack)
         endif()
 
         # multi / auto plugins
-        if(ENABLE_AUTO)
-            set(CPACK_COMPONENT_MULTI_DESCRIPTION "OpenVINO Multi / Auto plugin")
+        if(ENABLE_MULTI)
+            if(ENABLE_AUTO)
+                set(CPACK_COMPONENT_AUTO_DESCRIPTION "OpenVINO Auto / Multi plugin")
+            else()
+                set(CPACK_COMPONENT_AUTO_DESCRIPTION "OpenVINO Multi plugin")
+            endif()
             set(CPACK_COMPONENT_MULTI_DEPENDS "core")
             set(CPACK_DEBIAN_MULTI_PACKAGE_NAME "libopenvino-auto")
             set(CPACK_DEBIAN_MULTI_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        elseif(ENABLE_AUTO)
+            set(CPACK_COMPONENT_AUTO_DESCRIPTION "OpenVINO Auto plugin")
+            set(CPACK_COMPONENT_AUTO_DEPENDS "core")
+            set(CPACK_DEBIAN_AUTO_PACKAGE_NAME "libopenvino-auto")
+            set(CPACK_DEBIAN_AUTO_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
         endif()
 
         # cpu

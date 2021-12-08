@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "cldnn/primitives/primitive.hpp"
-#include "cldnn/primitives/activation.hpp"
-#include "cldnn/primitives/implementation_desc.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/implementation_desc.hpp"
 
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"

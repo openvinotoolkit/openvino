@@ -7,7 +7,7 @@
 #------------------------------------------------------------------------------
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
+set(OV_ONNX_NAMESPACE ngraph_onnx)
 
 if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
     set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
@@ -20,7 +20,7 @@ else()
 endif()
 
 set(ONNX_USE_PROTOBUF_SHARED_LIBS CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
-set(ONNX_NAMESPACE ${NGRAPH_ONNX_NAMESPACE})
+set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
 set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
 if(CMAKE_CROSSCOMPILING)

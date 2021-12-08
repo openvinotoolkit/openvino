@@ -55,10 +55,6 @@ ParamsKey convolution_params::GetParamsKey() const {
         k.EnableDepthwiseSeparableOpt();
     }
 
-    if (local_convolution) {
-        k.EnableLocalConvolution();
-    }
-
     if (groups > 1 && !depthwise_separable_opt) {
         k.EnableGroupedConvolution();
     }
