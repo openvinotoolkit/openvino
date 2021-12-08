@@ -54,7 +54,7 @@ namespace runtime {
  * Work is automatically dispatched without user synchronization inside one queue.
  * Advanced workflow can be managed via callbacks and blocking functions like
  * wait_all() or is_ready().
- * 
+ *
  * @note AsyncInferQueue provides simple and unifed interface for multiple asynchronous
  * calls to OpenVINO's InferRequests.
  */
@@ -76,13 +76,13 @@ public:
 
     /**
      * @brief Advanced constructor. Creates AsyncInferQueue based on given vectors.
-     * 
+     *
      * @note It allows to use queue as a part of a compostition pattern.
-     * Example can be seen in Python based bindings of AsyncInferQueue. 
+     * Example can be seen in Python based bindings of AsyncInferQueue.
      *
      * @param ref_pool vector of std references to already created InferReuqests.
      * @param handles queue with handles, should be from 0 to size of the pool.
-     * @param userdata vector with userdata - ov::Any objects. 
+     * @param userdata vector with userdata - ov::Any objects.
      */
     AsyncInferQueue(std::vector<std::reference_wrapper<ov::runtime::InferRequest>>&& ref_pool,
                     std::queue<size_t>&& handles,
@@ -122,9 +122,9 @@ public:
     /**
      * @brief Waits for all jobs to be finished. This is a blocking call for caller thread until
      * all jobs are finished.
-     * 
+     *
      * @note Call should be at the end of every AsyncInferQueue's "work scope". After wait_all()
-     * user is free to interact with all jobs (InferRequest objects) from pool. 
+     * user is free to interact with all jobs (InferRequest objects) from pool.
      */
     void wait_all();
 
