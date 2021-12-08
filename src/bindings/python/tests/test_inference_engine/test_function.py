@@ -284,15 +284,15 @@ def test_get_batch():
 
 
 def test_get_batch_CHWN():
-    param1 = ops.parameter(Shape([3, 1, 3, 3]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([3, 1, 3, 3]), dtype=np.float32, name="data2")
-    param3 = ops.parameter(Shape([3, 1, 3, 3]), dtype=np.float32, name="data3")
+    param1 = ops.parameter(Shape([3, 1, 3, 4]), dtype=np.float32, name="data1")
+    param2 = ops.parameter(Shape([3, 1, 3, 4]), dtype=np.float32, name="data2")
+    param3 = ops.parameter(Shape([3, 1, 3, 4]), dtype=np.float32, name="data3")
     add = ops.add(param1, param2)
     add2 = ops.add(add, param3)
     func = Function(add2, [param1, param2, param3], "TestFunction")
     param = func.get_parameters()[0]
     param.set_layout(Layout("CHWN"))
-    assert get_batch(func) == 3
+    assert get_batch(func) == 4
 
 
 def test_set_batch():
@@ -300,10 +300,15 @@ def test_set_batch():
     param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)
     func = Function(add, [param1, param2], "TestFunction")
-    param = func.get_parameters()[0]
+    func_param1 = func.get_parameters()[0]
+    func_param2 = func.get_parameters()[1]
     # batch == 2
-    param.set_layout(Layout("NC"))
+    func_param1.set_layout(Layout("NC"))
     assert get_batch(func) == 2
     # set batch to 1
     set_batch(func, Dimension(1))
     assert get_batch(func) == 1
+    # check if shape of param 1 has changed
+    assert str(func_param1.get_output_shape(0) == {1, 1})
+    # check if shape of param 2 has not changed
+    assert str(func_param2.get_output_shape(0) == {2, 1})
