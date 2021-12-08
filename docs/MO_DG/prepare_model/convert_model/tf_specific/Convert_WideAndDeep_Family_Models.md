@@ -92,7 +92,7 @@ python census_main.py
 Use the following command line to convert the saved model file with the checkpoint:
 
 ```sh
-python mo.py 
+ mo 
 --input_checkpoint checkpoint --input_meta_graph model.ckpt.meta
 --input "IteratorGetNext:0[2],
          IteratorGetNext:1[2],

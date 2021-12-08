@@ -48,7 +48,6 @@ TEST(type_prop, result_layout_empty) {
 TEST(type_prop, result_layout_invalid) {
     auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto result = make_shared<opset1::Result>(a);
-    result->input(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] =
-        ov::make_variant("NCHW");  // incorrect way
-    ASSERT_THROW(result->get_layout(), ov::AssertFailure);
+    result->input(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = "NCHW";  // incorrect way
+    ASSERT_THROW(result->get_layout(), ov::Exception);
 }

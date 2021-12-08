@@ -58,12 +58,12 @@ void SubgraphBaseTest::run() {
                     init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
-                infer();
-                validate();
             } catch (const std::exception& ex) {
                 throw std::runtime_error("Incorrect target static shape: " +
                                          CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
             }
+            infer();
+            validate();
         }
         status = LayerTestsUtils::PassRate::Statuses::PASSED;
     } catch (const std::exception& ex) {

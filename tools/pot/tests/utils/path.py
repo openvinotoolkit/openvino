@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-import mo
+from openvino.tools.mo import mo
 
 
 TEST_ROOT = Path(__file__).parent.parent.absolute()

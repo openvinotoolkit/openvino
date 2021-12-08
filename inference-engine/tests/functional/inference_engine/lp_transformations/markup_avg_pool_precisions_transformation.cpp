@@ -140,14 +140,14 @@ TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
     ASSERT_EQ(1ul, avgPoolOperations.size()) << "unexpected avgPoolOperations size: " << avgPoolOperations.size();
 
     {
-        auto avgPoolPrecisioinPreservedAttribute = ngraph::pass::low_precision::getAttribute<AvgPoolPrecisionPreservedAttributePtr>(
+        auto avgPoolPrecisioinPreservedAttribute = ngraph::pass::low_precision::getAttribute<AvgPoolPrecisionPreservedAttribute>(
                 *avgPoolOperations.begin());
-        ASSERT_NE(nullptr, avgPoolPrecisioinPreservedAttribute);
-        ASSERT_EQ(true, avgPoolPrecisioinPreservedAttribute->get()->sharedValue->value);
+        ASSERT_FALSE(avgPoolPrecisioinPreservedAttribute.empty());
+        ASSERT_EQ(true, avgPoolPrecisioinPreservedAttribute.as<AvgPoolPrecisionPreservedAttribute>().value());
     }
 
     const auto precisionPreserved = LayerTransformation::get<opset1::MaxPool>(actualFunction);
-    ASSERT_TRUE(checkIfAttributesAreTheSame<std::shared_ptr<AvgPoolPrecisionPreservedAttribute>>(precisionPreserved)) <<
+    ASSERT_TRUE(checkIfAttributesAreTheSame<AvgPoolPrecisionPreservedAttribute>(precisionPreserved)) <<
         "AvgPoolPrecisionPreservedAttribute are not the same";
 
     //auto res = compare_functions(referenceFunction, actualFunction, true, true);

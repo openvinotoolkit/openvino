@@ -49,6 +49,12 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list):
                         for attr_name in device_results.find(op.tag).attrib:
                             if attr_name == "passrate":
                                 continue
+                            if attr_name == "implemented":
+                                xml_value = op.attrib.get(attr_name) == "true"
+                                aggregated_value = entry.attrib.get(attr_name) == "true"
+                                str_value = "true" if xml_value or aggregated_value else "false"
+                                device_results.find(entry.tag).set(attr_name, str_value)
+                                continue
                             xml_value = int(op.attrib.get(attr_name))
                             aggregated_value = int(entry.attrib.get(attr_name))
                             device_results.find(entry.tag).set(attr_name, str(xml_value + aggregated_value))
