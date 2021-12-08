@@ -351,15 +351,50 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::Serialize>("/tmp/before.xml", "/tmp/before.bin");
         manager.register_pass<pass::ReverseInputChannelsFusion>();
-        manager.register_pass<pass::Serialize>("/tmp/after.xml", "/tmp/after.bin");
     }
 
     {
         auto input = create_param({1, 3, 64, 64});
         auto fq = create_fq(input);
         auto conv = create_conv(fq, create_fq(create_gather(Constant::create(element::f32, {6, 3, 3, 3}, {0.2}), {2, 1, 0}, 1)));
+
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto fq = create_fq(input);
+        auto weights_const = Constant::create(element::f32, {6, 3, 3, 3}, {0.2});
+        auto fq_weights = std::make_shared<FakeQuantize>(weights_const,
+                                                         Constant::create(element::f32, Shape{1, 3, 1, 1}, {1}),
+                                                         Constant::create(element::f32, Shape{1, 1, 1}, {1}),
+                                                         Constant::create(element::f32, Shape{1}, {1}),
+                                                         Constant::create(element::f32, Shape{3, 1, 1}, {1}), 255);
+        auto conv = create_conv(fq, fq_weights);
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto fq = create_fq(input);
+        auto weights_const = Constant::create(element::f32, {6, 3, 3, 3}, {0.2});
+        auto fq_weights = std::make_shared<FakeQuantize>(create_gather(weights_const, {2, 1, 0}, 1),
+                                                         create_gather(Constant::create(element::f32, Shape{1, 3, 1, 1}, {1}), {2, 1, 0}, 1),
+                                                         Constant::create(element::f32, Shape{1, 1, 1}, {1}),
+                                                         Constant::create(element::f32, Shape{1}, {1}),
+                                                         create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {1}), {2, 1, 0}, 0),
+                                                         255);
+        auto conv = create_conv(fq, fq_weights);
 
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
     }

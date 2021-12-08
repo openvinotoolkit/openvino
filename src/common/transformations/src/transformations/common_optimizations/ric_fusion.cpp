@@ -15,6 +15,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
+#include <ngraph/log.hpp>
 #include "itt.hpp"
 
 
@@ -24,6 +25,9 @@ namespace ngraph {
 namespace pass {
 namespace ric_attr {
 
+// Attribute describes RIC type which we propagate.
+// Also, it contains callback which can expand this attribute to the real RIC sub-graph.
+// In addition, attribute has some functionality and properties for propagation.
 class Attribute {
 public:
     using callback_t = std::function<void(Input<Node>, const Attribute &)>;
@@ -33,6 +37,9 @@ public:
         m_can_be_fused.emplace_back(std::make_shared<bool>(true));
     }
 
+    // Method which is used to create a copy of attribute for further propagation.
+    // TODO: can be removed and replaced with regular copy but we need to get rid of
+    //       is_initial flag and use some other way to detect original RIC output.
     Attribute propagate() const {
         Attribute attr(m_order, m_axis);
         attr.m_can_be_fused = m_can_be_fused;
@@ -60,6 +67,7 @@ public:
         m_callback = std::move(callback);
     }
 
+    // Apply callback to materialize RIC inside graph
     void operator() (Input<Node> input) const {
         m_callback(input, *this);
     }
@@ -71,10 +79,15 @@ public:
         });
     }
 
+    // For cases when we propagate through operation with multiple inputs like Eltwise
+    // we have to merge RIC attrs from all inputs. To check that given attr be merged with
+    // current we check the order and axis which must be the same.
     bool can_be_merged_with(const Attribute & other) {
         return m_order == other.m_order && m_axis == other.m_axis;
     }
 
+    // When merging two and more attrs for further propagation we have to keep can_be_fused references
+    // for cases when fusion is not possible, so we can update all related attrs.
     void merge_with(const Attribute & other) {
         m_can_be_fused.insert(m_can_be_fused.end(),
                               other.m_can_be_fused.begin(),
@@ -97,10 +110,20 @@ private:
     std::vector<int64_t> m_order;
     int64_t m_axis;
 
+    // Specifies whether RIC can be fused or not. vector is needed to keep references to other
+    // attributes that were participated during merge.
     std::vector<std::shared_ptr<bool>> m_can_be_fused;
+
+    // true - means that current RIC attribute is final and can be materialized
+    // false - means that current RIC attribute is temporary and need only for propagation
     bool m_is_final;
+
+    // true - means that current RIC attribute is an initial attribute and belongs to real RIC output
+    // false - means that current RIC attribute is temporary and need only for propagation
     bool m_is_initial;
 
+    // Callback specifies the action for RIC materialization for given input port.
+    // In most cases it should insert Gather operation for the input.
     std::function<void(Input<Node>, const Attribute &)> m_callback =
             [](Input<Node>, const Attribute &) {};
 };
@@ -222,78 +245,6 @@ std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t> & valu
 }
 }// namespace
 
-class Convolution : public ngraph::pass::MatcherPass {
-public:
-    Convolution() {
-        MATCHER_SCOPE(Convolution);
-        auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<opset8::Convolution>({input_p,
-                                                                     pattern::wrap_type<opset8::Constant,
-                                                                                        opset8::FakeQuantize>()});
-        auto callback = [=](pattern::Matcher& m) {
-            auto conv = m.get_match_root();
-            auto ric = ric_attr::get(conv->input_value(0)).propagate();
-            ric.set_is_final(true);
-            ric.set_callback([](Input<Node> input, const ric_attr::Attribute & attr) {
-                auto weights = input.get_source_output();
-                auto gather = std::make_shared<opset8::Gather>(weights, create_const(attr.get_order()),
-                                                                        create_const({1}));
-                input.replace_source_output(gather);
-                // TODO: copy runtime info from RIC sub-graph
-            });
-
-            if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
-                ric_attr::set(fq->input(0), ric);
-            } else {
-                ric_attr::set(conv->input(1), ric);
-            }
-            return true;
-        };
-
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
-        register_matcher(m, callback);
-    }
-};
-
-class GroupConvolution : public ngraph::pass::MatcherPass {
-public:
-    GroupConvolution() {
-        MATCHER_SCOPE(GroupConvolution);
-        auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
-
-        auto callback = [=](pattern::Matcher& m) {
-            auto conv = m.get_match_root();
-            const auto & weights_shape = conv->input_value(1).get_shape();
-            const int64_t & group = static_cast<int64_t>(weights_shape.at(0));
-            const int64_t & channels = static_cast<int64_t>(weights_shape.at(1));
-
-            auto ric = ric_attr::get(conv->input_value(0)).propagate();
-            if (ric.get_order().size() != static_cast<size_t>(group)) {
-                // TODO: insert RIC when group == 1
-                return false;
-            }
-
-            const int64_t output_channels = group * channels;
-            std::vector<int64_t> new_order;
-            new_order.reserve(output_channels);
-            for (const auto & index : ric.get_order()) {
-                for (int64_t pos = index * channels, i = 0; i < channels; ++i, ++pos) {
-                    new_order.emplace_back(pos);
-                }
-            }
-            assert(new_order.size() == static_cast<size_t>(output_channels));
-
-            ric.set_order(new_order);
-            ric_attr::set(conv->output(0), ric);
-            return true;
-        };
-
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
-        register_matcher(m, callback);
-    }
-};
-
 class Binary : public ngraph::pass::MatcherPass {
 public:
     Binary() {
@@ -350,14 +301,14 @@ public:
                 if (data_rank - shape_rank > ric.get_axis()) {
                     // we don't have to insert RIC for constant, so we keep propagating
                     ric_attr::set(m.get_match_value(), ric);
-                    return true;
+                    continue;
                 }
 
                 const int64_t & new_axis = ric.get_axis() - (data_rank - shape_rank);
                 if (shape[new_axis] == 1) {
                     // we don't have to insert RIC for constant, so we keep propagating
                     ric_attr::set(m.get_match_value(), ric);
-                    return true;
+                    continue;
                 }
 
                 // finally, insert RIC
@@ -375,6 +326,89 @@ public:
             }
 
             ric_attr::set(m.get_match_value(), ric);
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
+class Convolution : public ngraph::pass::MatcherPass {
+public:
+    Convolution() {
+        MATCHER_SCOPE(Convolution);
+        // Handle Convolution with Constant and FQ on weights. As Convolution is
+        // a terminal node, so we do not propagate RIC attribute further and insert
+        // final RIC attribute to the weights input.
+        auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
+        auto pattern_root = pattern::wrap_type<opset8::Convolution>({input_p,
+                                                                     pattern::wrap_type<opset8::Constant,
+                                                                                        opset8::FakeQuantize>()});
+        auto callback = [=](pattern::Matcher& m) {
+            auto conv = m.get_match_root();
+            auto ric = ric_attr::get(conv->input_value(0)).propagate();
+            if (ric.get_axis() != 1) return false;
+
+            ric.set_is_final(true);
+            ric.set_callback([](Input<Node> input, const ric_attr::Attribute & attr) {
+                auto weights = input.get_source_output();
+                auto gather = std::make_shared<opset8::Gather>(weights, create_const(attr.get_order()),
+                                                               create_const({1} /* output channel */));
+                input.replace_source_output(gather);
+                // TODO: copy runtime info from RIC sub-graph
+            });
+
+            if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
+                // Set final RIC attr to the first FQ input
+                ric_attr::set(fq->input(0), ric);
+
+                // Apply Binary transformation for FQ to handle 1..5 inputs
+                ric.set_is_final(false);
+                ric_attr::set(fq->input_value(0), ric); // set ric attr to simulate propagation flow
+                Binary().apply(fq);
+            } else {
+                ric_attr::set(conv->input(1), ric);
+            }
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
+class GroupConvolution : public ngraph::pass::MatcherPass {
+public:
+    GroupConvolution() {
+        MATCHER_SCOPE(GroupConvolution);
+        auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
+        auto pattern_root = pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
+
+        auto callback = [=](pattern::Matcher& m) {
+            auto conv = m.get_match_root();
+            const auto & weights_shape = conv->input_value(1).get_shape();
+            const int64_t & group = static_cast<int64_t>(weights_shape.at(0));
+            const int64_t & channels = static_cast<int64_t>(weights_shape.at(1));
+
+            auto ric = ric_attr::get(conv->input_value(0)).propagate();
+            if (ric.get_order().size() != static_cast<size_t>(group)) {
+                // TODO: insert RIC when group == 1
+                return false;
+            }
+
+            const int64_t output_channels = group * channels;
+            std::vector<int64_t> new_order;
+            new_order.reserve(output_channels);
+            for (const auto & index : ric.get_order()) {
+                for (int64_t pos = index * channels, i = 0; i < channels; ++i, ++pos) {
+                    new_order.emplace_back(pos);
+                }
+            }
+            assert(new_order.size() == static_cast<size_t>(output_channels));
+
+            ric.set_order(new_order);
+            ric_attr::set(conv->output(0), ric);
             return true;
         };
 
@@ -456,7 +490,7 @@ public:
                 if (ric_attr::has(input)) {
                     auto ric = ric_attr::get(input);
                     ric.set_can_be_fused(false);
-                    std::cout << "Node is unsupported: " << *m.get_match_root() << std::endl;
+                    NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
                 }
             }
             return true;
@@ -526,8 +560,8 @@ public:
         MATCHER_SCOPE(EraseGather);
         auto input_p = pattern::any_input();
         auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, pattern::any_input(),
-                                                                            pattern::any_input()},
-                                                           need_to_erase_ric);
+                                                                         pattern::any_input()},
+                                                                         need_to_erase_ric);
         auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
