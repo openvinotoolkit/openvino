@@ -45,15 +45,13 @@ public:
     const int64_t& get_axis() const {
         return m_axis;
     }
-    void set_axis(int64_t axis) {
-        m_axis = axis;
-    }
+    void set_axis(int64_t axis);
 
 protected:
     int64_t m_axis;
 
 private:
-    void friend inline resolve_axis(OneHot* op);
+    friend void inline resolve_axis(OneHot* op);
 };
 }  // namespace v1
 }  // namespace op

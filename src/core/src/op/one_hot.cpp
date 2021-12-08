@@ -136,3 +136,8 @@ bool op::v1::OneHot::has_evaluate() const {
     }
     return false;
 }
+
+void op::v1::OneHot::set_axis(int64_t axis) {
+    m_axis = axis;
+    resolve_axis(this);
+}
