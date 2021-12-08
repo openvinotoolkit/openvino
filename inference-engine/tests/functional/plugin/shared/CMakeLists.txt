@@ -22,11 +22,11 @@ endif()
 
 
 # remove once CVS-69781 is fixed
-if(NGRAPH_IR_FRONTEND_ENABLE)
+if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES test_model_zoo)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")
 else()
@@ -56,7 +56,6 @@ addIeTarget(
                 lptNgraphFunctions
                 sharedTestClasses
             PRIVATE
-                inference_engine_legacy # CVS-55376
                 openvino::util
                 inference_engine_transformations
         DEPENDENCIES
@@ -66,11 +65,6 @@ addIeTarget(
 if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
 endif()
-
-# CVS-55376
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/low_precision_transformations/layer_transformation.cpp"
-    PROPERTIES INCLUDE_DIRECTORIES
-    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"

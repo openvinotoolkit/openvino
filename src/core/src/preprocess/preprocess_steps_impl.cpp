@@ -142,11 +142,11 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
         auto height_idx = static_cast<int64_t>(get_and_check_height_idx(layout, node.get_partial_shape()));
         auto width_idx = static_cast<int64_t>(get_and_check_width_idx(layout, node.get_partial_shape()));
         if (dst_height < 0 || dst_width < 0) {
-            OPENVINO_ASSERT(ctxt.network_shape().rank().is_static(),
-                            "Resize is not fully specified while target network shape is dynamic");
+            OPENVINO_ASSERT(ctxt.model_shape().rank().is_static(),
+                            "Resize is not fully specified while target model shape is dynamic");
         }
-        int new_image_width = dst_width < 0 ? static_cast<int>(ctxt.get_network_width_for_resize()) : dst_width;
-        int new_image_height = dst_height < 0 ? static_cast<int>(ctxt.get_network_height_for_resize()) : dst_height;
+        int new_image_width = dst_width < 0 ? static_cast<int>(ctxt.get_model_width_for_resize()) : dst_width;
+        int new_image_height = dst_height < 0 ? static_cast<int>(ctxt.get_model_height_for_resize()) : dst_height;
 
         auto target_spatial_shape =
             op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {new_image_height, new_image_width});
@@ -348,6 +348,25 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
                     "Layout ",
                     context.layout().to_string(),
                     " doesn't have `channels` dimension");
+    auto shape = nodes[0].get_partial_shape();
+    if (shape.rank().is_static()) {
+        // This block of code is to preserve output shape if it contains dynamic dimensions
+        // Otherwise, dynamic version will transform shape {?,3,?,?} to {?,?,?,?} which is still ok but not desired
+        auto channels_idx = get_and_check_channels_idx(context.layout(), shape);
+        if (shape[channels_idx].is_static()) {
+            auto channels_count = shape[channels_idx].get_length();
+            // Add range from constants
+            auto range_from = op::v0::Constant::create(element::i64, {}, {channels_count - 1});
+            auto range_to = op::v0::Constant::create(element::i64, {}, {-1});
+            auto range_step = op::v0::Constant::create(element::i64, {}, {-1});
+            auto range = std::make_shared<op::v4::Range>(range_from, range_to, range_step, element::i32);
+
+            auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
+            auto convert = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
+            return std::make_tuple(std::vector<Output<Node>>{convert}, false);
+        }
+    }
+
     auto channels_idx = ov::layout::channels_idx(context.layout());
     // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
     auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}

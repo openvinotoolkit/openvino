@@ -5,7 +5,7 @@
 #include "layout_optimizer.h"
 #include "primitive_inst.h"
 #include "program_helpers.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"
