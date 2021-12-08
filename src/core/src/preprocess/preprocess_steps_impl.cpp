@@ -174,7 +174,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
                         "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                         "RGB/BGR color format using 'convert_color'");
         Layout dst_layout = layout.empty() ? context.target_layout() : layout;
-        auto permutation = layout::find_permutation(context.layout(), nodes[0].get_partial_shape().rank(), dst_layout);
+        auto permutation = layout::find_permutation(context.layout(), nodes[0].get_partial_shape(), dst_layout);
         if (permutation.empty()) {
             // No transpose is needed, just update layout
             if (!layout.empty()) {
@@ -430,7 +430,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {
     m_actions.emplace_back([layout](const Output<Node>& node, PostprocessingContext& context) {
         Layout dst_layout = layout.empty() ? context.target_layout() : layout;
-        auto permutation = layout::find_permutation(context.layout(), node.get_partial_shape().rank(), dst_layout);
+        auto permutation = layout::find_permutation(context.layout(), node.get_partial_shape(), dst_layout);
         if (permutation.empty()) {
             // No transpose is needed, just update layout
             if (!layout.empty()) {
