@@ -10,10 +10,11 @@ namespace v3 {
 template <class T>
 void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     const auto& input_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
     output_shape.resize(4);
-    NODE_VALIDATION_CHECK(op, input_shape.rank() == 4, "input tensor must be 4D tensor.");
+    NODE_VALIDATION_CHECK(op, input_shape.rank().compatible(4), "input tensor must be 4D tensor.");
 
     NODE_VALIDATION_CHECK(op,
                           op->m_patch_sizes.size() == 2,
@@ -41,6 +42,7 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
         "Attribute padding should be in either valid or same_lower or same_upper.");
 
     if (input_shape[1].is_dynamic() || input_shape[2].is_dynamic() || input_shape[3].is_dynamic()) {
+        output_shape[0] = input_shape[0];
         return;
     } else {
         int32_t input_depth = input_shape[1].get_length();
@@ -52,6 +54,7 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
         if (input_rows == 0 || input_cols == 0) {
             out_rows = 0;
             out_cols = 0;
+            output_shape = input_shape;
         } else if (op->m_padding == PadType::VALID) {
             out_rows = (((input_rows) -
                          static_cast<int32_t>(op->m_patch_selection_rates[0]) *
@@ -76,25 +79,14 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
             out_cols = 0;
 
         auto out_depth_cast =
-            static_cast<ngraph::Dimension::value_type>(input_depth * op->m_patch_sizes[0] * op->m_patch_sizes[1]);
-        auto out_rows_cast = static_cast<ngraph::Dimension::value_type>(out_rows);
-        auto out_cols_cast = static_cast<ngraph::Dimension::value_type>(out_cols);
+            static_cast<typename DimType::value_type>(input_depth * op->m_patch_sizes[0] * op->m_patch_sizes[1]);
+        auto out_rows_cast = static_cast<typename DimType::value_type>(out_rows);
+        auto out_cols_cast = static_cast<typename DimType::value_type>(out_cols);
 
-        if (input_shape[0].is_dynamic()) {
-            output_shape[0] = input_shape[0];
-            output_shape[1] = out_depth_cast;
-            output_shape[2] = out_rows_cast;
-            output_shape[3] = out_cols_cast;
-        } else {
-            output_shape[0] = input_shape[0].get_length();
-            output_shape[1] = out_depth_cast;
-            output_shape[2] = out_rows_cast;
-            output_shape[3] = out_cols_cast;
-        }
-
-        if (input_rows == 0 || input_cols == 0) {
-            output_shape = input_shape;
-        }
+        output_shape[0] = input_shape[0];
+        output_shape[1] = out_depth_cast;
+        output_shape[2] = out_rows_cast;
+        output_shape[3] = out_cols_cast;
     }
 }
 }  // namespace v3

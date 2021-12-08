@@ -38,18 +38,14 @@ public:
     int64_t get_origin_batch_axis() const {
         return m_batch_axis;
     }
-    void set_batch_axis(int64_t batch_axis) {
-        m_batch_axis = batch_axis;
-    }
+    void set_batch_axis(int64_t batch_axis);
     size_t get_sequence_axis() const {
         return m_normalized_seq_axis;
     }
     int64_t get_origin_sequence_axis() const {
         return m_seq_axis;
     }
-    void set_sequence_axis(int64_t sequence_axis) {
-        m_seq_axis = sequence_axis;
-    }
+    void set_sequence_axis(int64_t sequence_axis);
 
 private:
     int64_t m_batch_axis;
@@ -60,6 +56,8 @@ private:
     friend void shape_infer(const ReverseSequence* op,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes);
+
+    friend void inline normal_reverse_sequence_axis(ReverseSequence* op);
 };
 }  // namespace v0
 }  // namespace op

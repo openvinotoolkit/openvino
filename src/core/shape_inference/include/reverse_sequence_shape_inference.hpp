@@ -9,20 +9,29 @@
 namespace ov {
 namespace op {
 namespace v0 {
-template <class T>
-void shape_infer(const ReverseSequence* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    const auto& data_pshape = input_shapes[0];
+void inline normal_reverse_sequence_axis(ReverseSequence* op) {
+    const auto& data_pshape = op->get_input_partial_shape(0);
     const auto& data_rank = data_pshape.rank();
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op,
                           data_rank.is_dynamic() || data_rank.get_length() >= 2,
                           "Data input rank should be equal or greater than 2. Got: ",
                           data_pshape);
+    op->m_normalized_batch_axis = ov::normalize_axis(op, op->m_batch_axis, data_rank);
+    op->m_normalized_seq_axis = ov::normalize_axis(op, op->m_seq_axis, data_rank);
+}
 
-    int64_t normalized_batch_axis = normalize_axis(op, op->m_batch_axis, data_rank);
-
+template <class T>
+void shape_infer(const ReverseSequence* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
+    const auto& data_pshape = input_shapes[0];
+    const auto& data_rank = data_pshape.rank();
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     const auto& seq_lengths_pshape = input_shapes[1];
     const auto& seq_lengths_rank = seq_lengths_pshape.rank();
+    NODE_VALIDATION_CHECK(op,
+                          data_rank.is_dynamic() || data_rank.get_length() >= 2,
+                          "Data input rank should be equal or greater than 2. Got: ",
+                          data_pshape);
 
     NODE_VALIDATION_CHECK(op,
                           seq_lengths_rank.compatible(1),
@@ -33,19 +42,18 @@ void shape_infer(const ReverseSequence* op, const std::vector<T>& input_shapes, 
     output_pshape = data_pshape;
     if (data_rank.is_static() && seq_lengths_rank.is_static()) {
         DimType merged_sequence_length;
-        NODE_VALIDATION_CHECK(
-            op,
-            DimType::merge(merged_sequence_length, data_pshape[normalized_batch_axis], seq_lengths_pshape[0]),
-            "Sequence lengths input size (",
-            seq_lengths_pshape[0],
-            ") is not equal to batch axis dimension of data input (",
-            data_pshape[normalized_batch_axis],
-            ") (argument shape: ",
-            data_pshape,
-            ", sequence indices shape: ",
-            seq_lengths_pshape,
-            ").");
-        output_pshape[normalized_batch_axis] = merged_sequence_length;
+        NODE_VALIDATION_CHECK(op,
+                              DimType::merge(merged_sequence_length, data_pshape[op->m_normalized_batch_axis], seq_lengths_pshape[0]),
+                              "Sequence lengths input size (",
+                              seq_lengths_pshape[0],
+                              ") is not equal to batch axis dimension of data input (",
+                              data_pshape[op->m_normalized_batch_axis],
+                              ") (argument shape: ",
+                              data_pshape,
+                              ", sequence indices shape: ",
+                              seq_lengths_pshape,
+                              ").");
+        output_pshape[op->m_normalized_batch_axis] = merged_sequence_length;
     }
 }
 }  // namespace v0

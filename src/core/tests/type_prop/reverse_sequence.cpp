@@ -78,7 +78,7 @@ TEST(type_prop, reverse_sequence_invalid_seq_lengths_et) {
 }
 
 TEST(type_prop, reverse_sequence_invalid_data_rank) {
-    std::vector<PartialShape> invalid_pshapes = {{}, {4}};
+    std::vector<PartialShape> invalid_pshapes = {{4}};
     for (auto& pshape : invalid_pshapes) {
         try {
             auto data = make_shared<op::Parameter>(element::f32, pshape);
@@ -87,7 +87,8 @@ TEST(type_prop, reverse_sequence_invalid_data_rank) {
             FAIL() << "Invalid rank of data input not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Data input rank should be equal or greater than 2."));
-        } catch (...) {
+        } catch (std::exception& ex) {
+            std::cout << ex.what() << std::endl;
             FAIL() << "Rank check of data input failed for unexpected reason";
         }
     }
