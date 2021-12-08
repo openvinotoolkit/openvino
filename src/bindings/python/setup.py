@@ -178,7 +178,7 @@ class BuildCMakeExt(build_ext):
                     f"-DCMAKE_BUILD_TYPE={self.config}",
                     f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
                     "-DENABLE_PYTHON=ON",
-                    "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
+                    "-DENABLE_OV_ONNX_FRONTEND=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 

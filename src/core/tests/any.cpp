@@ -7,12 +7,14 @@
 #include <string>
 
 #include "gtest/gtest.h"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 using namespace ov;
 
 class DestructorTest {
 public:
+    // Base member type defined. ov:Any can access all derived class
+    using Base = std::tuple<DestructorTest>;
     DestructorTest() {
         constructorCount++;
     }
@@ -29,9 +31,22 @@ public:
         destructorCount++;
     }
 
+    virtual const std::type_info& type_info() const {
+        return typeid(DestructorTest);
+    }
+
     static size_t destructorCount;
     static size_t constructorCount;
 };
+
+class Derived : public DestructorTest {
+public:
+    using DestructorTest::DestructorTest;
+    const std::type_info& type_info() const override {
+        return typeid(Derived);
+    }
+};
+
 size_t DestructorTest::destructorCount = 0;
 size_t DestructorTest::constructorCount = 0;
 
@@ -392,55 +407,87 @@ TEST_F(AnyTests, PrintToMapOfAnysDoesNothing) {
     ASSERT_EQ(stream.str(), std::string{});
 }
 
-TEST_F(AnyTests, constructFromVariantImpl) {
+TEST_F(AnyTests, constructFromRuntimeAttributeImpl) {
     auto parameter = Any{4};
     auto get_impl = [&] {
-        return std::make_shared<VariantImpl<int>>();
+        return std::make_shared<RuntimeAttributeImpl<int>>();
     };
     auto other_parameter = Any{get_impl()};
 }
 
-TEST_F(AnyTests, dynamicPointerCastToVariant) {
-    Any p = std::make_shared<VariantWrapper<std::string>>("42");
-    auto str_variant = std::dynamic_pointer_cast<VariantWrapper<std::string>>(p);
+TEST_F(AnyTests, dynamicPointerCastToRuntimeAttribute) {
+    Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
+    auto str_variant = std::dynamic_pointer_cast<RuntimeAttributeWrapper<std::string>>(p);
     ASSERT_EQ("42", str_variant->get());
 }
 
-TEST_F(AnyTests, asTypePtrToVariant) {
-    Any p = std::make_shared<VariantWrapper<std::string>>("42");
-    auto str_variant = ov::as_type_ptr<VariantWrapper<std::string>>(p);
+TEST_F(AnyTests, asTypePtrToRuntimeAttribute) {
+    Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
+    auto str_variant = ov::as_type_ptr<RuntimeAttributeWrapper<std::string>>(p);
     ASSERT_EQ("42", str_variant->get());
 }
 
-TEST_F(AnyTests, castToVariant) {
+TEST_F(AnyTests, castToRuntimeAttribute) {
     {
-        Any p = std::make_shared<VariantWrapper<std::string>>("42");
-        std::shared_ptr<VariantWrapper<std::string>> str_variant = p;
+        Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
+        std::shared_ptr<RuntimeAttributeWrapper<std::string>> str_variant = p;
         ASSERT_EQ("42", str_variant->get());
     }
     {
-        Any p = std::make_shared<VariantWrapper<std::string>>("42");
-        auto f = [](const std::shared_ptr<VariantWrapper<std::string>>& str_variant) {
-            ASSERT_NE(nullptr, str_variant);
+        Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
+        auto f = [](const std::shared_ptr<RuntimeAttributeWrapper<std::string>>& str_variant) {
             ASSERT_EQ("42", str_variant->get());
         };
         f(p);
     }
     {
-        Any p = std::make_shared<VariantWrapper<std::string>>("42");
-        auto f = [](std::shared_ptr<VariantWrapper<std::string>>& str_variant) {
-            ASSERT_NE(nullptr, str_variant);
+        Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
+        auto f = [](std::shared_ptr<RuntimeAttributeWrapper<std::string>>& str_variant) {
             ASSERT_EQ("42", str_variant->get());
         };
         f(p);
     }
     {
-        std::shared_ptr<Variant> v = std::make_shared<VariantWrapper<std::string>>("42");
+        std::shared_ptr<RuntimeAttribute> v = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
         Any p = v;
-        auto f = [](std::shared_ptr<VariantWrapper<std::string>>& str_variant) {
+        auto f = [](std::shared_ptr<RuntimeAttributeWrapper<std::string>>& str_variant) {
             ASSERT_NE(nullptr, str_variant);
             ASSERT_EQ("42", str_variant->get());
         };
         f(p);
     }
+}
+
+TEST_F(AnyTests, accessUsingBaseReference) {
+    ASSERT_EQ(0, DestructorTest::constructorCount);
+    ASSERT_EQ(0, DestructorTest::destructorCount);
+    {
+        using Base = DestructorTest;
+        auto p = Any::make<Derived>();
+        ASSERT_TRUE(p.is<Derived>());
+        ASSERT_TRUE(p.is<Base>());
+        ASSERT_NO_THROW(p.as<Derived>());
+        ASSERT_NO_THROW(p.as<Base>());
+        ASSERT_EQ(typeid(Derived), p.as<Base>().type_info());
+    }
+    ASSERT_EQ(1, DestructorTest::constructorCount);
+    ASSERT_EQ(1, DestructorTest::destructorCount);
+}
+
+struct WrongBase {
+    // No Base member type defined
+    // Should be: using Base = std::tuple<WrongBase>;
+};
+
+struct WrongDerived : public WrongBase {
+    // No Base member type defined
+    // Should be: using Base = std::tuple<WrongBase>;
+};
+
+TEST_F(AnyTests, accessUsingWrongBaseReference) {
+    Any p = WrongDerived{};
+    ASSERT_TRUE(p.is<WrongDerived>());
+    ASSERT_FALSE(p.is<WrongBase>());
+    ASSERT_NO_THROW(p.as<WrongDerived>());
+    ASSERT_THROW(p.as<WrongBase>(), ov::Exception);
 }

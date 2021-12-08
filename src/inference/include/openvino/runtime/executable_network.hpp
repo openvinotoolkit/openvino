@@ -34,7 +34,7 @@ class Core;
  */
 class OPENVINO_RUNTIME_API ExecutableNetwork {
     std::shared_ptr<void> _so;
-    std::shared_ptr<ie::IExecutableNetworkInternal> _impl;
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
 
     /**
      * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
@@ -42,7 +42,8 @@ class OPENVINO_RUNTIME_API ExecutableNetwork {
      * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IExecutableNetworkInternal>& impl);
+    ExecutableNetwork(const std::shared_ptr<void>& so,
+                      const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl);
     friend class ov::runtime::Core;
 
 public:
@@ -64,12 +65,14 @@ public:
      * @return vector of inputs
      */
     std::vector<ov::Output<const ov::Node>> inputs() const;
+
     /**
      * @brief Get input of executable graph function
      *
      * @return Function input or throw ov::Exception in case of several outputs
      */
     ov::Output<const ov::Node> input() const;
+
     /**
      * @brief Get input of executable graph function
      *
@@ -77,6 +80,7 @@ public:
      * @return Function input or throw ov::Exception if input wasn't found
      */
     ov::Output<const ov::Node> input(size_t i) const;
+
     /**
      * @brief Get input of executable graph function
      *
@@ -91,12 +95,14 @@ public:
      * @return vector of outputs
      */
     std::vector<ov::Output<const ov::Node>> outputs() const;
+
     /**
      * @brief Get output of executable graph function
      *
      * @return Function output or throw ov::Exception in case of several outputs
      */
     ov::Output<const ov::Node> output() const;
+
     /**
      * @brief Get output of executable graph function
      *
@@ -104,6 +110,7 @@ public:
      * @return Function output or throw ov::Exception if output wasn't found
      */
     ov::Output<const ov::Node> output(size_t i) const;
+
     /**
      * @brief Get output of executable graph function
      *
@@ -113,7 +120,7 @@ public:
     ov::Output<const ov::Node> output(const std::string& tensor_name) const;
 
     /**
-     * @brief Creates an inference request object used to infer the network.
+     * @brief Creates an inference request object used to infer the model.
      *
      * The created request has allocated input and output blobs (that can be changed later).
      *
@@ -124,11 +131,11 @@ public:
     /**
      * @brief Exports the current executable network.
      *
-     * @see Core::ImportNetwork
+     * @see Core::import_model
      *
-     * @param networkModel Network model output stream
+     * @param model_stream Model output stream
      */
-    void export_model(std::ostream& networkModel);
+    void export_model(std::ostream& model_stream);
 
     /**
      * @brief Sets configuration for current executable network
@@ -153,7 +160,7 @@ public:
     /**
      * @brief Gets general runtime metric for an executable network.
      *
-     * It can be network name, actual device ID on
+     * It can be model name, actual device ID on
      * which executable network is running or all other properties which cannot be changed dynamically.
      *
      * @param name metric name to request
