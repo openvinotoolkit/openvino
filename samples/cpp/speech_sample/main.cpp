@@ -330,12 +330,12 @@ int main(int argc, char* argv[]) {
                                                std::to_string(numFrames) + " and " + std::to_string(currentNumFrames));
                         throw std::logic_error(errMessage);
                     }
-                 
+
                     ptrUtterances[i] = ptrUtterance;
 
                     numFrameElementsInput[i] = currentNumFrameElementsInput;
                 }
-             
+
                 ptrScores.resize(numFrames * numScoresPerFrame * sizeof(float));
                 if (!FLAGS_r.empty()) {
                     /** Read file with reference scores **/

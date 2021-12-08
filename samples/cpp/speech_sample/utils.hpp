@@ -4,6 +4,7 @@
 
 #pragma once
 #include <cnpy.h>
+
 #include <samples/common.hpp>
 
 #define MAX_SCORE_DIFFERENCE 0.0001f  // max score difference for frame error threshold
@@ -392,6 +393,3 @@ std::vector<std::string> ConvertStrToVector(std::string str) {
     }
     return blobName;
 }
-
-
-
