@@ -39,7 +39,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
     - Call setup script: `python3 setup.py install`
     - Get back to root POT dir: `cd <PATH_TO_POT_DIR>`
 8) Install requirements for the tool:
-    - Call setup script: `python3 setup.py install`
+    - Call setup script: `python3 setup.py develop`
 
 ### Run
 1) Prepare configuration file for the tool based on the examples in the `configs` folder
