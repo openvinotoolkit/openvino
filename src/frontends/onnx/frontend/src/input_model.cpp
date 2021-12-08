@@ -124,9 +124,19 @@ void InputModelONNX::free_name_for_tensor(const std::string&) {
 }
 
 void InputModelONNX::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) {
-    std::map<std::string, ngraph::PartialShape> m;
-    m[place->get_names()[0]] = shape;
-    m_editor->set_input_shapes(m);
+    std::string input_name;  // name of the model input which should be reshaped
+    const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(place);
+    if (input_edge) {
+        const auto tensor_names = input_edge->get_source_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(), "Cannot retrieve input name. Setting new input shape is not possible.");
+        input_name = tensor_names[0];
+    } else {
+        // fallback in case something else than an InputEdge is passed in - try to retrieve its name and reshape
+        OPENVINO_ASSERT(!place->get_names().empty(), "Cannot retrieve input name. Setting new input shape is not possible.");
+        input_name = place->get_names()[0];
+    }
+
+    m_editor->set_input_shapes({{input_name, shape}});
 }
 
 ngraph::PartialShape InputModelONNX::get_partial_shape(Place::Ptr place) const {
@@ -224,5 +234,5 @@ void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, con
                            });
         }
     }
-    m_editor->cut_graph_fragment(onnx_inputs, onnx_outputs);
+    m_editor->extract_subgraph(onnx_inputs, onnx_outputs);
 }

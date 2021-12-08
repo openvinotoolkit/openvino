@@ -23,6 +23,10 @@ onnx_editor::InputEdge PlaceInputEdgeONNX::get_input_edge() const {
     return m_edge;
 }
 
+std::vector<std::string> PlaceInputEdgeONNX::get_names() const {
+    return {"InputEdge{" + std::to_string(m_edge.m_node_idx) + ", " + std::to_string(m_edge.m_port_idx) + "}"};
+}
+
 bool PlaceInputEdgeONNX::is_input() const {
     return m_editor->is_input(m_edge);
 }
@@ -58,7 +62,6 @@ Place::Ptr PlaceInputEdgeONNX::get_producing_operation() const {
 Place::Ptr PlaceInputEdgeONNX::get_producing_port() const {
     return get_source_tensor()->get_producing_port();
 }
-
 PlaceOutputEdgeONNX::PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
                                          std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge},
@@ -71,6 +74,10 @@ PlaceOutputEdgeONNX::PlaceOutputEdgeONNX(onnx_editor::OutputEdge&& edge,
 
 onnx_editor::OutputEdge PlaceOutputEdgeONNX::get_output_edge() const {
     return m_edge;
+}
+
+std::vector<std::string> PlaceOutputEdgeONNX::get_names() const {
+    return {"OutputEdge{" + std::to_string(m_edge.m_node_idx) + ", " + std::to_string(m_edge.m_port_idx) + "}"};
 }
 
 bool PlaceOutputEdgeONNX::is_input() const {
@@ -201,7 +208,11 @@ PlaceOpONNX::PlaceOpONNX(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_ed
       m_editor{std::move(editor)} {}
 
 std::vector<std::string> PlaceOpONNX::get_names() const {
-    return {m_node.m_node_name};
+    if (!m_node.m_node_name.empty()) {
+        return {m_node.m_node_name};
+    } else {
+        return {m_editor->get_node_name(m_node)};
+    }
 }
 
 const onnx_editor::EditorNode& PlaceOpONNX::get_editor_node() const {

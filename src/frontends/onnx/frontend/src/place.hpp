@@ -20,6 +20,7 @@ public:
     onnx_editor::InputEdge get_input_edge() const;
 
     // external usage
+    std::vector<std::string> get_names() const override;
     bool is_input() const override;
     bool is_output() const override;
     bool is_equal(Place::Ptr another) const override;
@@ -43,6 +44,7 @@ public:
     onnx_editor::OutputEdge get_output_edge() const;
 
     // external usage
+    std::vector<std::string> get_names() const override;
     bool is_input() const override;
     bool is_output() const override;
     bool is_equal(Place::Ptr another) const override;
