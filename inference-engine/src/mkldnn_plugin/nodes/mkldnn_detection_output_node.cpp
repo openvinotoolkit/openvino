@@ -31,9 +31,9 @@ bool SortScorePairDescend<std::pair<int, int>>(const std::pair<float, std::pair<
 
 } // namespace
 
-bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto doOp = ngraph::as_type_ptr<const ngraph::op::v8::DetectionOutput>(op);
+        const auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
         if (!doOp) {
             errorMessage = "Node is not an instance of the DetectionOutput from the operations set v8.";
             return false;
@@ -57,7 +57,7 @@ void MKLDNNDetectionOutputNode::createPrimitive() {
     }
 }
 
-MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
         MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -72,7 +72,7 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
     if (getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of output edges.";
 
-    auto doOp = ngraph::as_type_ptr<const ngraph::op::v8::DetectionOutput>(op);
+    auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
 
     backgroundClassId = attributes.background_label_id;
