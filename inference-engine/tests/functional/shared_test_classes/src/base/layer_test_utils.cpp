@@ -345,7 +345,6 @@ void LayerTestsCommon::LoadNetwork() {
     CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
-    inferRequest = executableNetwork.CreateInferRequest();
 }
 
 void LayerTestsCommon::GenerateInputs() {
@@ -362,7 +361,7 @@ void LayerTestsCommon::GenerateInputs() {
     }
 }
 
-void LayerTestsCommon::Infer() {
+void LayerTestsCommon::ConfigureInferRequest() {
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     const auto& functionParams = function->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
@@ -379,6 +378,13 @@ void LayerTestsCommon::Infer() {
         auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
         inferRequest.SetBatch(batchSize);
     }
+}
+
+void LayerTestsCommon::Infer() {
+    inferRequest = executableNetwork.CreateInferRequest();
+
+    ConfigureInferRequest();
+
     inferRequest.Infer();
 }
 
