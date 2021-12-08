@@ -146,6 +146,7 @@ void erase(T port) {
 }// namespace ric_attr
 
 namespace init {
+// TODO: cover with tests
 class SplitConcat : public ngraph::pass::MatcherPass {
 public:
     SplitConcat() {
@@ -156,34 +157,28 @@ public:
         callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_map();
             auto concat = ov::as_type_ptr<opset8::Concat>(pattern_map.at(pattern_root));
-            if (!concat || concat->get_axis() != 1) {
-                return false;
-            }
-
             auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p));
-            if (!split || split->get_num_splits() != 3 ||
-                !op::util::has_constant_value(split->get_input_node_shared_ptr(1), 1)) {
-                return false;
-            }
+            if (!concat || !split) return false;
 
-            // Order of Split output indices
-            const std::vector<int64_t> & order = {2, 0, 1};
+            std::vector<int64_t> order;
+            order.reserve(split->get_num_splits());
 
-            for (auto input : concat->inputs()) {
+            for (const auto & input : concat->inputs()) {
                 auto split_output = input.get_source_output();
-                auto s = std::dynamic_pointer_cast<opset8::Split>(split_output.get_node_shared_ptr());
-                if (!s || s != split) return false;
+                if (split_output.get_node() != split.get()) return false;
 
                 // Check that Concat is the only Split consumer and order of Split outputs
                 // satisfies expected order for reverse input channel case.
-                if (split_output.get_target_inputs().size() != 1 ||
-                    static_cast<int64_t>(split_output.get_index()) != order[input.get_index()]) {
-                    return false;
+                for (const auto & target_input : split_output.get_target_inputs()) {
+                    if (target_input.get_node() != concat.get()) {
+                        return false;
+                    }
+                    order.emplace_back(split_output.get_index());
                 }
             }
 
             // Mark-up RIC output
-            ric_attr::init(concat, order, 1);
+            ric_attr::init(concat, order, concat->get_axis());
             return true;
         };
     }
@@ -199,14 +194,15 @@ public:
 
         callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_map();
-            const std::vector<int64_t> order{2, 1, 0};
-            auto value = ov::get_constant_from_source(pattern_map.at(indices_p));
-            if (!op::util::has_constant_value(pattern_map.at(axis_p), 1) ||
-                !op::util::has_constant_value(value, order)) {
+            const auto & output = pattern_map.at(pattern_root);
+
+            auto order = ov::get_constant_from_source(pattern_map.at(indices_p));
+            auto axis = ov::get_constant_from_source(pattern_map.at(axis_p));
+            if (!order || !axis) {
                 return false;
             }
 
-            ric_attr::init(m.get_match_value(), order, 1);
+            ric_attr::init(output, order->cast_vector<int64_t>(), axis->cast_vector<int64_t>().at(0));
             return true;
         };
     }
@@ -235,7 +231,6 @@ public:
                 auto weights = input.get_source_output();
                 auto gather = std::make_shared<opset8::Gather>(weights, create_const(attr.get_order()), create_const({1}));
                 input.replace_source_output(gather);
-                std::cout << "ADDED!\n";
                 // TODO: copy runtime info from RIC sub-graph
             });
             ric_attr::set(conv->input(1), ric);
@@ -381,6 +376,31 @@ public:
     }
 };
 
+class Transpose : public ngraph::pass::MatcherPass {
+public:
+    Transpose() {
+        MATCHER_SCOPE(Transpose);
+        auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
+        auto order_p = pattern::wrap_type<opset8::Constant>();
+        pattern_root = pattern::wrap_type<opset8::Transpose>({input_p, order_p});
+
+        callback = [=](pattern::Matcher& m) {
+            const auto & pattern_map = m.get_pattern_value_map();
+            auto input = pattern_map.at(input_p);
+            auto ric = ric_attr::get(input).propagate();
+
+            auto order_node = std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(order_p).get_node_shared_ptr());
+            auto order = order_node->cast_vector<int64_t>();
+
+            int64_t new_axis = std::find(order.begin(), order.end(), ric.get_axis()) - order.begin();
+            ric.set_axis(new_axis);
+
+            ric_attr::set(m.get_match_value(), ric);
+            return true;
+        };
+    }
+};
+
 class Unsupported : public ngraph::pass::MatcherPass {
 public:
     Unsupported() {
@@ -467,8 +487,7 @@ public:
 
 bool ngraph::pass::ReverseInputChannelsFusion::run_on_function(std::shared_ptr<Function> f) {
     Manager m;
-    // TODO: enable
-    // m.set_per_pass_validation(false);
+    m.set_per_pass_validation(false);
 
     // First we need to initialize and propagate RIC attributes through entire graph
     auto ric_prop = m.register_pass<GraphRewrite>();
@@ -477,6 +496,8 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_function(std::shared_ptr<F
     ric_prop->add_matcher<prop::Convolution>();
     ric_prop->add_matcher<prop::GroupConvolution>();
     ric_prop->add_matcher<prop::Binary>();
+    ric_prop->add_matcher<prop::ShapeOf>();
+    ric_prop->add_matcher<prop::Transpose>();
     ric_prop->add_matcher<prop::PassThrough>();
     ric_prop->add_matcher<prop::Unsupported>();
 

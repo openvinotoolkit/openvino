@@ -304,3 +304,29 @@ TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
         manager.register_pass<pass::ReverseInputChannelsFusion>();
     }
 }
+
+TEST_F(TransformationTestsF, RICFusionTranspose) {
+    {
+        auto input = create_param({ 1, 64, 64, 3 });
+        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{3}, {0.2}));
+        auto transpose = std::make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
+        auto conv = create_conv(transpose, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NHWC"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({ 1, 64, 64, 3 });
+        auto gather = create_gather(Constant::create(element::f32, Shape{3}, {0.2}), {2, 1, 0}, 0);
+        auto add = std::make_shared<Add>(input, gather);
+        auto transpose = std::make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
+        auto conv = create_conv_with_gather(transpose, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
