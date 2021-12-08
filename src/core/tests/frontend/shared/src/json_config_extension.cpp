@@ -4,9 +4,9 @@
 
 #include "json_config_extension.hpp"
 
-#include <common/extensions/json_config_extension.hpp>
-#include <common/extensions/json_schema.hpp>
-#include <common/extensions/json_transformation_extension.hpp>
+#include <json_extension/json_config_extension.hpp>
+#include <json_extension/json_schema.hpp>
+#include <json_extension/json_transformation_extension.hpp>
 #include <nlohmann/json-schema.hpp>
 #include <ostream>
 #include <util/graph_comparator.hpp>

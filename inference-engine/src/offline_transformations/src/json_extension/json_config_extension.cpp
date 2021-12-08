@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common/extensions/json_config_extension.hpp"
+#include "json_extension/json_config_extension.hpp"
 
 #include "common/extensions/decoder_transformation_extension.hpp"
-#include "common/extensions/json_schema.hpp"
-#include "common/extensions/json_transformation_extension.hpp"
+#include "json_extension/json_schema.hpp"
+#include "json_extension/json_transformation_extension.hpp"
 #include "so_extension.hpp"
 
 using namespace ov;
@@ -53,7 +53,7 @@ JsonConfigExtension::JsonConfigExtension(const std::string& config_path)
         const auto& lib = it.first;
         const auto& sections = it.second;
 
-        auto extensions = detail::load_extensions(lib);
+        auto extensions = ov::detail::load_extensions(lib);
         m_loaded_extensions.insert(m_loaded_extensions.end(), extensions.begin(), extensions.end());
         for (const auto& ext : extensions) {
             auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext);
@@ -68,13 +68,4 @@ JsonConfigExtension::JsonConfigExtension(const std::string& config_path)
             }
         }
     }
-}
-
-JsonConfigExtension::~JsonConfigExtension() {
-    // Reset is required here prior unload_extensions, because
-    // there shouldn't be any alive references before the unloading the library.
-    // Doing it here explicitly to avoid relying on order of class fields definition
-    /*    for (const auto& target_extension : m_target_extensions) {
-            target_extension.first.reset();
-        }*/
 }
