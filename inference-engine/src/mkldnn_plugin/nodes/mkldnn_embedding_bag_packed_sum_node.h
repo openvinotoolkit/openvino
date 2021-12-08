@@ -19,17 +19,21 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+protected:
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
 private:
     void initFromInputs() override;
     void getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
 
-    const int* _indices;
+    const int* _indices = nullptr;
     size_t _batch = 0;
     size_t _indicesPerBag = 0;
 };

@@ -20,7 +20,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
 
     auto input_layout = node.input().get_output_layout();
 
-    auto input_offset = desc->input_offset;
+    auto pad = desc->pad;
     auto stride = desc->stride;
     auto window_size = desc->size;
 
@@ -100,69 +100,20 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                                    "",
                                    0,
                                    "Size Y (of pooling window) must be positive (>= 1)");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Input offset spatial X",
-                             2 * input_offset.spatial[0],
-                             "input layout size spatial X",
-                             input_layout.size.spatial[0],
-                             "Input offset is greater than input data range. There is no input data to process");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Input offset spatial Y",
-                             2 * input_offset.spatial[1],
-                             "input layout size spatial Y",
-                             input_layout.size.spatial[1],
-                             "Input offset is greater than input data range. There is no input data to process");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Negate input offset spatial X",
-                             -input_offset.spatial[0],
-                             "input window size spatial X",
-                             window_size.spatial[0],
-                             "First pool is outside of image. please reduce input offset X");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Negate input offset spatial Y",
-                             -input_offset.spatial[1],
-                             "input window size spatial Y",
-                             window_size.spatial[1],
-                             "First pool is outside of image. please reduce input offset Y");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset feature",
-                          input_offset.feature[0],
-                          "",
-                          0,
-                          "Input offset in feature is not supported");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset batch",
-                          input_offset.batch[0],
-                          "",
-                          0,
-                          "Input offset in batch is not supported");
-
     if (input_layout.format.spatial_num() == 3) {
         // 3D
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                               "stride spatial Z",
-                               stride.spatial[1],
-                               "",
-                               0,
-                               "Stride spatial Z must be positive (>= 1)");
+                                       "stride spatial Z",
+                                       stride.spatial[1],
+                                       "",
+                                       0,
+                                       "Stride spatial Z must be positive (>= 1)");
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                               "window size spatial Z",
-                               window_size.spatial[2],
-                               "",
-                               0,
-                               "Size Z (of pooling window) must be positive (>= 1)");
-        CLDNN_ERROR_GREATER_THAN(node.id(),
-                               "Input offset spatial Z",
-                               2 * input_offset.spatial[2],
-                               "input layout size spatial Z",
-                               input_layout.size.spatial[2],
-                               "Input offset is greater than input data range. There is no input data to process");
-        CLDNN_ERROR_GREATER_THAN(node.id(),
-                               "Negate input offset spatial Z",
-                               -input_offset.spatial[2],
-                               "input window size spatial Z",
-                               window_size.spatial[2],
-                               "First pool is outside of image. please reduce input offset Z");
+                                       "window size spatial Z",
+                                       window_size.spatial[2],
+                                       "",
+                                       0,
+                                       "Size Z (of pooling window) must be positive (>= 1)");
     }
 
     if (desc->with_output_size) {
@@ -196,7 +147,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
     // TODO: Check compatibility of output size calculation (with caffe).
     auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.size,
                                                                                       window_size,
-                                                                                      input_offset,
+                                                                                      pad,
                                                                                       stride,
                                                                                       {1, 1, 1, 1},
                                                                                       true,
@@ -223,7 +174,7 @@ std::string pooling_inst::to_string(pooling_node const& node) {
     pooling_info.add("mode", mode);
     pooling_info.add("stride", strd.to_string());
     pooling_info.add("kernel size", kernel_size.to_string());
-    pooling_info.add("input offset", desc->input_offset.to_string());
+    pooling_info.add("pad", desc->pad.to_string());
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());

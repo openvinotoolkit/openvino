@@ -57,7 +57,7 @@ private:
 
     void optimizedNspc2Ncsp(size_t MB);
 
-    bool canUseOptimizedNspc2Ncsp;
+    bool canUseOptimizedNspc2Ncsp = false;
 
     size_t axis = 1;
     std::vector<uint8_t*> dstMemPtrs;
