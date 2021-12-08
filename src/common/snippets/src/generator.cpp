@@ -17,7 +17,7 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
     // ToDo: change to reg_t
     std::vector<size_t> rout;
     auto it_rt = rt.find("reginfo");
-    if (it_rt == rt.end()) {
+    if (it_rt != rt.end()) {
         for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
             rout.push_back(reg);
         }
