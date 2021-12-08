@@ -9,7 +9,6 @@
 
 #include <transformations_visibility.hpp>
 
-#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {

@@ -26,6 +26,7 @@
 #include "ngraph_ops/fake_quant_dequant_internal.hpp"
 #include "ngraph_ops/fake_quant_internal.hpp"
 #include "ngraph_ops/channel_fake_quant_internal.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov::opset7;
 using namespace ov;
@@ -305,8 +306,10 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert(InputModel::Ptr model) const {
         });
 
     normalize(f);
-
-    return f;
+    // workaround: shared_ptr has virtual table & virtual function which will exist in the caller so such as libpaddle_ov_frontend.so,
+    //   when Function returned from here and FrontEndManager may be descontrcuted which will call dlclose with libpaddle_ov_frontend.so,
+    //   calling the shared_ptr destructor created in libpaddld_ov_frontend.so will crash. Here make a new shared_ptr in ngraph.so to work around.
+    return ngraph::clone_function(*f);
 }
 
 void FrontEndPDPD::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
@@ -337,7 +340,10 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(InputModel::Ptr model
             return named_outputs;
         });
     normalize(f);
-    return f;
+    // workaround: shared_ptr has virtual table & virtual function which will exist in the caller so such as libpaddle_ov_frontend.so,
+    //   when Function returned from here and FrontEndManager may be descontrcuted which will call dlclose with libpaddle_ov_frontend.so,
+    //   calling the shared_ptr destructor created in libpaddld_ov_frontend.so will crash. Here make a new shared_ptr in ngraph.so to work around.
+    return ngraph::clone_function(*f);
 }
 
 std::shared_ptr<ov::Model> FrontEndPDPD::decode(InputModel::Ptr model) const {

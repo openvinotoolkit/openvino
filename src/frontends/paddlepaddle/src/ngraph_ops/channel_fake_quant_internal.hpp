@@ -9,23 +9,24 @@
 
 #include <transformations_visibility.hpp>
 
-#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 namespace internal {
-class FakeDequantInternal : public Op {
+class ChannelFakeQuantInternal : public Op {
 public:
-    OPENVINO_OP("FakeDequantInternal", "util");
+    OPENVINO_OP("ChannelFakeQuantInternal", "util");
     BWDCMP_RTTI_DECLARATION;
 
-    FakeDequantInternal() = default;
+    ChannelFakeQuantInternal() = default;
 
-    FakeDequantInternal(const Output<Node>& x,
-                      const Output<Node>& scale,
-                      const int bit_length,
-                      const float max_range);
+    ChannelFakeQuantInternal(const Output<Node>& x,
+                      const Output<Node>& scale1,
+                      const Output<Node>& scale2,
+                      const std::string& op_type,
+                      const int quant_axis = 0,
+                      const int bit_length = 8);
 
     void validate_and_infer_types() override;
 
@@ -33,8 +34,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 
-    int m_bit_length = 0;
-    float m_max_range = 0.0f;
+    std::string m_op_type;
+    int m_quant_axis = 0;
+    int m_bit_length = 8;
 
 private:
 };

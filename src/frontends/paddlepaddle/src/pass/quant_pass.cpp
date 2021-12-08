@@ -17,6 +17,7 @@
 #include "ngraph_ops/channel_fake_quant_internal.hpp"
 #include "ngraph_ops/fake_quant_dequant_internal.hpp"
 #include <ngraph/pattern/op/or.hpp>
+#include <ngraph/variant.hpp>
 #include "paddlepaddle_frontend/exceptions.hpp"
 #include <transformations/common_optimizations/nop_elimination.hpp>
 
@@ -52,7 +53,8 @@ static std::shared_ptr<FakeQuantize> get_fakequant_for_data(const std::shared_pt
     const auto range = (1 << (fake_internal->m_bit_length - 1)) - 1;
     const auto input = fake_internal->input_value(1).get_node_shared_ptr();
     const auto & const_input = std::dynamic_pointer_cast<Constant>(input);
-    const_input->get_rt_info()["in_scale"] = std::make_shared<VariantWrapper<int64_t>>(0);
+    // mark the scale is input scale and the dequant can ignore it
+    const_input->get_rt_info()["in_scale"] = std::make_shared<::ov::RuntimeAttributeWrapper<std::string>>("true");
     std::vector<float> scales = const_input->cast_vector<float>();
     return get_quant_common(range, scales[0], fake_internal->input_value(0));
 }
@@ -76,13 +78,7 @@ ov::frontend::pass::FuseQuant::FuseQuant() {
     register_matcher(m, callback);
 }
 
-static std::shared_ptr<Node> get_dequant_node(const std::shared_ptr<Constant>& const_int, const element::Type& type, const std::shared_ptr<Constant>& const_scale) {
-    // dequantize: const(int8)->convert->multply
-    const auto weight_float = std::make_shared<Convert>(const_int, type);
-    return std::make_shared<Multiply>(weight_float, const_scale);
-}
-
-static std::shared_ptr<Node> get_channelwise_dequant_node(const std::vector<float>& weights, const Shape& weights_shape, const element::Type& data_type,
+static std::shared_ptr<Node> get_dequant_common(const std::vector<float>& weights, const Shape& weights_shape, const element::Type& data_type,
     const std::vector<float>& scales, const Shape& scales_shape) {
     // dequantize: const(int8)->convert->multply
     const auto const_input = Constant::create(element::i8, weights_shape, weights);
@@ -100,14 +96,9 @@ static std::shared_ptr<Node> get_fakequant_for_weight(const std::shared_ptr<cons
     float scale = static_cast<float>(range * range) / max_range;
 
     const float norm_scale = scale / range;
-    // dequantize: const(int8)->convert->multply
     const auto& const_weight_org = std::dynamic_pointer_cast<Constant>(org_conv->input_value(1).get_node_shared_ptr());
-    const auto const_input = Constant::create(element::i8, const_weight_org->get_shape(), const_weight_org->cast_vector<float>());
-    const auto weight_float = std::make_shared<Convert>(const_input,
-        org_conv->get_input_element_type(0));
-
-    auto fake_op = std::make_shared<Multiply>(weight_float,
-        Constant::create(element::f32, {1}, {norm_scale}));
+    auto fake_op = get_dequant_common(const_weight_org->cast_vector<float>(), const_weight_org->get_shape(), org_conv->get_input_element_type(0),
+        {norm_scale}, {1});
     auto new_conv = org_conv->clone_with_new_inputs({org_conv->input_value(0), fake_op});
     return new_conv;    
 }
@@ -123,7 +114,6 @@ ov::frontend::pass::FuseDequant::FuseDequant() {
         // deal weight
         auto new_conv = get_fakequant_for_weight(fake_dequant_op);
         replace_node(op, new_conv);
-        std::cout << "dequant pass replaced " << *fake_dequant_op << std::endl;
 
         return true;
     };
@@ -134,6 +124,10 @@ ov::frontend::pass::FuseDequant::FuseDequant() {
 
 static std::shared_ptr<Node> get_fakequant_for_weight(const std::shared_ptr<const ngraph::op::internal::ChannelFakeQuantInternal> fake_internal) {
     const auto range = (1 << (fake_internal->m_bit_length - 1)) - 1;
+    const auto org_conv = fake_internal->input_value(0).get_node_shared_ptr();
+    bool is_groupconv = std::dynamic_pointer_cast<GroupConvolution>(org_conv) != nullptr;
+
+    // get scales
     std::vector<float> scales;
     for (size_t i = 1; i < fake_internal->get_input_size(); i++) {
         const auto input = fake_internal->input_value(i).get_node_shared_ptr();
@@ -144,10 +138,10 @@ static std::shared_ptr<Node> get_fakequant_for_weight(const std::shared_ptr<cons
         scales = const_input->cast_vector<float>();
         break;
     }
-    const auto org_conv = fake_internal->input_value(0).get_node_shared_ptr();
     std::vector<float> norm_scales = scales;
     std::transform(norm_scales.begin(), norm_scales.end(), norm_scales.begin(), [&](const float v) { return v / range; });
-    bool is_groupconv = std::dynamic_pointer_cast<GroupConvolution>(org_conv) != nullptr;
+
+    // compute weight, scale shape
     auto scales_shape_len = org_conv->input_value(1).get_partial_shape().rank().get_length();
     if (is_groupconv) {
         scales_shape_len -= 1;
@@ -159,30 +153,22 @@ static std::shared_ptr<Node> get_fakequant_for_weight(const std::shared_ptr<cons
     const auto const_shape_org = const_weight_org->get_shape();
     OPENVINO_ASSERT(const_shape_org.size() > 2, "weight shape should great than 2.");
     if (is_groupconv) {
-        if (scales.size() != 1) {
-            const auto shape = const_weight_org->get_shape();
-            OPENVINO_ASSERT(shape[0] == scales.size(), "scales size should equal group.");
-            scales_shape[0] = scales.size();
-        }
+        scales_shape[0] = scales.size();
         memcpy(&const_shape[1], &const_shape_org[2], (scales_shape_len - 1) * sizeof(const_shape[1]));
         const_shape[0] = const_shape_org[0] * const_shape_org[1];
     } else {
         scales_shape[fake_internal->m_quant_axis] = scales.size();
         const_shape = const_shape_org;
     }
-    // dequantize: const(int8)->convert->multply
-    const auto const_input = Constant::create(element::i8, const_shape, const_weight_org->cast_vector<float>());
-    const auto weight_float = std::make_shared<Convert>(const_input, org_conv->get_input_element_type(0));
 
-    auto mul = std::make_shared<Multiply>(weight_float,
-        Constant::create(element::f32, scales_shape, norm_scales));
+    // get dequant node
+    auto mul = get_dequant_common(const_weight_org->cast_vector<float>(), const_shape, org_conv->get_input_element_type(0),
+        norm_scales, scales_shape);
     if (std::dynamic_pointer_cast<GroupConvolution>(org_conv)) {
         // group convolution need a reshape in the weight path
         const auto out_shape = org_conv->input_value(1).get_shape();
         auto shape_const = Constant::create(element::i64, {out_shape.size()}, out_shape);
         auto reshape = std::make_shared<Reshape>(mul, shape_const, false);
-        // prevent eliminate_reshape transformation
-        //ngraph::pass::disable_eliminate_reshape(reshape);
         return org_conv->clone_with_new_inputs({org_conv->input_value(0), reshape});
     } else {
         return org_conv->clone_with_new_inputs({org_conv->input_value(0), mul});
@@ -200,7 +186,6 @@ ov::frontend::pass::FuseChannelDequant::FuseChannelDequant() {
         // deal weight
         auto new_conv = get_fakequant_for_weight(fake_dequant_op);
         replace_node(op, new_conv);
-        std::cout << "dequant pass replaced " << *fake_dequant_op << std::endl;
 
         return true;
     };
@@ -224,9 +209,7 @@ static std::shared_ptr<ngraph::Node> get_fakequant_for_data(const std::shared_pt
             std::abs(*std::max_element(weights.begin(), weights.end(), abs_compare_func));
         std::transform(weights.begin(), weights.end(), weights.begin(), [&](const float v) { return std::round(v / scale * range); });
         
-        return get_dequant_node(Constant::create(element::i8, const_input->get_shape(), weights),
-            const_input->get_element_type(),
-            Constant::create(element::f32, {1}, {scale / range}));
+        return get_dequant_common(weights, const_input->get_shape(), input->get_element_type(), {scale / range}, {1});
     } else if (fake_internal->m_op_type == "fake_quantize_dequantize_moving_average_abs_max") {
         // fake quant for data
         const auto input = fake_internal->input_value(1).get_node_shared_ptr();
@@ -268,7 +251,6 @@ ov::frontend::pass::FuseQuantDequant::FuseQuantDequant() {
         // deal activation
         auto new_quant = get_fakequant_for_data(fake_op);
         replace_node(op, new_quant);
-        std::cout << "quant dequant pass replaced " << *fake_op << std::endl;
 
         return true;
     };
