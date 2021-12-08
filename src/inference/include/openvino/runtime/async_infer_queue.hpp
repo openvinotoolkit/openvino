@@ -23,6 +23,11 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace helpers {
+/**
+ * @brief Helper function to get number of jobs based on given network's metrics.
+ *
+ * @param net ExecutableNetwork object.
+ */
 static size_t num_of_jobs_helper(ov::runtime::ExecutableNetwork& net) {
     try {
         auto parameter_value = net.get_metric(METRIC_KEY(SUPPORTED_METRICS));
