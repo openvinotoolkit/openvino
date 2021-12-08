@@ -1248,11 +1248,6 @@ void Core::AddExtension(const IExtensionPtr& extension) {
     _impl->AddExtension(extension);
 }
 
-ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
-    return ImportNetwork(modelFileName, DEFAULT_DEVICE_NAME);
-}
-
 ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {

@@ -180,15 +180,6 @@ public:
     void AddExtension(IExtensionPtr extension, const std::string& deviceName);
 
     /**
-     * @brief Creates an executable network from a previously exported network and uses AUTO plugin as the default
-     * device to load executable network.
-     *
-     * @param modelFileName Path to the location of the exported file
-     * @return An executable network reference
-     */
-    ExecutableNetwork ImportNetwork(const std::string& modelFileName);
-
-    /**
      * @brief Creates an executable network from a previously exported network
      *
      * @param modelFileName Path to the location of the exported file
@@ -202,16 +193,6 @@ public:
                                     const std::map<std::string, std::string>& config = {});
 
     /**
-     * @brief Creates an executable network from a previously exported network and uses AUTO plugin as the default
-     * device to load executable network.
-     *
-     * @param networkModel network model stream
-     * operation*
-     * @return An executable network reference
-     */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel);
-
-    /**
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
@@ -222,6 +203,15 @@ public:
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @deprecated Use Core::ImportNetwork with explicit device name
+     * @brief Creates an executable network from a previously exported network
+     * @param networkModel network model stream
+     * @return An executable network reference
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use Core::ImportNetwork with explicit device name")
+    ExecutableNetwork ImportNetwork(std::istream& networkModel);
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified
