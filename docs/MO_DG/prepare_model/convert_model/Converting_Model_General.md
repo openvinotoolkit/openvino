@@ -151,7 +151,7 @@ Usually neural network models are trained with the normalized input data. This m
  
 In the first case, the Model Optimizer generates the IR with required pre-processing layers and Inference Engine samples may be used to infer the model. 
  
-In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. 
+In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`. 
 
 If both mean and scale values are specified, the mean is subtracted first and then scale is applied. Input values are *divided* by the scale value(s). 
 

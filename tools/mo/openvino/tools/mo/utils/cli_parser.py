@@ -124,12 +124,14 @@ class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenc
 
 class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
     def __call__(self, parser, namespace, values, option_string=None):
-        super().__call__(parser, namespace, values, option_string)
         dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
             option_string)
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
+        if 'mean_file' in option_string or 'mean_offset' in option_string:
+            dep_msg += 'Please use --mean_values cli option instead.'
         log.error(dep_msg, extra={'is_warning': True})
+        super().__call__(parser, namespace, values, option_string)
 
 
 def readable_file(path: str):
@@ -377,7 +379,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
     common_group.add_argument('--keep_shape_ops',
-                              help='The option is ignored. Expected behavior is enabled by default.',
+                              help=argparse.SUPPRESS,
                               action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
                               help='Disable compression and store weights with original precision.',
@@ -524,11 +526,13 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
-                             help='Mean image to be used for the input. Should be a binaryproto file',
+                             help='[DEPRECATED] ' +
+                                  'Mean image to be used for the input. Should be a binaryproto file',
                              default=None,
-                             action=CanonicalizePathCheckExistenceAction)
+                             action=DeprecatedCanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file_offsets', '-mo',
-                             help='Mean image offsets to be used for the input binaryproto file. ' +
+                             help='[DEPRECATED] ' +
+                                  'Mean image offsets to be used for the input binaryproto file. ' +
                                   'When the mean image is bigger than the expected input, it is cropped. By default, centers ' +
                                   'of the input image and the mean image are the same and the mean image is cropped by ' +
                                   'dimensions of the input image. The format to pass this option is the following: "-mo (x,y)". In this ' +
