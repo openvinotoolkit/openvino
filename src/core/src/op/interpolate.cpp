@@ -51,7 +51,7 @@ void op::v0::Interpolate::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {input_shape, target_spatial_shape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
-    shape_infer(this, input_shapes, output_shapes, {});
+    shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 

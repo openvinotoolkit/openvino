@@ -16,18 +16,19 @@ template <class T>
 void shape_infer(const Interpolate* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
 
     const auto& input_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
     output_shape = input_shape;
+    const auto& attr = op->get_attrs();
 
     if (input_shape.rank().is_static()) {
         auto input_rank = input_shape.size();
         NODE_VALIDATION_CHECK(op,
-                              std::all_of(op->m_attrs.axes.begin(),
-                                          op->m_attrs.axes.end(),
+                              std::all_of(attr.axes.begin(),
+                                          attr.axes.end(),
                                           [input_rank](size_t axis) {
                                               return axis < input_rank;
                                           }),
@@ -35,16 +36,16 @@ void shape_infer(const Interpolate* op,
                               "Got: input rank ",
                               input_rank,
                               ", axes ",
-                              op->m_attrs.axes);
+                              attr.axes);
 
         T target_spatial_shape;
         if (get_data_as_shape<T>(1, op, target_spatial_shape, constant_data)) {
             size_t i = 0;
-            for (auto axis : op->m_attrs.axes) {
+            for (auto axis : attr.axes) {
                 output_shape[axis] = target_spatial_shape[i++];
             }
         } else {
-            for (auto axis : op->m_attrs.axes) {
+            for (auto axis : attr.axes) {
                 output_shape[axis] = ov::Dimension::dynamic();
             }
         }
