@@ -129,6 +129,7 @@ T getMedianValue(const std::vector<T>& vec, std::size_t percentile) {
 int main(int argc, char* argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
+        slog::info << "Benchmark reference" << slog::endl;
         ExecutableNetwork exeNetwork;
 
         // ----------------- 1. Parsing and validating input arguments
