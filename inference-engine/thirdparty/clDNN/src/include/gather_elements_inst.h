@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/gather_elements.hpp"
+#include "intel_gpu/primitives/gather_elements.hpp"
 #include "primitive_inst.h"
 #include <string>
 
