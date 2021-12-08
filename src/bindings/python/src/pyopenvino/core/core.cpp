@@ -7,6 +7,7 @@
 #include <ie_extension.h>
 #include <pybind11/stl.h>
 
+#include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
 
@@ -101,16 +102,16 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "get_config",
-        [](ov::runtime::Core& self, const std::string& device_name, const std::string& name) -> py::handle {
-            return Common::parse_parameter(self.get_config(device_name, name));
+        [](ov::runtime::Core& self, const std::string& device_name, const std::string& name) -> py::object {
+            return Common::from_ov_any(self.get_config(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
 
     cls.def(
         "get_metric",
-        [](ov::runtime::Core& self, const std::string device_name, const std::string name) -> py::handle {
-            return Common::parse_parameter(self.get_metric(device_name, name));
+        [](ov::runtime::Core& self, const std::string device_name, const std::string name) -> py::object {
+            return Common::from_ov_any(self.get_metric(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
