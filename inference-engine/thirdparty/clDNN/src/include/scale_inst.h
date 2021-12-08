@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/scale.hpp"
+#include "intel_gpu/primitives/scale.hpp"
 #include "primitive_inst.h"
 #include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
 

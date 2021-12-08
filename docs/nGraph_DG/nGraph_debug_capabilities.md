@@ -3,7 +3,7 @@
 nGraph representation provides an API to get detailed information about the graph structure.
 
 To receive additional messages about applied graph modifications, rebuild the nGraph library with 
-the `-DOPENVINO_DEBUG_ENABLE=ON` option.
+the `-DENABLE_OPENVINO_DEBUG=ON` option.
 
 To visualize the nGraph function to the xDot format or to an image file, use the 
 `ngraph::pass::VisualizeTree` graph transformation pass:
@@ -14,3 +14,5 @@ std::shared_ptr<ngraph::Function> nGraph;
 ...
 ngraph::pass::VisualizeTree("after.png").run_on_function(nGraph);     // Visualize the nGraph function to an image
 ```
+
+> **NOTE**: Graphviz is required for visualization to image.

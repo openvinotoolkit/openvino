@@ -5,13 +5,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/loop.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/primitives/input_layout.hpp"
-#include "cldnn/primitives/eltwise.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/primitives/loop.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 #include "primitive_inst.h"
 #include <string>
@@ -41,7 +41,8 @@ public:
         back_edges(this->get_primitive()->back_edges),
         use_current_iteration(!this->get_primitive()->current_iteration_id.empty()),
         use_execution_condition(!this->get_primitive()->condition_id.empty()),
-        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration) {}
+        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration),
+        iteration_axis(0) {}
 
     mutable size_t iteration_axis;
     int64_t max_iteration;

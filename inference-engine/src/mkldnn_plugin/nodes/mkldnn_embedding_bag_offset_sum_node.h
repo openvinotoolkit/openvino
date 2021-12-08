@@ -19,11 +19,15 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+protected:
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
 private:
     void initFromInputs() override;
@@ -35,8 +39,8 @@ private:
     const int* offsetsData_ = nullptr;
     const int* defaultIndices_ = nullptr;
 
-    size_t _indicesLen;
-    size_t _offsetsLen;
+    size_t _indicesLen = 0;
+    size_t _offsetsLen = 0;
 };
 
 }  // namespace MKLDNNPlugin

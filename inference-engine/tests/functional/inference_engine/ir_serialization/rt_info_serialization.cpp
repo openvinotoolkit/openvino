@@ -12,9 +12,10 @@
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
+#include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>
-#include "frontend_manager/frontend_manager.hpp"
+#include "manager.hpp"
 
 using namespace ngraph;
 
@@ -33,7 +34,7 @@ protected:
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
-        ov::VariantVector params{ov::make_variant(model_path), ov::make_variant(weights_path)};
+        ov::RuntimeAttributeVector params{model_path, weights_path};
 
         FE = manager.load_by_model(params);
         if (FE)
@@ -51,13 +52,11 @@ private:
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     auto init_info = [](RTMap & info) {
-        info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[ov::PrimitivesPriority::get_type_info_static()] =
-                std::make_shared<ov::PrimitivesPriority>("priority");
-        info[ov::OldApiMap::get_type_info_static()] = std::make_shared<ov::OldApiMap>(
-                ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
-        info[ov::Decompression::get_type_info_static()] = std::make_shared<ov::Decompression>();
+        info[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("add");
+        info[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("priority");
+        info[ov::OldApiMapOrder::get_type_info_static()] = ov::OldApiMapOrder(std::vector<uint64_t>{0, 2, 3, 1});
+        info[ov::OldApiMapElementType::get_type_info_static()] = ov::OldApiMapElementType(ngraph::element::Type_t::f32);
+        info[ov::Decompression::get_type_info_static()] = ov::Decompression{};
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -82,30 +81,29 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+        const std::string & key = ngraph::FusedNames::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
-        ASSERT_TRUE(fused_names_attr);
-        ASSERT_EQ(fused_names_attr->get().getNames(), "add");
+        auto fused_names_attr = info.at(key).as<ngraph::FusedNames>();
+        ASSERT_EQ(fused_names_attr.getNames(), "add");
 
         const std::string & pkey = ov::PrimitivesPriority::get_type_info_static();
         ASSERT_TRUE(info.count(pkey));
-        auto primitives_priority_attr = std::dynamic_pointer_cast<ov::PrimitivesPriority>(info.at(pkey));
-        ASSERT_TRUE(primitives_priority_attr);
-        ASSERT_EQ(primitives_priority_attr->get(), "priority");
+        auto primitives_priority_attr = info.at(pkey).as<ov::PrimitivesPriority>().value;
+        ASSERT_EQ(primitives_priority_attr, "priority");
 
-        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+        const std::string & old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key_order));
+        auto old_api_map_attr_val = info.at(old_api_map_key_order).as<ov::OldApiMapOrder>().value;
+        ASSERT_EQ(old_api_map_attr_val, std::vector<uint64_t>({0, 2, 3, 1}));
+
+        const std::string & old_api_map_key = ov::OldApiMapElementType::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
-        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
-        ASSERT_TRUE(old_api_map_attr);
-        auto old_api_map_attr_val = old_api_map_attr->get();
-        ASSERT_EQ(old_api_map_attr_val.get_order(), std::vector<uint64_t>({0, 2, 3, 1}));
-        ASSERT_EQ(old_api_map_attr_val.get_type(), ngraph::element::Type_t::f32);
+        auto old_api_map_type_val = info.at(old_api_map_key).as<ov::OldApiMapElementType>().value;
+        ASSERT_EQ(old_api_map_type_val, ngraph::element::Type_t::f32);
 
         const std::string& dkey = ov::Decompression::get_type_info_static();
         ASSERT_TRUE(info.count(dkey));
-        auto decompression_attr = std::dynamic_pointer_cast<ov::Decompression>(info.at(dkey));
-        ASSERT_TRUE(decompression_attr);
+        ASSERT_NO_THROW(info.at(dkey).as<ov::Decompression>());
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);
@@ -119,10 +117,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
 
 TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     auto init_info = [](RTMap & info) {
-        info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[ov::PrimitivesPriority::get_type_info_static()] =
-                std::make_shared<ov::PrimitivesPriority>("priority");
+        info[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("add");
+        info["PrimitivesPriority"] = ov::PrimitivesPriority("priority");
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -145,7 +141,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+        const std::string & key = ngraph::FusedNames::get_type_info_static();
         ASSERT_FALSE(info.count(key));
     };
 
@@ -159,10 +155,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
 
 TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     auto init_info = [](RTMap & info) {
-        info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[ov::PrimitivesPriority::get_type_info_static()] =
-                std::make_shared<ov::PrimitivesPriority>("priority");
+        info[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("add");
+        info[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("priority");
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -177,6 +171,9 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
         auto result = std::make_shared<ov::opset8::Result>(add);
         result->set_layout("????");
         function = std::make_shared<ngraph::Function>(ResultVector{result}, ParameterVector{data});
+        auto p = ov::preprocess::PrePostProcessor(function);
+        p.input().tensor().set_memory_type("test_memory_type");
+        function = p.build();
     }
 
     pass::Manager m;
@@ -187,21 +184,23 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+        const std::string & key = ngraph::FusedNames::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
-        ASSERT_TRUE(fused_names_attr);
-        ASSERT_EQ(fused_names_attr->get().getNames(), "add");
+        auto fused_names_attr = info.at(key).as<ngraph::FusedNames>();
+        ASSERT_EQ(fused_names_attr.getNames(), "add");
 
         const std::string & pkey = ov::PrimitivesPriority::get_type_info_static();
         ASSERT_TRUE(info.count(pkey));
-        auto primitives_priority_attr = std::dynamic_pointer_cast<ov::PrimitivesPriority>(info.at(pkey));
-        ASSERT_TRUE(primitives_priority_attr);
-        ASSERT_EQ(primitives_priority_attr->get(), "priority");
+        auto primitives_priority_attr = info.at(pkey).as<ov::PrimitivesPriority>().value;
+        ASSERT_EQ(primitives_priority_attr, "priority");
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);
     EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NCHW");
+    auto var0 = f->input(0).get_rt_info()
+        .at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
+        .as<ov::preprocess::TensorInfoMemoryType>().value;
+    EXPECT_EQ(var0, "test_memory_type");
     EXPECT_EQ(f->get_results()[0]->get_layout(), "????");
     check_info(add->get_rt_info());
     check_info(add->input(0).get_rt_info());

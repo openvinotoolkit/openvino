@@ -3,6 +3,7 @@
 //
 
 #include "cpu_test_utils.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include <cstdint>
 
@@ -119,6 +120,18 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
+    CheckPluginRelatedResultsImpl(function, std::move(nodeType));
+}
+
+void CPUTestsBase::CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &execNet, std::string nodeType) const {
+    if (nodeType.empty()) return;
+
+    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
+    auto function = execNet.get_runtime_function();
+    CheckPluginRelatedResultsImpl(function, std::move(nodeType));
+}
+
+void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const {
     ASSERT_NE(nullptr, function);
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();
@@ -138,8 +151,13 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
             return value->get();
         };
         // skip policy
-        auto should_be_skipped = [] (const ngraph::Shape &shape, cpu_memory_format_t fmt) {
-            bool skip_unsquized_1D =  std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+        auto should_be_skipped = [] (const ngraph::PartialShape &partialShape, cpu_memory_format_t fmt) {
+            if (partialShape.is_dynamic()) {
+                return false;
+            }
+
+            auto shape = partialShape.get_shape();
+            bool skip_unsquized_1D = std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
             bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
@@ -152,7 +170,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
                     auto parentNode = parentPort.get_node_shared_ptr();
-                    auto shape = parentNode->get_output_tensor(0).get_shape();
+                    auto shape = parentNode->get_output_tensor(0).get_partial_shape();
                     auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
 
                     if (!should_be_skipped(shape, inFmts[i])) {
@@ -191,7 +209,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
             for (size_t i = 0; i < fmtsNum; i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
-                const auto shape = node->get_output_shape(i);
+                const auto shape = node->get_output_partial_shape(i);
 
                 if (should_be_skipped(shape, outFmts[i]))
                     continue;
@@ -247,25 +265,25 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     CPUInfo cpuInfo;
 
     if (!inFmts.empty()) {
-        cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
+        cpuInfo.insert({ngraph::MKLDNNInputMemoryFormats::get_type_info_static(),
+                ngraph::MKLDNNInputMemoryFormats(fmts2str(inFmts, "cpu:"))});
     }
     if (!outFmts.empty()) {
-        cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
+        cpuInfo.insert({ngraph::MKLDNNOutputMemoryFormats::get_type_info_static(),
+                ngraph::MKLDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
     }
 
-    cpuInfo.insert({"enforceBF16evenForGraphTail", ov::make_variant<int64_t>(true)});
+    cpuInfo.insert({"enforceBF16evenForGraphTail", ov::make_runtime_attribute<int64_t>(true)});
 
     return cpuInfo;
 }
 
 std::shared_ptr<ngraph::Function>
 CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
-                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
+                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) {
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
    ngraph::ResultVector results;
 
@@ -276,14 +294,22 @@ CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::Par
 }
 
 std::shared_ptr<ngraph::Node>
-CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
     lastNode->get_rt_info() = getCPUInfo();
     return lastNode;
+}
+
+std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType) {
+    implString.push_back('_');
+    implString += InferenceEngine::details::convertPrecision(elType).name();
+    return implString;
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
 auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
+            if (formats[i] == nCw16c)
+                formats[i] = nCw8c;
             if (formats[i] == nChw16c)
                 formats[i] = nChw8c;
             if (formats[i] == nCdhw16c)

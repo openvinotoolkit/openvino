@@ -146,7 +146,7 @@ def main():
     if not args.no_venv:
         Venv = VirtualEnv("./.stress_venv")
         requirements = [
-            args.mo_tool.parent / "requirements.txt",
+            args.mo_tool.parents[3] / "requirements.txt",
             omz_path / "tools" / "model_tools" / "requirements.in",
             omz_path / "tools" / "model_tools" / "requirements-caffe2.in",
             omz_path / "tools" / "model_tools" / "requirements-pytorch.in"
@@ -165,7 +165,7 @@ def main():
         precision = model_rec.attrib["precision"]
 
         info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
-        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
+        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=python_executable,
                                                                                info_dumper_path=info_dumper_path,
                                                                                model_name=model_name)
         try:

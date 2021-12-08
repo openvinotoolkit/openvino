@@ -2,7 +2,7 @@
 
 Inference Engine Extensibility API enables you to add support of custom operations to the Inference Engine.
 Extension should contain operation sets with custom operations and execution kernels for custom operations.
-Physically, an extension library can be represented as a dynamic library exporting the single `CreateExtension` function
+Physically, an extension library can be represented as a dynamic library exporting the single function
 that creates a new extension instance.
 
 To load the Extensibility library to the `InferenceEngine::Core` object, use the
@@ -45,4 +45,4 @@ The following pages describe how to integrate custom _kernels_ into the Inferenc
 
 * [Build an extension library using CMake*](Building.md)
 * [Using Inference Engine Samples](../Samples_Overview.md)
-* [Hello Shape Infer SSD sample](../../../inference-engine/samples/hello_reshape_ssd/README.md)
+* [Hello Shape Infer SSD sample](../../../samples/cpp/hello_reshape_ssd/README.md)

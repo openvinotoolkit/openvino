@@ -5,7 +5,7 @@
 #include "kernels_factory.hpp"
 #include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -73,7 +73,12 @@ static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
 
     if (fp) {
         fseek(fp, 0, SEEK_END);
-        size_t nsize = (size_t)ftell(fp);
+        auto sz = ftell(fp);
+        if (sz < 0) {
+            fclose(fp);
+            return {};
+        }
+        auto nsize = static_cast<size_t>(sz);
 
         fseek(fp, 0, SEEK_SET);
 

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/device_query.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
 
@@ -92,6 +92,17 @@ memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
     return reinterpret_handle(layout, params);
 }
 
+memory_ptr engine::share_usm(const layout& layout, shared_handle usm_ptr) {
+    shared_mem_params params = { shared_mem_type::shared_mem_usm, nullptr, nullptr, usm_ptr,
+#ifdef _WIN32
+        nullptr,
+#else
+        0,
+#endif
+        0 };
+    return reinterpret_handle(layout, params);
+}
+
 memory::ptr engine::share_image(const layout& layout, shared_handle img) {
     shared_mem_params params = { shared_mem_type::shared_mem_image, nullptr, nullptr, img,
 #ifdef _WIN32
@@ -149,17 +160,19 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
     return memory_usage;
 }
 
-void engine::get_memory_statistics(std::map<std::string, uint64_t>* statistics) const {
+std::map<std::string, uint64_t> engine::get_memory_statistics() const {
+    std::map<std::string, uint64_t> statistics;
     for (auto const& m : _memory_usage_map) {
         std::ostringstream oss;
         oss << m.first << "_current";
-        (*statistics)[oss.str()] = m.second.load();
+        statistics[oss.str()] = m.second.load();
     }
     for (auto const& m : _peak_memory_usage_map) {
         std::ostringstream oss;
         oss << m.first << "_peak";
-        (*statistics)[oss.str()] = m.second.load();
+        statistics[oss.str()] = m.second.load();
     }
+    return statistics;
 }
 
 void engine::add_memory_used(size_t bytes, allocation_type type) {
