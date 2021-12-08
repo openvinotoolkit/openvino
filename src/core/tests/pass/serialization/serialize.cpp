@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple("if_diff_case.xml", "if_diff_case.bin"),
                     std::make_tuple("if_body_without_parameters.xml", "if_body_without_parameters.bin")));
 
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLE
+#ifdef ENABLE_OV_ONNX_FRONTEND
 
 INSTANTIATE_TEST_SUITE_P(ONNXSerialization,
                          SerializationTest,

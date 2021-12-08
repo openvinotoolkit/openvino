@@ -25,10 +25,10 @@
 #include "ngraph/op/power.hpp"
 #include "ngraph/op/floor_mod.hpp"
 
-#include "cldnn/primitives/activation.hpp"
-#include "cldnn/primitives/eltwise.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/reshape.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 

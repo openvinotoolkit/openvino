@@ -284,7 +284,7 @@ static RefPreprocessParams resize_to_network_height() {
         p.input()
                 .tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-        p.input().network().set_layout("NHWC");
+        p.input().model().set_layout("NHWC");
         p.build();
         return f;
     };
@@ -301,7 +301,7 @@ static RefPreprocessParams resize_to_network_width() {
         p.input()
                 .tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
@@ -319,7 +319,7 @@ static RefPreprocessParams resize_from_spatial_dims() {
         p.input()
                 .tensor().set_spatial_static_shape(1, 4);
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
@@ -337,7 +337,7 @@ static RefPreprocessParams resize_i8() {
                 .tensor()
                 .set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
@@ -356,7 +356,7 @@ static RefPreprocessParams resize_to_network_width_height() {
         p.input()
                 .tensor().set_spatial_static_shape(5, 5);
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST);
-        p.input().network().set_layout("...HW");
+        p.input().model().set_layout("...HW");
         p.build();
         return f;
     };
@@ -386,7 +386,7 @@ static RefPreprocessParams resize_to_specified_width_height() {
         p.input()
                 .tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST, 4, 4);
-        p.input().network().set_layout("...HW");
+        p.input().model().set_layout("...HW");
         p.build();
         return f;
     };
@@ -524,7 +524,7 @@ static RefPreprocessParams resize_and_convert_layout() {
         p.input().preprocess()
                 .resize(ResizeAlgorithm::RESIZE_LINEAR)
                 .convert_layout();
-        p.input().network().set_layout("NHWC");
+        p.input().model().set_layout("NHWC");
         p.build();
         return f;
     };
@@ -639,7 +639,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
                 .convert_layout()
                 .convert_element_type(element::f32)
                 .resize(ResizeAlgorithm::RESIZE_NEAREST);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
@@ -676,7 +676,7 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
         p.input().preprocess()
                 .convert_element_type(element::f32)
                 .convert_color(ColorFormat::RGB);
-        p.input().network().set_layout("NHWC");
+        p.input().model().set_layout("NHWC");
         p.build();
         return f;
     };
@@ -766,13 +766,43 @@ static RefPreprocessParams convert_color_i420_single_plane() {
     return res;
 }
 
+static RefPreprocessParams set_shape_custom_crop() {
+    RefPreprocessParams res("set_shape_custom_crop");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{2, 2, 2, 2});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_shape({-1, -1, -1, -1});
+        p.input().preprocess().custom([](const Output<Node>& node) {
+            // Add custom crop to model's dimensions using 'Slice' operation
+            // Middle part 2x2x2x2 of original user's 4x4x4x4 input tensor will be extracted
+            auto start = opset8::Constant::create(element::i32, {4}, {1, 1, 1, 1});
+            auto stop = opset8::Constant::create(element::i32, {4}, {3, 3, 3, 3});
+            auto step = opset8::Constant::create(element::i32, {4}, {1, 1, 1, 1});
+            auto axis = opset8::Constant::create(element::i32, {4}, {0, 1, 2, 3});
+            auto slice = std::make_shared<opset8::Slice>(node, start, stop, step, axis);
+            return slice;
+        });
+        p.build();
+        return f;
+    };
+    auto input_size = 4 * 4 * 4 * 4;
+    std::vector<float> input_values(input_size);
+    std::iota(input_values.begin(), input_values.end(), 0);
+    res.inputs.emplace_back(element::f32, Shape{4, 4, 4, 4}, input_values);
+    res.expected.emplace_back(Shape{2, 2, 2, 2}, element::f32, std::vector<float>{ 85,  86,  89,  90,
+                                                                                  101, 102, 105, 106,
+                                                                                  149, 150, 153, 154,
+                                                                                  165, 166, 169, 170});
+    return res;
+}
+
 static RefPreprocessParams postprocess_2_inputs_basic() {
     RefPreprocessParams res("postprocess_2_inputs_basic");
     res.function = []() {
         auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
         auto p = PrePostProcessor(f);
         p.output("tensor_output1")
-                .network().set_layout("NCHW");
+                .model().set_layout("NCHW");
         p.output("tensor_output1").postprocess().convert_layout();
         p.output("tensor_output1").tensor().set_layout("NHWC");
         p.output("tensor_output2")
@@ -838,7 +868,7 @@ static RefPreprocessParams pre_and_post_processing() {
         p.input(0).preprocess().convert_element_type(element::f32).mean(1.f);
         p.input(1).preprocess().scale(2.f);
         p.output("tensor_output1")
-                .network().set_layout("NCHW");
+                .model().set_layout("NCHW");
         p.output("tensor_output1").postprocess().convert_layout();
         p.output("tensor_output1").tensor().set_layout("NHWC");
         p.output("tensor_output2")
@@ -972,6 +1002,25 @@ static RefPreprocessParams reverse_dyn_shape() {
     return res;
 }
 
+static RefPreprocessParams reverse_dyn_channels() {
+    RefPreprocessParams res("reverse_dyn_channels");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(),
+                                                                  2,
+                                                                  Dimension::dynamic(),
+                                                                  Dimension::dynamic()});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        p.input().preprocess().reverse_channels();
+        p.build();
+        return f;
+    };
+
+    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    return res;
+}
+
 static RefPreprocessParams reverse_fully_dyn_shape() {
     RefPreprocessParams res("reverse_fully_dyn_shape");
     res.function = []() {
@@ -1018,6 +1067,7 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
             element_type_before_convert_color_nv12(),
             convert_color_i420_to_bgr_three_planes(),
             convert_color_i420_single_plane(),
+            set_shape_custom_crop(),
             postprocess_2_inputs_basic(),
             post_convert_layout_by_dims(),
             post_convert_layout_by_dims_multi(),
@@ -1028,6 +1078,7 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
             reverse_channels_nchw(),
             reverse_channels_dyn_layout(),
             reverse_dyn_shape(),
+            reverse_dyn_channels(),
             reverse_fully_dyn_shape()
     };
 }

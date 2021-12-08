@@ -1234,3 +1234,204 @@ TEST(function, topological_sort_caching_shared_nodes) {
     ASSERT_FALSE(f1_shared_info->get_use_topological_cache());
     ASSERT_FALSE(f2_shared_info->get_use_topological_cache());
 }
+
+namespace bs_utils {
+static std::shared_ptr<ov::Function> create_n_inputs(ov::element::Type type,
+                                                     const std::vector<ov::PartialShape>& shapes,
+                                                     const std::vector<ov::Layout>& layouts) {
+    ov::ResultVector res;
+    ov::ParameterVector params;
+    for (size_t i = 0; i < shapes.size(); i++) {
+        auto index_str = std::to_string(i);
+        auto data1 = std::make_shared<ov::opset8::Parameter>(type, shapes[i]);
+        data1->set_layout(layouts[i]);
+        data1->set_friendly_name("input" + index_str);
+        data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
+        auto op1 = std::make_shared<ov::opset8::Relu>(data1);
+        op1->set_friendly_name("Relu" + index_str);
+        auto res1 = std::make_shared<ov::opset8::Result>(op1);
+        res1->set_friendly_name("Result" + index_str);
+        res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
+        params.push_back(data1);
+        res.push_back(res1);
+    }
+    auto f = std::make_shared<ov::Function>(res, params);
+    f->validate_nodes_and_infer_types();
+    return f;
+}
+
+static std::shared_ptr<ov::Function> create_add(ov::element::Type type,
+                                                const ov::PartialShape& shape,
+                                                const ov::Layout& layout1,
+                                                const ov::Layout& layout2) {
+    ov::ParameterVector params;
+    for (size_t i = 0; i < 2; i++) {
+        auto index_str = std::to_string(i);
+        auto data1 = std::make_shared<ov::opset8::Parameter>(type, shape);
+        data1->set_friendly_name("input" + index_str);
+        data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
+        params.push_back(data1);
+    }
+    params[0]->set_layout(layout1);
+    params[1]->set_layout(layout2);
+    auto op1 = std::make_shared<ov::opset8::Add>(params[0],
+                                                 params[1],
+                                                 ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::EXPLICIT));
+    op1->set_friendly_name("Add");
+    auto res1 = std::make_shared<ov::opset8::Result>(op1);
+    res1->get_output_tensor(0).set_names({"tensor_output"});
+    auto f = std::make_shared<ov::Function>(res1, params);
+    f->validate_nodes_and_infer_types();
+    return f;
+}
+}  // namespace bs_utils
+
+TEST(function, get_batch_size) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 512, 512, 3}, {1, 3, 224, 224}}, {"NHWC", "NCHW"});
+
+    EXPECT_NO_THROW(ov::get_batch(f));
+    EXPECT_EQ(ov::get_batch(f), 1);
+}
+
+TEST(function, get_batch_size_with_conflict) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32,
+                                       {ov::PartialShape::dynamic(), {5, 6}, {1, 3, 224, 224}, {3, 1}},
+                                       {"NCHW", "D...", "NCHW", "N???"});
+
+    // TODO: gtest v.10 limitation. Replace with EXPECT_THAT for gtest >= v1.11
+    try {
+        ov::get_batch(f);
+        FAIL() << "get_batch shall throw";
+    } catch (const ov::Exception& err) {
+        // Verify error message contains conflicting layouts
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N???").to_string()) != std::string::npos) << err.what();
+        // Verify error message doesn't contain non-conflicting layouts
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("D...").to_string()) == std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find("tensor_input_0") == std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find("tensor_input_1") == std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
+TEST(function, get_batch_size_without_batches) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 224, 224}, {1, 3, 224, 224}}, {"?C...", ov::Layout()});
+
+    // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
+    try {
+        ov::get_batch(f);
+        FAIL() << "get_batch shall throw";
+    } catch (const ov::Exception& err) {
+        // Verify error message contains layouts without batches
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("?C...").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout().to_string()) != std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
+TEST(function, get_batch_size_without_one_layout) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32,
+                                       {{ov::Dimension::dynamic(), 3, 224, 224}, {10, 20}},
+                                       {"N...", "HW"});
+    EXPECT_EQ(ov::get_batch(f), ov::Dimension::dynamic());
+}
+
+TEST(function, get_batch_size_ranges) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32,
+                                       {{ov::Dimension(1, 10), 3, 224, 224}, {ov::Dimension(5, 15), 3, 224, 224}},
+                                       {"NCHW", "NCHW"});
+    EXPECT_EQ(ov::get_batch(f), ov::Dimension(5, 10));
+}
+
+TEST(function, set_batch_size) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32,
+                                       {{1, 512, 512, 3}, {ov::Dimension::dynamic(), 3, 224, 224}, {1, 5}},
+                                       {"NHWC", "NCHW", "??"});
+    EXPECT_NO_THROW(ov::set_batch(f, 4));
+    ov::PartialShape pshape({1, 4, 3, 3});
+    EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape{4, 512, 512, 3}));
+    EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{4, 3, 224, 224}));
+    EXPECT_EQ(f->input("tensor_input2").get_partial_shape(), (ov::PartialShape{1, 5}));
+}
+
+TEST(function, set_batch_size_ranges) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32,
+                                       {{ov::Dimension(1, 10), 3, 224, 224}, {ov::Dimension(5, 15), 3, 224, 224}},
+                                       {"NCHW", "NCHW"});
+    EXPECT_NO_THROW(ov::set_batch(f, 42));
+    EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
+    EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
+}
+
+TEST(function, set_batch_size_fully_dynamic) {
+    auto f =
+        bs_utils::create_n_inputs(ov::element::f32, {ov::PartialShape::dynamic(), {1, 3, 224, 224}}, {"NCHW", "NCHW"});
+    EXPECT_NO_THROW(ov::set_batch(f, 42));
+    EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape::dynamic()));
+    EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
+}
+
+TEST(function, set_batch_size_dynamic_layout) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32, {{3, 224, 224, 1}, {1, 3, 224, 224}}, {"...N", "NCHW"});
+    EXPECT_NO_THROW(ov::set_batch(f, 42));
+    EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape{3, 224, 224, 42}));
+    EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
+}
+
+TEST(function, set_batch_size_with_conflict) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32,
+                                       {ov::PartialShape::dynamic(), {5, 6}, {1, 3, 224, 224}, {3, 1}},
+                                       {"NCHW", "D...", "NCHW", "N???"});
+
+    // TODO: gtest v.10 limitation. Replace with EXPECT_THAT for gtest >= v1.11
+    try {
+        ov::set_batch(f, 12);
+        FAIL() << "set_batch shall throw";
+    } catch (const ov::Exception& err) {
+        // Verify error message contains conflicting layouts
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N???").to_string()) != std::string::npos) << err.what();
+        // Verify error message doesn't contain non-conflicting layouts
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("D...").to_string()) == std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find("tensor_input_0") == std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find("tensor_input_1") == std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
+TEST(function, set_batch_size_without_batches) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 224, 224}, {1, 3, 224, 224}}, {"?C...", ov::Layout()});
+
+    // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
+    try {
+        ov::set_batch(f, 42);
+        FAIL() << "set_batch shall throw";
+    } catch (const ov::Exception& err) {
+        // Verify error message contains layouts without batches
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("?C...").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout().to_string()) != std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
+TEST(function, set_batch_size_validation_throw) {
+    auto f = bs_utils::create_add(ov::element::f32, {1, 3, 224, 224}, "NCHW", ov::Layout());
+
+    // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
+    try {
+        ov::set_batch(f, 42);
+        FAIL() << "set_batch shall throw";
+    } catch (const ov::Exception& err) {
+        // Verify error message contains possible reasons
+        EXPECT_TRUE(std::string(err.what()).find("Possible reasons") != std::string::npos) << err.what();
+        // Verify error message contains all layouts
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout().to_string()) != std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}

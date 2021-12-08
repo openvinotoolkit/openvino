@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/utils.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_engine.hpp"
 #include "ocl_stream.hpp"

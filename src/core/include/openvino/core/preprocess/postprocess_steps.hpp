@@ -42,14 +42,14 @@ public:
 
     /// \brief Add 'convert layout' operation to specified layout.
     ///
-    /// \details Adds appropriate 'transpose' operation between network layout and user's desired layout.
+    /// \details Adds appropriate 'transpose' operation between model layout and user's desired layout.
     /// Current implementation requires source and destination layout to have same number of dimensions
     ///
-    /// \example Example: when network data has output in 'NCHW' layout ([1, 3, 224, 224]) but user needs
+    /// \example Example: when model data has output in 'NCHW' layout ([1, 3, 224, 224]) but user needs
     /// interleaved output image ('NHWC', [1, 224, 224, 3]). Post-processing may look like this:
     ///
     /// \code{.cpp} auto proc = PrePostProcessor(function);
-    /// proc.output().network(OutputTensorInfo().set_layout("NCHW"); // Network output is NCHW
+    /// proc.output().model(OutputTensorInfo().set_layout("NCHW"); // model output is NCHW
     /// proc.output().postprocess().convert_layout("NHWC"); // User needs output as NHWC
     /// \endcode
     ///
@@ -61,7 +61,7 @@ public:
 
     /// \brief Add convert layout operation by direct specification of transposed dimensions.
     ///
-    /// \example Example: network produces output with shape [1, 3, 480, 640] and user's needs
+    /// \example Example: model produces output with shape [1, 3, 480, 640] and user's needs
     /// interleaved output image [1, 480, 640, 3]. Post-processing may look like this:
     ///
     /// \code{.cpp} auto proc = PrePostProcessor(function);

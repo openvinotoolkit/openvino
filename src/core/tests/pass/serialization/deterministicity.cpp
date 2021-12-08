@@ -47,7 +47,7 @@ protected:
     }
 };
 
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLE
+#ifdef ENABLE_OV_ONNX_FRONTEND
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"});

@@ -10,7 +10,19 @@ namespace ov {
 namespace builder {
 namespace preprocess {
 
-using preprocess_func = std::tuple<std::function<std::shared_ptr<Model>()>, std::string, float>;
+struct preprocess_func {
+    preprocess_func() = default;
+    preprocess_func(const std::function<std::shared_ptr<Model>()>& f,
+                    const std::string& name,
+                    float acc,
+                    const std::vector<Shape>& shapes = {}):
+                    m_function(f), m_name(name), m_accuracy(acc), m_shapes(shapes) {
+    }
+    std::function<std::shared_ptr<Model>()> m_function = nullptr;
+    std::string m_name = {};
+    float m_accuracy = 0.01f;
+    std::vector<Shape> m_shapes = {};
+};
 
 inline std::vector<preprocess_func> generic_preprocess_functions();
 
@@ -232,7 +244,7 @@ inline std::shared_ptr<Model> resize_linear() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(20, 20);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -243,7 +255,7 @@ inline std::shared_ptr<Model> resize_nearest() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(20, 20);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -254,7 +266,7 @@ inline std::shared_ptr<Model> resize_linear_nhwc() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(20, 20);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NHWC");
+    p.input().model().set_layout("NHWC");
     function = p.build();
     return function;
 }
@@ -265,7 +277,7 @@ inline std::shared_ptr<Model> resize_cubic() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_spatial_static_shape(10, 10);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -276,7 +288,7 @@ inline std::shared_ptr<Model> resize_and_convert_layout() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_layout("NHWC").set_spatial_static_shape(40, 30);
     p.input().preprocess().convert_layout().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -296,7 +308,7 @@ inline std::shared_ptr<Model> resize_and_convert_layout_i8() {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_layout("NHWC").set_spatial_static_shape(40, 30);
     p.input().preprocess().convert_layout().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -334,7 +346,7 @@ inline std::shared_ptr<Model> cvt_color_nv12_cvt_layout_resize() {
             .convert_layout()
             .convert_element_type(element::f32)
             .resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     function = p.build();
     return function;
 }
@@ -368,6 +380,17 @@ inline std::shared_ptr<Model> cvt_color_bgrx_to_bgr() {
     return p.build();
 }
 
+inline std::shared_ptr<Function> resize_dynamic() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 20, 20});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_spatial_dynamic_shape();
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
+    return function;
+}
+
 inline std::vector<preprocess_func> generic_preprocess_functions() {
     return std::vector<preprocess_func> {
             preprocess_func(mean_only, "mean_only", 0.01f),
@@ -388,6 +411,7 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(resize_nearest, "resize_nearest", 0.01f),
             preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
             preprocess_func(resize_cubic, "resize_cubic", 0.01f),
+            preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { Shape {1, 3, 123, 123} }),
             preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
             preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
             preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
