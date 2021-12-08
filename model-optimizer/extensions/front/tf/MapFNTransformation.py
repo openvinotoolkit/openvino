@@ -273,17 +273,15 @@ class MapFN2InputSlicing(FrontReplacementSubgraph):
         return dict(
             nodes=[('tensor_list', dict(op='Parameter')),
                    ('current_iteration', dict(op='Parameter')),
-                   ('slicing', dict(op='TensorListGetBack')),
+                   ('slicing', dict(op='TensorListGetItem')),
                    ('const_increment', dict(op='Const')),
                    ('increment_iteration', dict(op='Add')),
-                   ('increment_iteration_identity', dict(op='Identity')),
                    ('increment_iteration_result', dict(op='Result'))],
             edges=[('tensor_list', 'slicing', {'in': 0}),
                    ('current_iteration', 'slicing', {'in': 1}),
                    ('const_increment', 'increment_iteration', {'in': 1}),
                    ('current_iteration', 'increment_iteration', {'in': 0}),
-                   ('increment_iteration', 'increment_iteration_identity', {'in': 0}),
-                   ('increment_iteration_identity', 'increment_iteration_result', {'in': 0})]
+                   ('increment_iteration', 'increment_iteration_result', {'in': 0})]
         )
 
     @staticmethod
@@ -322,7 +320,7 @@ class MapFN2InputSlicing(FrontReplacementSubgraph):
         for loop_node in graph.get_op_nodes(op='Loop'):
             loop_name = loop_node.soft_get('name', loop_node.id)
             body_graph = loop_node['body']
-            body_pattern = MapFNInputSlicing.get_body_pattern()
+            body_pattern = MapFN2InputSlicing.get_body_pattern()
             internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
 
             for internal_match in internal_matches:
@@ -345,7 +343,7 @@ class MapFN2InputSlicing(FrontReplacementSubgraph):
                 if Loop.back_edge_exists(loop_node.back_edges,
                                          internal_match['increment_iteration_result'].internal_layer_id,
                                          internal_match['current_iteration'].internal_layer_id):
-                    MapFNInputSlicing.transform_map_fn_input_slicing(external_match, internal_match)
+                    MapFN2InputSlicing.transform_map_fn_input_slicing(external_match, internal_match)
 
 class MapFN2OutputConcatenation(FrontReplacementSubgraph):
     """
@@ -366,20 +364,17 @@ class MapFN2OutputConcatenation(FrontReplacementSubgraph):
                    ('current_iteration', dict(op='Parameter')),
                    ('const_increment', dict(op='Const')),
                    ('increment_iteration', dict(op='Add')),
-                   ('increment_iteration_identity', dict(op='Identity')),
                    ('increment_iteration_result', dict(op='Result')),
                    ('concatenation', dict(op='TensorListSetItem')),
-                   ('concatenation_identity', dict(op='Identity')),
-                   ('concatenation_result', dict(op='Result')),
+                   ('concatenation_result', dict(op='Result'))
                    ],
             edges=[('const_increment', 'increment_iteration', {'in': 1}),
                    ('current_iteration', 'increment_iteration', {'in': 0}),
                    ('container', 'concatenation', {'in': 0}),
                    ('current_iteration', 'concatenation', {'in': 1}),
-                   ('concatenation', 'concatenation_identity', {'in': 0}),
-                   ('concatenation_identity', 'concatenation_result', {'in': 0}),
-                   ('increment_iteration', 'increment_iteration_identity', {'in': 0}),
-                   ('increment_iteration_identity', 'increment_iteration_result', {'in': 0})]
+                   ('concatenation', 'concatenation_result', {'in': 0}),
+                   ('increment_iteration', 'increment_iteration_result', {'in': 0})
+                   ]
         )
 
     @staticmethod
@@ -432,7 +427,7 @@ class MapFN2OutputConcatenation(FrontReplacementSubgraph):
         for loop_node in graph.get_op_nodes(op='Loop'):
             loop_name = loop_node.soft_get('name', loop_node.id)
             body_graph = loop_node['body']
-            body_pattern = MapFNOutputConcatenation.get_body_pattern()
+            body_pattern = MapFN2OutputConcatenation.get_body_pattern()
             internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
 
             for internal_match in internal_matches:
@@ -474,4 +469,4 @@ class MapFN2OutputConcatenation(FrontReplacementSubgraph):
                         Loop.back_edge_exists(loop_node.back_edges,
                                               internal_match['increment_iteration_result'].internal_layer_id,
                                               internal_match['current_iteration'].internal_layer_id):
-                    MapFNOutputConcatenation.transform_map_fn_output_concatenation(external_match, internal_match)
+                    MapFN2OutputConcatenation.transform_map_fn_output_concatenation(external_match, internal_match)
