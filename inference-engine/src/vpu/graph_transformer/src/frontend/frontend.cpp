@@ -34,6 +34,7 @@
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
+#include <vpu/ngraph/transformations/convert_gatherND8.hpp>
 #include <transformations/convert_precision.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -181,6 +182,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<vpu::ConvertGatherND8ToGatherND5>();
     manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
