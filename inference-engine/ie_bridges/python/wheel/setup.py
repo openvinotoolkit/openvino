@@ -78,12 +78,6 @@ LIB_INSTALL_CFG = {
         'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
-    'myriad_plugin': {
-        'name': 'myriad',
-        'prefix': 'libs.core',
-        'install_dir': OV_RUNTIME_LIBS_DIR,
-        'rpath': LIBS_RPATH,
-    },
     'ngraph_libs': {
         'name': 'ngraph',
         'prefix': 'libs.core',
