@@ -12,7 +12,7 @@ addIeTargetTest(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            clDNNPlugin
+            ov_intel_gpu_plugin
         LINK_LIBRARIES
             funcSharedTests
             OpenCL
@@ -20,11 +20,6 @@ addIeTargetTest(
         LABELS
             GPU
 )
-
-# CVS-55376
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/layer_transformation.cpp"
-    PROPERTIES INCLUDE_DIRECTORIES
-    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # try to find VA libraries
 find_package(PkgConfig QUIET)

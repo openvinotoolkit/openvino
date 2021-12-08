@@ -5,7 +5,7 @@
 #include "extract_image_patches_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 
 #include "extract_image_patches/extract_image_patches_kernel_selector.h"

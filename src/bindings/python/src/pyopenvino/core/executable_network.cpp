@@ -36,12 +36,7 @@ void regclass_ExecutableNetwork(py::module m) {
             // Update inputs if there are any
             Common::set_request_tensors(request, inputs);
             request.infer();
-
-            Containers::InferResults results;
-            for (const auto out : self.outputs()) {
-                results.push_back(request.get_tensor(out));
-            }
-            return results;
+            return Common::outputs_to_dict(self.outputs(), request);
         },
         py::arg("inputs"));
 
@@ -49,15 +44,15 @@ void regclass_ExecutableNetwork(py::module m) {
 
     cls.def(
         "get_config",
-        [](ov::runtime::ExecutableNetwork& self, const std::string& name) -> py::handle {
-            return Common::parse_parameter(self.get_config(name));
+        [](ov::runtime::ExecutableNetwork& self, const std::string& name) -> py::object {
+            return Common::from_ov_any(self.get_config(name)).as<py::object>();
         },
         py::arg("name"));
 
     cls.def(
         "get_metric",
-        [](ov::runtime::ExecutableNetwork& self, const std::string& name) -> py::handle {
-            return Common::parse_parameter(self.get_metric(name));
+        [](ov::runtime::ExecutableNetwork& self, const std::string& name) -> py::object {
+            return Common::from_ov_any(self.get_metric(name)).as<py::object>();
         },
         py::arg("name"));
 

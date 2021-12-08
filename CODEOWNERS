@@ -30,11 +30,11 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/thirdparty/mkl-dnn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
 
 # IE GPU:
-/inference-engine/src/cldnn_engine/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /src/inference/include/ie/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /src/inference/include/ie/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /src/inference/include/openvino/runtime/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /inference-engine/thirdparty/clDNN/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/plugins/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
 # IE VPU:
 /inference-engine/src/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
@@ -49,7 +49,7 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/scripts/run_tests_myriad_multistick.sh  @openvinotoolkit/openvino-ie-vpu-maintainers
 
 # IE GNA:
-/inference-engine/src/gna_plugin/  @openvinotoolkit/openvino-ie-gna-maintainers
+/src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 /src/inference/include/ie/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
 # IE MULTI:
@@ -63,7 +63,7 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/tests/functional/inference_engine/transformations/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 
 # MO:
-/model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
+/tools/mo/  @openvinotoolkit/openvino-mo-maintainers
 
 # nGraph:
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers

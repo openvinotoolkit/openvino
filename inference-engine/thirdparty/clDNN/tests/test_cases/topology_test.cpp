@@ -4,18 +4,18 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/lrn.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/fully_connected.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/scale.hpp>
-#include <cldnn/primitives/eltwise.hpp>
-#include <cldnn/primitives/softmax.hpp>
-#include <cldnn/primitives/activation.hpp>
-#include <cldnn/primitives/concatenation.hpp>
-#include <cldnn/graph/topology.hpp>
+#include <intel_gpu/primitives/lrn.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/scale.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/softmax.hpp>
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/graph/topology.hpp>
 
 
 #include <iostream>

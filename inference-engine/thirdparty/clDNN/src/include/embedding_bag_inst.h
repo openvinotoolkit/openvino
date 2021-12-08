@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/embedding_bag.hpp"
+#include "intel_gpu/primitives/embedding_bag.hpp"
 #include "primitive_inst.h"
 
 #include <string>

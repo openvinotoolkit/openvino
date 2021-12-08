@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common/frontend.hpp"
-#include "openvino/core/variant.hpp"
+#include "common/telemetry_extension.hpp"
 #include "utility.hpp"
 
 namespace ov {
@@ -34,16 +34,17 @@ protected:
     /// \brief Check if FrontEndIR can recognize model from given parts
     /// \param params Can be path to the model file or std::istream
     /// \return InputModel::Ptr
-    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
+    bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
     /// \brief Reads model from file or std::istream
     /// \param params Can be path to the model file or std::istream
     /// \return InputModel::Ptr
-    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 private:
     std::vector<std::shared_ptr<void>> shared_objects;
     std::vector<ov::Extension::Ptr> extensions;
+    std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
 }  // namespace frontend
