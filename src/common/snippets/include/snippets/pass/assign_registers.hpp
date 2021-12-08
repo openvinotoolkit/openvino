@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/pass.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace snippets {
@@ -19,12 +19,12 @@ namespace pass {
  */
 class TRANSFORMATIONS_API AssignRegisters : public ngraph::pass::FunctionPass {
 public:
-    AssignRegisters() : FunctionPass() {
+    AssignRegisters() {
         set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 };
 
-} // namespace pass
-} // namespace snippets
-} // namespace ngraph
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ngraph

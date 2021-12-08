@@ -44,7 +44,7 @@ void visit_shape_path(const shared_ptr<ov::Node>& node, unordered_set<shared_ptr
 }
 }  // namespace
 
-bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_function(std::shared_ptr<ov::Model> f) {
+bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_ptr<ov::Model>& f) {
     deque<shared_ptr<Node>> nodes;
     unordered_set<shared_ptr<Node>> visited;
     for (auto& r : f->get_results())

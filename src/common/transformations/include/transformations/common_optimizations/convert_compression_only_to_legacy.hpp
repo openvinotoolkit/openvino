@@ -23,10 +23,10 @@ class TRANSFORMATIONS_API ConvertCompressedOnlyToLegacy;
  * @brief ConvertPrecisionCompressedOnly transformation runs ConvertPrecision transformation for CompressedOnly format.
  */
 
-class ov::pass::ConvertPrecisionCompressedOnly : public ov::pass::FunctionPass {
+class ov::pass::ConvertPrecisionCompressedOnly : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ConvertPrecisionCompressedOnly", "0");
-    bool run_on_function(std::shared_ptr<Model> f) override;
+    bool run_on_model(const std::shared_ptr<Model>& f) override;
 };
 
 /**
@@ -43,8 +43,8 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief ConvertCompressedOnlyToLegacy transformation converts compression only FP16 format to legacy FP16 format.
  */
-class ov::pass::ConvertCompressedOnlyToLegacy : public ov::pass::FunctionPass {
+class ov::pass::ConvertCompressedOnlyToLegacy : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ConvertCompressedOnlyToLegacy", "0");
-    bool run_on_function(std::shared_ptr<Model> f) override;
+    bool run_on_model(const std::shared_ptr<Model>& f) override;
 };

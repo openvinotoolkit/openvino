@@ -148,7 +148,7 @@ ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::u
 
 }  // namespace
 
-bool ov::pass::LowLatency2::run_on_function(shared_ptr<Model> f) {
+bool ov::pass::LowLatency2::run_on_model(const shared_ptr<Model>& f) {
     using namespace ngraph::opset7;
 
     ngraph::SinkVector assigns;

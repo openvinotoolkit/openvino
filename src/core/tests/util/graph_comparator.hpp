@@ -106,13 +106,13 @@ void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_
 
 namespace ngraph {
 namespace pass {
-class InjectionPass : public ov::pass::FunctionPass {
+class InjectionPass : public ov::pass::ModelPass {
 public:
     using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
 
-    explicit InjectionPass(injection_callback callback) : FunctionPass(), m_callback(std::move(callback)) {}
+    explicit InjectionPass(injection_callback callback) : ModelPass(), m_callback(std::move(callback)) {}
 
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override {
         m_callback(f);
         return false;
     }
@@ -233,18 +233,18 @@ public:
     }
 };
 
-class InitUniqueNames : public ov::pass::FunctionPass {
+class InitUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
     InitUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
-    bool run_on_function(std::shared_ptr<Function> f) override {
+    bool run_on_model(const std::shared_ptr<Function>& f) override {
         m_unh->init_names(f);
         return false;
     }
 };
 
-class CheckUniqueNames : public ov::pass::FunctionPass {
+class CheckUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
@@ -252,7 +252,7 @@ public:
         if (soft_names_comparison)
             m_unh->enable_soft_names_comparison();
     }
-    bool run_on_function(std::shared_ptr<Function> f) override {
+    bool run_on_model(const std::shared_ptr<Function>& f) override {
         m_unh->check_unique_names(f);
         return false;
     }

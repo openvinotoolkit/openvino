@@ -16,11 +16,11 @@ namespace pass {
 /**
  * @brief Hash transformation calculates hash value for ov::Model
  */
-class NGRAPH_API Hash : public ov::pass::FunctionPass {
+class NGRAPH_API Hash : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("HashPass");
 
-    bool run_on_function(std::shared_ptr<ov::Model> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 
     /**
      * @brief Hash pass constructor

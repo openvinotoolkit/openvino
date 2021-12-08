@@ -1072,7 +1072,7 @@ void serializeFunc(std::ostream& xml_file,
 }  // namespace
 
 namespace ov {
-bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
@@ -1151,7 +1151,7 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
     : StreamSerialize(stream, {}, custom_data_serializer, version) {}
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     /*
         Format:
         [ DataHeader  ]
@@ -1195,7 +1195,8 @@ bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f)
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);
     XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler, version);
-    visitor.on_attribute(name, f);
+    std::shared_ptr<ov::Model> fun = f;
+    visitor.on_attribute(name, fun);
 
     // IR
     hdr.model_offset = m_stream.tellp();
@@ -1252,7 +1253,7 @@ public:
 };
 }  // namespace
 
-bool pass::Hash::run_on_function(std::shared_ptr<ov::Model> f) {
+bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);

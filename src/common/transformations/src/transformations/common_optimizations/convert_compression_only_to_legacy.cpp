@@ -12,7 +12,7 @@
 
 using namespace ov;
 
-bool ov::pass::ConvertPrecisionCompressedOnly::run_on_function(std::shared_ptr<ov::Model> f) {
+bool ov::pass::ConvertPrecisionCompressedOnly::run_on_model(const std::shared_ptr<ov::Model>& f) {
     if (ngraph::op::util::has_decompression_converts(f)) {
         const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
         auto convert_precision = ngraph::pass::ConvertPrecision(convert_precision_list);
@@ -37,7 +37,7 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
     this->register_matcher(m, callback);
 }
 
-bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_function(std::shared_ptr<ov::Model> f) {
+bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
     Manager manager(get_pass_config());
 
     manager.register_pass<ov::pass::ConvertPrecisionCompressedOnly>();

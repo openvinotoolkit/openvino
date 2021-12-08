@@ -623,7 +623,7 @@ public:
         auto specialized_function = ngraph::clone_function(*func);
 
         std::string defDevice = res.supportedLayersMap.begin()->second;
-        ngraph::pass::ConstantFolding().run_on_function(specialized_function);
+        ngraph::pass::ConstantFolding().run_on_model(specialized_function);
         std::unordered_set<std::string> opNames;
 
         for (const auto& op : specialized_function->get_ops())

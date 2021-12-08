@@ -117,13 +117,13 @@ private:
 /// passes more
 /// efficient.
 
-class OPENVINO_API GraphRewrite : public FunctionPass {
+class OPENVINO_API GraphRewrite : public ModelPass {
 public:
     OPENVINO_RTTI("ov::pass::GraphRewrite");
 
     GraphRewrite() = default;
 
-    explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass) : FunctionPass() {
+    explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass) : ModelPass() {
         m_matchers.push_back(pass);
     }
 
@@ -203,7 +203,7 @@ public:
     OPENVINO_DEPRECATED("Use MatcherPass instead")
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m, const ov::graph_rewrite_callback& callback);
 
-    bool run_on_function(std::shared_ptr<ov::Model> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
@@ -223,12 +223,12 @@ public:
 
     explicit BackwardGraphRewrite(const std::shared_ptr<MatcherPass>& pass) : GraphRewrite(pass) {}
 
-    bool run_on_function(std::shared_ptr<ov::Model> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-class OPENVINO_API RecurrentGraphRewrite : public FunctionPass {
+class OPENVINO_API RecurrentGraphRewrite : public ModelPass {
 public:
-    RecurrentGraphRewrite(size_t num_iters = 10) : FunctionPass(), m_num_iters(num_iters) {}
+    RecurrentGraphRewrite(size_t num_iters = 10) : ModelPass(), m_num_iters(num_iters) {}
 
     void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
                      const ov::recurrent_graph_rewrite_callback& callback,
@@ -238,7 +238,7 @@ public:
     void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
                      const ov::recurrent_graph_rewrite_callback& callback);
 
-    bool run_on_function(std::shared_ptr<ov::Model> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     size_t m_num_iters;

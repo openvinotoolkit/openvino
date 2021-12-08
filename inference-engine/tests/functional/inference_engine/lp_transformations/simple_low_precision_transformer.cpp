@@ -18,6 +18,8 @@
 using namespace testing;
 using namespace ngraph::pass;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions,
     const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions) {
