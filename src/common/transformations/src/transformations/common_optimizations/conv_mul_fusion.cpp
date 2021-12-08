@@ -71,7 +71,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
-        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
+        merge_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
         return true;
     };
@@ -158,7 +158,7 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         }
         m_conv->set_friendly_name(m_mul->get_friendly_name());
         m_mul->output(0).replace(m_conv->output(0));
-        copy_runtime_info(m_mul, {m_conv, new_weights});
+        merge_runtime_info(m_mul, {new_weights, m_conv});
 
         return true;
     };
@@ -222,7 +222,7 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
-        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
+        merge_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
         return true;
     };
@@ -288,7 +288,7 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
-        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
+        merge_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
         return true;
     };

@@ -97,3 +97,24 @@ void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVecto
         assign_runtime_info(mergedInfo, rtInfoTo);
     }
 }
+
+void ngraph::merge_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to) {
+    copy_runtime_info(ngraph::NodeVector{from, to}, to);
+}
+
+void ngraph::merge_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeVector to) {
+    for (auto& op : to)
+        copy_runtime_info(ngraph::NodeVector{from, op}, op);
+}
+
+void ngraph::merge_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::Node> to) {
+    ngraph::NodeVector nodes{to};
+    nodes.insert(nodes.end(), from.begin(), from.end());
+    auto& rtInfoTo = to->get_rt_info();
+    assign_runtime_info(mergeRuntimeInfo(nodes), rtInfoTo);
+}
+
+void ngraph::merge_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to) {
+    for (auto& node : to)
+        merge_runtime_info(from, node);
+}
