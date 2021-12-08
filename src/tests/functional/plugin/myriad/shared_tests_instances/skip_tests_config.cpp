@@ -52,6 +52,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*OVExecGraphImportExportTest.*ieImport.*)",
+        R"(.*Behavior.*OVExecGraphImportExportTest.*ExportedIENetwork.*)",
         // TODO: CVS-65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
         // Not expected behavior
