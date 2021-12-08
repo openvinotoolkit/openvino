@@ -6,7 +6,7 @@ import pytest
 
 import openvino.runtime.opset8 as ops
 
-from openvino.runtime import Function, Tensor
+from openvino.runtime import Function, Tensor, get_batch, set_batch, Dimension, Layout
 from openvino.runtime.impl import Type, PartialShape, Shape
 
 
@@ -271,3 +271,38 @@ def test_evaluate_invalid_input_shape():
             [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
         )
     assert "must be compatible with the partial shape: {2,1}" in str(e.value)
+
+
+def test_get_batch():
+    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
+    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
+    add = ops.add(param1, param2)
+    func = Function(add, [param1, param2], "TestFunction")
+    param = func.get_parameters()[0]
+    param.set_layout(Layout("NCHW"))
+    assert get_batch(func) == 2
+
+
+def test_get_batch_CHWN():
+    param1 = ops.parameter(Shape([3, 1, 3, 3]), dtype=np.float32, name="data1")
+    param2 = ops.parameter(Shape([3, 1, 3, 3]), dtype=np.float32, name="data2")
+    param3 = ops.parameter(Shape([3, 1, 3, 3]), dtype=np.float32, name="data3")
+    add = ops.add(param1, param2)
+    add2 = ops.add(add, param3)
+    func = Function(add2, [param1, param2, param3], "TestFunction")
+    param = func.get_parameters()[0]
+    param.set_layout(Layout("CHWN"))
+    assert get_batch(func) == 3
+
+
+def test_set_batch():
+    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
+    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
+    add = ops.add(param1, param2)
+    func = Function(add, [param1, param2], "TestFunction")
+    param = func.get_parameters()[0]
+    # batch == 2
+    param.set_layout(Layout("NCHW"))
+    # set batch to 1
+    set_batch(func, Dimension(1))
+    assert get_batch(func) == 1
