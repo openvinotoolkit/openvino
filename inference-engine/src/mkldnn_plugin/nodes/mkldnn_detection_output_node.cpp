@@ -112,7 +112,6 @@ void MKLDNNDetectionOutputNode::prepareParams() {
         << priorsNum * locNumForClasses * 4 << " vs "
         << idLocDims[1] << ")";
 
-    const auto& idConfDims = getParentEdgeAt(ID_CONF)->getMemory().GetShape().getStaticDims();
     if (priorsNum * classesNum != static_cast<int>(idConfDims.back()))
         IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of confidence predictions.";
 
