@@ -566,13 +566,12 @@ public:
 
                 if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
                     (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
-                    node->get_rt_info()["affinity"] =
-                        std::make_shared<ngraph::VariantWrapper<std::string>>(deviceNameWithoutBatch);
+                    node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
                     std::cout << "!!! AFF !!! type: " << node->get_type_info().name
                               << ", name: " << node->get_friendly_name() << std::endl;
                     bDetectionOutput = true;
                 } else {
-                    node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("BATCH");
+                    node->get_rt_info()["affinity"] = "BATCH";
                 }
             }
             if (optimalBatchSize > 1 || !deviceNameWithBatchSize.empty()) {
