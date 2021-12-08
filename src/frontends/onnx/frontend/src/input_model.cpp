@@ -132,7 +132,8 @@ void InputModelONNX::set_partial_shape(Place::Ptr place, const ngraph::PartialSh
         input_name = tensor_names[0];
     } else {
         // fallback in case something else than an InputEdge is passed in - try to retrieve its name and reshape
-        OPENVINO_ASSERT(!place->get_names().empty(), "Cannot retrieve input name. Setting new input shape is not possible.");
+        OPENVINO_ASSERT(!place->get_names().empty(),
+                        "Cannot retrieve input name. Setting new input shape is not possible.");
         input_name = place->get_names()[0];
     }
 

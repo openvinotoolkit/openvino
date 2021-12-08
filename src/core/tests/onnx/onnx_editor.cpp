@@ -547,7 +547,7 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.extract_subgraph({{InputEdge{1, 0, "new_name_1"}, InputEdge{6, 0, "new_name_2"}}},
-                              {{OutputEdge{6, 0}, OutputEdge{4, 0}}});
+                            {{OutputEdge{6, 0}, OutputEdge{4, 0}}});
 
     const auto ref_model =
         ngraph::file_util::path_join(SERIALIZED_ZOO,

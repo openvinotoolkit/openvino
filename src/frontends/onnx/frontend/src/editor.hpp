@@ -112,6 +112,9 @@ public:
     /// \param new_name New name of the node.
     void set_node_name(const EditorNode& node, const std::string& new_name);
 
+    /// \brief Retrieves a node name from the in-memory ONNX model.
+    ///
+    /// \param node Node descriptor for which the lookup should be performed.
     std::string get_node_name(const EditorNode& node) const;
 
     /// \brief Removes node name for all nodes with given name.
