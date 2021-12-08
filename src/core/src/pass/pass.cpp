@@ -70,7 +70,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 bool ov::pass::ModelPass::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RunLocker locked(call_on_model);
-    OPENVINO_ASSERT(call_on_function,
+    OPENVINO_ASSERT(!call_on_function,
                     "Cycle detected. run_on_model() or run_on_function() method should be overridden.");
     bool sts = run_on_function(m);
     return sts;
@@ -78,7 +78,7 @@ bool ov::pass::ModelPass::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
 bool ov::pass::ModelPass::run_on_function(std::shared_ptr<ov::Model> m) {
     RunLocker locked(call_on_function);
-    OPENVINO_ASSERT(call_on_model, "Cycle detected. run_on_model() or run_on_function() method should be overridden.");
+    OPENVINO_ASSERT(!call_on_model, "Cycle detected. run_on_model() or run_on_function() method should be overridden.");
     bool sts = run_on_model(m);
     return sts;
 }

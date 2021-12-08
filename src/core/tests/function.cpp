@@ -1236,9 +1236,9 @@ TEST(function, topological_sort_caching_shared_nodes) {
 }
 
 namespace bs_utils {
-static std::shared_ptr<ov::Function> create_n_inputs(ov::element::Type type,
-                                                     const std::vector<ov::PartialShape>& shapes,
-                                                     const std::vector<ov::Layout>& layouts) {
+static std::shared_ptr<ov::Model> create_n_inputs(ov::element::Type type,
+                                                  const std::vector<ov::PartialShape>& shapes,
+                                                  const std::vector<ov::Layout>& layouts) {
     ov::ResultVector res;
     ov::ParameterVector params;
     for (size_t i = 0; i < shapes.size(); i++) {
@@ -1255,15 +1255,15 @@ static std::shared_ptr<ov::Function> create_n_inputs(ov::element::Type type,
         params.push_back(data1);
         res.push_back(res1);
     }
-    auto f = std::make_shared<ov::Function>(res, params);
+    auto f = std::make_shared<ov::Model>(res, params);
     f->validate_nodes_and_infer_types();
     return f;
 }
 
-static std::shared_ptr<ov::Function> create_add(ov::element::Type type,
-                                                const ov::PartialShape& shape,
-                                                const ov::Layout& layout1,
-                                                const ov::Layout& layout2) {
+static std::shared_ptr<ov::Model> create_add(ov::element::Type type,
+                                             const ov::PartialShape& shape,
+                                             const ov::Layout& layout1,
+                                             const ov::Layout& layout2) {
     ov::ParameterVector params;
     for (size_t i = 0; i < 2; i++) {
         auto index_str = std::to_string(i);
@@ -1280,7 +1280,7 @@ static std::shared_ptr<ov::Function> create_add(ov::element::Type type,
     op1->set_friendly_name("Add");
     auto res1 = std::make_shared<ov::opset8::Result>(op1);
     res1->get_output_tensor(0).set_names({"tensor_output"});
-    auto f = std::make_shared<ov::Function>(res1, params);
+    auto f = std::make_shared<ov::Model>(res1, params);
     f->validate_nodes_and_infer_types();
     return f;
 }

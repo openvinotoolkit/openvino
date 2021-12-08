@@ -364,7 +364,7 @@ public:
 ///
 /// \param f function where to look for a batch_size value
 /// \return Dimension representing current batch size. Can represent a number or be a dynamic
-OPENVINO_API ov::Dimension get_batch(const std::shared_ptr<const ov::Function>& f);
+OPENVINO_API ov::Dimension get_batch(const std::shared_ptr<const ov::Model>& f);
 
 /// \brief Helper method to set batch size to a Function
 ///
@@ -384,6 +384,6 @@ OPENVINO_API ov::Dimension get_batch(const std::shared_ptr<const ov::Function>& 
 ///
 /// \param f function where to set batch_size value
 /// \param batch_size Batch size value. For dynamic batch size, Dimension::dynamic() can be passed.
-OPENVINO_API void set_batch(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size);
+OPENVINO_API void set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size);
 
 }  // namespace ov
