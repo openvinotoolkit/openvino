@@ -1,8 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "bmp_reader.h"
 
+#include <stdio.h>
+#include <stdlib.h>
 
 int readBmpImage(const char* fileName, BitMap* image) {
     FILE* input = fopen(fileName, "rb");

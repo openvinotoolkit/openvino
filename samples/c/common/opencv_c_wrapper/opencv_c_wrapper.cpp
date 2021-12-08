@@ -5,7 +5,7 @@
 #include "opencv_c_wrapper.h"
 
 extern "C" {
-    #include "bmp_reader.h"
+#include "bmp_reader.h"
 }
 
 #ifndef USE_OPENCV
