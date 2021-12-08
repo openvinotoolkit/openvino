@@ -57,11 +57,9 @@ class Algorithm(ABC):
         :return: None
         """
 
-    def get_parameter_meta(self, _model, _optimizer_state):
+    def get_parameter_meta(self, _model):
         """ Get parameters metadata
         :param _model: model to get parameters for
-        :param _optimizer_state: dictionary describing optimizer state that allow to tune created search space
-        differently for different optimizer states
         :return params_meta: metadata of optional parameters
         """
         return []

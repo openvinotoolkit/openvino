@@ -22,10 +22,6 @@ wide range of DNN models:
    of performance improvement. It may require more time for quantization. For details, see the
    [AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
 
-*  **Tree-Structured Parzen Estimator (TPE)** similarly to **AccuracyAwareQuantization** enables remaining at a predefined range of accuracy drop at the cost
-   of performance improvement, but additionally tries to provide best possible performance improvement. It requires even more time for quantization than **AccuracyAwareQuantization**,
-   but may lead to better performance improvement. For details, see the [Tree-Structured Parzen Estimator (TPE)](@ref pot_compression_optimization_tpe_README) documentation.
-
 ## Quantization Formula
 
 Quantization is parametrized by clamping the range and the number of quantization levels:
