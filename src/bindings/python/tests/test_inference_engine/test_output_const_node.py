@@ -4,7 +4,7 @@
 import os
 
 from ..conftest import model_path
-from openvino.runtime.impl import ConstOutput, Shape, PartialShape, Type
+from openvino.runtime import ConstOutput, Shape, PartialShape, Type
 
 from openvino.runtime import Core
 

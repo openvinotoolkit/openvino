@@ -3,7 +3,7 @@
 
 import numpy as np
 import openvino.runtime as ov
-from openvino.runtime.impl import Shape
+from openvino.runtime import Shape
 
 
 def test_get_constant_from_source_success():

@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 
 from ..conftest import model_path, read_image
-from openvino.runtime.impl import Function, ConstOutput, Shape
+from openvino.runtime import Function, ConstOutput, Shape
 
 from openvino.runtime import Core, Tensor
 
