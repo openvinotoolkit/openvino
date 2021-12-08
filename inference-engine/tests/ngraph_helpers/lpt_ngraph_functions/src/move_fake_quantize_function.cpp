@@ -32,7 +32,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     const FakeQuantizeOnDataWithConstant& fqOnData3,
     const DequantizationOperations::Convert& convert3,
     const DequantizationOperations& dequantization3,
-    const std::vector<std::shared_ptr<Variant>>& concatAttributes,
+    const std::vector<ov::Any>& concatAttributes,
     const ngraph::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationAfter,
     const std::int64_t& axis) {
