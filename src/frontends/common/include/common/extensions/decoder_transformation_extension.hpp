@@ -37,7 +37,7 @@ public:
     template <typename Transformation,
               typename std::enable_if<std::is_base_of<ov::pass::PassBase, Transformation>::value, bool>::type = true>
     explicit DecoderTransformationExtension(const Transformation& transformation)
-        : m_registration([&](ov::pass::Manager& manager) {
+        : m_registration([=](ov::pass::Manager& manager) {
               manager.register_pass<Transformation>(transformation);
           }) {}
 

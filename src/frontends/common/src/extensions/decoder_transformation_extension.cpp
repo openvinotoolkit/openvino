@@ -32,13 +32,13 @@ public:
 
 DecoderTransformationExtension::DecoderTransformationExtension(
     const std::function<bool(std::shared_ptr<ov::Function>)>& function_pass)
-    : m_registration([&](ov::pass::Manager& manager) {
+    : m_registration([=](ov::pass::Manager& manager) {
           manager.register_pass<CustomFunctionPass>(function_pass);
       }) {}
 
 DecoderTransformationExtension::DecoderTransformationExtension(
     const std::function<void(ov::pass::MatcherPass*)>& matcher_pass_initializer)
-    : m_registration([&](ov::pass::Manager& manager) {
+    : m_registration([=](ov::pass::Manager& manager) {
           manager.register_pass<CustomMatcherPass>(matcher_pass_initializer);
       }) {}
 
