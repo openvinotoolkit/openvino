@@ -16,9 +16,9 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/reduce.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/reshape.hpp"
+#include "intel_gpu/primitives/reduce.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 

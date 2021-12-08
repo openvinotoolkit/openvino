@@ -26,8 +26,8 @@
 
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
-#include "cldnn/runtime/device_query.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef __linux__
 # include <dlfcn.h>
 #endif

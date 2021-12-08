@@ -7,7 +7,7 @@
 
 #include "ngraph/op/detection_output.hpp"
 
-#include "cldnn/primitives/detection_output.hpp"
+#include "intel_gpu/primitives/detection_output.hpp"
 
 namespace CLDNNPlugin {
 
