@@ -11,17 +11,17 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertSoftmax8ToSoftmax1;
+class TRANSFORMATIONS_API ConvertSoftMax8ToSoftMax1;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertSoftmax8ToSoftmax1 converts v8::Softmax into v1::SoftMax.
+ * @brief ConvertSoftMax8ToSoftMax1 converts v8::SoftMax into v1::SoftMax.
  */
-class ngraph::pass::ConvertSoftmax8ToSoftmax1 : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertSoftMax8ToSoftMax1 : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertSoftmax8ToSoftmax1();
+    ConvertSoftMax8ToSoftMax1();
 };

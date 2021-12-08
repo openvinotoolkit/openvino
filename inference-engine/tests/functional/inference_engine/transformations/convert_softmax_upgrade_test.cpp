@@ -18,18 +18,37 @@
 
 using namespace testing;
 
-TEST_F(TransformationTestsF, ConvertSoftmax1ToSoftmax8) {
+TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
         size_t axis = 1;
         auto softmax_1 = std::make_shared<ngraph::opset1::Softmax>(data, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_1}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertSoftmax1ToSoftmax8>();
+        manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8>();
     }
 
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        int64_t axis = 1;
+        auto softmax_8 = std::make_shared<ngraph::opset8::Softmax>(data, axis);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_8}, ngraph::ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8_dynamic_rank) {
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        size_t axis = 1;
+        auto softmax_1 = std::make_shared<ngraph::opset1::Softmax>(data, axis);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softmax_1}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8>();
+    }
+
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
         int64_t axis = 1;
         auto softmax_8 = std::make_shared<ngraph::opset8::Softmax>(data, axis);
 

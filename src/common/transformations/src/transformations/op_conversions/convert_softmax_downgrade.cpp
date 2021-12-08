@@ -10,10 +10,10 @@
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftmax8ToSoftmax1, "ConvertSoftmax8ToSoftmax1", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftMax8ToSoftMax1, "ConvertSoftMax8ToSoftMax1", 0);
 
-ngraph::pass::ConvertSoftmax8ToSoftmax1::ConvertSoftmax8ToSoftmax1() {
-    MATCHER_SCOPE(ConvertSoftmax8ToSoftmax1);
+ngraph::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
+    MATCHER_SCOPE(ConvertSoftMax8ToSoftMax1);
 
     auto input = pattern::any_input(pattern::has_static_rank());
     auto softmax_v8_pattern = pattern::wrap_type<opset8::Softmax>({input});

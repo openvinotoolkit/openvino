@@ -12,10 +12,10 @@ class Softmax(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset8',
-            'infer': Softmax.infer,
+            'infer': self.infer,
             'axis': 1,
             'in_ports_count': 1,
             'out_ports_count': 1,

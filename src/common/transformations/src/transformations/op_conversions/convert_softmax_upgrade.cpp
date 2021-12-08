@@ -9,10 +9,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftmax1ToSoftmax8, "ConvertSoftmax1ToSoftmax8", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftMax1ToSoftMax8, "ConvertSoftMax1ToSoftMax8", 0);
 
-ngraph::pass::ConvertSoftmax1ToSoftmax8::ConvertSoftmax1ToSoftmax8() {
-    MATCHER_SCOPE(ConvertSoftmax1ToSoftmax8);
+ngraph::pass::ConvertSoftMax1ToSoftMax8::ConvertSoftMax1ToSoftMax8() {
+    MATCHER_SCOPE(ConvertSoftMax1ToSoftMax8);
 
     auto softmax_v1_pattern = pattern::wrap_type<opset1::Softmax>();
 
