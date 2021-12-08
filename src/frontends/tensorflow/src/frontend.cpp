@@ -332,6 +332,20 @@ std::shared_ptr<ov::Function> FrontEndTF::convert(ov::frontend::InputModel::Ptr 
 
 std::shared_ptr<ov::Function> FrontEndTF::convert_partially(ov::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
     normalize(f);
@@ -340,6 +354,8 @@ std::shared_ptr<ov::Function> FrontEndTF::convert_partially(ov::frontend::InputM
 
 std::shared_ptr<ov::Function> FrontEndTF::decode(ov::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
+
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
     return f;
