@@ -86,7 +86,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         inputs = (
             {}
             if inputs is None
-            else normalize_inputs(inputs, get_input_types(self[self.get_idle_request_id()]))
+            else normalize_inputs(inputs, get_input_types(self[self.get_idle_handle()]))
         )
         super().start_async(inputs, userdata)
 
