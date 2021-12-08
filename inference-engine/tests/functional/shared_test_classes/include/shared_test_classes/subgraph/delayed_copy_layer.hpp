@@ -30,6 +30,8 @@ private:
     virtual void switchToNgraphFriendlyModel() = 0;
 protected:
     void Run() override;
+    void LoadNetwork() override;
+    void Infer() override;
     std::vector<float> memory_init;
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DelayedCopyTuple> &obj);

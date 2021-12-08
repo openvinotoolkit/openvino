@@ -139,6 +139,8 @@ protected:
 
     virtual void GenerateInputs();
 
+    virtual void ConfigureInferRequest();
+
     virtual void Infer();
 
     TargetDevice targetDevice;

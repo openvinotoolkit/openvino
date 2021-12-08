@@ -8,6 +8,16 @@
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace SubgraphTestsDefinitions {
+void Basic_LSTM_S::LoadNetwork() {
+    LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+    inferRequest = executableNetwork.CreateInferRequest();
+}
+
+void Basic_LSTM_S::Infer() {
+    ConfigureInferRequest();
+    inferRequest.Infer();
+}
+
 TEST_P(Basic_LSTM_S, CompareWithRefImpl) {
     Run();
 };

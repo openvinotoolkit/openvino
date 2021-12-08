@@ -68,6 +68,16 @@ namespace SubgraphTestsDefinitions {
         function = std::make_shared<ngraph::Function>(sigm, input, "negative_memory_layer_offset_nonmemory");
     }
 
+    void NegativeMemoryOffsetTest::LoadNetwork() {
+        LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+        inferRequest = executableNetwork.CreateInferRequest();
+    }
+
+    void NegativeMemoryOffsetTest::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
+    }
+
     void NegativeMemoryOffsetTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
