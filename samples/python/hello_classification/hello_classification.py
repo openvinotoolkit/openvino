@@ -8,7 +8,9 @@ import sys
 
 import cv2
 import numpy as np
-from openvino.inference_engine import IECore
+from openvino.runtime import Core, Tensor, Layout
+from openvino.runtime.impl import Type
+from openvino.preprocess import PrePostProcessor, ResizeAlgorithm
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,70 +36,80 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
 
-    # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
-    log.info('Creating Inference Engine')
-    ie = IECore()
+    # ---------------------------Step 1. Initialize OpenVINO Runtime Core--------------------------------------------------
+    log.info('Creating OpenVINO Runtime Core')
+    core = Core()
 
     # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
     log.info(f'Reading the network: {args.model}')
     # (.xml and .bin files) or (.onnx file)
-    net = ie.read_network(model=args.model)
+    
+    model = core.read_model(model=args.model)
 
-    if len(net.input_info) != 1:
+    # ---------------------------Step 3. Configure image_tensor----------------------------------------------------------
+    
+    if len(model.get_parameters()) != 1:
         log.error('Sample supports only single input topologies')
         return -1
-    if len(net.outputs) != 1:
+    if model.get_output_size() != 1:
         log.error('Sample supports only single output topologies')
         return -1
 
-    # ---------------------------Step 3. Configure input & output----------------------------------------------------------
-    log.info('Configuring input and output blobs')
-    # Get names of input and output blobs
-    input_blob = next(iter(net.input_info))
-    out_blob = next(iter(net.outputs))
-
-    # Set input and output precision manually
-    net.input_info[input_blob].precision = 'U8'
-    net.outputs[out_blob].precision = 'FP32'
-
-    # Get a number of classes recognized by a model
-    num_of_classes = max(net.outputs[out_blob].shape)
-
-    # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
-    log.info('Loading the model to the plugin')
-    exec_net = ie.load_network(network=net, device_name=args.device)
-
-    # ---------------------------Step 5. Create infer request--------------------------------------------------------------
-    # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
-    # instance which stores infer requests. So you already created Infer requests in the previous step.
-
-    # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
-    original_image = cv2.imread(args.input)
-    image = original_image.copy()
-    _, _, h, w = net.input_info[input_blob].input_data.shape
-
-    if image.shape[:-1] != (h, w):
-        log.warning(f'Image {args.input} is resized from {image.shape[:-1]} to {(h, w)}')
-        image = cv2.resize(image, (w, h))
-
-    # Change data layout from HWC to CHW
-    image = image.transpose((2, 0, 1))
+    # Read input image
+    image = cv2.imread(args.input)
     # Add N dimension to transform to NCHW
     image = np.expand_dims(image, axis=0)
+    # Wrap input image into openvino.runtime.Tensor without allocating of new memory
+    image_tensor = Tensor(image)
+    tensor_layout = Layout("NHWC")
+    h, w = image_tensor.shape[1], image_tensor.shape[2]
 
-    # ---------------------------Step 7. Do inference----------------------------------------------------------------------
+    # ---------------------------Step 4. Apply preprocessing----------------------------------------------------------
+    preproc = PrePostProcessor(model)
+    # 1) Set input tensor information:
+    # - input() provides information about a single model input
+    # - precision of tensor is supposed to be 'u8'
+    # - layout of data is 'NHWC'
+    # - set static spatial dimensions to input tensor to resize from
+    preproc.input() \
+           .tensor() \
+           .set_element_type(image_tensor.element_type) \
+           .set_layout(tensor_layout) \
+           .set_spatial_static_shape(h, w)
+    # 2) Adding explicit preprocessing steps:
+    # - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
+    # - apply linear resize from tensor spatial dims to model spatial dims
+    preproc.input().preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
+    # 3) Here we suppose model has 'NCHW' layout for input
+    preproc.input().network().set_layout(Layout("NCHW"))
+    # 4) Set output tensor information:
+    # - precision of tensor is supposed to be 'f32'
+    preproc.output().tensor().set_element_type(Type.f32)
+    # 5) Apply preprocessing modifing the original 'model'
+    model = preproc.build()
+
+    # Get a number of classes recognized by a model
+    num_of_classes = max(model.output().shape)
+
+    # ---------------------------Step 5. Loading model to the device-------------------------------------------------------
+    log.info('Loading the model to the plugin')
+    exec_net = core.compile_model(model=model, device_name=args.device)
+    
+    # ---------------------------Step 6. Create infer request--------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    res = exec_net.infer(inputs={input_blob: image})
+    
+    res = exec_net.infer_new_request(inputs={0:image_tensor})
 
-    # ---------------------------Step 8. Process output--------------------------------------------------------------------
+    # ---------------------------Step 7. Process output--------------------------------------------------------------------
     # Generate a label list
     if args.labels:
         with open(args.labels, 'r') as f:
             labels = [line.split(',')[0].strip() for line in f]
 
-    res = res[out_blob]
+    predictions = next(iter(np.array(res)))
+    
     # Change a shape of a numpy.ndarray with results to get another one with one dimension
-    probs = res.reshape(num_of_classes)
+    probs = predictions.reshape(num_of_classes)
     # Get an array of args.number_top class IDs in descending order of probability
     top_n_idexes = np.argsort(probs)[-args.number_top :][::-1]
 
