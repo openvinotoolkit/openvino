@@ -21,24 +21,26 @@
 #include "intel_gpu/graph/topology.hpp"
 
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include "cldnn_custom_layer.h"
-#include "cldnn_config.h"
-#include "cldnn_remote_context.h"
-#include "cldnn_program.h"
+#include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/plugin/device_config.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/program.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
-class CLDNNGraph {
+class Graph {
 public:
     enum class Stage : uint32_t {
         PREPROC = 1,
         EXECUTE = 2,
         POSTPROC = 4
     };
-    typedef std::shared_ptr<CLDNNGraph> Ptr;
+    typedef std::shared_ptr<Graph> Ptr;
 
-    CLDNNGraph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
-    explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
+    Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
+    explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     bool IsLoaded() const;
@@ -102,4 +104,6 @@ protected:
                                                                        bool filter_const_primitives = true);
 };
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

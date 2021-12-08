@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "ngraph/op/add.hpp"
@@ -30,7 +30,9 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::eltwise_mode mode) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
@@ -65,7 +67,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
             // Extend input dimensions by prepending ones
             inputShape.insert(inputShape.begin(), outRank - inputRank, 1ul);
 
-            auto targetShape = CldnnTensorFromIEDims(inputShape);
+            auto targetShape = tensor_from_dims(inputShape);
 
             auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
@@ -194,4 +196,6 @@ REGISTER_FACTORY_IMPL(v1, Power);
 REGISTER_FACTORY_IMPL(v1, FloorMod);
 REGISTER_FACTORY_IMPL(v1, Mod);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

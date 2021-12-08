@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/region_yolo.hpp"
 
 #include "intel_gpu/primitives/region_yolo.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::RegionYolo>& op) {
     p.ValidateInputs(op, {1});
@@ -37,4 +39,6 @@ static void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0:
 
 REGISTER_FACTORY_IMPL(v0, RegionYolo);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

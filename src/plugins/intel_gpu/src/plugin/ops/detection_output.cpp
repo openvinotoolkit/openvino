@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/detection_output.hpp"
 
 #include "intel_gpu/primitives/detection_output.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str) {
     static const std::map<std::string, cldnn::prior_box_code_type> CodeNameToType = {
@@ -84,4 +86,6 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
 
 REGISTER_FACTORY_IMPL(v0, DetectionOutput);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

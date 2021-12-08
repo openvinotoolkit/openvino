@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/select.hpp"
 
@@ -11,7 +11,9 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& op) {
     p.ValidateInputs(op, {3});
@@ -61,7 +63,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                 // Extend input dimensions to the same size as output dimensions by prepending ones
                 inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
 
-                auto targetShape = CldnnTensorFromIEDims(inputDims);
+                auto targetShape = tensor_from_dims(inputDims);
 
                 auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
 
@@ -89,4 +91,6 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
 REGISTER_FACTORY_IMPL(v1, Select);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

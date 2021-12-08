@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/scatter_nd_update.hpp"
 #include "ngraph/op/constant.hpp"
 
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& op) {
     p.ValidateInputs(op, {3});
@@ -31,4 +33,6 @@ static void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op
 
 REGISTER_FACTORY_IMPL(v3, ScatterNDUpdate);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

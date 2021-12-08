@@ -7,12 +7,14 @@
 #include <map>
 #include <string>
 
-#include "cldnn_custom_layer.h"
+#include "intel_gpu/plugin/custom_layer.hpp"
 #include <ie_performance_hints.hpp>
 #include "intel_gpu/graph/network.hpp"
 #include <threading/ie_cpu_streams_executor.hpp>
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 struct Config {
     Config(std::string device_id = "0") : device_id(device_id),
@@ -61,7 +63,7 @@ struct Config {
     cldnn::priority_mode_types queuePriority;
     cldnn::throttle_mode_types queueThrottle;
     int max_dynamic_batch;
-    CLDNNCustomLayerMap customLayers;
+    CustomLayerMap customLayers;
     cldnn::tuning_config_options tuningConfig;
     std::string graph_dumps_dir;
     std::string sources_dumps_dir;
@@ -93,4 +95,6 @@ private:
     std::map<std::string, Config> configs;
 };
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

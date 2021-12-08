@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "ngraph/op/one_hot.hpp"
 
 #include "intel_gpu/primitives/one_hot.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::OneHot>& op) {
     p.ValidateInputs(op, {4});
@@ -49,7 +51,7 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
 
     auto oneHotPrim = cldnn::one_hot(layerName,
                                      inputPrimitives[0],
-                                     CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                     tensor_from_dims(op->get_output_shape(0)),
                                      DataTypeFromPrecision(op->get_output_element_type(0)),
                                      static_cast<uint16_t>(axis),
                                      on_value,
@@ -62,4 +64,6 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
 
 REGISTER_FACTORY_IMPL(v1, OneHot);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

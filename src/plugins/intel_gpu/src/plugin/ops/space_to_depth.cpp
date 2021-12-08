@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/space_to_depth.hpp"
 
 #include "intel_gpu/primitives/space_to_depth.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::space_to_depth::depth_mode GetDepthMode(ngraph::op::v0::SpaceToDepth::SpaceToDepthMode mode) {
     switch (mode) {
@@ -36,4 +38,6 @@ static void CreateSpaceToDepthOp(Program& p, const std::shared_ptr<ngraph::op::v
 
 REGISTER_FACTORY_IMPL(v0, SpaceToDepth);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

@@ -12,15 +12,17 @@
 #include "pugixml.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
-using CLDNNCustomLayerPtr = std::shared_ptr<class CLDNNCustomLayer>;
-using CLDNNCustomLayerMap = std::map<std::string, CLDNNCustomLayerPtr>;
-class CLDNNCustomLayer{
+using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
+using CustomLayerMap = std::map<std::string, CustomLayerPtr>;
+class CustomLayer{
 public:
     static void LoadFromFile(
         const std::string configFile,
-        CLDNNCustomLayerMap& customLayers,
+        CustomLayerMap& customLayers,
         bool can_be_missed = false);
 
     typedef enum {
@@ -57,8 +59,8 @@ public:
     int InputDimSourceIndex() { return m_wgDimInputIdx; }
 
 protected:
-    CLDNNCustomLayer() : m_wgDimInputIdx(0) {}
-    explicit CLDNNCustomLayer(const std::string dirname) : m_configDir(dirname), m_wgDimInputIdx(0) {}
+    CustomLayer() : m_wgDimInputIdx(0) {}
+    explicit CustomLayer(const std::string dirname) : m_configDir(dirname), m_wgDimInputIdx(0) {}
 
     bool Error() const { return m_ErrorMessage.length() > 0; }
     void LoadSingleLayer(const pugi::xml_node& node);
@@ -82,4 +84,6 @@ protected:
     std::string m_ErrorMessage;
 };
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

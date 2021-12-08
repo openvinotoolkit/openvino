@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/gather_elements.hpp"
 #include "ngraph/op/constant.hpp"
 
 #include "intel_gpu/primitives/gather_elements.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::gather_elements::gather_elements_axis GetGatherAxis(int axis, unsigned rank) {
     if (axis < 0)
@@ -18,7 +20,7 @@ static cldnn::gather_elements::gather_elements_axis GetGatherAxis(int axis, unsi
     if (axis < 0 || axis >= rank)
         IE_THROW() << "GatherElements axis is not correspond to number of dimensions";
 
-    // Difference in dimension ordering between IE and clDNN,
+    // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     unsigned cldnn_axis = axis;
     if (axis >= 2) {
@@ -54,7 +56,7 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
                                             inputPrimitives[0],
                                             inputPrimitives[1],
                                             outLayout,
-                                            CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                            tensor_from_dims(op->get_output_shape(0)),
                                             GetGatherAxis(axis, rank),
                                             op->get_friendly_name());
 
@@ -64,4 +66,6 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
 
 REGISTER_FACTORY_IMPL(v6, GatherElements);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

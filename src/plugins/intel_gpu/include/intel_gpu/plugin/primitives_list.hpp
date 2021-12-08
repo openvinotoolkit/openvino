@@ -61,6 +61,7 @@ REGISTER_FACTORY(v0, Squeeze);
 REGISTER_FACTORY(v0, ShuffleChannels);
 REGISTER_FACTORY(v0, Tan);
 REGISTER_FACTORY(v0, Tanh);
+REGISTER_FACTORY(v0, TensorIterator);
 REGISTER_FACTORY(v0, Tile);
 REGISTER_FACTORY(v0, Unsqueeze);
 
@@ -88,7 +89,6 @@ REGISTER_FACTORY(v0, Unsqueeze);
 // REGISTER_FACTORY(v0, Range);
 // REGISTER_FACTORY(v0, RNNCell);
 // REGISTER_FACTORY(v0, ShapeOf);
-REGISTER_FACTORY(v0, TensorIterator);
 
 // ------------------------------ Supported v1 ops ------------------------------ //
 REGISTER_FACTORY(v1, Add);
@@ -156,6 +156,7 @@ REGISTER_FACTORY(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
 REGISTER_FACTORY(v3, ExtractImagePatches);
+REGISTER_FACTORY(v3, ROIAlign);
 REGISTER_FACTORY(v3, ScatterUpdate);
 REGISTER_FACTORY(v3, ScatterElementsUpdate);
 REGISTER_FACTORY(v3, ScatterNDUpdate);
@@ -166,7 +167,6 @@ REGISTER_FACTORY(v3, ScatterNDUpdate);
 // REGISTER_FACTORY(v3, Bucketize);
 // REGISTER_FACTORY(v3, GRUCell);
 // REGISTER_FACTORY(v3, NonZero);
- REGISTER_FACTORY(v3, ROIAlign);
 // REGISTER_FACTORY(v3, ReadValue);
 // REGISTER_FACTORY(v3, ShapeOf);
 // REGISTER_FACTORY(v3, TopK);
