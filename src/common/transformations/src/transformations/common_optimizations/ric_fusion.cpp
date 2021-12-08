@@ -152,9 +152,9 @@ public:
     SplitConcat() {
         MATCHER_SCOPE(SplitConcat);
         auto split_p = pattern::wrap_type<opset8::Split>();
-        pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p});
+        auto pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p});
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_map();
             auto concat = ov::as_type_ptr<opset8::Concat>(pattern_map.at(pattern_root));
             auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p));
@@ -181,6 +181,9 @@ public:
             ric_attr::init(concat, order, concat->get_axis());
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -190,9 +193,9 @@ public:
         MATCHER_SCOPE(Gather);
         auto indices_p = pattern::any_input();
         auto axis_p = pattern::wrap_type<opset8::Constant>();
-        pattern_root = pattern::wrap_type<opset8::Gather>({pattern::any_input(), indices_p, axis_p});
+        auto pattern_root = pattern::wrap_type<opset8::Gather>({pattern::any_input(), indices_p, axis_p});
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_map();
             const auto & output = pattern_map.at(pattern_root);
 
@@ -205,6 +208,9 @@ public:
             ric_attr::init(output, order->cast_vector<int64_t>(), axis->cast_vector<int64_t>().at(0));
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 }// namespace init
@@ -221,9 +227,9 @@ public:
     Convolution() {
         MATCHER_SCOPE(Convolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        pattern_root = pattern::wrap_type<opset8::Convolution>({input_p, pattern::any_input()});
+        auto pattern_root = pattern::wrap_type<opset8::Convolution>({input_p, pattern::any_input()});
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
             ric.set_is_final(true);
@@ -236,6 +242,9 @@ public:
             ric_attr::set(conv->input(1), ric);
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -244,9 +253,9 @@ public:
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        pattern_root = pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
+        auto pattern_root = pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
             const auto & weights_shape = conv->input_value(1).get_shape();
             const int64_t & group = static_cast<int64_t>(weights_shape.at(0));
@@ -272,6 +281,9 @@ public:
             ric_attr::set(conv->output(0), ric);
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -287,9 +299,9 @@ public:
         auto input1_const = pattern::wrap_type<opset8::Constant>(pattern::consumers_count(1));
         auto attr_with_const = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({input0_attr, input1_const});
 
-        pattern_root = std::make_shared<pattern::op::Or>(OutputVector{attrs, attr_with_const});
+        auto pattern_root = std::make_shared<pattern::op::Or>(OutputVector{attrs, attr_with_const});
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             const auto & input0 = pattern_map.at(input0_attr);
             auto ric = ric_attr::get(input0).propagate();
@@ -344,6 +356,9 @@ public:
             ric_attr::set(m.get_match_value(), ric);
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -351,12 +366,15 @@ class ShapeOf : public ngraph::pass::MatcherPass {
 public:
     ShapeOf() {
         MATCHER_SCOPE(ShapeOf);
-        pattern_root = pattern::wrap_type<opset1::ShapeOf, opset8::ShapeOf>();
+        auto pattern_root = pattern::wrap_type<opset1::ShapeOf, opset8::ShapeOf>();
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             // Skip propagation for ShapeOf path
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -364,15 +382,18 @@ class PassThrough : public ngraph::pass::MatcherPass {
 public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
-        pattern_root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
+        auto pattern_root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
                                           opset8::Convert, opset8::Pad, opset8::PRelu>();
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
             if (!ric_attr::has(root->input_value(0))) return false;
             ric_attr::set(root->output(0), ric_attr::get(root->input_value(0)).propagate());
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -382,9 +403,9 @@ public:
         MATCHER_SCOPE(Transpose);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
         auto order_p = pattern::wrap_type<opset8::Constant>();
-        pattern_root = pattern::wrap_type<opset8::Transpose>({input_p, order_p});
+        auto pattern_root = pattern::wrap_type<opset8::Transpose>({input_p, order_p});
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             auto input = pattern_map.at(input_p);
             auto ric = ric_attr::get(input).propagate();
@@ -398,6 +419,9 @@ public:
             ric_attr::set(m.get_match_value(), ric);
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -405,8 +429,8 @@ class Unsupported : public ngraph::pass::MatcherPass {
 public:
     Unsupported() {
         MATCHER_SCOPE(Unsupported);
-        pattern_root = pattern::any_input();
-        callback = [=](pattern::Matcher& m) {
+        auto pattern_root = pattern::any_input();
+        auto callback = [=](pattern::Matcher& m) {
             for (const auto & input : m.get_match_root()->input_values()) {
                 if (ric_attr::has(input)) {
                     auto ric = ric_attr::get(input);
@@ -416,6 +440,9 @@ public:
             }
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 }// namespace prop
@@ -433,8 +460,8 @@ class InsertReverseInputChannel : public ngraph::pass::MatcherPass {
 public:
     InsertReverseInputChannel() {
         MATCHER_SCOPE(InsertReverseInputChannel);
-        pattern_root = pattern::any_input();
-        callback = [](pattern::Matcher& m) {
+        auto pattern_root = pattern::any_input();
+        auto callback = [](pattern::Matcher& m) {
             const auto & node = m.get_match_root();
             for (const auto & input : node->inputs()) {
                 if (!ric_attr::has(input)) continue;
@@ -445,6 +472,9 @@ public:
             }
             return false;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -454,15 +484,18 @@ public:
         MATCHER_SCOPE(EraseSplitConcat);
         auto input_p = pattern::any_input();
         auto split_p = pattern::wrap_type<opset8::Split>({input_p, pattern::any_input()});
-        pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
+        auto pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
 
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
             auto input = pattern_map.at(input_p);
             output.replace(input);
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 
@@ -471,16 +504,19 @@ public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
         auto input_p = pattern::any_input();
-        pattern_root = pattern::wrap_type<opset8::Gather>({input_p, pattern::any_input(),
+        auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, pattern::any_input(),
                                                                             pattern::any_input()},
                                                            need_to_erase_ric);
-        callback = [=](pattern::Matcher& m) {
+        auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
             auto input = pattern_map.at(input_p);
             output.replace(input);
             return true;
         };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
     }
 };
 }// namespace fuse

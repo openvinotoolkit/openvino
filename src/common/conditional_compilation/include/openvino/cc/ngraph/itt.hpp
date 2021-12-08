@@ -34,7 +34,6 @@ OV_CC_DOMAINS(ngraph_pass);
 
 #else
 
-#define MATCHER_SCOPE(region) const std::string matcher_name(OV_PP_TOSTRING(region)); \
-                              set_name(matcher_name);
+#define MATCHER_SCOPE(region) const std::string matcher_name(OV_PP_TOSTRING(region))
 #define RUN_ON_FUNCTION_SCOPE(region)
 #endif
