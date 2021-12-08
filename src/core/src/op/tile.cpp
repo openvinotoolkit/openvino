@@ -5,6 +5,7 @@
 #include "ngraph/op/tile.hpp"
 
 #include <ngraph/validation_util.hpp>
+#include <tile_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -37,37 +38,10 @@ void op::v0::Tile::validate_and_infer_types() {
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
-    auto arg_shape = get_input_partial_shape(0);
-    auto repeats_shape = get_input_partial_shape(1);
-    NODE_VALIDATION_CHECK(this, repeats_shape.rank().compatible(1), "PartialShape of repeats must be of rank 1");
-    ov::PartialShape repeats_as_pshape;
-    bool repeats_are_known = evaluate_as_partial_shape(get_input_source_output(1), repeats_as_pshape);
-    std::vector<Dimension> repeats_value(repeats_as_pshape);
-    if (repeats_are_known && !repeats_value.empty() && arg_shape.rank().is_static()) {
-        std::vector<Dimension> data_shape(arg_shape);
-        auto data_rank = data_shape.size();
-        auto repeats_rank = repeats_value.size();
-        auto output_rank = std::max(data_rank, repeats_rank);
-
-        // expand data shape and repeats to output rank
-        data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
-        repeats_value.insert(repeats_value.begin(), output_rank - repeats_rank, 1);
-
-        auto output_shape = ov::PartialShape::dynamic(output_rank);
-        for (size_t i = 0; i < output_rank; i++)
-            output_shape[i] = data_shape[i] * repeats_value[i];
-        set_output_type(0, arg_et, output_shape);
-    } else {
-        Rank outRank = Rank::dynamic();
-        if (arg_shape.rank().is_static() && repeats_shape.is_static()) {
-            std::vector<Dimension> data_shape(arg_shape);
-            auto data_rank = data_shape.size();
-            auto repeats_rank = repeats_value.size();
-            auto output_rank = std::max(data_rank, repeats_rank);
-            outRank = Rank(output_rank);
-        }
-        set_output_type(0, arg_et, ov::PartialShape::dynamic(outRank));
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, arg_et, output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
@@ -84,24 +58,16 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     const auto& axis = inputs[1];
     auto& output = outputs[0];
     auto repeats_val = read_index_vector(axis);
-    auto repeats_rank = repeats_val.size();
-    ov::Shape data_shape = data->get_shape();
-    auto data_rank = data_shape.size();
-    auto output_rank = std::max(data_rank, repeats_rank);
+    const auto repeats_rank = repeats_val.size();
 
-    // expand data shape and repeats to output rank
-    data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
-    repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
-
-    ov::Shape output_shape(output_rank);
-    for (size_t i = 0; i < output_rank; i++) {
-        output_shape[i] = data_shape[i] * repeats_val[i];
-    }
-
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {data->get_shape(), axis->get_shape()};
+    shape_infer(this, input_shapes, output_shapes, {{1, axis}});
+    const auto& output_shape = output_shapes[0].to_shape();
     if (!output->get_is_allocated()) {
         output->set_shape(output_shape);
     }
-
+    repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
     ngraph::runtime::reference::tile(data->get_data_ptr<const char>(),
                                      output->get_data_ptr<char>(),
                                      data->get_shape(),

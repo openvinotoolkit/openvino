@@ -8,7 +8,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 ## Key features:
 
 * Two supported post-training quantization algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md), as well as multiple experimental methods.
-* Global optimization of post-training quantization parameters using [Tree-structured Parzen Estimator](openvino/tools/pot/optimization/tpe/README.md).
+
 * Symmetric and asymmetric quantization schemes. For more details, see the [Quantization](openvino/tools/pot/algorithms/quantization/README.md) section.
 * Per-channel quantization for Convolutional and Fully-Connected layers.
 * Multiple domains: Computer Vision, Recommendation Systems.
