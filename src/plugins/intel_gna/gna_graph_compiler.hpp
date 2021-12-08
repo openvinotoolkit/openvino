@@ -34,7 +34,7 @@ private:
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
-    std::shared_ptr<std::map<std::string, GNAPluginNS::InputDesc>> _inputsPtr;
+    std::shared_ptr<GNAPluginNS::GnaInputs> inputs_ptr_;
 
     // layers with extra storage for connections and additional
     // non trivial processing
@@ -61,8 +61,7 @@ public:
     void setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr);
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
     void setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr);
-    void setInputsPtr(std::shared_ptr<std::map<std::string, GNAPluginNS::InputDesc>> inputsPtr);
-
+    void setInputsPtr(std::shared_ptr<GNAPluginNS::GnaInputs> inputsPtr);
 
     void fillMemoryConnections(std::unordered_map<std::string,
             std::vector<InferenceEngine::CNNLayerPtr>> &memoryPairs);

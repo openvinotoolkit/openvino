@@ -43,11 +43,9 @@ class ModelQuantizer {
 
     template <class PreQuantisationCb>
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model,  const PreQuantisationCb &cb, std::vector<float> scaleFactors) const {
-        std::map<std::string, GNAPluginNS::InputDesc> inputs;
+        GNAPluginNS::GnaInputs inputs;
         for (size_t i = 0; i < scaleFactors.size(); ++i) {
-            GNAPluginNS::InputDesc input;
-            input.scale_factor = scaleFactors[i];
-            inputs[std::to_string(i)] = input;
+            inputs[std::to_string(i)].scale_factor = scaleFactors[i];;
         }
         return quantize(model, cb, inputs);
     }
@@ -55,7 +53,7 @@ class ModelQuantizer {
     template <class PreQuantisationCb>
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model,
                                          const PreQuantisationCb &cb,
-                                         const std::map<std::string, GNAPluginNS::InputDesc> &inputs) const {
+                                         const GNAPluginNS::GnaInputs &inputs) const {
         OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ModelQuantizer::quantize");
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
@@ -72,11 +70,14 @@ class ModelQuantizer {
         // another preprocessing
         cb(copiedNet, false, lowPrecision);
 
+        float lc_sf = GNAPluginNS::kScaleFactorDefault;
         if (inputs.empty()) {
-            gnawarn() << "Inputs structure is empty, will be used default scale factor: " << inputs.begin()->second.scale_factor << std::endl;
+            gnawarn() << "Inputs structure is empty, will be used default scale factor: " << lc_sf << std::endl;
+        } else {
+            lc_sf = inputs.Get().begin()->scale_factor;
         }
 
-        LayersQuantizer<T> lc(inputs.begin()->second.scale_factor);
+        LayersQuantizer<T> lc(lc_sf);
         auto sortedNewNet = InferenceEngine::details::CNNNetSortTopologically(copiedNet);
         gnalog() << "Sorted layers: " << std::endl;
         for (auto &&layer : sortedNewNet) {

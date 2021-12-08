@@ -54,8 +54,8 @@ void GNAGraphCompiler::setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDN
     this->dnn = std::move(dnnPtr);
 }
 
-void GNAGraphCompiler::setInputsPtr(std::shared_ptr<std::map<std::string, GNAPluginNS::InputDesc>> inputsPtr) {
-    this->_inputsPtr = std::move(inputsPtr);
+void GNAGraphCompiler::setInputsPtr(std::shared_ptr<GNAPluginNS::GnaInputs> inputsPtr) {
+    this->inputs_ptr_ = std::move(inputsPtr);
 }
 
 void GNAGraphCompiler::setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr) {
@@ -2277,9 +2277,9 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                     if (included == concat_connection.end()) {
                         gnamem->reserve_ptr(layer, &concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size), 64);
 
-                        std::function<void(GNAConcatLayer, std::map<std::string, GNAPluginNS::InputDesc>&, ConcatConnection&)> allocate_input_recursively =
+                        std::function<void(GNAConcatLayer, GNAPluginNS::GnaInputs&, ConcatConnection&)> allocate_input_recursively =
                             [&allocate_input_recursively](GNAConcatLayer clayer,
-                                                          std::map<std::string, GNAPluginNS::InputDesc> &inputs,
+                                                          GNAPluginNS::GnaInputs &inputs,
                                                           ConcatConnection& concat_connection) {
                             size_t concatInputIdx = 0;
                             for (auto &&inputLayer : clayer.concatInputLayers) {
@@ -2301,7 +2301,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                             clayer.input_allocated = true;
                         };
 
-                        allocate_input_recursively(concatLayerInfoItem, *_inputsPtr, concat_connection);
+                        allocate_input_recursively(concatLayerInfoItem, *inputs_ptr_, concat_connection);
                     }
                     concatLayerInfo->second.output_allocation_flag = true;
                 }
@@ -2341,14 +2341,14 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         auto quantized = getInjectedData<QuantizedLayerParams>(prevLayer);
         if (quantized) {
             if (quantized->lowPrecision) {
-                _inputsPtr->at(prevLayer->name).setPrecision(Precision::I8);
+                inputs_ptr_->at(prevLayer->name).setPrecision(Precision::I8);
             } else {
-              _inputsPtr->at(prevLayer->name).setPrecision(Precision::I16);
+              inputs_ptr_->at(prevLayer->name).setPrecision(Precision::I16);
             }
         }
-        if (0 == _inputsPtr->at(prevLayer->name).getAllocatedSize()) {
+        if (0 == inputs_ptr_->at(prevLayer->name).getAllocatedSize()) {
             // if request for allocation less that realTensorInput - we need to extend request
-            auto minInput = _inputsPtr->at(prevLayer->name).getRequiredSize();
+            auto minInput = inputs_ptr_->at(prevLayer->name).getRequiredSize();
             if (num_data_bytes_in < minInput) {
                 const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
                     GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
@@ -2363,25 +2363,25 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                                    num_data_bytes_in,
                                    64);
             } else {
-                gnamem->push_value(nullptr, &_inputsPtr->at(prevLayer->name).ptrs.front(),
+                gnamem->push_value(nullptr, &inputs_ptr_->at(prevLayer->name).ptrs.front(),
                                    static_cast<uint8_t>(0),
                                    num_data_bytes_in,
                                    64);
             }
-            _inputsPtr->at(prevLayer->name).allocated_size = num_data_bytes_in;
+            inputs_ptr_->at(prevLayer->name).allocated_size = num_data_bytes_in;
         }
-        if (ALIGN(num_data_bytes_in, 64) > ALIGN(_inputsPtr->at(prevLayer->name).getAllocatedSize(), 64)) {
+        if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputs_ptr_->at(prevLayer->name).getAllocatedSize(), 64)) {
             THROW_GNA_EXCEPTION
                     << "Layer: " << layer->name
                     << " Cannot bind pointer to already allocated input(" << prevLayer->name
-                    << "), due to size_allocated=" << _inputsPtr->at(prevLayer->name).getAllocatedSize()
+                    << "), due to size_allocated=" << inputs_ptr_->at(prevLayer->name).getAllocatedSize()
                     << ", and size_requested=" << num_data_bytes_in;
         }
 
         if (connectTo) {
-            gnamem->bind_ptr(nullptr, ptr, &_inputsPtr->at(prevLayer->name).ptrs.front(), offset, ALIGN(num_data_bytes_in, 64));
+            gnamem->bind_ptr(nullptr, ptr, &inputs_ptr_->at(prevLayer->name).ptrs.front(), offset, ALIGN(num_data_bytes_in, 64));
         } else {
-            gnamem->bind_ptr(nullptr, &_inputsPtr->at(prevLayer->name).ptrs.front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
+            gnamem->bind_ptr(nullptr, &inputs_ptr_->at(prevLayer->name).ptrs.front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
         }
 
         return prevLayer;

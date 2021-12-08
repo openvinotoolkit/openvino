@@ -29,15 +29,23 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
          }
 
          plg->ImportNetwork(inputStream);
-         _networkInputs = plg->GetInputs();
-         _networkOutputs = plg->GetOutputs();
+        // old API
+         setNetworkInputs(plg->GetNetworkInputs());
+         setNetworkOutputs(plg->GetNetworkOutputs());
+         // new API
+         setInputs(plg->GetInputs());
+         setOutputs(plg->GetOutputs());
      }
 
     GNAExecutableNetwork(std::istream& networkModel, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->ImportNetwork(networkModel);
-        _networkInputs = plg->GetInputs();
-        _networkOutputs = plg->GetOutputs();
+        // old API
+         setNetworkInputs(plg->GetNetworkInputs());
+         setNetworkOutputs(plg->GetNetworkOutputs());
+         // new API
+         setInputs(plg->GetInputs());
+         setOutputs(plg->GetOutputs());
     }
 
     GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)

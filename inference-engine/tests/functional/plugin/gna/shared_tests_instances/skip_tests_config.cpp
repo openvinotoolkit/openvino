@@ -70,8 +70,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: Issue: 29577
         R"(.*QueryNetwork.*)",
-        // TODO: GNA plugin does not support ExecGraph
-        R"(.*ExecGraphTests.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639

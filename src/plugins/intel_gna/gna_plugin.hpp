@@ -37,7 +37,9 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
-    std::shared_ptr<std::map<std::string, GNAPluginNS::InputDesc>> _inputsPtr;
+    std::shared_ptr<GNAPluginNS::GnaInputs> inputs_ptr_;
+    GNAPluginNS::GnaOutputs outputs_;
+
     GNAPluginNS::GNAGraphCompiler graphCompiler;
 
     /**
@@ -60,11 +62,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     uint32_t num_active_indices = 0;
     uint32_t num_group_in = 0;
     uint32_t dnn_dump_write_index = 0;
-
-    // index matches iterating order of cnnnetwork outputs info
-    std::map<std::string, OutputDesc> _outputs = std::map<std::string, OutputDesc>();
-    // std::map<std::string, InputDesc> _inputs;
-
     intel_dnn_number_type_t output_type = kDnnInt;
 
 #if GNA_LIB_VER == 2
@@ -79,11 +76,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      */
     uint32_t rwSegmentSize = 0;
 
-
-    InferenceEngine::InputsDataMap inputsDataMap;    //!< Holds information about network inputs info
-    InferenceEngine::OutputsDataMap outputsDataMap;  //!< Holds information about network outputs data
-    std::vector<std::shared_ptr<const ov::Node>> netParams;
-    std::vector<std::shared_ptr<const ov::Node>> netResults;
+    InferenceEngine::InputsDataMap inputs_data_map_;    //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap outputs_data_map_;  //!< Holds information about network outputs data
 
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     bool trivialTopology = false;
@@ -153,8 +147,15 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     /**
      * helpers to provide inputs info on AOT network
      */
-    InferenceEngine::InputsDataMap GetInputs() {return inputsDataMap;}
-    InferenceEngine::OutputsDataMap GetOutputs() {return outputsDataMap;}
+    InferenceEngine::InputsDataMap GetNetworkInputs() {return inputs_data_map_;}
+    InferenceEngine::OutputsDataMap GetNetworkOutputs() {return outputs_data_map_;}
+    std::vector<std::shared_ptr<const ov::Node>> GetOutputs();
+    std::vector<std::shared_ptr<const ov::Node>> GetInputs();
+    /**
+     * helpers to set inputs/output info on AOT network
+     */
+    void SetNetworkInputs();
+    void SetNetworkOutputs();
     /**
      * QueryState API
      * @return
@@ -209,6 +210,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
+    void UpdateInputsAndOutputsInfoFromFunction(const std::shared_ptr<ov::Function> &function);
     /**
      * @brief Tries to init an output on the base of a layer data
      * @param portId output port identificator
