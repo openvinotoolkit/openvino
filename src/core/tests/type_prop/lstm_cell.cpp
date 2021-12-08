@@ -53,7 +53,9 @@ TEST(type_prop, lstm_cell_invalid_input) {
         const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in W input."));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Parameter hidden_size not matched for W, R, B, initial_hidden_state and initial_cell_state"));
     }
 
     // Invalid R tensor shape.
@@ -64,7 +66,7 @@ TEST(type_prop, lstm_cell_invalid_input) {
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter hidden_size not matched for R, "
+                             std::string("Parameter hidden_size not matched for W, R, B, "
                                          "initial_hidden_state and initial_cell_state inputs."));
     }
 
@@ -100,7 +102,7 @@ TEST(type_prop, lstm_cell_invalid_input) {
         const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in B input."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size not matched for W, R, B"));
     }
 }
 
@@ -138,8 +140,8 @@ TEST(type_prop, lstm_cell_dynamic_hidden_size) {
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, 3);
 
-    EXPECT_EQ(lstm_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
-    EXPECT_EQ(lstm_cell->get_output_partial_shape(1), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(0), (PartialShape{batch_size, 3}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(1), (PartialShape{batch_size, 3}));
     EXPECT_EQ(lstm_cell->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_cell->get_output_element_type(1), element::f32);
 }
@@ -158,8 +160,8 @@ TEST(type_prop, lstm_cell_dynamic_inputs) {
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, 3);
 
-    EXPECT_EQ(lstm_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
-    EXPECT_EQ(lstm_cell->get_output_partial_shape(1), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(0), (PartialShape{batch_size, 3}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(1), (PartialShape{batch_size, 3}));
     EXPECT_EQ(lstm_cell->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_cell->get_output_element_type(1), element::f32);
 }
@@ -224,9 +226,11 @@ TEST(type_prop, lstm_cell_invalid_input_dynamic_rank) {
     auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     auto C_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
 
-    auto check_dynamic_lstm = [](const shared_ptr<opset4::LSTMCell>& lstm) -> bool {
-        return lstm->output(0).get_partial_shape() == PartialShape::dynamic() &&
-               lstm->output(1).get_partial_shape() == PartialShape::dynamic() &&
+    auto check_dynamic_lstm = [=](const shared_ptr<opset4::LSTMCell>& lstm) -> bool {
+        const int64_t target_batch_size = batch_size;
+        const int64_t target_hidden_size = hidden_size;
+        return lstm->output(0).get_partial_shape() == PartialShape{target_batch_size, target_hidden_size} &&
+               lstm->output(1).get_partial_shape() == PartialShape{target_batch_size, target_hidden_size} &&
                lstm->output(0).get_element_type() == lstm->input(0).get_element_type();
     };
 
@@ -264,4 +268,62 @@ TEST(type_prop, lstm_cell_invalid_input_dynamic_rank) {
     auto B = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
     EXPECT_EQ(check_dynamic_lstm(lstm), true);
+}
+
+TEST(type_prop, lstm_cell_shape_from_partial) {
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 4;
+
+    auto check_dynamic_lstm = [=](const shared_ptr<opset4::LSTMCell>& lstm) -> bool {
+        const int64_t target_batch_size = batch_size;
+        const int64_t target_hidden_size = hidden_size;
+        return lstm->output(0).get_partial_shape() == PartialShape{target_batch_size, target_hidden_size} &&
+               lstm->output(1).get_partial_shape() == PartialShape{target_batch_size, target_hidden_size} &&
+               lstm->output(0).get_element_type() == lstm->input(0).get_element_type();
+    };
+    {
+        // from h & w
+        auto X = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto W = make_shared<opset4::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
+        auto R = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, -1});
+        auto C_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+        EXPECT_EQ(check_dynamic_lstm(lstm), true);
+    }
+
+    {
+        // from x & w
+        auto X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
+        auto W = make_shared<opset4::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
+        auto R = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto C_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+        EXPECT_EQ(check_dynamic_lstm(lstm), true);
+    }
+
+    {
+        // only valid rank for H_t tensor.
+        auto X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
+        auto W = make_shared<opset4::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
+        auto R = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
+        auto C_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+        EXPECT_EQ(check_dynamic_lstm(lstm), true);
+    }
+
+    {
+        //  batch from x, hidden from h_t
+        auto X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
+        auto W = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto R = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{-1, hidden_size});
+        auto C_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+        auto lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+        EXPECT_EQ(check_dynamic_lstm(lstm), true);
+    }
 }
