@@ -184,6 +184,7 @@ def main():
 
         plugin_config['GNA_DEVICE_MODE'] = gna_device_mode
         plugin_config['GNA_PRECISION'] = f'I{args.quantization_bits}'
+        plugin_config['GNA_EXEC_TARGET'] = args.exec_target
 
         # Set a GNA scale factor
         if args.import_gna_model:

@@ -163,25 +163,10 @@ void MKLDNNGenericNode::execLayer() {
 
     // TODO: use ngraph-based extension mechnism if needed to recompute shape
     isDynBatch = false;
-    // TODO: uncomment after using ngraph-based extension mechnism
-    // if (isDynBatch) {
-    //     for (size_t i = 0; i < inputs.size(); i++) {
-    //         auto td = inputs[i]->getTensorDesc();
-    //         td.setDims(inputDescs[i].getDims());
-    //         inputs[i] = make_blob_with_precision(td, getParentEdgeAt(i)->getMemory().GetData());
-    //     }
-    // }
 
     std::vector<InferenceEngine::Blob::Ptr> outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        if (isDynBatch) {
-            auto out_edge = getChildEdgesAtPort(i)[0];
-            auto td = MemoryDescUtils::convertToTensorDesc(out_edge->getMemory().getDesc());
-            td.setDims(execOutputShapes[i]);
-            outputs.push_back(make_blob_with_precision(td, out_edge->getMemory().GetData()));
-        } else {
-            outputs.push_back(MemoryDescUtils::interpretAsBlob(getChildEdgesAtPort(i)[0]->getMemory()));
-        }
+        outputs.push_back(MemoryDescUtils::interpretAsBlob(getChildEdgesAtPort(i)[0]->getMemory()));
     }
     InferenceEngine::ResponseDesc resp;
     InferenceEngine::StatusCode rc = impls[0]->execute(inputs, outputs, &resp);

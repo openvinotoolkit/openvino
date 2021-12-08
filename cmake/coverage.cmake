@@ -72,10 +72,10 @@ if (ENABLE_INTEL_GPU)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-if(ENABLE_GNA)
-    ie_coverage_extract(INPUT "openvino" OUTPUT "gna_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/gna_plugin/*")
-    ie_coverage_genhtml(INFO_FILE "gna_plugin"
+if(ENABLE_INTEL_GNA)
+    ie_coverage_extract(INPUT "openvino" OUTPUT "ov_intel_gna_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gna/*")
+    ie_coverage_genhtml(INFO_FILE "ov_intel_gna_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
@@ -84,7 +84,7 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "core"
 ie_coverage_genhtml(INFO_FILE "core"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     ie_coverage_extract(INPUT "openvino" OUTPUT "onnx"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*"
         "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*")

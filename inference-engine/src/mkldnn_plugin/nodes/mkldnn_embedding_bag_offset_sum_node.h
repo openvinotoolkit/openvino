@@ -39,8 +39,8 @@ private:
     const int* offsetsData_ = nullptr;
     const int* defaultIndices_ = nullptr;
 
-    size_t _indicesLen;
-    size_t _offsetsLen;
+    size_t _indicesLen = 0;
+    size_t _offsetsLen = 0;
 };
 
 }  // namespace MKLDNNPlugin
