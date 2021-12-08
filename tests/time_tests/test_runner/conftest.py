@@ -43,7 +43,7 @@ def pytest_addoption(parser):
     test_args_parser.addoption(
         "--test_conf",
         type=Path,
-        help="path to a test config",
+        help="Path to a test config",
         default=Path(__file__).parent / "test_config.yml"
     )
     test_args_parser.addoption(
@@ -51,20 +51,38 @@ def pytest_addoption(parser):
         required=True,
         dest="executable",
         type=Path,
-        help="path to a timetest binary to execute"
+        help="Path to a timetest binary to execute"
     )
     test_args_parser.addoption(
         "--niter",
         type=check_positive_int,
-        help="number of iterations to run executable and aggregate results",
+        help="Number of iterations to run executable and aggregate results",
         default=3
+    )
+    test_args_parser.addoption(
+        "--cpu_cache",
+        action='store_true',
+        help="Enable model CPU cache usage",
+    )
+    test_args_parser.addoption(
+        "--perf_hint",
+        choices=['LATENCY', 'THROUGHPUT'],
+        default='LATENCY',
+        type=str,
+        help='Enables performance hint for specified device. Default hint is LATENCY'
+    )
+    test_args_parser.addoption(
+        "--vpu_compiler",
+        choices=["MCM", "MLIR"],
+        type=str,
+        help="Change VPUX compiler type",
     )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
         '--db_submit',
         metavar="RUN_ID",
         type=str,
-        help='submit results to the database. ' \
+        help='Submit results to the database. ' \
              '`RUN_ID` should be a string uniquely identifying the run' \
              ' (like Jenkins URL or time)'
     )
@@ -79,19 +97,21 @@ def pytest_addoption(parser):
         '--db_collection',
         type=str,
         required=is_db_used,
-        help='collection name in database',
+        help='Collection name in database',
         choices=DB_COLLECTIONS
     )
     db_args_parser.addoption(
         '--db_metadata',
         type=str,
         default=None,
-        help='path to JSON-formatted file to extract additional information')
+        help='Path to JSON-formatted file to extract additional information'
+    )
     db_args_parser.addoption(
         '--manifest',
         type=Path,
         required=is_db_used,
-        help='path to build manifest to extract commit information')
+        help='Path to build manifest to extract commit information'
+    )
 
 
 @pytest.fixture(scope="session")
@@ -112,7 +132,25 @@ def niter(request):
     return request.config.getoption('niter')
 
 
+@pytest.fixture(scope="session")
+def cpu_cache(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('cpu_cache')
+
+
+@pytest.fixture(scope="session")
+def perf_hint(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('perf_hint')
+
+
+@pytest.fixture(scope="session")
+def vpu_compiler(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('vpu_compiler')
+
 # -------------------- CLI options --------------------
+
 
 @pytest.fixture(scope="function")
 def temp_dir(pytestconfig):
