@@ -124,7 +124,7 @@ public:
      * all jobs are finished.
      *
      * @note Call should be at the end of every AsyncInferQueue's "work scope". After wait_all()
-     * user is free to interact with all jobs (InferRequest objects) from pool.
+     * user is free to interact with all jobs (InferRequest objects) from the pool.
      */
     void wait_all();
 
@@ -144,7 +144,8 @@ public:
      * to pass underlaying request's object back to the user (for example: to get output tensors),
      * as well as providing additional data passing to the callback function.
      *
-     * It is NOT recommended to start another inference inside callback! (dodać o problemach itp)
+     * It is NOT recommended to start another inference inside callback! 
+     * This can lead to worse performance or break execution if not synchronized correctly.
      */
     void set_callback(std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback);
 
@@ -158,7 +159,8 @@ public:
      * to pass underlaying request's object back to the user (for example: to get output tensors),
      * as well as providing additional data passing to the callback function.
      *
-     * It is NOT recommended to start another inference inside callback! (dodać o problemach itp)
+     * It is NOT recommended to start another inference inside callback!
+     * This can lead to worse performance or break execution if not synchronized correctly.
      */
     void set_job_callback(size_t handle,
                           std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback);
@@ -181,7 +183,7 @@ public:
 
 private:
     class Impl;
-    std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;  // = nullptr;
+    std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
 };
 
 }  // namespace runtime
