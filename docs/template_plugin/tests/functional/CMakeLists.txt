@@ -5,7 +5,6 @@
 # [cmake:functional_tests]
 set(TARGET_NAME templateFuncTests)
 
-add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -35,5 +34,8 @@ if(OpenCV_FOUND)
 else()
     message("-- Reference preprocessing: OpenCV tests are disabled")
 endif()
+
+add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
+add_dependencies(${TARGET_NAME} test_model_zoo)
 
 # [cmake:functional_tests]
