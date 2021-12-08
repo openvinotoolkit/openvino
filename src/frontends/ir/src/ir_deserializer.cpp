@@ -705,7 +705,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
         }
         const auto aw_data = dn.attribute("alt_width");
         if (aw_data) {
-            rtInfo["alt_width"] = std::make_shared<::ngraph::VariantWrapper<std::string>>(aw_data.value());
+            rtInfo["alt_width"] = aw_data.value();
         }
     }
 

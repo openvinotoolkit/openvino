@@ -59,9 +59,9 @@ TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
     bool assign_node_found;
     for (auto &node : exec_ops) {
         auto var = node->get_rt_info()["layerType"];
-        auto s_val = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(var);
+        auto s_val = var.as<std::string>();
 
-        if (s_val->get() == "MemoryOutput") {
+        if (s_val == "MemoryOutput") {
             assign_node_found = true;
             break;
         }
