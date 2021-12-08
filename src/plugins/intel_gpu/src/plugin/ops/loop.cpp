@@ -15,11 +15,11 @@
 #include "transformations/utils/utils.hpp"
 #include "ie_ngraph_utils.hpp"
 
-#include "cldnn/primitives/loop.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/graph/topology.hpp"
+#include "intel_gpu/primitives/loop.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/graph/topology.hpp"
 
 #include <vector>
 #include <algorithm>

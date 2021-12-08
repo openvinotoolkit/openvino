@@ -8,7 +8,7 @@
 #include "ngraph/op/mvn.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/mvn.hpp"
+#include "intel_gpu/primitives/mvn.hpp"
 
 #include <algorithm>
 

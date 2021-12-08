@@ -13,30 +13,20 @@ class MultiBoxDetectionOutputExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        # We can not get num_classes attribute from the operation, so it must be set to None.
-        # In this case num_classes attribute will be defined in the infer function in
-        # mo/front/common/partial_infer/multi_box_detection.py
-        num_classes = None
         top_k = attrs.int("nms_topk", -1)
-        keep_top_k = top_k
-        variance_encoded_in_target = 0
-        code_type = "caffe.PriorBoxParameter.CENTER_SIZE"
-        share_location = 1
         nms_threshold = attrs.float("nms_threshold", 0.5)
         confidence_threshold = attrs.float("threshold", 0.01)
-        background_label_id = 0
         clip = 0 if not attrs.bool("clip", True) else 1
 
         node_attrs = {
             'type': 'DetectionOutput',
             'op': __class__.op,
-            'num_classes': num_classes,
-            'keep_top_k': keep_top_k,
-            'variance_encoded_in_target': variance_encoded_in_target,
-            'code_type': code_type,
-            'share_location': share_location,
+            'keep_top_k': top_k,
+            'variance_encoded_in_target': 0,
+            'code_type': "caffe.PriorBoxParameter.CENTER_SIZE",
+            'share_location': 1,
             'confidence_threshold': confidence_threshold,
-            'background_label_id': background_label_id,
+            'background_label_id': 0,
             'nms_threshold': nms_threshold,
             'top_k': top_k,
             'decrease_label_id': 1,
