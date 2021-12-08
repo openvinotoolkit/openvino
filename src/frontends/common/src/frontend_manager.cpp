@@ -390,6 +390,10 @@ void InputModel::set_tensor_partial_value(Place::Ptr place, const void* min_valu
     FRONT_END_NOT_IMPLEMENTED(set_tensor_partial_value);
 }
 
+void InputModel::serialize(const std::string& path) const {
+    FRONT_END_NOT_IMPLEMENTED(serialize);
+}
+
 //----------- Place ---------------------------
 std::vector<std::string> Place::get_names() const {
     FRONT_END_NOT_IMPLEMENTED(get_names);

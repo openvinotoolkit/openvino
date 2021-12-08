@@ -361,4 +361,15 @@ void regclass_frontend_InputModel(py::module m) {
                 type : ngraph.Type
                     New element type.
             )");
+    im.def("serialize",
+           &ov::frontend::InputModel::serialize,
+           py::arg("path"),
+           R"(
+                Serialize framework model to original format.
+
+                Parameters
+                ----------
+                path : str
+                    A path where the model will be saved.
+            )");
 }

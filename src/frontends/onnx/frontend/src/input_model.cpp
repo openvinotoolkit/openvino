@@ -226,3 +226,7 @@ void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, con
     }
     m_editor->cut_graph_fragment(onnx_inputs, onnx_outputs);
 }
+
+void InputModelONNX::serialize(const std::string& path) const {
+    m_editor->serialize(path);
+}

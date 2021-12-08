@@ -59,6 +59,8 @@ public:
     void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
 
+    void serialize(const std::string& path) const override;
+
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
 };

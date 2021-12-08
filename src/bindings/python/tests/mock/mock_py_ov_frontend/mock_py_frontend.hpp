@@ -539,6 +539,10 @@ public:
         m_stat.m_lastArgInputPlaces = inputs;
     }
 
+    void serialize(const std::string& path) const override {
+        // TODO
+    }
+
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override {
         m_stat.m_extract_subgraph++;
         m_stat.m_lastArgInputPlaces = inputs;
