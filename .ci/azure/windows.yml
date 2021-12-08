@@ -136,7 +136,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
-  - script: dir $(BUILD_DIR)\temp\ /s
+  - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
 
   - script: |
@@ -163,7 +163,7 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Install Samples Tests'
 
-  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(BUILD_DIR)\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
+  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(REPO_DIR)\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
