@@ -8,20 +8,38 @@
 #include <string>
 
 #include "openvino/core/any.hpp"  // used for ov::RTMap
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 class Node;
 }
 namespace ngraph {
 using ov::Node;
-using ov::VariantTypeInfo;
+using VariantTypeInfo = ov::DiscreteTypeInfo;
 
-using ov::Variant;
-using ov::VariantImpl;
-using ov::VariantWrapper;
+using Variant = ov::RuntimeAttribute;
+template <typename T>
+using VariantImpl = ov::RuntimeAttributeImpl<T>;
 
-using ov::make_variant;
+template <typename T>
+using VariantWrapper = ov::RuntimeAttributeWrapper<T>;
+
+template <typename T>
+inline std::shared_ptr<Variant> make_variant(const T& p) {
+    return ov::make_runtime_attribute(p);
+}
+
+template <size_t N>
+inline std::shared_ptr<Variant> make_variant(const char (&s)[N]) {
+    return ov::make_runtime_attribute(s);
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+template <size_t N>
+inline std::shared_ptr<Variant> make_variant(const wchar_t (&s)[N]) {
+    return ov::make_runtime_attribute(s);
+}
+#endif
 
 using ov::RTMap;
 }  // namespace ngraph

@@ -22,8 +22,10 @@ if sys.platform == "win32":
     # add the location of openvino dlls to your system PATH.
     #
     # looking for the libs in the pip installation path by default.
-    openvino_libs = [os.path.join(os.path.dirname(__file__), "..", "..", ".."),
-                     os.path.join(os.path.dirname(__file__), "..", "..", "openvino", "libs")]
+    openvino_libs = [
+        os.path.join(os.path.dirname(__file__), "..", "..", ".."),
+        os.path.join(os.path.dirname(__file__), "..", "..", "openvino", "libs"),
+    ]
     # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
     openvino_libs_installer = os.getenv("OPENVINO_LIB_PATHS")
     if openvino_libs_installer:
@@ -35,7 +37,9 @@ if sys.platform == "win32":
             if (3, 8) <= sys.version_info:
                 os.add_dll_directory(os.path.abspath(lib_path))
             else:
-                os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
+                os.environ["PATH"] = (
+                    os.path.abspath(lib_path) + ";" + os.environ["PATH"]
+                )
 
 
 # Openvino pybind bindings and python extended classes
@@ -44,11 +48,13 @@ from openvino.runtime.impl import Function
 from openvino.runtime.impl import Node
 from openvino.runtime.impl import PartialShape
 from openvino.runtime.impl import Layout
+from openvino.runtime.impl import layout_helpers
 
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import ExecutableNetwork
 from openvino.runtime.ie_api import InferRequest
 from openvino.runtime.ie_api import AsyncInferQueue
+from openvino.runtime.ie_api import Variant
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import Tensor

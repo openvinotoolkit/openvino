@@ -34,9 +34,6 @@ Inference Engine sample applications include the following:
 - **nGraph Function Creation Sample** – Construction of the LeNet network using the nGraph function creation sample.
    - [nGraph Function Creation C++ Sample](../../samples/cpp/ngraph_function_creation_sample/README.md)
    - [nGraph Function Creation Python Sample](../../samples/python/ngraph_function_creation_sample/README.md)
-- **Object Detection for SSD Sample** – Inference of object detection networks based on the SSD, this sample is simplified version that supports only images as inputs.
-   - [Object Detection SSD C++ Sample](../../samples/cpp/object_detection_sample_ssd/README.md)
-   - [Object Detection SSD C Sample](../../samples/c/object_detection_sample_ssd/README.md)
  
 > **NOTE**: All C++ samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
 
