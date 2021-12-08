@@ -4,14 +4,15 @@
 
 #include <common/extensions/decoder_transformation_extension.hpp>
 #include <openvino/pass/manager.hpp>
+
 #include "gtest/gtest.h"
 
 using namespace ov::frontend;
 
 TEST(DecoderTransformation, MatcherPass) {
     bool flag = false;
-    DecoderTransformationExtension decoder_ext([&](ov::pass::MatcherPass* matcher){
-       flag = true;
+    DecoderTransformationExtension decoder_ext([&](ov::pass::MatcherPass* matcher) {
+        flag = true;
     });
 
     ov::pass::Manager manager;
@@ -22,7 +23,7 @@ TEST(DecoderTransformation, MatcherPass) {
 
 TEST(DecoderTransformation, FunctionPass) {
     bool flag = false;
-    DecoderTransformationExtension decoder_ext([&](const std::shared_ptr<ov::Function>&){
+    DecoderTransformationExtension decoder_ext([&](const std::shared_ptr<ov::Function>&) {
         flag = true;
         return flag;
     });
@@ -34,7 +35,7 @@ TEST(DecoderTransformation, FunctionPass) {
 }
 
 TEST(DecoderTransformation, TestPass) {
-    class TestPass :  public ov::pass::FunctionPass {
+    class TestPass : public ov::pass::FunctionPass {
     public:
         OPENVINO_RTTI("ov::pass::TestPass");
         TestPass() = default;

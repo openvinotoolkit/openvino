@@ -7,10 +7,10 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "common/extensions/telemetry_extension.hpp"
 #include "common/extensions/decoder_transformation_extension.hpp"
 #include "common/extensions/json_config_extension.hpp"
+#include "common/extensions/telemetry_extension.hpp"
+#include "common/frontend_exceptions.hpp"
 #include "manager.hpp"
 #include "pyopenvino/graph/function.hpp"
 
@@ -177,9 +177,8 @@ void regclass_frontend_TransformationDecoderExtension(py::module m) {
 
 void regclass_frontend_JsonConfigExtension(py::module m) {
     {
-        py::class_<ov::frontend::JsonConfigExtension,
-                std::shared_ptr<ov::frontend::JsonConfigExtension>,
-                ov::Extension> ext(m, "JsonConfigExtension", py::dynamic_attr());
+        py::class_<ov::frontend::JsonConfigExtension, std::shared_ptr<ov::frontend::JsonConfigExtension>, ov::Extension>
+            ext(m, "JsonConfigExtension", py::dynamic_attr());
 
         ext.doc() = "Extension class to load and process ModelOptimizer JSON config file";
 

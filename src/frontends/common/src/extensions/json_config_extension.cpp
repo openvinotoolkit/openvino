@@ -3,6 +3,7 @@
 //
 
 #include "common/extensions/json_config_extension.hpp"
+
 #include "common/extensions/decoder_transformation_extension.hpp"
 #include "common/extensions/json_schema.hpp"
 #include "common/extensions/json_transformation_extension.hpp"
