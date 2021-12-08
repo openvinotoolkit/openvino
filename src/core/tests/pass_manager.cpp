@@ -17,6 +17,8 @@
 using namespace ngraph;
 using namespace std;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(pass_manager, add) {
     pass::Manager pass_manager;
 

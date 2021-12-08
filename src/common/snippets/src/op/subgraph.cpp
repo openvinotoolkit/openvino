@@ -211,7 +211,7 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     opt.run_passes(m_body);
 
     // generation flow
-    snippets::pass::AssignRegisters().run_on_function(m_body);
+    snippets::pass::AssignRegisters().run_on_model(m_body);
 
     // shedule generation should go here and be target agnostic
 

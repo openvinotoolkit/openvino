@@ -16,7 +16,7 @@ bool ov::pass::ConvertPrecisionCompressedOnly::run_on_model(const std::shared_pt
     if (ngraph::op::util::has_decompression_converts(f)) {
         const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
         auto convert_precision = ngraph::pass::ConvertPrecision(convert_precision_list);
-        return convert_precision.run_on_function(f);
+        return convert_precision.run_on_model(f);
     }
     return false;
 }

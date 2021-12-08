@@ -41,12 +41,12 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
 }
 
 void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ngraph::Function>& function) {
-    run_on_function(function);
+    run_on_model(function);
 }
 
-bool SimpleLowPrecisionTransformer::run_on_function(std::shared_ptr<ngraph::Function> function) {
+bool SimpleLowPrecisionTransformer::run_on_model(const std::shared_ptr<ngraph::Function>& function) {
     ngraph::pass::low_precision::TypeRelaxedReplacer pass;
-    pass.run_on_function(function);
+    pass.run_on_model(function);
 
     markup->run_passes(function);
     common->run_passes(function);
