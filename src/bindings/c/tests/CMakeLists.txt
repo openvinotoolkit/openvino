@@ -22,8 +22,8 @@ target_compile_definitions(${TARGET_NAME}
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\" )
 
-if(ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} ov_auto_plugin)
 endif()
 
 if(ENABLE_MKL_DNN)

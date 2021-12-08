@@ -88,6 +88,8 @@ from ngraph.opset8 import hswish
 from ngraph.opset8 import idft
 from ngraph.opset8 import if_op
 from ngraph.opset8 import interpolate
+from ngraph.opset8 import i420_to_bgr
+from ngraph.opset8 import i420_to_rgb
 from ngraph.opset8 import less
 from ngraph.opset8 import less_equal
 from ngraph.opset8 import log
@@ -115,6 +117,8 @@ from ngraph.opset8 import non_max_suppression
 from ngraph.opset8 import non_zero
 from ngraph.opset8 import normalize_l2
 from ngraph.opset8 import not_equal
+from ngraph.opset8 import nv12_to_bgr
+from ngraph.opset8 import nv12_to_rgb
 from ngraph.opset8 import one_hot
 from ngraph.opset8 import pad
 from ngraph.opset8 import parameter

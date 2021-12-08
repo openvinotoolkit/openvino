@@ -35,55 +35,52 @@ void FusedNames::fuseWith(const FusedNames& names) {
 }
 
 std::string ngraph::getFusedNames(const std::shared_ptr<ngraph::Node>& node) {
-    const auto& rtInfo = node->get_rt_info();
-    using FusedNamesWrapper = VariantWrapper<FusedNames>;
-
-    if (!rtInfo.count(FusedNamesWrapper::get_type_info_static()))
-        return {};
-
-    const auto& attr = rtInfo.at(FusedNamesWrapper::get_type_info_static());
-    FusedNames fusedNames = ov::as_type_ptr<FusedNamesWrapper>(attr)->get();
-    return fusedNames.getNames();
+    if (node) {
+        const auto& rtInfo = node->get_rt_info();
+        auto it_info = rtInfo.find(FusedNames::get_type_info_static());
+        if (it_info != rtInfo.end()) {
+            return it_info->second.as<FusedNames>().getNames();
+        } else {
+            return {};
+        }
+    }
+    return {};
 }
 
 std::vector<std::string> ngraph::getFusedNamesVector(const std::shared_ptr<ngraph::Node>& node) {
-    if (!node)
-        return {};
-
-    const auto& rtInfo = node->get_rt_info();
-    using FusedNamesWrapper = VariantWrapper<FusedNames>;
-
-    if (!rtInfo.count(FusedNamesWrapper::get_type_info_static()))
-        return {};
-
-    const auto& attr = rtInfo.at(FusedNamesWrapper::get_type_info_static());
-    FusedNames fusedNames = ov::as_type_ptr<FusedNamesWrapper>(attr)->get();
-    return fusedNames.getVectorNames();
+    if (node) {
+        const auto& rtInfo = node->get_rt_info();
+        auto it_info = rtInfo.find(FusedNames::get_type_info_static());
+        if (it_info != rtInfo.end()) {
+            return it_info->second.as<FusedNames>().getVectorNames();
+        } else {
+            return {};
+        }
+    }
+    return {};
 }
 
-template class ov::VariantImpl<FusedNames>;
-
-Any VariantWrapper<FusedNames>::merge(const ngraph::NodeVector& nodes) {
+Any FusedNames::merge(const ngraph::NodeVector& nodes) const {
     FusedNames mergedNames;
     for (auto& node : nodes) {
         const auto& rtInfo = node->get_rt_info();
-
-        if (!rtInfo.count(VariantWrapper<FusedNames>::get_type_info_static()))
-            continue;
-
-        const auto attr = rtInfo.at(VariantWrapper<FusedNames>::get_type_info_static());
-        if (auto fusedNames = std::dynamic_pointer_cast<VariantWrapper<FusedNames>>(attr)) {
-            mergedNames.fuseWith(fusedNames->get());
+        auto it_info = rtInfo.find(FusedNames::get_type_info_static());
+        if (it_info != rtInfo.end()) {
+            mergedNames.fuseWith(it_info->second.as<FusedNames>());
         }
     }
-    return std::make_shared<VariantWrapper<FusedNames>>(mergedNames);
+    return mergedNames;
 }
 
-Any VariantWrapper<FusedNames>::init(const std::shared_ptr<ngraph::Node>& node) {
-    return std::make_shared<VariantWrapper<FusedNames>>(FusedNames(node->get_friendly_name()));
+Any FusedNames::init(const std::shared_ptr<ngraph::Node>& node) const {
+    return FusedNames{node->get_friendly_name()};
 }
 
-bool VariantWrapper<FusedNames>::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("value", m_value.fused_names);
+bool FusedNames::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("value", fused_names);
     return true;
+}
+
+std::string FusedNames::to_string() const {
+    return getNames();
 }
