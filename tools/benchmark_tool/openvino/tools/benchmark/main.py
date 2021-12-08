@@ -5,6 +5,8 @@ import os
 import sys
 from datetime import datetime
 
+from openvino.runtime import Dimension
+
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
@@ -15,8 +17,8 @@ from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, pre_post_processing, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
-    print_inputs_and_outputs_info, get_batch_size, load_config, dump_config, get_latency_groups, \
-    check_for_static
+    print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
+    check_for_static, can_measure_as_static
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
@@ -225,9 +227,7 @@ def run(args):
                                               ('load network time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_model().get_parameters())
-            batch_size = get_batch_size(app_inputs_info)
-            if batch_size.is_dynamic and benchmark.api_type == 'sync':
-                raise Exception("Dynamic batch size is supported only in async mode")
+            batch_size = get_network_batch_size(app_inputs_info)
         elif not is_network_compiled:
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
             next_step()
@@ -262,10 +262,7 @@ def run(args):
                                               ])
 
             # use batch size according to provided layout and shapes
-            batch_size = get_batch_size(app_inputs_info)
-            if batch_size.is_dynamic and benchmark.api_type == 'sync':
-                raise Exception("Dynamic batch size is supported only in async mode")
-
+            batch_size = get_network_batch_size(app_inputs_info)
             logger.info(f'Network batch size: {batch_size}')
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
@@ -307,10 +304,7 @@ def run(args):
                                               ('import network time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_model().get_parameters())
-            batch_size = get_batch_size(app_inputs_info)
-            if batch_size.is_dynamic and benchmark.api_type == 'sync':
-                raise Exception("Dynamic batch size is supported only in async mode")
-
+            batch_size = get_network_batch_size(app_inputs_info)
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
@@ -353,7 +347,8 @@ def run(args):
         data_queue = get_input_data(paths_to_input, app_inputs_info)
 
         static_mode = check_for_static(app_inputs_info)
-        if not static_mode and benchmark.api_type == 'sync':
+        allow_inference_only_or_sync = can_measure_as_static(app_inputs_info)
+        if not allow_inference_only_or_sync and benchmark.api_type == 'sync':
             raise Exception("Benchmarking of the model with dynamic shapes is available for async API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior.")
 
@@ -362,8 +357,12 @@ def run(args):
                 benchmark.inference_only = True
             else:
                 benchmark.inference_only = False
-        elif benchmark.inference_only and not static_mode:
+        elif benchmark.inference_only and not allow_inference_only_or_sync:
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
+
+        # update batch size in case dynamic network with one data_shape
+        if benchmark.inference_only and batch_size.is_dynamic:
+            batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
 
         benchmark.latency_groups = get_latency_groups(app_inputs_info)
 
