@@ -3,6 +3,8 @@
 
 import unittest
 from unittest.mock import Mock
+from unittest.mock import patch
+import unittest.mock as mock
 
 from mo.main import prepare_ir
 from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
@@ -12,6 +14,7 @@ import os
 import onnx
 from generator import generator, generate
 from mo.ops.op import Op
+from mo.utils.class_registration import _update
 from extensions.ops.activation_ops import Elu
 
 try:
@@ -105,33 +108,40 @@ class TestMoFallback(unittest.TestCase):
                 (None, False, True, 'onnx_frontend'),
     ])
     def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, expected_path):
-        args = base_args_config()
-        args.extensions = extension
-        args.use_legacy_frontend = use_legacy
-        args.use_new_frontend = use_new_fe
-        args.input_model = "test_model.onnx"
+        # fix problem with incorrect extractors loading from UT
+        with patch('mo.utils.class_registration._update') as update_mock:
+            update_mock.return_value=None
+            args = base_args_config()
+            args.extensions = extension
+            args.use_legacy_frontend = use_legacy
+            args.use_new_frontend = use_new_fe
+            args.input_model = "test_model.onnx"
 
-        prepare_ir(args)
-        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+            prepare_ir(args)
+            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+
 
     @generate(*[('config.json', False, True, 'mo_legacy'),
                 ('config.json', True, False, 'mo_legacy'),
                 (None, False, True, 'onnx_frontend'),
     ])
     def test_fallback_if_tranformation_config_specified(self, trans_config, use_legacy, use_new_fe, expected_path):
-        args = base_args_config()
-        args.use_legacy_frontend = use_legacy
-        args.use_new_frontend = use_new_fe
-        args.input_model = "test_model.onnx"
-        if trans_config is not None: # trans config provided
-            with open(trans_config, 'w') as f:
-                f.write("[]") # json format
-            args.transformations_config = os.path.abspath(trans_config)
-        else:
-            args.transformations_config = trans_config
+        # fix problem with incorrect extractors loading from UT
+        with patch('mo.utils.class_registration._update') as update_mock:
+            update_mock.return_value=None
+            args = base_args_config()
+            args.use_legacy_frontend = use_legacy
+            args.use_new_frontend = use_new_fe
+            args.input_model = "test_model.onnx"
+            if trans_config is not None: # trans config provided
+                with open(trans_config, 'w') as f:
+                    f.write("[]") # json format
+                args.transformations_config = os.path.abspath(trans_config)
+            else:
+                args.transformations_config = trans_config
 
-        prepare_ir(args)
-        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+            prepare_ir(args)
+            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
 
         if args.transformations_config is not None:
             os.remove(args.transformations_config) # clean-up
@@ -165,16 +175,17 @@ class TestMoFallback(unittest.TestCase):
                 (False, False, 'mo_legacy'),
     ])
     def test_fallback_if_frontend_path_failed(self, use_new_fe, use_legacy, expected_path):
-        args = base_args_config()
-        args.use_legacy_frontend = True
-        args.extensions='ext_path'
-        args.use_new_frontend = False
-        args.input_model = "fake_elu.onnx"
-        # FakeElu is supported only by legacy path
-        Op.registered_ops['FakeElu'] = Elu
+        # fix problem with incorrect extractors loading from UT
+        with patch('mo.utils.class_registration._update') as update_mock:
+            update_mock.return_value=None
+            args = base_args_config()
+            args.use_legacy_frontend = use_legacy
+            args.extensions='ext_path'
+            args.use_new_frontend = use_new_fe
+            args.input_model = "fake_elu.onnx"
+            # FakeElu is supported only by legacy path
+            Op.registered_ops['FakeElu'] = Elu
 
-        graph, ng_func = prepare_ir(args)
+            graph, ng_func = prepare_ir(args)
 
-        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
-        assert graph
-        assert not ng_func
+            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
