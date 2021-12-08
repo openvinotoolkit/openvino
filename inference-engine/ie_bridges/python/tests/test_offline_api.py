@@ -16,8 +16,8 @@ def get_test_cnnnetwork():
     param = ops.parameter(Shape([1, 3, 22, 22]))
     param.get_output_tensor(0).set_names({'parameter'})
     relu = ops.relu(param)
-    res = ops.result(relu, name='result')
-    res.get_output_tensor(0).set_names({'res1', 'res1a'})
+    res = ops.result(relu)
+    res.get_output_tensor(0).set_names({'result'})
     func = Function([res], [param], 'test')
     caps = Function.to_capsule(func)
 
