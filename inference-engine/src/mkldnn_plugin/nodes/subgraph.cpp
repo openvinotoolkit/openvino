@@ -36,7 +36,18 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common) ?
         dnnl::impl::cpu::x64::avx512_common : dnnl::impl::cpu::x64::avx2;
 
-    if ((snippet = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(op))) {
+    // Create a deep local copy of the input snippet to perform canonicalization & code generation
+    // Todo: Probably better to implement a proper copy constructor
+    if (const auto tmp_snippet =  ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op)) {
+        ngraph::OutputVector subgraph_node_inputs;
+        for (const auto &input : tmp_snippet->input_values()) {
+            auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+            subgraph_node_inputs.push_back(new_input);
+        }
+        auto new_body = ngraph::clone_function(*tmp_snippet->get_body().get());
+        snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
+        ngraph::copy_runtime_info(tmp_snippet, snippet);
+        snippet->set_friendly_name(tmp_snippet->get_friendly_name());
         snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
     } else {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
