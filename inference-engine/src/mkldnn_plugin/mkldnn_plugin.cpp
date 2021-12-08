@@ -43,6 +43,7 @@
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_upgrade.hpp>
+#include <transformations/op_conversions/detection_output_upgrade.hpp>
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
@@ -379,6 +380,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
     pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
+    pass_config->enable<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
 
     if (useLpt) {
         pass_config->set_callback<ngraph::pass::AddFakeQuantizeFusion,
