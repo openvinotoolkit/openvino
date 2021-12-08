@@ -72,8 +72,8 @@ if [ -f "$INTEL_OPENVINO_DIR/extras/dl_streamer/setupvars.sh" ]; then
     source "$INTEL_OPENVINO_DIR/extras/dl_streamer/setupvars.sh"
 fi
 
-export PATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PATH:+:$PATH}"
-export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
+export PATH="$INTEL_OPENVINO_DIR/tools/mo${PATH:+:$PATH}"
+export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/mo${PYTHONPATH:+:$PYTHONPATH}"
 
 if [ -e "$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit" ]; then
     export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit:$PYTHONPATH"

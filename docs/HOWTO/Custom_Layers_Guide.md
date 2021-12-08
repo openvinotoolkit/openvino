@@ -137,7 +137,7 @@ and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Conver
 for more details and command line parameters used for the model conversion.
 
 ```bash
-./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
+mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
 ```
 > **NOTE:** This conversion guide is applicable for the 2021.3 release of OpenVINO and that starting from 2021.4
 > the OpenVINO supports this model out of the box.
@@ -258,7 +258,7 @@ The implementation should be saved to the file `mo_extensions/front/tf/ComplexAb
 
 Now it is possible to convert the model using the following command line:
 ```bash
-./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
+mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
 ```
 
 The sub-graph corresponding to the originally non-supported one is depicted in the image below:
@@ -322,7 +322,7 @@ The result of this command is a compiled shared library (`.so` or `.dll`). It sh
 application using `Core` class instance method `AddExtension` like this
 `core.AddExtension(std::make_shared<Extension>(compiled_library_file_name), "CPU");`.
 
-To test that the extension is implemented correctly we can run the "mri_reconstruction_demo.py" with the following content:
+To test that the extension is implemented correctly we can run the "mri_reconstruction_demo" with the following content:
 
 @snippet mri_reconstruction_demo.py mri_demo:demo
 

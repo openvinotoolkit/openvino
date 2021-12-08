@@ -27,5 +27,5 @@ The script generates the ONNX\* model file RCAN.onnx. You can find more informat
 ## Convert ONNX* RCAN Model to IR
 
 ```sh
-./mo.py --input_model RCAN.onnx
+mo --input_model RCAN.onnx
 ```

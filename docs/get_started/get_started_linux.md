@@ -279,7 +279,7 @@ The `squeezenet1.1` model is downloaded in the Caffe* format. You must use the M
    cd /opt/intel/openvino_2022/tools/model_optimizer
    ```
    ```sh  
-   python3 ./mo.py --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
+    mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
    ```
    The produced IR files are in the `<ir_dir>` directory.
 
@@ -292,7 +292,7 @@ The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP
    cd /opt/intel/openvino_2022/tools/model_optimizer
    ```
    ```sh  
-   python3 ./mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/models/public/squeezenet1.1/ir
+    mo --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/models/public/squeezenet1.1/ir
    ```
 
 After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `~/models/public/squeezenet1.1/ir` directory.

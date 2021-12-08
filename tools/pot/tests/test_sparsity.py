@@ -6,7 +6,7 @@ import os
 import numpy as np
 import pytest
 from addict import Dict
-from mo.utils.ir_reader.restore_graph import restore_graph_from_ir
+from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir
 
 from openvino.tools.pot.app.run import optimize
 from openvino.tools.pot import MagnitudeSparsity

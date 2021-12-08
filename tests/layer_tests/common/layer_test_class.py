@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer
-from mo.utils.ir_engine.ir_engine import IREngine
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 
 from common.utils.common_utils import generate_ir
 from common.utils.parsers import mapping_parser

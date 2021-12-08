@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from mo.graph.graph import Node
+from openvino.tools.mo.graph.graph import Node
 
 
 def get_node_inputs(node: Node):

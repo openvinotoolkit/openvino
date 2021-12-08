@@ -22,7 +22,7 @@ The original AOCR model contains data preprocessing which consists of the follow
 
 After that, the resized image is sent to the convolution neural network (CNN). The Model Optimizer does not support image decoding so you should cut of preprocessing part of the model using '--input' command line parameter. 
 ```sh
-python3 path/to/model_optimizer/mo_tf.py \
+mo \
 --input_model=model/path/frozen_graph.pb \
 --input="map/TensorArrayStack/TensorArrayGatherV3:0[1 32 86 1]" \
 --output "transpose_1,transpose_2" \

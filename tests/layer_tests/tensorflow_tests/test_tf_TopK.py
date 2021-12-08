@@ -5,7 +5,7 @@ import pytest
 
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-from mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.op import PermuteAttrs
 from unit_tests.utils.graph import build_graph
 from common.utils.tf_utils import permute_nchw_to_nhwc, permute_axis
 

@@ -63,7 +63,7 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/tests/functional/inference_engine/transformations/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 
 # MO:
-/model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
+/tools/mo/  @openvinotoolkit/openvino-mo-maintainers
 
 # nGraph:
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers

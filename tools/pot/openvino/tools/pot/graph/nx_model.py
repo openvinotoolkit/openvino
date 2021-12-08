@@ -5,7 +5,7 @@ import os
 from copy import deepcopy
 from addict import Dict
 import networkx as nx
-from mo.graph.graph import rename_node
+from openvino.tools.mo.graph.graph import rename_node
 
 from openvino.tools.pot.graph.graph_utils import load_graph, save_graph
 from openvino.tools.pot.graph import editor as ge
