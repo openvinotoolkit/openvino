@@ -576,8 +576,8 @@ void MKLDNNTensorIteratorNode::prepareDynamicBackEdges() {
         // need to reshape body inputs by output if body has internal dynamism
         const auto &currDesc = to_mem->getDesc();
         if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != from_mem->getStaticDims()) {
-            const auto memDesc = getBaseMemDescAtInputPort(map_rule.m_from)->cloneWithNewDims(from_mem->getStaticDims());
-            to_mem->redefineDesc(*memDesc);
+            const auto& memDesc = from_mem->getDesc();
+            to_mem->redefineDesc(memDesc);
         }
 
         m_back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));

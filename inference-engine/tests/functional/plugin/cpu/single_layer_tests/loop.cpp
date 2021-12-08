@@ -156,26 +156,30 @@ protected:
 
 class LoopWhileLayerCPUTest : public LoopLayerCPUTest {
 protected:
+    // body:
+    // while (i < 10)
+    //  x += 2
+    //  i += 2
+
     void SetUp() override {
         InputLayerType trip_count_type;
         int64_t trip_count;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
-        ElementType netType;
-        std::tie(trip_count_type, trip_count, shapes, types, netType) = this->GetParam();
+        std::tie(trip_count_type, trip_count, shapes, types, inType) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
         for (auto& target : targetStaticShapes)
             target.insert(target.begin(), ngraph::Shape{});
 
-        auto params = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
 
         // Body parameters
         const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
         ngraph::ParameterVector body_params = { std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ngraph::Shape{}) };
         for (const auto &pshape : body_params_shapes) {
-            auto paramNode = std::make_shared<ngraph::opset1::Parameter>(netType, pshape);
+            auto paramNode = std::make_shared<ngraph::opset1::Parameter>(inType, pshape);
             body_params.push_back(paramNode);
         }
 
@@ -185,26 +189,32 @@ protected:
         params.insert(params.begin(), trip_count_input);
 
         // Body
-        auto const_body_cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 5);
+        auto const_body_cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
         auto const_body_step = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
         auto less = std::make_shared<ngraph::opset5::Less>(body_params[0], const_body_cond);
         auto exec_idx = std::make_shared<ngraph::opset5::Add>(body_params[0], const_body_step);
 
-        const std::vector<int64_t> begin(inputDynamicShapes[0].rank().get_length(), 1);
-        const std::vector<int64_t> end(inputDynamicShapes[0].rank().get_length(), 0);
-        auto pad = ngraph::builder::makePad(body_params[1], begin, end, .0f, PadMode::CONSTANT);
+        auto node_const = std::make_shared<ngraph::opset5::Constant>(inType, ngraph::Shape{}, 2);
+        auto node = std::make_shared<ngraph::opset5::Add>(body_params[1], node_const);
 
-        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{less, exec_idx, pad}, body_params);
+        // reference ngraph function is resized by input static shapes in tests but
+        // loop with pad in body has difference input shape in each infer request so tests don't support it.
+        // Alternative - eltwise instead of pad
+        // const std::vector<int64_t> begin(inputDynamicShapes[0].rank().get_length(), 1);
+        // const std::vector<int64_t> end(inputDynamicShapes[0].rank().get_length(), 0);
+        // auto node = ngraph::builder::makePad(body_params[1], begin, end, .0f, PadMode::CONSTANT);
+
+        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{less, exec_idx, node}, body_params);
 
         auto loop = std::make_shared<ngraph::opset5::Loop>(params[0], exec_condition);
         loop->set_function(body);
         loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
         loop->set_merged_input(body_params[0], params[0], exec_idx);
-        loop->set_merged_input(body_params[1], params[1], pad);
+        loop->set_merged_input(body_params[1], params[1], node);
 
         auto out0 = loop->get_iter_value(exec_idx, -1);
-        auto out1 = loop->get_iter_value(pad, -1);
+        auto out1 = loop->get_iter_value(node, -1);
 
         auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
         auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
