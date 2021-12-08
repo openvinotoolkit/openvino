@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "ngraph/op/constant.hpp"
 
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static inline cldnn::scatter_elements_update::scatter_elements_update_axis GetScatterElementsUpdateAxis(int axis, unsigned rank) {
     if (axis < 0)
@@ -18,7 +20,7 @@ static inline cldnn::scatter_elements_update::scatter_elements_update_axis GetSc
     if (axis < 0 || axis >= rank)
         IE_THROW() << "ScatterElementsUpdate axis is not correspond to number of dimensions";
 
-    // Difference in dimension ordering between IE and clDNN,
+    // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     unsigned cldnn_axis = axis;
     if (axis >= 2) {
@@ -66,4 +68,6 @@ static void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngra
 
 REGISTER_FACTORY_IMPL(v3, ScatterElementsUpdate);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov
