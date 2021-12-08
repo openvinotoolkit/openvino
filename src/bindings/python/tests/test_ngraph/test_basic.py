@@ -12,7 +12,8 @@ import openvino.runtime as ov
 from openvino.pyopenvino import VariantInt, VariantString
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers, \
+    Strides, AxisVector, Coordinate, CoordinateDiff
 from openvino.runtime import Tensor
 from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.impl.op import Parameter
@@ -563,6 +564,41 @@ def test_node_version():
     assert node.get_version() == 1
     assert node.version == 1
 
+
+def test_strides_iteration_methods():
+    data = np.array([1, 2, 3])
+    strides = Strides(data)
+
+    assert len(strides) == data.size
+    assert np.equal([x for x in strides], data).all()
+    assert np.equal([strides[i] for i in range(data.size)], data).all()
+
+
+def test_axis_vector_iteration_methods():
+    data = np.array([1, 2, 3])
+    axisVector = AxisVector(data)
+
+    assert len(axisVector) == data.size
+    assert np.equal([x for x in axisVector], data).all()
+    assert np.equal([axisVector[i] for i in range(data.size)], data).all()
+
+
+def test_coordinate_iteration_methods():
+    data = np.array([1, 2, 3])
+    coordinate = Coordinate(data)
+
+    assert len(coordinate) == data.size
+    assert np.equal([x for x in coordinate], data).all()
+    assert np.equal([coordinate[i] for i in range(data.size)], data).all()
+
+
+def test_coordinate_diff_iteration_methods():
+    data = np.array([1, 2, 3])
+    coordinateDiff = CoordinateDiff(data)
+
+    assert len(coordinateDiff) == data.size
+    assert np.equal([x for x in coordinateDiff], data).all()
+    assert np.equal([coordinateDiff[i] for i in range(data.size)], data).all()
 
 def test_layout():
     layout = ov.Layout("NCWH")
