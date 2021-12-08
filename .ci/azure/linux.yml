@@ -345,7 +345,7 @@ jobs:
   - script: |
       . $(SETUPVARS)
       python3 -m pip install -r requirements.txt
-      export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
+      export MO_ROOT=$(INSTALL_DIR)/tools/mo
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
     workingDirectory: $(LAYER_TESTS_DIR)
