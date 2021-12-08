@@ -231,7 +231,9 @@ std::shared_ptr<Function> Graph::create_function() {
     auto function = std::make_shared<Function>(get_ng_outputs(), m_parameters, get_name());
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
-        function->get_output_op(i)->set_friendly_name(onnx_outputs.Get(i).name());
+        // the suffix makes the Result's name unique in case the nodes in the model don't have a name
+        const auto suffix = "/sink_port_" + std::to_string(i);
+        function->get_output_op(i)->set_friendly_name(onnx_outputs.Get(i).name() + suffix);
     }
     return function;
 }

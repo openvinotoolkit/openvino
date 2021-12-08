@@ -42,8 +42,9 @@ NGRAPH_TEST(onnx_tensor_names, simple_model) {
     EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "input", {"input", "identity_on_input"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::Relu>(ops, "relu", {"relu_t"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::v0::Abs>(ops, "abs", {"abs_t", "final_output"}));
-    EXPECT_TRUE(
-        matching_node_found_in_graph<op::Result>(function->get_results(), "final_output", {"abs_t", "final_output"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(function->get_results(),
+                                                         "final_output/sink_port_0",
+                                                         {"abs_t", "final_output"}));
 }
 
 NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
@@ -55,6 +56,6 @@ NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
     EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"indices"}, 1));
 
     const auto results = function->get_results();
-    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "indices", {"indices"}));
-    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "values", {"values"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "values/sink_port_0", {"values"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "indices/sink_port_1", {"indices"}));
 }
