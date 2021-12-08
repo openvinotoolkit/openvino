@@ -202,6 +202,7 @@ if(ENABLE_SAMPLES OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE 
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json_schema_validator)
     endfunction()
     build_json_libs()
+    set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdparty)
     ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 endif()
 
