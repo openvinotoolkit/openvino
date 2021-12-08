@@ -13,7 +13,7 @@
 #include "graph_test_base.hpp"
 #include <memory>
 
-#ifdef ENABLE_GNA
+#ifdef ENABLE_INTEL_GNA
 # include <frontend/model_quantizer.hpp>
 #endif
 
@@ -95,7 +95,7 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
     ASSERT_STREQ(idMemInput.c_str(), "r-1-2-3");
 }
 
-#ifdef ENABLE_GNA
+#ifdef ENABLE_INTEL_GNA
 using namespace GNAPluginNS;
 struct _FP32_2_FP32  : public GNAPluginNS::frontend::QuantDescTmpl<float, float, float, float, float> {
 };

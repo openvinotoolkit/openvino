@@ -22,13 +22,9 @@ bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::sha
     auto setEmptyPrecisions = [](const std::shared_ptr<ngraph::Node>& node) {
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
-
-            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(std::vector<element::Type>());
-            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
-
             rt.emplace(
-                    ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name,
-                    attributeWrapper);
+                    PrecisionsAttribute::get_type_info_static(),
+                    PrecisionsAttribute(std::vector<element::Type>()));
         }
     };
 

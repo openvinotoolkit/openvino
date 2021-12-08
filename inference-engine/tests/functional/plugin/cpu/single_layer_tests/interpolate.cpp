@@ -136,8 +136,7 @@ public:
                     continue;
                 }
                 if (inType != ov::element::Type_t::undefined) {
-                    p.input(ov::preprocess::InputInfo(i)
-                            .tensor(ov::preprocess::InputTensorInfo().set_element_type(inType)));
+                    p.input(i).tensor().set_element_type(inType);
                 }
             }
         }
@@ -145,8 +144,7 @@ public:
             auto results = function->get_results();
             for (size_t i = 0; i < results.size(); i++) {
                 if (outType != ov::element::Type_t::undefined) {
-                    p.output(ov::preprocess::OutputInfo(i)
-                                 .tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+                    p.output(i).tensor().set_element_type(outType);
                 }
             }
         }
@@ -291,7 +289,12 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     return resCPUParams;
 }
 /* ========== */
-const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes_Smoke = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes_Full = {
         ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
         ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
         ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
@@ -299,12 +302,13 @@ const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordina
         ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes_Smoke = {
+        ngraph::op::v4::Interpolate::NearestMode::SIMPLE,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::FLOOR,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes_Full = {
         ngraph::op::v4::Interpolate::NearestMode::SIMPLE,
         ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
         ngraph::op::v4::Interpolate::NearestMode::FLOOR,
@@ -353,7 +357,7 @@ const std::vector<std::vector<int64_t>> defaultAxes4D = {
     {0, 1, 2, 3}
 };
 
-const std::vector<ShapeParams> shapeParams4D = {
+const std::vector<ShapeParams> shapeParams4D_Smoke = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{}, {{1, 11, 4, 4}}},
@@ -364,20 +368,6 @@ const std::vector<ShapeParams> shapeParams4D = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{}, {{1, 11, 4, 4}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        {{1, 11, 5, 6}},
-        defaultAxes4D.front()
-    },
-    ShapeParams{
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
-        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        {{1.f, 1.f, 1.25f, 1.5f}},
-        defaultAxes4D.front()
-    },
-    ShapeParams{
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {1, 11, 5, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}},
         defaultAxes4D.front()
@@ -398,10 +388,36 @@ const std::vector<ShapeParams> shapeParams4D = {
     }
 };
 
-const auto interpolateCasesNN = ::testing::Combine(
+const std::vector<ShapeParams> shapeParams4D_Full = {
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1.f, 1.f, 1.25f, 1.5f}},
+        defaultAxes4D.front()
+    },
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {1, 11, 5, 5}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1, 11, 5, 6}},
+        defaultAxes4D.front()
+    }
+};
+
+const auto interpolateCasesNN_Smoke = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
-        ::testing::ValuesIn(coordinateTransformModes),
-        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(nearestModes_Smoke),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads4D),
+        ::testing::ValuesIn(pads4D),
+        ::testing::ValuesIn(cubeCoefs));
+
+const auto interpolateCasesNN_Full = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
+        ::testing::ValuesIn(nearestModes_Full),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads4D),
         ::testing::ValuesIn(pads4D),
@@ -409,13 +425,23 @@ const auto interpolateCasesNN = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
-            interpolateCasesNN,
-            ::testing::ValuesIn(shapeParams4D),
+             interpolateCasesNN_Smoke,
+            ::testing::ValuesIn(shapeParams4D_Smoke),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
+         ::testing::Combine(
+             interpolateCasesNN_Full,
+             ::testing::ValuesIn(shapeParams4D_Full),
+             ::testing::Values(ElementType::f32),
+             ::testing::ValuesIn(filterCPUInfoForDevice()),
+             ::testing::ValuesIn(interpolateFusingParamsSet),
+             ::testing::ValuesIn(filterAdditionalConfig())),
+     InterpolateLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeParams> shapeParams4D_fixed_C = {
     ShapeParams{
@@ -436,7 +462,7 @@ const std::vector<ShapeParams> shapeParams4D_fixed_C = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
-            interpolateCasesNN,
+            interpolateCasesNN_Smoke,
             ::testing::ValuesIn(shapeParams4D_fixed_C),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
@@ -444,9 +470,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse_Test, Interpo
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
-const auto interpolateCasesLinearOnnx = ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesNN_Full,
+            ::testing::ValuesIn(shapeParams4D_fixed_C),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice()),
+            ::testing::Values(fusingFakeQuantizePerChannelRelu),
+            ::testing::ValuesIn(filterAdditionalConfig())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+const auto interpolateCasesLinearOnnx_Smoke = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
-        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads4D),
+        ::testing::ValuesIn(pads4D),
+        ::testing::ValuesIn(cubeCoefs));
+
+const auto interpolateCasesLinearOnnx_Full = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads4D),
@@ -455,17 +500,36 @@ const auto interpolateCasesLinearOnnx = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
-            interpolateCasesLinearOnnx,
-            ::testing::ValuesIn(shapeParams4D),
+            interpolateCasesLinearOnnx_Smoke,
+            ::testing::ValuesIn(shapeParams4D_Smoke),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
-const auto interpolateCasesLinear = ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesLinearOnnx_Full,
+            ::testing::ValuesIn(shapeParams4D_Full),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+const auto interpolateCasesLinear_Smoke = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear),
-        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads4D),
+        ::testing::ValuesIn(pads4D),
+        ::testing::ValuesIn(cubeCoefs));
+
+const auto interpolateCasesLinear_Full = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads4D),
@@ -474,17 +538,36 @@ const auto interpolateCasesLinear = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
-            interpolateCasesLinear,
-            ::testing::ValuesIn(shapeParams4D),
+            interpolateCasesLinear_Smoke,
+            ::testing::ValuesIn(shapeParams4D_Smoke),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
-const auto interpolateCasesCubic = ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesLinear_Full,
+            ::testing::ValuesIn(shapeParams4D_Full),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+const auto interpolateCasesCubic_Smoke = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::cubic),
-        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads4D),
+        ::testing::ValuesIn(pads4D),
+        ::testing::ValuesIn(cubeCoefs));
+
+const auto interpolateCasesCubic_Full = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::cubic),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
         ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads4D),
@@ -493,8 +576,18 @@ const auto interpolateCasesCubic = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
-            interpolateCasesCubic,
-            ::testing::ValuesIn(shapeParams4D),
+            interpolateCasesCubic_Smoke,
+            ::testing::ValuesIn(shapeParams4D_Smoke),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(InterpolateCubic_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesCubic_Full,
+            ::testing::ValuesIn(shapeParams4D_Full),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
@@ -528,7 +621,7 @@ const std::vector<std::vector<int64_t>> defaultAxes5D = {
     {0, 1, 2, 3, 4}
 };
 
-const std::vector<ShapeParams> shapeParams5D = {
+const std::vector<ShapeParams> shapeParams5D_Smoke = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
         InputShape{{}, {{1, 11, 4, 4, 4}}},
@@ -541,20 +634,6 @@ const std::vector<ShapeParams> shapeParams5D = {
         InputShape{{}, {{1, 11, 4, 4, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6, 2}},
-        defaultAxes5D.front()
-    },
-    ShapeParams{
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
-        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        {{1.f, 1.f, 1.25f, 1.5f, 0.5f}},
-        defaultAxes5D.front()
-    },
-    ShapeParams{
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}}},
-        ngraph::helpers::InputLayerType::CONSTANT,
-        {{1, 11, 5, 6, 4}},
         defaultAxes5D.front()
     },
     ShapeParams{
@@ -573,10 +652,35 @@ const std::vector<ShapeParams> shapeParams5D = {
     },
 };
 
-const auto interpolateCasesLinearOnnx5D = ::testing::Combine(
+const std::vector<ShapeParams> shapeParams5D_Full = {
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1.f, 1.f, 1.25f, 1.5f, 0.5f}},
+        defaultAxes5D.front()
+    },
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1, 11, 5, 6, 4}},
+        defaultAxes5D.front()
+    }
+};
+
+const auto interpolateCasesLinearOnnx5D_Smoke = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
-        ::testing::ValuesIn(coordinateTransformModes),
-        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(cubeCoefs));
+const auto interpolateCasesLinearOnnx5D_Full = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
+        ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads5D),
         ::testing::ValuesIn(pads5D),
@@ -584,18 +688,37 @@ const auto interpolateCasesLinearOnnx5D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
-            interpolateCasesLinearOnnx5D,
-            ::testing::ValuesIn(shapeParams5D),
+            interpolateCasesLinearOnnx5D_Smoke,
+            ::testing::ValuesIn(shapeParams5D_Smoke),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice5D()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
-const auto interpolateCasesNN5D = ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesLinearOnnx5D_Full,
+            ::testing::ValuesIn(shapeParams5D_Full),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice5D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+const auto interpolateCasesNN5D_Smoke = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
-        ::testing::ValuesIn(coordinateTransformModes),
-        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(nearestModes_Smoke),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(cubeCoefs));
+
+const auto interpolateCasesNN5D_Full = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
+        ::testing::ValuesIn(nearestModes_Full),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads5D),
         ::testing::ValuesIn(pads5D),
@@ -603,8 +726,18 @@ const auto interpolateCasesNN5D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN5D_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
-            interpolateCasesNN5D,
-            ::testing::ValuesIn(shapeParams5D),
+            interpolateCasesNN5D_Smoke,
+            ::testing::ValuesIn(shapeParams5D_Smoke),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice5D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(InterpolateNN5D_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesNN5D_Full,
+            ::testing::ValuesIn(shapeParams5D_Full),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice5D()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
