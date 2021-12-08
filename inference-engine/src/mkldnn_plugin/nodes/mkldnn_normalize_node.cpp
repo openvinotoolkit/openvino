@@ -934,7 +934,7 @@ public:
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
-            blk_size = 4;
+            blk_size = jcp.is_blk ? 8 : 4;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *kernel_attrs.get()));
