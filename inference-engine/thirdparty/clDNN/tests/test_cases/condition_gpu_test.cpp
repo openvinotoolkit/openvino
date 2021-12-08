@@ -6,13 +6,13 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/concatenation.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/condition.hpp>
-#include <cldnn/primitives/softmax.hpp>
-#include <cldnn/primitives/scale.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/condition.hpp>
+#include <intel_gpu/primitives/softmax.hpp>
+#include <intel_gpu/primitives/scale.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <cstddef>
 

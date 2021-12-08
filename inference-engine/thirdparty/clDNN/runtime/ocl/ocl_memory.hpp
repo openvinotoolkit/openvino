@@ -7,7 +7,7 @@
 #include "ocl_common.hpp"
 #include "ocl_engine.hpp"
 #include "ocl_stream.hpp"
-#include "cldnn/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 
 #include <cassert>
 #include <iterator>
@@ -100,6 +100,7 @@ private:
 
 struct gpu_usm : public lockable_gpu_mem, public memory {
     gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, allocation_type type);
+    gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer);
     gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
@@ -120,6 +121,8 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 
 protected:
     cl::UsmMemory _buffer;
+
+    static allocation_type detect_allocation_type(ocl_engine* engine, const cl::UsmMemory& buffer);
 };
 
 struct ocl_surfaces_lock : public surfaces_lock {

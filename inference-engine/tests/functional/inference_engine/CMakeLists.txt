@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src)
+set(INCLUDES $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src)
 
 set(LINK_LIBRARIES
     gmock
@@ -19,7 +19,7 @@ set(LINK_LIBRARIES
     inference_engine_snippets
     offline_transformations
     inference_engine
-    frontend_manager
+    frontend_common
     pugixml::static
 )
 
@@ -32,8 +32,8 @@ set(DEPENDENCIES
     test_model_zoo
 )
 
-if(NGRAPH_IR_FRONTEND_ENABLE)
-    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+if(ENABLE_OV_IR_FRONTEND)
+    list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 
 if(ENABLE_IR_V7_READER)
@@ -41,18 +41,18 @@ if(ENABLE_IR_V7_READER)
 endif()
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES HeteroPlugin)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
-if(ENABLE_MULTI)
-    list(APPEND DEPENDENCIES MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
-if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
+if (NOT ENABLE_OV_ONNX_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
-if (NOT NGRAPH_PDPD_FRONTEND_ENABLE)
+if (NOT ENABLE_OV_PDPD_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader")
 endif()
 
@@ -70,17 +70,17 @@ addIeTargetTest(
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-        NGRAPH_ONNX_FRONTEND_ENABLE
+        ENABLE_OV_ONNX_FRONTEND
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
-    add_dependencies(${TARGET_NAME} onnx_ngraph_frontend)
+    add_dependencies(${TARGET_NAME} onnx_ov_frontend)
 endif()
 
-if(NGRAPH_PDPD_FRONTEND_ENABLE)
+if(ENABLE_OV_PDPD_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
-    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
+    add_dependencies(${TARGET_NAME} paddlepaddle_ov_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
@@ -91,7 +91,6 @@ ie_faster_build(${TARGET_NAME}
 
 file(GLOB_RECURSE legacy_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
-    "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
     "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
     )
@@ -124,12 +123,12 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_PLUGIN_API)
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/plugin_api/")
+            "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/")
     else()
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/ngraph/core/include"
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie"
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/")
+            "${OpenVINO_SOURCE_DIR}/src/core/include"
+            "${OpenVINO_SOURCE_DIR}/src/inference/include/ie"
+            "${OpenVINO_SOURCE_DIR}/src/inference/include/")
     endif()
 
     foreach(include_dir IN LISTS include_dirs)
@@ -149,18 +148,18 @@ function(ie_headers_compilation_with_custom_flags)
                                                 "gpu/gpu_context_api_va.hpp"
                                                 "gpu/gpu_context_api_dx.hpp"
                                                 "gpu/gpu_ocl_wrapper.hpp"
-                                                "openvino/runtime/gpu/ocl_wrapper.hpp"
-                                                "openvino/runtime/gpu/ocl.hpp"
-                                                "openvino/runtime/gpu/va.hpp"
-                                                "openvino/runtime/gpu/dx.hpp")
+                                                "openvino/runtime/gpu/ocl/ocl_wrapper.hpp"
+                                                "openvino/runtime/gpu/ocl/ocl.hpp"
+                                                "openvino/runtime/gpu/ocl/va.hpp"
+                                                "openvino/runtime/gpu/ocl/dx.hpp")
         endif()
         if(NOT WIN32)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
-                                                "openvino/runtime/gpu/dx.hpp")
+                                                "openvino/runtime/gpu/ocl/dx.hpp")
         endif()
         if(NOT LIBVA_FOUND)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
-                                                "openvino/runtime/gpu/va.hpp")
+                                                "openvino/runtime/gpu/ocl/va.hpp")
         endif()
     endif()
 
@@ -200,6 +199,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_compile_definitions(${target_name} PRIVATE
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
     else()
         # OpenCL headers if any
         if(OPENCL_HEADERS_DIR)

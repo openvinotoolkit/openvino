@@ -7,7 +7,7 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 #include <vector>
@@ -36,7 +36,7 @@ void basic_memory_dependencies::run(program& p) {
             add_memory_dependency(it, node);
         }
 
-        if (node->is_type<convolution>()) {
+        if (node->is_type<convolution>() && node->get_preferred_impl_type() == impl_types::onednn) {
             auto& conv = node->as<convolution>();
             bool can_reuse_eltwise_mem = false;
             size_t eltw_dep = 0;
@@ -59,6 +59,7 @@ void basic_memory_dependencies::run(program& p) {
                     }
                 }
             }
+
             if (can_reuse_eltwise_mem) {
                 auto& eltw_node = conv.get_dependency(eltw_dep);
                 eltw_node.can_share_buffer(false);

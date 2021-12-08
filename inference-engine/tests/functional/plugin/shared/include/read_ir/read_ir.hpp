@@ -12,6 +12,11 @@ TEST_P(ReadIRTest, ReadIR) {
     run();
 }
 
+
+TEST_P(ReadIRTest, QueryNetwork) {
+    QueryNetwork();
+}
+
 } // namespace subgraph
 } // namespace test
 } // namespace ov

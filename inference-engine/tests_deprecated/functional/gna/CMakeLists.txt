@@ -13,15 +13,14 @@ file(GLOB TEST_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/backward_compatibility/*.cpp)
 
-list(APPEND DEPENDENCIES GNAPlugin)
+list(APPEND DEPENDENCIES ov_intel_gna_plugin)
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES HeteroPlugin)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
 if(ENABLE_MKL_DNN)
-    list(APPEND DEPENDENCIES
-        MKLDNNPlugin)
+    list(APPEND DEPENDENCIES MKLDNNPlugin)
 endif()
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})

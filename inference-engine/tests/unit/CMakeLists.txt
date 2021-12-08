@@ -16,7 +16,7 @@ if (ENABLE_MKL_DNN)
     add_subdirectory(cpu)
 endif ()
 
-if (ENABLE_GNA)
+if (ENABLE_INTEL_GNA)
     add_subdirectory(gna)
 endif ()
 
@@ -24,6 +24,10 @@ if (ENABLE_MYRIAD)
     add_subdirectory(vpu)
 endif ()
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(frontends/onnx_import)
+endif()
+
+if (ENABLE_AUTO OR ENABLE_MULTI)
+    add_subdirectory(auto)
 endif()

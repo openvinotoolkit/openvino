@@ -4,9 +4,9 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -223,13 +223,10 @@ public:
         network.execute();
 
         if (compare_implementation.compare) {
-            std::string exec_impl;
-            for (auto& info : network.get_primitives_info()) {
-                if (info.original_id == "conv") {
-                    exec_impl = info.kernel_id;
-                    break;
-                }
-            }
+            std::string exec_impl = network.get_implementation_info("conv");
+            auto precision_pos = exec_impl.find("__");
+            exec_impl = exec_impl.substr(0, precision_pos);
+
             if (compare_implementation.not_equal) {
                 EXPECT_NE(exec_impl, compare_implementation.value);
             } else {

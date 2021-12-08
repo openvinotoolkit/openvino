@@ -87,6 +87,9 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
     }, 4000);
 }
 
+// TODO: CVS-68982
+#ifndef OPENVINO_STATIC_LIBRARY
+
 // tested function: RegisterPlugins
 TEST_F(CoreThreadingTests, RegisterPlugins) {
     InferenceEngine::Core ie;
@@ -122,6 +125,8 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         ASSERT_EQ(0, std::remove(fileName.c_str()));
     }, 1000);
 }
+
+#endif // !OPENVINO_STATIC_LIBRARY
 
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario

@@ -178,8 +178,10 @@ int main(int argc, char** argv) {
     }
 
     size_t input_width = 0, input_height = 0, img_size = 0;
-    if (!is_supported_image_size(argv[3], &input_width, &input_height))
+    if (!is_supported_image_size(argv[3], &input_width, &input_height)) {
+        fprintf(stderr, "ERROR is_supported_image_size, line %d\n", __LINE__);
         return EXIT_FAILURE;
+    }
 
     const char* input_model = argv[1];
     const char* input_image_path = argv[2];
@@ -196,15 +198,19 @@ int main(int argc, char** argv) {
     // --------------------------- Step 1. Initialize inference engine core
     // -------------------------------------
     IEStatusCode status = ie_core_create("", &core);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_create status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin
     // files) or ONNX (.onnx file) format
     status = ie_core_read_network(core, input_model, NULL, &network);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_read_network status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 3. Configure input & output
@@ -212,8 +218,10 @@ int main(int argc, char** argv) {
     // --------------------------- Prepare input blobs
     // -----------------------------------------------------
     status = ie_network_get_input_name(network, 0, &input_name);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_get_input_name status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     /* Mark input as resizable by setting of a resize algorithm.
      * In this case we will be able to set an input blob of any shape to an infer
@@ -226,15 +234,19 @@ int main(int argc, char** argv) {
     // pre-processing
     status |= ie_network_set_color_format(network, input_name, NV12);
 
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_set_input_* status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     // --------------------------- Prepare output blobs
     // ----------------------------------------------------
     status |= ie_network_get_output_name(network, 0, &output_name);
     status |= ie_network_set_output_precision(network, output_name, FP32);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_set_output_* status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     // -----------------------------------------------------------------------------------------------------
 
@@ -242,15 +254,19 @@ int main(int argc, char** argv) {
     // ------------------------------------------
     ie_config_t config = {NULL, NULL, NULL};
     status = ie_core_load_network(core, network, device_name, &config, &exe_network);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_load_network status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 5. Create infer request
     // -------------------------------------------------
     status = ie_exec_network_create_infer_request(exe_network, &infer_request);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_exec_network_create_infer_request status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 6. Prepare input
@@ -258,10 +274,14 @@ int main(int argc, char** argv) {
     // size converted to NV12 data size: height(NV12) = 3 / 2 * logical height
     img_size = input_width * (input_height * 3 / 2);
     img_data = (unsigned char*)calloc(img_size, sizeof(unsigned char));
-    if (NULL == img_data)
+    if (NULL == img_data) {
+        fprintf(stderr, "ERROR calloc returned NULL, line %d\n", __LINE__);
         goto err;
-    if (img_size != read_image_from_file(input_image_path, img_data, img_size))
+    }
+    if (img_size != read_image_from_file(input_image_path, img_data, img_size)) {
+        fprintf(stderr, "ERROR ie_exec_network_create_infer_request `img_size` missmatch, line %d\n", __LINE__);
         goto err;
+    }
 
     // --------------------------- Create a blob to hold the NV12 input data
     // ------------------------------- Create tensor descriptors for Y and UV
@@ -279,27 +299,35 @@ int main(int argc, char** argv) {
     status |= ie_blob_make_memory_from_preallocated(&uv_tensor, img_data + y_plane_size, uv_plane_size, &uv_blob);
     // Create NV12Blob from Y and UV blobs
     status |= ie_blob_make_memory_nv12(y_blob, uv_blob, &nv12_blob);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_blob_make_memory_* status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     status = ie_infer_request_set_blob(infer_request, input_name, nv12_blob);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_set_blob status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 7. Do inference
     // --------------------------------------------------------
     /* Running the request synchronously */
     status = ie_infer_request_infer(infer_request);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_infer status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 8. Process output
     // ------------------------------------------------------
     status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_get_blob status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     size_t class_num;
     struct classify_res* cls = output_blob_to_classify_res(output_blob, &class_num);

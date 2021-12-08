@@ -74,11 +74,12 @@ std::shared_ptr<ngraph::Function> CreateMatmulTransposeFunction(
     const ngraph::Shape& input_shape,
     const ngraph::Shape& matmul_shape,
     const ngraph::Shape& reshape_shape,
-    bool create_reshape_after_transpose,
+    bool create_reshape_before_transpose,
     bool enable_last_reshape,
     bool enable_add,
     bool matmul_on_left_side,
-    bool enable_fq) {
+    bool enable_fq1,
+    bool enable_fq2) {
     auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
 
     std::vector<size_t> data(ngraph::shape_size(matmul_shape));
@@ -86,16 +87,8 @@ std::shared_ptr<ngraph::Function> CreateMatmulTransposeFunction(
     auto matmul_constant = ngraph::opset7::Constant::create(ngraph::element::i64, matmul_shape, data);
     std::shared_ptr<ngraph::Node> node = std::make_shared<ngraph::opset7::MatMul>(input_params, matmul_constant);
     const auto matmul_output_shape = node->get_output_shape(0);
-    if (enable_add) {
-        auto add_const = ngraph::opset7::Constant::create(ngraph::element::i64, matmul_output_shape, {1});
-        if (matmul_on_left_side) {
-            node = std::make_shared<ngraph::opset7::Add>(add_const, node);
-        } else {
-            node = std::make_shared<ngraph::opset7::Add>(node, add_const);
-        }
-    }
 
-    if (enable_fq) {
+    if (enable_fq1) {
         node = std::make_shared<ngraph::opset7::FakeQuantize>(
             node,
             ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {-0.1}),
@@ -105,29 +98,42 @@ std::shared_ptr<ngraph::Function> CreateMatmulTransposeFunction(
             255);
     }
 
-    auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
-    auto transpose = std::make_shared<ngraph::opset7::Transpose>(node, transpose_order);
-    const auto transpose_output_shape = transpose->get_output_shape(0);
-
-    std::shared_ptr<ngraph::Node> reshape;
-    auto shape_const = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape);
-    if (create_reshape_after_transpose) {
-        const auto matmul_output_shape = node->get_output_shape(0);
-        auto reshape_after_transpose_const = ngraph::opset7::Constant::create(ngraph::element::i64,
-            ngraph::Shape{matmul_output_shape.size()}, matmul_output_shape);
-        auto reshape_after_transpose = std::make_shared<ngraph::opset7::Reshape>(transpose, reshape_after_transpose_const, false);
-        reshape = reshape_after_transpose;
-        if (enable_last_reshape) {
-            reshape = std::make_shared<ngraph::opset7::Reshape>(reshape_after_transpose, shape_const, false);
+    if (enable_add) {
+        auto add_const = ngraph::opset7::Constant::create(ngraph::element::i64, matmul_output_shape, {1});
+        if (matmul_on_left_side) {
+            node = std::make_shared<ngraph::opset7::Add>(add_const, node);
+        } else {
+            node = std::make_shared<ngraph::opset7::Add>(node, add_const);
         }
-    } else {
-        reshape = transpose;
-        if (enable_last_reshape) {
-            reshape = std::make_shared<ngraph::opset7::Reshape>(transpose, shape_const, false);
+
+        if (enable_fq2) {
+            node = std::make_shared<ngraph::opset7::FakeQuantize>(
+                node,
+                ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                255);
         }
     }
 
-    auto result = std::make_shared<ngraph::opset7::Result>(reshape);
+    if (create_reshape_before_transpose) {
+        auto matmul_output_shape = node->get_output_shape(0);
+        std::swap(matmul_output_shape[0], matmul_output_shape[1]);
+        auto reshape_before_transpose_const = ngraph::opset7::Constant::create(ngraph::element::i64,
+            ngraph::Shape{matmul_output_shape.size()}, matmul_output_shape);
+        node = std::make_shared<ngraph::opset7::Reshape>(node, reshape_before_transpose_const, false);
+    }
+
+    auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
+    node = std::make_shared<ngraph::opset7::Transpose>(node, transpose_order);
+
+    if (enable_last_reshape) {
+        auto shape_const = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape);
+        node = std::make_shared<ngraph::opset7::Reshape>(node, shape_const, false);
+    }
+
+    auto result = std::make_shared<ngraph::opset7::Result>(node);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }
 
@@ -139,7 +145,8 @@ std::shared_ptr<ngraph::Function> CreateMatmulFunction(
     bool enable_last_reshape,
     bool enable_add,
     bool matmul_on_left_side,
-    bool enable_fq) {
+    bool enable_fq1,
+    bool enable_fq2) {
     auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
 
     std::vector<size_t> data(ngraph::shape_size(matmul_shape));
@@ -147,16 +154,8 @@ std::shared_ptr<ngraph::Function> CreateMatmulFunction(
     auto matmul_constant = ngraph::opset7::Constant::create(ngraph::element::i64, matmul_shape, data);
     std::shared_ptr<ngraph::Node> node = std::make_shared<ngraph::opset7::MatMul>(input_params, matmul_constant);
     const auto matmul_output_shape = node->get_output_shape(0);
-    if (enable_add) {
-        auto add_const = ngraph::opset7::Constant::create(ngraph::element::i64, matmul_output_shape, {1});
-        if (matmul_on_left_side) {
-            node = std::make_shared<ngraph::opset7::Add>(add_const, node);
-        } else {
-            node = std::make_shared<ngraph::opset7::Add>(node, add_const);
-        }
-    }
 
-    if (enable_fq) {
+    if (enable_fq1) {
         node = std::make_shared<ngraph::opset7::FakeQuantize>(
             node,
             ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {-0.1}),
@@ -164,6 +163,25 @@ std::shared_ptr<ngraph::Function> CreateMatmulFunction(
             ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {-0.1}),
             ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {0.1}),
             255);
+    }
+
+    if (enable_add) {
+        auto add_const = ngraph::opset7::Constant::create(ngraph::element::i64, matmul_output_shape, {1});
+        if (matmul_on_left_side) {
+            node = std::make_shared<ngraph::opset7::Add>(add_const, node);
+        } else {
+            node = std::make_shared<ngraph::opset7::Add>(node, add_const);
+        }
+
+        if (enable_fq2) {
+            node = std::make_shared<ngraph::opset7::FakeQuantize>(
+                node,
+                ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {-0.1}),
+                ngraph::opset7::Constant::create(ngraph::element::f32, {1}, {0.1}),
+                255);
+        }
     }
 
     std::shared_ptr<ngraph::Node> reshape;
@@ -241,19 +259,21 @@ TEST(TransformationTests, RemoveTransposeBeforeMatmulTestReshapeInOutEq) {
 }
 
 TEST(TransformationTests, InsertTransposeAfterMatmulTest) {
-    for (auto enable_add : { true, false}) {
-        for (auto matmul_on_left_side : { true, false}) {
-            for (auto enable_fq : { true, false}) {
-                RunTest(
-                    handle_transpose_after_matmul::CreateMatmulFunction(
-                        {4, 1}, {1, 8}, {2, 16}, false, true, enable_add, matmul_on_left_side, enable_fq),
-                    handle_transpose_after_matmul::CreateMatmulTransposeFunction(
-                        {4, 1}, {1, 8}, {2, 16}, true, true, enable_add, matmul_on_left_side, enable_fq));
-                RunTest(
-                    handle_transpose_after_matmul::CreateMatmulFunction(
-                        {1, 256}, {256, 256}, {8, 32}, false, true, enable_add, matmul_on_left_side, enable_fq),
-                    handle_transpose_after_matmul::CreateMatmulFunction(
-                        {1, 256}, {256, 256}, {8, 32}, false, true, enable_add, matmul_on_left_side, enable_fq));
+    for (auto enable_add : { true, false }) {
+        for (auto matmul_on_left_side : { true, false }) {
+            for (auto enable_fq1 : { true, false }) {
+                for (auto enable_fq2 : { true, false }) {
+                    RunTest(
+                        handle_transpose_after_matmul::CreateMatmulFunction(
+                            {4, 1}, {1, 8}, {2, 16}, false, true, enable_add, matmul_on_left_side, enable_fq1, enable_fq2),
+                        handle_transpose_after_matmul::CreateMatmulTransposeFunction(
+                            {4, 1}, {1, 8}, {2, 16}, true, true, enable_add, matmul_on_left_side, enable_fq1, enable_fq2));
+                    RunTest(
+                        handle_transpose_after_matmul::CreateMatmulFunction(
+                            {1, 256}, {256, 256}, {8, 32}, false, true, enable_add, matmul_on_left_side, enable_fq1, enable_fq2),
+                        handle_transpose_after_matmul::CreateMatmulFunction(
+                            {1, 256}, {256, 256}, {8, 32}, false, true, enable_add, matmul_on_left_side, enable_fq1, enable_fq2));
+                }
             }
         }
     }
@@ -262,12 +282,14 @@ TEST(TransformationTests, InsertTransposeAfterMatmulTest) {
 TEST(TransformationTests, RemoveTransposeAfterMatmulTest) {
     for (auto enable_add : { true, false }) {
         for (auto matmul_on_left_side : { true, false }) {
-            for (auto enable_fq : { true, false }) {
-                RunTest(
-                    handle_transpose_after_matmul::CreateMatmulTransposeFunction(
-                        {4, 1}, {1, 8}, {2, 16}, false, true, enable_add, matmul_on_left_side, enable_fq),
-                    handle_transpose_after_matmul::CreateMatmulFunction(
-                        {4, 1}, {1, 8}, {2, 16}, true, true, enable_add, matmul_on_left_side, enable_fq));
+            for (auto enable_fq1 : { true, false }) {
+                for (auto enable_fq2 : { true, false }) {
+                    RunTest(
+                        handle_transpose_after_matmul::CreateMatmulTransposeFunction(
+                            {4, 1}, {1, 8}, {2, 16}, false, true, enable_add, matmul_on_left_side, enable_fq1, enable_fq2),
+                        handle_transpose_after_matmul::CreateMatmulFunction(
+                            {4, 1}, {1, 8}, {2, 16}, true, true, enable_add, matmul_on_left_side, enable_fq1, enable_fq2));
+                }
             }
         }
     }
@@ -276,12 +298,14 @@ TEST(TransformationTests, RemoveTransposeAfterMatmulTest) {
 TEST(TransformationTests, RemoveTransposeAfterMatmulTestReshapeInOutEq) {
     for (auto enable_add : { true, false }) {
         for (auto matmul_on_left_side : { true, false }) {
-            for (auto enable_fq : { true, false }) {
-                RunTest(
-                    handle_transpose_after_matmul::CreateMatmulTransposeFunction(
-                        {4, 1}, {1, 8}, {8, 4}, false, true, enable_add, matmul_on_left_side, enable_fq),
-                    handle_transpose_after_matmul::CreateMatmulTransposeFunction(
-                        {4, 1}, {1, 8}, {8, 4}, false, true, enable_add, matmul_on_left_side, enable_fq));
+            for (auto enable_fq1 : { true, false }) {
+                for (auto enable_fq2 : { true, false }) {
+                    RunTest(
+                        handle_transpose_after_matmul::CreateMatmulTransposeFunction(
+                            {4, 1}, {1, 8}, {8, 4}, false, true, enable_add, matmul_on_left_side, enable_fq1, enable_fq2),
+                        handle_transpose_after_matmul::CreateMatmulTransposeFunction(
+                            {4, 1}, {1, 8}, {8, 4}, false, true, enable_add, matmul_on_left_side, enable_fq1, enable_fq2));
+                }
             }
         }
     }
@@ -291,12 +315,14 @@ TEST(TransformationTests, InsertTransposeAfterMatmulTestReshapeInOutEq) {
     for (auto enable_last_reshape : { true, false }) {
         for (auto enable_add : { true, false }) {
             for (auto matmul_on_left_side : { true, false }) {
-                for (auto enable_fq : { true, false }) {
-                    RunTest(
-                        handle_transpose_after_matmul::CreateMatmulFunction(
-                            {4, 1}, {1, 8}, {4, 8}, false, enable_last_reshape, enable_add, matmul_on_left_side, enable_fq),
-                        handle_transpose_after_matmul::CreateMatmulFunction(
-                            {4, 1}, {1, 8}, {4, 8}, false, enable_last_reshape, enable_add, matmul_on_left_side, enable_fq));
+                for (auto enable_fq1 : { true, false }) {
+                    for (auto enable_fq2 : { true, false }) {
+                        RunTest(
+                            handle_transpose_after_matmul::CreateMatmulFunction(
+                                {4, 1}, {1, 8}, {4, 8}, false, enable_last_reshape, enable_add, matmul_on_left_side, enable_fq1, enable_fq2),
+                            handle_transpose_after_matmul::CreateMatmulFunction(
+                                {4, 1}, {1, 8}, {4, 8}, false, enable_last_reshape, enable_add, matmul_on_left_side, enable_fq1, enable_fq2));
+                    }
                 }
             }
         }

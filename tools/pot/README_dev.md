@@ -8,7 +8,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 ## Key features:
 
 * Two supported post-training quantization algorithms: fast [DefaultQuantization](openvino/tools/pot/algorithms/quantization/default/README.md) and precise [AccuracyAwareQuantization](openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md), as well as multiple experimental methods.
-* Global optimization of post-training quantization parameters using [Tree-structured Parzen Estimator](openvino/tools/pot/optimization/tpe/README.md).
+
 * Symmetric and asymmetric quantization schemes. For more details, see the [Quantization](openvino/tools/pot/algorithms/quantization/README.md) section.
 * Per-channel quantization for Convolutional and Fully-Connected layers.
 * Multiple domains: Computer Vision, Recommendation Systems.
@@ -30,7 +30,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
    git submodule init
    git submodule update
    ```
-3) Clone DLDT repo: `git clone https://gitlab-icv.inn.intel.com/inference-engine/dldt` (Not into the post-training-compression-tool)
+3) Clone DLDT repo: `git clone https://github.com/openvinotoolkit/openvino` (Not into the post-training-compression-tool)
 4) Switch dldt to required branch: `feature/low_precision/develop_fp_v10`
 5) Build inference engine (Instruction can be found in dldt repo)
 6) Switch dldt to _mkaglins/poc_ branch (Inference engine is built from _feature/low_precision/develop_fp_v10_ branch to support `FakeQuantize` layers. ModelOptimizer is used from _mkaglins/poc_ branch. So stay on _mkaglins/poc_ branch as you've built IE and don't build it from there again)

@@ -9,7 +9,8 @@ from functools import partial
 
 import numpy as np
 
-from .utils import append_stats, process_accumulated_stats
+from .utils import append_stats, process_accumulated_stats, \
+    restore_original_node_names, align_stat_names_with_results
 from ..api.engine import Engine
 from ..data_loaders.ac_data_loader import ACDataLoader
 from ..graph.model_utils import save_model, add_outputs
@@ -122,12 +123,20 @@ class ACEngine(Engine):
         callback_layout, stat_names_aliases = {}, {}
         # add outputs for activation statistics collection
         if stats_layout is not None:
-            model_with_stat_op, nodes_name = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_name, output_to_node_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
             add_outputs(self._model, nodes_name)
             self._model_evaluator.load_network(self._model)
+
+            model_output_names = [out for m_dict in self._model for out in m_dict['model'].outputs.keys()]
+            align_stat_names_with_results(model_output_names,
+                                          nodes_name,
+                                          output_to_node_names,
+                                          stats_layout,
+                                          stat_aliases)
+
             # Creating statistics layout with IE-like names
             stat_names_aliases = {convert_output_key(key): key for key in stats_layout}
             callback_layout = {convert_output_key(key): value
@@ -188,6 +197,9 @@ class ACEngine(Engine):
         self._accumulated_layer_stats = {}
         self._per_sample_metrics.clear()
         self.dump_prediction_to_annotation = False
+
+        if stats_layout:
+            restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
 
         return metrics, accumulated_stats
 

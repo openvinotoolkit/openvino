@@ -9,7 +9,7 @@
 #include "reduce/reduce_kernel_selector.h"
 #include "reduce/reduce_kernel_ref.h"
 #include "reduce/reduce_kernel_b_fs_yx_fsv16.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "data_inst.h"
 
 using namespace cldnn;
@@ -101,6 +101,11 @@ attach_reduce_impl::attach_reduce_impl() {
         std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
     });
 }
 

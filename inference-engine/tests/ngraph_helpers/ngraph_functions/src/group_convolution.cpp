@@ -24,8 +24,8 @@ std::shared_ptr<Node> makeGroupConvolution(const ngraph::Output<Node> &in,
                                       const std::vector<float> &filterWeights,
                                       const std::vector<float> &biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
-    auto shape = in.get_shape();
-    std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
+    auto shape = in.get_partial_shape();
+    std::vector<size_t> filterWeightsShape = {numOutChannels, static_cast<size_t>(shape[1].get_length())};
     if (filterWeightsShape[0] % numGroups || filterWeightsShape[1] % numGroups)
         throw std::runtime_error("incorrected shape for GroupConvolution");
     filterWeightsShape[0] /= numGroups;

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/primitives/scale.hpp"
-#include "cldnn/primitives/quantize.hpp"
+#include "intel_gpu/primitives/scale.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
 #include "binary_convolution_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "kernel_selector/core/actual_kernels/binary_convolution/binary_convolution_kernel_selector.h"
@@ -62,7 +62,6 @@ protected:
 public:
     static primitive_impl* create(const binary_convolution_node& arg) {
         const auto& primitive = arg.get_primitive();
-        const auto& input_layout = arg.input().get_output_layout();
         const auto& weights_layout = arg.weights(0).get_output_layout();
         const auto& weights_size = weights_layout.size;
 
@@ -70,7 +69,7 @@ public:
         const auto& groups = primitive->groups;
         const auto& stride = primitive->stride;
         const auto& dilation = primitive->dilation;
-        const auto& input_offset = primitive->input_offset;
+        const auto& pad = primitive->pad;
 
         const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
         const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
@@ -83,11 +82,6 @@ public:
             get_default_weights_bias_optional_params<kernel_selector::binary_convolution_optional_params>(
                 arg.get_program());
 
-        const auto additional_offset = tensor::max(input_offset, (tensor) 0);
-        if (additional_offset != (tensor) 0) {
-            conv_params.inputs[0] = convert_data_tensor(input_layout, actual_split, additional_offset);
-        }
-
         conv_params.pad_value = primitive->pad_value;
         conv_params.out_dt = to_data_type(*primitive->output_data_type);
         conv_params.depthwise_separable_opt = depthwise_separable_opt;
@@ -99,9 +93,9 @@ public:
             (uint32_t)weights_size.spatial[2],
         };
 
-        conv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
-                               (uint32_t)std::max(-input_offset.spatial[1], 0),
-                               (uint32_t)std::max(-input_offset.spatial[2], 0)};
+        conv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
+                               (uint32_t)std::max(pad.spatial[1], 0),
+                               (uint32_t)std::max(pad.spatial[2], 0)};
 
         conv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
         conv_params.dilation = {(uint32_t)dilation.spatial[0],
