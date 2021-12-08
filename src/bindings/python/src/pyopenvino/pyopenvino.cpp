@@ -32,6 +32,7 @@
 #include "pyopenvino/core/version.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
 #include "pyopenvino/frontend/frontend_manager.hpp"
+#include "pyopenvino/frontend/extensions.hpp"
 #include "pyopenvino/frontend/inputmodel.hpp"
 #include "pyopenvino/frontend/place.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
