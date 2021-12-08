@@ -9,7 +9,7 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import Variant
+from openvino.pyopenvino import OVAny
 
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Function, PartialShape, Shape, Type, layout_helpers
@@ -489,18 +489,18 @@ def test_node_target_inputs_soruce_output():
     assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
 
 
-def test_variants():
-    variant_int = Variant(32)
-    variant_str = Variant("test_text")
+def test_any():
+    any_int = OVAny(32)
+    any_str = OVAny("test_text")
 
-    assert variant_int.get() == 32
-    assert variant_str.get() == "test_text"
+    assert any_int.get() == 32
+    assert any_str.get() == "test_text"
 
-    variant_int.set(777)
-    variant_str.set("another_text")
+    any_int.set(777)
+    any_str.set("another_text")
 
-    assert variant_int.get() == 777
-    assert variant_str.get() == "another_text"
+    assert any_int.get() == 777
+    assert any_str.get() == "another_text"
 
 
 def test_runtime_info():

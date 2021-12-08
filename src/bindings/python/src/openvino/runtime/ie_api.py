@@ -12,7 +12,7 @@ from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import Output
 from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import Variant as VariantBase
+from openvino.pyopenvino import OVAny as OVAnyBase
 
 from openvino.runtime.utils.types import get_dtype
 
@@ -59,7 +59,9 @@ class InferRequest(InferRequestBase):
 
     def infer(self, inputs: dict = None) -> dict:
         """Infer wrapper for InferRequest."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        inputs = (
+            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        )
         return super().infer(inputs)
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
@@ -79,7 +81,9 @@ class ExecutableNetwork(ExecutableNetworkBase):
 
     def infer_new_request(self, inputs: dict = None) -> dict:
         """Infer wrapper for ExecutableNetwork."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        inputs = (
+            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        )
         return super().infer_new_request(inputs)
 
 
@@ -138,21 +142,21 @@ def compile_model(model_path: str) -> ExecutableNetwork:
     return ExtendedNetwork(core, core.compile_model(model_path, "AUTO"))
 
 
-class Variant(VariantBase):
-    """Variant wrapper.
+class OVAny(OVAnyBase):
+    """OVAny wrapper.
 
     Wrapper provides some useful overloads for simple built-in Python types.
 
-    Access to the Variant value is direct if it is a built-in Python data type.
+    Access to the OVAny value is direct if it is a built-in Python data type.
     Example:
     @code{.py}
-        variant = Variant([1, 2])
-        print(variant[0])
+        any = OVAny([1, 2])
+        print(any[0])
 
         Output: 2
     @endcode
 
-    Otherwise if Variant value is a custom data type (for example user class),
+    Otherwise if OVAny value is a custom data type (for example user class),
     access to the value is possible by 'get()' method or property 'value'.
     Example:
     @code{.py}
@@ -160,8 +164,8 @@ class Variant(VariantBase):
             def __init__(self):
                 self.data = "test"
 
-        v = Variant(Test())
-        print(v.value.data)
+        any = OVAny(Test())
+        print(any.value.data)
     @endcode
     """
 
