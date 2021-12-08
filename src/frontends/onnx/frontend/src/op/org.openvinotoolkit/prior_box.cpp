@@ -38,7 +38,7 @@ OutputVector prior_box(const Node& node) {
     auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
     auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
-    ngraph::op::v0::PriorBox::Attributes attrs;
+    ngraph::op::v8::PriorBox::Attributes attrs;
     attrs.min_size = node.get_attribute_value<std::vector<float>>("min_size", {});
     attrs.max_size = node.get_attribute_value<std::vector<float>>("max_size", {});
     attrs.aspect_ratio = node.get_attribute_value<std::vector<float>>("aspect_ratio", {});
@@ -51,11 +51,12 @@ OutputVector prior_box(const Node& node) {
     attrs.fixed_ratio = node.get_attribute_value<std::vector<float>>("fixed_ratio", {});
     attrs.fixed_size = node.get_attribute_value<std::vector<float>>("fixed_size", {});
     attrs.density = node.get_attribute_value<std::vector<float>>("density", {});
+    attrs.min_max_aspect_ratios_order = node.get_attribute_value<int64_t>("min_max_aspect_ratios_order", 1);
 
     auto axes = default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
 
     return {std::make_shared<default_opset::Unsqueeze>(
-        std::make_shared<ngraph::op::v0::PriorBox>(output_shape_slice, image_shape_slice, attrs),
+        std::make_shared<ngraph::op::v8::PriorBox>(output_shape_slice, image_shape_slice, attrs),
         axes)};
 }
 

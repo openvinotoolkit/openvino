@@ -39,6 +39,18 @@ const std::vector<GatherNDParamsSubset> layerParams = {
     GatherNDParamsSubset{{2, 2, 2, 2}, {2, 2, 1}, 2},
 };
 
+const std::vector<GatherNDParamsSubset> layerParamsND8 = {
+    GatherNDParamsSubset{{500, 256, 10, 15}, {25, 125, 3}, 0},
+    GatherNDParamsSubset{{3, 3}, {2, 2}, 0},
+    GatherNDParamsSubset{{5, 3}, {2, 1}, 0},
+    GatherNDParamsSubset{{5, 3, 4}, {2, 2}, 0},
+    GatherNDParamsSubset{{6, 3, 4}, {2, 1, 2}, 0},
+    GatherNDParamsSubset{{5, 2, 6, 8}, {1}, 0},
+    GatherNDParamsSubset{{6, 6, 9, 7}, {2}, 0},
+    GatherNDParamsSubset{{2, 4, 9, 4}, {3}, 0},
+    GatherNDParamsSubset{{5, 2, 3, 7}, {4}, 0},
+};
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_GatherND,
     GatherNDLayerTest,
@@ -49,5 +61,16 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(CommonTestUtils::DEVICE_MYRIAD),
         testing::Values<Config>({{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
     GatherNDLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_GatherND,
+    GatherND8LayerTest,
+    testing::Combine(
+        testing::ValuesIn(layerParamsND8),
+        testing::ValuesIn(netPrecisions),
+        testing::ValuesIn(indicesPrecisions),
+        testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+        testing::Values<Config>({{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+    GatherND8LayerTest::getTestCaseName);
 
 }  // namespace
