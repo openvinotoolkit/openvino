@@ -46,10 +46,6 @@ ie_mark_target_as_cc(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# developer package
-
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
-
 # install
 
 # TODO: uncomment once snippets are integrated into CPU plugin

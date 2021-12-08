@@ -12,7 +12,7 @@ set(SRC
     ie_executable.hpp
 )
 
-add_library(ie_backend SHARED ${SRC})
+add_library(ie_backend SHARED EXCLUDE_FROM_ALL ${SRC})
 
 ie_faster_build(ie_backend UNITY)
 

@@ -13,7 +13,7 @@ function(ie_generate_dev_package_config)
             APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
         list(APPEND all_dev_targets ${${component}})
     endforeach()
-    add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
+    add_custom_target(ie_dev_targets DEPENDS ${all_dev_targets})
 
     configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
                                   "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"

@@ -20,7 +20,7 @@ set (SRC
     pass/shape_relevance.hpp
     )
 
-add_library(ngraph_backend SHARED ${SRC})
+add_library(ngraph_backend SHARED EXCLUDE_FROM_ALL ${SRC})
 
 ie_faster_build(ngraph_backend UNITY)
 
