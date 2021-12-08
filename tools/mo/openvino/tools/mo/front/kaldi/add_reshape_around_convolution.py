@@ -1,15 +1,14 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import networkx as nx
-import numpy as np
 
-from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.transpose import Transpose
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
-from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.graph.graph import Graph, Node, Port
 from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.elementwise import Div
 from openvino.tools.mo.ops.reshape import Reshape
 from openvino.tools.mo.ops.shape import Shape
 from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
