@@ -7,7 +7,7 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 #include <vector>

@@ -5,9 +5,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
 #include "primitive_inst.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 #include <string>
 #include <vector>

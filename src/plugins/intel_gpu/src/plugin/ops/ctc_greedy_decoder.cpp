@@ -2,20 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/ctc_greedy_decoder.hpp"
 #include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 
-#include "cldnn/primitives/ctc_greedy_decoder.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "transformations/utils/utils.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::Node>& op, bool ctc_merge_repeated) {
     p.ValidateInputs(op, {2, 3});
@@ -27,7 +29,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if (inputDataType == cldnn::data_types::i64) {
-            // clDNN primitive supports only i32 data type for 'sequence_length' and 'blank_index' inputs
+            // GPU primitive supports only i32 data type for 'sequence_length' and 'blank_index' inputs
             // so we need additional reorder if it's provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -72,7 +74,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
         cldnn::layout mutableLayout = cldnn::layout(
             DataTypeFromPrecision(mutable_precision),
             DefaultFormatForDims(op->get_output_shape(1).size()),
-            CldnnTensorFromIEDims(op->get_output_shape(1)));
+            tensor_from_dims(op->get_output_shape(1)));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -95,10 +97,10 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
                 reorderedInputs,
                 blank_index,
                 ctc_merge_repeated,
-                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                tensor_from_dims(op->get_output_shape(0)),
                 op->get_friendly_name());
 
-    // clDNN primitive supports only i32 as output data type
+    // GPU primitive supports only i32 as output data type
     primitive.output_data_type = DataTypeFromPrecision(ngraph::element::i32);
 
     if (num_output == 2) {
@@ -131,4 +133,6 @@ static void CreateCTCGreedyDecoderSeqLenOp(Program& p, const std::shared_ptr<ngr
 REGISTER_FACTORY_IMPL(v0, CTCGreedyDecoder);
 REGISTER_FACTORY_IMPL(v6, CTCGreedyDecoderSeqLen);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

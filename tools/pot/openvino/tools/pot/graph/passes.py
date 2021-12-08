@@ -10,18 +10,18 @@ from typing import Dict
 from typing import List, Set
 
 import numpy as np
-from extensions.back.ForceStrictPrecision import ForceStrictPrecision
-from extensions.back.compress_quantized_weights import CompressQuantizeWeights
-from extensions.ops.elementwise import Add
-from extensions.ops.Cast import Cast
-from extensions.ops.fakequantize import FakeQuantize
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node, rename_node
-from mo.graph.port import Port
-from mo.middle.pattern_match import apply_pattern
-from mo.ops.const import Const
-from mo.middle.passes.convert_data_type import convert_blob
+from openvino.tools.mo.back.ForceStrictPrecision import ForceStrictPrecision
+from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights
+from openvino.tools.mo.ops.elementwise import Add
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph, Node, rename_node
+from openvino.tools.mo.graph.port import Port
+from openvino.tools.mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.middle.passes.convert_data_type import convert_blob
 
 from . import editor as ge
 from . import node_utils as nu
