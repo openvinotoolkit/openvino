@@ -53,6 +53,13 @@ TEST(AsyncInferQueueOVTests, BasicFlowTest) {
     auto f = [&counter, &callback_data](std::exception_ptr e,
                                         ov::runtime::InferRequest &request,
                                         const ov::Any &data) {
+        try {
+            if (e) {
+                std::rethrow_exception(e);
+            }
+        } catch (const std::exception& err) {
+            throw ov::Exception(err.what());
+        }
         counter += 1;
         callback_data.push_back(data);
     };
@@ -90,6 +97,13 @@ TEST(AsyncInferQueueOVTests, AccessRequestInsideCallbackTest) {
 
     auto f = [&results](std::exception_ptr e,
                         ov::runtime::InferRequest &request, const ov::Any &data) {
+        try {
+            if (e) {
+                std::rethrow_exception(e);
+            }
+        } catch (const std::exception& err) {
+            throw ov::Exception(err.what());
+        }
         float* data_ptr = request.get_output_tensor().data<float>();
         results.push_back(data_ptr[0]);
     };
@@ -102,7 +116,7 @@ TEST(AsyncInferQueueOVTests, AccessRequestInsideCallbackTest) {
         expected_results.push_back(i + i);
 
         auto t = ov::runtime::Tensor(ov::element::f32, input_shape);
-        std::memcpy(t.data(), reinterpret_cast<void*>(&input_data[0]), t.get_byte_size());
+        std::copy_n(input_data.begin(), t.get_size(), t.data<float>());
 
         std::map<size_t, ov::runtime::Tensor> my_map;
         my_map.insert({0, t});
@@ -134,7 +148,7 @@ TEST(AsyncInferQueueOVTests, AccessRequestOutsideCallbackTest) {
         expected_results.push_back(i + i);
 
         auto t = ov::runtime::Tensor(ov::element::f32, input_shape);
-        std::memcpy(t.data(), reinterpret_cast<void*>(&input_data[0]), t.get_byte_size());
+        std::copy_n(input_data.begin(), t.get_size(), t.data<float>());
 
         std::map<size_t, ov::runtime::Tensor> my_map;
         my_map.insert({0, t});
@@ -167,6 +181,13 @@ TEST(AsyncInferQueueOVTests, AccessInferRequestInLoopTest) {
 
     auto f = [&results](std::exception_ptr e,
                         ov::runtime::InferRequest &request, const ov::Any &data) {
+        try {
+            if (e) {
+                std::rethrow_exception(e);
+            }
+        } catch (const std::exception& err) {
+            throw ov::Exception(err.what());
+        }
         float *data_ptr = request.get_output_tensor().data<float>();
         results.push_back(data_ptr[0]);
     };
@@ -180,12 +201,12 @@ TEST(AsyncInferQueueOVTests, AccessInferRequestInLoopTest) {
             expected_results.push_back(i * i);
 
             auto t = ov::runtime::Tensor(ov::element::f32, input_shape);
-            std::memcpy(t.data(), reinterpret_cast<void*>(&input_data[0]), t.get_byte_size());
+            std::copy_n(input_data.begin(), t.get_size(), t.data<float>());
 
-            auto idle_id = basic_queue.get_idle_id();
+            auto handle = basic_queue.get_idle_handle();
 
-            basic_queue[idle_id].set_input_tensor(0, t);
-            basic_queue[idle_id].set_input_tensor(1, t);
+            basic_queue[handle].set_input_tensor(0, t);
+            basic_queue[handle].set_input_tensor(1, t);
 
             basic_queue.start_async();
         }
@@ -213,10 +234,18 @@ TEST(AsyncInferQueueOVTests, ConnectAsyncInferQueuesTest) {
     ov::runtime::AsyncInferQueue mul_queue(mul_net, 2);
 
     auto f = [input_shape, &mul_queue](std::exception_ptr e,
-                        ov::runtime::InferRequest &request, const ov::Any &data) {
+                                       ov::runtime::InferRequest &request,
+                                       const ov::Any &data) {
+        try {
+            if (e) {
+                std::rethrow_exception(e);
+            }
+        } catch (const std::exception& err) {
+            throw ov::Exception(err.what());
+        }
         float *data_ptr = request.get_output_tensor().data<float>();
         auto t = ov::runtime::Tensor(ov::element::f32, input_shape);
-        std::memcpy(t.data(), reinterpret_cast<void*>(&data_ptr[0]), t.get_byte_size());
+        std::copy_n(&data_ptr[0], t.get_size(), t.data<float>());
 
         std::map<size_t, ov::runtime::Tensor> tmp;
         tmp.insert({0, t});
@@ -229,6 +258,13 @@ TEST(AsyncInferQueueOVTests, ConnectAsyncInferQueuesTest) {
 
     auto h = [&results](std::exception_ptr e,
                         ov::runtime::InferRequest &request, const ov::Any &data) {
+        try {
+            if (e) {
+                std::rethrow_exception(e);
+            }
+        } catch (const std::exception& err) {
+            throw ov::Exception(err.what());
+        }
         float *data_ptr = request.get_output_tensor().data<float>();
         results.push_back(data_ptr[0]);
     };
@@ -242,7 +278,7 @@ TEST(AsyncInferQueueOVTests, ConnectAsyncInferQueuesTest) {
             expected_results.push_back((i + i) * (i + i));
 
             auto t = ov::runtime::Tensor(ov::element::f32, input_shape);
-            std::memcpy(t.data(), reinterpret_cast<void*>(&input_data[0]), t.get_byte_size());
+            std::copy_n(input_data.begin(), t.get_size(), t.data<float>());
 
             std::map<size_t, ov::runtime::Tensor> my_map;
             my_map.insert({0, t});
