@@ -227,19 +227,26 @@ public:
     Convolution() {
         MATCHER_SCOPE(Convolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<opset8::Convolution>({input_p, pattern::any_input()});
-
+        auto pattern_root = pattern::wrap_type<opset8::Convolution>({input_p,
+                                                                     pattern::wrap_type<opset8::Constant,
+                                                                                        opset8::FakeQuantize>()});
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
             ric.set_is_final(true);
             ric.set_callback([](Input<Node> input, const ric_attr::Attribute & attr) {
                 auto weights = input.get_source_output();
-                auto gather = std::make_shared<opset8::Gather>(weights, create_const(attr.get_order()), create_const({1}));
+                auto gather = std::make_shared<opset8::Gather>(weights, create_const(attr.get_order()),
+                                                                        create_const({1}));
                 input.replace_source_output(gather);
                 // TODO: copy runtime info from RIC sub-graph
             });
-            ric_attr::set(conv->input(1), ric);
+
+            if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
+                ric_attr::set(fq->input(0), ric);
+            } else {
+                ric_attr::set(conv->input(1), ric);
+            }
             return true;
         };
 
@@ -291,30 +298,55 @@ class Binary : public ngraph::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto input0_attr = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto input1_attr = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto attrs = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({input0_attr, input1_attr});
-
-        // TODO: handle case when Constant has more than one consumer
-        auto input1_const = pattern::wrap_type<opset8::Constant>(pattern::consumers_count(1));
-        auto attr_with_const = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({input0_attr, input1_const});
-
-        auto pattern_root = std::make_shared<pattern::op::Or>(OutputVector{attrs, attr_with_const});
+        auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, opset8::FakeQuantize>();
 
         auto callback = [=](pattern::Matcher& m) {
-            const auto & pattern_map = m.get_pattern_value_map();
-            const auto & input0 = pattern_map.at(input0_attr);
-            auto ric = ric_attr::get(input0).propagate();
-            if (pattern_map.count(input1_const)) {
-                const auto & const_input = pattern_map.at(input1_const);
-                const auto & shape = const_input.get_shape();
-                const auto & data_shape = input0.get_partial_shape();
+            const auto & root = m.get_match_root();
+            const auto & inputs = root->inputs();
+
+            std::map<size_t, ric_attr::Attribute> attrs;
+            for (const auto & input : inputs) {
+                auto output = input.get_source_output();
+                if (ric_attr::has(output)) {
+                    attrs.insert({input.get_index(), ric_attr::get(output).propagate()});
+                } else if (!ov::is_type<opset8::Constant>(output.get_node())) {
+                    // If number of non-constant inputs and without RIC attr is greater than 0 we have to skip
+                    // propagation because it is not efficient to have a lot of RIC copies on data path.
+                    return false;
+                }
+            }
+
+            if (attrs.empty()) return false;
+
+            // Check that all RIC attrs can be merged and then merge them
+            auto ric = attrs.begin()->second;
+            auto rank = root->get_input_partial_shape(attrs.begin()->first).rank();
+            if (rank.is_dynamic()) return false;
+            auto data_rank = rank.get_length();
+
+            for (const auto & item : attrs) {
+                const auto & input_rank = root->get_input_partial_shape(item.first).rank();
+                if (input_rank.is_static() &&
+                    input_rank.get_length() == data_rank &&
+                    ric.can_be_merged_with(item.second) ) {
+                    ric.merge_with(item.second);
+                } else {
+                    return false;
+                }
+            }
+
+            for (const auto & input : inputs) {
+                // Skip input that have RIC attribute
+                if (attrs.count(input.get_index())) continue;
+
+                auto const_output = input.get_source_output();
+                const auto & shape = const_output.get_shape();
                 const int64_t & shape_rank = static_cast<int64_t>(shape.size());
-                if (data_shape.rank().is_dynamic() || shape_rank > data_shape.rank().get_length()) {
+                if (shape_rank > data_rank) {
                     // TODO: handle case when constant input broadcast another one
                     return false;
                 }
-                const auto & data_rank = data_shape.rank().get_length();
+
                 if (data_rank - shape_rank > ric.get_axis()) {
                     // we don't have to insert RIC for constant, so we keep propagating
                     ric_attr::set(m.get_match_value(), ric);
@@ -335,24 +367,13 @@ public:
                 ric_const.set_callback([](Input<Node> input, const ric_attr::Attribute & attr) {
                     auto output = input.get_source_output();
                     auto gather = std::make_shared<opset8::Gather>(output, create_const(attr.get_order()),
-                                                                           create_const({attr.get_axis()}));
+                                                                   create_const({attr.get_axis()}));
                     input.replace_source_output(gather);
                     // TODO: copy runtime info from RIC sub-graph
                 });
-                // TODO: find input for cases when Constant has multiple consumers
-                ric_attr::set(*const_input.get_target_inputs().begin(), ric_const);
-                ric_attr::set(m.get_match_value(), ric);
-                return true;
+                ric_attr::set(input, ric_const);
             }
 
-            auto ric1 = ric_attr::get(pattern_map.at(input1_attr)).propagate();
-            if (!ric.can_be_merged_with(ric1)) {
-                ric.set_can_be_fused(false);
-                ric1.set_can_be_fused(false);
-                return false;
-            }
-
-            ric.merge_with(ric1);
             ric_attr::set(m.get_match_value(), ric);
             return true;
         };

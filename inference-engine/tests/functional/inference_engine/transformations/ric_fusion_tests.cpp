@@ -24,11 +24,15 @@ using namespace ngraph;
 using namespace opset8;
 
 namespace {
+std::shared_ptr<Convolution> create_conv(Output<Node> input, Output<Node> weights) {
+    return std::make_shared<Convolution>(input, weights, ov::Strides{1, 1},
+                                         ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
+                                         ov::Strides{1, 1});
+}
+
 std::shared_ptr<Convolution> create_conv(Output<Node> input, const Shape & weigts_shape) {
     auto weights = Constant::create(element::f32, weigts_shape, {0.1});
-    return std::make_shared<Convolution>(input, weights, ov::Strides{1, 1},
-                                                         ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
-                                                         ov::Strides{1, 1});
+    return create_conv(input, weights);
 }
 
 std::shared_ptr<GroupConvolution> create_group_conv(Output<Node> input, const Shape & weigts_shape) {
@@ -55,6 +59,13 @@ std::shared_ptr<Gather> create_gather(Output<Node> input, std::vector<int64_t> o
     auto order_const = Constant::create(element::i64, Shape{order.size()}, order);
     auto axis_const = Constant::create(element::i64, Shape{1}, {axis});
     return std::make_shared<Gather>(input, order_const, axis_const);
+}
+
+std::shared_ptr<FakeQuantize> create_fq(Output<Node> input) {
+    return std::make_shared<FakeQuantize>(input, Constant::create(element::f32, Shape{1}, {1}),
+                                                 Constant::create(element::f32, Shape{1}, {1}),
+                                                 Constant::create(element::f32, Shape{1}, {1}),
+                                                 Constant::create(element::f32, Shape{1}, {1}), 255);
 }
 
 void apply_reverse_input_channels(std::shared_ptr<Function> f, std::vector<std::pair<int64_t, std::string>> data) {
@@ -324,6 +335,32 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
         auto add = std::make_shared<Add>(input, gather);
         auto transpose = std::make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
         auto conv = create_conv_with_gather(transpose, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto fq = create_fq(input);
+        auto conv = create_conv(fq, create_fq(Constant::create(element::f32, {6, 3, 3, 3}, {0.2})));
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::Serialize>("/tmp/before.xml", "/tmp/before.bin");
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<pass::Serialize>("/tmp/after.xml", "/tmp/after.bin");
+    }
+
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto fq = create_fq(input);
+        auto conv = create_conv(fq, create_fq(create_gather(Constant::create(element::f32, {6, 3, 3, 3}, {0.2}), {2, 1, 0}, 1)));
+
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
     }
 
