@@ -54,7 +54,11 @@ foreach(_target ov_runtime_libraries ie_plugins _pyngraph pyopenvino)
 endforeach()
 
 set(cp_python "cp${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
-set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${cp_python}-${cp_python}-${WHEEL_PLATFORM}.whl")
+set(cp_python_m "${cp_python}")
+if(cp_python MATCHES "^cp3(6|7)$")
+    set(cp_python_m "${cp_python}m")
+endif()
+set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${cp_python}-${cp_python_m}-${WHEEL_PLATFORM}.whl")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
