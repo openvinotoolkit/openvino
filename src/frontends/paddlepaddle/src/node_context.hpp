@@ -4,26 +4,11 @@
 
 #pragma once
 #include "ngraph/compatibility.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/any.hpp"
 #include "paddlepaddle_frontend/exceptions.hpp"
 #include "paddlepaddle_frontend/utility.hpp"
 
-#define OPENVINO_VARIANT_DECLARATION(TYPE, info)                                          \
-    template <>                                                                           \
-    class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
-    public:                                                                               \
-        OPENVINO_RTTI(info);                                                              \
-        VariantWrapper<TYPE>(const value_type& value) : VariantImpl<value_type>(value) {} \
-    }
-
 namespace ov {
-OPENVINO_VARIANT_DECLARATION(int32_t, "Variant::int32");
-OPENVINO_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
-OPENVINO_VARIANT_DECLARATION(float, "Variant::float");
-OPENVINO_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
-OPENVINO_VARIANT_DECLARATION(bool, "Variant::bool");
-OPENVINO_VARIANT_DECLARATION(ov::element::Type, "Variant::element_type");
-OPENVINO_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
 namespace frontend {
 namespace pdpd {
 using InPortName = std::string;
@@ -39,7 +24,7 @@ public:
     /// \param name Attribute name
     /// \param type_info Attribute type information
     /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
-    virtual std::shared_ptr<Variant> get_attribute(const std::string& name, const VariantTypeInfo& type_info) const = 0;
+    virtual ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const = 0;
 
     virtual std::vector<OutPortName> get_output_names() const = 0;
 
@@ -69,71 +54,26 @@ public:
     NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map) : decoder(_decoder), name_map(_name_map) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
-    template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
+    template <class T>
     T get_attribute(const std::string& name, const T& def) const {
-        std::shared_ptr<Variant> res;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        res = decoder.get_attribute(name, VariantWrapper<T>::type_info);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        if (res) {
-            auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
-            FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
-            return ret->get();
-        } else {
-            return def;
-        }
-    }
-    template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
-    T get_attribute(const std::string& name, const T& def) const {
-        std::shared_ptr<Variant> res;
-        res = decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static());
-        if (res) {
-            auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
-            FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
-            return ret->get();
+        auto res = decoder.get_attribute(name, typeid(T));
+        if (!res.empty()) {
+            return res.as<T>();
         } else {
             return def;
         }
     }
 
-    template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
+    template <class T>
     T get_attribute(const std::string& name) const {
-        std::shared_ptr<Variant> res;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        res = decoder.get_attribute(name, VariantWrapper<T>::type_info);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        FRONT_END_GENERAL_CHECK(res, "Attribute with name '", name, "' does not exist");
-        auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
-        FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
-        return ret->get();
+        auto res = decoder.get_attribute(name, typeid(T));
+        FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
+        return res.as<T>();
     }
 
-    template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
-    T get_attribute(const std::string& name) const {
-        std::shared_ptr<Variant> res;
-        res = decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static());
-        FRONT_END_GENERAL_CHECK(res, "Attribute with name '", name, "' does not exist");
-        auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
-        FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
-        return ret->get();
-    }
-
-    template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
+    template <class T>
     bool has_attribute(const std::string& name) const {
-        std::shared_ptr<Variant> res;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        res = decoder.get_attribute(name, VariantWrapper<T>::type_info);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        return res != nullptr;
-    }
-
-    template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
-    bool has_attribute(const std::string& name) const {
-        std::shared_ptr<Variant> res;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        res = decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static());
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        return res != nullptr;
+        return !decoder.get_attribute(name, typeid(T)).empty();
     }
 
     /// Detects if there is at least one input attached with a given name

@@ -16,6 +16,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/shape_of.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/pass/constant_folding.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -182,7 +183,7 @@ bool op::v3::ShapeOf::evaluate_upper(const HostTensorVector& output_values) cons
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
-    if (get_rt_info().count("disabled_constant_folding_0"))
+    if (get_rt_info().count(ov::pass::DisableConstantFolding::get_type_info_static()))
         return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
@@ -241,7 +242,7 @@ bool op::v0::ShapeOf::has_evaluate() const {
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
-    if (get_rt_info().count("disabled_constant_folding_0"))
+    if (get_rt_info().count(ov::pass::DisableConstantFolding::get_type_info_static()))
         return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }

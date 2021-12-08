@@ -359,8 +359,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
             OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
                 {0, {ngraph::element::u8, ngraph::element::i8}},
                 {1, {ngraph::element::i8}}
-            }),
-            OperationPrecisionRestriction::create<ngraph::opset1::StridedSlice>({})
+            })
         });
 
         auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
@@ -371,7 +370,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
         ngraph::pass::Manager lptManager;
 
         auto lptPassConfig = lptManager.get_pass_config();
-        lptPassConfig->disable<ngraph::pass::low_precision::StridedSliceTransformation>();
         lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);

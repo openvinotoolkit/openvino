@@ -5,7 +5,7 @@
 #include "grn_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "grn/grn_kernel_selector.h"
 #include "grn/grn_kernel_base.h"

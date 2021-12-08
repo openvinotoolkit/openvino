@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "program_node.h"
 #include <fstream>
 #include <string>

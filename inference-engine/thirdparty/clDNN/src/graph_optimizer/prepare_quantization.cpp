@@ -15,7 +15,7 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 #include <algorithm>
 #include <string>

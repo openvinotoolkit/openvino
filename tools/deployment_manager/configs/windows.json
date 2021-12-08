@@ -68,7 +68,7 @@
       "files": [
         "runtime/bin/intel64/Release/gna.dll",
         "runtime/bin/intel64/Release/inference_engine_legacy.dll",
-        "runtime/bin/intel64/Release/GNAPlugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_gna_plugin.dll"
       ]
     },
     "hddl": {

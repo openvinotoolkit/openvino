@@ -121,8 +121,8 @@ jobs:
       # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
       # For MO unit tests
-      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
-      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
@@ -147,12 +147,12 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
-        -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS)
+        -DENABLE_INTEL_GNA=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
-        -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
+        -DENABLE_OV_ONNX_FRONTEND=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
@@ -242,9 +242,9 @@ jobs:
     displayName: 'Model Optimizer UT'
     continueOnError: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'nGraph UT'
+    displayName: 'OV Core UT'
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddlepaddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-PaddlePaddle.xml
