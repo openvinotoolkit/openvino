@@ -10,6 +10,8 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "base_reference_test.hpp"
 #include "ngraph_functions/utils/data_utils.hpp"
+#include "ngraph/runtime/reference/sequences.hpp"
+
 
 using namespace reference_tests;
 using namespace ov;
@@ -132,9 +134,9 @@ private:
                                                H_t,
                                                C_t,
                                                S_t,
-                                               W,//op::util::convert_lstm_node_format(W, op::util::LSTMWeightsFormat::IOFC),
-                                               R,//op::util::convert_lstm_node_format(R, op::util::LSTMWeightsFormat::IOFC),
-                                               B,//op::util::convert_lstm_node_format(B, op::util::LSTMWeightsFormat::IOFC),
+                                               W,
+                                               R,
+                                               B,
                                                params.hiddenSize,
                                                params.lstm_direction);
 
@@ -151,33 +153,84 @@ template <element::Type_t ET>
 std::vector<LSTMSequenceParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
 
-    //NGraphFunctions::Utils::generateVector<ET>;
-    //runtime::reference::lstm_sequence ;
+    size_t batchSize = 10;
+    size_t inputSize = 10;
+    size_t hiddenSize = 1;
+    size_t seqLength = 2;
+    op::RecurrentSequenceDirection lstm_direction = op::RecurrentSequenceDirection::FORWARD;
+    size_t numDirections = (lstm_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) ? 2 : 1;
+
+    Shape XShape = Shape{batchSize, seqLength, inputSize};
+    Shape H_tShape = Shape{batchSize, numDirections, hiddenSize};
+    Shape C_tShape = Shape{batchSize, numDirections, hiddenSize};
+    Shape S_tShape = Shape{batchSize};
+    Shape WShape = Shape{numDirections, 4 * hiddenSize, inputSize};
+    Shape RShape = Shape{numDirections, 4 * hiddenSize, hiddenSize};
+    Shape BShape = Shape{numDirections, 4 * hiddenSize};
+    Shape YShape = Shape{batchSize, numDirections, seqLength, hiddenSize};
+    Shape HoShape = Shape{batchSize, numDirections, hiddenSize};
+    Shape CoShape = Shape{batchSize, numDirections, hiddenSize};
+
+    std::vector<T> X = NGraphFunctions::Utils::generateVector<ET>(shape_size(XShape));
+    std::vector<T> H = NGraphFunctions::Utils::generateVector<ET>(shape_size(H_tShape));
+    std::vector<T> C = NGraphFunctions::Utils::generateVector<ET>(shape_size(C_tShape));
+    std::vector<int64_t> S = NGraphFunctions::Utils::generateVector<element::Type_t::i64>(shape_size(S_tShape), seqLength);
+    std::vector<T> W = NGraphFunctions::Utils::generateVector<ET>(shape_size(WShape));
+    std::vector<T> R = NGraphFunctions::Utils::generateVector<ET>(shape_size(RShape));
+    std::vector<T> B = NGraphFunctions::Utils::generateVector<ET>(shape_size(BShape));
+    std::vector<std::string> activations = {"sigmoid", "tanh", "tanh"};
+    std::vector<T> Y(shape_size(YShape));
+    std::vector<T> Ho(shape_size(HoShape));
+    std::vector<T> Co(shape_size(CoShape));
+
+    ngraph::runtime::reference::lstm_sequence<T, int64_t>(reinterpret_cast<const char*>(X.data()),
+                   XShape,
+                   reinterpret_cast<const char*>(H.data()),
+                   H_tShape,
+                   reinterpret_cast<const char*>(C.data()),
+                   C_tShape,
+                   reinterpret_cast<const char*>(S.data()),
+                   S_tShape,
+                   reinterpret_cast<const char*>(W.data()),
+                   WShape,
+                   reinterpret_cast<const char*>(R.data()),
+                   RShape,
+                   reinterpret_cast<const char*>(B.data()),
+                   BShape,
+                   reinterpret_cast<char*>(Y.data()),
+                   reinterpret_cast<char*>(Ho.data()),
+                   reinterpret_cast<char*>(Co.data()),
+                   activations[0],
+                   activations[1],
+                   activations[2],
+                   0.f,
+                   op::RecurrentSequenceDirection::FORWARD);
+
     std::vector<LSTMSequenceParams> params {
         LSTMSequenceParams(
-            2, 3, 3, 2,
-            op::RecurrentSequenceDirection::FORWARD,
+            batchSize, inputSize, hiddenSize, seqLength,
+            lstm_direction,
             ET,
-            NGraphFunctions::Utils::generateVector<ET>((2 * 2 * 3)),
-            NGraphFunctions::Utils::generateVector<ET>((2 * 3)),
-            NGraphFunctions::Utils::generateVector<ET>((2 * 3)),
-            std::vector<int64_t>{2, 2},
-            NGraphFunctions::Utils::generateVector<ET>((4 * 3 * 3)),
-            NGraphFunctions::Utils::generateVector<ET>((4 * 3 * 3)),
-            NGraphFunctions::Utils::generateVector<ET>((4 * 3)),
-            std::vector<T>(2 * 2 * 3, 0.f),
-            std::vector<T>(2 * 3, 0.f),
-            std::vector<T>(2 * 3, 0.f)),
+            X,
+            H,
+            C,
+            S,
+            W,
+            R,
+            B,
+            Y,
+            Ho,
+            Co),
     };
     return params;
 }
 
 std::vector<LSTMSequenceParams> generateCombinedParams() {
     const std::vector<std::vector<LSTMSequenceParams>> generatedParams {
-        //generateParams<element::Type_t::bf16>(),
-        //generateParams<element::Type_t::f16>(),
+        generateParams<element::Type_t::bf16>(),
+        generateParams<element::Type_t::f16>(),
         generateParams<element::Type_t::f32>(),
-        //generateParams<element::Type_t::f64>(),
+        generateParams<element::Type_t::f64>(),
     };
     std::vector<LSTMSequenceParams> combinedParams;
 
