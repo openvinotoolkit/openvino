@@ -16,8 +16,9 @@ JsonConfigExtension::JsonConfigExtension(const std::string& config_path)
     : DecoderTransformationExtension([this](std::shared_ptr<ov::Function> f) {
           bool res = true;
           for (const auto& target_extension : m_target_extensions) {
-              auto extension = std::dynamic_pointer_cast<JsonTransformationExtension>(target_extension.first);
-              res &= extension->transform(f, target_extension.second);
+              if (auto extension = std::dynamic_pointer_cast<JsonTransformationExtension>(target_extension.first)) {
+                  res &= extension->transform(f, target_extension.second);
+              }
           }
           return res;
       }) {
