@@ -617,7 +617,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         }
     }
 
-    if (!executableNetworkWithoutBatch) {
+    if (!executableNetworkWithBatch) {
         executableNetworkWithBatch = executableNetworkWithoutBatch;
         std::cout << "FALLBACK to using batch1 network!!!" << std::endl;
     }
