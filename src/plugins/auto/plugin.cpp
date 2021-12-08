@@ -16,11 +16,11 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include "multi_device_plugin.hpp"
+#include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
 
-#include "multi_itt.hpp"
+#include "itt.hpp"
 // ------------------------------MultiDeviceInferencePlugin----------------------------
 namespace MultiDevicePlugin {
     using namespace InferenceEngine;

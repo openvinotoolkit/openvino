@@ -38,9 +38,9 @@ def infer_data(
     result = {}
 
     for blob_name in output_blobs:
-        shape = exec_net.outputs[blob_name].shape
-        batch_size = shape[0]
-        result[blob_name] = np.ndarray((matrix_shape[0], shape[-1]))
+        output_shape = exec_net.outputs[blob_name].shape
+        batch_size = output_shape[0]
+        result[blob_name] = np.ndarray((matrix_shape[0], np.prod(output_shape[1:])))
 
     for i in range(-cw_l, matrix_shape[0] + cw_r, batch_size):
         if i < 0:
@@ -62,13 +62,17 @@ def infer_data(
 
             vectors = temp
 
+        for blob_name in input_blobs:
+            vectors[blob_name] = vectors[blob_name].reshape(exec_net.input_info[blob_name].input_data.shape)
+
         vector_results = exec_net.infer(vectors)
 
         if i - cw_r < 0:
             continue
 
         for blob_name in output_blobs:
-            result[blob_name][i - cw_r:i - cw_r + batch_size] = vector_results[blob_name][:num_of_vectors]
+            vector_result = vector_results[blob_name].reshape((batch_size, result[blob_name].shape[1]))
+            result[blob_name][i - cw_r:i - cw_r + batch_size] = vector_result[:num_of_vectors]
 
     return result
 

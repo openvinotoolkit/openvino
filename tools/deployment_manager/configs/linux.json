@@ -27,7 +27,7 @@
         "runtime/lib/intel64/libinference_engine_preproc.so",
         "runtime/lib/intel64/libinference_engine_c_api.so",
         "runtime/lib/intel64/libov_hetero_plugin.so",
-        "runtime/lib/intel64/libMultiDevicePlugin.so",
+        "runtime/lib/intel64/libov_auto_plugin.so",
         "runtime/lib/intel64/libngraph.so",
         "runtime/lib/intel64/libfrontend_common.so",
         "runtime/lib/intel64/libir_ov_frontend.so",
@@ -52,7 +52,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/cache.json",
-        "runtime/lib/intel64/libclDNNPlugin.so",
+        "runtime/lib/intel64/libov_intel_gpu_plugin.so",
         "runtime/lib/intel64/libinference_engine_lp_transformations.so",
         "install_dependencies/install_NEO_OCL_driver.sh"
       ]
