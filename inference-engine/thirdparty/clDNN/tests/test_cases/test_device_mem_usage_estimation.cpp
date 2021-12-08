@@ -7,8 +7,8 @@
 #include <cstddef>
 
 #include "test_utils.h"
-#include <cldnn/primitives/permute.hpp>
-#include <cldnn/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 
 using namespace cldnn;
 using namespace tests;

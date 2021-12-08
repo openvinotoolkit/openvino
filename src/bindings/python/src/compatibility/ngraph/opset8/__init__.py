@@ -38,7 +38,7 @@ from ngraph.opset3.ops import cum_sum as cumsum
 from ngraph.opset8.ops import deformable_convolution
 from ngraph.opset1.ops import deformable_psroi_pooling
 from ngraph.opset1.ops import depth_to_space
-from ngraph.opset1.ops import detection_output
+from ngraph.opset8.ops import detection_output
 from ngraph.opset7.ops import dft
 from ngraph.opset1.ops import divide
 from ngraph.opset7.ops import einsum
