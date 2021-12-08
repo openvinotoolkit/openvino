@@ -4,9 +4,9 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/mutable_data.hpp>
-#include <cldnn/primitives/experimental_detectron_roi_feature_extractor.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
+#include <intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp>
 
 #include <cstddef>
 #include <iostream>
@@ -54,7 +54,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
                                      7.416667f, 7.75f, 8.083333f, 8.416667f, 8.75f, 9.083334f, 9.166666f, 9.5f,  9.833334f,
                                      4.166667f, 4.5f,  4.833333f, 4.166667f, 4.5f,  4.833333f, 2.083333f, 2.25f, 2.416667f,
                                      10.16667f, 10.5f, 10.83333f, 10.16667f, 10.5f, 10.83333f, 5.083333f, 5.25f, 5.416667f};
-            
+
     std::vector<float>& expected_second_out = rois;
 
     auto output = outputs.at("edrfe").get_memory();

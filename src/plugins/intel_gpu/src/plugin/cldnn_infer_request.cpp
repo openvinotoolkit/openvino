@@ -12,7 +12,7 @@
 #include "cldnn_remote_context.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_itt.h"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <ie_algorithm.hpp>
 #include <debug.h>
 
@@ -161,6 +161,14 @@ void checkOutputBlob(const Blob::Ptr &blob,
     }
 
     checkAlloc(blob, str_output_not_allocated);
+}
+
+bool same_host_mem(cldnn::memory::ptr memPtr, uint8_t* hostPtr) {
+    uint8_t* bufferMem = nullptr;
+    if (memPtr->get_allocation_type() == cldnn::allocation_type::usm_host) {
+        bufferMem = reinterpret_cast<uint8_t*>(memPtr->get_internal_params().mem);
+    }
+    return bufferMem == hostPtr;
 }
 
 }  // namespace
@@ -562,7 +570,15 @@ void CLDNNInferRequest::wait() {
         // mapping remote blobs not needed -
         // let the user take care of them explicitly
         if (!bptr->is<gpu::ClBlob>()) {
-            copy_output_data(outputMemory, bptr);
+            bool same_mem = false;
+            {
+                auto dst_lock = bptr->cbuffer();
+                auto dst_ptr = dst_lock.as<uint8_t*>();
+                same_mem = same_host_mem(outputMemory, dst_ptr);
+            }
+            if (!same_mem) {
+                copy_output_data(outputMemory, bptr);
+            }
         }
     }
 
@@ -899,13 +915,14 @@ void CLDNNInferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob
     if (inputLayoutItr == m_graph->GetInputLayouts().end()) {
         IE_THROW() << "Input name mismatch.";
     }
-    Blob::Ptr reqBlob = _deviceInputs.at(inputName);
+    auto reqBlob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
     auto _nw_ptr = m_graph->GetNetwork();
     cldnn::primitive_id internalName = "parameter:" + inputName;
     const auto& prec = inputBlob->getTensorDesc().getPrecision();
     auto remote_ptr = inputBlob->as<gpu::ClBlob>();
     auto& stream = m_graph->GetNetwork()->get_stream();
     bool is_dev_input = remote_ptr != nullptr;
+
     switch (prec) {
         case Precision::FP32:
         case Precision::FP16:
@@ -918,7 +935,7 @@ void CLDNNInferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob
         case Precision::I64: {
             auto impl = getBlobImpl(is_dev_input ?
                                     remote_ptr :
-                                    reqBlob->as<gpu::ClBlob>());
+                                    reqBlob);
             if (!impl->is_allocated()) {
                 IE_THROW() << str_input_not_allocated;
             }
@@ -936,8 +953,11 @@ void CLDNNInferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob
                     }
                 } else {
                     auto src_lock = inputBlob->cbuffer();
-                    auto ev = inputMem->copy_from(stream, src_lock.as<const uint8_t*>());
-                    dependencies.push_back(ev);
+                    auto src_ptr = src_lock.as<uint8_t*>();
+                    if (!same_host_mem(inputMem, src_ptr)) {
+                        auto ev = inputMem->copy_from(stream, src_ptr);
+                        dependencies.push_back(ev);
+                    }
                 }
             }
             _nw_ptr->set_input_data(internalName, inputMem);
