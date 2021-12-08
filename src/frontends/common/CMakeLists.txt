@@ -37,7 +37,7 @@ target_include_directories(${TARGET_NAME}
         "${CMAKE_CURRENT_BINARY_DIR}/src")
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} openvino::util nlohmann_json nlohmann_json_schema_validator PUBLIC ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
 set_property(SOURCE
             ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_manager.cpp
@@ -61,7 +61,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_static STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME}_static)
-    target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} openvino::util nlohmann_json nlohmann_json_schema_validator PUBLIC ngraph)
+    target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
     target_include_directories(${TARGET_NAME}_static PUBLIC
         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>)
     target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -70,10 +70,6 @@ if(BUILD_SHARED_LIBS)
 else()
     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 endif()
-
-# Add include path to so_extension.hpp
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/extensions/json_config_extension.cpp
-        PROPERTIES INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
 
 # Installation rules for shared version only
 
