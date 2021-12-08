@@ -279,7 +279,7 @@ def test_get_batch():
     add = ops.add(param1, param2)
     func = Function(add, [param1, param2], "TestFunction")
     param = func.get_parameters()[0]
-    param.set_layout(Layout("NCHW"))
+    param.set_layout(Layout("NC"))
     assert get_batch(func) == 2
 
 
@@ -302,7 +302,7 @@ def test_set_batch():
     func = Function(add, [param1, param2], "TestFunction")
     param = func.get_parameters()[0]
     # batch == 2
-    param.set_layout(Layout("NCHW"))
+    param.set_layout(Layout("NC"))
     assert get_batch(func) == 2
     # set batch to 1
     set_batch(func, Dimension(1))
