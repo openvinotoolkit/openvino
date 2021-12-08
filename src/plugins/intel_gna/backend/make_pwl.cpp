@@ -369,10 +369,9 @@ void make_gna_pwl(const DnnActivation&  fun,
             if (pow_exponent == 0.0f) {
                 int32_t x_lower = INT32_MIN;
                 int32_t x_upper = INT32_MAX;
-                int16_t y_lower = y_min;
-                int16_t y_upper = y_max;
+                int16_t y_lower = FLOAT_TO_INT16(1 * out_scale);
+                int16_t y_upper = y_lower;
                 auto n_segments = 2;
-                y_lower = y_upper = FLOAT_TO_INT16(1 * out_scale);
 
                 gna_pwl.resize(n_segments);
 

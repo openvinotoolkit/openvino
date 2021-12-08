@@ -43,9 +43,9 @@ protected:
     double function(double x, const DnnActivation& activation_type) {
         switch (activation_type) {
             case kActNegLog:
-                return 1.0 * log(x);
+                return -1.0 * log(x);
             case kActNegHalfLog:
-                return 0.5 * log(x);
+                return -0.5 * log(x);
             default:
                 throw std::exception();
         }

@@ -387,11 +387,13 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 negative = true;  // make function convex
                 err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound,
                     threshold, negative, PWL_MAX_ITERATIONS_LOG);
+                pwl = negative_pwl(pwl);
                 break;
             case kActNegHalfLog:
                 negative = true;  // make function convex
                 err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound,
                     threshold, negative, PWL_MAX_ITERATIONS_LOG);
+                pwl = negative_pwl(pwl);
                 break;
             case kActPow: {
                 negative = (fmod(activation_type.args.pow.exponent, 1.0) == 0) ? true : false;
@@ -435,10 +437,12 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 case kActNegLog:
                     err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound,
                         threshold, negative, PWL_MAX_ITERATIONS_LOG);
+                    pwl = negative_pwl(pwl);
                     break;
                 case kActNegHalfLog:
                     err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound,
                         threshold, negative, PWL_MAX_ITERATIONS_LOG);
+                    pwl = negative_pwl(pwl);
                     break;
                 case kActPow: {
                     auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
