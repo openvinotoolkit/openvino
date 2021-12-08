@@ -16,7 +16,7 @@
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"
 #include "pyopenvino/graph/node_output.hpp"
-#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
+#if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyopenvino/core/async_infer_queue.hpp"
@@ -86,7 +86,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
 
-#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
+#if defined(ENABLE_OV_ONNX_FRONTEND)
     regmodule_graph_onnx_import(m);
 #endif
     regmodule_graph_op_util(m_op);

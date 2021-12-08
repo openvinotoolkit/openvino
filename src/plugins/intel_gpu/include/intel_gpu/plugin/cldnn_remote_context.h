@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <cldnn/runtime/memory.hpp>
-#include <cldnn/runtime/engine.hpp>
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include <ie_parameter.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <blob_factory.hpp>

@@ -28,15 +28,15 @@ ie_add_plugin(NAME ${TARGET_NAME}
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
+target_link_libraries(${TARGET_NAME} PRIVATE ov_intel_gpu_graph
+                                             pugixml::static
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
                                              ngraph)
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/
-        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-        ${clDNN_SOURCE_DIR}/api)
+        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -47,9 +47,3 @@ endif()
 
 # Failed because of OpenCL
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-# install
-
-install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT gpu)

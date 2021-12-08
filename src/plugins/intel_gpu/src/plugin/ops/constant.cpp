@@ -17,8 +17,8 @@
 #include "ngraph/op/variadic_split.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace CLDNNPlugin {
 

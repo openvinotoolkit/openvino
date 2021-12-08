@@ -169,7 +169,8 @@ const std::vector<ConvertSubtractConstantTransformationTestValues> testValues = 
             },
             {
                 { ngraph::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::i8, true, {}, { "disabled_constant_folding_0" } },
+                { {127.f}, element::f32, {}, false, 1ul, element::i8, true, {},
+                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
                 { {0.03f}, element::f32, {}, false }
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},

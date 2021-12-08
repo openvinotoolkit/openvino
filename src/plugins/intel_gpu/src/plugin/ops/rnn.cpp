@@ -8,12 +8,12 @@
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
 
-#include "cldnn/primitives/reshape.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/fully_connected.hpp"
-#include "cldnn/primitives/lstm.hpp"
-#include "cldnn/primitives/crop.hpp"
-#include "cldnn/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/lstm.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
 
 namespace CLDNNPlugin {
 static cldnn::activation_func GetActivationFunc(std::string name) {

@@ -6,7 +6,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
 #include "cldnn_itt.h"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
