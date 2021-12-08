@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <common/memory_desc_wrapper.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -64,18 +65,19 @@ public:
     DynamicBuffer(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const PortMap &map_rule);
     ~DynamicBuffer() = default;
 
-    void execute(mkldnn::stream strm, const int iter);
-    void transfer(mkldnn::stream strm, MKLDNNNode* node);
+    void execute(const mkldnn::engine& eng, const int iter);
+    void transfer(MKLDNNNode* node);
 
 private:
-    void init(mkldnn::stream strm);
-    void copy(mkldnn::stream strm, mkldnn::memory& src, mkldnn::memory& dst);
-    void overwrite(mkldnn::stream strm);
+    void init(const mkldnn::engine& eng);
 
     /* methods for resize and refill buffer */
     std::shared_ptr<mkldnn::memory> create_buffer(const mkldnn::engine& eng);
-    void move_buffer(mkldnn::stream strm, std::shared_ptr<mkldnn::memory> new_buffer);
-    void move_data(mkldnn::stream strm);
+    void move_buffer(std::shared_ptr<mkldnn::memory> new_buffer);
+    void move_data();
+
+    static inline void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
+    static uint8_t* get_ptr(mkldnn::memory& prim);
 
     size_t m_elem_size = 0lu;
     ptrdiff_t m_chunk_offset_in_byte = 0;
@@ -84,6 +86,9 @@ private:
     MKLDNNMemoryPtr m_from;
     MKLDNNMemoryPtr m_to;
     PortMap m_map_rule;
+
+    size_t m_len = 1;
+    size_t m_count = 1;
 
     std::shared_ptr<mkldnn::memory> m_mem_holder_buffer;
 };
@@ -123,7 +128,7 @@ private:
 
     /* Dynamic support */
     void reshapeSubgraphInput();
-    void reshapeAndFillOutput(mkldnn::stream strm, const mkldnn::engine& eng);
+    void reshapeAndFillOutput(mkldnn::stream strm);
 
     int m_n_iter = 0;
 

@@ -15,6 +15,7 @@
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
+using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace MKLDNNPlugin {
@@ -200,36 +201,28 @@ DynamicBuffer::DynamicBuffer(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr 
     m_elem_size = MKLDNNExtensionUtils::sizeOfDataType(from->GetDataType());
 }
 
-void DynamicBuffer::execute(mkldnn::stream strm, const int iter) {
+void DynamicBuffer::execute(const mkldnn::engine& eng, const int iter) {
     if (iter == 0) {
-        init(strm);
+        init(eng);
         return;
     }
 
-    overwrite(strm);
+    auto new_buffer = create_buffer(eng);
+    move_buffer(new_buffer);
+    move_data();
 }
 
-void DynamicBuffer::init(mkldnn::stream strm) {
+void DynamicBuffer::init(const mkldnn::engine& eng) {
     m_chunk_offset_in_byte = 0;
     m_buffer_offset_in_byte = 0;
 
-    auto eng = strm.get_engine();
     auto src_mem = m_from->GetPrimitive();
     auto src_desc = src_mem.get_desc();
+    auto dims = src_desc.dims();
+    m_count = std::accumulate(dims.begin(), dims.begin() + m_map_rule.m_axis, 1, std::multiplies<size_t>());
+    m_len = std::accumulate(dims.begin() + m_map_rule.m_axis + 1, dims.end(), m_elem_size, std::multiplies<size_t>());
     m_mem_holder_buffer.reset(new memory(src_desc, eng));
-    copy(strm, src_mem, *m_mem_holder_buffer.get());
-}
-
-void DynamicBuffer::copy(mkldnn::stream strm, mkldnn::memory& src, mkldnn::memory& dst) {
-    mkldnn::reorder reorder(src, dst);
-    reorder.execute(strm, src, dst);
-}
-
-void DynamicBuffer::overwrite(mkldnn::stream strm) {
-    auto eng = strm.get_engine();
-    auto new_buffer = create_buffer(eng);
-    move_buffer(strm, new_buffer);
-    move_data(strm);
+    copy(reinterpret_cast<const uint8_t*>(m_from->GetPtr()), get_ptr(*m_mem_holder_buffer.get()), 0, 0, 1, m_from->GetSize());
 }
 
 std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engine& eng) {
@@ -251,43 +244,26 @@ std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engin
     return std::make_shared<mkldnn::memory>(new_buffer_desc, eng);
 }
 
-void DynamicBuffer::move_buffer(mkldnn::stream strm, std::shared_ptr<mkldnn::memory> new_buffer) {
-    auto eng = strm.get_engine();
-    auto axis = m_map_rule.m_axis;
+void DynamicBuffer::move_buffer(std::shared_ptr<mkldnn::memory> new_buffer) {
+    const auto axis = m_map_rule.m_axis;
+    const auto src_stride = m_mem_holder_buffer->get_desc().dims()[axis] * m_len;
+    const auto dst_stride = new_buffer->get_desc().dims()[axis] * m_len;
 
-    // make chunk view
-    auto chunk_desc = new_buffer->get_desc();
-    auto old_desc = m_mem_holder_buffer->get_desc();
-    chunk_desc.data.dims[axis] = old_desc.data.dims[axis];
-    chunk_desc.data.padded_dims[axis] = old_desc.data.padded_dims[axis];
-
-    const auto new_mem_handler = new_buffer->get_data_handle();
-    mkldnn::memory chunk_mem(chunk_desc, eng, new_mem_handler);
-    chunk_mem.set_data_handle(static_cast<uint8_t *>(new_buffer->get_data_handle()) + m_buffer_offset_in_byte);
-
-    copy(strm, *m_mem_holder_buffer.get(), chunk_mem);
+    copy(get_ptr(*m_mem_holder_buffer.get()), get_ptr(*new_buffer.get()) + m_buffer_offset_in_byte,
+         src_stride, dst_stride, m_count, src_stride);
     m_mem_holder_buffer = new_buffer;
 }
 
-void DynamicBuffer::move_data(mkldnn::stream strm) {
-    auto eng = strm.get_engine();
-    auto axis = m_map_rule.m_axis;
-    auto src_mem = m_from->GetPrimitive();
-    auto src_desc = src_mem.get_desc();
+void DynamicBuffer::move_data() {
+    const auto axis = m_map_rule.m_axis;
+    const auto src_stride = m_from->GetPrimitive().get_desc().dims()[axis] * m_len;
+    const auto dst_stride = m_mem_holder_buffer->get_desc().dims()[axis] * m_len;
 
-    // make chunk view
-    auto chunk_desc = m_mem_holder_buffer->get_desc();
-    chunk_desc.data.dims[axis] = src_desc.data.dims[axis];
-    chunk_desc.data.padded_dims[axis] = src_desc.data.padded_dims[axis];
-
-    const auto new_mem_handler = m_mem_holder_buffer->get_data_handle();
-    mkldnn::memory chunk_mem = { chunk_desc, eng, new_mem_handler };
-    chunk_mem.set_data_handle(static_cast<uint8_t*>(m_mem_holder_buffer->get_data_handle()) + m_chunk_offset_in_byte);
-
-    copy(strm, src_mem, chunk_mem);
+    copy(reinterpret_cast<const uint8_t*>(m_from->GetPtr()), get_ptr(*m_mem_holder_buffer.get()) + m_chunk_offset_in_byte,
+         src_stride, dst_stride, m_count, src_stride);
 }
 
-void DynamicBuffer::transfer(mkldnn::stream strm, MKLDNNNode* node) {
+void DynamicBuffer::transfer(MKLDNNNode* node) {
     const auto &currDesc = m_to->getDesc();
     if (!currDesc.getShape().isStatic() || currDesc.getShape().getStaticDims() != m_from->getStaticDims()) {
         const auto memDesc = node->getBaseMemDescAtOutputPort(m_map_rule.m_from)->cloneWithNewDims(
@@ -295,8 +271,20 @@ void DynamicBuffer::transfer(mkldnn::stream strm, MKLDNNNode* node) {
         m_to->redefineDesc(*memDesc);
     }
 
-    auto dst_mem = m_to->GetPrimitive();
-    copy(strm, *m_mem_holder_buffer.get(), dst_mem);
+    copy(get_ptr(*m_mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(m_to->GetPtr()), 0, 0, 1, m_to->GetSize());
+}
+
+void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len) {
+    parallel_for(count, [&](const size_t i) {
+        std::memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
+    });
+}
+
+uint8_t* DynamicBuffer::get_ptr(mkldnn::memory& prim) {
+    auto ptr = static_cast<uint8_t*>(prim.get_data_handle());
+    auto md = prim.get_desc().data;
+    mkldnn::impl::memory_desc_wrapper wrapper(md);
+    return ptr + wrapper.offset0() * wrapper.data_type_size();
 }
 
 }  // namespace MKLDNNPlugin
@@ -530,14 +518,14 @@ void MKLDNNTensorIteratorNode::executeDynamicImpl(mkldnn::stream strm) {
         continue_cond = m_continue_cond_check->getStatus();
 
         for (auto& buffer : m_buffers)
-            buffer->execute(strm, i);
+            buffer->execute(eng, i);
 
         // on the last iteration we shouldn't reshape body inputs and init back edges
         if ((i + 1 != max_num_iter) && continue_cond)
             prepareDynamicBackEdges();
     }
 
-    reshapeAndFillOutput(strm, eng);
+    reshapeAndFillOutput(strm);
 }
 
 /* *==============* Prepare reorders, edges between body and TI *==============* */
@@ -659,7 +647,8 @@ void MKLDNNTensorIteratorNode::reshapeSubgraphInput() {
     }
 }
 
-void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm, const mkldnn::engine& eng) {
+void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
+    auto eng = strm.get_engine();
     for (auto map_rule : m_outputPortMap) {
         if (map_rule.m_axis == -1) {
             auto &to_mem = getChildEdgesAtPort(map_rule.m_from)[0]->getMemoryPtr();
@@ -678,7 +667,7 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm, const m
     }
 
     for (auto buffer : m_buffers) {
-        buffer->transfer(strm, this);
+        buffer->transfer(this);
     }
 }
 
