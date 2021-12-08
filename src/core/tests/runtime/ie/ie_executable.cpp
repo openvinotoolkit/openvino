@@ -128,7 +128,7 @@ runtime::ie::IE_Executable::IE_Executable(shared_ptr<Function> func, string devi
         }
     }
 
-#ifdef OPENVINO_DEBUG_ENABLE
+#ifdef ENABLE_OPENVINO_DEBUG
     cout << "Nodes in test: ";
     for (const auto& node : func->get_ops()) {
         cout << node << endl;

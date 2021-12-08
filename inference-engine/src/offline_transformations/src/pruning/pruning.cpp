@@ -21,7 +21,7 @@ bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
     manager.register_pass<InitMasks>();
     manager.register_pass<PropagateMasks>();
 
-#ifdef OPENVINO_DEBUG_ENABLE
+#ifdef ENABLE_OPENVINO_DEBUG
     // VisualizeTree modifier helps to print Masks and mark nodes with masks
     /*
     auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
@@ -56,7 +56,7 @@ bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
 
     manager.register_pass<ShrinkWeights>();
 
-#ifdef OPENVINO_DEBUG_ENABLE
+#ifdef ENABLE_OPENVINO_DEBUG
     // Uncomment following line and change path to resulting svg file
     // manager.register_pass<VisualizeTree>("/tmp/after.svg");
 #endif
