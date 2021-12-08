@@ -12,7 +12,7 @@
 #include <cctype>
 #include <memory>
 
-#include "cldnn_transformations_pipeline.h"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
 
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
@@ -86,7 +86,7 @@
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
 
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/itt.hpp"
 
 namespace {
 template<typename T>
@@ -99,10 +99,12 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 }
 }  // namespace
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "TransformationsPipeline::apply");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
     bool use_onednn = false;
@@ -336,7 +338,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
     }
 
     if (enableInt8) {
-        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "TransformationsPipeline::apply::lpt");
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::lpt");
         using namespace ngraph::pass::low_precision;
 
         // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
@@ -421,7 +423,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
     }
 
     {
-        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "TransformationsPipeline::apply::run_passes");
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::run_passes");
         ngraph::pass::Manager manager;
         // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
         // TODO: check why we have these reshapes
@@ -442,4 +444,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
         manager.run_passes(func);
     }
 }
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

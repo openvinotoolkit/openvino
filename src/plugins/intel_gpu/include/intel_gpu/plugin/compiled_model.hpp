@@ -13,17 +13,19 @@
 #include "ie_blob.h"
 #include "cpp/ie_cnn_network.h"
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include "cldnn_graph.h"
-#include "cldnn_config.h"
-#include "cldnn_remote_context.h"
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/plugin/device_config.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
-class CLDNNExecNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    typedef std::shared_ptr<CLDNNExecNetwork> Ptr;
+    typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
+    CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
@@ -36,11 +38,13 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
 
-    std::vector<std::shared_ptr<CLDNNGraph>> m_graphs;
+    std::vector<std::shared_ptr<Graph>> m_graphs;
     InferenceEngine::gpu::ClContext::Ptr m_context;
     Config m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
 };
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

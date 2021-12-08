@@ -15,7 +15,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/compatibility.hpp>
 
-#include "cldnn_config.h"
+#include "intel_gpu/plugin/device_config.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/topology.hpp"
@@ -40,7 +40,9 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
        });                                                                                        \
 }
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 std::string layer_type_lower(const ngraph::Node* op);
 std::string layer_type_name_ID(const ngraph::Node* op);
@@ -135,7 +137,7 @@ public:
     template<typename PType>
     void AddPrimitive(PType prim) {
         if (m_topology == nullptr) {
-            IE_THROW() << "m_topology object was not created in clDNNPlugin::Program";
+            IE_THROW() << "m_topology object was not created in ov::runtime::intel_gpu::Program";
         }
 
         m_topology->add(prim);
@@ -172,11 +174,13 @@ private:
     void ChangeInputBatch(int batch);
 };
 
-void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& node, CLDNNCustomLayerPtr customLayer);
+void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& node, CustomLayerPtr customLayer);
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node,
                           cldnn::activation_func func, cldnn::activation_additional_params params);
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, cldnn::eltwise_mode mode);
 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

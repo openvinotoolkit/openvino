@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
+#include "intel_gpu/plugin/program.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
-#include "cldnn_itt.h"
+#include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 const cldnn::primitive_id Program::m_preProcessTag("_cldnn_input_preprocess");
 const cldnn::primitive_id Program::m_meanValuesTag("_cldnn_mean_values");
@@ -177,7 +179,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
                                                       InferenceEngine::InputsDataMap networkInputs,
                                                       InferenceEngine::OutputsDataMap networkOutputs,
                                                       bool createTopologyOnly, bool partialBuild) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::BuildProgram");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
     cldnn::build_options options;
 
     if (!m_config.graph_dumps_dir.empty()) {
@@ -196,7 +198,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     if (createTopologyOnly) {
         return {};
     } else {
-        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateProgram");
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         auto program = cldnn::program::build_program(*m_engine, *m_topology, options);
         CleanupBuild();
 
@@ -205,7 +207,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
 }
 
 bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::IsOpSupported");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::IsOpSupported");
     cldnn::topology topology;
     try {
         // Query mode disables checks that input primitives are created,
@@ -232,7 +234,7 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
 }
 
 void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateSingleLayerPrimitive");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateSingleLayerPrimitive");
     InitProfileInfo(op->get_friendly_name(), op->get_type_name());
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -355,4 +357,6 @@ bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
     return is_const_node(node);
 }
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

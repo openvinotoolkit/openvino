@@ -9,21 +9,23 @@
 #include <vector>
 #include <memory>
 #include <atomic>
-#include "cldnn_graph.h"
+#include "intel_gpu/plugin/graph.hpp"
 #include <threading/ie_istreams_executor.hpp>
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 struct buf_info {
     size_t buf_offset;
     size_t buf_size;
 };
 
-class CLDNNExecNetwork;
+class CompiledModel;
 
-class CLDNNInferRequest : public InferenceEngine::IInferRequestInternal {
+class InferRequest : public InferenceEngine::IInferRequestInternal {
 public:
-    using Ptr = std::shared_ptr<CLDNNInferRequest>;
+    using Ptr = std::shared_ptr<InferRequest>;
     // make sure all blobs and cldnn::memory objects
     // are in place and valid
     void checkBlobs() override;
@@ -31,21 +33,21 @@ public:
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
-    CLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
-                      const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
-    CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                      const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
+    InferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
+                 const std::shared_ptr<CompiledModel>& execNetwork);
+    InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                 const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                 const std::shared_ptr<CompiledModel>& execNetwork);
 
-    CLDNNInferRequest(const CLDNNInferRequest &) = delete;
+    InferRequest(const InferRequest &) = delete;
 
-    virtual ~CLDNNInferRequest() = default;
+    virtual ~InferRequest() = default;
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
 
     void SetBatch(int batch = -1) override;
-    void SetGraph(std::shared_ptr<CLDNNGraph> graph);
+    void SetGraph(std::shared_ptr<Graph> graph);
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
@@ -73,7 +75,7 @@ private:
     bool m_useProfiling = false;
     bool m_useStreams = false;
     bool m_useExternalQueue = false;
-    std::shared_ptr<CLDNNGraph> m_graph;
+    std::shared_ptr<Graph> m_graph;
 
     // dynamic batch stuff
     std::map<std::string, std::vector<buf_info>> batchInputs;
@@ -102,4 +104,6 @@ private:
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;
 };
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

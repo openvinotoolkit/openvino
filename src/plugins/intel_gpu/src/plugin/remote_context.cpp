@@ -3,19 +3,21 @@
 //
 
 #include <memory>
-#include "cldnn_remote_context.h"
-#include "cldnn_itt.h"
-#include "cldnn_engine.h"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
-namespace CLDNNPlugin {
-CLDNNRemoteAllocator CLDNNRemoteBlobImpl::m_allocator;
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
+RemoteAllocator RemoteBlobImpl::m_allocator;
 
-CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
+RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     cldnn::stream& stream,
     const cldnn::layout& layout,
     cldnn::shared_handle mem,
@@ -26,7 +28,7 @@ CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
     _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
 }
 
-ParamMap CLDNNRemoteBlobImpl::getParams() const {
+ParamMap RemoteBlobImpl::getParams() const {
     assert(m_memObject != nullptr);
     auto params = m_memObject->get_internal_params();
 
@@ -86,21 +88,21 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
     }
 }
 
-bool CLDNNRemoteBlobImpl::deallocate() noexcept {
+bool RemoteBlobImpl::deallocate() noexcept {
     m_memObject.reset();
     return m_memObject == nullptr;
 }
 
-bool CLDNNRemoteBlobImpl::is_allocated() const noexcept {
+bool RemoteBlobImpl::is_allocated() const noexcept {
     return m_memObject != nullptr;
 }
 
-bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
+bool RemoteBlobImpl::is_locked() const noexcept {
     return lockedHolder != nullptr;
 }
 
-void CLDNNRemoteBlobImpl::allocate() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::Allocate");
+void RemoteBlobImpl::allocate() {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "RemoteBlobImpl::Allocate");
     assert(m_memObject == nullptr);
 
     auto _impl = getContextImpl(m_context.lock());
@@ -153,22 +155,22 @@ void CLDNNRemoteBlobImpl::allocate() {
     _impl->release_lock();
 }
 
-const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noexcept {
+const std::shared_ptr<IAllocator>& RemoteBlobImpl::getAllocator() const noexcept {
     if (!_allocator) {
         _allocator = std::shared_ptr<IAllocator>(&m_allocator, [] (IAllocator*) {});
     }
     return _allocator;
 };
 
-std::string CLDNNRemoteBlobImpl::getDeviceName() const noexcept {
+std::string RemoteBlobImpl::getDeviceName() const noexcept {
     return getContextImpl(m_context.lock())->getDeviceName();
 };
 
-std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
+std::shared_ptr<InferenceEngine::RemoteContext> RemoteBlobImpl::getContext() const noexcept {
     return m_context.lock();
 }
 
-void CLDNNRemoteBlobImpl::lock() const {
+void RemoteBlobImpl::lock() const {
     if (!is_allocated()) {
         IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
     }
@@ -178,36 +180,36 @@ void CLDNNRemoteBlobImpl::lock() const {
     m_allocator.regLockedBlob(_handle, this);
 }
 
-void CLDNNRemoteBlobImpl::unlock() const {
+void RemoteBlobImpl::unlock() const {
     lockedHolder.reset();
 }
 
-LockedMemory<void> CLDNNRemoteBlobImpl::buffer() noexcept {
+LockedMemory<void> RemoteBlobImpl::buffer() noexcept {
     lock();
     return LockedMemory<void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
 }
 
-LockedMemory<const void> CLDNNRemoteBlobImpl::cbuffer() const noexcept {
+LockedMemory<const void> RemoteBlobImpl::cbuffer() const noexcept {
     lock();
     return LockedMemory<const void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
 }
 
-LockedMemory<void> CLDNNRemoteBlobImpl::rwmap()noexcept {
+LockedMemory<void> RemoteBlobImpl::rwmap()noexcept {
     lock();
     return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
 }
 
-LockedMemory<const void> CLDNNRemoteBlobImpl::rmap() const noexcept {
+LockedMemory<const void> RemoteBlobImpl::rmap() const noexcept {
     lock();
     return LockedMemory<const void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
 }
 
-LockedMemory<void> CLDNNRemoteBlobImpl::wmap()noexcept {
+LockedMemory<void> RemoteBlobImpl::wmap()noexcept {
     lock();
     return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
 }
 
-void CLDNNRemoteAllocator::regLockedBlob(void* handle, const CLDNNRemoteBlobImpl* blob) {
+void RemoteAllocator::regLockedBlob(void* handle, const RemoteBlobImpl* blob) {
     acquire_lock();
     auto iter = m_lockedBlobs.find(handle);
     if (iter == m_lockedBlobs.end()) {
@@ -216,7 +218,7 @@ void CLDNNRemoteAllocator::regLockedBlob(void* handle, const CLDNNRemoteBlobImpl
     release_lock();
 }
 
-void CLDNNRemoteAllocator::unlock(void* handle) noexcept {
+void RemoteAllocator::unlock(void* handle) noexcept {
     acquire_lock();
     auto iter = m_lockedBlobs.find(handle);
     if (iter != m_lockedBlobs.end()) {
@@ -226,7 +228,7 @@ void CLDNNRemoteAllocator::unlock(void* handle) noexcept {
     release_lock();
 }
 
-CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInferencePlugin> plugin,
+ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugin> plugin,
     const ParamMap& params,
     const Config& config) :
     m_plugin(plugin),
@@ -278,7 +280,7 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
                             (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
                             (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
 
-    auto engine_params = clDNNEngine::GetEngineParams(m_config, dev, m_external_queue);
+    auto engine_params = Plugin::GetParams(m_config, dev, m_external_queue);
     m_engine = cldnn::engine::create(engine_params.engine_type,
                                      engine_params.runtime_type, dev,
                                      cldnn::engine_configuration(enable_profiling,
@@ -293,7 +295,7 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
                                      engine_params.task_executor);
 }
 
-ParamMap CLDNNExecutionContextImpl::getParams() const {
+ParamMap ExecutionContextImpl::getParams() const {
     ParamMap ret = { { GPU_PARAM_KEY(OCL_CONTEXT), m_engine->get_user_context() } };
 
     switch (m_type) {
@@ -312,7 +314,7 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
     return ret;
 }
 
-std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
+std::string ExecutionContextImpl::getDeviceName() const noexcept {
     auto devName = m_plugin.lock()->GetName();
 
     auto engine_type = cldnn::engine_types::ocl;
@@ -334,4 +336,6 @@ std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
     return devName;
 }
 
-};  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

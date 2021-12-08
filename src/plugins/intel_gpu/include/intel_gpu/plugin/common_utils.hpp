@@ -9,11 +9,13 @@
 
 #include "ngraph/type/element_type.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
-const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, int def = 1) {
+inline cldnn::tensor tensor_from_dims(const InferenceEngine::SizeVector& dims, int def = 1) {
     switch (dims.size()) {
     case 0: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
     case 1: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(def), cldnn::spatial(def, def));
@@ -22,9 +24,9 @@ const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, i
     case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
     case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
     case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-    default: IE_THROW() << "Invalid dimensions size(" << dims.size() << ") for clDNN tensor";
+    default: IE_THROW() << "Invalid dimensions size(" << dims.size() << ") for gpu tensor";
     }
-};
+}
 
 inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     switch (p) {
@@ -185,4 +187,6 @@ inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie
     return cldnn_order;
 }
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov
