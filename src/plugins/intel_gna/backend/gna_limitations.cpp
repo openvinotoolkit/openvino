@@ -61,35 +61,55 @@ bool VectorOrSquareLimit::isValid(const uint32_t h, const uint32_t w) const {
 std::string VectorOrSquareLimit::GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const {
     std::ostringstream out;
     if (!isValid(h, w)) {
-        out << "Unsupported " << what << " shape, actual WxH: " << w << "x" << h <<
-            ", only vertical vector up to 1x" << maxVectorHeight << ", horizontal up to " << maxVectorWidth <<
-            "x1 or square up to " << maxSquare << "x" << maxSquare << " are valid\n";
+        out << "Unsupported " << what << " shape, actual HxW: " << h << "x" << w <<
+            ", only vertical vector up to " << maxVectorHeight << "x1, horizontal up to 1x" << maxVectorWidth <<
+            " or square up to " << maxSquare << "x" << maxSquare << " are valid\n";
     }
     return out.str();
 }
 
-VectorOrSquareLimit VectorOrSquareLimitByChannels::GetByChannels(const uint32_t channels) const {
-    return channels <= smallChannelMax ? smallChannel : bigChannel;
+
+bool RectLimit::isValid(const uint32_t h, const uint32_t w) const {
+    if (h >= 1 && h <= maxVectorHeight && w >= 1 && w <= maxVectorWidth) return true;
+    return false;
 }
 
-bool VectorOrSquareLimitByChannels::isValid(const uint32_t h, const uint32_t w, const uint32_t channels) const {
+std::string RectLimit::GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const {
+    std::ostringstream out;
+    if (!isValid(h, w)) {
+        out << "Unsupported " << what << " shape, actual HxW: " << h << "x" << w <<
+            ", only rectangular shapes up to " << maxVectorHeight << "x" << maxVectorWidth << " are valid\n";
+    }
+    return out.str();
+}
+
+RectLimit RectLimitByChannels::GetByChannels(const uint32_t channels) const {
+    for (auto&& limit : limitPerChannel) {
+        if (limit.first >= channels) {
+            return limit.second;
+        }
+    }
+    return RectLimit{ 0, 0 };
+}
+
+bool RectLimitByChannels::isValid(const uint32_t h, const uint32_t w, const uint32_t channels) const {
     return GetByChannels(channels).isValid(h, w);
 }
 
-std::string VectorOrSquareLimitByChannels::GetErrorOrEmpty(const uint32_t h, const uint32_t w,
+std::string RectLimitByChannels::GetErrorOrEmpty(const uint32_t h, const uint32_t w,
     const uint32_t channels, std::string what) const {
     return GetByChannels(channels).GetErrorOrEmpty(h, w, what);
 }
 
-VectorOrSquareLimitByChannels VectorOrSquareLimitByChannelsAndPrecision::GetByPrecision(const OvGnaType precision) const {
+RectLimitByChannels RectLimitByChannelsAndPrecision::GetByPrecision(const OvGnaType precision) const {
     return precision == OvGnaTypeInt8 ? lowPrecision : defaultPrecision;
 }
 
-bool VectorOrSquareLimitByChannelsAndPrecision::isValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const {
+bool RectLimitByChannelsAndPrecision::isValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const {
     return GetByPrecision(precision).isValid(h, w, channels);
 }
 
-std::string VectorOrSquareLimitByChannelsAndPrecision::GetErrorOrEmpty(const uint32_t h, const uint32_t w,
+std::string RectLimitByChannelsAndPrecision::GetErrorOrEmpty(const uint32_t h, const uint32_t w,
     const OvGnaType precision, const uint32_t channels, std::string what) const {
     return GetByPrecision(precision).GetErrorOrEmpty(h, w, channels, what);
 }

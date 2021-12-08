@@ -74,6 +74,15 @@ const std::vector<std::vector<size_t >> kernels2D = {
         {7, 1},
         {3, 3},
 };
+
+const std::vector<std::vector<size_t >> kernels2D_big = {
+        {7, 2},
+        {2, 7},
+        {3, 7},
+        {6, 6},
+        {7, 7},
+};
+
 const std::vector<std::vector<size_t >> strides2D = {
         {1, 1},
 };
@@ -100,6 +109,16 @@ const auto conv2DParams_Kernels2D = ::testing::Combine(
         ::testing::ValuesIn(numOutCannels2D),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
+const auto conv2DParams_Kernels2D_big = ::testing::Combine(
+    ::testing::ValuesIn(kernels2D_big),
+    ::testing::ValuesIn(strides2D),
+    ::testing::ValuesIn(padBegins2D),
+    ::testing::ValuesIn(padEnds2D),
+    ::testing::ValuesIn(dilations2D),
+    ::testing::ValuesIn(numOutCannels2D),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
 const auto conv2DParams_ExplicitPadding_Height1 = ::testing::Combine(
         ::testing::ValuesIn(kernelsH1),
         ::testing::ValuesIn(stridesH1),
@@ -218,4 +237,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
                                  ::testing::Values(input2DNCHW),
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          GnaConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big, GnaConvolutionLayerTest,
+    ::testing::Combine(
+        conv2DParams_Kernels2D_big,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(input2DNCHW),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+    GnaConvolutionLayerTest::getTestCaseName);
 }  // namespace
