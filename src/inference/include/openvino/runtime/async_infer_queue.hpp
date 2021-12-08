@@ -27,6 +27,8 @@ namespace helpers {
  * @brief Helper function to get number of jobs based on given network's metrics.
  *
  * @param net ExecutableNetwork object.
+ * 
+ * @return Returns number of jobs.
  */
 static size_t num_of_jobs_helper(ov::runtime::ExecutableNetwork& net) {
     try {
