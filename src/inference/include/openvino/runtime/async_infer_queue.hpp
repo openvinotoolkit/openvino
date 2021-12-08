@@ -144,7 +144,7 @@ public:
      * to pass underlaying request's object back to the user (for example: to get output tensors),
      * as well as providing additional data passing to the callback function.
      *
-     * It is NOT recommended to start another inference inside callback! 
+     * It is NOT recommended to start another inference inside callback!
      * This can lead to worse performance or break execution if not synchronized correctly.
      */
     void set_callback(std::function<void(std::exception_ptr, ov::runtime::InferRequest&, const ov::Any&)> callback);

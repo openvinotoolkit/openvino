@@ -268,7 +268,7 @@ void regclass_InferRequest(py::module m) {
         return self.cpp_request.get_profiling_info();
     });
 
-    cls.def_property_readonly("results", [](InferRequestWrapper& self) {
-        return Common::outputs_to_dict(self._outputs, self._request);
+    cls.def_property_readonly("results", [](PyInferRequest& self) {
+        return Common::outputs_to_dict(self._outputs, self.cpp_request);
     });
 }
