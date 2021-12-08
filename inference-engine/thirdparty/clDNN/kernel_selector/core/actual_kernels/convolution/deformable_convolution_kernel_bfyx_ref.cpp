@@ -30,9 +30,10 @@ ParamsKey DeformableConvolutionKernel_bfyx_Ref::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
     k.DisableTuning();
-    k.EnableLocalConvolution();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();
+    k.EnableDeformableMask();
+    k.EnableBilinearInterpolationPad();
     return k;
 }
 

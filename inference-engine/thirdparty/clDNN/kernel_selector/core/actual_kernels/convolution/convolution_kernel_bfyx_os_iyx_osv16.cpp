@@ -80,7 +80,7 @@ static std::pair<size_t, size_t> get_bfyx_req_input_block_dims(size_t output_blo
     return std::make_pair(input_block_array_size, input_block_read_width);
 }
 
-static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_t& block_x, size_t& block_y) {
+static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_t& block_x, size_t& block_y, size_t sub_group_size) {
     // how many elements we will compute in each dimension
     size_t computed_x = Align(output_x, block_x);
     size_t computed_y = Align(output_y, block_y);
@@ -94,8 +94,10 @@ static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_
     block_x -= unused_x / simds_x;
     block_y -= unused_y / simds_y;
 
-    block_x = Align(block_x, 2);
-    block_y = Align(block_y, 2);
+    if (simds_x * simds_y >= sub_group_size) {
+        block_x = Align(block_x, 2);
+        block_y = Align(block_y, 2);
+    }
 }
 
 ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(
@@ -145,7 +147,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
     // sizes
     if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.output.Batch().v != 1) {
-        shrink_blocks_to_output_size(cp.output.X().v, cp.output.Y().v, option.blockWidth, option.blockHeight);
+        shrink_blocks_to_output_size(cp.output.X().v, cp.output.Y().v, option.blockWidth, option.blockHeight, sub_group_size);
     }
     return option;
 }
