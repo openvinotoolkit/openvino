@@ -1,52 +1,36 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "snippets/pass/filter_fused.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets_mark_fused.hpp"
+#include <snippets/pass/collapse_subgraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-namespace ngraph {
-namespace snippets {
-namespace pass {
+NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SnippetsMarkFused, "SnippetsMarkFused", 0);
 
+using namespace ngraph;
+namespace MKLDNNPlugin {
 namespace {
-std::vector<SnippetsNodeType> getContinuableChains(std::shared_ptr<Node> node) {
-    std::vector<SnippetsNodeType> result;
+NodeFusingType GetNodeFusingType(std::shared_ptr<Node> node) {
+    auto &rt = node->get_rt_info();
+    const auto rinfo = rt.find("MayBeFusedInPlugin");
+    if (rinfo == rt.end())
+        return NodeFusingType::NotSet;
+    return rinfo->second.as<NodeFusingType>();
+}
+void SetNodeFusingType(std::shared_ptr<Node> node, NodeFusingType nodeType) {
+    auto &rt = node->get_rt_info();
+    rt["MayBeFusedInPlugin"] = nodeType;
+}
+std::vector<NodeFusingType> getContinuableChains(std::shared_ptr<Node> node) {
+    std::vector<NodeFusingType> result;
     for (const auto& input : node->inputs()) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
-        const auto snt = GetSnippetsNodeType(parent);
-        if (snt > SnippetsNodeType::FusedTerminator) {
+        const auto snt = GetNodeFusingType(parent);
+        if (snt > NodeFusingType::FusedTerminator) {
             result.push_back(snt);
         }
     }
     return result;
-}
-bool hasIgnoredParent(std::shared_ptr<Node> node) {
-    for (const auto& input : node->inputs()) {
-        const auto parent = input.get_source_output().get_node_shared_ptr();
-        if (GetSnippetsNodeType(parent) == SnippetsNodeType::Ignored)
-            return true;
-    }
-    return false;
-}
-bool hasParameterParent(std::shared_ptr<Node> node) {
-    for (const auto& input : node->inputs()) {
-        const auto parent = input.get_source_output().get_node_shared_ptr();
-        if (ov::is_type<ngraph::op::Parameter>(parent))
-            return true;
-    }
-    return false;
-}
-bool hasParentInStartedSubgraph(std::shared_ptr<Node> node) {
-    auto inputs = node->inputs();
-    for (const auto& input : inputs) {
-        const auto parent = input.get_source_output().get_node_shared_ptr();
-        // True for SubgraphStart and SubgraphBody by convention
-        if (GetSnippetsNodeType(parent) < SnippetsNodeType::NotSet)
-            return true;
-    }
-    return false;
 }
 int getNumNonConstInputs(std::shared_ptr<Node> node) {
     int num_non_const_inputs = 0;
@@ -137,17 +121,17 @@ bool canBePerformedAsScaleShift(std::shared_ptr<Node> node) {
             ov::is_type<ngraph::opset1::Multiply>(node) ||
             ov::is_type<ngraph::opset1::Subtract>(node) ||
             ov::is_type<ngraph::opset1::Divide>(node)) &&
-            isBroadcastableToDataInput();
+           isBroadcastableToDataInput();
 }
 
 bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
     return SupportsFusingWithConvolution_SumActivation(node) ||
-        ov::is_type<ngraph::op::Tanh>(node) ||
-        ov::is_type<ngraph::op::v0::Gelu>(node) ||
-        ov::is_type<ngraph::op::v7::Gelu>(node) ||
-        ov::is_type<ngraph::op::Abs>(node) ||
-        ov::is_type<ngraph::op::Sqrt>(node) ||
-        canBePerformedAsScaleShift(node);
+           ov::is_type<ngraph::op::Tanh>(node) ||
+           ov::is_type<ngraph::op::v0::Gelu>(node) ||
+           ov::is_type<ngraph::op::v7::Gelu>(node) ||
+           ov::is_type<ngraph::op::Abs>(node) ||
+           ov::is_type<ngraph::op::Sqrt>(node) ||
+           canBePerformedAsScaleShift(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(std::shared_ptr<Node> node) {
@@ -201,7 +185,7 @@ bool isSuitableChildForFusingSimple(std::shared_ptr<Node> node) {
     // Note: Fusing child is allowed to have several users, but that must be the end of the chain
     return SupportsFusingWithConvolution_Simple(node) && getNumNonConstInputs(node) == 1;
 }
-bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node, SnippetsNodeType &updatedChainType) {
+bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node, NodeFusingType &updatedChainType) {
     if (!ov::is_type<ngraph::opset1::Add>(node))
         return false;
     int num_non_const_inputs = 0;
@@ -230,8 +214,8 @@ bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node, SnippetsNodeType
     // eliminate getNumNonConstInputs() check
     if (SupportsFusingWithConvolution_Simple(node) &&
         (!can_be_converted_to_FC || matmul_shape.size() != 3)) {
-            updatedChainType = SnippetsNodeType::FusedWithMisc;
-            return true;
+        updatedChainType = NodeFusingType::FusedWithMisc;
+        return true;
     }
     //    FullyConnectedBiasFusion
     if (!can_be_converted_to_FC ||
@@ -241,7 +225,7 @@ bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node, SnippetsNodeType
     }
     // Fusing chain must be interrupted after the node, since reshape will be inserted
     if (bias_shape.size() >= 2)
-        updatedChainType = SnippetsNodeType::FusedTerminator;
+        updatedChainType = NodeFusingType::FusedTerminator;
     return true;
 }
 bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
@@ -249,7 +233,7 @@ bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
         return false;
     auto isFusedBiasNode = [](std::shared_ptr<Node> n){
         if (!(ov::is_type<ngraph::op::v1::Add>(n) &&
-                GetSnippetsNodeType(n) ==  SnippetsNodeType::FusedWithConvolution))
+              GetNodeFusingType(n) ==  NodeFusingType::FusedWithConvolution))
             return false;
         const auto conv = n->get_input_source_output(0);
         const auto bias = n->get_input_source_output(1);
@@ -280,7 +264,7 @@ bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
         const auto n = node->get_input_node_shared_ptr(i);
         //BinaryConvolution allows other ops to be fused before the Add, while Convolution doesn't
         num_conv_parents += (isSuitableConvolutionParent(n) || isFusedBiasNode(n) ||
-                GetSnippetsNodeType(n) == SnippetsNodeType::FusedWithBinaryConvolution);
+                             GetNodeFusingType(n) == NodeFusingType::FusedWithBinaryConvolution);
     }
     return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
 }
@@ -289,97 +273,62 @@ bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
 }
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
-void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
+void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, NodeFusingType nodeType) {
     const auto out = node->outputs();
     const bool has_only_child = out.size() == 1 && out[0].get_target_inputs().size() == 1;
-    SetSnippetsNodeType(node, has_only_child ? nodeType : SnippetsNodeType::FusedTerminator);
-}
-
-void SetTopologicalOrder(std::shared_ptr<Node> node, int64_t order) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
-    auto &rt = node->get_rt_info();
-    rt["TopologicalOrder"] = order;
+    SetNodeFusingType(node, has_only_child ? nodeType : NodeFusingType::FusedTerminator);
 }
 } // namespace
 
-SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
-    auto &rt = node->get_rt_info();
-    const auto rinfo = rt.find("MayBeFusedInPlugin");
-    if (rinfo == rt.end())
-        return SnippetsNodeType::NotSet;
-    return rinfo->second.as<SnippetsNodeType>();
-}
-void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
-    auto &rt = node->get_rt_info();
-    rt["MayBeFusedInPlugin"] = nodeType;
-}
-
-bool FilterFused::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_FUNCTION_SCOPE(FulterFused);
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::FilterFused")
-    auto ordered_ops = f->get_ordered_ops();
-    for (size_t order = 0; order < ordered_ops.size(); order++) {
-        auto &node = ordered_ops[order];
-        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
+bool SnippetsMarkFused::run_on_model(std::shared_ptr<ov::Model> m) {
+    for (auto &node : m->get_ordered_ops()) {
+        if (ngraph::op::is_constant(node))
             continue;
-        // Todo: we don't really have to set order for every node, just for subgraph parents and children would be enough
-        SetTopologicalOrder(node, order);
-        if (isSuitableConvolutionParent(node)) {
+        if (ngraph::op::is_parameter(node)) {
+            SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
+            continue;
+        } else if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
-            SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
+            SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
             continue;
         } else if (isSuitableBinaryConvolutionParent(node)) {
-            SetSnippetsNodeType(node, SnippetsNodeType::FusedWithBinaryConvolution);
+            SetNodeFusingType(node, NodeFusingType::FusedWithBinaryConvolution);
             continue;
         } else if (isSuitableMiscParent(node)) {
-            SetSnippetsNodeType(node, SnippetsNodeType::FusedWithMisc);
+            SetNodeFusingType(node, NodeFusingType::FusedWithMisc);
             continue;
         } else if (isSuitableMatMulParent(node)) {
-            SetSnippetsNodeType(node, SnippetsNodeType::FusedWithMatMul);
+            SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
             continue;
         }
         for (const auto fusingChainType : getContinuableChains(node)) {
             if (isSuitableChildForFusingSimple(node)) {
                 PropagateIfHasOnlyChild(node, fusingChainType);
-            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution ||
-                    fusingChainType == SnippetsNodeType::FusedWithBinaryConvolution) {
+            } else if (fusingChainType == NodeFusingType::FusedWithConvolution ||
+                       fusingChainType == NodeFusingType::FusedWithBinaryConvolution) {
                 if (isSuitableParentForFusingSumActivation(node)) {
-                    PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolutionSumActivation);
-                // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
+                    PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolutionSumActivation);
+                    // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
                 } else if (isSuitablePoolChild(node)) {
                     PropagateIfHasOnlyChild(node, fusingChainType);
                 }
-            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolutionSumActivation &&
-                        isSuitableChildForFusingSumActivation(node)) {
+            } else if (fusingChainType == NodeFusingType::FusedWithConvolutionSumActivation &&
+                       isSuitableChildForFusingSumActivation(node)) {
                 // Todo: Chain could be converted from FusedWithBinaryConvolution to FusedWithConvolution at this point
                 // Set FusedWithConvolution, so the fusing chain could be propagated
-                PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolution);
-            } else if (fusingChainType == SnippetsNodeType::FusedWithMatMul) {
+                PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolution);
+            } else if (fusingChainType == NodeFusingType::FusedWithMatMul) {
                 // Handle fusings for both MatMul and FullyConnected
-                SnippetsNodeType updatedChainType = fusingChainType;
+                NodeFusingType updatedChainType = fusingChainType;
                 if (isSuitableChildForFusingMatMul(node, updatedChainType))
                     PropagateIfHasOnlyChild(node, updatedChainType);
+            } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && snippets::pass::AppropriateForSubgraph(node)) {
+                SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
             }
         }
-        if (AppropriateForSubgraph(node)) {
-            // todo: enable u8 support in Snippetst
-            // Ignore eltwise chains starting at Parameter node, since it could be u8
-            if (hasIgnoredParent(node) || hasParameterParent(node)) {
-                SetSnippetsNodeType(node, SnippetsNodeType::Ignored);
-                continue;
-            }
-            if (GetSnippetsNodeType(node) >= SnippetsNodeType::FusedTerminator)
-                continue;
-            if (hasParentInStartedSubgraph(node)) {
-                SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
-            } else {
-                SetSnippetsNodeType(node, SnippetsNodeType::SubgraphStart);
-            }
-        }
+        if (GetNodeFusingType(node) != NodeFusingType::NotSet)
+                SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
     }
     return true;
 }
-} // namespace pass
-} // namespace snippets
-} // namespace ngraph
+}  // namespace MKLDNNPlugin

@@ -12,6 +12,36 @@
 namespace ngraph {
 namespace snippets {
 namespace pass {
+/*
+ SubgraphStart - it's safe to start subgraph without AppropriateForSubgraph check
+ SubgraphBody - it's safe to continue subgraph without AppropriateForSubgraph check
+ Ignored - must be skipped, since can't be handled properly at this time
+ Important notes:
+    -- The enum ORDER IS CRITICAL: all nodes with SnippetsNodeType > SnippetsNodeType::NotSet will be skipped
+    -- Plugin Transformations must set only the SkippedByPlugin flag, otherwise tokenization might work incorreclty
+ */
+// Todo: Currently there are two skipping labels: SkippedByPlugin and SkippedBySnippets.
+//  This is done so the snippets and the plugin skipping transformation won't interfere, otherwise
+//  one transformation might continue skipping chains created by the other one. An alternative solution is to
+//  fix the order of transformations (e.g. snippets skip must always be the first), but this is hardly better.
+enum class SnippetsNodeType : int64_t {SubgraphStart, SubgraphBody, NotSet, SkippedByPlugin};
+void SetSnippetsNodeType(std::shared_ptr<Node>, SnippetsNodeType);
+SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node>);
+void SetTopologicalOrder(std::shared_ptr<Node>, int64_t);
+int64_t GetTopologicalOrder(std::shared_ptr<Node>);
+bool AppropriateForSubgraph(std::shared_ptr<Node>);
+
+/**
+ * @interface EnumerateNodes
+ * @brief  Snippets rely on topological order to avoid creating cyclic dependencies, so this transformation enumerates nodes in topological order.
+ * @ingroup snippets
+ */
+class EnumerateNodes : public ov::pass::ModelPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    EnumerateNodes() : ModelPass() {}
+    bool run_on_model(std::shared_ptr<ov::Model> m) override;
+};
 
 /**
  * @interface StartSubgraph
@@ -23,7 +53,6 @@ public:
     NGRAPH_RTTI_DECLARATION;
     explicit StartSubgraph();
 };
-bool AppropriateForSubgraph(std::shared_ptr<Node>);
 /**
  * @interface AttachToSubgraph
  * @brief Matches loyout-oblivious operations with subgraph operation as an input to attech this node into it
