@@ -115,8 +115,14 @@ function filterTable() {
         select = status.split(',');
         selector = [];
         select.forEach(item => {
-            if (item == 'p') {
+            if (item == '100p') {
                selector.push('.value:visible[crashed="0"][failed="0"][skipped="0"]');
+            }
+            if (item == '100f') {
+               selector.push('.value:visible[passed="0"]');
+            }
+            if (item == 'p') {
+                selector.push('.value:visible[passed!="0"]');
             }
             if (item == 'f') {
                 selector.push('.value:visible[failed!="0"]');
@@ -125,13 +131,16 @@ function filterTable() {
                 selector.push('.value:visible[crashed!="0"]');
             }
             if (item == 's') {
-                selector.push('.value:visible[skipped!="0"]');
+                selector.push('.value:visible[value!="---"][skipped!="0"]');
             }
             if (item == 'ex') {
-                selector.push('.value:visible');
+                selector.push('.value:visible[value!="---"]');
             }
             if (item == 'na') {
                 selector.push('.table-secondary:visible');
+            }
+            if (item == 'ns') {
+                selector.push('.value:visible[value="---"]');
             }
         });
         elements = selector.join(',');

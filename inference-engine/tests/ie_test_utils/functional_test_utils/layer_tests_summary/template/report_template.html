@@ -66,17 +66,18 @@
                     <option value="ns">No status</option>
                 </select>
             </div>
-
-
             <div class="form-group col-5" style="padding-left:0">
                 <label for="status"><b>Status</b></label>
                 <select id="status" class="form-control" multiple>
-                    <option value="p">100% Passed</option>
+                    <option value="100p">100% Passed</option>
+                    <option value="100f">100% Failed</option>
+                    <option value="p">Passed</option>
                     <option value="f">Failed</option>
                     <option value="s">Skipped</option>
                     <option value="c">Crashed</option>
                     <option value="ex">Existing tests</option>
                     <option value="na">No tests</option>
+                    <option value="ns">No status</option>
                 </select>
             </div>
             <button type="submit" class="btn btn-primary">Apply filters</button>
@@ -136,7 +137,7 @@
                 <td class="value {{ d }} {% if results[d][op].implemented == 'true' -%} impl {% else -%} not_impl {% endif -%}"
                     passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
                     skipped="{{ results[d][op].skipped }}" crashed="{{ results[d][op].crashed }}"
-                    value="{% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}{{ results[d][op].passrate }}{% else -%}N/A{% endif -%}"
+                    value="{% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}{{ results[d][op].passrate }}{% else -%}---{% endif -%}"
                     title="{% if results[d][op].implemented == 'true' -%}
                             {{op}} is implemented in {{d}} plugin
                         {% else -%}
