@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/detection_output.hpp"
+#include "intel_gpu/primitives/detection_output.hpp"
 #include "primitive_inst.h"
 
 #include <string>

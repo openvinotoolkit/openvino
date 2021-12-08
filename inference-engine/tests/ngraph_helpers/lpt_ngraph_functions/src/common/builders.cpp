@@ -282,7 +282,9 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
 
     auto& rt = fq->get_rt_info();
     for (auto& attribute : fqOnData.attributes) {
-        rt[attribute->get_type_info().name] = attribute;
+        if (attribute.is<ov::RuntimeAttribute>()) {
+            rt[attribute.as<ov::RuntimeAttribute>().get_type_info()] = attribute;
+        }
     }
 
     return fq;
@@ -298,12 +300,12 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
         fqOnData.outputPrecision == ngraph::element::undefined ? constantPrecision : fqOnData.outputPrecision);
 }
 
-void addAttributes(std::vector<std::shared_ptr<ngraph::Node>> nodes, std::vector<std::shared_ptr<Variant>> attributes) {
+void addAttributes(std::vector<std::shared_ptr<ngraph::Node>> nodes, std::vector<ov::Any> attributes) {
     for (const auto& node : nodes) {
         for (const auto& attribute : attributes) {
-            auto& rt = node->get_rt_info();
-            const std::string typeInfoName = attribute->get_type_info().name;
-            rt[typeInfoName] = attribute;
+            if (attribute.is<ov::RuntimeAttribute>()) {
+                node->get_rt_info()[attribute.as<ov::RuntimeAttribute>().get_type_info()] = attribute;
+            }
         }
     }
 }

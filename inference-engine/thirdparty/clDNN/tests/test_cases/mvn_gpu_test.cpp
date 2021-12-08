@@ -6,13 +6,13 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/mvn.hpp>
-#include <cldnn/primitives/reorder.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/mvn.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 
 #include <iostream>
 
-#include <cldnn/runtime/debug_configuration.hpp>
+#include <intel_gpu/runtime/debug_configuration.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
