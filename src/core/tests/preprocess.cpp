@@ -539,8 +539,8 @@ TEST(pre_post_process, set_layout_out_of_bounds) {
     std::stringstream shape_str;
     shape_str << shape;
     auto f = create_simple_function(element::f32, shape);
-    Layout from {"N???C"};
-    Layout to {"NC???"};
+    Layout from{"N???C"};
+    Layout to{"NC???"};
     // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
     try {
         auto p = PrePostProcessor(f);
@@ -549,7 +549,6 @@ TEST(pre_post_process, set_layout_out_of_bounds) {
         f = p.build();
         FAIL() << "Layout conversion shall throw";
     } catch (const ov::Exception& err) {
-        std::cout << err.what() << "---\n";
         // Verify that error message contains tensor and network  layout
         EXPECT_TRUE(std::string(err.what()).find(from.to_string()) != std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find(to.to_string()) != std::string::npos) << err.what();
@@ -558,7 +557,6 @@ TEST(pre_post_process, set_layout_out_of_bounds) {
     } catch (...) {
         FAIL() << "Expected ov::Exception";
     }
-//    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
 }
 
 TEST(pre_post_process, reuse_model_layout_tensor_info) {
