@@ -513,9 +513,7 @@ bool ov::Function::evaluate(const HostTensorVector& output_tensors,
 bool ov::Function::evaluate(ov::runtime::TensorVector& output_tensors,
                             const ov::runtime::TensorVector& input_tensors,
                             ov::EvaluationContext evaluation_context) const {
-    if (evaluation_context.find("VariableContext") == evaluation_context.end())
-        evaluation_context["VariableContext"] =
-            std::make_shared<VariantWrapper<ov::op::util::VariableContext>>(ov::op::util::VariableContext());
+    evaluation_context.emplace("VariableContext", ov::op::util::VariableContext());
     std::map<RawNodeOutput, ov::runtime::Tensor> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i) {
         value_map[m_parameters.at(i)->output(0)] = input_tensors.at(i);
@@ -912,4 +910,123 @@ ov::Output<ov::Node> ov::Function::add_output(const ov::Output<ov::Node>& port) 
     auto result = std::make_shared<ov::op::v0::Result>(port);
     add_results({result});
     return result->output(0);
+}
+
+namespace bs_util {
+static int64_t get_batch(const ov::Layout& layout, const ov::PartialShape& shape) {
+    auto batch_idx = ov::layout::batch_idx(layout);
+    if (batch_idx < 0) {
+        batch_idx += static_cast<int64_t>(shape.rank().get_length());
+    }
+    return batch_idx;
+}
+
+static void dump_parameter(std::ostream& stream, const std::shared_ptr<const ov::Function>& f, size_t index) {
+    const auto& p = f->get_parameters()[index];
+    const auto& node = f->input(index);
+    stream << index << ": { ";
+    if (!node.get_tensor().get_names().empty()) {
+        stream << "name='" << node.get_tensor().get_any_name() << "', ";
+    }
+    stream << "shape=" << node.get_partial_shape();
+    if (node.get_partial_shape().rank().is_static()) {
+        stream << ", layout=" << p->get_layout().to_string();
+        if (!ov::layout::has_batch(p->get_layout())) {
+            stream << ", no batch specified";
+        } else {
+            stream << ", batch="
+                   << node.get_partial_shape()[bs_util::get_batch(p->get_layout(), node.get_partial_shape())];
+        }
+        stream << " }" << std::endl;
+    }
+}
+}  // namespace bs_util
+
+ov::Dimension ov::get_batch(const std::shared_ptr<const ov::Function>& f) {
+    bool batch_initialized = false;
+    auto batch_size = ov::Dimension::dynamic();
+    std::vector<size_t> merged_indexes;
+    merged_indexes.reserve(f->inputs().size());
+    for (size_t i = 0; i < f->get_parameters().size(); ++i) {
+        const auto& param = f->get_parameters()[i];
+        const auto& layout = param->get_layout();
+        if (!ov::layout::has_batch(layout))
+            continue;
+        const auto& pshape = param->get_partial_shape();
+        if (pshape.rank().is_dynamic()) {
+            continue;  // Parameter with fully dynamic rank can't conflict
+        }
+        auto batch_idx = bs_util::get_batch(layout, pshape);
+        if (!Dimension::merge(batch_size, batch_size, pshape[batch_idx])) {
+            merged_indexes.push_back(i);
+            // Not all dimensions can be merged
+            std::stringstream stream;
+            stream << "Get original batch size fails due to conflicting batch values for inputs:" << std::endl;
+            for (size_t j = 0; j < merged_indexes.size(); ++j) {
+                bs_util::dump_parameter(stream, f, merged_indexes[j]);
+            }
+            stream << "---" << std::endl;
+            stream << "Please ensure that N(Batch) dimension is set correctly for listed parameters";
+            OPENVINO_ASSERT(false, stream.str());
+        } else {
+            merged_indexes.push_back(i);
+        }
+        batch_initialized = true;
+    }
+    if (!batch_initialized) {
+        // Create graceful message to set layout for some parameters
+        std::stringstream stream;
+        stream << "Get original batch size fails due to batch is not set in any layout for any input. ";
+        stream << "Available inputs:" << std::endl;
+        for (size_t i = 0; i < f->get_parameters().size(); ++i) {
+            bs_util::dump_parameter(stream, f, i);
+        }
+        stream << "---" << std::endl;
+        stream << "Please use 'set_layout' API to set layout with batch dimension, e.g. "
+                  "`Function->get_parameters()[index]->set_layout(\"NCHW\");`";
+
+        OPENVINO_ASSERT(false, stream.str());
+    }
+    return batch_size;
+}
+
+void ov::set_batch(const std::shared_ptr<ov::Function>& f, ov::Dimension batch_size) {
+    get_batch(f);  // Ensure that function's batch size is valid and can be changed
+    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes_map;
+    // Now batch size can be set for all needed parameters
+    for (size_t i = 0; i < f->get_parameters().size(); ++i) {
+        const auto& param = f->get_parameters()[i];
+        const auto& layout = param->get_layout();
+        if (!ov::layout::has_batch(layout))
+            continue;
+        const auto& pshape = param->get_partial_shape();
+        if (pshape.rank().is_dynamic()) {
+            continue;  // Parameter with fully dynamic rank can be left as is
+        }
+        auto batch_idx = bs_util::get_batch(layout, pshape);
+        auto new_shape = param->get_partial_shape();
+        new_shape[batch_idx] = batch_size;
+        new_shapes_map[f->input(i)] = new_shape;
+    }
+    try {
+        f->reshape(new_shapes_map);
+    } catch (const std::exception& e) {
+        std::stringstream stream;
+        stream << "Failed to set batch size to " << batch_size << ". Possible reasons are:" << std::endl;
+        stream << "    1) Ensure that all inputs have valid layout set with batch dimension" << std::endl;
+        stream << "    2) Check model's documentation if batch size can be set to it at all" << std::endl;
+        stream << "Available inputs:" << std::endl;
+        for (size_t i = 0; i < f->get_parameters().size(); ++i) {
+            bs_util::dump_parameter(stream, f, i);
+            if (new_shapes_map.count(f->input(i))) {
+                stream << i << ": Tried reshape " << f->input(i).get_partial_shape() << " to "
+                       << new_shapes_map[f->input(i)] << std::endl;
+            } else {
+                stream << i << ": No reshape has been applied" << std::endl;
+            }
+        }
+        stream << "---" << std::endl;
+        stream << "Original error message is: " << e.what();
+        OPENVINO_ASSERT(false, stream.str());
+    }
 }

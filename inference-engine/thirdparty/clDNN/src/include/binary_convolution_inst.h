@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/binary_convolution.hpp"
+#include "intel_gpu/primitives/binary_convolution.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

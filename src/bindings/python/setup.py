@@ -39,9 +39,9 @@ packages = [
     "ngraph.impl.op",
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
-    "ngraph.frontend",
     "openvino",
     # TODO: change the module name according to the description in 69196
+    "openvino.frontend",
     "openvino.offline_transformations_pybind",
     "openvino.runtime.opset1",
     "openvino.runtime.opset2",
@@ -178,7 +178,7 @@ class BuildCMakeExt(build_ext):
                     f"-DCMAKE_BUILD_TYPE={self.config}",
                     f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
                     "-DENABLE_PYTHON=ON",
-                    "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
+                    "-DENABLE_OV_ONNX_FRONTEND=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 

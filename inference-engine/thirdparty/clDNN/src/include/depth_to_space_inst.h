@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/depth_to_space.hpp"
+#include "intel_gpu/primitives/depth_to_space.hpp"
 #include "primitive_inst.h"
 #include "kernel_selector/core/actual_kernels/depth_to_space/depth_to_space_kernel_base.h"
 

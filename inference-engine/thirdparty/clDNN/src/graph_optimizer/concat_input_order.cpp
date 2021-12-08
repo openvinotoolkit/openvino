@@ -9,8 +9,8 @@
 #include "convolution_inst.h"
 #include "fully_connected_inst.h"
 #include "data_inst.h"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include <vector>
 #include <tuple>
