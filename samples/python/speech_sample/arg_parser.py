@@ -34,8 +34,17 @@ def parse_args() -> argparse.Namespace:
                       'If the network contains multiple inputs, provide scale factors by separating them with commas.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
-    args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
-    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
+    args.add_argument('-we', '--export_embedded_gna_model', type=str,
+                      help='Optional. Write GNA embedded model to file using path/filename provided.')
+    args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, metavar='[GNA1, GNA3]',
+                      help='Optional. GNA generation configuration string for embedded export. '
+                      'Can be GNA1 (default) or GNA3.')
+    args.add_argument('--exec_target', default='', type=str, choices=('GNA_TARGET_2_0', 'GNA_TARGET_3_0'),
+                      metavar='[GNA_TARGET_2_0, GNA_TARGET_3_0]',
+                      help='Optional. Specify GNA execution target generation. '
+                      'By default, generation corresponds to the GNA HW available in the system '
+                      'or the latest fully supported generation by the software. '
+                      "See the GNA Plugin's GNA_EXEC_TARGET config option description.")
     args.add_argument('-pc', '--performance_counter', action='store_true',
                       help='Optional. Enables performance report (specify -a to ensure arch accurate results).')
     args.add_argument('-a', '--arch', default='CORE', type=str.upper, choices=('CORE', 'ATOM'), metavar='[CORE, ATOM]',
