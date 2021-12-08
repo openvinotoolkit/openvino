@@ -94,5 +94,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_PrePostProcess.*cvt_color_i420.*)",
             // Unsupported
             R"(smoke_Behavior/InferRequestSetBlobByType.setInputBlobsByType/BlobType=Batched_Device=GPU_Config=().*)",
+            // TODO: Issue 72624
+            R"(smoke_PrePostProcess.*resize_dynamic.*)",
     };
 }
