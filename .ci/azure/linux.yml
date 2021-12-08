@@ -237,10 +237,11 @@ jobs:
     continueOnError: false
 
   - script: |
-      export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+      export MO_ROOT=$(INSTALL_DIR)/tools/mo
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
+    enabled: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
@@ -333,6 +334,7 @@ jobs:
     displayName: 'Samples Smoke Tests'
     continueOnError: false
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    enabled: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -345,12 +347,13 @@ jobs:
   - script: |
       . $(SETUPVARS)
       python3 -m pip install -r requirements.txt
-      export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
+      export MO_ROOT=$(INSTALL_DIR)/tools/mo
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
     workingDirectory: $(LAYER_TESTS_DIR)
     displayName: 'Layer Tests'
     continueOnError: false
+    enabled: false
 
   - task: PublishTestResults@2
     condition: always()

@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
-#include "cldnn_engine.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
 
 #include <cpp/ie_cnn_network.h>
 
@@ -24,7 +23,9 @@
 
 using TensorIterator = ngraph::op::v0::TensorIterator;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num, const cldnn::primitive_id& ext_prim_id) {
@@ -39,7 +40,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
                                             const int32_t output_idx) {
     const auto precision = DataTypeFromPrecision(op->get_output_element_type(output_idx));
     const auto format = DefaultFormatForDims(op->get_output_shape(output_idx).size());
-    const auto tensor = CldnnTensorFromIEDims(op->get_output_shape(output_idx));
+    const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.GetEngine().allocate_memory(output_layout);
     auto md = cldnn::mutable_data(id, {input}, mem, op->get_friendly_name()); // cldnn::data cannot set dependency
@@ -199,4 +200,6 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
 
 REGISTER_FACTORY_IMPL(v0, TensorIterator);
 
-} // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov
