@@ -108,7 +108,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // before CommonOptimization pipeline execution
     manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
 
-    manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy, false>();
+    manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();

@@ -6,6 +6,7 @@ import math
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
@@ -86,15 +87,15 @@ def correct_pad(pad, rank):
     if pad_len < rank:
         return np.pad(pad, (0, rank - pad_len), 'constant').astype(np.int64)
     elif pad_len > rank:
-        return np.array(pad[: rank]).astype(np.int64)
+        return mo_array(pad[: rank]).astype(np.int64)
     else:
-        return np.array(pad, dtype=np.int64)
+        return mo_array(pad, dtype=np.int64)
 
 
 def correct_scales_using_dst_shape(node, dst_shape, src_shape, axes):
     scales_value = node.in_port(2).data.get_value()
     if scales_value is None or len(scales_value) != len(dst_shape):
-        corrected_scales = np.zeros(len(dst_shape))
+        corrected_scales = np.zeros(len(dst_shape), dtype=np.float32)
         for i, axis in enumerate(list(axes)):
             corrected_scales[i] = dst_shape[i] / src_shape[axis]
         node.in_port(2).data.set_value(corrected_scales)

@@ -5,6 +5,7 @@ import logging as log
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.fusing.helpers import backward_bfs, forward_bfs, get_value_in_port, \
     get_tensor_in_port
@@ -62,14 +63,14 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
 
     for fuse_node in fuse_nodes:
         weights_port = fuse_node.in_port(1)
-        value = np.array(const_port.data.get_value())
+        value = mo_array(const_port.data.get_value())
 
         value = np.squeeze(value)
 
         # TODO : ch_dim should be equal to node.in_node(1).value.shape
         # We will multiply weights according output/input channel dimension
         ch_dim = weights_port.data.get_attr('output_channel_dim' if backward else 'input_channel_dim')
-        shape = np.array([weights_port.data.get_shape()[ch_dim]])
+        shape = mo_array([weights_port.data.get_shape()[ch_dim]])
 
         # Scalar broadcast
         if value.size == 1:
@@ -82,7 +83,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
                 tmp = []
                 for val in value:
                     tmp = np.concatenate((tmp, np.repeat(val, cnt)))
-                value = np.array(tmp)
+                value = mo_array(tmp)
             else:
                 value = np.tile(value, int(cnt))
 
@@ -91,7 +92,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         for x in range(wdims_number - ch_dim - 1):
             shape = np.append(shape, 1)
 
-        mul_val = np.array(value)
+        mul_val = mo_array(value)
         # If the value fails to reshape to the provided shape, skip fusing.
         # This can happen in case of group != 1 of the convolution.
         try:

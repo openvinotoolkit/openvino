@@ -3,14 +3,16 @@
 
 from typing import Dict
 
-from openvino.tools.mo.ops.elementwise import Sub, Div, Less, Round, Mul, Add, Greater
-from openvino.tools.mo.ops.fakequantize import FakeQuantize
-from openvino.tools.mo.ops.select import Select
+import numpy as np
+
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.elementwise import Sub, Div, Less, Round, Mul, Add, Greater
+from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.ops.select import Select
 
 
 class FakeQuantWithMinMaxVarsToQuantize(FrontReplacementOp):
@@ -31,6 +33,13 @@ class FakeQuantWithMinMaxVarsToQuantize(FrontReplacementOp):
 
         min_port_tuple = (node.in_port(1).get_source().node, node.in_port(1).get_source().idx)
         max_port_tuple = (node.in_port(2).get_source().node, node.in_port(2).get_source().idx)
+
+        if min_port_tuple[0].has_and_set('value') and max_port_tuple[0].has_and_set('value'):
+            assert min_port_tuple[0]['value'].dtype == max_port_tuple[0]['value'].dtype, \
+                'Type mismatch in port 1 and 2 of {}'.format(self.op)
+            dtype = max_port_tuple[0]['value'].dtype
+        else:
+            dtype = np.float32
 
         node.in_port(1).disconnect()
         node.in_port(2).disconnect()
@@ -58,7 +67,8 @@ class FakeQuantWithMinMaxVarsToQuantize(FrontReplacementOp):
         # scale = (max - min) / (2 ^ num_bits - 1),
         float_range = Sub(graph, {'name': name + '/float_range'}).create_node([maximum, minimum])
         quant_min_value, quant_max_value = int(node.narrow_range), 2 ** node.num_bits - 1
-        int_range = Const(graph, dict(name=name + '/int_range', value=quant_max_value - quant_min_value)).create_node()
+        int_range_value = np.array(quant_max_value - quant_min_value, dtype=dtype)
+        int_range = Const(graph, dict(name=name + '/int_range', value=int_range_value)).create_node()
         scale = Div(graph, {'name': name + '/scale'}).create_node([float_range, int_range])
         # min_adj = scale * round(min / scale)
         descaled_min = Div(graph, {'name': name + '/descaled_min'}).create_node([minimum, scale])

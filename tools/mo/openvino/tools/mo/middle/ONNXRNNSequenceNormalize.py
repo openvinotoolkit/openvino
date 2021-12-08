@@ -4,6 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import compatible_dims
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.op import Op
@@ -117,7 +118,7 @@ class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 rnn_layer,
-                {'value': blob, 'shape': np.array(blob.shape, dtype=np.int64)},
+                {'value': blob, 'shape': mo_array(blob.shape, dtype=np.int64)},
                 {'in': port, 'permutation': None}
             )
 
@@ -139,7 +140,7 @@ class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 rnn_layer,
-                {'value': h_init, 'shape': np.array(h_init.shape, dtype=np.int64)},
+                {'value': h_init, 'shape': mo_array(h_init.shape, dtype=np.int64)},
                 {'in': h_init_port, 'permutation': None}
             )
 
@@ -150,7 +151,7 @@ class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
                 Op.create_and_connect_input_data_node(
                     graph,
                     rnn_layer,
-                    {'value': c_init, 'shape': np.array(c_init.shape, dtype=np.int64)},
+                    {'value': c_init, 'shape': mo_array(c_init.shape, dtype=np.int64)},
                     {'in': c_init_port, 'permutation': None}
                 )
 

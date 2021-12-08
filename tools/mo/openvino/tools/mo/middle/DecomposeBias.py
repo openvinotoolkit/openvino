@@ -4,6 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.ops.elementwise import Add
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -44,7 +45,7 @@ class DecomposeBias(MiddleReplacementPattern):
                     dims_to_add = len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 0
                     if dims_to_add > 0:
                         reshape = create_op_node_with_second_input(
-                            graph, Reshape, np.array([input_shape[1]] + [1] * dims_to_add, dtype=np.int64),
+                            graph, Reshape, mo_array([input_shape[1]] + [1] * dims_to_add, dtype=np.int64),
                             {'name': node.id + '/Dims'})
                         add.in_port(1).get_connection().set_destination(reshape.in_port(0))
                         reshape.out_port(0).connect(add.in_port(1))

@@ -28,6 +28,9 @@ def nodes_dict(original, transformed=None, levels=255, data=None, il=[-127], ih=
         **valued_const_with_data('int_weights', int_data),
 
         **regular_op_with_shaped_data(
+            'weights_cast', shape, {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
+
+        **regular_op_with_shaped_data(
             'cast', shape, {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': transformed}),
 
         **valued_const_with_data('il', np.array(il)),
@@ -130,6 +133,44 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
+    def test_quantize_new_fp16(self):
+        original_type = np.float16
+        nodes = nodes_dict(original_type)
+
+        graph = build_graph(nodes, [
+            *connect('weights:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True)
+
+        error_message = 'Unexpected number of FakeQuantize nodes {} CompressQuantizeWeights.quantize_data call `{}`'
+        fq_nodes = graph.get_op_nodes(type='FakeQuantize')
+        self.assertEqual(len(fq_nodes), 1, error_message.format('before', len(fq_nodes)))
+        fake_quantize = fq_nodes[0]
+
+        CompressQuantizeWeights.quantize_data(fake_quantize, original_type, np.int8, "signed")
+        graph.clean_up()
+
+        fq_nodes = graph.get_op_nodes(type='FakeQuantize')
+        self.assertEqual(len(fq_nodes), 1, error_message.format('after', len(fq_nodes)))
+        self.assertEqual(fq_nodes[0].in_port(0).get_source().node.soft_get('type'), 'Const')
+        self.assertEqual(fq_nodes[0].in_port(0).get_source().node.data_type, np.int8)
+
+        graph_ref = build_graph(nodes, [
+            *connect('int_weights:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
 
 @generator
 class CompressionDataTypeTest(unittest.TestCase):
@@ -165,6 +206,33 @@ class CompressionDataTypeTest(unittest.TestCase):
         graph_ref = build_graph(nodes, [
             *connect('int_weights:0', '0:cast'),
             *connect('cast:0', '0:sub'),
+            *connect('zp:0', '1:sub'),
+            *connect('sub:0', '0:mul'),
+            *connect('scale:0', '1:mul'),
+            *connect('mul:0', 'output'),
+        ], nodes_with_edges_only=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_data_type_new_fp16(self):
+        nodes = nodes_dict(np.float16)
+
+        graph = build_graph(nodes, [
+            *connect('weights:0', '0:weights_cast'),
+            *connect('weights_cast:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True, cli=Namespace(data_type='FP16', static_shape=True))
+
+        CompressQuantizeWeights().find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        graph_ref = build_graph(nodes, [
+            *connect('int_weights:0', '0:weights_cast'),
+            *connect('weights_cast:0', '0:sub'),
             *connect('zp:0', '1:sub'),
             *connect('sub:0', '0:mul'),
             *connect('scale:0', '1:mul'),
@@ -248,6 +316,7 @@ class NegativeCompressionTestLevels(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
 
 @generator
 class ZeroPointOptimizerTestClass(unittest.TestCase):

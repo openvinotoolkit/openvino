@@ -4,6 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.ops.elementwise import Mul, Add
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node, rename_node
@@ -36,7 +37,7 @@ class Sub(FrontReplacementPattern):
 
         # restore mathematical equivalence to Sub operation: Sub(A, B) = Add(A, Mul(B, -1))
         const_dtype = sub.soft_get('data_type', np.float32)
-        negate = create_op_with_const_inputs(graph, Mul, {1: np.array(-1, dtype=const_dtype)}, {'name': name + '/neg_'})
+        negate = create_op_with_const_inputs(graph, Mul, {1: mo_array(-1, dtype=const_dtype)}, {'name': name + '/neg_'})
         add.in_port(1).get_connection().insert_node(negate)
 
     def find_and_replace_pattern(self, graph: Graph):
