@@ -55,19 +55,30 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     }
 
     bool allDequantizationShiftAreZero = true;
+    bool allDequantizationShiftConvertAreNotZero = true;
     bool allDequantizationMultiplyAreZero = true;
+    element::Type PrecisionBeforeConvert;
     for (const auto& dequantization : layerDequantizations) {
         if (dequantization.subtract != nullptr) {
             allDequantizationShiftAreZero = false;
+            if (dequantization.subtractConvert == nullptr) {
+                allDequantizationShiftConvertAreNotZero = false;
+            } else {
+                PrecisionBeforeConvert = dequantization.subtractConstant->get_element_type();
+            }
         }
 
         if (dequantization.multiply != nullptr) {
             allDequantizationMultiplyAreZero = false;
         }
 
-        if (!allDequantizationShiftAreZero && !allDequantizationMultiplyAreZero) {
+        if (!allDequantizationShiftAreZero && !allDequantizationMultiplyAreZero &&
+            !allDequantizationShiftConvertAreNotZero) {
             break;
         }
+    }
+    if (allDequantizationShiftAreZero) {
+        allDequantizationShiftConvertAreNotZero = false;
     }
 
     // FakeQuantize constant shape must be broadcastable to the shape on data.
@@ -93,6 +104,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     NodeVector convertNodes;
     NodeVector subtractNodes;
     NodeVector multiplyNodes;
+    std::shared_ptr<opset1::Convert> subtractConvert = nullptr;
     for (size_t i = 0; i < layerDequantizations.size(); ++i) {
         const auto& dequantization = layerDequantizations[i];
 
@@ -111,9 +123,18 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
         if (!allDequantizationShiftAreZero) {
             auto subtractInput = dequantization.subtract == nullptr ?
-                std::make_shared<ngraph::opset1::Constant>(deqPrecision, targetShape, std::vector<float>({ 0.f })) :
+                    std::make_shared<ngraph::opset1::Constant>(
+                        (allDequantizationShiftConvertAreNotZero ?
+                            PrecisionBeforeConvert :
+                            deqPrecision),
+                        targetShape,
+                        std::vector<float>({ 0.f })) :
                 broadcastElementWiseConst(dequantization.subtractConstant, targetShape);
-            if (dequantization.subtractConvert != nullptr) {
+            if (allDequantizationShiftConvertAreNotZero) {
+                if (subtractConvert == nullptr && dequantization.subtractConvert != nullptr) {
+                    subtractConvert = dequantization.subtractConvert;
+                }
+            } else if (dequantization.subtractConvert != nullptr) {
                 subtractInput = foldConvert(subtractInput, dequantization.subtractConvert->get_convert_element_type());
                 NetworkHelper::copyInfo(dequantization.subtractConvert, subtractInput);
             }
@@ -140,11 +161,14 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
     // concatenation axis is 1
     if (!subtractNodes.empty()) {
+        std::shared_ptr<ov::Node> subtractNode = subtractNodes.size() == 1ul ?
+            subtractNodes[0] :
+            ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1);
+        if (subtractConvert != nullptr)
+            subtractNode = subtractConvert->clone_with_new_inputs({subtractNode});
         const auto subtract = std::make_shared<opset1::Subtract>(
             lastDequantization,
-            NetworkHelper::toScalarIfPossible(subtractNodes.size() == 1ul ?
-                subtractNodes[0] :
-                ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
+            NetworkHelper::toScalarIfPossible(subtractNode));
 
         NetworkHelper::copyInfo({ concat, subtract }, subtract);
         subtract->set_friendly_name(concat->get_friendly_name() + "/DequantizationSubtract");
