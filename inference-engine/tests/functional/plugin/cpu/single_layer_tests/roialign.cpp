@@ -94,17 +94,17 @@ protected:
             auto coordsTensorData = static_cast<float*>(coordsTensor.data());
             for (size_t i = 0; i < coordsTensor.get_size(); i += 4) {
                 coordsTensorData[i] = 1.f;
-                coordsTensorData[i] = 1.f;
-                coordsTensorData[i] = 19.f;
-                coordsTensorData[i] = 19.f;
+                coordsTensorData[i + 1] = 1.f;
+                coordsTensorData[i + 2] = 19.f;
+                coordsTensorData[i + 3] = 19.f;
             }
         } else if (coordsET == ElementType::bf16) {
             auto coordsTensorData = static_cast<std::int16_t*>(coordsTensor.data());
             for (size_t i = 0; i < coordsTensor.get_size(); i += 4) {
                 coordsTensorData[i] = static_cast<std::int16_t>(ngraph::bfloat16(1.f).to_bits());
-                coordsTensorData[i] = static_cast<std::int16_t>(ngraph::bfloat16(1.f).to_bits());
-                coordsTensorData[i] = static_cast<std::int16_t>(ngraph::bfloat16(19.f).to_bits());
-                coordsTensorData[i] = static_cast<std::int16_t>(ngraph::bfloat16(19.f).to_bits());
+                coordsTensorData[i + 1] = static_cast<std::int16_t>(ngraph::bfloat16(1.f).to_bits());
+                coordsTensorData[i + 2] = static_cast<std::int16_t>(ngraph::bfloat16(19.f).to_bits());
+                coordsTensorData[i + 3] = static_cast<std::int16_t>(ngraph::bfloat16(19.f).to_bits());
             }
         } else {
             IE_THROW() << "roi align. Unsupported precision: " << coordsET;
@@ -112,13 +112,10 @@ protected:
 
         auto roisIdxTensor = ov::runtime::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };
         auto roisIdxTensorData = static_cast<std::int32_t*>(roisIdxTensor.data());
-        if (roisIdxTensor.get_size() == 1) {
-            roisIdxTensorData[0] = 1;
-        } else if (roisIdxTensor.get_size() == 2) {
-            roisIdxTensorData[0] = 0;
-            roisIdxTensorData[1] = 1;
-        } else {
-            IE_THROW() << "Unexpected roiIdx size: " << roisIdxTensor.get_size();
+        std::int32_t batchIdx = 0;
+        for (int i = 0; i < roisIdxTensor.get_size(); i++) {
+            roisIdxTensorData[i] = batchIdx;
+            batchIdx = (batchIdx + 1) % targetInputStaticShapes[0][0];
         }
 
         inputs.insert({ funcInputs[0].get_node_shared_ptr(), data_tensor });
