@@ -759,7 +759,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         if (!gnaFlags->sw_fp32) {
             if (gnaFlags->uniformPwlDesign) {
                 uint32_t num_segments = POW_NUM_SEGMENTS;
-                if (activation_type.args.pow.exponent == 0.0f || activation_type.args.pow.exponent == 1.0f) {
+                if (activation_type.args.pow.exponent == 0.0f) {
                     num_segments = 3;
                 }
                 ptr_pwl_segments.resize(num_segments);
