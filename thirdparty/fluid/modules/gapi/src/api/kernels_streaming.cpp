@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 
 #include "precomp.hpp"
 
@@ -75,6 +75,19 @@ cv::GMat cv::gapi::streaming::desync(const cv::GMat &g) {
     // object will feed both branches of the streaming executable.
 }
 
+// All notes from the above desync(GMat) are also applicable here
+cv::GFrame cv::gapi::streaming::desync(const cv::GFrame &f) {
+    return cv::gapi::copy(detail::desync(f));
+}
+
 cv::GMat cv::gapi::streaming::BGR(const cv::GFrame& in) {
     return cv::gapi::streaming::GBGR::on(in);
+}
+
+cv::GMat cv::gapi::streaming::Y(const cv::GFrame& in){
+    return cv::gapi::streaming::GY::on(in);
+}
+
+cv::GMat cv::gapi::streaming::UV(const cv::GFrame& in){
+    return cv::gapi::streaming::GUV::on(in);
 }
