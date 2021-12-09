@@ -108,7 +108,7 @@ jobs:
   - script: |
       python -m pip install --upgrade pip
       rem For running Python API tests
-      python -m pip install -r $(REPO_DIR)\inference-engine\ie_bridges\python\src\requirements-dev.txt
+      python -m pip install -r $(REPO_DIR)\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       rem For running PaddlePaddle frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddlepaddle\requirements_dev.txt
       rem For running ONNX frontend unit tests
