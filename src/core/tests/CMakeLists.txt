@@ -340,6 +340,7 @@ set(SRC
     visitors/op/maximum.cpp
     visitors/op/minimum.cpp
     visitors/op/mish.cpp
+    visitors/op/memory.cpp
     visitors/op/mod.cpp
     visitors/op/multiclass_nms.cpp
     visitors/op/multiply.cpp
