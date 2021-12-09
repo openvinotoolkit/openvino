@@ -17,10 +17,10 @@ target_link_libraries(interpreter_backend PUBLIC ngraph_backend
                                                   openvino::util ngraph_reference)
 
 install(TARGETS interpreter_backend
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS interpreter_backend
-            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+            RUNTIME DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
 endif()
