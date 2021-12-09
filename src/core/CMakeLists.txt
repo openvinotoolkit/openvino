@@ -106,10 +106,10 @@ target_link_libraries(ngraph PRIVATE INTERFACE openvino::runtime)
 add_library(ngraph::ngraph ALIAS ngraph)
 add_library(openvino::core ALIAS ngraph)
 
-target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
 add_library(ngraph_s STATIC $<TARGET_OBJECTS:ngraph_obj>)
-target_include_directories(ngraph_s PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+target_include_directories(ngraph_s PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 target_link_libraries(ngraph_s PRIVATE openvino::itt)
 
 # TODO: remove this
