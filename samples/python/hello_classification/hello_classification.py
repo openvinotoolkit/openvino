@@ -106,7 +106,7 @@ def main():
         with open(args.labels, 'r') as f:
             labels = [line.split(',')[0].strip() for line in f]
 
-    predictions = next(iter(np.array(res)))
+    predictions = next(iter(res.values()))
     
     # Change a shape of a numpy.ndarray with results to get another one with one dimension
     probs = predictions.reshape(num_of_classes)
