@@ -193,6 +193,8 @@ endif()
 #
 function(build_json_libs)
     set(JSON_Install ON)
+    # suppress shadowing names warning
+    set(JSON_SystemInclude ON)
     add_subdirectory(json/nlohmann_json EXCLUDE_FROM_ALL)
     openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 
