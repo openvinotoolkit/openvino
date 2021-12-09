@@ -28,7 +28,7 @@ static const char target_device_message[] =
 
 /// @brief message for vpu argument
 static const char performance_hint_message[] =
-    "Not required. Enables performance hint for specified device. Available hints are LATENCY and THROUGHPUT.";
+    "Not required. Enables performance hint 'LATENCY' for specified device.";
 
 /// @brief message for cache argument
 static const char cpu_cache_message[] =
@@ -36,7 +36,7 @@ static const char cpu_cache_message[] =
 
 /// @brief message for vpu argument
 static const char vpu_compiler_message[] =
-    "Not required. Use this key to run timetests using MLIR or MCM VPUX compiler type.";
+    "Not required. Use this key to run timetests with 'MLIR' or 'MCM' VPUX compiler type.";
 
 /// @brief message for statistics path argument
 static const char statistics_path_message[] =
@@ -58,7 +58,7 @@ DEFINE_string(d, "", target_device_message);
 
 /// @brief Define parameter for set performance hint for target device <br>
 /// It is a non-required parameter
-DEFINE_string(p, "", performance_hint_message);
+DEFINE_bool(p, false, performance_hint_message);
 
 /// @brief Define parameter for set CPU models caching <br>
 /// It is a non-required parameter
@@ -86,7 +86,7 @@ static void showUsage() {
             << std::endl;
   std::cout << "    -s \"<path>\"               " << statistics_path_message
             << std::endl;
-  std::cout << "    -p \"<perf_hint>\"          " << performance_hint_message << std::endl;
+  std::cout << "    -p                          " << performance_hint_message << std::endl;
   std::cout << "    -c                          " << cpu_cache_message << std::endl;
   std::cout << "    -v \"<compiler_type>\"      " << vpu_compiler_message << std::endl;
 }
