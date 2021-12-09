@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/squeeze.hpp"
@@ -12,7 +12,9 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
     p.ValidateInputs(op, {1, 2});
@@ -21,7 +23,7 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
 
     auto inDims = op->get_input_shape(0);
     auto outDims = op->get_output_shape(0);
-    auto outTensor = CldnnTensorFromIEDims(outDims);
+    auto outTensor = tensor_from_dims(outDims);
 
     // if we convert from or to 5D/6D, additional reorder also required to change format
     cldnn::primitive_id reshapeInputId = inputPrimitives[0];
@@ -74,4 +76,6 @@ REGISTER_FACTORY_IMPL(v1, Reshape);
 REGISTER_FACTORY_IMPL(v0, Squeeze);
 REGISTER_FACTORY_IMPL(v0, Unsqueeze);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

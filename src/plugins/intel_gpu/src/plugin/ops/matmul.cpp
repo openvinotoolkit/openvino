@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/matmul.hpp"
 #include "ngraph/op/constant.hpp"
@@ -15,7 +15,9 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 /*
 *  get_aligned_shapes function align two input shapes to have the same size and
@@ -128,7 +130,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto reshapeInName = op->get_friendly_name() + suffix;
             auto reshapeInPrim = cldnn::reshape(reshapeInName,
                                                 inputName,
-                                                CldnnTensorFromIEDims(reshapeSize),
+                                                tensor_from_dims(reshapeSize),
                                                 op->get_friendly_name());
             p.AddPrimitive(reshapeInPrim);
             p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
@@ -157,7 +159,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         auto lastLayerName = layerName;
         if (reshape_fc) {
-            auto outputShape = CldnnTensorFromIEDims(op->get_output_shape(0));
+            auto outputShape = tensor_from_dims(op->get_output_shape(0));
             auto outReshapeName = layerName + "_cldnn_out_reshape";
             auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
 
@@ -269,7 +271,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         // Reshape output if gemm specific shape does not match default one
         if (outDimsN < 4) {
-            auto outputShape = CldnnTensorFromIEDims(outDims);
+            auto outputShape = tensor_from_dims(outDims);
             auto outReshapeName = layerName + "_cldnn_out_reshape";
             auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
 
@@ -285,4 +287,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
 REGISTER_FACTORY_IMPL(v0, MatMul);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov
