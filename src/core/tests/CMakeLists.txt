@@ -517,6 +517,7 @@ if(UNIT_TESTS_DEPENDENCIES)
 endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
+                                        engines_test_util
                                         ngraph::builder
                                         ngraph_reference
                                         openvino::util
