@@ -50,15 +50,15 @@ target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 # install
 
 # TODO: remove this
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core OPTIONAL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core OPTIONAL)
 else()
-    ov_install_static_lib(${TARGET_NAME} core)
+    ov_install_static_lib(${TARGET_NAME} core OPTIONAL)
 endif()

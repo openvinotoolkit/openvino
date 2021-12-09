@@ -114,9 +114,9 @@ target_link_libraries(ngraph_s PRIVATE openvino::itt)
 
 # TODO: remove this
 install(TARGETS ngraph EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
         INCLUDES DESTINATION runtime/include)
 
 export(TARGETS ngraph NAMESPACE openvino::
@@ -127,7 +127,7 @@ export(TARGETS ngraph NAMESPACE openvino::
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION "runtime/include"
-        COMPONENT core
+        COMPONENT core_dev
         FILES_MATCHING
             PATTERN "*.hpp"
             PATTERN "*.h")
@@ -143,4 +143,4 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION "runtime/cmake"
-        COMPONENT core)
+        COMPONENT core_dev)
