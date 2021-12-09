@@ -208,6 +208,7 @@ def omz_models_conversion(instance, request):
             omz_models_out_dir = request.config.getoption("omz_models_out_dir")
             omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
             mo_path = request.config.getoption("mo")
+            mo_arg = ('--mo', mo_path) if mo_path else ''
 
             # get full model info
             cmd = [f'{sys.executable}', f'{info_dumper_path}', '--name', f'{model_name}']
@@ -231,8 +232,6 @@ def omz_models_conversion(instance, request):
 
             return_code, _ = cmd_exec(cmd, log=logging)
             assert return_code == 0, "Downloading OMZ models has failed!"
-
-            mo_arg = ('--mo', f'{mo_path}') if mo_path else ''
 
             cmd = [f'{sys.executable}', f'{converter_path}', '--name', f'{model_name}', '-p', f'{sys.executable}',
                    '--precisions', f'{model_precision}', '--output_dir', f'{omz_irs_out_dir}',
