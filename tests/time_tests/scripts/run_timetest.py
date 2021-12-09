@@ -62,23 +62,10 @@ def prepare_executable_cmd(args: dict):
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
-        "-p", args["perf_hint"],
+        "-p" if args["perf_hint"] else "",
         "-v" if args["vpu_compiler"] else "", args['vpu_compiler'] if args["vpu_compiler"] else "",
         "-c" if args["cpu_cache"] else "",
     ]
-
-
-def get_cache_stats(flatten_data):
-    """Update statistics for run with models cache"""
-    data_cache = {
-        "full_run_using_cache": flatten_data["full_run"],
-        "time_to_inference_using_cache": flatten_data["time_to_inference"],
-        "load_plugin": flatten_data["load_plugin"],
-        "load_network_using_cache": flatten_data["load_network"],
-        "first_inference": flatten_data["first_inference"],
-        "fill_inputs": flatten_data["fill_inputs"],
-    }
-    return data_cache
 
 
 def run_timetest(args: dict, log=None):
@@ -107,9 +94,6 @@ def run_timetest(args: dict, log=None):
         # Parse raw data
         flatten_data = {}
         parse_stats(raw_data[0], flatten_data)
-
-        if run_iter > 0 and args["cpu_cache"]:
-            flatten_data = get_cache_stats(flatten_data)
 
         log.debug(f"Statistics after run of executable #{run_iter}: {flatten_data}")
 
@@ -154,10 +138,8 @@ def cli_parser():
                         help="path to a file to save aggregated statistics")
     parser.add_argument("-p",
                         dest="perf_hint",
-                        choices=["LATENCY", "THROUGHPUT"],
-                        default="LATENCY",
-                        type=str,
-                        help="Enables performance hint for specified device. Default hint is LATENCY")
+                        action="store_true",
+                        help="Enables 'LATENCY' performance hint for specified device.")
     exclusive_group = parser.add_mutually_exclusive_group(required=False)
     exclusive_group.add_argument("-c",
                                  dest="cpu_cache",
