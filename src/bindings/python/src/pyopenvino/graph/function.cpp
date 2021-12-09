@@ -44,9 +44,9 @@ ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>&
     return sinks;
 }
 
-void regclass_graph_Function(py::module m) {
-    py::class_<ov::Model, std::shared_ptr<ov::Model>> function(m, "Function", py::module_local());
-    function.doc() = "openvino.impl.Function wraps ov::Model";
+void regclass_graph_Model(py::module m) {
+    py::class_<ov::Model, std::shared_ptr<ov::Model>> function(m, "Model", py::module_local());
+    function.doc() = "openvino.impl.Model wraps ov::Model";
 
     function.def(py::init([](const ov::ResultVector& res,
                              const std::vector<std::shared_ptr<ov::Node>>& nodes,
@@ -61,7 +61,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("parameters"),
                  py::arg("name"),
                  R"(
-                    Create user-defined Function which is a representation of a model.
+                    Create user-defined Model which is a representation of a model.
 
                     Parameters
                     ----------
@@ -88,7 +88,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("parameters"),
                  py::arg("name") = "",
                  R"(
-                    Create user-defined Function which is a representation of a model.
+                    Create user-defined Model which is a representation of a model.
 
                     Parameters
                     ----------
@@ -112,7 +112,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("parameters"),
                  py::arg("name") = "",
                  R"(
-                    Create user-defined Function which is a representation of a model.
+                    Create user-defined Model which is a representation of a model.
 
                     Parameters
                     ----------
@@ -135,7 +135,7 @@ void regclass_graph_Function(py::module m) {
         py::arg("parameters"),
         py::arg("name") = "",
         R"(
-            Create user-defined Function which is a representation of a model
+            Create user-defined Model which is a representation of a model
 
             Parameters
             ----------
@@ -162,7 +162,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("parameters"),
                  py::arg("name") = "",
                  R"(
-            Create user-defined Function which is a representation of a model
+            Create user-defined Model which is a representation of a model
 
             Parameters
             ----------
@@ -193,7 +193,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("variables"),
                  py::arg("name") = "",
                  R"(
-            Create user-defined Function which is a representation of a model
+            Create user-defined Model which is a representation of a model
 
             Parameters
             ----------
@@ -228,7 +228,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("variables"),
                  py::arg("name") = "",
                  R"(
-            Create user-defined Function which is a representation of a model
+            Create user-defined Model which is a representation of a model
 
             Parameters
             ----------
@@ -260,7 +260,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("variables"),
                  py::arg("name") = "",
                  R"(
-            Create user-defined Function which is a representation of a model
+            Create user-defined Model which is a representation of a model
 
             Parameters
             ----------
@@ -289,7 +289,7 @@ void regclass_graph_Function(py::module m) {
                  py::arg("variables"),
                  py::arg("name") = "",
                  R"(
-            Create user-defined Function which is a representation of a model
+            Create user-defined Model which is a representation of a model
 
             Parameters
             ----------

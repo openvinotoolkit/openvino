@@ -35,7 +35,7 @@ if sys.platform == "win32":
                 os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
 from openvino.pyopenvino import Dimension
-from openvino.pyopenvino import Function
+from openvino.pyopenvino import Model
 from openvino.pyopenvino import Input
 from openvino.pyopenvino import Output
 from openvino.pyopenvino import Node

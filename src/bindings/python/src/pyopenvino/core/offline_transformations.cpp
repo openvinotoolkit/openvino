@@ -71,7 +71,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_pruning_transformation",
-        [](std::shared_ptr<ngraph::Function> function) {
+        [](std::shared_ptr<ov::Model> function) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::Pruning>();
             manager.run_passes(function);
@@ -129,7 +129,7 @@ void regmodule_offline_transformations(py::module m) {
     into provided paths.
     Parameters
     ----------
-    function : ov.Function
+    function : ov.Model
         function which will be converted to IR representation
     xml_path : str
         path where .xml file will be saved
@@ -150,7 +150,7 @@ void regmodule_offline_transformations(py::module m) {
         parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
         parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
         model = (parameter_a + parameter_b) * parameter_c
-        func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+        func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
         # IR generated with default version 
         serialize(func, model_path="./serialized.xml", weights_path="./serialized.bin")
 
@@ -160,7 +160,7 @@ void regmodule_offline_transformations(py::module m) {
         parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
         parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
         model = (parameter_a + parameter_b) * parameter_c
-        func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+        func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
         # IR generated with default version 
         serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")    
     // )");

@@ -44,7 +44,7 @@ if sys.platform == "win32":
 
 # Openvino pybind bindings and python extended classes
 from openvino.runtime.impl import Dimension
-from openvino.runtime.impl import Function
+from openvino.runtime.impl import Model
 from openvino.runtime.impl import Node
 from openvino.runtime.impl import PartialShape
 from openvino.runtime.impl import Layout

@@ -53,7 +53,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                convert : Function
+                convert : Model
                     Fully converted nGraph function.
              )");
 
@@ -65,12 +65,12 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Parameters
                 ----------
-                function : Function
+                function : Model
                     Partially converted nGraph function.
 
                 Returns
                 ----------
-                convert : Function
+                convert : Model
                     Fully converted nGraph function.
              )");
 
@@ -89,7 +89,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                convert_partially : Function
+                convert_partially : Model
                     Partially converted nGraph function.
              )");
 
@@ -108,7 +108,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                decode : Function
+                decode : Model
                     nGraph function after decoding.
              )");
 
@@ -120,7 +120,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Parameters
                 ----------
-                function : Function
+                function : Model
                     Partially converted nGraph function.
              )");
 

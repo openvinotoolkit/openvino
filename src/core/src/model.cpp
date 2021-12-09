@@ -981,7 +981,7 @@ ov::Dimension ov::get_batch(const std::shared_ptr<const ov::Model>& f) {
         }
         stream << "---" << std::endl;
         stream << "Please use 'set_layout' API to set layout with batch dimension, e.g. "
-                  "`Function->get_parameters()[index]->set_layout(\"NCHW\");`";
+                  "`Model->get_parameters()[index]->set_layout(\"NCHW\");`";
 
         OPENVINO_ASSERT(false, stream.str());
     }
