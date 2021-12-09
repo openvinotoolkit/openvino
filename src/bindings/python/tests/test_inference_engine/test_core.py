@@ -380,3 +380,17 @@ def test_read_model_from_buffer_no_weights(device):
     core = Core()
     func = core.read_model(model=model)
     assert isinstance(func, Function)
+
+
+def test_infer_new_request_return_type(device):
+    ie = Core()
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    img = read_image()
+    exec_net = ie.compile_model(func, device)
+    res = exec_net.infer_new_request({"data": img})
+    arr = res[list(res)[0]][0]
+    assert isinstance(arr, np.ndarray)
+    arr.itemsize
+    arr.shape
+    arr.nbytes
+    arr.dtype
