@@ -7,12 +7,13 @@
 #include <string>
 #include <vector>
 
-#include "engines_util/interpreter_engine.hpp"
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/test_control.hpp"
+#if 0
+#    include "engines_util/interpreter_engine.hpp"
+#    include "engines_util/test_case.hpp"
+#    include "engines_util/test_engines.hpp"
+#    include "gtest/gtest.h"
+#    include "ngraph/ngraph.hpp"
+#    include "util/test_control.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -132,3 +133,4 @@ TEST(op_eval, floor_mod_int32) {
     test_case.add_expected_output<int32_t>(shape, {2, 1, -1, -2});
     test_case.run();
 }
+#endif

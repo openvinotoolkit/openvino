@@ -6,7 +6,6 @@
 
 #include "all_close.hpp"
 #include "all_close_f.hpp"
-#include "backend.hpp"
 #include "engine_traits.hpp"
 #include "execute_tools.hpp"
 #include "ngraph/function.hpp"
