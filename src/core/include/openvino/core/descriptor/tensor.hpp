@@ -16,7 +16,6 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/variant.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -114,7 +113,7 @@ protected:
     std::string m_name;
 
     std::unordered_set<std::string> m_names;
-    std::map<std::string, Any> m_rt_info;
+    RTMap m_rt_info;
     mutable std::atomic_bool m_shape_changed;
 };
 

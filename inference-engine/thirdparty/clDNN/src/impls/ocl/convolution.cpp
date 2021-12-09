@@ -6,7 +6,7 @@
 #include "eltwise_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "convolution/convolution_kernel_selector.h"

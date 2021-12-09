@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 using namespace cldnn;
 

@@ -35,6 +35,11 @@ each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_custo
 
 If the GNA device is selected (for example, using the `-d` GNA flag), the GNA Inference Engine plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
 
+Several neural network quantization modes:
+
+- *static* - The first utterance in the input file is scanned for dynamic range.  The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used for all subsequent inputs. The neural network is quantized to accommodate the scaled input dynamic range.
+- *user-defined* - The user may specify a scale factor via the `-sf` flag that will be used for static quantization.
+
 The `-qb` flag provides a hint to the GNA plugin regarding the preferred target weight resolution for all layers.  
 For example, when `-qb 8` is specified, the plugin will use 8-bit weights wherever possible in the
 network.
@@ -60,11 +65,14 @@ Several execution modes are supported via the `-d` flag:
 ### Loading and Saving Models
 
 The GNA plugin supports loading and saving of the GNA-optimized model (non-IR) via the `-rg` and `-wg` flags.  
-Thereby, it is possible to avoid the cost of full model quantization at run time.
+Thereby, it is possible to avoid the cost of full model quantization at run time.  
+The GNA plugin also supports export of firmware-compatible embedded model images for the Intel® Speech Enabling Developer Kit and Amazon Alexa* Premium Far-Field Voice Development Kit via the `-we` flag (save only).
 
-In addition to performing inference directly from a GNA model file, this option makes it possible to:
+In addition to performing inference directly from a GNA model file, these options make it possible to:
 
 - Convert from IR format to GNA format model file (`-m`, `-wg`)
+- Convert from IR format to embedded format model file (`-m`, `-we`)
+- Convert from GNA format to embedded format model file (`-rg`, `-we`)
 
 ## Running
 
@@ -78,11 +86,14 @@ Usage message:
 
 ```
 usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT       
-                        [-o OUTPUT] [-r REFERENCE] [-d DEVICE]
-                        [-bs BATCH_SIZE] [-qb QUANTIZATION_BITS]
-                        [-sf SCALE_FACTOR] [-wg EXPORT_GNA_MODEL] [-pc]       
-                        [-a {CORE,ATOM}] [-iname INPUT_LAYERS]
-                        [-oname OUTPUT_LAYERS]
+                        [-o OUTPUT] [-r REFERENCE] [-d DEVICE] [-bs [1-8]]    
+                        [-qb [8, 16]] [-sf SCALE_FACTOR]
+                        [-wg EXPORT_GNA_MODEL] [-we EXPORT_EMBEDDED_GNA_MODEL]
+                        [-we_gen [GNA1, GNA3]]
+                        [--exec_target [GNA_TARGET_2_0, GNA_TARGET_3_0]] [-pc]
+                        [-a [CORE, ATOM]] [-iname INPUT_LAYERS]
+                        [-oname OUTPUT_LAYERS] [-cw_l CONTEXT_WINDOW_LEFT]    
+                        [-cw_r CONTEXT_WINDOW_RIGHT]
 
 optional arguments:
   -m MODEL, --model MODEL
@@ -110,9 +121,9 @@ Options:
                         HETERO:GNA,CPU) are supported. The sample will look
                         for a suitable plugin for device specified. Default
                         value is CPU.
-  -bs BATCH_SIZE, --batch_size BATCH_SIZE
+  -bs [1-8], --batch_size [1-8]
                         Optional. Batch size 1-8 (default 1).
-  -qb QUANTIZATION_BITS, --quantization_bits QUANTIZATION_BITS
+  -qb [8, 16], --quantization_bits [8, 16]
                         Optional. Weight bits for quantization: 8 or 16
                         (default 16).
   -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
@@ -122,10 +133,22 @@ Options:
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename
                         provided.
+  -we EXPORT_EMBEDDED_GNA_MODEL, --export_embedded_gna_model EXPORT_EMBEDDED_GNA_MODEL
+                        Optional. Write GNA embedded model to file using
+                        path/filename provided.
+  -we_gen [GNA1, GNA3], --embedded_gna_configuration [GNA1, GNA3]
+                        Optional. GNA generation configuration string for
+                        embedded export. Can be GNA1 (default) or GNA3.
+  --exec_target [GNA_TARGET_2_0, GNA_TARGET_3_0]
+                        Optional. Specify GNA execution target generation. By
+                        default, generation corresponds to the GNA HW
+                        available in the system or the latest fully supported
+                        generation by the software. See the GNA Plugin's
+                        GNA_EXEC_TARGET config option description.
   -pc, --performance_counter
                         Optional. Enables performance report (specify -a to
                         ensure arch accurate results).
-  -a {CORE,ATOM}, --arch {CORE,ATOM}
+  -a [CORE, ATOM], --arch [CORE, ATOM]
                         Optional. Specify architecture. CORE, ATOM with the
                         combination of -pc.
   -iname INPUT_LAYERS, --input_layers INPUT_LAYERS
@@ -137,6 +160,16 @@ Options:
                         separated with ",". Allows to change the order of
                         output layers for -o flag. Example:
                         Output1:port,Output2:port.
+  -cw_l CONTEXT_WINDOW_LEFT, --context_window_left CONTEXT_WINDOW_LEFT
+                        Optional. Number of frames for left context windows
+                        (default is 0). Works only with context window
+                        networks. If you use the cw_l or cw_r flag, then batch
+                        size argument is ignored.
+  -cw_r CONTEXT_WINDOW_RIGHT, --context_window_right CONTEXT_WINDOW_RIGHT
+                        Optional. Number of frames for right context windows
+                        (default is 0). Works only with context window
+                        networks. If you use the cw_l or cw_r flag, then batch
+                        size argument is ignored.
 ```
 
 ## Model Preparation
