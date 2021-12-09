@@ -141,28 +141,25 @@ class TestMoFallback(unittest.TestCase):
                 (None, False, True, 'onnx_frontend', None),
     ])
     def test_fallback_if_tranformation_config_specified(self, trans_config, use_legacy, use_new_fe, expected_path, fallback_reason):
-        # fix problem with incorrect extractors loading from UT
-        with patch('openvino.tools.mo.utils.class_registration._update') as update_mock:
-            update_mock.return_value=None
-            args = base_args_config()
-            args.use_legacy_frontend = use_legacy
-            args.use_new_frontend = use_new_fe
-            args.input_model = "test_model.onnx"
-            if trans_config is not None: # trans config provided
-                with open(trans_config, 'w') as f:
-                    f.write("[]") # json format
-                args.transformations_config = os.path.abspath(trans_config)
-            else:
-                args.transformations_config = trans_config
+        args = base_args_config()
+        args.use_legacy_frontend = use_legacy
+        args.use_new_frontend = use_new_fe
+        args.input_model = "test_model.onnx"
+        if trans_config is not None: # trans config provided
+            with open(trans_config, 'w') as f:
+                f.write("[]") # json format
+            args.transformations_config = os.path.abspath(trans_config)
+        else:
+            args.transformations_config = trans_config
 
-            prepare_ir(args)
+        prepare_ir(args)
 
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
-            if fallback_reason:
+        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+        if fallback_reason:
+            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+        else:
+            with pytest.raises(AssertionError): # not called
                 tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-            else:
-                with pytest.raises(AssertionError): # not called
-                    tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
         if args.transformations_config is not None:
             os.remove(args.transformations_config) # clean-up
@@ -201,21 +198,18 @@ class TestMoFallback(unittest.TestCase):
                 (False, False, 'mo_legacy', None),
     ])
     def test_fallback_if_frontend_path_failed(self, use_new_fe, use_legacy, expected_path, fallback_reason):
-        # fix problem with incorrect extractors loading from UT
-        with patch('openvino.tools.mo.utils.class_registration._update') as update_mock:
-            update_mock.return_value=None
-            args = base_args_config()
-            args.use_legacy_frontend = use_legacy
-            args.use_new_frontend = use_new_fe
-            args.input_model = "fake_elu.onnx"
-            # FakeElu is supported only by legacy path
-            Op.registered_ops['FakeElu'] = Elu
+        args = base_args_config()
+        args.use_legacy_frontend = use_legacy
+        args.use_new_frontend = use_new_fe
+        args.input_model = "fake_elu.onnx"
+        # FakeElu is supported only by legacy path
+        Op.registered_ops['FakeElu'] = Elu
 
-            prepare_ir(args)
+        prepare_ir(args)
 
-            call_args_dict = event_call_args_to_dict(tm.Telemetry.send_event.call_args_list)
-            assert call_args_dict['conversion_method'] == expected_path
-            if fallback_reason is None:
-                assert not 'fallback_reason' in call_args_dict
-            else:
-                assert fallback_reason in call_args_dict['fallback_reason'] # do not check callstack in a exception
+        call_args_dict = event_call_args_to_dict(tm.Telemetry.send_event.call_args_list)
+        assert call_args_dict['conversion_method'] == expected_path
+        if fallback_reason is None:
+            assert not 'fallback_reason' in call_args_dict
+        else:
+            assert fallback_reason in call_args_dict['fallback_reason'] # do not check callstack in a exception

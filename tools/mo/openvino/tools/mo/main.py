@@ -284,7 +284,11 @@ def arguments_post_parsing(argv: argparse.Namespace):
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
-        extensions = argv.extensions.split(',')
+        # If frontend path used clear default value of extensions
+        if moc_front_end and argv.extensions == import_extensions.default_path():
+            argv.extensions = None
+        else:
+            extensions = argv.extensions.split(',')
     else:
         extensions = None
 
@@ -326,7 +330,6 @@ def check_fallback(argv : argparse.Namespace):
 
 def prepare_ir(argv : argparse.Namespace):
     argv = arguments_post_parsing(argv)
-
     t = tm.Telemetry()
     graph = None
     ngraph_function = None
