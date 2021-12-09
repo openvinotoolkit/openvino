@@ -9,7 +9,7 @@ from datetime import datetime
 import time
 
 from openvino.inference_engine import ie_api as ie
-from conftest import model_path, image_path, create_encoder
+from ..conftest import model_path, image_path, create_encoder
 import ngraph as ng
 from ngraph.impl import Function, Type
 

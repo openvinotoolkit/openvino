@@ -13,6 +13,7 @@ endif()
 add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+set(PYTHON_BRIDGE_CPACK_PATH "python")
 
 add_subdirectory(src)
 

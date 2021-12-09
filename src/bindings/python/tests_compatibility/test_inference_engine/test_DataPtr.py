@@ -4,7 +4,7 @@
 import pytest
 
 from openvino.inference_engine import IECore, DataPtr
-from conftest import model_path, create_relu
+from ..conftest import model_path, create_relu
 import ngraph as ng
 
 

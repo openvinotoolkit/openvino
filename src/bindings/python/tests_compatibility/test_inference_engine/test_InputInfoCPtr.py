@@ -4,7 +4,7 @@
 import pytest
 
 from openvino.inference_engine import InputInfoCPtr, DataPtr, IECore, TensorDesc
-from conftest import model_path
+from ..conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()

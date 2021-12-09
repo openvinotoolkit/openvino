@@ -6,7 +6,7 @@ import pytest
 
 import ngraph as ng
 from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
-from conftest import model_path, create_relu
+from ..conftest import model_path, create_relu
 
 
 test_net_xml, test_net_bin = model_path()

@@ -4,10 +4,6 @@
 
 project(InferenceEngine)
 
-if(ENABLE_PYTHON)
-    add_subdirectory(ie_bridges/python)
-endif()
-
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
     add_subdirectory(tests)

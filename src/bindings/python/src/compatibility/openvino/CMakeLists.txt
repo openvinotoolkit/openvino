@@ -14,8 +14,6 @@ endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 
-set(PYTHON_BRIDGE_CPACK_PATH "python")
-
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
     set(CMAKE_CXX_VISIBILITY_PRESET default)
@@ -63,7 +61,7 @@ function(ov_python_disable_intel_warnings target)
 endfunction()
 
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-add_subdirectory (src/openvino/inference_engine)
+add_subdirectory (inference_engine)
 
 if(TARGET _pyngraph)
     add_dependencies(ie_api _pyngraph)
@@ -80,7 +78,5 @@ install(FILES requirements.txt
 install(PROGRAMS ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_COMPONENT})
-
-# package Python samples
 
 ie_cpack(${PYTHON_COMPONENT})

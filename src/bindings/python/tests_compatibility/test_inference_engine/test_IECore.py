@@ -11,7 +11,7 @@ from time import sleep, time
 from queue import Queue
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
-from conftest import model_path, plugins_path, model_onnx_path
+from ..conftest import model_path, plugins_path, model_onnx_path
 import ngraph as ng
 
 

@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
-from conftest import image_path, create_encoder
+from ..conftest import image_path, create_encoder
 import ngraph as ng
 
 
