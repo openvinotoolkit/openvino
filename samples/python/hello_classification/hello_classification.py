@@ -71,8 +71,7 @@ def main():
     # - precision of tensor is supposed to be 'u8'
     # - layout of data is 'NHWC'
     # - set static spatial dimensions to input tensor to resize from
-    preproc.input() \
-           .tensor() \
+    preproc.input().tensor() \
            .set_element_type(image_tensor.element_type) \
            .set_layout(tensor_layout) \
            .set_spatial_static_shape(h, w)
