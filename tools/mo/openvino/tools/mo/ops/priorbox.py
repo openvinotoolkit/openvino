@@ -4,6 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.layout import get_width_dim, get_height_dim
+from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank
 from openvino.tools.mo.front.extractor import attr_getter, bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -29,6 +30,7 @@ class PriorBoxOp(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'type_infer': self.type_infer,
+            'reverse_infer': self.reverse_infer,
             'infer': self.priorbox_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -112,3 +114,11 @@ class PriorBoxOp(Op):
         else:
             res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
             node.out_port(0).data.set_shape([1, 2, res_prod])
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(1))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(undefined_shape_of_rank(1))

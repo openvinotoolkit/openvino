@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from openvino.tools.mo.ops.op import Op
 
 
@@ -13,6 +14,7 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
             op=self.op,
             version='opset6',
             infer=self.infer,
+            reverse_infer=self.reverse_infer,
             out_ports_count=2,
         )
 
@@ -34,3 +36,14 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
         node.out_port(0).data.set_shape([rois_num, channels_num, node.output_size, node.output_size])
         if not node.out_port(1).disconnected():
             node.out_port(1).data.set_shape([rois_num, 4])
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(shape_array([dynamic_dimension_value, 4]))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(shape_array([1,
+                                                        dynamic_dimension_value,
+                                                        dynamic_dimension_value,
+                                                        dynamic_dimension_value]))

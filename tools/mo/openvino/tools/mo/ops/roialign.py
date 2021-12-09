@@ -3,6 +3,8 @@
 
 from openvino.tools.mo.front.common.layout import get_features_dim, shape_for_layout
 from openvino.tools.mo.front.common.partial_infer.utils import compatible_dims
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array, \
+    undefined_shape_of_rank
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -24,6 +26,7 @@ class ROIAlign(Op):
             'version': 'opset3',
 
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
 
             'in_ports_count': 3,
             'out_ports_count': 1,
@@ -69,3 +72,14 @@ class ROIAlign(Op):
                              height=node.pooled_h,
                              width=node.pooled_w)
         )
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(shape_array([dynamic_dimension_value, 4]))
+
+        if node.in_port(2).data.get_shape() is None:
+            node.in_port(2).data.set_shape(undefined_shape_of_rank(1))

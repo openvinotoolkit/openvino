@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims, \
+    undefined_shape_of_rank
 from openvino.tools.mo.front.extractor import bool_to_str
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.graph.graph import Node
@@ -23,6 +24,7 @@ class DetectionOutput(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'input_width': 1,
             'input_height': 1,
             'normalized': True,
@@ -104,3 +106,20 @@ class DetectionOutput(Op):
 
         # the line below is needed for the TF framework so the MO will not change the layout
         node.graph.node[node.out_node(0).id]['nchw_layout'] = True
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(2))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(undefined_shape_of_rank(2))
+
+        if node.in_port(2).data.get_shape() is None:
+            node.in_port(2).data.set_shape(undefined_shape_of_rank(3))
+
+        if node.in_port(3).data.get_shape() is None:
+            node.in_port(3).data.set_shape(undefined_shape_of_rank(2))
+
+        if node.in_port(4).data.get_shape() is None:
+            node.in_port(4).data.set_shape(undefined_shape_of_rank(2))

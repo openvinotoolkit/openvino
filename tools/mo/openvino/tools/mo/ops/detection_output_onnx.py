@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from openvino.tools.mo.ops.op import Op
 
 
@@ -16,6 +17,7 @@ class ExperimentalDetectronDetectionOutput(Op):
             op=self.op,
             version='opset6',
             infer=self.infer,
+            reverse_infer=self.reverse_infer,
             type_infer=self.type_infer,
             in_ports_count=4,
             out_ports_count=3,
@@ -54,3 +56,17 @@ class ExperimentalDetectronDetectionOutput(Op):
         node.out_port(2).set_data_type(in_data_type)
         if node.is_out_port_connected(3):
             node.out_port(3).set_data_type(np.int32)  # the fourth output contains batch indices
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(shape_array([dynamic_dimension_value, 4]))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(shape_array([dynamic_dimension_value, node['num_classes'] * 4]))
+
+        if node.in_port(2).data.get_shape() is None:
+            node.in_port(2).data.set_shape(shape_array([dynamic_dimension_value, node['num_classes']]))
+
+        if node.in_port(3).data.get_shape() is None:
+            node.in_port(3).data.set_shape(shape_array([1, 3]))

@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from openvino.tools.mo.ops.op import Op
 
 
@@ -13,6 +14,7 @@ class ExperimentalDetectronPriorGridGenerator(Op):
             op=self.op,
             version='opset6',
             infer=self.infer,
+            reverse_infer=self.reverse_infer,
         )
         super().__init__(graph, mandatory_props, attrs)
 
@@ -36,3 +38,20 @@ class ExperimentalDetectronPriorGridGenerator(Op):
         else:
             out_shape = [grid_h, grid_w, priors_num, 4]
         node.out_port(0).data.set_shape(out_shape)
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(shape_array([dynamic_dimension_value, 4]))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(shape_array([1,
+                                                        dynamic_dimension_value,
+                                                        dynamic_dimension_value,
+                                                        dynamic_dimension_value]))
+
+        if node.in_port(2).data.get_shape() is None:
+            node.in_port(2).data.set_shape(shape_array([1,
+                                                        dynamic_dimension_value,
+                                                        dynamic_dimension_value,
+                                                        dynamic_dimension_value]))

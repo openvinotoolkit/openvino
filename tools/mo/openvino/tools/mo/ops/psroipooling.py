@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.layout import get_batch_dim, shape_for_layout
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array, \
+    undefined_shape_of_rank
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -20,6 +22,7 @@ class PSROIPoolingOp(Op):
             'out_ports_count': 1,
             'trans_std': 0,
             'no_trans': True,
+            'reverse_infer': self.reverse_infer,
             'infer': PSROIPoolingOp.psroipooling_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -57,6 +60,14 @@ class PSROIPoolingOp(Op):
                                                  height=node.group_size,
                                                  width=node.group_size)
 
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(shape_array([dynamic_dimension_value, 5]))
+
 
 class DeformablePSROIPoolingOp(PSROIPoolingOp):
     op = 'DeformablePSROIPooling'
@@ -76,3 +87,17 @@ class DeformablePSROIPoolingOp(PSROIPoolingOp):
 
     def supported_attrs(self):
         return super().supported_attrs() + ['trans_std', 'part_size']
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(shape_array([dynamic_dimension_value, 5]))
+
+        if node.in_port(2).data.get_shape() is None:
+            node.in_port(2).data.set_shape(shape_array([dynamic_dimension_value,
+                                                        dynamic_dimension_value,
+                                                        int(node.group_size),
+                                                        int(node.group_size)]))

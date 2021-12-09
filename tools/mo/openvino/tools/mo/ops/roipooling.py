@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.partial_infer.roipooling import roipooling_infer
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array, \
+    undefined_shape_of_rank
 from openvino.tools.mo.ops.op import Op
 
 
@@ -19,9 +21,18 @@ class ROIPooling(Op):
             'spatial_scale': 0.0625,
             'method': 'max',
             'infer': roipooling_infer,
+            'reverse_infer': self.reverse_infer,
             'in_ports_count': 2,
             'out_ports_count': 1,
         }, attrs)
 
     def supported_attrs(self):
         return ['pooled_h', 'pooled_w', 'spatial_scale', 'method']
+
+    @staticmethod
+    def reverse_infer(node):
+        if node.in_port(0).data.get_shape() is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))
+
+        if node.in_port(1).data.get_shape() is None:
+            node.in_port(1).data.set_shape(shape_array([dynamic_dimension_value, 5]))
