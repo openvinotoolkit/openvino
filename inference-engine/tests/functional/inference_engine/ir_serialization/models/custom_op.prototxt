@@ -1,0 +1,66 @@
+# This is syntetic model created by hand desined only for white-box unit testing
+ir_version: 3
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    input: "A"
+    output: "Y"
+    name: "operation"
+    op_type: "Template"
+    domain: "custom_domain"
+    attribute {
+        name: "add"
+        type: INT
+        i: 11
+    }
+  }
+  name: "test_graph"
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+  domain: "com.example"
+}

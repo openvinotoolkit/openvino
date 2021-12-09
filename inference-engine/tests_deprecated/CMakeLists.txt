@@ -1,13 +1,14 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-#####################################################################################################
-#                                         SETUP TESTS                                               #
-#####################################################################################################
-
 enable_testing()
 
+if(NOT MSVC)
+    ie_add_compiler_flags(-Wno-unused-variable)
+endif()
+
+add_subdirectory(readers)
 add_subdirectory(helpers)
 
 if (ENABLE_GAPI_TESTS)
@@ -22,8 +23,6 @@ if (ENABLE_BEH_TESTS)
     add_subdirectory(behavior)
 endif()
 
-disable_deprecated_warnings()
-
 if(ENABLE_TESTS)
-  add_subdirectory(unit)
+    add_subdirectory(unit)
 endif()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ using namespace InferenceEngine;
 using TensorDescTests = ::testing::Test;
 
 TEST_F(TensorDescTests, CreateBlobWithIncorrectLayout) {
-    ASSERT_THROW(make_shared_blob<float>({ Precision::FP32, {1, 3, 32}, Layout::NC }), details::InferenceEngineException);
+    ASSERT_THROW(make_shared_blob<float>({ Precision::FP32, {1, 3, 32}, Layout::NC }), Exception);
 }
 
 TEST_F(TensorDescTests, CreateBlockedBlobNCHW) {
@@ -42,6 +42,19 @@ TEST_F(TensorDescTests, CreateBlockedBlobNCDHW) {
     ASSERT_EQ(6, ncdhwBlob->getTensorDesc().offset(6));
     ASSERT_EQ(Layout::NCDHW, ncdhwBlob->getTensorDesc().getLayout());
     ASSERT_EQ(Layout::BLOCKED, blockedBlob->getTensorDesc().getLayout());
+}
+
+TEST_F(TensorDescTests, CompareHWCandCHWLayouts) {
+    TensorDesc descCHW(Precision::FP32, {1, 3, 4}, Layout::CHW);
+    TensorDesc descHWC(Precision::FP32, {1, 3, 4}, Layout::HWC);
+    SizeVector chw = {0, 1, 2};
+    SizeVector hwc = {1, 2, 0};
+
+    ASSERT_NE(descCHW, descHWC);
+    ASSERT_NE(descCHW.getBlockingDesc(), descHWC.getBlockingDesc());
+    ASSERT_NE(descCHW.getBlockingDesc().getOrder(), descHWC.getBlockingDesc().getOrder());
+    ASSERT_EQ(descCHW.getBlockingDesc().getOrder(), chw);
+    ASSERT_EQ(descHWC.getBlockingDesc().getOrder(), hwc);
 }
 
 TEST_F(TensorDescTests, CompareNHWCandNCHWLayouts) {

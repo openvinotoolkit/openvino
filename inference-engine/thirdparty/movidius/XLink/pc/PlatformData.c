@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -347,7 +347,7 @@ int usb_read(libusb_device_handle *f, void *data, size_t size)
     const int chunk_size = DEFAULT_CHUNKSZ;
     while(size > 0)
     {
-        int bt, ss = size;
+        int bt, ss = (int)size;
         if(ss > chunk_size)
             ss = chunk_size;
 #if (defined(_WIN32) || defined(_WIN64))
@@ -368,7 +368,7 @@ int usb_write(libusb_device_handle *f, const void *data, size_t size)
     const int chunk_size = DEFAULT_CHUNKSZ;
     while(size > 0)
     {
-        int bt, ss = size;
+        int bt, ss = (int)size;
         if(ss > chunk_size)
             ss = chunk_size;
 #if (defined(_WIN32) || defined(_WIN64) )

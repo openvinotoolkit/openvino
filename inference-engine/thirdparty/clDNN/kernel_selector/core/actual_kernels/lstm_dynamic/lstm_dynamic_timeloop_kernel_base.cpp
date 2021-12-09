@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "lstm_dynamic_timeloop_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -86,69 +74,58 @@ JitConstants LSTM_DynamicTimeloopKernelBase::GetJitConstants(const lstm_dynamic_
 
 LSTM_DynamicTimeloopKernelBase::DispatchData LSTM_DynamicTimeloopKernelBase::SetDefault(
     const lstm_dynamic_timeloop_params& params) {
-    DispatchData kd;
+    DispatchData dispatchData;
     const auto& out = params.output;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     auto out_x_size = out.X().v;
     auto gws0 = out_x_size > 256 ? 256 : out_x_size;
-    std::vector<size_t> global = {gws0, out.Batch().v, static_cast<size_t>(params.direction)};
-    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { gws0, out.Batch().v, static_cast<size_t>(params.direction) };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 void kernel_selector::LSTM_DynamicTimeloopKernelBase::SetKernelArguments(const lstm_dynamic_timeloop_params& params, clKernelData& kernel) const {
     uint32_t input_idx = 0;
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::RECURRENT, 0 });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::RECURRENT, 0 });
     if (params.has_hidden) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::HIDDEN, 0 });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::HIDDEN, 0 });
     }
     if (params.has_cell) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::CELL, 0 });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::CELL, 0 });
     }
     if (params.has_last_hidden_output) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
     }
     if (params.has_last_cell_output) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
     }
 }
 
 
 KernelsData LSTM_DynamicTimeloopKernelBase::GetCommonKernelsData(const Params& params,
-                                                                 const optional_params& options,
-                                                                 float estimated_time) const {
+                                                                 const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
 
     const lstm_dynamic_timeloop_params& org_params = static_cast<const lstm_dynamic_timeloop_params&>(params);
 
-    auto run_info = SetDefault(org_params);
+    auto dispatchData = SetDefault(org_params);
     KernelData k_data = KernelData::Default<lstm_dynamic_timeloop_params>(params, 1);
 
     auto cldnn_jit = GetJitConstants(org_params);
-    auto entry_point = GetEntryPoint(kernelName, org_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, org_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    kernel.workGroups.global = {run_info.gws0, run_info.gws1, run_info.gws2};
-    kernel.workGroups.local  = {run_info.lws0, run_info.lws1, run_info.lws2};
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local  = dispatchData.lws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(org_params, kernel);
-    k_data.estimatedTime = estimated_time;
     return {k_data};
 }
 }  // namespace kernel_selector

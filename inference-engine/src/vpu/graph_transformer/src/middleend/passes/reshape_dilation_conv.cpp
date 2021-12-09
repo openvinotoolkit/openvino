@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,7 +133,7 @@ void PassImpl::run(const Model& model) {
                 static_cast<float>(InputExtended_height)
                         / static_cast<float>(input->desc().dim(Dim::H)));
 
-        const float MAX_INPUTEXTENDED_SCALE = 1.8;
+        const float MAX_INPUTEXTENDED_SCALE = 1.8f;
         const float MIN_INPUTEXTENDED_SCALE = 1;
 
         if (InputExtended_scale >= MAX_INPUTEXTENDED_SCALE) {

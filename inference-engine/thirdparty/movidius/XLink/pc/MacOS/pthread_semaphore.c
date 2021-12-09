@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -243,6 +243,9 @@ int pthread_sem_timedwait(pthread_sem_t *psem, const struct timespec *abstime) {
     return pthread_sem_timed_or_blocked_wait(psem, abstime);
 }
 
+int pthread_sem_trywait(pthread_sem_t *psem) {
+    return pthread_sem_timed_or_blocked_wait(psem, NULL);
+}
 
 # ifdef __APPLE__
 
@@ -257,6 +260,9 @@ int sem_post(sem_t *psem) {
 }
 int sem_wait(sem_t *psem) {
     return pthread_sem_wait(psem);
+}
+int sem_trywait(sem_t *psem) {
+    return pthread_sem_trywait(psem);
 }
 int sem_timedwait(sem_t *psem, const struct timespec *abstime) {
     return pthread_sem_timedwait(psem, abstime);

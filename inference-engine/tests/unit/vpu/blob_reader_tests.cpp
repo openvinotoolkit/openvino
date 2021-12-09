@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@
 #include <vpu/blob_reader.hpp>
 #include <vpu/graph_transformer.hpp>
 #include <vpu/utils/logger.hpp>
+
+#include "graph_transformer_tests.hpp"
 
 #include <ngraph/op/util/attr_types.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
@@ -48,14 +50,13 @@ public:
         auto fn_ptr = ngraph::builder::subgraph::makeSplitConvConcat();
         ASSERT_NO_THROW(_network = InferenceEngine::CNNNetwork(fn_ptr));
 
-        CompilationConfig compileConfig;
         auto log = std::make_shared<Logger>("GraphCompiler", LogLevel::None, consoleOutput());
-        _compiledGraph = compileNetwork(_network, Platform::MYRIAD_X, compileConfig, log, &_mockCore);
+        _compiledGraph = compileNetwork(_network, createConfiguration(), log, _mockCore);
     }
 
     CNNNetwork _network;
     CompiledGraph::Ptr _compiledGraph;
-    MockICore _mockCore;
+    std::shared_ptr<MockICore> _mockCore = std::make_shared<MockICore>();
 };
 
 TEST_P(VPUBlobReaderHeaderTests, canReadCorrectMagicNumber) {
@@ -198,6 +199,6 @@ TEST_P(VPUBlobReaderOutputTests, canGetCorrectOutputNamesFromImportedNetwork) {
 
 const std::vector<size_t> inputShape = {{1, 4, 10, 10}};
 
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderHeaderTests, ::testing::Values(inputShape));
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderInputTests, ::testing::Values(inputShape));
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderOutputTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderHeaderTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderInputTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderOutputTests, ::testing::Values(inputShape));

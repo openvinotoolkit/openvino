@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 
 #include "precision_utils.h"
 #include "ie_precision.hpp"
+
+#ifdef USE_OPENCV
 
 #include <opencv2/core.hpp>
 
@@ -112,3 +114,5 @@ TEST_F(SaturateCastTestsU16ToI32, U16toI32FMaxToNonMax) {
     const auto value = std::numeric_limits<fromType>::max();
     EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
+
+#endif  // USE_OPENCV

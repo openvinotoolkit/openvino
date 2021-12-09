@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_layers_relu_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(s_copyTensors),
                                 ::testing::ValuesIn(s_reluLayerParams)
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         accuracy, myriadLayerFullyConnectedWithReLU_smoke,
         ::testing::Combine(
                 ::testing::ValuesIn(g_fcTestParamsSubset),
@@ -21,7 +21,7 @@ INSTANTIATE_TEST_CASE_P(
         )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsMaxPoolingWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput),
                                 ::testing::ValuesIn(g_poolingLayerParamsLite),
@@ -29,7 +29,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithReLU_smoke,
                                 ::testing::ValuesIn(s_reluLayerParams))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsAvgPoolingWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput),
                                 ::testing::ValuesIn(g_poolingLayerParamsLite),
@@ -37,7 +37,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithReLU_smoke,
                                 ::testing::ValuesIn(s_reluLayerParams))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput_postOp),
                                 ::testing::Values<pooling_layer_params>(MAKE_STRUCT(pooling_layer_params, {3, 3}, {1, 1}, {1, 1})),
@@ -45,7 +45,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithReLU_smo
                                 ::testing::Values<ReLULayerDef>(MAKE_STRUCT(ReLULayerDef, {{{"negative_slope", "0.0"}}})))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput_postOp),
                                 ::testing::Values<pooling_layer_params>(MAKE_STRUCT(pooling_layer_params, {3, 3}, {1, 1}, {1, 1})),
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithReLU_smo
                                 ::testing::Values<ReLULayerDef>(MAKE_STRUCT(ReLULayerDef, {{{"negative_slope", "0.0"}}})))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerConvolutionWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_convolutionTensors)
                                 , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 3, 3))
@@ -65,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithReLU_smoke,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayerConvolutionWithReLU_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_postop, myriadLayerConvolutionWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput_postOp)
                                 , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 3, 3))
@@ -162,7 +162,6 @@ TEST_F(myriadLayersTests_nightly, graphTransformerNotThrowExceptionIfConvOutputI
         )V0G0N";
 
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights(120));
-    StatusCode st;
 
     ASSERT_NO_THROW(readNetwork(model, weightsBlob));
 
@@ -175,9 +174,8 @@ TEST_F(myriadLayersTests_nightly, graphTransformerNotThrowExceptionIfConvOutputI
     _outputsInfo["conv1/relu"]->setPrecision(Precision::FP16);
     _outputsInfo["deconv"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-}
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, {}));
+    }
 
 TEST_F(myriadLayersTests_nightly, ReLU_PostOp_Conflict) {
     const std::string model = R"V0G0N(
@@ -274,8 +272,6 @@ TEST_F(myriadLayersTests_nightly, ReLU_PostOp_Conflict) {
 
     TBlob<uint8_t>::Ptr weights(GenWeights(num_weights + num_bias));
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model, weights));
 
     const auto& network = _cnnNetwork;
@@ -287,6 +283,5 @@ TEST_F(myriadLayersTests_nightly, ReLU_PostOp_Conflict) {
     _outputsInfo["relu"]->setPrecision(Precision::FP16);
     _outputsInfo["power"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(st, StatusCode::OK);
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, {}));
 }

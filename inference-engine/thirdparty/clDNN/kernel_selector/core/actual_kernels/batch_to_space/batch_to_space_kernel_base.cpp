@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "batch_to_space_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -41,27 +29,23 @@ bool BatchToSpaceKernelBase::Validate(const Params& p, const optional_params& o)
 CommonDispatchData BatchToSpaceKernelBase::SetDefault(const batch_to_space_params& params, const optional_params&) const {
     const auto& out = params.output;
 
-    CommonDispatchData runInfo;
-    std::vector<size_t> global;
-    std::vector<size_t> local;
-
+    CommonDispatchData dispatchData;
     if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 && out.Feature().v % 16 == 0) {
-        global = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
-        local = {1, 16, 1};
+        dispatchData.gws = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
+        dispatchData.lws = { 1, 16, 1 };
     } else {
-        global = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
-        local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+        auto in_layout = params.inputs[0].GetLayout();
+        auto out_layout = out.GetLayout();
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                         { Tensor::DataChannelName::FEATURE },
+                                                                         { Tensor::DataChannelName::X, Tensor::DataChannelName::Y,
+                                                                           Tensor::DataChannelName::Z, Tensor::DataChannelName::W }};
+
+        dispatchData.gws = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants BatchToSpaceKernelBase::GetJitConstants(const batch_to_space_params& params) const {
@@ -77,7 +61,7 @@ JitConstants BatchToSpaceKernelBase::GetJitConstants(const batch_to_space_params
         if (args.w != 0) {
             jit.AddConstant(MakeJitConstant(name + "_W", args.w));
             jit.AddConstant(MakeJitConstant(name + "_Z", args.z));
-        } else if(args.z != 0) {
+        } else if (args.z != 0) {
             jit.AddConstant(MakeJitConstant(name + "_W", default_value));
             jit.AddConstant(MakeJitConstant(name + "_Z", args.z));
         } else {
@@ -93,7 +77,7 @@ JitConstants BatchToSpaceKernelBase::GetJitConstants(const batch_to_space_params
     return jit;
 }
 
-KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options, float estimatedTime) const {
+KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
     KernelData kd = KernelData::Default<batch_to_space_params>(params);
     batch_to_space_params& newParams = *static_cast<batch_to_space_params*>(kd.params.get());
 
@@ -101,17 +85,15 @@ KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
         return {};
     }
 
-    auto runInfo = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto dispatchData = SetDefault(newParams, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, 1, GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimatedTime;
 
     return { kd };
 }

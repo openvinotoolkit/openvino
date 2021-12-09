@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include "ie_memcpy.h"
 #include <single_layer_common.hpp>
 #include <vpu/model/data_desc.hpp>
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 #include "vpu/utils/error.hpp"
 
 #include <math.h>
@@ -467,7 +467,7 @@ void ref_innerproduct(const Blob::Ptr src,
             IW  = dims[1];
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported layout: " << tensorDesc.getLayout();
+            IE_THROW() << "Unsupported layout: " << tensorDesc.getLayout();
     }
     const uint16_t *src_data = static_cast<uint16_t*>(src->buffer());
     const uint16_t *weights_data = weights;
@@ -639,7 +639,7 @@ void ref_permute_wrap(const InferenceEngine::Blob::Ptr src,
             ref_Permute<ie_fp16>(src, dst, order);
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision";
+            IE_THROW() << "Unsupported precision";
     }
 
 }
@@ -847,7 +847,7 @@ void ref_RegionYolo(const InferenceEngine::Blob::Ptr src,
             }
             break;
         default:
-            THROW_IE_EXCEPTION << "Unsupported layout: " << src->getTensorDesc().getLayout();
+            IE_THROW() << "Unsupported layout: " << src->getTensorDesc().getLayout();
 
     }
     ie_memcpy(dstData, dst->byteSize() * sizeof(uint16_t), ref_data.data(), src->size() * sizeof(uint16_t));
@@ -1255,10 +1255,7 @@ namespace topk_impl {
     typedef std::function<bool(const Pair&, const Pair&)> CompareFunction;
 
     bool compareIndices(const Pair& a, const Pair& b) {
-        if (a.second < b.second) return true;
-        if (a.second > b.second) return false;
-
-        return true; // shouldn't occur since all indices are different
+        return (a.second < b.second);
     }
 
     bool compareValuesMax(const Pair& a, const Pair& b) {
@@ -1280,7 +1277,7 @@ namespace topk_impl {
             return compareValuesMax;
         if (modeString == "min")
             return compareValuesMin;
-        THROW_IE_EXCEPTION << "Reference TopK can take only 'max' or 'min' for mode, but actually it has: " << modeString;
+        IE_THROW() << "Reference TopK can take only 'max' or 'min' for mode, but actually it has: " << modeString;
     }
 
     bool isIndicesSort(const std::string& sortString) {
@@ -1290,7 +1287,7 @@ namespace topk_impl {
             return false;
         if (sortString == "index")
             return true;
-        THROW_IE_EXCEPTION << "Reference TopK can take only 'value', 'index' or 'none' for sort, but actually it has: " << sortString;
+        IE_THROW() << "Reference TopK can take only 'value', 'index' or 'none' for sort, but actually it has: " << sortString;
     }
 
     template <class Action>
@@ -1947,7 +1944,7 @@ namespace internal {
               T hy = static_cast<T>(1) - ly, hx = static_cast<T>(1) - lx;
               T w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
 
-              // save weights and indeces
+              // save weights and indices
               PreCalc<T> pc;
               pc.pos1 = y_low * width + x_low;
               pc.pos2 = y_low * width + x_high;
@@ -2017,7 +2014,7 @@ namespace internal {
         // We do average (integral) pooling inside a bin
         const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
 
-        // we want to precalculate indeces and weights shared by all chanels,
+        // we want to precalculate indices and weights shared by all chanels,
         // this is the key point of optimiation
         std::vector<PreCalc<T>> pre_calc(
             roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
@@ -2305,7 +2302,7 @@ namespace internal {
             // We do average (integral) pooling inside a bin
             const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
 
-            // we want to precalculate indeces and weights shared by all chanels,
+            // we want to precalculate indices and weights shared by all chanels,
             // this is the key point of optimiation
             std::vector<PreCalc<T>> pre_calc(
                 roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
@@ -2561,7 +2558,7 @@ void ref_convert(const InferenceEngine::Blob::Ptr &src,
         } else if (srcPrecision == Precision::I32 && dstPrecision == Precision::U8) {
             dst->buffer().as<uint8_t *>()[i] = static_cast<uint8_t>(src->cbuffer().as<int32_t *>()[i]);
         } else {
-            THROW_IE_EXCEPTION << "Unsupported input or output precision";
+            IE_THROW() << "Unsupported input or output precision";
         }
     }
 }

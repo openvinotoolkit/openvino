@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,6 @@
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
-#include <vpu/parsed_config.hpp>
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>
@@ -311,22 +310,6 @@ void BackEnd::dumpModelToDot(
         }
 
         //
-        // Dump Data->Stage edges
-        //
-
-        for (const auto& data : model->datas()) {
-            for (const auto& dependentStageEdge : data->dependentStagesEdges()) {
-                out.append("%s -> %s [", dataDotName(data), stageDotName(dependentStageEdge->dependentStage()));
-                {
-                    VPU_DOT_IDENT(out);
-
-                    DotLabel lbl("Extra dependency", out);
-                }
-                out.append("];");
-            }
-        }
-
-        //
         // Dump Data<->Data edges
         //
 
@@ -394,6 +377,16 @@ void BackEnd::dumpModelToDot(
                     out.append("%s, %s", stageDotName(stage), stageDotName(injectionEdge->child()));
                 }
                 out.append("}");
+            }
+
+            for (const auto& stageDependencyEdge : stage->childDependencyEdges()) {
+                out.append("%s -> %s [", stageDotName(stage), stageDotName(stageDependencyEdge->child()));
+                {
+                    VPU_DOT_IDENT(out);
+
+                    DotLabel lbl("Extra dependency", out);
+                }
+                out.append("];");
             }
         }
     }

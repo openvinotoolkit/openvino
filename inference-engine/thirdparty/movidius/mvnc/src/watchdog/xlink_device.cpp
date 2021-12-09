@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ void XLinkDevice::keepAlive(const time_point &current_time) noexcept {
 
     m_lastPingTime = current_time;
 
-    int diff = duration_cast<milliseconds>(current_time - m_lastPongTime).count();
+    int diff = (int)duration_cast<milliseconds>(current_time - m_lastPongTime).count();
 
     if (bPong) {
         m_lastPongTime = current_time;

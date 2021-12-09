@@ -1,6 +1,7 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #define INTEL_GNA_DLLEXPORT 1
 
 #if GNA_LIB_VER == 1
@@ -44,6 +45,12 @@ GNA2_API enum Gna2Status Gna2MemoryAlloc(
     return Gna2StatusSuccess;
 }
 
+GNA2_API enum Gna2Status Gna2DeviceCreateForExport(
+    Gna2DeviceVersion targetDeviceVersion,
+    uint32_t * deviceIndex) {
+    *deviceIndex = 1;
+    return Gna2StatusSuccess;
+}
 GNA2_API enum Gna2Status Gna2DeviceOpen(
     uint32_t deviceIndex) {
     return Gna2StatusSuccess;
@@ -57,6 +64,14 @@ GNA2_API enum Gna2Status Gna2DeviceSetNumberOfThreads(
 
 GNA2_API Gna2Status Gna2DeviceClose(
     uint32_t deviceIndex) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API Gna2Status Gna2DeviceGetCount(
+    uint32_t* numberOfDevices) {
+    if (numberOfDevices != nullptr) {
+        *numberOfDevices = 1;
+    }
     return Gna2StatusSuccess;
 }
 
@@ -100,12 +115,6 @@ GNA2_API enum Gna2Status Gna2RequestConfigEnableActiveList(
     return Gna2StatusSuccess;
 }
 
-GNA2_API enum Gna2Status Gna2RequestConfigEnableHardwareConsistency(
-    uint32_t requestConfigId,
-    enum Gna2DeviceVersion deviceVersion) {
-    return Gna2StatusSuccess;
-}
-
 GNA2_API enum Gna2Status Gna2RequestConfigSetAccelerationMode(
     uint32_t requestConfigId,
     enum Gna2AccelerationMode accelerationMode) {
@@ -121,6 +130,9 @@ GNA2_API enum Gna2Status Gna2RequestEnqueue(
 GNA2_API enum Gna2Status Gna2RequestWait(
     uint32_t requestId,
     uint32_t timeoutMilliseconds) {
+    if (current != nullptr) {
+        return current->Gna2RequestWait(requestId, timeoutMilliseconds);
+    }
     return Gna2StatusSuccess;
 }
 
@@ -175,6 +187,16 @@ GNA2_API enum Gna2Status Gna2InstrumentationConfigAssignToRequestConfig(
     uint32_t instrumentationConfigId,
     uint32_t requestConfigId) {
     return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2GetLibraryVersion(
+    char* versionBuffer,
+    uint32_t versionBufferSize) {
+    if (versionBuffer != nullptr && versionBufferSize > 0) {
+        versionBuffer[0] = '\0';
+        return Gna2StatusSuccess;
+    }
+    return Gna2StatusNullArgumentNotAllowed;
 }
 
 #elif GNA_LIB_VER == 1

@@ -1,0 +1,23 @@
+# OMZ
+# hang
+.*AvgPool_1199829.*
+.*MVN_53537.*
+
+# DLB
+# Hang
+.*Convolution_1301186.*
+.*Convolution_1761288.*
+.*GroupConvolution_1301139.*
+.*GroupConvolution_1761341.*
+.*MVN_1301111.*
+.*MVN_1761313.*
+.*ROIAlign_1016430.*
+.*ROIAlign_1016460.*
+.*ROIAlign_1016482.*
+.*ROIAlign_1016504.*
+.*ROIAlign_470931.*
+.*ROIAlign_470968.*
+.*ROIAlign_470993.*
+.*ROIAlign_471018.*
+.*Reshape_1302893.*
+.*Reshape_1302942.*

@@ -1,6 +1,8 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+project(mvnc LANGUAGES C)
 
 set(TARGET_NAME "mvnc")
 
@@ -8,18 +10,17 @@ include(${XLINK_DIR}/XLink.cmake)
 
 file(GLOB_RECURSE MVNC_SOURCES "include/*" "src/*")
 
-set(WATCHDOG_INCLUDE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/watchdog/)
+set(WATCHDOG_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/include/watchdog/)
 
 add_library(${TARGET_NAME} STATIC ${MVNC_SOURCES})
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
-        "include"
-        ${WATCHDOG_INCLUDE}
+                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                $<BUILD_INTERFACE:${WATCHDOG_INCLUDE}>
         PRIVATE
-        ${XLINK_INCLUDE}
-        ${XLINK_PLATFORM_INCLUDE})
+                ${XLINK_INCLUDE}
+                ${XLINK_PLATFORM_INCLUDE})
 
 target_compile_definitions(${TARGET_NAME}
         PRIVATE
@@ -35,8 +36,6 @@ endif()
 if(NOT WIN32)
     target_compile_options(${TARGET_NAME}
             PRIVATE
-            -MMD
-            -MP
             -Wformat
             -Wformat-security
             -Wall)
@@ -73,7 +72,9 @@ if(NOT WIN32)
             ${LIBUSB_LIBRARY})
 endif()
 
+openvino_developer_export_targets(COMPONENT vpu TARGETS ${TARGET_NAME})
+ov_install_static_lib(${TARGET_NAME} myriad)
+
 if(ENABLE_TESTS AND ENABLE_MYRIAD_MVNC_TESTS)
     add_subdirectory(tests)
 endif()
-

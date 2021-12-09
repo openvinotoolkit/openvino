@@ -1,23 +1,11 @@
-/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "reorder_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 
 #include <algorithm>
@@ -75,16 +63,14 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
             (output_tile_width - 1) * filter_stride;  // input tile should be large enought to hold data for
                                                       // computations of output tile (for given filter size and stride)
 
-        auto input_offset = node.get_input_offset();
-
         // how many tiles do we need to produce
         // each input tile produces one output tile so we can find no. of input tiles by calculating no. of output tiles
         // (which is equal to width of an output divided by output tile width)
         tensor::value_type conv_output_width =
-            input_layout.size.spatial[0] - input_offset.spatial[0] - filter_width + 1;
+            input_layout.size.spatial[0] - filter_width + 1;
         tensor::value_type input_tiles_count_x = conv_output_width / output_tile_width;
         tensor::value_type output_width = input_tiles_count_x * input_tile_width;
-        tensor::value_type output_height = input_layout.size.spatial[1] - input_offset.spatial[1];
+        tensor::value_type output_height = input_layout.size.spatial[1];
 
         tensor::value_type padd_x = 0;
         tensor::value_type padd_y = (8 - ((output_height - 2) % 8)) % 8;
@@ -198,7 +184,7 @@ std::string reorder_inst::to_string(reorder_node const& node) {
     return primitive_description.str();
 }
 
-reorder_inst::typed_primitive_inst(network_impl& network, reorder_node const& node)
+reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
     : parent(network, node, !node.can_be_optimized()) {
     if (node.can_be_optimized())
         reuse_input();
@@ -247,7 +233,7 @@ void reorder_inst::reuse_input() {
     if (node.requires_reinterpret()) {
         _output = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
     } else {
-        _output = (memory_impl::ptr) &input_memory();
+        _output = input_memory_ptr();
     }
 }
 

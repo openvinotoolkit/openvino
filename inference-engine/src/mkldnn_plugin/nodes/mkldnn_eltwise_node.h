@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,104 +8,166 @@
 #include <mkldnn_node.h>
 #include <string>
 #include <vector>
-#include <c_types_map.hpp>
 #include <memory>
+#include <caseless.hpp>
 
 namespace MKLDNNPlugin {
 
-struct jit_eltwise_fq_params {
-    int src0_step;
-    int src1_step;
-    int dst_step;
-    mkldnn::memory::data_type src0_dt;
-    mkldnn::memory::data_type src1_dt;
-    mkldnn::memory::data_type dst_dt;
-    int src0_data_size;
-    int src1_data_size;
-    int dst_data_size;
+#define MAX_ELTWISE_INPUTS 7
+#define MAX_ELTWISE_DIM_RANK 12
 
-    InferenceEngine::EltwiseLayer::eOperation eltwise_op;
-};
+struct jit_eltwise_params {
+    size_t inputs_number;
+    size_t input_size;
 
-struct jit_eltwise_fq_call_args {
-    const void *src0;
-    const void *src1;
-    void *dst;
+    InferenceEngine::Precision src_prc[MAX_ELTWISE_INPUTS];
+    InferenceEngine::Precision dst_prc;
+
+    VectorDims dims;
+    VectorDims src_offsets[MAX_ELTWISE_INPUTS];
+    VectorDims dst_offsets;
+    VectorDims oc_offsets;
+
+    size_t src_size[MAX_ELTWISE_INPUTS];
+    size_t dst_size;
+    size_t oc_size;
+
     size_t work_amount;
 };
 
-struct jit_uni_eltwise_fq_kernel {
-    void (*ker_)(const jit_eltwise_fq_call_args *);
+struct jit_eltwise_call_args_ptrs {
+    const void *src_ptr[MAX_ELTWISE_INPUTS];
+    void *dst_ptr;
+};
 
-    void operator()(const jit_eltwise_fq_call_args *args) {
+struct jit_eltwise_call_args_indexes {
+    size_t indexes[MAX_ELTWISE_DIM_RANK];
+};
+
+class MKLDNNEltwiseNode;
+
+struct jit_uni_eltwise_kernel {
+    void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*);
+
+    void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) {
         assert(ker_);
-        ker_(args);
+        ker_(const_args, indexes);
     }
 
-    explicit jit_uni_eltwise_fq_kernel(jit_eltwise_fq_params jep, const mkldnn_primitive_attr &attr) : ker_(nullptr), jep_(jep), attr_(attr) {}
-    virtual ~jit_uni_eltwise_fq_kernel() {}
+    explicit jit_uni_eltwise_kernel(const jit_eltwise_params& jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
+    virtual ~jit_uni_eltwise_kernel() {}
 
-    jit_eltwise_fq_params jep_;
-    const mkldnn_primitive_attr &attr_;
+    virtual void create_ker() = 0;
+
+    jit_eltwise_params jep_;
+    MKLDNNEltwiseNode& eltwiseNode;
 };
 
 class MKLDNNEltwiseNode : public MKLDNNNode {
 public:
-    MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNEltwiseNode() override = default;
+    MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
+    void selectOptimalPrimitiveDescriptor() override;
+    void initOptimalPrimitiveDescriptor() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1, bool initAsBinary = false, bool initBinaryMemory = false) override;
+    void fuseInto(MKLDNNNodePtr& parentNode) override;
+    InferenceEngine::Precision getRuntimePrecision() const override;
 
-    bool isSum();
-    bool isUnitScales();
+    float getAlpha() const { return alpha; }
+    float getBeta() const { return beta; }
+    float getGamma() const { return gamma; }
+    MKLDNNMemoryPtr scalesMemory;
+    MKLDNNMemoryPtr shiftsMemory;
+    mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
+
     bool isWithBroadcast();
-    void initOptimalPrimitiveDescriptor() override;
+    bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
+
+    void createPrimitive() override;
+
+    std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    InferenceEngine::EltwiseLayer::eOperation op;
-    std::vector<float> sum_scales;
-    bool broadcast = false;
-    int batch_dim = 5;
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-    mkldnn::primitive_attr attr;
+    struct EltwiseExecutor {
+        EltwiseExecutor(size_t batch) : batchDimIdx(batch) {}
+        virtual void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
+        virtual const jit_eltwise_params& getJep() const = 0;
+        virtual ~EltwiseExecutor() = default;
 
-    std::shared_ptr<jit_uni_eltwise_fq_kernel> eltiwse_fq_kernel;
-    jit_eltwise_fq_params jep;
+        size_t batchDimIdx = 0;
+    };
+    using executorPtr = std::shared_ptr<EltwiseExecutor>;
+    executorPtr execPtr = nullptr;
 
-    void jit_eltwise_fq();
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
+    struct EltwiseJitExecutor : public EltwiseExecutor {
+        EltwiseJitExecutor(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch);
+        void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
+        const jit_eltwise_params& getJep() const override;
 
-    template <typename T0, typename T1> void ref_eltwise(int in0, int in1);
-    template <typename T0, typename T1, typename T2> void ref_eltwise2(int in0, int in1);
-    void dims_calc(int *dims, const MKLDNNDims &edge_dims, bool channels_first);
-    void offset_out_calc(int *offset, int *dims);
-    void offset_in_calc(int *offset, int *dims_in, int *dims_out);
+        std::unique_ptr<jit_uni_eltwise_kernel> pKernel;
+        size_t schedulerWorkAmount = 0;
+    };
 
-    template <typename T0, typename T1> void eltwise_add(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_prod(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_max(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_sub(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_min(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_div(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_squared_diff(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_floor_mod(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_pow(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_logical_and(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_logical_or(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1> void eltwise_logical_xor(const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, size_t dst_data_size);
+    struct EltwiseRefExecutor : public EltwiseExecutor {
+        EltwiseRefExecutor(const jit_eltwise_params &_jep, const size_t fullWA, const size_t batch) : jep(_jep), fullWorkAmount(fullWA),
+                                                                                                       EltwiseExecutor(batch) {}
+        void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
+        const jit_eltwise_params& getJep() const override { return jep; }
 
-    template <typename T0, typename T1, typename T2> void eltwise_equal(const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1, typename T2> void eltwise_not_equal(const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1, typename T2> void eltwise_less(const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1, typename T2> void eltwise_less_equal(const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1, typename T2> void eltwise_greater(const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, size_t dst_data_size);
-    template <typename T0, typename T1, typename T2> void eltwise_greater_equal(const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, size_t dst_data_size);
+        jit_eltwise_params jep;
+        size_t fullWorkAmount = 0;
+    };
+
+    mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
+
+    static const int optimalTensorRank = 6;
+    bool canUseOptimizedImpl = false;
+    bool isDynBatchEnabled = false;
+    bool specialConvolutionAddFusing = false;
+    size_t inputNum = 0;
+    std::vector<ptrdiff_t> start_offset_in = {};
+    ptrdiff_t start_offset_out = 0;
+
+    // blocked dims for which kernel compiled and params prepared
+    std::vector<VectorDims> currentInBlkDims = {};
+
+    float alpha = 0;
+    float beta = 0;
+    float gamma = 0;
+
+    std::vector<float> scales = {};
+    std::vector<float> shifts = {};
+    std::vector<float> scalesBuffer = {};
+    std::vector<float> shiftsBuffer = {};
+
+    std::vector<MKLDNNMemoryPtr> memPtrs = {};
+
+    using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
+    static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
+
+    void executeOptimized6D(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
+                            const VectorDims &dims_out) const;
+    void executeOptimizedGeneric(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
+                                 const VectorDims &dims_out, const size_t schedulerWorkAmount) const;
+    void executeReference(const jit_eltwise_params &jep, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out,
+                          const size_t fullWorkAmount) const;
+
+    void offset_out_calc(VectorDims& offset, VectorDims& dims);
+    void offset_in_calc(VectorDims& offset, VectorDims& dims_in, VectorDims& dims_out);
+
+    size_t getOpInputsNum() const;
 };
 
 }  // namespace MKLDNNPlugin
-

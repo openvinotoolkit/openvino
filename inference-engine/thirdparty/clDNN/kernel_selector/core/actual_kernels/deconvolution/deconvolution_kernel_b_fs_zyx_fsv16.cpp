@@ -1,17 +1,5 @@
-﻿//
-// Copyright (c) 2019-2020 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include "deconvolution_kernel_b_fs_zyx_fsv16.h"
@@ -30,6 +18,8 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
@@ -44,11 +34,12 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSubGroup();
     k.EnableSubGroupShort();
+    k.EnableDifferentTypes();
     return k;
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDefault(const deconvolution_params& params) const {
-    DispatchData kd = DeconvolutionKernelBase::SetDefault(params);
+    DispatchData dispatchData = DeconvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -63,25 +54,26 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
 
     if (ver_bsv16_fsv16) {
         if (params.depthwise_separable_opt) {
-            kd.gws0 = x * y * z;
-            kd.gws1 = f;
-            kd.gws2 = b / 16;
+            dispatchData.gws[0] = x * y * z;
+            dispatchData.gws[1] = f;
+            dispatchData.gws[2] = b / 16;
 
-            kd.lws0 = 1;
-            kd.lws1 = sub_group_size;
-            kd.lws2 = 1;
+            dispatchData.lws[0] = 1;
+            dispatchData.lws[1] = sub_group_size;
+            dispatchData.lws[2] = 1;
         } else {
-            kd.gws0 = 64;
-            while (kd.gws0 > 16) {
-                if (f % kd.gws0 == 0) break;
-                kd.gws0 /= 2;
+            dispatchData.gws[0] = 64;
+            while (dispatchData.gws[0] > 16) {
+                if (f % dispatchData.gws[0] == 0)
+                    break;
+                dispatchData.gws[0] /= 2;
             }
-            kd.gws1 = x * y * z;
-            kd.gws2 = CeilDiv(b, 16) * (f / kd.gws0) * params.groups;
+            dispatchData.gws[1] = x * y * z;
+            dispatchData.gws[2] = CeilDiv(b, 16) * (f / dispatchData.gws[0]) * params.groups;
 
-            kd.lws0 = sub_group_size;
-            kd.lws1 = 1;
-            kd.lws2 = 1;
+            dispatchData.lws[0] = sub_group_size;
+            dispatchData.lws[1] = 1;
+            dispatchData.lws[2] = 1;
         }
     } else {
         size_t x_block_size = 16;
@@ -92,31 +84,34 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
         }
         x_block_size = std::max(x_block_size, (size_t)8);
         if (params.depthwise_separable_opt) {
-            kd.gws0 = CeilDiv(x, x_block_size) * y * z;
-            kd.gws1 = f;
-            kd.gws2 = b;
+            dispatchData.gws[0] = CeilDiv(x, x_block_size) * y * z;
+            dispatchData.gws[1] = f;
+            dispatchData.gws[2] = b;
 
-            kd.lws0 = 1;
-            kd.lws1 = sub_group_size;
-            kd.lws2 = 1;
+            dispatchData.lws[0] = 1;
+            dispatchData.lws[1] = sub_group_size;
+            dispatchData.lws[2] = 1;
         } else {
-            kd.gws0 = 64;
-            while (kd.gws0 > 16) {
-                if (f % kd.gws0 == 0) break;
-                kd.gws0 /= 2;
+            dispatchData.gws[0] = 64;
+            while (dispatchData.gws[0] > 16) {
+                if (f % dispatchData.gws[0] == 0)
+                    break;
+                dispatchData.gws[0] /= 2;
             }
-            kd.gws1 = CeilDiv(x, x_block_size) * y * z;
-            kd.gws2 = b * (f / kd.gws0);
+            dispatchData.gws[1] = CeilDiv(x, x_block_size) * y * z;
+            dispatchData.gws[2] = b * (f / dispatchData.gws[0]);
 
-            kd.lws0 = sub_group_size;
-            kd.lws1 = 1;
-            kd.lws2 = 1;
+            dispatchData.lws[0] = sub_group_size;
+            dispatchData.lws[1] = 1;
+            dispatchData.lws[2] = 1;
         }
     }
 
-    kd.efficiency = FORCE_PRIORITY_2;
+    return dispatchData;
+}
 
-    return kd;
+KernelsPriority DeconvolutionKernel_b_fs_zyx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_params& o) const {
@@ -153,10 +148,11 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     }
     jit.AddConstant(MakeJitConstant("OC_BLOCK", 16));
 
-    if (output.GetDType() == Datatype::F32)
+    if (input.GetDType() == Datatype::F32) {
         jit.AddConstant(MakeJitConstant("DT_F32", 1));
-    else
+    } else {
         jit.AddConstant(MakeJitConstant("DT_F16", 1));
+    }
 
     auto mb_block = 1;
     auto ic_block = 16;
@@ -230,10 +226,10 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     jit.AddConstant(MakeJitConstant("IW_FULL", params.output.X().LogicalDimPadded()));
 
 
-    DispatchData runInfo = SetDefault(params);
-    jit.AddConstant(MakeJitConstant("LWS_0", runInfo.lws0));
-    jit.AddConstant(MakeJitConstant("LWS_1", runInfo.lws1));
-    jit.AddConstant(MakeJitConstant("LWS_2", runInfo.lws2));
+    DispatchData dispatchData = SetDefault(params);
+    jit.AddConstant(MakeJitConstant("LWS_0", dispatchData.lws[0]));
+    jit.AddConstant(MakeJitConstant("LWS_1", dispatchData.lws[1]));
+    jit.AddConstant(MakeJitConstant("LWS_2", dispatchData.lws[2]));
 
     if (!params.fused_ops.empty()) {
         auto fused_dt = GetActivationType(params);

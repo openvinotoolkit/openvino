@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,9 +47,8 @@ std::map<std::string, ie::InferenceEngineProfileInfo> parsePerformanceReport(
         stageMeta.layerType.copy(profInfo.layer_type, sizeof(profInfo.layer_type) / sizeof(profInfo.layer_type[0]), 0);
         stageMeta.stageType.copy(profInfo.exec_type, sizeof(profInfo.exec_type) / sizeof(profInfo.exec_type[0]), 0);
 
-        if (stageMeta.stageType == "<Receive-Tensor>") {
-            profInfo.execution_index = 0;
-        } else if (stageMeta.status == ie::InferenceEngineProfileInfo::EXECUTED) {
+        profInfo.execution_index = 0;
+        if (stageMeta.status == ie::InferenceEngineProfileInfo::EXECUTED) {
             profInfo.execution_index = execIndex;
             execIndex++;
         }

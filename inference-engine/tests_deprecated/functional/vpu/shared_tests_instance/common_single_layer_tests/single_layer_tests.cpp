@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,10 +44,9 @@ getTestCaseName(testing::TestParamInfo<std::tuple<InitialShapes, NewShapes, Plug
     return device2FilterName[pluginParams.deviceName] + helper->getType();
 }
 
-#if (defined INSTANTIATE_TESTS)
-
-INSTANTIATE_TEST_CASE_P(
-        Conv_nightly, CommonSingleLayerTest,
+INSTANTIATE_TEST_SUITE_P(
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Conv_nightly, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 16, 16}},           // input
@@ -62,8 +61,9 @@ INSTANTIATE_TEST_CASE_P(
 ), getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
-        Deconv_nightly, CommonSingleLayerTest,
+INSTANTIATE_TEST_SUITE_P(
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Deconv_nightly, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 8,  8}},             // input
@@ -78,8 +78,9 @@ INSTANTIATE_TEST_CASE_P(
 ), getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
-        Pool_nightly, CommonSingleLayerTest,
+INSTANTIATE_TEST_SUITE_P(
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Pool_nightly, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 16, 16}},           // input
@@ -93,5 +94,3 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(Helper(std::make_shared<PoolingTestHelper>(poolParams)))
 ), getTestCaseName
 );
-
-#endif

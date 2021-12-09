@@ -1,22 +1,22 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <behavior_test_plugin.h>
 #include <XLink.h>
 #include <mvnc.h>
-#include <mvnc/include/ncPrivateTypes.h>
+#include <ncPrivateTypes.h>
 #include <watchdog.h>
 #include <watchdogPrivate.hpp>
 #include <thread>
 #include <file_utils.h>
 #include "vpu_test_data.hpp"
-#include "functional_test_utils/test_model/test_model.hpp"
+#include "openvino/util/shared_object.hpp"
 
 #include "helpers/myriad_devices.hpp"
-#include <details/ie_exception.hpp>
 
-#include <ie_plugin_ptr.hpp>
+#include <cpp/ie_plugin.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 using namespace std;
 using namespace ::testing;
@@ -60,10 +60,10 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
         int total() const {return booted + unbooted;}
     };
 
-    DevicesState queryDevices() {
+    DevicesState queryDevices(ncDeviceProtocol_t protocol = NC_ANY_PROTOCOL) {
         DevicesState devicesState;
-        devicesState.booted = getAmountOfBootedDevices(NC_USB);
-        devicesState.unbooted = getAmountOfUnbootedDevices(NC_USB);
+        devicesState.booted = getAmountOfBootedDevices(protocol);
+        devicesState.unbooted = getAmountOfUnbootedDevices(protocol);
         return devicesState;
     }
 
@@ -85,7 +85,6 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
         ncDeviceDescr_t deviceDesc = {};
         deviceDesc.protocol = NC_ANY_PROTOCOL;
-        deviceDesc.platform = NC_ANY_PLATFORM;
 
         ncDeviceOpenParams_t deviceOpenParams = {};
         deviceOpenParams.watchdogHndl = m_watchdogHndl;
@@ -120,13 +119,16 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 }
 
 TEST_P(MYRIADWatchdog, canDisableWatchdog) {
-
-    auto startup_devices = queryDevices();
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
+        GTEST_SKIP();
+    }
+    startup_devices = queryDevices(NC_USB);
     ASSERT_GE(startup_devices.unbooted, 1);
 
     auto ctime = Time::now();
-    SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
+    std::shared_ptr<void> myriadPlg = ov::util::load_shared_object(make_plugin_name("myriadPlugin").c_str());
+    void *p = ov::util::get_symbol(myriadPlg, create_plugin_function);
 
     bootOneDevice(0,  p);
 
@@ -136,7 +138,7 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
     for (int j = 0; j != 20; j++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;
-        if (queryDevices().booted == startup_devices.booted) {
+        if (queryDevices(NC_USB).booted == startup_devices.booted) {
             SUCCEED() << "All devices gets reset";
             break;
         }
@@ -149,13 +151,17 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
 }
 
 TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
-    auto startup_devices = queryDevices();
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
+        GTEST_SKIP();
+    }
+    startup_devices = queryDevices(NC_USB);
     ASSERT_GE(startup_devices.unbooted, 1);
 
     auto ctime = Time::now();
 
-    SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
+    std::shared_ptr<void> myriadPlg = ov::util::load_shared_object(make_plugin_name("myriadPlugin").c_str());
+    void *p = ov::util::get_symbol(myriadPlg, create_plugin_function);
 
     bootOneDevice(20000, p);
 
@@ -180,12 +186,13 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
 
 TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto startup_devices = queryDevices();
+    ASSERT_GE(startup_devices.unbooted, 1);
+
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
-        ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
         ctime = Time::now();
@@ -212,13 +219,18 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
 }
 
 TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
-    auto startup_devices = queryDevices();
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
+        GTEST_SKIP();
+    }
+    startup_devices = queryDevices(NC_USB);
+    ASSERT_GE(startup_devices.unbooted, 1);
+
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
-        ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
         ctime = Time::now();
@@ -232,7 +244,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
         for (int j = 0; j != 20; j++) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;
-            if (queryDevices().booted == startup_devices.booted) {
+            if (queryDevices(NC_USB).booted == startup_devices.booted) {
                 SUCCEED() << "All devices gets reset";
                 break;
             }
@@ -249,4 +261,4 @@ const BehTestParams vpuValues[] = {
     BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);

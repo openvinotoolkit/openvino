@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ void HwConstData::fillTempBuf(void* outBuf) const {
         const auto inChannelStride  = K * kernelStride;
         const auto outerStride      = IC * inChannelStride;
 
-        ie::parallel_for(numOC, [=](int oc) {
+        ie::parallel_for(numOC, [=](size_t oc) {
             const auto ocSlice = oc;
             oc += startOC;
 
@@ -94,7 +94,7 @@ void HwConstData::fillTempBuf(void* outBuf) const {
 
         std::copy(srcData + slice.start, srcData + slice.start + slice.size, dstData);
     } else {
-        THROW_IE_EXCEPTION << "Invalid number of dimensions " << _origDesc.numDims();
+        IE_THROW() << "Invalid number of dimensions " << _origDesc.numDims();
     }
 }
 

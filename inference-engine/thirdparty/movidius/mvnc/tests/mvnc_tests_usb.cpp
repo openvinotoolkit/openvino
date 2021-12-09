@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ TEST_F(MvncOpenUSBDevice, ShouldOpenDeviceAfterChangeConnectTimeoutFromZero) {
     std::string actDeviceName;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_ANY_PROTOCOL;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncSetDeviceConnectTimeout(0));
     ASSERT_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
@@ -113,7 +112,7 @@ TEST_F(MvncOpenUSBDevice, OpenAvailableDeviceByName) {
         GTEST_SKIP();
 
     char dev_addr_open[NC_MAX_NAME_SIZE];
-    unsigned int data_lenght = NC_MAX_NAME_SIZE;
+    unsigned int data_length = NC_MAX_NAME_SIZE;
 
     auto availableDevices = getDevicesList();
 
@@ -122,7 +121,7 @@ TEST_F(MvncOpenUSBDevice, OpenAvailableDeviceByName) {
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
-                                      dev_addr_open, &data_lenght));
+                                      dev_addr_open, &data_length));
 
     ASSERT_TRUE(strncmp(dev_addr_open, deviceDesc_.name, NC_MAX_NAME_SIZE) == 0);
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
@@ -147,10 +146,10 @@ TEST_F(MvncOpenUSBDevice, OpenTwiceSameHandlerByName) {
         GTEST_SKIP();
 
     char dev_addr_first_open[MAX_DEV_NAME];
-    unsigned int data_lenght_first = MAX_DEV_NAME;
+    unsigned int data_length_first = MAX_DEV_NAME;
 
     char dev_addr_second_open[MAX_DEV_NAME];
-    unsigned int data_lenght_second = MAX_DEV_NAME;
+    unsigned int data_length_second = MAX_DEV_NAME;
 
     auto availableDevices = getDevicesList();
 
@@ -159,12 +158,12 @@ TEST_F(MvncOpenUSBDevice, OpenTwiceSameHandlerByName) {
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
-                                      dev_addr_first_open, &data_lenght_first));
+                                      dev_addr_first_open, &data_length_first));
 
     // Second open, get device name
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
-                                      dev_addr_second_open, &data_lenght_second));
+                                      dev_addr_second_open, &data_length_second));
 
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
     // Should be the same device
@@ -175,19 +174,10 @@ TEST_F(MvncOpenUSBDevice, CheckErrorWhenPlatformConflictWithName) {
     if (availableDevices_ == 0)
         GTEST_SKIP();
 
-    ncDevicePlatform_t wrongPlatform = NC_ANY_PLATFORM;
     auto availableDevices = getDevicesList();
 
     ASSERT_TRUE(availableDevices.size());
-
-    if(isMyriadXUSBDevice(availableDevices[0])) {
-        wrongPlatform = NC_MYRIAD_2;
-    } else {
-        wrongPlatform = NC_MYRIAD_X;
-    }
-
     strncpy(deviceDesc_.name, availableDevices[0].c_str(), NC_MAX_NAME_SIZE);
-    deviceDesc_.platform = wrongPlatform;
 
     ASSERT_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
 }
@@ -236,13 +226,13 @@ TEST_P(MvncDevicePlatform, OpenAndClose) {
     unsigned int size = MAX_DEV_NAME;
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME, deviceName, &size));
 
-    EXPECT_TRUE(isSamePlatformUSBDevice(deviceName, devicePlatform_));
+    EXPECT_TRUE(isSamePlatformUSBDevice(deviceName));
 
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
 
 }
 
-INSTANTIATE_TEST_CASE_P(MvncTestsPlatform,
+INSTANTIATE_TEST_SUITE_P(MvncTestsPlatform,
                         MvncDevicePlatform,
                         ::testing::ValuesIn(myriadPlatforms),
                         PrintToStringParamName());

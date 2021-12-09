@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_bfyx_1x1_gemm_buf.h"
 
@@ -32,7 +21,7 @@ ParamsKey ConvolutionKernel_bfyx_1x1_gemm_buf::GetSupportedKey() const {
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params, int) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -41,17 +30,19 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefa
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = Align(f, 16);
-    kd.gws1 = CeilDiv(x * y, 16);
-    kd.gws2 = b;
+    dispatchData.gws[0] = Align(f, 16);
+    dispatchData.gws[1] = CeilDiv(x * y, 16);
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = 16;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 16;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_1;
+    return dispatchData;
+}
 
-    return kd;
+KernelsPriority ConvolutionKernel_bfyx_1x1_gemm_buf::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p, const optional_params& o) const {
@@ -75,8 +66,8 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p, const option
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_1x1_gemm_buf::GetJitConstants(const convolution_params& params, const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+JitConstants ConvolutionKernel_bfyx_1x1_gemm_buf::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto& out = params.output;
     const auto& input = params.inputs[0];

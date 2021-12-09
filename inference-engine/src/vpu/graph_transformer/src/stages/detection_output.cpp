@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -240,7 +240,7 @@ void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& l
         size_num_priors_actual_buf +
         size_temp_data_buf;
 
-    model->addTempBuffer(stage, DataDesc({buffer_size}));
+    model->addTempBuffer(stage, buffer_size);
 }
 
 }  // namespace vpu

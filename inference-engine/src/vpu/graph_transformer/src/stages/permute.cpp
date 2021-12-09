@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,8 @@
 #include <memory>
 #include <string>
 #include <limits>
+
+#include <vpu/configuration/options/disable_reorder.hpp>
 
 namespace vpu {
 
@@ -124,7 +126,7 @@ Stage StageBuilder::addReorderStage(
         const Data& output) {
     const auto* env = CompileEnv::getOrNull();
     VPU_THROW_UNLESS(
-        env == nullptr || !env->config.disableReorder,
+        env == nullptr || !env->config.get<DisableReorderOption>(),
         "Tried to add Reorder Stage %v, while DISABLE_REORDER option was set",
         name);
 

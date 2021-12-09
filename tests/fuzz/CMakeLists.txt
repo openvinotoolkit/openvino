@@ -1,32 +1,22 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_DOCKER)
-    cmake_minimum_required(VERSION 3.3 FATAL_ERROR)
-else()
-    if (APPLE)
-        # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-        cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-    else()
-        cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
-    endif()
-endif()
+project(openvino_fuzzing)
 
-set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
-set(CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+cmake_minimum_required(VERSION 3.13)
 
-if (CMAKE_BUILD_TYPE STREQUAL "")
-    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
-endif()
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
 
-if (NOT TARGET IE::inference_engine)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-endif()
+set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
-include(sanitizer)
-include(fuzzing)
+find_package(IEDevScripts REQUIRED
+             PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
+             NO_CMAKE_FIND_ROOT_PATH
+             NO_DEFAULT_PATH)
+
+find_package(OpenVINO REQUIRED)
 
 if (NOT ENABLE_FUZZING)
     message(STATUS

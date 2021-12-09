@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,12 +20,16 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_CASE_P(Basic, RangeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, RangeLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(start),
                                 ::testing::ValuesIn(stop),
                                 ::testing::ValuesIn(step),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeLayerTest::getTestCaseName);
 }  // namespace

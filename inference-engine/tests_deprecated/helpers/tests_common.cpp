@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ template <typename data_t>
 void copyFromRGB8(uint8_t* RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t>* blob) {
     InferenceEngine::SizeVector dims = blob->getTensorDesc().getDims();
     if (4 != dims.size())
-        THROW_IE_EXCEPTION << "Cannot write data to input blob! Blob has incorrect dimensions size " << dims.size();
+        IE_THROW() << "Cannot write data to input blob! Blob has incorrect dimensions size " << dims.size();
     size_t num_channels = dims[1];  // because RGB
     size_t num_images = dims[0];
     size_t w = dims[3];
@@ -94,7 +94,7 @@ void copyFromRGB8(uint8_t* RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t
     size_t nPixels = w * h;
 
     if (RGB8_size != w * h * num_channels * num_images)
-        THROW_IE_EXCEPTION << "input pixels mismatch, expecting " << w * h * num_channels * num_images
+        IE_THROW() << "input pixels mismatch, expecting " << w * h * num_channels * num_images
                            << " bytes, got: " << RGB8_size;
 
     std::vector<data_t*> dataArray;

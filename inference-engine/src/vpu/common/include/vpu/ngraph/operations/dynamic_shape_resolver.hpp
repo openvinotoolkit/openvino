@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,7 @@ enum class DynamicShapeResolverMode {
 
 class DynamicShapeResolver : public ngraph::op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"DynamicShapeResolver", 0};
-
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("DynamicShapeResolver", "VPUOpset");
 
     DynamicShapeResolver(const Output<Node>& tensorWithData,
                          const Output<Node>& tensorWithDims,
@@ -32,7 +30,9 @@ public:
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void setMode(DynamicShapeResolverMode mode) { m_mode = mode; }
     DynamicShapeResolverMode getMode() { return m_mode; }

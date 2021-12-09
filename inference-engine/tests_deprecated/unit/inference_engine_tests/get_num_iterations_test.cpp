@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include "single_layer_common.hpp"
 
 namespace {
+
+using InferenceEngine::details::operator<<;
 
 struct From {
     explicit From(int new_value) : value(new_value) {}
@@ -61,19 +63,6 @@ public:
         return stream;;
     }
 };
-
-template<class T>
-std::ostream& operator<<(std::ostream& stream, const std::vector<T>& object) {
-    stream << "[";
-    for (std::size_t i = 0; i < object.size(); ++i) {
-        stream << object[i];
-        if (i < object.size() - 1) {
-            stream << " ";
-        }
-    }
-    stream << "]";
-    return stream;
-}
 
 struct NegativeTestParams {
     std::vector<InferenceEngine::SizeVector> inputsDimensions;
@@ -158,7 +147,7 @@ using GetNumIterationsInvalidAxisTests = GetNumIterationsNegativeTests;
 TEST_P(GetNumIterationsInvalidAxisTests, InvalidAxisThrowsAnException) {
     ASSERT_ANY_THROW(Run());
 }
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsInvalidAxisTests, testing::Values<NegativeTestParams>(
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsInvalidAxisTests, testing::Values<NegativeTestParams>(
     NegativeTestParams{{{1}}, {{From{0}, Axis{-2}, Start{0}, Stride{1}, End{1}}}, {}, {}},
     NegativeTestParams{{{1}}, {{From{0}, Axis{10}, Start{0}, Stride{1}, End{1}}}, {}, {}},
     NegativeTestParams{{{1}, {1, 2}}, {{From{0}, Axis{-2}, Start{0}, Stride{1}, End{1}}}, {}, {}},
@@ -188,7 +177,7 @@ using GetNumIterationsInvalidStartTests = GetNumIterationsNegativeTests;
 TEST_P(GetNumIterationsInvalidStartTests, InvalidStartThrowsAnException) {
     ASSERT_ANY_THROW(Run());
 }
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsInvalidStartTests, testing::Values<NegativeTestParams>(
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsInvalidStartTests, testing::Values<NegativeTestParams>(
     NegativeTestParams{{{1}}, {{From{0}, Axis{0}, Start{2}, Stride{1}, End{1}}}, {}, {}},
     NegativeTestParams{{{1}, {1, 2}}, {{From{0}, Axis{0}, Start{2}, Stride{1}, End{1}}}, {}, {}},
     NegativeTestParams{{{1}, {1, 2}}, {{From{1}, Axis{0}, Start{2}, Stride{1}, End{1}}}, {}, {}},
@@ -204,7 +193,7 @@ using GetNumIterationsInvalidEndTests = GetNumIterationsNegativeTests;
 TEST_P(GetNumIterationsInvalidEndTests, InvalidEndThrowsAnException) {
     ASSERT_ANY_THROW(Run());
 }
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsInvalidEndTests, testing::Values<NegativeTestParams>(
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsInvalidEndTests, testing::Values<NegativeTestParams>(
     NegativeTestParams{{}, {}, {{1}}, {{From{0}, Axis{0}, Start{0}, Stride{1}, End{2}}}},
     NegativeTestParams{{}, {}, {{1}, {1, 2}}, {{From{0}, Axis{0}, Start{0}, Stride{1}, End{2}}}},
     NegativeTestParams{{}, {}, {{1}, {1, 2}}, {{From{1}, Axis{0}, Start{0}, Stride{1}, End{2}}}}
@@ -214,7 +203,7 @@ using GetNumIterationsInvalidStrideTests = GetNumIterationsNegativeTests;
 TEST_P(GetNumIterationsInvalidStrideTests, InvalidStrideThrowsAnException) {
     ASSERT_ANY_THROW(Run());
 }
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsInvalidStrideTests, testing::Values<NegativeTestParams>(
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsInvalidStrideTests, testing::Values<NegativeTestParams>(
     NegativeTestParams{{{1}}, {{From{0}, Axis{0}, Start{0}, Stride{0}, End{1}}}, {}, {}},
     NegativeTestParams{{}, {}, {{1}}, {{From{0}, Axis{0}, Start{0}, Stride{0}, End{1}}}}
 ));
@@ -223,7 +212,7 @@ using GetNumIterationsInvalidFromTests = GetNumIterationsNegativeTests;
 TEST_P(GetNumIterationsInvalidFromTests, InvalidFromThrowsAnException) {
     ASSERT_ANY_THROW(Run());
 }
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsInvalidFromTests, testing::Values<NegativeTestParams>(
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsInvalidFromTests, testing::Values<NegativeTestParams>(
     NegativeTestParams{{{1}}, {{From{-1}, Axis{0}, Start{0}, Stride{1}, End{1}}}, {}, {}},
     NegativeTestParams{{{1}}, {{From{1}, Axis{0}, Start{0}, Stride{1}, End{1}}}, {}, {}},
 
@@ -235,7 +224,7 @@ using GetNumIterationsInvalidDirectionTests = GetNumIterationsNegativeTests;
 TEST_P(GetNumIterationsInvalidDirectionTests, InvalidDirectionThrowsAnException) {
     ASSERT_ANY_THROW(Run());
 }
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsInvalidDirectionTests, testing::Values<NegativeTestParams>(
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsInvalidDirectionTests, testing::Values<NegativeTestParams>(
     NegativeTestParams{{{10}}, {{From{0}, Axis{0}, Start{8}, Stride{1}, End{2}}}, {}, {}},
     NegativeTestParams{{{10}}, {{From{0}, Axis{0}, Start{2}, Stride{-1}, End{8}}}, {}, {}},
 
@@ -247,7 +236,7 @@ using GetNumIterationsInvalidStepTests = GetNumIterationsNegativeTests;
 TEST_P(GetNumIterationsInvalidStepTests, InvalidStepThrowsAnException) {
     ASSERT_ANY_THROW(Run());
 }
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsInvalidStepTests, testing::Values<NegativeTestParams>(
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsInvalidStepTests, testing::Values<NegativeTestParams>(
     NegativeTestParams{{{10}}, {{From{0}, Axis{0}, Start{2}, Stride{3}, End{6}}}, {}, {}},
     NegativeTestParams{{{10}}, {{From{0}, Axis{0}, Start{2}, Stride{8}, End{6}}}, {}, {}},
     NegativeTestParams{{{10}}, {{From{0}, Axis{0}, Start{6}, Stride{-3}, End{2}}}, {}, {}},
@@ -263,7 +252,7 @@ using GetNumIterationsInvalidIterationNumbersTests = GetNumIterationsNegativeTes
 TEST_P(GetNumIterationsInvalidIterationNumbersTests, InvalidInterationNumbersThrowAnException) {
     ASSERT_ANY_THROW(Run());
 }
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsInvalidIterationNumbersTests, testing::Values<NegativeTestParams>(
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsInvalidIterationNumbersTests, testing::Values<NegativeTestParams>(
     NegativeTestParams{
         {
             {1, 3, 24, 24},
@@ -484,6 +473,6 @@ std::vector<PositiveTestParams> g_positiveTestParameters = {
     {{{13}}, {{From{0}, Axis{0}, Start{ 10}, Stride{-1}, End{-11}}}, {}, {}, 7},
     {{{13}}, {{From{0}, Axis{0}, Start{  9}, Stride{-2}, End{-11}}}, {}, {}, 3}
 };
-INSTANTIATE_TEST_CASE_P(NumIterationsTest, GetNumIterationsPositiveTests, testing::ValuesIn(g_positiveTestParameters));
+INSTANTIATE_TEST_SUITE_P(NumIterationsTest, GetNumIterationsPositiveTests, testing::ValuesIn(g_positiveTestParameters));
 
 }

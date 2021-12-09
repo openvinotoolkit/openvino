@@ -1,28 +1,19 @@
-/*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/binary_convolution.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "program_impl.h"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "program_helpers.h"
+#include "binary_convolution_inst.h"
 #include "mvn_inst.h"
+#include "to_string_utils.h"
+
 #include <vector>
 #include <memory>
 #include <list>
@@ -31,22 +22,80 @@
 
 using namespace cldnn;
 
-// ToDo remove friendship relation from program_impl
+// ToDo remove friendship relation from program
 
 reorder_inputs::reorder_inputs(layout_optimizer& lo_ref, reorder_factory& rf_ref) : base_pass("reorder_inputs"), _lo(lo_ref), _rf(rf_ref) {}
 
-void reorder_inputs::run(program_impl& p) { run(p, _lo, _rf); }
+void reorder_inputs::run(program& p) { run(p, _lo, _rf); }
 
 namespace {
 
-std::map<program_node*, format::type> get_preferred_formats(program_impl& p, layout_optimizer& lo) {
+std::map<program_node*, format::type> get_preferred_formats(program& p, layout_optimizer& lo) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+
     std::map<program_node*, format::type> fmt_map;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t onednn_impls_counter = 0;
+    size_t all_impls_counter = 0;
+    const float onednn_min_threshold = 0.1f;
+    bool should_update_fmt_map = false;
+
+    // Calculate onednn kernels number and all kernels number inside the network
     for (auto n : p.get_processing_order()) {
         if (!n->is_in_data_flow())
             continue;
 
         auto ex = lo.get_preferred_format(*n);
+        auto impl = lo.get_preferred_impl_type(*n, ex);
         fmt_map[n] = ex;
+
+        n->set_preferred_impl_type(impl);
+
+        if (impl == impl_types::onednn)
+            onednn_impls_counter++;
+
+        all_impls_counter++;
+    }
+
+    float onednn_usage_ratio = all_impls_counter ? static_cast<float>(onednn_impls_counter) / static_cast<float>(all_impls_counter) : 0.f;
+
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_COUT << "Onednn kernels number: " << onednn_impls_counter << " from " << all_impls_counter
+                       << " (" << onednn_usage_ratio * 100.f << "%)" << std::endl;
+        GPU_DEBUG_COUT << "Onednn usage threshold: " << onednn_min_threshold * 100.f << "%" << std::endl;
+    }
+
+    // Reverted to cldnn way for cases when onednn kernels number inside the whole network is extremely low =>
+    // improvements from onednn usage less than losses due to unoptimized formats for cldnn kernels, extra reorders, etc.
+    if (onednn_usage_ratio < onednn_min_threshold && lo.get_optimization_attributes().use_onednn_impls) {
+        should_update_fmt_map = true;
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 0);
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << "The return to clDNN implementations" << std::endl;
+        }
+    }
+
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (should_update_fmt_map)
+#endif
+    {
+        for (auto n : p.get_processing_order()) {
+            if (!n->is_in_data_flow())
+                continue;
+
+            auto ex = lo.get_preferred_format(*n);
+            auto impl = lo.get_preferred_impl_type(*n, ex);
+            fmt_map[n] = ex;
+
+            n->set_preferred_impl_type(impl);
+        }
     }
     return fmt_map;
 }
@@ -185,7 +234,7 @@ void propagate_formats_in_dir(std::map<program_node*, format::type>& fmt_map,
     }
 }
 
-void propagate_formats(program_impl& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
+void propagate_formats(program& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
     auto it = p.get_processing_order().begin();
     while (it != p.get_processing_order().end()) {
         auto node = *it++;
@@ -236,13 +285,31 @@ reorder_cnt count_reorders(const std::map<program_node*, format::type>& fmt_map,
     return { fwd.number + bwd.number, fwd.total_sizes + bwd.total_sizes };
 }
 
-void minimize_local_reorders(program_impl& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
+void minimize_local_reorders(program& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
     for (auto node : p.get_processing_order()) {
         if (!node->is_in_data_flow())
             continue;
 
-        if (lo.get_preferred_format(*node) != format::any)
-            continue;
+        auto preferred_format = lo.get_preferred_format(*node);
+
+        if (preferred_format != format::any) {
+            if (preferred_format == format::b_fs_yx_fsv4 &&
+                (node->get_output_layout().data_type == data_types::i8 || node->get_output_layout().data_type == data_types::u8)) {
+                std::set<format::type> io_formats;
+                for (auto user : node->get_users()) {
+                    io_formats.insert(fmt_map.at(user));
+                }
+                for (auto dep : node->get_dependencies()) {
+                    if (!dep->is_in_data_flow())
+                        continue;
+                    io_formats.insert(fmt_map.at(dep));
+                }
+                if (!(io_formats.size() == 1 && io_formats.count(preferred_format) == 0))
+                    continue;
+            } else {
+                continue;
+            }
+        }
 
         if (fmt_map.at(node) == format::any) {
             auto out_fmt = node->get_output_layout().format;
@@ -301,7 +368,7 @@ void minimize_local_reorders(program_impl& p, std::map<program_node*, format::ty
 }
 
 template <direction_e dir>
-void insert_reorders_in_dir(program_impl& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, program_node* node) {
+void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
     auto fmt = fmt_map.at(node);
 
     auto next_cpy = travel_direction_wrapper<dir>::next_nodes(node);
@@ -321,9 +388,15 @@ void insert_reorders_in_dir(program_impl& p, const std::map<program_node*, forma
 
         travel_direction_wrapper<dir>::first(in_layout, out_layout).format = fmt;
 
+        // When the input is fed into different convolutions, create separate cache entry
+        bool needs_split_reorder = false;
+        bool use_onednn_impls = lo.get_optimization_attributes().use_onednn_impls;
+        if (node->is_type<convolution>() && use_onednn_impls)
+            needs_split_reorder = lo.needs_onednn_bfyx_to_blocked(in_layout.format, out_layout.format, in_layout, node->as<convolution>());
+
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
-                                           out_layout);
+                                           out_layout, needs_split_reorder);
         auto reorder = reorder_pair.first;
 
         if (reorder) {
@@ -336,7 +409,7 @@ void insert_reorders_in_dir(program_impl& p, const std::map<program_node*, forma
     }
 }
 
-void insert_reorders(program_impl& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf) {
+void insert_reorders(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo) {
     auto fwd_it = p.get_processing_order().begin();
     while (fwd_it != p.get_processing_order().end()) {
         auto node = *(fwd_it++);
@@ -348,7 +421,7 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
         if (fmt == format::any || format::is_image(fmt))
             continue;
 
-        insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, node);
+        insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, lo, node);
     }
 
     auto bwd_it = p.get_processing_order().rbegin();
@@ -362,81 +435,74 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
         if (fmt == format::any || format::is_image(fmt))
             continue;
 
-        insert_reorders_in_dir<direction_e::backwards>(p, fmt_map, rf, node);
+        insert_reorders_in_dir<direction_e::backwards>(p, fmt_map, rf, lo, node);
     }
 }
 
 }  // namespace
 
-void reorder_inputs::run(program_impl& p, layout_optimizer& lo, reorder_factory& rf) {
+void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+
     auto fmt_map = get_preferred_formats(p, lo);
+
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Preferred formats:" << std::endl;
+        for (auto& node_fmt : fmt_map) {
+            if (node_fmt.second != format::any) {
+                GPU_DEBUG_COUT << "[clDNN][reorder_inputs]   " << node_fmt.first->id() << " " << fmt_to_str(node_fmt.second) << std::endl;
+            }
+        }
+    }
+
     propagate_formats(p, fmt_map, lo);
     minimize_local_reorders(p, fmt_map, lo);
 
-    // WA START ============================================================================================================
-    if (lo.get_optimization_attributes().b_fs_yx_fsv16_network) {
-        // This is a temprorary work-around for known bad case until byxf_af32 handling will be corrected in layout_optimizer.
-        //
-        // Find pattern:
-        //    mvn(int8, b_fs_yx_fsv16, [x,16,1280,720]) -> conv(int8, byxf_af32, [x,3,1280,720]) -> mvn(*, bfyx) ->
-        // Replace with:
-        //    mvn(b_fs_yx_fsv16) -> conv(b_fs_yx_fsv16) -> mvn(b_fs_yx_fsv16) ->
-        //
-        // Generally for such convolution b_fs_yx_fsv16 will always perform better than byxf_af32,
-        // but to avoid unvalidated int8 b_fs_yx_fsv16 networks and potential regressions this WA is needed.
-        // Additionally reorder from af32 -> bfyx will take ~9 times longer than actual convolution.
-        for (auto& node_ptr : p.get_processing_order()) {
-            if (!node_ptr->is_in_data_flow() || !node_ptr->is_type<convolution>() || fmt_map.at(node_ptr) != format::byxf_af32)
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Selected formats:" << std::endl;
+        for (auto node_ptr : p.get_processing_order()) {
+            if (fmt_map.count(node_ptr) == 0)
                 continue;
 
-            auto& conv_node = node_ptr->as<convolution>();
-
-            bool input_path =
-                conv_node.input().get_output_layout().data_type == data_types::i8 &&
-                conv_node.input().is_type<mvn>() &&
-                fmt_map.at(&conv_node.input()) == format::b_fs_yx_fsv16;
-            bool output_path =
-                conv_node.get_users().size() == 1 &&
-                conv_node.get_users().front()->is_type<mvn>() &&
-                fmt_map.at(conv_node.get_users().front()) == format::bfyx &&
-                conv_node.get_users().front()->get_users().size() == 1 &&
-                !conv_node.get_users().front()->as<mvn>().get_primitive()->across_channels;
-
-            if (!input_path || !output_path)
-                continue;
-
-            auto in_lay = conv_node.input().get_output_layout();
-            auto out_lay = conv_node.get_output_layout();
-            auto wei_lay = conv_node.weights().get_output_layout();
-            bool correct_layouts =
-                // weights
-                wei_lay.data_type == data_types::i8 &&
-                wei_lay.size.spatial[0] == 3 && wei_lay.size.spatial[1] == 3 &&
-                // input/output
-                in_lay.data_type == data_types::i8 && out_lay.data_type == data_types::i8 &&
-                in_lay.size.feature[0] == 16 && out_lay.size.feature[0] == 3 &&
-                in_lay.size.spatial[0] == 1280 && out_lay.size.spatial[0] == 1280 &&
-                in_lay.size.spatial[1] == 720 && out_lay.size.spatial[1] == 720;
-
-            if (!correct_layouts)
-                continue;
-
-            bool correct_conv =
-                conv_node.get_groups() == 1 && conv_node.get_split() == 1 && conv_node.get_deformable_groups() == 1 &&
-                !conv_node.get_depthwise_sep_opt() && !conv_node.get_transposed() &&
-                !conv_node.activations_zero_points_term() && !conv_node.weights_zero_points_term() && !conv_node.compensation_term() &&
-                conv_node.get_primitive()->dilation == tensor(1);
-
-            if (!correct_conv)
-                continue;
-
-            fmt_map.at(node_ptr) = format::b_fs_yx_fsv16;
-            fmt_map.at(conv_node.get_users().front()) = format::b_fs_yx_fsv16;
+            auto fmt = fmt_map.at(node_ptr);
+            GPU_DEBUG_COUT << "[clDNN][reorder_inputs]   " << node_ptr->id() << " " << fmt_to_str(fmt) << std::endl;
         }
     }
-    // WA END ==============================================================================================================
 
-    insert_reorders(p, fmt_map, rf);
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        reorder_cnt total_reorder_count = std::accumulate(
+            p.get_processing_order().begin(),
+            p.get_processing_order().end(),
+            reorder_cnt{ 0, 0 },
+            [&](reorder_cnt& total, program_node* node) {
+            if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
+                return total;
+            auto count = count_reorders(fmt_map, lo, node);
+            return reorder_cnt{ total.number + count.number, total.total_sizes + count.total_sizes };
+        });
+        // Divide results by two as above function will each reorder from both sides
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Total number of reorders: " << total_reorder_count.number / 2 << std::endl;
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Total elements count of all reorders: " << total_reorder_count.total_sizes / 2 << std::endl;
+
+        // Count number of reorders that will be fused
+        size_t nodes_with_fusing = 0;
+        for (auto node_ptr : p.get_processing_order()) {
+            if (fmt_map.count(node_ptr) == 0 || fmt_map.at(node_ptr) == format::any)
+                continue;
+            for (auto prev_ptr : travel_direction_wrapper<direction_e::backwards>::next_nodes(node_ptr)) {
+                if (!prev_ptr->is_in_data_flow() || fmt_map.at(prev_ptr) == fmt_map.at(node_ptr))
+                    continue;
+                if (lo.can_fuse_reorder(*prev_ptr, *node_ptr, fmt_map.at(prev_ptr), fmt_map.at(node_ptr))) {
+                    nodes_with_fusing += 1;
+                    break;
+                }
+            }
+        }
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Number of nodes with fused reorders: " << nodes_with_fusing << std::endl;
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+    }
+
+    insert_reorders(p, fmt_map, rf, lo);
 
     for (auto n : p.get_processing_order()) {
         n->recalc_output_layout(true);
@@ -489,5 +555,12 @@ void reorder_inputs::run(program_impl& p, layout_optimizer& lo, reorder_factory&
             reorder_input_detection_output,
             reorder_input_binary_convolution,
             reorder_input_deconvolution);
+    }
+
+    for (auto n : p.get_processing_order()) {
+        if (n->is_in_data_flow() && fmt_map.count(n) != 0) {
+            auto preferred_impl = lo.get_preferred_impl_type(*n, fmt_map.at(n));
+            n->set_preferred_impl_type(preferred_impl);
+        }
     }
 }

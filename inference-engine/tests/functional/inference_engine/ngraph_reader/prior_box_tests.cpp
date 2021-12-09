@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
+
 TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
@@ -56,7 +57,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="3" name="1344813449_const" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -64,7 +65,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="4" name="1345813459_const" type="Const" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="i64" offset="8" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -72,7 +73,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="9" name="13458134591_const" type="Const" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i64" offset="16" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -157,7 +158,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="12" name="ExpandAxis" type="Const" version="opset1">
-            <data offset="24" size="8"/>
+            <data element_type="i64" offset="24" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -305,7 +306,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
 			</blobs>
 		</layer>
 		<layer name="concat" type="Concat" precision="FP32" id="4">
-			<data axis="1" originalLayersNames="concat" />
+			<data axis="1"/>
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -335,12 +336,12 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
 )V0G0N";
 
     compareIRs(model, modelV5, 259200, [](Blob::Ptr& weights) {
-                auto* buffer = weights->buffer().as<int64_t*>();
-                buffer[0] = 2;
-                buffer[1] = 4;
-                buffer[2] = 1;
-                buffer[3] = 0;
-            });
+        auto* buffer = weights->buffer().as<int64_t*>();
+        buffer[0] = 2;
+        buffer[1] = 4;
+        buffer[2] = 1;
+        buffer[3] = 0;
+    });
 }
 
 TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
@@ -395,7 +396,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="3" name="1344813449_const" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -403,7 +404,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="4" name="13458134591_const" type="Const" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="i64" offset="8" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -411,7 +412,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="9" name="1345813459_const" type="Const" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i64" offset="16" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -495,7 +496,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="12" name="ExpandAxis" type="Const" version="opset1">
-            <data offset="24" size="8"/>
+            <data element_type="i64" offset="24" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -643,7 +644,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
 			</output>
 		</layer>
 		<layer name="concat" type="Concat" precision="FP32" id="4">
-			<data axis="1" originalLayersNames="concat" />
+			<data axis="1" />
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -673,10 +674,10 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
 )V0G0N";
 
     compareIRs(model, modelV5, 115200, [](Blob::Ptr& weights) {
-                auto* buffer = weights->buffer().as<int64_t*>();
-                buffer[0] = 2;
-                buffer[1] = 4;
-                buffer[2] = 1;
-                buffer[3] = 0;
-            });
+        auto* buffer = weights->buffer().as<int64_t*>();
+        buffer[0] = 2;
+        buffer[1] = 4;
+        buffer[2] = 1;
+        buffer[3] = 0;
+    });
 }

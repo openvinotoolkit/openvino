@@ -1,10 +1,11 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <common_test_utils/test_common.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
@@ -23,9 +24,9 @@ class DynamicToStaticShapeUnaryElementwise : public CommonTestUtils::TestsCommon
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
-        const auto& dataType = std::get<0>(GetParam());
-        const auto& dataDims = std::get<1>(GetParam());
-        const auto& type_info = std::get<2>(GetParam());
+        const auto& dataType = std::get<0>(parameters);
+        const auto& dataDims = std::get<1>(parameters);
+        const auto& type_info = std::get<2>(parameters);
 
         ngraph::helpers::CompareFunctions(*transform(dataType, dataDims, type_info), *reference(dataType, dataDims, type_info));
     }
@@ -75,7 +76,7 @@ protected:
 TEST_P(DynamicToStaticShapeUnaryElementwise, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeUnaryElementwise, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeUnaryElementwise, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,
@@ -88,12 +89,15 @@ INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeUnaryElementwise, testing::C
         DataDims{3, 128, 256},
         DataDims{2, 3, 128, 256}),
     testing::Values(
-        ngraph::opset3::Exp::type_info,
-        ngraph::opset3::Floor::type_info,
-        ngraph::opset3::Log::type_info,
-        ngraph::opset3::Relu::type_info,
-        ngraph::opset3::Sigmoid::type_info,
-        ngraph::opset3::Softmax::type_info,
-        ngraph::opset3::Sqrt::type_info)));
+        ngraph::opset3::Exp::get_type_info_static(),
+        ngraph::opset3::Floor::get_type_info_static(),
+        ngraph::opset5::Ceiling::get_type_info_static(),
+        ngraph::opset5::Round::get_type_info_static(),
+        ngraph::opset3::Log::get_type_info_static(),
+        ngraph::opset3::Relu::get_type_info_static(),
+        ngraph::opset3::Sigmoid::get_type_info_static(),
+        ngraph::opset3::Softmax::get_type_info_static(),
+        ngraph::opset3::Sqrt::get_type_info_static(),
+        ngraph::opset3::LogicalNot::get_type_info_static())));
 
 }  // namespace

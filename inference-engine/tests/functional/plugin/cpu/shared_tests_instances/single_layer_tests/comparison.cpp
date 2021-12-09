@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,9 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
 
 std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::BOOL,
 };
 
 std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypes = {
@@ -38,21 +41,18 @@ std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-};
-
 std::map<std::string, std::string> additional_config = {};
 
 const auto ComparisonTestParams = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(inputShapes)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
         ::testing::ValuesIn(inputsPrecisions),
         ::testing::ValuesIn(comparisonOpTypes),
         ::testing::ValuesIn(secondInputTypes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
 
 }  // namespace

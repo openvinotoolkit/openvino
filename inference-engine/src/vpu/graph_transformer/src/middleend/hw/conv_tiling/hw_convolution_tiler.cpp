@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@ bool operator<(const TilingOption& lhs, const TilingOption& rhs) {
     return lhs.cost < rhs.cost || (isDoubleEqual(lhs.cost, rhs.cost) && lhs.totalNumTiles < rhs.totalNumTiles);
 }
 
+static
 void correctOutputPlaneSizeF(const ConvolutionOptions& convolutionOptions, bool _useCeil,
                              const DimValues& inputTileDims, DimValues& outputTileDims) {
     auto maxOutputWidth = calcOutputSize(
@@ -631,6 +632,10 @@ std::vector<TilingOption> HWConvolutionTilingSearcher::selectBetterTiling() cons
     const auto outputTileInitial = dirTiling.getOutputTileDims();
     const auto inputTileInitial = dirTiling.getInputTileDims();
 
+    const int maxInputTileDimW = 2048;
+    const int maxInputTileDimH = 2048;
+    const int maxInputTileDimC = 2048;
+
     auto minInputTileDimW = 64;
     auto minInputTileDimH = _convolutionOptions._kernelSizeY;
     if (_convolutionOptions._withPool) {
@@ -646,9 +651,14 @@ std::vector<TilingOption> HWConvolutionTilingSearcher::selectBetterTiling() cons
     for (int numChannelTiles = 1; numChannelTiles <= maxNumChannelTiles; numChannelTiles++) {
         const int tileSizeDimC = divUp(_convolutionOptions._inputDims[Dim::C], numChannelTiles);
 
+        if (tileSizeDimC > maxInputTileDimC)
+            continue;
         // here split and iterate either over input tensors or over output tensors depending on the direction.
         for (int numWidthTiles = 1; numWidthTiles <= maxNumWidthTiles; numWidthTiles++) {
             int tileSizeDimW = divUp(splitOver[Dim::W], numWidthTiles);
+
+            if (tileSizeDimW > maxInputTileDimW)
+                continue;
 
             //
             // Filter-out too small SoW input tiles when loops split input tensors.
@@ -665,6 +675,9 @@ std::vector<TilingOption> HWConvolutionTilingSearcher::selectBetterTiling() cons
 
             for (int numHeightTiles = 1; numHeightTiles <= maxNumHeightTiles; numHeightTiles++) {
                 int tileSizeDimH = divUp(splitOver[Dim::H], numHeightTiles);
+
+                if (tileSizeDimH > maxInputTileDimH)
+                    continue;
 
                 //
                 // Filter-out too small SoH input tiles when loops split input tensors.

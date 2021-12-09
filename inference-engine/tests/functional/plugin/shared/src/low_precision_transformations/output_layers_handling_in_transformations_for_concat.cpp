@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
@@ -21,34 +21,31 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
+std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
-    std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
-    return result.str();
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
 InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
-        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+        IE_THROW() << "unexpected input name " << info.name();
     }
     const float k = (info.name() == "input1") ? 1.f : 2.f;
 
     const float low = 0.f / k;
     const float hight = 255.f / k;
     InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    const auto buffer = input->buffer().as<float*>();
     return input;
 }
 
@@ -68,15 +65,14 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
 void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
+
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");
 
-    const float low = 0.f;
-    const float hight = 255.f;
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
         input1->output(0), ngPrecision, 256ul, { 1ul },
         { 0.f }, { 255.f }, { 0.f }, { 255.f });
@@ -123,46 +119,6 @@ void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");
-
-    // TODO: move to some another place
-    validate();
-}
-
-void OutputLayersHandlingInTransformationsForConcat::validate() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
-    std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(3, outputs.size());
-
-    const auto concatIt = outputs.find("concat");
-    EXPECT_TRUE(concatIt != outputs.end());
-    const auto fakeQuantize2It = outputs.find("fakeQuantize2");
-    EXPECT_TRUE(fakeQuantize2It != outputs.end());
-    const auto convolutionIt = outputs.find("convolution");
-    EXPECT_TRUE(convolutionIt != outputs.end());
-
-    if (std::any_of(
-        params.precisionsOnActivations.begin(),
-        params.precisionsOnActivations.end(),
-        [](const float value) { return value == InferenceEngine::Precision::U8; })) {
-        EXPECT_EQ("ScaleShift", getCreatorLayer(concatIt->second).lock()->type);
-        EXPECT_EQ("ScaleShift", getCreatorLayer(fakeQuantize2It->second).lock()->type);
-        EXPECT_EQ("ScaleShift", getCreatorLayer(convolutionIt->second).lock()->type);
-    } else {
-        EXPECT_EQ("Concat", getCreatorLayer(concatIt->second).lock()->type);
-        EXPECT_EQ("FakeQuantize", getCreatorLayer(fakeQuantize2It->second).lock()->type);
-        EXPECT_EQ("Convolution", getCreatorLayer(convolutionIt->second).lock()->type);
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(OutputLayersHandlingInTransformationsForConcat, CompareWithRefImpl) {

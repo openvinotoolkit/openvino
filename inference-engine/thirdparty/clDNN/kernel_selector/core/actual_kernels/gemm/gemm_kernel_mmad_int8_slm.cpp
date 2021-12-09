@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "gemm_kernel_mmad_int8_slm.h"
 
@@ -23,10 +11,12 @@ ParamsKey GemmKernelMMADslmInt8::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::F32);
+
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
@@ -70,21 +60,13 @@ GemmKernelBase::DispatchData GemmKernelMMADslmInt8::SetDefault(const gemm_params
     const auto& output = params.output;
     auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
 
-    DispatchData kd;
+    DispatchData dispatchData;
     GemmTuningData td = SetTuningParams(params);
 
-    std::vector<size_t> global = { td.size_n / td.pack_size, output.Y().v / td.simd_size, total_batches };
-    std::vector<size_t> local = { td.slm_tile_size / td.pack_size, td.slm_tile_size / td.simd_size, 1 };
+    dispatchData.gws = { td.size_n / td.pack_size, output.Y().v / td.simd_size, total_batches };
+    dispatchData.lws = { td.slm_tile_size / td.pack_size, td.slm_tile_size / td.simd_size, 1 };
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::InitGemmTuningData(const gemm_params& params) const {
@@ -121,16 +103,16 @@ KernelsData GemmKernelMMADslmInt8::GetKernelsData(const Params& params, const op
 
     const auto& prim_params = static_cast<const gemm_params&>(params);
 
-    auto run_info = GemmKernelMMADslmInt8::SetDefault(prim_params);
+    auto dispatchData = GemmKernelMMADslmInt8::SetDefault(prim_params);
     KernelData k_data = KernelData::Default<gemm_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel,
-                     run_info,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,
@@ -141,17 +123,20 @@ KernelsData GemmKernelMMADslmInt8::GetKernelsData(const Params& params, const op
                      (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params));
 
+    return {k_data};
+}
+
+KernelsPriority GemmKernelMMADslmInt8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& prim_params = static_cast<const gemm_params&>(params);
     GemmTuningData tuning_data = InitGemmTuningData(prim_params);
     auto mmad_operations_number = GetMmadOperationsNumber(tuning_data);
 
     if ((mmad_operations_number >= 1024 * 1024 * 1024) || (tuning_data.size_m == 384 && tuning_data.size_k == 384 && tuning_data.size_n == 64))
-        k_data.estimatedTime = FORCE_PRIORITY_2;
+        return FORCE_PRIORITY_2;
     else if (mmad_operations_number <= 65536 || tuning_data.size_k <= 64)
-        k_data.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
     else
-        k_data.estimatedTime = FORCE_PRIORITY_5;
-
-    return {k_data};
+        return FORCE_PRIORITY_5;
 }
 
 bool GemmKernelMMADslmInt8::Validate(const Params& params, const optional_params& options) const {

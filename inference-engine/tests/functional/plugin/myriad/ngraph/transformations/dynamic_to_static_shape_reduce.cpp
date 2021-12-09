@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,11 +30,11 @@ struct ReduceTestCase {
 
 const auto arithmetic_combinations = testing::Combine(
     testing::Values(
-            ngraph::opset3::ReduceMax::type_info,
-            ngraph::opset3::ReduceMean::type_info,
-            ngraph::opset3::ReduceMin::type_info,
-            ngraph::opset3::ReduceProd::type_info,
-            ngraph::opset3::ReduceSum::type_info),
+            ngraph::opset3::ReduceMax::get_type_info_static(),
+            ngraph::opset3::ReduceMean::get_type_info_static(),
+            ngraph::opset3::ReduceMin::get_type_info_static(),
+            ngraph::opset3::ReduceProd::get_type_info_static(),
+            ngraph::opset3::ReduceSum::get_type_info_static()),
     testing::Values(
             ngraph::element::f16,
             ngraph::element::f32,
@@ -55,8 +55,8 @@ const auto arithmetic_combinations = testing::Combine(
 
 const auto logical_combinations = testing::Combine(
         testing::Values(
-            ngraph::opset3::ReduceLogicalAnd::type_info,
-            ngraph::opset3::ReduceLogicalOr::type_info),
+            ngraph::opset3::ReduceLogicalAnd::get_type_info_static(),
+            ngraph::opset3::ReduceLogicalOr::get_type_info_static()),
         testing::Values(ngraph::element::boolean),
         testing::Values(
             ngraph::element::i32,
@@ -134,8 +134,6 @@ protected:
             logical_reduce->set_keep_dims(reduce_setup.keep_dims);
         node->validate_and_infer_types();
 
-        const auto data_rank_value = reduce_setup.data_shape.size();
-
         ngraph::Output<ngraph::Node> output_shape;
         if (reduce_setup.keep_dims) {
             output_shape = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(
@@ -160,7 +158,7 @@ protected:
 TEST_P(DynamicToStaticShapeReduce, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(Arithmetic, DynamicToStaticShapeReduce, arithmetic_combinations);
-INSTANTIATE_TEST_CASE_P(Logical, DynamicToStaticShapeReduce, logical_combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_Arithmetic, DynamicToStaticShapeReduce, arithmetic_combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_Logical, DynamicToStaticShapeReduce, logical_combinations);
 
 }  // namespace

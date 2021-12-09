@@ -1,26 +1,15 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "program_impl.h"
+#include "intel_gpu/graph/program.hpp"
 #include "program_helpers.h"
+#include "runtime/cldnn_itt.hpp"
 #include <vector>
 #include <memory>
 #include <list>
@@ -29,7 +18,8 @@
 
 using namespace cldnn;
 
-void basic_memory_dependencies::run(program_impl& p) {
+void basic_memory_dependencies::run(program& p) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::BasicMemoryDependencies");
     auto itr = p.get_processing_order().begin();
     std::vector<primitive_id> past_outputs;
     while (itr != p.get_processing_order().end()) {
@@ -44,6 +34,41 @@ void basic_memory_dependencies::run(program_impl& p) {
         for (auto it : node->get_dependencies()) {
             add_memory_dependency(node, it);
             add_memory_dependency(it, node);
+        }
+
+        if (node->is_type<convolution>() && node->get_preferred_impl_type() == impl_types::onednn) {
+            auto& conv = node->as<convolution>();
+            bool can_reuse_eltwise_mem = false;
+            size_t eltw_dep = 0;
+
+            for (auto& fused_op : conv.get_fused_primitives()) {
+                if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+                    auto eltw_in_layout = conv.get_dependency(fused_op.dep_start_idx).get_output_layout();
+                    auto conv_out_layout = node->get_output_layout();
+                    if (eltw_dep > 0) {
+                        can_reuse_eltwise_mem = false;
+                        break;
+                    }
+
+                    if (eltw_in_layout.size == conv_out_layout.size &&
+                        eltw_in_layout.format == conv_out_layout.format &&
+                        eltw_in_layout.data_padding == conv_out_layout.data_padding &&
+                        data_type_traits::size_of(eltw_in_layout.data_type) == data_type_traits::size_of(conv_out_layout.data_type)) {
+                        eltw_dep = fused_op.dep_start_idx;
+                        can_reuse_eltwise_mem = true;
+                    }
+                }
+            }
+
+            if (can_reuse_eltwise_mem) {
+                auto& eltw_node = conv.get_dependency(eltw_dep);
+                eltw_node.can_share_buffer(false);
+                conv.can_share_buffer(false);
+                for (auto& user : conv.get_users()) {
+                    add_memory_dependency(user, &eltw_node);
+                    add_memory_dependency(user, &conv);
+                }
+            }
         }
 
         // Note we iterate over processing order, it means if primitve has processing num greater than any of outputs,

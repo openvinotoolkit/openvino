@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_winograd_2x3_s1.h"
 
@@ -44,8 +33,8 @@ ParamsKey ConvolutionKernel_Winograd_2x3_s1::GetSupportedKey() const {
 }
 
 JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolution_params& params,
-                                                                const DispatchData& runInfo) const {
-    JitConstants jit = Parent::GetJitConstants(params, runInfo);
+                                                                const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     const size_t input_tile_width = winograd_input_tile_width;
     const size_t input_tile_height = winograd_input_tile_height;
@@ -70,10 +59,9 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolutio
     return jit;
 }
 
-ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winograd_2x3_s1::SetDefault(
-    const convolution_params& arg,
-    int) const {
-    Parent::DispatchData runInfo = Parent::SetDefault(arg);
+ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winograd_2x3_s1::SetDefault(const convolution_params& arg,
+                                                                                                      int) const {
+    Parent::DispatchData dispatchData = Parent::SetDefault(arg);
 
     const size_t tile_n = winograd_tile_n;  // goes in-depth
     const size_t tile_m = winograd_tile_m;  // goes over flattened x and y
@@ -86,17 +74,19 @@ ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winogr
                                                         // width by tile's width to get tiles count
     const size_t nr_tiles_y = Align(arg.output.Y().v, 8) / input_tile_height;
 
-    runInfo.gws0 = arg.output.Feature().v / tile_n;
-    runInfo.gws1 = nr_tiles_x * nr_tiles_y / tile_m;
-    runInfo.gws2 = input_tile_width * input_tile_height * arg.inputs[0].Batch().v;
+    dispatchData.gws[0] = arg.output.Feature().v / tile_n;
+    dispatchData.gws[1] = nr_tiles_x * nr_tiles_y / tile_m;
+    dispatchData.gws[2] = input_tile_width * input_tile_height * arg.inputs[0].Batch().v;
 
-    runInfo.lws0 = 8;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 8;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    runInfo.efficiency = FORCE_PRIORITY_4;
+    return dispatchData;
+}
 
-    return runInfo;
+KernelsPriority ConvolutionKernel_Winograd_2x3_s1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_4;
 }
 
 bool ConvolutionKernel_Winograd_2x3_s1::Validate(const Params& p, const optional_params& o) const {

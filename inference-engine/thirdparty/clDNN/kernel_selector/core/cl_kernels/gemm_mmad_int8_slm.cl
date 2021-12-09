@@ -1,21 +1,11 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 #include "include/mmad.cl"
 
-#define AS_TYPE(type, val)      CAT(as_, type)(val)
 #define ACCUMULATOR_TYPE_VEC    CAT(ACCUMULATOR_TYPE, SUB_GROUP_SIZE)
 #define ACTIVATION_TYPE_VEC     CAT(ACTIVATION_TYPE, SUB_GROUP_SIZE)
 #define PACKED_INPUT0_TYPE_VEC  CAT(PACKED_INPUT0_TYPE, SUB_GROUP_SIZE)
@@ -221,7 +211,6 @@ KERNEL(gemm_mmad_int8_slm)(
     }
 }
 
-#undef AS_TYPE
 #undef ACCUMULATOR_TYPE_VEC
 #undef ACTIVATION_TYPE_VEC
 #undef PACKED_INPUT0_TYPE_VEC

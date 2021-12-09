@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,14 +15,21 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<ActivationTypes> activationTypes = {
-        Sigmoid,
-        Tanh,
-        Relu,
-        Exp,
-        Log,
-        Gelu,
-        Mish
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+        {Abs,                   {}},
+        {Sigmoid,               {}},
+        {Tanh,                  {}},
+        {Relu,                  {}},
+        {Exp,                   {}},
+        {Log,                   {}},
+        {Gelu,                  {}},
+        {Mish,                  {}},
+        {SoftPlus,              {}},
+        {Swish,                 {{0.05f}, {0.8f}, {1.0f}, {15.0f}}},
+        {HSwish,                {}},
+        {Ceiling,               {}},
+        {RoundHalfToEven,       {}},
+        {RoundHalfAwayFromZero, {}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -31,13 +38,17 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(activationTypes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
 
-INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

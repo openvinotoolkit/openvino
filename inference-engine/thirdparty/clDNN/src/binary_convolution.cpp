@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "binary_convolution_inst.h"
@@ -20,7 +8,7 @@
 #include "reorder_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -67,7 +55,7 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
 
     json_composite conv_info;
     conv_info.add("stride", strd.to_string());
-    conv_info.add("input offset", desc->input_offset.to_string());
+    conv_info.add("pad", desc->pad.to_string());
     conv_info.add("split", split);
     conv_info.add("dilation", dilation.to_string());
     conv_info.add("out size", desc->output_size.to_string());
@@ -78,7 +66,7 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
     return primitive_description.str();
 }
 
-binary_convolution_inst::typed_primitive_inst(network_impl& network, binary_convolution_node const& node)
+binary_convolution_inst::typed_primitive_inst(network& network, binary_convolution_node const& node)
     : parent(network, node) {
     auto stride = argument.stride;
 
@@ -103,7 +91,7 @@ binary_convolution_inst::typed_primitive_inst(network_impl& network, binary_conv
     for (decltype(split) j = 0; j < split; j++) {
         auto filter_inst = node.weights(j).get_output_layout();  // convolution filter
 
-        auto input_offset = argument.input_offset;
+        auto pad = argument.pad;
 
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights number of dimensions",
@@ -118,8 +106,8 @@ binary_convolution_inst::typed_primitive_inst(network_impl& network, binary_conv
                               0.0f,
                               "Unknown padding mode.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Input offset number of dimensions",
-                              input_offset.raw.size(),
+                              "pad number of dimensions",
+                              pad.raw.size(),
                               "input number of dimensions",
                               input_inst.size.raw.size(),
                               "Input offset/ input size mismatch");
@@ -137,7 +125,7 @@ binary_convolution_inst::typed_primitive_inst(network_impl& network, binary_conv
                               "Only one-dimensional batch size are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              (input_inst.size.feature[0] - input_offset.feature[0]) / split,
+                              (input_inst.size.feature[0] + pad.feature[0]) / split,
                               "input feature maps number",
                               filter_inst.size.feature[0],
                               "Weights/ifm mismatch");

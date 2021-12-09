@@ -1,10 +1,11 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_reduce.hpp"
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
 
+#include "vpu/ngraph/utilities.hpp"
 #include <vpu/utils/error.hpp>
 #include "ngraph/graph_util.hpp"
 
@@ -18,7 +19,7 @@ namespace vpu {
 void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
     const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
     VPU_THROW_UNLESS(dsr, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
-                     target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
+                     target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::get_type_info_static(), 0);
 
     VPU_THROW_UNLESS(std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(target) ||
                      std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(target),
@@ -29,7 +30,7 @@ void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
     const auto axes_const_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(1).get_node_shared_ptr());
     VPU_THROW_UNLESS(axes_const_node,
                      "dynamicToStaticShapeReduce transformation for {} of type {} expects {} as input with index {}, but it has {} node of type {} instead",
-                     target->get_friendly_name(), target->get_type_info(), ngraph::opset3::Constant::type_info, 1,
+                     target->get_friendly_name(), target->get_type_info(), ngraph::opset3::Constant::get_type_info_static(), 1,
                      target->input_value(1).get_node_shared_ptr()->get_friendly_name(), target->input_value(1).get_node_shared_ptr()->get_type_info());
 
     const auto axes = axes_const_node->cast_vector<int64_t>();
@@ -50,8 +51,8 @@ void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
     if (keep_dims) {
         output_shape = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(
                 data_shape,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {axes.size()}, axes),
-                ngraph::opset3::Constant::create(ngraph::element::i64, {axes.size()}, std::vector<int64_t>(axes.size(), 1)),
+                ngraph::opset3::Constant::create(data_shape.get_element_type(), {axes.size()}, axes),
+                ngraph::opset3::Constant::create(data_shape.get_element_type(), {axes.size()}, std::vector<int64_t>(axes.size(), 1)),
                 ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
     } else {
         std::vector<int64_t> range(data_rank_value);
@@ -62,7 +63,7 @@ void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
 
         output_shape = std::make_shared<ngraph::opset3::Gather>(
                 data_shape,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {indices.size()}, indices),
+                ngraph::opset3::Constant::create(data_shape.get_element_type(), {indices.size()}, indices),
                 ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
     }
     const auto copied = target->clone_with_new_inputs(target->input_values());

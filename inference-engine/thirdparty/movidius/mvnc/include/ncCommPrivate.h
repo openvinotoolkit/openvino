@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,8 @@ typedef enum {
     DEVICE_SET_STDIO_REDIRECT_XLINK = 5,
     DEVICE_SET_POWER_CONFIG         = 6,
     DEVICE_RESET_POWER_CONFIG       = 7,
-    DEVICE_COMMAND_LAST             = 8
+    DEVICE_ENABLE_ASYNC_DMA         = 8,
+    DEVICE_COMMAND_LAST             = 9
 } deviceCommandType_t;
 
 typedef struct {

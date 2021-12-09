@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "concatenation_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -41,9 +30,11 @@ ParamsKey ConcatenationKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::fyxb);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -51,9 +42,11 @@ ParamsKey ConcatenationKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::fyxb);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -113,13 +106,17 @@ KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params, const o
             auto& kernel = kd[0].kernels[i];
 
             // to avoid cases when we execute with local work sizes 1x1x1
-            if (kernel.workGroups.local[0] == 1 && kernel.workGroups.global[1] != 1) {
-                kernel.workGroups.global[1] = Align(kernel.workGroups.global[1], 32);
-                kernel.workGroups.local[1] = 32;
+            if (kernel.params.workGroups.local[0] == 1 && kernel.params.workGroups.global[1] != 1) {
+                kernel.params.workGroups.global[1] = Align(kernel.params.workGroups.global[1], 32);
+                kernel.params.workGroups.local[1] = 32;
             }
         }
     }
 
     return kd;
+}
+
+KernelsPriority ConcatenationKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

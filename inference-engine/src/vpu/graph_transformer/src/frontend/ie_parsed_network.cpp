@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 namespace vpu {
 
-IeParsedNetwork parseNetwork(const ie::ICNNNetwork& network) {
+IeParsedNetwork parseNetwork(const ie::CNNNetwork& network) {
     VPU_PROFILE(parseNetwork);
 
     const auto& env = CompileEnv::get();
@@ -23,12 +23,10 @@ IeParsedNetwork parseNetwork(const ie::ICNNNetwork& network) {
     VPU_LOGGER_SECTION(env.log);
 
     IeParsedNetwork out;
-
-    network.getInputsInfo(out.networkInputs);
-    network.getOutputsInfo(out.networkOutputs);
+    out.networkInputs = network.getInputsInfo();
+    out.networkOutputs = network.getOutputsInfo();
 
     env.log->trace("Got %d inputs and %d outputs", out.networkInputs.size(), out.networkOutputs.size());
-    IE_ASSERT(!out.networkInputs.empty());
     IE_ASSERT(!out.networkOutputs.empty());
 
     env.log->trace("Perform topological sort");

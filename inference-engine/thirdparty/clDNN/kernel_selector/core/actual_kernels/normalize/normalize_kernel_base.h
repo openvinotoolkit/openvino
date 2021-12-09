@@ -1,20 +1,10 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -28,7 +18,7 @@ struct normalize_params : public base_params {
     float epsilon = 1e-10f;
     DataTensor scaleTable;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
 
         k.EnableNormalizeMode(normMode);
@@ -47,9 +37,9 @@ struct normalize_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NormalizeKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class NormalizeKernelBase : public common_kernel_base {
+class NormalizeKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~NormalizeKernelBase() {}
 
     using DispatchData = CommonDispatchData;
@@ -57,7 +47,7 @@ public:
 protected:
     JitConstants GetJitConstants(const normalize_params& params) const;
     DispatchData SetDefault(const normalize_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::ACTIVATION,

@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "convolution_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -28,15 +16,6 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
-    const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
-
-    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
-
-    const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
-
-    if (!bWeightsOK) {
-        return false;
-    }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
@@ -46,9 +25,9 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
     return true;
 }
 
-JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params, const DispatchData& kd) const {
+JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     JitConstants mem_consts = WeightBiasKernelBase::GetJitConstants(params);
-    mem_consts.Merge(GetFusedPrimitivesJitConstants(params, kd));
+    mem_consts.Merge(GetFusedPrimitivesJitConstants(params, dispatchData));
     const auto& padding = params.padding;
     const auto& input = params.inputs[0];
 
@@ -90,23 +69,23 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         mem_consts.AddConstants({MakeJitConstant("SYMMETRIC_QUANTIZATION", 1)});
     }
 
-    if (params.local_convolution) {
-        mem_consts.AddConstants({MakeJitConstant("LOCAL_CONVOLUTION", params.local_convolution)});
-    }
-
     if (params.deformable_mode) {
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MODE", params.deformable_mode)});
+        if (params.deformable_mask_enabled)
+            mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
+        if (params.bilinear_interpolation_pad)
+            mem_consts.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
     }
 
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
                                            params.filterSize.y,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDX,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDY,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDZ,
-                                           (uint32_t)kd.gemmStyle.subBlockDimM,
-                                           (uint32_t)kd.gemmStyle.subBlockDimK,
-                                           (uint32_t)kd.gemmStyle.subBlockDimN};
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimM,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimK,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimN};
 
     auto loopCount = *std::max_element(unrollLoopParams.begin(), unrollLoopParams.end());
 
@@ -116,13 +95,15 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
     return mem_consts;
 }
 
-bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::DispatchData& kd) {
-    if (kd.gws0 == 0 || kd.gws1 == 0 || kd.gws2 == 0 || kd.lws0 == 0 || kd.lws1 == 0 || kd.lws2 == 0) {
+bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::DispatchData& dispatchData) {
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         return false;
-    }
 
-    if ((kd.gws0 % kd.lws0) != 0 || (kd.gws1 % kd.lws1) != 0 || (kd.gws2 % kd.lws2) != 0) {
-        return false;
+    for (size_t i = 0; i < dispatchData.gws.size(); i++) {
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+            return false;
+        if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0)
+            return false;
     }
 
     return true;
@@ -164,43 +145,44 @@ bool ConvolutionKernelBase::CheckPitchForSplitOnly(const convolution_params& par
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int) const {
-    DispatchData kd;
+    DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& out = params.output;
-    kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
-    std::vector<size_t> global;
-    if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf) {
-        global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
-    } else if (params.output.GetLayout() == DataLayout::bfzyx) {
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+    if (out_layout == DataLayout::bfyx || out_layout == DataLayout::byxf) {
+        dispatchData.gws = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    } else if (out_layout == DataLayout::bfzyx) {
+        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     } else {
-        global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
+        dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
+        dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
+                       {Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y}};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.cldnnStyle.blockWidth = 1;
+    dispatchData.cldnnStyle.blockHeight = 1;
+    dispatchData.cldnnStyle.prefetch = 0;
+    dispatchData.cldnnStyle.inputBlockArraySize = 0;
+    dispatchData.cldnnStyle.inputBlockWidth = 0;
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    kd.cldnnStyle.blockWidth = 1;
-    kd.cldnnStyle.blockHeight = 1;
-    kd.cldnnStyle.prefetch = 0;
-    kd.cldnnStyle.inputBlockArraySize = 0;
-    kd.cldnnStyle.inputBlockWidth = 0;
-
-    kd.gemmStyle.globalWorkSizeDX = 1;
-    kd.gemmStyle.globalWorkSizeDY = 1;
-    kd.gemmStyle.globalWorkSizeDZ = 1;
-    kd.gemmStyle.subBlockDimK = 1;
-    kd.gemmStyle.subBlockDimM = 0;
-    kd.gemmStyle.subBlockDimN = 0;
-    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    return kd;
+    dispatchData.gemmStyle.globalWorkSizeDX = 1;
+    dispatchData.gemmStyle.globalWorkSizeDY = 1;
+    dispatchData.gemmStyle.globalWorkSizeDZ = 1;
+    dispatchData.gemmStyle.subBlockDimK = 1;
+    dispatchData.gemmStyle.subBlockDimM = 0;
+    dispatchData.gemmStyle.subBlockDimN = 0;
+    return dispatchData;
 }
 
 KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
@@ -210,6 +192,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
                                        GetPreferredWeightsLayout(newParams),
@@ -218,11 +204,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                        newParams.groups,
                                        newParams.transposed);
 
-    if (!succeed) {
-        return {};
-    }
+    bool bSupportedWeightsLayout = newParams.weights.GetLayout() == GetPreferredWeightsLayout(newParams);
+    const bool bWeightsOK = bSupportedWeightsLayout || options.allowStaticInputReordering;
 
-    if (!Validate(params, options)) {
+    if (!succeed || !bWeightsOK) {
         return {};
     }
 
@@ -232,21 +217,21 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
         if (kd.reorderInput && !options.allowInputReordering)
             return {};
     }
-    DispatchData runInfo = SetDefault(newParams, autoTuneIndex);
+    DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
-    if (!CheckWorkGroups(runInfo)) {
+    if (!CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
         return {};
     }
 
     auto finalKernelName = GetKernelName(newParams);
-    auto cldnnJit = GetJitConstants(newParams, runInfo);
-    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
+    auto cldnnJit = GetJitConstants(newParams, dispatchData);
+    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      finalKernelName,
                      jit,
@@ -257,26 +242,27 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      1);
 
     if (newParams.deformable_mode) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        if (newParams.deformable_mask_enabled)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
     }
 
     if (!newParams.weights_zero_points.empty())
-        kernel.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
     if (!newParams.activations_zero_points.empty())
-        kernel.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
     if (!newParams.compensation.empty())
-        kernel.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
 
     uint32_t fused_deps_total = 0;
     for (auto& fused_dep : newParams.fused_ops) {
         for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
             fused_deps_total++;
         }
     }
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = runInfo.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

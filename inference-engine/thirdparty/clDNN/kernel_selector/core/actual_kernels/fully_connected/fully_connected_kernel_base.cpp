@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "fully_connected_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -35,18 +24,16 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
 FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params,
                                                                             int) const {
     DispatchData dispatchData;
-    dispatchData.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     // Determine global work sizes.
-    dispatchData.gws0 = params.output.LogicalSize();
-    dispatchData.gws1 = dispatchData.gws2 = 1;
+    dispatchData.gws = { params.output.LogicalSize(), 1, 1 };
 
     // Find largest positive local work size that is divider for global work size.
-    dispatchData.lws0 = std::min(std::max(dispatchData.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
-    while (dispatchData.gws0 % dispatchData.lws0 != 0) {
-        --dispatchData.lws0;
+    dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
+    while (dispatchData.gws[0] % dispatchData.lws[0] != 0) {
+        --dispatchData.lws[0];
     }
-    dispatchData.lws1 = dispatchData.lws2 = 1;
+    dispatchData.lws[1] = dispatchData.lws[2] = 1;
 
     return dispatchData;
 }
@@ -55,7 +42,6 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                                                            const optional_params &options,
                                                            DataLayout dl,
                                                            WeightsLayout wl,
-                                                           float estimated_time,
                                                            const std::string exeMode,
                                                            int autoTuneIndex) const {
     if (!Validate(params, options)) {
@@ -97,11 +83,11 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
 
     kd.kernels.resize(1);
 
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
 
-    const DispatchData runInfo = SetDefault(newParams, autoTuneIndex);
-    auto cldnn_jit = GetJitConstants(newParams, runInfo);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    const DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
+    auto cldnn_jit = GetJitConstants(newParams, dispatchData);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     uint32_t fused_deps_total = 0;
     for (auto& fused_dep : newParams.fused_ops) {
@@ -112,7 +98,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,
@@ -124,7 +110,6 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      fused_deps_total);
 
     // TODO Pass estimated time only through DispatchData
-    kd.estimatedTime = estimated_time;
     kd.autoTuneIndex = autoTuneIndex;
     return {kd};
 }
@@ -141,13 +126,11 @@ KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &p
                                                                  const optional_params &options,
                                                                  DataLayout dl,
                                                                  WeightsLayout wl,
-                                                                 float estimated_time,
                                                                  const int autoTuneIndex) const {
     return GetCommonKernelsData(params,
                                 options,
                                 dl,
                                 wl,
-                                estimated_time,
                                 GetAutoTuneOptions(autoTuneIndex),
                                 autoTuneIndex);
 }

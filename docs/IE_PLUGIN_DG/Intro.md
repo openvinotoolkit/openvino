@@ -38,7 +38,7 @@ Detailed guides
 * [Build](@ref plugin_build) a plugin library using CMake\*
 * Plugin and its components [testing](@ref plugin_testing)
 * [Quantized networks](@ref quantized_networks)
-* [Writing ngraph transformations](@ref new_ngraph_transformation) guide
+* [Writing ngraph transformations](@ref ngraph_transformation) guide
 
 API References
 -----------------------

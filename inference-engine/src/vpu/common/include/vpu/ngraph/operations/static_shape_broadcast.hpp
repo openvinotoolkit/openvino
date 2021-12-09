@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,17 +8,16 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/broadcast_base.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/broadcast.hpp"
 
 #include <memory>
 #include <vector>
 
 namespace ngraph { namespace vpu { namespace op {
 
-class StaticShapeBroadcast : public ::ngraph::op::util::BroadcastBase {
+class StaticShapeBroadcast : public ::ngraph::op::v3::Broadcast {
 public:
-    static constexpr NodeTypeInfo type_info{"StaticShapeBroadcast", 0};
-
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("StaticShapeBroadcast", "VPUOpset");
 
     StaticShapeBroadcast(const Output<Node>& arg,
                          const Output<Node>& targetShape,
@@ -35,13 +34,12 @@ public:
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
-    PartialShape getEvaluatedShape() const { return m_evaluatedOutputShape; }
-    void setEvaluatedShape(const PartialShape& shape) { m_evaluatedOutputShape = shape; }
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-private:
-    PartialShape m_evaluatedOutputShape;
+protected:
+    ngraph::PartialShape m_evaluatedOutputShape;
 };
 
 }  // namespace op

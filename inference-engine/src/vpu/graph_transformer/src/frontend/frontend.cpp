@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,22 +20,46 @@
 #include <string>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
-#include <generic_ie.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
+#include <transformations/op_conversions/convert_gelu.hpp>
+#include <transformations/op_conversions/softplus_decomposition.hpp>
+#include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
+#include <transformations/op_conversions/hswish_decomposition.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
+#include <vpu/ngraph/transformations/convert_gatherND8.hpp>
+#include <transformations/convert_precision.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/init_node_info.hpp>
+#include <vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
+#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
+#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+#include <vpu/ngraph/utilities.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
+#include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
+#include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/custom_layers.hpp>
+#include <vpu/configuration/options/config_file.hpp>
+#include <vpu/utils/skip_layers.hpp>
 
 namespace vpu {
-
-#define LAYER_PARSER(functor_name)                                                                                \
-    [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) \
-        { functor_name(model, layer, inputs, outputs); }
-
-FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
+FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core)
     : _stageBuilder(std::move(stageBuilder)),
     _core(core),
     parsers{{
@@ -82,6 +106,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"ROIPooling",                                         LAYER_PARSER(parseROIPooling)},
         {"PSROIPooling",                                       LAYER_PARSER(parsePSROIPooling)},
         {"Interp",                                             LAYER_PARSER(parseInterp)},
+        {"Interpolate",                                        LAYER_PARSER(parseInterpolate)},
         {"Custom",                                             LAYER_PARSER(parseCustom)},
         {"MTCNN",                                              LAYER_PARSER(parseMTCNN)},
         {"LSTMCell",                                           LAYER_PARSER(parseLSTMCell)},
@@ -101,7 +126,6 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Select",                                             LAYER_PARSER(parseSelect)},
         {"Erf",                                                LAYER_PARSER(parseErf)},
         {"ExperimentalDetectronDetectionOutput",               LAYER_PARSER(parseExpDetectionOutput)},
-        {"NonMaxSuppression",                                  LAYER_PARSER(parseNonMaxSuppression)},
         {"ExperimentalDetectronROIFeatureExtractor",           LAYER_PARSER(parseROIFeatureExtractor)},
         {"Convert",                                            LAYER_PARSER(parseConvert)},
         {"ReduceMax",                                          LAYER_PARSER(parseReduce)},
@@ -125,11 +149,20 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Gelu",                                               LAYER_PARSER(parseGelu)},
         {"SoftPlus",                                           LAYER_PARSER(parseSoftPlus)},
         {"Swish",                                              LAYER_PARSER(parseSwish)},
+        {"Activation",                                         LAYER_PARSER(parseActivation)},
+        {"GatherND",                                           LAYER_PARSER(parseGatherND)},
+        {"HSwish",                                             LAYER_PARSER(parseHSwish)},
+        {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
+        {"GatherElements",                                     LAYER_PARSER(parseGatherElements)},
+        {"ExpGatherElements",                                  LAYER_PARSER(parseGatherElements)},
+        {"Round",                                              LAYER_PARSER(parseRound)},
+        {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
+        {"Abs",                                                LAYER_PARSER(parseAbs)}
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
 
-ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
+ModelPtr FrontEnd::buildInitialModel(const ie::CNNNetwork& network) {
     VPU_PROFILE(buildInitialModel);
 
     const auto& env = CompileEnv::get();
@@ -139,7 +172,70 @@ ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
     return runCommonPasses(network);
 }
 
-std::set<std::string> FrontEnd::checkSupportedLayers(ie::ICNNNetwork& network) {
+ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
+    auto nGraphFunc = network.getFunction();
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+
+    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<vpu::ConvertGatherND8ToGatherND5>();
+    manager.register_pass<vpu::MergeGatherGatherElements>();
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
+
+    manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t> {
+        ngraph::opset5::MatMul::get_type_info_static(),
+        ngraph::opset5::Convolution::get_type_info_static(),
+        ngraph::opset5::GroupConvolution::get_type_info_static()
+    });
+    manager.register_pass<vpu::DynamicToStaticShape>();
+    manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+    manager.register_pass<vpu::ConvertExtractImagePatchesToReorgYolo>();
+    // ConstantFolding placed here to avoid precision type missmatch when we try to evaluate nodes with BOOL output.
+    // For example evaluate_greater_equal calls set_broadcast function with hardcoded BOOL precision.
+    // In set_broadcast function we compare original node's precision with hardcoded so we get an error if we change precision before.
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    // ConvertPrecision must be executed before ConvertOpSet1ToLegacy due to this pass works with operations from opsets only
+    static const precisions_array precisions = {
+        { ngraph::element::i64, ngraph::element::i32 },
+        { ngraph::element::u64, ngraph::element::i32 },
+        { ngraph::element::u32, ngraph::element::i32 },
+        { ngraph::element::boolean, ngraph::element::i32 }
+    };
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions, myriadTypeToFuseMap);
+
+    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    //  ConvertOpSet1ToLegacy can produce constants with I64 precision
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }}, myriadTypeToFuseMap);
+    manager.register_pass<vpu::MergeSubsequentDSROperations>();
+
+    auto pass_config = manager.get_pass_config();
+    pass_config->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
+    pass_config->disable<ngraph::pass::ConvertGELU>();
+    pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
+    pass_config->disable<ngraph::pass::ConvertMinimum>();
+    pass_config->disable<ngraph::pass::HSwishDecomposition>();
+    pass_config->disable<ngraph::pass::MVN6Decomposition>();
+    pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+
+    auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+        return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
+    };
+    pass_config->set_callback<ngraph::pass::ConvertMatMulToFC,
+                              ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
+
+    manager.run_passes(nGraphFunc);
+    IE_SUPPRESS_DEPRECATED_START
+    return ie::CNNNetwork(ie::details::convertFunctionToICNNNetwork(nGraphFunc, network));
+    IE_SUPPRESS_DEPRECATED_END
+}
+
+std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network) {
     VPU_PROFILE(checkSupportedLayers);
 
     const auto& env = CompileEnv::get();
@@ -162,7 +258,7 @@ std::set<std::string> FrontEnd::checkSupportedLayers(ie::ICNNNetwork& network) {
         _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
     };
 
-    runCommonPasses(network, onUnsupportedLayer, onSupportedLayer);
+    runCommonPasses(cloneNetwork(network), onUnsupportedLayer, onSupportedLayer);
 
     return supportedLayers;
 }
@@ -310,30 +406,57 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
     }
 }
 
+void FrontEnd::processTrivialCases(const Model& model) {
+    std::unordered_map<ie::DataPtr, std::pair<Data, Data>> ieDataToTrivialCase;
+    for (const auto& data : model->datas()) {
+        const auto& origData = data->origData();
+        if (origData == nullptr) {
+            continue;
+        }
+
+        auto& trivialCase = ieDataToTrivialCase[origData];
+        auto& destination = data->usage() == DataUsage::Output ? trivialCase.second : trivialCase.first;
+        VPU_THROW_UNLESS(ieDataToTrivialCase.count(origData) == 0 || destination == nullptr,
+            "Encountered IE data object {} which has two vpu data objects {} and {} of the same type {} associated with it, while only one is permitted",
+            origData->getName(), destination->name(), data->name(), destination->usage());
+        destination = data;
+    }
+
+    for (const auto& trivialCase : ieDataToTrivialCase) {
+        const auto& trivialCasePair = trivialCase.second;
+
+        const auto& unconnectedInput = trivialCasePair.first;
+        const auto& unconnectedOutput = trivialCasePair.second;
+
+        if (!unconnectedInput || !unconnectedOutput) {
+            continue;
+        }
+
+        _stageBuilder->addCopyStage(
+            model,
+            unconnectedInput->name() + "@copy",
+            nullptr,
+            {unconnectedInput},
+            {unconnectedOutput},
+            "processTrivialCase");
+    }
+}
+
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
-    VPU_THROW_UNSUPPORTED_UNLESS(env.config.ignoreUnknownLayers, "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
+    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.get<IgnoreUnknownLayersOption>(), "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 
-ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network) {
-    return runCommonPasses(network, [this](const Model& model, const ie::CNNLayerPtr& layer,
-                                                             const DataVector& inputs, const DataVector& outputs, const std::string& extraMessage)
-        { defaultOnUnsupportedLayerCallback(model, layer, inputs, outputs, extraMessage); });
+ModelPtr FrontEnd::runCommonPasses(const ie::CNNNetwork& network) {
+    return runCommonPasses(cloneNetwork(network),
+        [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs, const std::string& extraMessage) {
+            defaultOnUnsupportedLayerCallback(model, layer, inputs, outputs, extraMessage);});
 }
 
-
-ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLayerCallback& unsupportedLayer, const SupportedLayerCallback& supportedLayer) {
-    // NGraph -> CNN conversion may be called in 2 different moments: at
-    // the beginning if conversion was forced by configuration or after detect
-    // network batch and precision conversions. Conversion utility
-    // returns std::shared_ptr. ICNNNetwork is neither copyable nor movable.
-    // As a result, it is impossible to overwrite given "network" argument.
-    // Do not use network parameter in this function to avoid using wrong network
-    // reference (e.g. original instead of converted).
-    auto* originalOrConvertNetwork = &network;
-
+ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
+    const UnsupportedLayerCallback& unsupportedLayer, const SupportedLayerCallback& supportedLayer) {
     const auto& env = CompileEnv::get();
 
     //
@@ -352,22 +475,20 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     // Parse custom layers
     //
 
-    if (!env.config.customLayers.empty()) {
-        env.log->trace("Parse custom layers : %s", env.config.customLayers);
+    auto customLayers = env.config.get<CustomLayersOption>().empty()
+        ? env.config.get<ConfigFileOption>() : env.config.get<CustomLayersOption>();
+    if (!customLayers.empty()) {
+        env.log->trace("Parse custom layers : %s", customLayers);
         VPU_LOGGER_SECTION(env.log);
 
-        if (env.platform != Platform::MYRIAD_X) {
-            VPU_THROW_FORMAT("Custom layers are not supported for %v platforms", env.platform);
-        }
-
-        _customLayers = CustomLayer::loadFromFile(env.config.customLayers);
+        _customLayers = CustomLayer::loadFromFile(customLayers);
     }
 
     //
     // Create new VPU model
     //
 
-    const auto model = std::make_shared<ModelObj>(originalOrConvertNetwork->getName());
+    auto model = std::make_shared<ModelObj>(network.getName());
 
     model->attrs().set<int>("index", g_counter.fetch_add(1));
     model->attrs().set<Resources>("resources", env.resources);
@@ -376,66 +497,40 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     // Update IE Network
     //
 
-    std::shared_ptr<ie::ICNNNetwork> convertedNetwork;
-
     {
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
 
-        auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
-            // disable GeLU decomposition
-            const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-                return std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
-                       (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) &&
-                        std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr()));
-            };
+        detectNetworkBatch(network, model);
 
-            auto nGraphFunc = originalOrConvertNetwork->getFunction();
-            // Disable shape inference (WA for generic operations)
-            ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+        if (network.getFunction()) {
+            network = convertNetwork(network);
+        }
 
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-            manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-            manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-            manager.set_callback(transformationsPredicate);
-            manager.run_passes(nGraphFunc);
-
-            ngraph::pass::Manager ti_manager;
-            ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-            ti_manager.run_passes(nGraphFunc);
-
-            vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
-
-            convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *originalOrConvertNetwork);
-            originalOrConvertNetwork = convertedNetwork.get();
+        const std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
+            {ngraph::element::i64, ngraph::element::i32},
+            {ngraph::element::u64, ngraph::element::i32},
+            {ngraph::element::u32, ngraph::element::i32},
+            {ngraph::element::boolean, ngraph::element::i32},
         };
-
-        if (originalOrConvertNetwork->getFunction() && env.config.forceDeprecatedCnnConversion) {
-            convertNetwork();
+        // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
+        // so we need to apply additional precision conversion but only for inputs and outputs
+        // This method should be removed #-48878
+        for (const auto& precision : convert_precision_list) {
+            ie::NetPass::ConvertIOPrecision(network,
+                                            InferenceEngine::details::convertPrecision(precision.first),
+                                            InferenceEngine::details::convertPrecision(precision.second));
         }
+        removeConstLayers(network);
 
-        detectNetworkBatch(*originalOrConvertNetwork, model);
-
-        if (originalOrConvertNetwork->getFunction()) {
-            convertNetwork();
-        }
-
-        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::I64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U32, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::BOOL, ie::Precision::I32);
-
-        removeConstLayers(*originalOrConvertNetwork);
-
-        unrollLoops(*originalOrConvertNetwork);
+        unrollLoops(network);
     }
 
     //
     // Parse IR Network
     //
 
-    _ieParsedNetwork = parseNetwork(*originalOrConvertNetwork);
+    _ieParsedNetwork = parseNetwork(network);
 
     //
     // Process internal VPU Model
@@ -447,7 +542,13 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
 
         parseInputAndOutputData(model);
 
-        if (!CompileEnv::get().config.disableConvertStages) {
+        //
+        // Process trivial cases like `input->output`, `const->output`
+        //
+
+        processTrivialCases(model);
+
+        if (!CompileEnv::get().config.get<DisableConvertStagesOption>()) {
             addDataTypeConvertStages(model);
         }
 
@@ -469,7 +570,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
 
         getInputAndOutputData(model, layer, inputs, outputs);
 
-        if (env.config.skipAllLayers() || env.config.skipLayerType(layer->type)) {
+        if (skipAllLayers(env.config) || skipLayerType(env.config, layer->type)) {
             _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
             supportedLayer(layer);
             continue;

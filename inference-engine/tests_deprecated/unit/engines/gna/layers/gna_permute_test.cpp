@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,5 +71,5 @@ const Permute3dimTestParam gna_permute3d_test_params[] = {
         {{{2, 1, 0}, {2, 1, 4}}, false}
 };
 
-INSTANTIATE_TEST_CASE_P(GNALayerTests, GNAPermute3dTest,
+INSTANTIATE_TEST_SUITE_P(GNALayerTests, GNAPermute3dTest,
         ::testing::ValuesIn(gna_permute3d_test_params), getPermute3dTestName);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 TEST_F(MyriadX_HW_Tests_nightly, SeveralLayers) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params dims1{1, 3, 224, 224};
@@ -78,7 +78,7 @@ TEST_F(MyriadX_HW_Tests_nightly, SeveralLayers) {
 
 TEST_F(MyriadX_HW_Tests_nightly, LargePoolWithConv) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params dims1{1, 16, 448, 448};
@@ -139,7 +139,7 @@ TEST_F(MyriadX_HW_Tests_nightly, LargePoolWithConv) {
 
 TEST_F(MyriadX_HW_Tests_nightly, ConvWithPool) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params dims1{1, 16, 4, 4};
@@ -202,7 +202,7 @@ TEST_F(MyriadX_HW_Tests_nightly, ConvWithPool) {
 
 TEST_F(MyriadX_HW_Tests_nightly, WithConcat) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -391,7 +391,7 @@ TEST_F(MyriadX_HW_Tests_nightly, WithConcat) {
 
 TEST_F(MyriadX_HW_Tests_nightly, WithConcatMisaligned) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -548,7 +548,7 @@ TEST_F(MyriadX_HW_Tests_nightly, WithConcatMisaligned) {
 
 TEST_F(MyriadX_HW_Tests_nightly, With_3_FC_Layers) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -660,37 +660,28 @@ TEST_F(MyriadX_HW_Tests_nightly, With_3_FC_Layers) {
     GenRandomData(input);
 
     Blob::Ptr swOutput, hwOutput;
-    _inferRequest.reset();
-    _exeNetwork.reset();
+    _inferRequest = {};
+    _exeNetwork = {};
 
-    StatusCode st;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
+        {
+            {
+                InferenceEngine::MYRIAD_PERF_REPORT_MODE,
+                InferenceEngine::MYRIAD_PER_STAGE
+            },
+            {
+                InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
+                CONFIG_VALUE(YES)
+            },
+        }));
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
-                                                      {
-                                                          {
-                                                              InferenceEngine::MYRIAD_PERF_REPORT_MODE,
-                                                              InferenceEngine::MYRIAD_PER_STAGE
-                                                          },
-                                                          {
-                                                              InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
-                                                              CONFIG_VALUE(YES)
-                                                          },
-                                                      },
-                                                      &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(_inferRequest.SetBlob("input", input));
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("input", input, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     std::vector<float> results(sizeof(names) / sizeof(names[0]));
     for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob(names[i].c_str(), hwOutput, &_resp));
+        ASSERT_NO_THROW(hwOutput = _inferRequest.GetBlob(names[i].c_str()));
         ASSERT_NE(hwOutput, nullptr);
         BufferWrapper res_ptr(hwOutput);
         results[i] = res_ptr[0];
@@ -702,7 +693,7 @@ TEST_F(MyriadX_HW_Tests_nightly, With_3_FC_Layers) {
 
 TEST_F(MyriadX_HW_Tests_nightly, WithEltwise) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -922,7 +913,7 @@ TEST_F(MyriadX_HW_Tests_nightly, WithEltwise) {
 
 TEST_F(MyriadX_HW_Tests_nightly, WithEltwiseReLU) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -1161,7 +1152,7 @@ TEST_F(MyriadX_HW_Tests_nightly, WithEltwiseReLU) {
 
 TEST_F(MyriadX_HW_Tests_nightly, PermuteFlattenConcat) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     const std::string model = R"V0G0N(
@@ -1387,7 +1378,7 @@ TEST_F(MyriadX_HW_Tests_nightly, PermuteFlattenConcat) {
 
 TEST_F(MyriadX_HW_Tests_nightly, VGG_FirstTwoConvs) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     IN_OUT_desc in_tensor, out_tensor;

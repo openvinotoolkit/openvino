@@ -1,38 +1,29 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
+#include "shared_test_classes/single_layer/fake_quantize.hpp"
 
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-
-typedef std::tuple<
-        size_t,             // levels
-        std::vector<size_t> // const inputs shape
-> fqSpecificParams;
-typedef std::tuple<
-        fqSpecificParams,
-        InferenceEngine::Precision,   // Net precision
-        InferenceEngine::SizeVector,  // Input shapes
-        LayerTestsUtils::TargetDevice // Device name
-> fqLayerTestParamsSet;
 namespace LayerTestsDefinitions {
 
+TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
+    Run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-class FakeQuantizeLayerTest : public testing::WithParamInterface<fqLayerTestParamsSet>,
-                              virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj);
+    if (BASE_SEED != USE_CLOCK_TIME &&
+        BASE_SEED != USE_INCREMENTAL_SEED) {
+        return;
+    }
 
-protected:
-    void SetUp() override;
-};
+    size_t nIterations = 1;
+    for (; nIterations != 0; nIterations--) {
+        UpdateSeed();
+        GenerateInputs();
+        Infer();
+        Validate();
+    }
+}
 
 }  // namespace LayerTestsDefinitions

@@ -1,29 +1,11 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
+#include "test_utils.h"
 
-#include <api/engine.hpp>
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/border.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-
-#include "test_utils/test_utils.h"
-#include "test_utils/uniform_quantized_real_distribution.hpp"
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/border.hpp>
 
 #include <cstddef>
 
@@ -36,7 +18,7 @@ static std::vector<T> generate_rnd_real_input(
     const T min = static_cast<T>(0), const T max = static_cast<T>(1), const unsigned rnd_bits = 9)
 {
     static std::default_random_engine rnd_gen(random_seed);
-    cldnn::tests::distributions::uniform_quantized_real_distribution<T> rnd_dist(min, max, rnd_bits);
+    tests::distributions::uniform_quantized_real_distribution<T> rnd_dist(min, max, rnd_bits);
 
     auto acum = std::accumulate(sizes.begin(), sizes.end(), static_cast<std::size_t>(1), std::multiplies<std::size_t>());
 
@@ -72,12 +54,12 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -107,7 +89,85 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
+
+    for (auto b = 0; b < out_size_b; ++b) {             // B
+        for (auto f = 0; f < out_size_f; ++f) {         // F
+            for (auto y = 0; y < out_size_y; ++y) {     // Y
+                for (auto x = 0; x < out_size_x; ++x) { // X
+                    auto output_off = ((y * out_size_x + x) * out_size_f + f) * out_size_b + b; // YXFB
+
+                    EXPECT_EQ(output_ptr[output_off], out_data[output_off]);
+                }
+            }
+        }
+    }
+}
+
+TEST(border_gpu, basic_fsv16_0x0x1x2_0x0x3x4_border_constant) {
+    //  Input (XY) : 4x3
+    //  Output (XY): 10x7
+
+    constexpr auto in_size_b = 1;
+    constexpr auto in_size_f = 1;
+    constexpr auto in_size_y = 3;
+    constexpr auto in_size_x = 4;
+
+    constexpr auto blt_size_b = 0;
+    constexpr auto blt_size_f = 0;
+    constexpr auto blt_size_y = 1;
+    constexpr auto blt_size_x = 2;
+
+    constexpr auto brb_size_b = 0;
+    constexpr auto brb_size_f = 0;
+    constexpr auto brb_size_y = 3;
+    constexpr auto brb_size_x = 4;
+
+    constexpr auto out_size_b = in_size_b + blt_size_b + brb_size_b;
+    constexpr auto out_size_f = in_size_f + blt_size_f + brb_size_f;
+    constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
+    constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+
+    topology topology;
+    topology.add(
+        input_layout("input", input->get_layout())
+    );
+    topology.add(
+        reorder("border_input", "input", cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
+        border("border", "border_input",
+               {blt_size_b, blt_size_f, blt_size_x, blt_size_y},
+               {brb_size_b, brb_size_f, brb_size_x, brb_size_y},
+               border_type::constant, 0.0f),
+        reorder("output", "border", cldnn::format::yxfb, cldnn::data_types::f32)
+    );
+
+    std::vector<float> input_data = {
+          1, -2,  3,  -4,
+          5,  6,  7,   8,
+        -10, 12, 13, -13,
+    };
+    std::vector<float> out_data = {
+        0, 0,   0,  0,  0,   0, 0, 0, 0, 0,
+        0, 0,   1, -2,  3,  -4, 0, 0, 0, 0,
+        0, 0,   5,  6,  7,   8, 0, 0, 0, 0,
+        0, 0, -10, 12, 13, -13, 0, 0, 0, 0,
+        0, 0,   0,  0,  0,   0, 0, 0, 0, 0,
+        0, 0,   0,  0,  0,   0, 0, 0, 0, 0,
+        0, 0,   0,  0,  0,   0, 0, 0, 0, 0,
+    };
+    set_values(input, input_data);
+
+    cldnn::network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -150,12 +210,12 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -210,7 +270,7 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x * out_size_z));
 
@@ -259,12 +319,12 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x1x0x1_0x0x0x1x0x1_border_constant) {
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
     constexpr auto out_size_w = in_size_w + blt_size_w + brb_size_w;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, { data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -318,7 +378,7 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x1x0x1_0x0x0x1x0x1_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x * out_size_z * out_size_w));
 
@@ -363,12 +423,12 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -398,7 +458,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -439,12 +499,12 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -474,7 +534,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -517,12 +577,12 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -542,7 +602,7 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -597,12 +657,12 @@ TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
     constexpr auto out_size_w = in_size_w + blt_size_w + brb_size_w;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, { data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -622,7 +682,7 @@ TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -674,12 +734,12 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror_101) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -711,7 +771,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror_101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -753,12 +813,12 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror_101) {
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx, tensor{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -791,7 +851,7 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror_101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x * out_size_z));
 
@@ -839,12 +899,12 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x0x1x1_0x0x0x0x1x1_border_mirror_101) {
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
     constexpr auto out_size_w = in_size_w + blt_size_w + brb_size_w;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, { data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -857,26 +917,26 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x0x1x1_0x0x0x0x1x1_border_mirror_101) {
         1, -2,  3,  -4,
         5,  6,  7,   8,
 
-        2, -3,  4,  -5, 
+        2, -3,  4,  -5,
         15,  4,  4,   4,
 
         2, -6,  13,  -14,
-        3,  7,  7,   7, 
+        3,  7,  7,   7,
     };
     std::vector<float> out_data = {
-        2, -3,  4,  -5, 
+        2, -3,  4,  -5,
         15,  4,  4,   4,
 
         1, -2,  3,  -4,
         5,  6,  7,   8,
 
-        2, -3,  4,  -5, 
-        15,  4,  4,   4, 
+        2, -3,  4,  -5,
+        15,  4,  4,   4,
 
-        2, -6,  13,  -14, 
+        2, -6,  13,  -14,
         3,  7,  7,   7,
 
-        2, -3,  4,  -5, 
+        2, -3,  4,  -5,
         15,  4,  4,   4,
     };
     set_values(input, input_data);
@@ -886,7 +946,7 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x0x1x1_0x0x0x0x1x1_border_mirror_101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x * out_size_z * out_size_w));
 
@@ -931,12 +991,12 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_edge) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -968,7 +1028,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_edge) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -1006,12 +1066,12 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -1031,7 +1091,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1078,12 +1138,12 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -1102,7 +1162,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1145,12 +1205,12 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -1168,7 +1228,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1211,12 +1271,12 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
     topology.add(
-        input_layout("input", input.get_layout())
+        input_layout("input", input->get_layout())
     );
     topology.add(
         border("output", "input",
@@ -1234,7 +1294,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F

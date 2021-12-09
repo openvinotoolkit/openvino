@@ -1,78 +1,79 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <limits>
 #include <memory>
+#include <queue>
 
-#include <ngraph/function.hpp>
 #include <ngraph/dimension.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/pass.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/op/util/framework_node.hpp>
+#include <transformations/init_node_info.hpp>
+
+#include "ie_common.h"
 
 #include "test_common.hpp"
+
+#include "graph_comparator.hpp"
+#include "test_tools.hpp"
 
 #define DYN ngraph::Dimension::dynamic()
 
 using TransformationTests = CommonTestUtils::TestsCommon;
 
-std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Function> & f1, const std::shared_ptr<ngraph::Function> & f2);
-
-void check_rt_info(const std::shared_ptr<ngraph::Function> & f);
-
-
-namespace ngraph {
-namespace pass {
-
-class InjectionPass;
-
-} // namespace pass
-} // namespace ngraph
-
-class ngraph::pass::InjectionPass : public ngraph::pass::FunctionPass {
+class TransformationTestsF : public  CommonTestUtils::TestsCommon {
 public:
-    using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
-
-    explicit InjectionPass(injection_callback callback) : FunctionPass(), m_callback(std::move(callback)) {}
-
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
-        m_callback(f);
-        return false;
+    TransformationTestsF() : comparator(FunctionsComparator::no_default()) {
+        m_unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
+        // TODO: enable attributes and constant values comparison by default XXX-68694
+        // comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+        // comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     }
+
+    void SetUp() override {
+        manager.register_pass<ngraph::pass::InitUniqueNames>(m_unh);
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+    }
+
+    void TearDown() override {
+        if (!function_ref) {
+            function_ref = ngraph::clone_function(*function);
+        }
+
+        manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison);
+        manager.run_passes(function);
+        if (!m_disable_rt_info_check) {
+            ASSERT_NO_THROW(check_rt_info(function));
+        }
+
+        auto res = comparator.compare(function, function_ref);
+        ASSERT_TRUE(res.valid) << res.message;
+    }
+
+    // TODO: this is temporary solution to disable rt info checks that must be applied by default
+    // first tests must be fixed then this method must be removed XXX-68696
+    void disable_rt_info_check() {
+        m_disable_rt_info_check = true;
+    }
+
+    void enable_soft_names_comparison() {
+        m_soft_names_comparison = true;
+    }
+
+    std::shared_ptr<ngraph::Function> function, function_ref;
+    ngraph::pass::Manager manager;
+    FunctionsComparator comparator;
 
 private:
-    injection_callback m_callback;
-};
-
-template <typename T>
-size_t count_ops_of_type(std::shared_ptr<ngraph::Function> f) {
-    size_t count = 0;
-    for (auto op : f->get_ops()) {
-        if (ngraph::is_type<T>(op)) {
-            count++;
-        }
-    }
-
-    return count;
-}
-
-class TestOpMultiOut : public ngraph::op::Op {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    TestOpMultiOut() = default;
-
-    TestOpMultiOut(const ngraph::Output<Node>& output_1, const ngraph::Output<Node>& output_2)
-        : Op({output_1, output_2}) {
-        validate_and_infer_types();
-    }
-    void validate_and_infer_types() override {
-        set_output_size(2);
-        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-        set_output_type(1, get_input_element_type(1), get_input_partial_shape(1));
-    }
-
-    std::shared_ptr<Node>
-        clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
-        return std::make_shared<TestOpMultiOut>(new_args.at(0), new_args.at(1));
-    }
+    std::shared_ptr<ngraph::pass::UniqueNamesHolder> m_unh;
+    bool m_disable_rt_info_check{false};
+    bool m_soft_names_comparison{true};
 };

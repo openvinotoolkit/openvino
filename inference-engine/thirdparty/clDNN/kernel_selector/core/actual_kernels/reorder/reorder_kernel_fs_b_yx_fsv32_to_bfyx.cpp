@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "reorder_kernel_fs_b_yx_fsv32_to_bfyx.h"
 #include "kernel_selector_utils.h"
@@ -19,7 +9,6 @@
 namespace kernel_selector {
 
 static const size_t fsv = 32;
-static const size_t sub_group_size = 16;
 static const size_t x_block_align = 8;
 static const std::vector<size_t> optimal_x_sizes = { 16, 8, 4, 2, 1 };
 static const std::vector<size_t> optimal_feature_sizes = { 16, 8, 1 };
@@ -68,23 +57,27 @@ JitConstants ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetJitConstants(const reorder_
 }
 
 ReorderKernelBase::DispatchData ReorderKernel_fs_b_yx_fsv32_to_bfyx::SetDefault(const reorder_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     auto x_aligned = Align(params.output.X().v, x_block_align);
 
-    kd.gws0 = params.output.Batch().v;
-    kd.gws1 = Align(params.output.Feature().v, fsv);
-    kd.gws2 = params.output.Y().v * x_aligned / GetOptimalSize(x_aligned, optimal_x_sizes);
+    dispatchData.gws[0] = params.output.Batch().v;
+    dispatchData.gws[1] = Align(params.output.Feature().v, fsv);
+    dispatchData.gws[2] = params.output.Y().v * x_aligned / GetOptimalSize(x_aligned, optimal_x_sizes);
 
-    kd.lws0 = 1;
-    kd.lws1 = GetOptimalSize(kd.gws1, optimal_feature_sizes);
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = GetOptimalSize(dispatchData.gws[1], optimal_feature_sizes);
+    dispatchData.lws[2] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsData(const Params& params, const optional_params& options) const {
     const auto& orgParams = static_cast<const reorder_params&>(params);
-    return GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_2);
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 }  // namespace kernel_selector

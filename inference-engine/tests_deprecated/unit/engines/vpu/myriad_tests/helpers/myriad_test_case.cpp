@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_test_case.h"
+#include "ie_plugin_config.hpp"
 
 //------------------------------------------------------------------------------
 // Implementation of methods of class MyriadEngineTest

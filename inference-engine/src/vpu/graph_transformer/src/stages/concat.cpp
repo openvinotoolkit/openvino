@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -275,12 +275,14 @@ void FrontEnd::parseConcat(
 
     auto output = outputs[0];
 
-    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
     VPU_THROW_UNLESS(layer != nullptr,
+                     "parseConcat expects valid CNNLayerPtr, got nullptr");
+    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
+    VPU_THROW_UNLESS(concat != nullptr,
                      "{} layer with name {} must be able to convert to ie::ConcatLayer",
                      layer->type, layer->name);
 
-    VPU_THROW_UNLESS(concat->_axis < output->desc().numDims(),
+    VPU_THROW_UNLESS(static_cast<int>(concat->_axis) < output->desc().numDims(),
                      "{} layer with name {} must have axis attribute no grater than number of "
                      "dimensions, actually provided axis = {}, numDims = {}",
                      layer->type, layer->name, concat->_axis, output->desc().numDims());
@@ -294,7 +296,7 @@ void FrontEnd::parseConcat(
     auto inferRequirement = ConcatInferRequirement::CanBeReplaced;
     if (auto concatOp = std::dynamic_pointer_cast<ngraph::opset3::Concat>(layer->getNode())) {
         inferRequirement = concatOp->get_input_source_output(0).get_node_shared_ptr()->get_type_info() ==
-                           ngraph::vpu::op::DynamicShapeResolver::type_info
+                           ngraph::vpu::op::DynamicShapeResolver::get_type_info_static()
                            ? ConcatInferRequirement::NeedToInfer
                            : ConcatInferRequirement::CanBeReplaced;
     }

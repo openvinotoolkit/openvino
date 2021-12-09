@@ -11,9 +11,9 @@ For Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, the followi
 
 1. Set the environment variables:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 ```
-> **NOTE**: The `HDDL_INSTALL_DIR` variable is set to `<openvino_install_dir>/deployment_tools/inference_engine/external/hddl`. If you installed the Intel® Distribution of OpenVINO™ to the default install directory, the `HDDL_INSTALL_DIR` was set to `/opt/intel/openvino//deployment_tools/inference_engine/external/hddl`.
+> **NOTE**: The `HDDL_INSTALL_DIR` variable is set to `<openvino_install_dir>/runtime/3rdparty/hddl`. If you installed the Intel® Distribution of OpenVINO™ to the default install directory, the `HDDL_INSTALL_DIR` was set to `/opt/intel/openvino_2022/runtime/3rdparty/hddl`.
 
 2. Install dependencies:
 ```sh
@@ -30,7 +30,7 @@ Now the dependencies are installed and you are ready to use the Intel® Vision A
 
 ## Optional Steps
 
-* For advanced configuration steps for your IEI Mustang-V100-MX8 accelerator, see [Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-setup-guide.md).
+* For advanced configuration steps for your **IEI Mustang-V100-MX8-R10** accelerator, see [Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-setup-guide.md). **IEI Mustang-V100-MX8-R11** accelerator doesn't require any additional steps. 
 
 * After you've configured your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see [Intel® Movidius™ VPUs Programming Guide for Use with Intel® Distribution of OpenVINO™ toolkit](movidius-programming-guide.md) to learn how to distribute a model across all 8 VPUs to maximize performance.
 
@@ -52,7 +52,7 @@ E: [ncAPI] [    965618] [MainThread] ncDeviceOpen:677   Failed to find a device,
 ```sh
 kill -9 $(pidof hddldaemon autoboot)
 pidof hddldaemon autoboot # Make sure none of them is alive
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 ${HDDL_INSTALL_DIR}/bin/bsl_reset
 ```
 

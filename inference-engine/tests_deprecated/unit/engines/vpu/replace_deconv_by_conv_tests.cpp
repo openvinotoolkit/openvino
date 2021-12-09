@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "graph_transformer_tests.hpp"
+
+#include "vpu/private_plugin_config.hpp"
 
 using namespace vpu;
 
@@ -91,7 +93,7 @@ TEST_F(VPU_ReplaceDeconvByConvTest, deconvReplacedByConvIfKernelSizeFitsHWUnit) 
 }
 
 TEST_F(VPU_ReplaceDeconvByConvTest, deconvCannotBeReplacedByConvIfDisabledInConfig) {
-    config.hwBlackList.insert("deconv");
+    config.set(ie::MYRIAD_HW_BLACK_LIST, "deconv");
     InitCompileEnv();
     InitDeconvStage(16, 15);
 

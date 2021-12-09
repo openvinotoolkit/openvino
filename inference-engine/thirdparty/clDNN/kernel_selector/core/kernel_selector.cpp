@@ -1,28 +1,19 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "kernel_base.h"
 #include "kernel_selector_common.h"
 #include "kernel_selector.h"
+#include "kernel_selector_params.h"
 #include <type_traits>
 #include <sstream>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <tuple>
+#include <set>
+#include <iostream>
 
 // #define ENABLE_ENV
 // #define ENABLE_ENV_PRINT
@@ -100,10 +91,9 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
                     }
                 } else {
 #endif
-                    if (kernelsData.size() == 0 || kds[0].estimatedTime < kernelsData[0].estimatedTime) {
-                        kernelsData = kds;
-                        kernelName = implementation->GetName();
-                    }
+                    kernelsData = kds;
+                    kernelName = implementation->GetName();
+                    break;
 #ifdef ENABLE_ENV
                 }
 #endif
@@ -116,7 +106,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
     // TODO: find a better place to located this assignment
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].layerID = params.layerID;
+        kernelsData[0].kernels[0].params.layerID = params.layerID;
     }
 
     return kernelsData;
@@ -129,11 +119,12 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     std::string kernelName;
 
     auto allImplementations = GetAllImplementations(params, options, kType);
-
+    auto kernel_params = static_cast<const base_params&>(params);
+    bool int8_kernel = kernel_params.inputs[0].GetDType() == Datatype::INT8 || kernel_params.inputs[0].GetDType() == Datatype::UINT8;
     std::tuple<std::string, int> cachedKernelConfig;
-    if (options.tuningParams.mode == TuningMode::TUNING_DISABLED) {  // Try to load kernel/config from offline cache
+    if (options.tuningParams.mode == TuningMode::TUNING_DISABLED && !int8_kernel) {  // Try to load kernel/config from offline cache
 #if ENABLE_OFFLINE_TUNING_CACHE
-        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, params);
+        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache.get(), params);
 #else
         return GetNaiveBestKernel(params, options, kType);
 #endif
@@ -155,7 +146,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 if (kds.size() && kds[0].kernels.size()) {
                     kernelsData = kds;
                     kernelsData[0].kernelName = cachedkernelName;
-                    kernelsData[0].kernels[0].layerID = params.layerID;
+                    kernelsData[0].kernels[0].params.layerID = params.layerID;
                 }
                 break;
             }
@@ -228,7 +219,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].layerID = params.layerID;
+        kernelsData[0].kernels[0].params.layerID = params.layerID;
         autoTuner.StoreKernel(options.tuningParams.cacheFilePath,
                                 params,
                                 kernelName,
@@ -242,25 +233,33 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 }
 
 KernelList kernel_selector_base::GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const {
+    using PriorityPair = std::pair<KernelsPriority, std::shared_ptr<KernelBase>>;
+    auto comparePriority = [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {
+        return firstImpl.first < secondImpl.first;
+    };
+
+    std::multiset<PriorityPair, decltype(comparePriority)> sortedImpls(comparePriority);
     KernelList result;
 
     if (params.GetType() == kType && options.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
         bool forceImplementation = !params.forceImplementation.empty();
-
-        std::copy_if(
-            implementations.begin(),
-            implementations.end(),
-            std::back_inserter(result),
-            [&](const std::shared_ptr<KernelBase>& implementation) {
-            const ParamsKey implKey = implementation->GetSupportedKey();
+        for (auto& impl : implementations) {
+            const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
-                return false;
-            if (forceImplementation && params.forceImplementation != implementation->GetName())
-                return false;
+                continue;
+            if (forceImplementation && params.forceImplementation != impl->GetName())
+                continue;
+            sortedImpls.emplace(impl->GetKernelsPriority(params, options), impl);
+        }
 
-            return true;
-        });
+        std::transform(
+            sortedImpls.begin(),
+            sortedImpls.end(),
+            std::back_inserter(result),
+            [](const PriorityPair& impl) {
+                return std::move(impl.second);
+            });
     }
 
     return result;

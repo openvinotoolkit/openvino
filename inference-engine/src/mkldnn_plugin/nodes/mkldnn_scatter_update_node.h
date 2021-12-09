@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,7 @@ enum class ScatterUpdateMode {
 
 class MKLDNNScatterUpdateNode : public MKLDNNNode {
 public:
-    MKLDNNScatterUpdateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNScatterUpdateNode() override = default;
+    MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -32,6 +31,11 @@ public:
         return false;
     }
 
+    bool needPrepareParams() const override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
     void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
@@ -39,15 +43,14 @@ private:
     inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
-    const size_t DATA_ID = 0;
-    const size_t INDICES_ID = 1;
-    const size_t UPDATE_ID = 2;
-    const size_t AXIS_ID = 3;
+    enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };
 
     // if axis can be set other than default 0.
     bool axisRelaxed = false;
     size_t dataSize, indicesSize, axisSize;
     InferenceEngine::Precision dataPrec, indicesPrec, axisPrec;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,6 @@
 #include "vpu/ngraph/operations/out_shape_of_reshape.hpp"
 
 namespace ngraph { namespace vpu { namespace op {
-
-constexpr NodeTypeInfo OutShapeOfReshape::type_info;
 
 OutShapeOfReshape::OutShapeOfReshape(
         const Output<Node>& inDataShape,
@@ -54,7 +52,7 @@ void OutShapeOfReshape::validate_and_infer_types() {
                           ") shape descriptor type needs to be an integral type. Got: ",
                           outShapeDescriptorTensorType);
 
-    set_output_type(0, element::i64, outShapeDescriptorTensorShape);
+    set_output_type(0, m_output_type, outShapeDescriptorTensorShape);
 }
 
 std::shared_ptr<Node> OutShapeOfReshape::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -67,6 +65,7 @@ bool OutShapeOfReshape::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
+namespace out_shape {
 namespace {
 
 template<element::Type_t ET>
@@ -78,7 +77,7 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
     }
     size_t outputRank = data->get_shape()[0];
 
-    for (int i = 0; i < outputRank; i++) {
+    for (size_t i = 0; i < outputRank; i++) {
         result.push_back(dataPtr[i]);
     }
 
@@ -97,8 +96,8 @@ bool setShapeToHostTensorData(const HostTensorPtr& data, const Shape& shape) {
         return false;
     }
 
-    for (int i = 0; i < outputRank; i++) {
-        dataPtr[i] = shape[i];
+    for (size_t i = 0; i < outputRank; i++) {
+        dataPtr[i] = static_cast<T>(shape[i]);
     }
     return true;
 }
@@ -189,9 +188,9 @@ bool evaluateOutShapeOfReshape(
         return false;
     }
 
-    int zeroDimsCount = std::count_if(outputShape.begin(), outputShape.end(),
+    int64_t zeroDimsCount = std::count_if(outputShape.begin(), outputShape.end(),
                                       [](int64_t value) { return value == 0; });
-    int negativeDimsCount = std::count_if(outputShape.begin(), outputShape.end(),
+    int64_t negativeDimsCount = std::count_if(outputShape.begin(), outputShape.end(),
                                           [](int64_t value) { return value == -1; });
     if (negativeDimsCount > 1) {
         return false;
@@ -220,7 +219,7 @@ bool evaluateOutShapeOfReshape(
                 outputShape[i] = inputShape[i];
                 outputTotalDimCount *= inputShape[i];
             } else if (outputShape[i] == -1) {
-                negativeDimIdx = i;
+                negativeDimIdx = static_cast<int>(i);
             } else {
                 outputTotalDimCount *= outputShape[i];
             }
@@ -251,12 +250,16 @@ bool evaluateOutShapeOfReshape(
 }
 
 }  // namespace
+}  // namespace out_shape
 
 bool OutShapeOfReshape::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const {
-    return evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
+    return out_shape::evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
 }
 
+void OutShapeOfReshape::set_output_type(const ngraph::element::Type& output_type) {
+    m_output_type = output_type;
+}
 
 }  // namespace op
 }  // namespace vpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
 const auto noneCases = ::testing::Combine(
     ::testing::ValuesIn(noneShapes),
     ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE),
+    ::testing::Values(ngraph::op::AutoBroadcastType::NONE),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -77,10 +77,10 @@ const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
 const auto numpyCases = ::testing::Combine(
     ::testing::ValuesIn(numpyShapes),
     ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastSpec::NUMPY),
+    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsSelect_none, SelectLayerTest, noneCases, SelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsSelect_none, SelectLayerTest, noneCases, SelectLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsSelect_numpy, SelectLayerTest, numpyCases, SelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsSelect_numpy, SelectLayerTest, numpyCases, SelectLayerTest::getTestCaseName);

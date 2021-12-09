@@ -1,16 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "convolution_kernel_b_fs_yx_fsv_16_32_imad_dw.hpp"
 
@@ -25,6 +15,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ConvolutionKernel_b_fs_yx_fsv_16_32
     std::vector<size_t> simd_sizes = { 8, 16 };
     std::vector<std::string> exe_modes = ConvolutionKernelBase::autoTuneOptions;
 
+    // TODO: can be potentially improved for GPUs with support of LWS > 256
     constexpr size_t max_block_size = 32 * 8;
     constexpr size_t max_lws_size = 256;
 
@@ -242,7 +233,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
 
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::DispatchData
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params& params, int autoTuneIndex) const {
-    DispatchData kd;
+    DispatchData dispatchData;
     auto& out = params.output;
 
     auto tune_params = GetAutoTuneParams(params, autoTuneIndex);
@@ -254,29 +245,25 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params
         fsv = 32;
     }
 
-    std::vector<size_t> global = {
+    dispatchData.gws = {
         Align(CeilDiv(out.X().v, tune_params.tile_x), tune_params.lws0),
-        Align(out.Y().v,  tune_params.lws1),
+        Align(out.Y().v, tune_params.lws1),
         CeilDiv(out.Feature().v, fsv) * tune_params.simd * out.Batch().v
     };
-    std::vector<size_t> local = { tune_params.lws0, tune_params.lws1, tune_params.simd };
+    dispatchData.lws = { tune_params.lws0, tune_params.lws1, tune_params.simd };
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.gemmStyle = { 0, 0, 0, 0, 0, 0 };
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
+    dispatchData.cldnnStyle.blockWidth = tune_params.tile_x;
+    dispatchData.cldnnStyle.prefetch = tune_params.preload_input_slm;
 
-    kd.gemmStyle = { 0, 0, 0, 0, 0, 0 };
+    return dispatchData;
+}
 
-    kd.cldnnStyle.blockWidth = tune_params.tile_x;
-    kd.cldnnStyle.prefetch = tune_params.preload_input_slm;
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
 
-    kd.efficiency = params.stride.x == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_2;
-
-    return kd;
+    return p.stride.x == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_2;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::HasPaddedInput(const convolution_params& params) const {
@@ -317,20 +304,20 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ParamsHavePadding(const convol
     return needs_pad;
 }
 
-JitConstants ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetJitConstants(const convolution_params& params, const DispatchData& kd) const {
-    auto mem_consts = Parent::GetJitConstants(params, kd);
+JitConstants ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     constexpr size_t imad_width = 4;
     auto filter_spatial = params.weights.X().v * params.weights.Y().v;
     auto filter_blocked = filter_spatial / imad_width * imad_width;
 
-    mem_consts.AddConstant(MakeJitConstant("LWS0", kd.lws0));
-    mem_consts.AddConstant(MakeJitConstant("LWS1", kd.lws1));
-    mem_consts.AddConstant(MakeJitConstant("SIMD", kd.lws2));
+    mem_consts.AddConstant(MakeJitConstant("LWS0", dispatchData.lws[0]));
+    mem_consts.AddConstant(MakeJitConstant("LWS1", dispatchData.lws[1]));
+    mem_consts.AddConstant(MakeJitConstant("SIMD", dispatchData.lws[2]));
 
-    mem_consts.AddConstant(MakeJitConstant("TILE_X", kd.cldnnStyle.blockWidth));
+    mem_consts.AddConstant(MakeJitConstant("TILE_X", dispatchData.cldnnStyle.blockWidth));
     mem_consts.AddConstant(MakeJitConstant("FILTER_BLOCKED", filter_blocked));
-    mem_consts.AddConstant(MakeJitConstant("PRELOAD_INPUT_TO_SLM", kd.cldnnStyle.prefetch));
+    mem_consts.AddConstant(MakeJitConstant("PRELOAD_INPUT_TO_SLM", dispatchData.cldnnStyle.prefetch));
 
     auto needs_boundary_check = ParamsHavePadding(params) &&
         (!HasPaddedInput(params) ||

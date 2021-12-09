@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ private:
             auto irIndex = oldIndices[i];
             if (irIndex < 0) {
                 // handle negative indices
-                irIndex = ndims - std::abs(irIndex);
+                irIndex = static_cast<int>(ndims - std::abs(irIndex));
             }
             VPU_THROW_UNLESS(irIndex < ndims,
                             "Stage {} of type {} expects input with index {} ({}) include values less than ",
@@ -99,7 +99,7 @@ private:
 
     void initialCheckImpl() const override {
         VPU_THROW_UNLESS(input(0)->desc().type() == output(0)->desc().type(),
-                         "Stage {} of type {} expects that data types of input with index {} ({}) ",
+                         "Stage {} of type {} expects that data types of input with index {} ({}) "
                          "and output with index {} ({}) are the same, but it is {} and {}",
                          name(), type(), 0, input(0)->name(), 0, output(0)->name(), input(0)->desc().type(), output(0)->desc().type());
         assertInputsOutputsTypes(this,
@@ -127,10 +127,12 @@ private:
 }  // namespace
 
 void FrontEnd::parseReduce(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
+    VPU_THROW_UNLESS(_layer != nullptr,
+                     "parseReduce expects valid CNNLayerPtr, got nullptr");
+    const auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
     VPU_THROW_UNLESS(layer != nullptr,
-                     "Layer {} of type {} is nullptr",
-                     layer->name, layer->type);
+                     "Layer {} of type {} cannot be casted to ie::ReduceLayer",
+                     _layer->name, _layer->type);
     VPU_THROW_UNLESS(inputs.size() == 2,
                      "Layer {} of type {} expects {} inputs, but provided {}",
                      layer->name, layer->type, 2, inputs.size());

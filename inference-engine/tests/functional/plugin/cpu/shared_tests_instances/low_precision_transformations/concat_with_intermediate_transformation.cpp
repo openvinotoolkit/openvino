@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,25 +11,30 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(false),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 const std::vector<bool> transparentIntermediateValues = { true, false };
 const std::vector<bool> multiChannelValues = { /*true,*/ false };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 3, 16, 16 },
+    { 4, 3, 16, 16 }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(transparentIntermediateValues),

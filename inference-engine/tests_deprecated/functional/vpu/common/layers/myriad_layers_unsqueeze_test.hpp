@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,9 +139,6 @@ R"V0G0N(
         </net>
 )V0G0N";
 
-    InferenceEngine::StatusCode st = InferenceEngine::OK;
-    InferenceEngine::ResponseDesc resp;
-
     InferenceEngine::TBlob<uint8_t> *weights_raw = new InferenceEngine::TBlob<uint8_t>(
         {InferenceEngine::Precision::U8,
          {indices.size() * sizeof(ie_fp16)},
@@ -180,7 +177,13 @@ R"V0G0N(
 }
 
 static std::vector<InferenceEngine::SizeVector> s_squeezeTensors = {
-        {{3}, {1}, {1, 3}, {3, 1}}
+        {
+            // TODO: rewrite to ngraph to have reshape functionality
+            // {3, 1},
+            // {3},
+            {1},
+            {1, 3},
+        }
 };
 
 static std::vector<IndicesVector> s_squeezeIndices = {

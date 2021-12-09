@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
 #include <vpu/stage_builder.hpp>
+#include <vpu/utils/hw_disabled.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
+#include <vpu/configuration/options/hw_dilation.hpp>
 
 namespace vpu {
 
@@ -163,9 +166,9 @@ void parseConv2D(const Model      & model,
                           kernelStrideY,
                           dilationX,
                           dilationY,
-                          env.config.hwOptimization,
-                          env.config.hwDilation,
-                          env.config.hwDisabled(layer->name));
+                          env.config.get<HwAccelerationOption>(),
+                          env.config.get<HwDilationOption>(),
+                          HwDisabled(env.config, layer->name));
 
     //
     // Create const datas
@@ -316,7 +319,7 @@ private:
     }
 
     static void append_pv(BlobSerializer& serializer, const PV& pv) {
-        int ndims = pv.size();
+        int ndims = static_cast<int>(pv.size());
         append_i(serializer, ndims);
         for (int i = 0; i < ndims; i++) {
             append_i(serializer, pv[i]);
@@ -345,7 +348,7 @@ void parseConvND(const Model      & model,
     VPU_THROW_UNLESS(convLayer != nullptr, "failed dynamic cast to ConvolutionLayer");
 
     auto kernelShape = convLayer->_kernel;
-    int kernelNDims = kernelShape.size();
+    int kernelNDims = static_cast<int>(kernelShape.size());
     // Yet, only 3D kernel supported (NCDHW)
     // Later, if support 4D, 5D, etc, please
     // check if (kernelNDims >= 3), so that
@@ -377,7 +380,7 @@ void parseConvND(const Model      & model,
     VPU_THROW_UNLESS(output_channels > 0, "invalid number of output channels: %d", output_channels);
 
     int groups = convLayer->_group;
-    VPU_THROW_UNLESS(groups > 0, "number of groups=%d, but grouped 3D convolution is not supported", groups);
+    VPU_THROW_UNLESS(groups == 1, "number of groups=%d, but grouped 3D convolution is not supported", groups);
 
     int inputNDims = input->desc().numDims();
     int outputNDims = output->desc().numDims();
@@ -476,9 +479,9 @@ void parseConvND(const Model      & model,
                           strides[1],
                           dilations[0],
                           dilations[1],
-                          env.config.hwOptimization,
-                          env.config.hwDilation,
-                          env.config.hwDisabled(layer->name));
+                          env.config.get<HwAccelerationOption>(),
+                          env.config.get<HwDilationOption>(),
+                          HwDisabled(env.config, layer->name));
 
     int try_hw = tryHW ? 1 : 0;
 

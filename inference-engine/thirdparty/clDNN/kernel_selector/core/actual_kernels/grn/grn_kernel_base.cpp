@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "grn_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -27,27 +16,21 @@ JitConstants GRNKernelBase::GetJitConstants(const grn_params& params, GRNKernelB
 
 GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) const {
     const auto& output = params.output;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::X }};
 
-    DispatchData kd;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
+    DispatchData dispatchData;
+    dispatchData.gws = { output.Batch().v, output.Y().v, output.X().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
-    std::vector<size_t> global = { output.Batch().v, output.Y().v, output.X().v };
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
-                                                const optional_params& options,
-                                                float estimated_time) const {
+                                                const optional_params& options) const {
     assert(params.GetType() == KernelType::GRN);
 
     if (!Validate(params, options))
@@ -55,19 +38,17 @@ KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
 
     const grn_params& orgParams = static_cast<const grn_params&>(params);
 
-    DispatchData runInfo;
-
-    runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<grn_params>(params);
 
-    auto cldnn_jit = GetJitConstants(orgParams, runInfo);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,
@@ -77,8 +58,6 @@ KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

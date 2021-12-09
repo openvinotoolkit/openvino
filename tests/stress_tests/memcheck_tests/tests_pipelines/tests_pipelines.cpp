@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,12 +47,14 @@ void MemCheckPipeline::record_measures(const std::string & id) {
 }
 
 std::string MemCheckPipeline::get_reference_record_for_test(std::string test_name, std::string model_name,
-                                              std::string target_device) {
+                                                            std::string precision, std::string target_device) {
     std::array<long, MeasureValueMax> measures = measure();
     std::stringstream ss;
     ss << "Record to update reference config: "
-       << "<model path=\"" << model_name << "\"" <<
-       " test=\"" << test_name << "\" device=\"" << target_device <<
+       << "<model path=\"" << model_name <<
+       "\" precision=\"" << precision <<
+       "\" test=\"" << test_name <<
+       "\" device=\"" << target_device <<
        "\" vmsize=\"" << (int) (measures[VMSIZE] * REPORTING_THRESHOLD) <<
        "\" vmpeak=\"" << (int) (measures[VMPEAK] * REPORTING_THRESHOLD) <<
        "\" vmrss=\"" << (int) (measures[VMRSS] * REPORTING_THRESHOLD) <<
@@ -68,13 +70,13 @@ TestResult common_test_pipeline(const std::function<std::array<long, MeasureValu
 
     std::array<long, MeasureValueMax> measures = test_pipeline();
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (measures[VMRSS] > references[VMRSS]))
+    if (measures[VMRSS] > references[VMRSS])
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: RSS virtual memory consumption became greater than reference.\n"
                           "Reference RSS memory consumption: " + std::to_string(references[VMRSS]) + " KB.\n" +
                           "Current RSS memory consumption: " + std::to_string(measures[VMRSS]) + " KB.\n");
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (measures[VMHWM] > references[VMHWM]))
+    if (measures[VMHWM] > references[VMHWM])
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: HWM (peak of RSS) virtual memory consumption is greater than reference.\n"
                           "Reference HWM of memory consumption: " + std::to_string(references[VMHWM]) + " KB.\n" +

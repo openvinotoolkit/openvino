@@ -1,23 +1,53 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "kernel_base.h"
 
+#include <sstream>
+
 namespace kernel_selector {
 const primitive_db KernelBase::db;
-thread_local size_t KernelBase::counter = 0;
+
+std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
+    auto gws = dispatchData.gws;
+    auto lws = dispatchData.lws;
+    std::stringstream os;
+    os << "GWS(" << gws.size() << "): ";
+    for (auto e : gws) {
+        os << e << " ";
+    }
+    os << "LWS(" << lws.size() << "): ";
+    for (auto e : lws) {
+        os << e << " ";
+    }
+    return os.str();
+}
+
+void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData,
+                                   const size_t maxWorkGroupSize) {
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
+        throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName + ": " +
+                                 ": LWS and GWS size is expected to be equal to 3. Actual: " +
+                                 toString(dispatchData));
+
+    if (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2] > maxWorkGroupSize) {
+        throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                 ": LWS cannot be greater than " + std::to_string(static_cast<int>(maxWorkGroupSize)) + ". Actual: " +
+                                 toString(dispatchData));
+    }
+    for (size_t i = 0; i < dispatchData.gws.size(); i++) {
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+            throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                     ": Dispatch data cannot contain zeros. Actual: " +
+                                     toString(dispatchData));
+
+        if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
+            throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                     ": GWS must be divisible by corresponding LWS. Actual: " +
+                                     toString(dispatchData));
+    }
+}
 
 static bool IsTypeUsedIn(Datatype type, const base_params& params) {
     return params.output.GetDType() == type ||
@@ -70,6 +100,14 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IsSIMDSizeSupported
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) const {
+    auto supported_sizes = info.supportedSimdSizes;
+    return std::find(supported_sizes.begin(), supported_sizes.end(), simd_size) != supported_sizes.end();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MakeBaseParamsJitConstants
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_params &params,
@@ -79,49 +117,57 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     if (conf.empty())
         return jit;
 
-    for (auto& c : conf) {
-        std::string fused_ops;
-        std::string fused_ops_preload;
-        std::string fused_ops_calc;
-        std::string in_name = c.input_var_name;
-        Datatype in_type = c.input_dt;
-        bool can_all_use_preload = true;
+    if (params.fused_ops.size() == 1 && params.fused_ops[0].GetType() == KernelType::REORDER)
+        return jit;
 
-        for (size_t i = 0; i < params.fused_ops.size(); i++) {
-            auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
-            std::string out_var;
-            Datatype out_type;
-            jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
-            jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_var, out_type));
-            in_name = out_var;
-            in_type = out_type;
+    try {
+        for (auto& c : conf) {
+            std::string fused_ops;
+            std::string fused_ops_preload;
+            std::string fused_ops_calc;
+            std::string in_name = c.input_var_name;
+            std::string out_name = "";
+            Datatype in_type = c.input_dt;
+            bool can_all_use_preload = true;
 
-            bool can_use_preload = fused_dep_codegen.CanPreloadData(c);
-            can_all_use_preload &= can_use_preload;
-            bool can_preload_eltwise = true;
-            if (params.fused_ops[i].GetType() == FusedOpType::ELTWISE &&
-                c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE)
-                can_preload_eltwise = false;
-            fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-            fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
-            if (can_use_preload && can_preload_eltwise)
-                fused_ops_preload += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-            if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise))
-                fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-            fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
+            for (size_t i = 0; i < params.fused_ops.size(); i++) {
+                // Reorder is not processed by jitter
+                if (params.fused_ops[i].GetType() == FusedOpType::REORDER)
+                    continue;
+
+                auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
+                jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
+                jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_name));
+
+                bool can_use_preload = fused_dep_codegen.CanPreloadData(c);
+                can_all_use_preload &= can_use_preload;
+                bool can_preload_eltwise = true;
+                if (params.fused_ops[i].GetType() == FusedOpType::ELTWISE &&
+                    c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE)
+                    can_preload_eltwise = false;
+                fused_ops += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
+                fused_ops += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
+                if (can_use_preload && can_preload_eltwise)
+                    fused_ops_preload += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
+                if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise))
+                    fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
+                fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
+            }
+
+            jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
+            jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
+            jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
+            jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, out_name));
+
+            bool can_any_use_preload = !fused_ops_preload.empty();
+            jit.AddConstant(MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix,
+                can_all_use_preload || (c.allow_for_partial_preload && can_any_use_preload)));
         }
 
-        jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
-        jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
-        jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
-        jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, in_name));
-
-        bool can_any_use_preload = !fused_ops_preload.empty();
-        jit.AddConstant(MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix,
-            can_all_use_preload || (c.allow_for_partial_preload && can_any_use_preload)));
+        jit.Merge(MakeFusedOpsDeclsJitConstants(params, conf));
+    } catch (std::exception& ex) {
+        throw std::runtime_error("Fused op code generation for node " + params.layerID + " failed with error: " + ex.what());
     }
-
-    jit.Merge(MakeFusedOpsDeclsJitConstants(params, conf));
 
     return jit;
 }
@@ -142,7 +188,7 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         jit.Merge(fused_dep_codegen.MakeInputDeclsJitConstants(conf[0]));
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");
-            input_decls += optional_comma + "\\\n\tFUSED_OP" + std::to_string(i) + "_DECLS";
+            input_decls += optional_comma + "\\\n\tFUSED_OP" + toCodeString(i) + "_DECLS";
         }
     }
 

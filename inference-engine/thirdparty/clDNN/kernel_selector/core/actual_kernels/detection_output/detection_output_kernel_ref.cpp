@@ -1,26 +1,15 @@
-﻿// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "detection_output_kernel_ref.h"
 #include "kernel_selector_utils.h"
 
-#define PRIOR_BOX_SIZE 4  // Each prior-box consists of [xmin, ymin, xmax, ymax].
+#include <algorithm>
 
 namespace kernel_selector {
 
-ParamsKey DetectionOutputKernel::GetSupportedKey() const {
+ParamsKey DetectionOutputKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -34,55 +23,270 @@ ParamsKey DetectionOutputKernel::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData DetectionOutputKernel::SetDefault(const detection_output_params& params) const {
-    CommonDispatchData runInfo = DetectionOutputKernelBase::SetDefault(params);
+JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_params& params) const {
+    JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    // Number of all work items is set to total number of bounding boxes -
-    // one bounding box is procerssed by one work item
-    size_t num_classes = (params.detectOutParams.share_location) ? 1 : params.detectOutParams.num_classes;
+    const auto& detectOutParams = params.detectOutParams;
+    auto num_prior_boxes = params.inputs[1].Feature().v / detectOutParams.num_classes;
 
-    // Size of input0 (input location), if shared loaction it is equal to size of one class,
-    // else it has size of all items for all classes
-    size_t bboxesNum = params.inputs[0].LogicalSize() / PRIOR_BOX_SIZE / num_classes;
-    // Work group size is set to number of bounding boxes per image for sorting purpose
-    // (access to one table with sorted values)
-    size_t work_group_size = bboxesNum / params.inputs[0].Batch().v;
+    jit.AddConstants({
+        MakeJitConstant("NUM_IMAGES", detectOutParams.num_images),
+        MakeJitConstant("NUM_CLASSES", detectOutParams.num_classes),
+        MakeJitConstant("NUM_CLASSES_PER_ITEM", 4),
+        MakeJitConstant("KEEP_TOP_K", detectOutParams.keep_top_k),
+        MakeJitConstant("TOP_K", std::min(detectOutParams.top_k, (int32_t)num_prior_boxes)),
+        MakeJitConstant("BACKGROUND_LABEL_ID", detectOutParams.background_label_id),
+        MakeJitConstant("CODE_TYPE", detectOutParams.code_type),
+        MakeJitConstant("CONF_SIZE_X", detectOutParams.conf_size_x),
+        MakeJitConstant("CONF_SIZE_Y", detectOutParams.conf_size_y),
+        MakeJitConstant("CONF_PADDING_X", detectOutParams.conf_padding_x),
+        MakeJitConstant("CONF_PADDING_Y", detectOutParams.conf_padding_y),
+        MakeJitConstant("SHARE_LOCATION", detectOutParams.share_location),
+        MakeJitConstant("VARIANCE_ENCODED_IN_TARGET", detectOutParams.variance_encoded_in_target),
+        MakeJitConstant("NMS_THRESHOLD", detectOutParams.nms_threshold),
+        MakeJitConstant("ETA", detectOutParams.eta),
+        MakeJitConstant("CONFIDENCE_THRESHOLD", detectOutParams.confidence_threshold),
+        MakeJitConstant("IMAGE_WIDTH", detectOutParams.input_width),
+        MakeJitConstant("IMAGE_HEIGH", detectOutParams.input_heigh),
+        MakeJitConstant("DECREASE_LABEL_ID", detectOutParams.decrease_label_id),
+        MakeJitConstant("CLIP_BEFORE_NMS", detectOutParams.clip_before_nms),
+        MakeJitConstant("CLIP_AFTER_NMS", detectOutParams.clip_after_nms),
+        MakeJitConstant("ELEMENTS_PER_THREAD", detectOutParams.elements_per_thread),
+        MakeJitConstant("PRIOR_COORD_OFFSET", detectOutParams.prior_coordinates_offset),
+        MakeJitConstant("PRIOR_INFO_SIZE", detectOutParams.prior_info_size),
+        MakeJitConstant("PRIOR_IS_NORMALIZED", detectOutParams.prior_is_normalized),
+    });
 
-    if (work_group_size > 256) {
-        work_group_size = work_group_size / ((work_group_size / 256) + 1) + 1;
-    }
-
-    bboxesNum = work_group_size * params.inputs[0].Batch().v;
-
-    runInfo.gws0 = Align(bboxesNum, work_group_size);
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
-
-    runInfo.lws0 = work_group_size;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
-
-    return runInfo;
+    return jit;
 }
 
-KernelsData DetectionOutputKernel::GetKernelsData(const Params& params, const optional_params& options) const {
+static inline int GetPartitionStep(int localWorkItemNum) {
+    int step_size = 0;
+    for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
+        step_size++;
+    }
+    return step_size;
+}
+
+static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+    const size_t optimal_values[] = {16, 8, 7, 6, 5, 4, 2, 1};
+    const size_t splitNum = gws[2];
+    const size_t globalClassNum = gws[1];
+    const auto rest_lws = info.maxWorkGroupSize / splitNum;
+    size_t lws_idx = 0;
+    while (rest_lws < optimal_values[lws_idx]) lws_idx++;
+    while (globalClassNum % optimal_values[lws_idx]) lws_idx++;
+
+    return optimal_values[lws_idx];
+}
+
+DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params& params, int idx) {
+    DetectionOutputKernelRef::DispatchData dispatchData;
+    const auto& input = params.inputs[0];
+    const auto& detectOutParams = params.detectOutParams;
+    auto num_classes = detectOutParams.num_classes;
+    auto num_prior_boxes = params.inputs[1].Feature().v / num_classes;
+
+    if (idx == 0) {
+        if (detectOutParams.decrease_label_id) {
+            dispatchData.gws = {input.Batch().v, num_prior_boxes, 1};
+            dispatchData.lws = {input.Batch().v, 1, 1};
+        } else {
+            if (detectOutParams.conf_padding_x || detectOutParams.conf_padding_y) {
+                dispatchData.gws = {num_classes, params.engineInfo.maxWorkGroupSize, input.Batch().v};
+            } else {
+                dispatchData.gws = {CeilDiv(num_classes, 4), params.engineInfo.maxWorkGroupSize, input.Batch().v};
+            }
+            dispatchData.lws = {1, dispatchData.gws[1], 1};
+        }
+    } else if (idx == 1) {
+        const size_t kSplitNum = 16;
+        if (detectOutParams.decrease_label_id) {
+            dispatchData.gws = {input.Batch().v, 1, kSplitNum};
+            dispatchData.lws = {1, 1, kSplitNum};
+        } else {
+            dispatchData.gws = {input.Batch().v, num_classes, kSplitNum};
+            const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
+            dispatchData.lws = {1, kClassSize, kSplitNum};
+        }
+    } else if (idx == 2) {
+        if (detectOutParams.decrease_label_id) {
+            dispatchData.gws = {input.Batch().v, 1, 1};
+            dispatchData.lws = {1, 1, 1};
+        } else {
+            dispatchData.gws = {input.Batch().v, num_classes, 1};
+            dispatchData.lws = {1, 1, 1};
+        }
+    } else if (idx == 3) {
+        if (detectOutParams.decrease_label_id) {
+            dispatchData.gws = {1, 1, 1};
+            dispatchData.lws = {1, 1, 1};
+        } else {
+            dispatchData.gws = {input.Batch().v, 1, 1};
+            dispatchData.lws = {input.Batch().v, 1, 1};
+        }
+    } else {
+        dispatchData.gws = {1, 1, 1};
+        dispatchData.lws = {1, 1, 1};
+    }
+
+    return dispatchData;
+}
+
+bool DetectionOutputKernelRef::Validate(const Params& p, const optional_params& o) const {
+    const detection_output_params& params = static_cast<const detection_output_params&>(p);
+
+    const auto input = params.inputs[0];
+    const auto batches = input.Batch().v;
+
+    const bool bSupportedBatch = batches <= params.engineInfo.maxWorkGroupSize;
+
+    if (!bSupportedBatch) {
+        return false;
+    }
+
+    return true;
+}
+
+void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
+    if (params.detectOutParams.decrease_label_id) {
+        if (idx == 0) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        } else if (idx == 1) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        } else if (idx == 2) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        } else if (idx == 3) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        }
+    } else {
+        if (idx == 0) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        } else if (idx == 1) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        } else if (idx == 2) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        } else if (idx == 3) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        }
+    }
+}
+
+KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::DETECTION_OUTPUT && options.GetType() == KernelType::DETECTION_OUTPUT);
 
-    KernelData kd = KernelData::Default<detection_output_params>(params);
+    if (!Validate(params, options))
+        return {};
+
+    constexpr size_t kKernelsNum = 4;
+    KernelData kd = KernelData::Default<detection_output_params>(params, kKernelsNum);
     const detection_output_params& detectOutParams = static_cast<const detection_output_params&>(params);
-    DispatchData runInfo = SetDefault(detectOutParams);
 
-    auto cldnnJit = GetJitConstants(detectOutParams);
-    auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, options);
-    auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
+    constexpr size_t prior_box_size = 4;
+    auto num_of_images = detectOutParams.inputs[0].Batch().v;
+    auto loc_feature_num = detectOutParams.inputs[0].Feature().v;
+    auto num_classes = detectOutParams.detectOutParams.num_classes;
+    auto num_loc_classes = (detectOutParams.detectOutParams.share_location) ? 1 : num_classes;
+    auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
 
-    auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entryPoint);
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    constexpr size_t buffer_bytes = 10;  // The size of struct Scores in detection_output_gpu_ref.cl
+    size_t buffer_stride = num_prior_boxes * buffer_bytes;
+    size_t buffer_size = num_of_images * num_classes * buffer_stride;
+    size_t num_scores_size = num_of_images * (num_classes + 2) * sizeof(int);
 
-    kd.estimatedTime = FORCE_PRIORITY_8;
+    kd.internalBufferSizes.push_back(buffer_size);
+    if (detectOutParams.detectOutParams.decrease_label_id) {
+        kd.internalBufferSizes.push_back(buffer_size);
+    }
+    kd.internalBufferSizes.push_back(num_scores_size);
+    kd.internalBufferDataType = GetUnitType(detectOutParams);
+
+    for (size_t i = 0; i < kKernelsNum; i++) {
+        DispatchData dispatchData = SetDefault(detectOutParams, i);
+        auto cldnnJit = GetJitConstants(detectOutParams);
+        auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, options, i);
+        cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
+        if (i == 0) {
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
+            } else {
+                if (detectOutParams.detectOutParams.conf_padding_x || detectOutParams.detectOutParams.conf_padding_y) {
+                    cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true")});
+                } else {
+                    cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true")});
+                }
+                size_t num_bit_mask = CeilDiv(num_prior_boxes, 8);
+                size_t num_score_per_item = RoundUp(CeilDiv(num_prior_boxes, 256), 8);
+                size_t num_score_block = CeilDiv(num_prior_boxes, num_score_per_item);
+                cldnnJit.AddConstants({MakeJitConstant("NUM_BIT_MASK", num_bit_mask),
+                                       MakeJitConstant("NUM_PRIORS_PER_ITEM", num_score_per_item),
+                                       MakeJitConstant("NUM_PRIOR_BLOCKS", num_score_block)});
+            }
+        } else if (i == 1) {
+             if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"),
+                                       MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
+                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
+             } else {
+                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
+                                       MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
+                                       MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
+                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
+             }
+         } else if (i == 2) {
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
+            } else {
+                if (detectOutParams.detectOutParams.top_k > 0) {
+                    cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true"));
+                } else {
+                    cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"));
+                }
+            }
+         } else {
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
+            } else {
+                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
+                                       MakeJitConstant("LOCAL_BATCHES_NUM", dispatchData.lws[0])});
+            }
+        }
+
+        auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
+        auto& kernel = kd.kernels[i];
+        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
+        kernel.params.workGroups.global = dispatchData.gws;
+        kernel.params.workGroups.local  = dispatchData.lws;
+        kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
+        SetKernelArguments(detectOutParams, kernel, i);
+    }
 
     return {kd};
+}
+
+KernelsPriority DetectionOutputKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

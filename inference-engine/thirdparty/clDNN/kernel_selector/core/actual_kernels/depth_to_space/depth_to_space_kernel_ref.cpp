@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "depth_to_space_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -40,8 +28,29 @@ ParamsKey DepthToSpaceKernelRef::GetSupportedKey() const {
     return k;
 }
 
+CommonDispatchData DepthToSpaceKernelRef::SetDefault(const depth_to_space_params& params) const {
+    CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z }};
+
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Z().v * params.output.Y().v * params.output.X().v };
+
+    // this kernel only supports bfyx and b_fs_yx_fsv16 layout.
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    return dispatchData;
+}
+
 KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority DepthToSpaceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 JitConstants DepthToSpaceKernelRef::GetJitConstants(const depth_to_space_params& params) const {

@@ -2,28 +2,27 @@
 
 The Deployment Manager of Intel® Distribution of OpenVINO™ creates a deployment package by assembling the model, IR files, your application, and associated dependencies into a runtime package for your target device.
 
-The Deployment Manager is a Python\* command-line tool that is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux\* and Windows\* release packages and available after installation in the `<INSTALL_DIR>/deployment_tools/tools/deployment_manager` directory.
+The Deployment Manager is a Python\* command-line tool that is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux\* and Windows\* release packages and available after installation in the `<INSTALL_DIR>/tools/deployment_manager` directory.
 
 ## Pre-Requisites
 
 * Intel® Distribution of OpenVINO™ toolkit for Linux\* (version 2019 R3 or higher) or Intel® Distribution of OpenVINO™ toolkit for Windows\* (version 2019 R4 or higher) installed on your development machine.
 * Python\* 3.6 or higher is required to run the Deployment Manager.
-* To run inference on a target device other than CPU, device drivers must be pre-installed. To install, see the following steps:
-   * **For Linux**:
-     * [Steps for Intel® Processor Graphics (GPU)](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps)
-     * [Steps for Intel® Neural Compute Stick 2](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps)
-     * [Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#install-VPU)
-   * **For Windows**:
-     * [Steps for Intel® Processor Graphics (GPU)](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_windows.html#Install-GPU)
-     * [Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_windows.html#hddl-myriad)
+* To run inference on a target device other than CPU, device drivers must be pre-installed:
+   * For **Linux**, see the following sections in the [installation instructions for Linux](../install_guides/installing-openvino-linux.md): 
+     * Steps for Intel® Processor Graphics (GPU) section 
+     * Steps for Intel® Neural Compute Stick 2 section
+     * Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+   * **For Windows**, see the following sections in the [installation instructions for Windows](../install_guides/installing-openvino-windows.md):
+     * Steps for Intel® Processor Graphics (GPU)
+     * Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
      
 
-> **IMPORTANT**: The operating system on the target host must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 16.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 16.04.     
+> **IMPORTANT**: The operating system on the target host must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.     
 
 ## Create Deployment Package Using Deployment Manager
 
-There are two ways to create a deployment package that includes inference-related components of the OpenVINO™ toolkit: <br>
-You can run the Deployment Manager tool in either Interactive or Standard CLI mode.
+There are two ways to create a deployment package that includes inference-related components of the OpenVINO™ toolkit: you can run the Deployment Manager tool in either interactive or standard CLI mode.
 
 ### Run Interactive Mode
 <details>
@@ -33,16 +32,16 @@ Interactive mode provides a user-friendly command-line interface that will guide
 
 1. To launch the Deployment Manager in the interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
    ```sh
-   <INSTALL_DIR>/deployment_tools/tools/deployment_manager
+   <INSTALL_DIR>/tools/deployment_manager
    ```
    ```sh
    ./deployment_manager.py
    ``` 
 2. The target device selection dialog is displayed:
-![Deployment Manager selection dialog](../img/selection_dialog.png "Deployment Manager selection dialog")
+![Deployment Manager selection dialog](../img/selection_dialog.png)
 Use the options provided on the screen to complete selection of the target devices and press **Enter** to proceed to the package generation dialog. if you want to interrupt the generation process and exit the program, type **q** and press **Enter**.
 3. Once you accept the selection, the package generation dialog is displayed:
-![Deployment Manager configuration dialog](../img/configuration_dialog.png "Deployment Manager configuration dialog")
+![Deployment Manager configuration dialog](../img/configuration_dialog.png)
    1. The target devices you have selected at the previous step appear on the screen. If you want to change the selection, type **b** and press **Enter** to go back to the previous screen. 
    
    2. Use the options provided to configure the generation process, or use the default settings.
@@ -71,7 +70,7 @@ The following options are available:
    ```
 *	`[--output_dir]` — (Optional) Path to the output directory. By default, it set to your home directory.
 
-*	`[--archive_name]` — (Optional) Deployment archive name without extension. By default, it set to `openvino_deployment_package`.
+*	`[--archive_name]` — (Optional) Deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
 
 *	`[--user_data]` — (Optional) Path to a directory with user data (IRs, models, datasets, etc.) required for inference. By default, it's set to `None`, which means that the user data are already present on the target host machine.
 
@@ -93,9 +92,9 @@ To deploy the Inference Engine components from the development machine to the ta
    ```
    * For Windows, use an archiver your prefer.  
    
-   The package is unpacked to the destination directory and the following subdirectories are created:
-      * `bin` — Snapshot of the `bin` directory from the OpenVINO installation directory.
-      * `deployment_tools/inference_engine` — Contains the Inference Engine binary files.
+   The package is unpacked to the destination directory and the following files and subdirectories are created:
+      * `setupvars.sh` — copy of `setupvars.sh`
+      * `runtime` — Contains the OpenVINO runtime binary files.
       * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
       * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
 3. For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script:
@@ -111,14 +110,14 @@ To deploy the Inference Engine components from the development machine to the ta
    cd <destination_dir>/openvino/
    ```
    ```sh
-   source ./bin/setupvars.sh
+   source ./setupvars.sh
    ```
    * For Windows:
    ```
    cd <destination_dir>\openvino\
    ```
    ```
-   .\bin\setupvars.bat
+   .\setupvars.bat
    ```
 
 Congratulations, you have finished the deployment of the Inference Engine components to the target host. 

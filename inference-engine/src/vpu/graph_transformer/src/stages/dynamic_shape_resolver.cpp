@@ -1,8 +1,10 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <vpu/utils/shape_io.hpp>
+
 #include <ngraph/node.hpp>
 
 namespace vpu {
@@ -51,7 +53,7 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
             "data usage, actual: {}", layer->name, layer->type, 0, data->name(), data->usage());
         const auto& origData = dataOutput->origData();
         VPU_THROW_UNLESS(origData != nullptr,
-            "Parsing layer {} of type {} failed: output data {} must have original IE data",
+            "Parsing layer {} of type {} failed: output data with index {} (of name {}) must have original IE data",
             layer->name, layer->type, 0, dataOutput->name());
 
         bindData(data, origData);
@@ -60,7 +62,7 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
     } else {
         VPU_THROW_UNLESS(data->usage() == DataUsage::Intermediate,
             "Parsing layer {} of type {} failed: if input with index {} (of name {}) has a producer, it must have Intermediate "
-            "data usage, actual: ", layer->name, layer->type, 0, data->name(), data->usage());
+            "data usage, actual: {}", layer->name, layer->type, 0, data->name(), data->usage());
 
         if (auto dataToShapeEdge = data->parentDataToShapeEdge()) {
             const auto& parent = dataToShapeEdge->parent();
@@ -84,14 +86,15 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
             "Parsing layer {} of type {} failed: if input with index {} (of name {}) has not a producer, it must have Input "
             "data usage, actual: {}", layer->name, layer->type, 1, shape->name(), shape->usage());
     } else {
-        VPU_THROW_UNLESS(shape->usage() == DataUsage::Intermediate,
+        VPU_THROW_UNLESS(shape->usage() == DataUsage::Intermediate || shape->usage() == DataUsage::Output,
             "Parsing layer {} of type {} failed: if input with index {} (of name {}) has a producer, it must have Intermediate "
-            "data usage, actual: {}", layer->name, layer->type, 1, shape->name(), shape->usage());
+            "or Output (if already has been associated with other output data) data usage, actual: {}",
+            layer->name, layer->type, 1, shape->name(), shape->usage());
     }
 
     auto shapeDataObject = shape;
-    if (dataOutput->usage() == DataUsage::Output) {
-        const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
+    if (dataOutput->usage() == DataUsage::Output && shapeDataObject->usage() != DataUsage::Output) {
+        const auto& shapeOutput = model->addOutputData(createIOShapeName(dataOutput->name()), shape->desc());
 
         bindData(shapeOutput, shape->origData());
         for (const auto& shapeConsumerEdge : shape->consumerEdges()) {

@@ -1,14 +1,14 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
-#include "low_precision_transformations/output_layers_handling_in_transformations.hpp"
+#include "low_precision_transformations/output_layers_handling_in_transformations_for_concat.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
+using namespace ngraph::pass::low_precision;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -19,11 +19,11 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParams()
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, OutputLayersHandlingInTransformations,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, OutputLayersHandlingInTransformationsForConcat,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues)),
-    OutputLayersHandlingInTransformations::getTestCaseName);
+    OutputLayersHandlingInTransformationsForConcat::getTestCaseName);
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/file_system.hpp>
 #include <vpu/model/data_contents/mtcnn_blob_content.hpp>
+
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 #include <vector>
 #include <fstream>
@@ -106,7 +108,7 @@ std::pair<int, int> getResolution(const std::string& str) {
 ie::CNNNetwork loadSubNetwork(
         const std::string& fileName,
         const std::pair<int, int>& imgSize,
-        const ie::ICore* core,
+        const std::shared_ptr<ie::ICore> core,
         int* zdir_batchsize = nullptr) {
     //
     // Load network
@@ -141,7 +143,7 @@ ie::CNNNetwork loadSubNetwork(
     ie::SizeVector inputShape;
     std::tie(inputName, inputShape) = *inputShapes.begin();
     if (zdir_batchsize != nullptr)
-        *zdir_batchsize = inputShape[1]/3;
+        *zdir_batchsize = static_cast<int>(inputShape[1]/3);
     inputShape[0] = 1;                // set batch size to the first input dimension
     inputShape[2] = imgSize.second;   // changes input height to the image one
     inputShape[3] = imgSize.first;    // changes input width to the image one
@@ -162,7 +164,7 @@ void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, cons
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    if (!env.config.hwOptimization) {
+    if (!env.config.get<HwAccelerationOption>()) {
         VPU_THROW_EXCEPTION << "MTCNN layer supports Myriad X with NCE only";
     }
 

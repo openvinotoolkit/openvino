@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,6 +88,7 @@ void PassImpl::run(const Model& model) {
     }
 }
 }  // namespace
+
 
 Pass::Ptr PassManager::replaceWithReduceMean() {
     return std::make_shared<PassImpl>(_stageBuilder);

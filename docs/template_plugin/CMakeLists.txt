@@ -1,14 +1,9 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # [cmake:main]
-if (APPLE)
-    # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-    cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-else()
-    cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
-endif()
+cmake_minimum_required(VERSION 3.13)
 
 project(InferenceEngineTemplatePlugin)
 
@@ -16,19 +11,22 @@ set(IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR ${InferenceEngineTemplatePlugin_SOURCE_DI
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wall)
+endif()
+
 add_subdirectory(src)
 
 if(ENABLE_TESTS)
-	include(CTest)
-	enable_testing()
+    include(CTest)
+    enable_testing()
 
-	if(ENABLE_FUNCTIONAL_TESTS)
-	    add_subdirectory(tests/functional)
-	endif()
+    if(ENABLE_FUNCTIONAL_TESTS)
+        add_subdirectory(tests/functional)
+    endif()
 endif()
-# [cmake:main]
 
 # install
 
-# ATTENTION: uncomment to install component
-# ie_cpack(template)
+ie_cpack(template)
+# [cmake:main]

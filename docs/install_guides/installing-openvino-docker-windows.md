@@ -2,7 +2,7 @@
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The Intel® Distribution of OpenVINO™ toolkit includes the Intel® Deep Learning Deployment Toolkit.  
 
-This guide provides the steps for creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Windows* and further installation.
+This guide provides device specifics for a Docker* image creation with Intel® Distribution of OpenVINO™ toolkit for Windows* and its further usage.
 
 ## System Requirements
 
@@ -13,144 +13,143 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 **Host Operating Systems**
 
 - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or later) editions
-- Windows Server* 2016 or higher 
+- Windows Server* 2016 or higher
 
-## Build a Docker* Image for CPU
+## Prebuilt Images
 
-To build a Docker image, create a `Dockerfile` that contains defined variables and commands required to create an OpenVINO toolkit installation image. 
+Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino).
 
-Create your `Dockerfile` using the following example as a template:
+## Build a Docker* Image
 
-<details>
-  <summary>Click to expand/collapse</summary>
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci).
+The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can find device specific steps to configure an Intel® Distribution of OpenVINO™ toolkit Dockerfile below.
 
-~~~
-# escape= `
-FROM mcr.microsoft.com/windows/servercore:ltsc2019
+## Configure and Run the Docker* Image for CPU
 
-# Restore the default Windows shell for correct batch processing.
-SHELL ["cmd", "/S", "/C"]
+## Install Additional Dependencies
 
-USER ContainerAdministrator
-
-# Setup Redistributable Libraries for Intel(R) C++ Compiler for Windows*
-
-RUN powershell.exe -Command `
-    Invoke-WebRequest -URI https://software.intel.com/sites/default/files/managed/59/aa/ww_icl_redist_msi_2018.3.210.zip -Proxy %HTTPS_PROXY%  -OutFile "%TMP%\ww_icl_redist_msi_2018.3.210.zip" ; `
-    Expand-Archive -Path "%TMP%\ww_icl_redist_msi_2018.3.210.zip" -DestinationPath "%TMP%\ww_icl_redist_msi_2018.3.210" -Force ; `
-    Remove-Item "%TMP%\ww_icl_redist_msi_2018.3.210.zip" -Force
-
-RUN %TMP%\ww_icl_redist_msi_2018.3.210\ww_icl_redist_intel64_2018.3.210.msi /quiet /passive /log "%TMP%\redist.log"
-
-# setup Python
-ARG PYTHON_VER=python3.7
-
-RUN powershell.exe -Command `
-  Invoke-WebRequest -URI https://www.python.org/ftp/python/3.7.6/python-3.7.6-amd64.exe -Proxy %HTTPS_PROXY% -OutFile %TMP%\\python-3.7.exe ; `
-  Start-Process %TMP%\\python-3.7.exe -ArgumentList '/passive InstallAllUsers=1 PrependPath=1 TargetDir=c:\\Python37' -Wait ; `
-  Remove-Item %TMP%\\python-3.7.exe -Force
-
-RUN python -m pip install --upgrade pip
-RUN python -m pip install cmake
-
-# download package from external URL
-ARG package_url=http://registrationcenter-download.intel.com/akdlm/irc_nas/16613/w_openvino_toolkit_p_0000.0.000.exe
-ARG TEMP_DIR=/temp
-
-WORKDIR ${TEMP_DIR}
-ADD ${package_url} ${TEMP_DIR}
-
-# install product by installation script
-ARG build_id=0000.0.000
-ENV INTEL_OPENVINO_DIR C:\intel
-
-RUN powershell.exe -Command `
-    Start-Process "./*.exe" -ArgumentList '--s --a install --eula=accept --installdir=%INTEL_OPENVINO_DIR% --output=%TMP%\openvino_install_out.log --components=OPENVINO_COMMON,INFERENCE_ENGINE,INFERENCE_ENGINE_SDK,INFERENCE_ENGINE_SAMPLES,OMZ_TOOLS,POT,INFERENCE_ENGINE_CPU,INFERENCE_ENGINE_GPU,MODEL_OPTIMIZER,OMZ_DEV,OPENCV_PYTHON,OPENCV_RUNTIME,OPENCV,DOCS,SETUPVARS,VC_REDIST_2017_X64,icl_redist' -Wait
-
-ENV INTEL_OPENVINO_DIR C:\intel\openvino_${build_id}
-
-# Post-installation cleanup
-RUN rmdir /S /Q "%USERPROFILE%\Downloads\Intel"
-
-# dev package
-WORKDIR ${INTEL_OPENVINO_DIR}
-RUN python -m pip install --no-cache-dir setuptools && `
-    python -m pip install --no-cache-dir -r "%INTEL_OPENVINO_DIR%\python\%PYTHON_VER%\requirements.txt" && `
-    python -m pip install --no-cache-dir -r "%INTEL_OPENVINO_DIR%\python\%PYTHON_VER%\openvino\tools\benchmark\requirements.txt" && `
-    python -m pip install --no-cache-dir torch==1.4.0+cpu torchvision==0.5.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-
-WORKDIR ${TEMP_DIR}
-COPY scripts\install_requirements.bat install_requirements.bat
-RUN install_requirements.bat %INTEL_OPENVINO_DIR%
-
-
-WORKDIR ${INTEL_OPENVINO_DIR}\deployment_tools\open_model_zoo\tools\accuracy_checker
-RUN %INTEL_OPENVINO_DIR%\bin\setupvars.bat && `
-    python -m pip install --no-cache-dir -r "%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker\requirements.in" && `
-    python "%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker\setup.py" install
-
-WORKDIR ${INTEL_OPENVINO_DIR}\deployment_tools\tools\post_training_optimization_toolkit
-RUN python -m pip install --no-cache-dir -r "%INTEL_OPENVINO_DIR%\deployment_tools\tools\post_training_optimization_toolkit\requirements.txt" && `
-    python "%INTEL_OPENVINO_DIR%\deployment_tools\tools\post_training_optimization_toolkit\setup.py" install
-
-WORKDIR ${INTEL_OPENVINO_DIR}
-
-# Post-installation cleanup
-RUN powershell Remove-Item -Force -Recurse "%TEMP%\*" && `
-    powershell Remove-Item -Force -Recurse "%TEMP_DIR%" && `
-    rmdir /S /Q "%ProgramData%\Package Cache"
-
-USER ContainerUser
-
-CMD ["cmd.exe"]
-~~~
-
-</details>
-
-> **NOTE**: Replace direct link to the Intel® Distribution of OpenVINO™ toolkit package to the latest version in the `package_url` variable and modify install package name in the subsequent commands. You can copy the link from the [Intel® Distribution of OpenVINO™ toolkit download page](https://software.seek.intel.com/openvino-toolkit) after registration. Right click the **Offline Installer** button on the download page for Linux in your browser and press **Copy link address**.
-> **NOTE**: Replace build number of the package in the `build_id` variable according to the name of the downloaded Intel® Distribution of OpenVINO™ toolkit package. For example, for the installation file `w_openvino_toolkit_p_2020.3.333.exe`, the `build_id` variable should have the value `2020.3.333`.
-
-To build a Docker* image for CPU, run the following command:
-~~~
-docker build . -t <image_name> `
---build-arg HTTP_PROXY=<http://your_proxy_server.com:port> `
---build-arg HTTPS_PROXY=<https://your_proxy_server.com:port>
-~~~
-
-## Install additional dependencies
 ### Install CMake
-To add CMake to the image, add the following commands to the `Dockerfile` example above:
-~~~
+
+To add CMake to the image, add the following commands to the Dockerfile:
+
+```bat
 RUN powershell.exe -Command `
-    Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -Proxy %HTTPS_PROXY% -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
+    Invoke-WebRequest -URI https://cmake.org/files/v3.14/cmake-3.14.7-win64-x64.msi -OutFile %TMP%\\cmake-3.14.7-win64-x64.msi ; `
     Start-Process %TMP%\\cmake-3.14.7-win64-x64.msi -ArgumentList '/quiet /norestart' -Wait ; `
     Remove-Item %TMP%\\cmake-3.14.7-win64-x64.msi -Force
 
 RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
-~~~
+```
+
+In case of proxy issues, please add the `ARG HTTPS_PROXY` and `-Proxy %%HTTPS_PROXY%` settings to the `powershell.exe` command to the Dockerfile. Then build a Docker image:
+
+```bat
+docker build . -t <image_name> `
+--build-arg HTTPS_PROXY=<https://your_proxy_server:port>
+```
 
 ### Install Microsoft Visual Studio* Build Tools
-You can add Microsoft Visual Studio Build Tools* to Windows* OS Docker image. Available options are to use offline installer for Build Tools 
-(follow [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or 
-to use online installer for Build Tools (follow [Instruction for the online installer](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019).
-Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license. 
+
+You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
+Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.
 Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
+
+To add MSBuild 2019 to the image, add the following commands to the Dockerfile:
+
+```bat
+RUN powershell.exe -Command Invoke-WebRequest -URI https://aka.ms/vs/16/release/vs_buildtools.exe -OutFile %TMP%\\vs_buildtools.exe
+
+RUN %TMP%\\vs_buildtools.exe --quiet --norestart --wait --nocache `
+     --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools" `
+     --add Microsoft.VisualStudio.Workload.MSBuildTools `
+     --add Microsoft.VisualStudio.Workload.UniversalBuildTools `
+     --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended `
+     --remove Microsoft.VisualStudio.Component.Windows10SDK.10240 `
+     --remove Microsoft.VisualStudio.Component.Windows10SDK.10586 `
+     --remove Microsoft.VisualStudio.Component.Windows10SDK.14393 `
+     --remove Microsoft.VisualStudio.Component.Windows81SDK || IF "%ERRORLEVEL%"=="3010" EXIT 0 && powershell set-executionpolicy remotesigned
+```
+
+In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
 
 ## Run the Docker* Image for CPU
 
-To install the OpenVINO toolkit from the prepared Docker image, run the image with the following command:
-~~~
-docker run -it <image_name>
-~~~
+To start the interactive session, run the following command allows inference on the CPU:
 
-## Examples
-* [winserver2019_runtime dockerfile](https://docs.openvinotoolkit.org/downloads/winserver2019_runtime.dockerfile) - Can be used to build OpenVINO™ runtime image containing minimal dependencies needed to use OpenVINO™ in production environment.
-* [winserver2019_dev dockerfile](https://docs.openvinotoolkit.org/downloads/winserver2019_dev.dockerfile) - Can be used to build OpenVINO™ developer image containing full OpenVINO™ package to use in development environment.
+```bat
+docker run -it --rm <image_name>
+```
+
+If you want to try some demos then run image with the root privileges (some additional 3-rd party dependencies will be installed):
+
+```bat
+docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd samples\scripts && run_sample_squeezenet.bat -d CPU"
+```
+
+## Configure and Run the Docker* Image for GPU
+
+GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO toolkit and Docker* requirements:
+
+- [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration):
+  - The container host must be running Windows Server 2019 or Windows 10 of version 1809 or higher.
+  - The container base image must be `mcr.microsoft.com/windows:1809` or higher. Windows Server Core and Nano Server container images are not currently supported.
+  - The container host must be running Docker Engine 19.03 or higher.
+  - The container host must have GPU running display drivers of version WDDM 2.5 or higher.
+- [OpenVINO™ GPU requirement](https://docs.openvinotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_windows.html#Install-GPU):
+  - Intel Graphics Driver for Windows of version 15.65 or higher.
+- [Docker isolation mode requirement](https://docs.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container):
+  - Windows host and container version tags must match.
+  - [Windows host and container isolation process support](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility)
+
+## Build a Docker* Image for Your Host System
+
+1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
+2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
+3. Find the appropriate Windows container base image on [DockerHub*](https://hub.docker.com/_/microsoft-windows) and set up your host/container version in the `FROM` Dockerfile instruction.  
+   For example, in [openvino_c_dev_2021.dockerfile](https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/winserver2019/openvino_c_dev_2021.dockerfile), change:  
+   ```bat
+   FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS ov_base
+   ```
+   to:
+   ```bat
+   FROM mcr.microsoft.com/windows:20H2
+   ```
+4. Build the Docker image
+   ```bat
+   docker build --build-arg package_url=<OpenVINO pkg> -f <Dockerfile> -t <image_name> .
+   ```
+5. Copy `OpenCL.dll` from your `C:\Windows\System32` host folder to any `temp` directory:
+   ```bat
+   mkdir C:\tmp
+   copy C:\Windows\System32\OpenCL.dll C:\tmp
+   ```
+
+## Run the Docker* Image for GPU
+
+1. To try inference on a GPU, run the image with the following command:
+   ```bat
+   docker run -it --rm -u ContainerAdministrator --isolation process --device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599 -v C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409:C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409 -v C:\tmp:C:\tmp <image_name>
+   ```
+   where
+   - `--device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599` is a reserved interface class GUID for a GPU device.
+   - `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409` is the path to OpenCL driver home directory. To find it on your PC, run the `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_*` regular expression.
+   - `C:\tmp` is the folder with the copy of `OpenCL.dll` from your `C:\Windows\System32` host folder.
+2. Copy `OpenCL.dll` to the `C:\Windows\System32` folder inside the container and set appropriate registry entry. Now you can run inference on a GPU device:
+   ```bat
+   copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
+   ```
+3. For example, run the `run_sample_squeezenet` demo with the command below:
+   ```bat
+   cd samples\scripts && run_sample_squeezenet.bat -d GPU
+   ```
+   > **NOTE**: Addittional third-party dependencies will be installed.
+
+## Troubleshooting
+
+If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Run_Locally) topic.
 
 ## Additional Resources
 
-* Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)  
+- [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 
-* OpenVINO™ toolkit documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-
-* Intel® Distribution of OpenVINO™ toolkit Docker Hub* home page: [https://hub.docker.com/u/openvino](https://hub.docker.com/u/openvino)
+- Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNSplitNode : public MKLDNNNode {
 public:
-    MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNSplitNode() override = default;
+    MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
@@ -22,16 +22,47 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    bool isOptimized();
+    bool isOptimized() const;
     void initOptimalPrimitiveDescriptor() override;
 
     void setDynamicBatchLim(int lim) override;
+    bool isExecutable() const override {
+        return !isOptimized();
+    }
+
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
 private:
-    void optimizedImpl(size_t MB);
+    struct SplitExecutor {
+        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*> &dstMemPtrs,
+                          const Dim origBatch, const Dim perInferBatch) = 0;
+        virtual ~SplitExecutor() = default;
+    };
+    std::shared_ptr<SplitExecutor> execPtr = nullptr;
 
-    bool canUseOptimizedImpl = true;
+    struct SplitOptimizedExecutor : public SplitExecutor {
+        public:
+            SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs, const size_t axis);
+            void exec(const uint8_t* srcData, const std::vector<uint8_t*> &dstMemPtrs,
+                      const Dim origBatch, const Dim perInferBatch) override;
+
+        private:
+            std::vector<size_t> dataSize;
+            std::vector<size_t> srcDataOffsets;
+            size_t srcDataStride;
+            size_t countStrides;
+    };
+
+    void optimizedNspc2Ncsp(size_t MB);
+
+    bool canUseOptimizedNspc2Ncsp = false;
+
     size_t axis = 1;
+    std::vector<uint8_t*> dstMemPtrs;
+
+    size_t INPUTS_NUM = 2;
 };
 
 }  // namespace MKLDNNPlugin

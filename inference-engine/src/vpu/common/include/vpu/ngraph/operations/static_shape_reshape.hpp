@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,13 +15,15 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeReshape : public ngraph::opset3::Reshape {
 public:
+    OPENVINO_OP("StaticShapeReshape", "VPUOpset");
+
     StaticShapeReshape(const Output<Node>& arg, const Output<Node>& pattern, bool special_zero);
     explicit StaticShapeReshape(const std::shared_ptr<ngraph::opset3::Reshape>& reshape);
 
-    static constexpr NodeTypeInfo type_info{"StaticShapeReshape", 0};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
-
     void validate_and_infer_types() override;
+
+protected:
+    ngraph::PartialShape m_evaluatedOutputShape;
 };
 
 }  // namespace op

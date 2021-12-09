@@ -1,16 +1,7 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+
 #include <vector>
 
 #include "fully_connected_kernel_yxfb_ref.h"
@@ -34,8 +25,8 @@ ParamsKey FullyConnected_yxfb_ref::GetSupportedKey() const {
     return k;
 }
 
-JitConstants FullyConnected_yxfb_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants FullyConnected_yxfb_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
         FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "result", input_dt, 1 };
@@ -51,7 +42,6 @@ KernelsData FullyConnected_yxfb_ref::GetKernelsData(const Params& params, const 
                                                     options,
                                                     DataLayout::yxfb,
                                                     WeightsLayout::oiyx,
-                                                    DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -60,4 +50,7 @@ KernelsData FullyConnected_yxfb_ref::GetKernelsData(const Params& params, const 
     return res;
 }
 
+KernelsPriority FullyConnected_yxfb_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

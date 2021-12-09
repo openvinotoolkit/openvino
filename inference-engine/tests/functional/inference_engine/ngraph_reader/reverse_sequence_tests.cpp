@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadReverseSequenceNetwork) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" version="opset1">
-            <data offset="0" size="24"/>
+            <data element_type="i64" offset="0" shape="3" size="24"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>3</dim>

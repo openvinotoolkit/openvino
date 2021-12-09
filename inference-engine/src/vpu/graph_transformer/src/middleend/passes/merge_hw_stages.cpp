@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/middleend/hw/utility.hpp>
 #include <vpu/middleend/sw/utility.hpp>
+#include <vpu/configuration/options/hw_pool_conv_merge.hpp>
 
 namespace vpu {
 
@@ -157,7 +158,7 @@ void PassImpl::run(const Model& model) {
                         stage->attrs().set<float>("reluScale", 1.0f);
                     } else  {
                         stage->attrs().set<uint32_t>("a0", 1);
-                        stage->attrs().set<uint32_t>("a1", 1.0f / negativeSlope);
+                        stage->attrs().set<uint32_t>("a1", static_cast<uint32_t>(1.0f / negativeSlope));
                         stage->attrs().set<float>("reluScale", negativeSlope);
                     }
                 }
@@ -170,7 +171,7 @@ void PassImpl::run(const Model& model) {
         // Try to merge next Pooling layer
         //
 
-        if (env.config.mergeHwPoolToConv) {
+        if (env.config.get<HwPoolConvMergeOption>()) {
             if (stage->type() == StageType::StubConv) {
                 if (auto nextPoolStage = getNextPoolStage(stage, output)) {
                     output = nextPoolStage->output(0);

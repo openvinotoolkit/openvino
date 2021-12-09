@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace vpu {
 
 class ConvIm2ColWeightsContent final : public CalculatedDataContent {
 public:
-    explicit ConvIm2ColWeightsContent(const DataContent::Ptr& origContent, DataDesc desc);
+    explicit ConvIm2ColWeightsContent(const DataContent::Ptr& origContent, const DataDesc& desc);
 
     size_t byteSize() const override;
 
@@ -32,7 +32,7 @@ private:
 
 class Conv3x3WeightsContent final : public CalculatedDataContent {
 public:
-    explicit Conv3x3WeightsContent(const DataContent::Ptr& origContent, DataDesc desc);
+    explicit Conv3x3WeightsContent(const DataContent::Ptr& origContent, const DataDesc& desc);
 
     size_t byteSize() const override;
 
@@ -50,7 +50,7 @@ private:
 
 class ConvCHWWeightsContent final : public CalculatedDataContent {
 public:
-    explicit ConvCHWWeightsContent(const DataContent::Ptr& origContent, DataDesc desc);
+    explicit ConvCHWWeightsContent(const DataContent::Ptr& origContent, const DataDesc& desc);
 
     size_t byteSize() const override;
 

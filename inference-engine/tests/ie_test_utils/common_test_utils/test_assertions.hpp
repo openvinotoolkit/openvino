@@ -1,29 +1,31 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#pragma once
 
 #include <gtest/gtest.h>
 
 #include <string>
 
 #include <ie_data.h>
+#include <ie_input_info.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_preprocess.hpp>
-#include <ie_icnn_network.hpp>
 
-namespace {
-
-bool strContains(const std::string & str, const std::string & substr) {
+inline bool strContains(const std::string & str, const std::string & substr) {
     return str.find(substr) != std::string::npos;
 }
 
-bool strDoesnotContain(const std::string & str, const std::string & substr) {
-    (void)strDoesnotContain;  // to overcome unused warning
+inline bool strDoesnotContain(const std::string & str, const std::string & substr) {
     return !strContains(str, substr);
 }
-
-}  // namespace
 
 #define ASSERT_STR_CONTAINS(str, substr) \
     ASSERT_PRED2(&strContains, str, substr)
@@ -57,6 +59,23 @@ bool strDoesnotContain(const std::string & str, const std::string & substr) {
 
 #define ASSERT_STRINGEQ(lhs, rhs) \
     compare_cpp_strings(lhs, rhs)
+
+#define OV_ASSERT_NO_THROW(statement) \
+  OV_ASSERT_NO_THROW_(statement, GTEST_FATAL_FAILURE_)
+
+#define OV_ASSERT_NO_THROW_(statement, fail)    \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
+  if (::testing::internal::AlwaysTrue()) { \
+    try { \
+      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement); \
+    }  catch (const std::exception& e) { \
+      fail("Expected: " #statement " doesn't throw an exception.\n" \
+           "  Actual: it throws.") << e.what(); \
+    }  catch (...) { \
+      fail("Expected: " #statement " doesn't throw an exception.\n" \
+           "  Actual: it throws."); \
+    } \
+  }
 
 inline void compare_blob(InferenceEngine::Blob::Ptr lhs, InferenceEngine::Blob::Ptr rhs) {
     ASSERT_EQ(lhs.get(), rhs.get());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,6 @@ std::string ClampActivationModel();
 std::string IdentityActivationModel();
 std::string maxpoolAfterRelu();
 std::string TFLeakyReluModel();
-std::string TFSoftsignUnfoldedModel();
 std::string cropWithoutOffsetModel();
 std::string cropWithAlignedOffsetModel();
 std::string cropWithOffsetModel();

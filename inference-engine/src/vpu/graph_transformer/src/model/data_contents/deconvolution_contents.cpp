@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,8 @@ void DeconvolutionToConvolutionContent::fillTempBuf(void* tempBuf) const {
 // DepthDeconvolutionCHWWeightsContent
 //
 
+namespace {
+
 void depthDeconvolutionRelayoutCHW(
         const fp16_t* src, int src_size,
         fp16_t* dst, int dst_size,
@@ -55,6 +57,8 @@ void depthDeconvolutionRelayoutCHW(
     });
 }
 
+} // namespace
+
 DepthDeconvolutionCHWWeightsContent::DepthDeconvolutionCHWWeightsContent(
         const DataContent::Ptr& origContent,
         int KX, int KY, int channels) :
@@ -64,8 +68,8 @@ DepthDeconvolutionCHWWeightsContent::DepthDeconvolutionCHWWeightsContent(
 void DepthDeconvolutionCHWWeightsContent::fillTempBuf(void* tempBuf) const {
     VPU_PROFILE(DepthDeconvolutionCHWWeightsContent);
     depthDeconvolutionRelayoutCHW(
-            _origContent->get<fp16_t>(), _origContent->byteSize() / sizeof(fp16_t),
-            static_cast<fp16_t*>(tempBuf), _origContent->byteSize() / sizeof(fp16_t),
+            _origContent->get<fp16_t>(), static_cast<int>(_origContent->byteSize() / sizeof(fp16_t)),
+            static_cast<fp16_t*>(tempBuf), static_cast<int>(_origContent->byteSize() / sizeof(fp16_t)),
             _KX, _KY, _channels);
 }
 
@@ -76,6 +80,8 @@ size_t DepthDeconvolutionCHWWeightsContent::byteSize() const {
 //
 // DepthDeconvolutionHWCWeightsContent
 //
+
+namespace {
 
 void depthDeconvolutionRelayoutHWC(
         const fp16_t* src, int src_size,
@@ -95,6 +101,8 @@ void depthDeconvolutionRelayoutHWC(
     });
 }
 
+} // namespace
+
 DepthDeconvolutionHWCWeightsContent::DepthDeconvolutionHWCWeightsContent(
         const DataContent::Ptr& origContent,
         int KX, int KY, int channels) :
@@ -105,8 +113,8 @@ DepthDeconvolutionHWCWeightsContent::DepthDeconvolutionHWCWeightsContent(
 void DepthDeconvolutionHWCWeightsContent::fillTempBuf(void* tempBuf) const {
     VPU_PROFILE(DepthDeconvolutionHWCWeightsContent);
     depthDeconvolutionRelayoutHWC(
-            _origContent->get<fp16_t>(), _origContent->byteSize() / sizeof(fp16_t),
-            static_cast<fp16_t*>(tempBuf), _origContent->byteSize() / sizeof(fp16_t),
+            _origContent->get<fp16_t>(), static_cast<int>(_origContent->byteSize() / sizeof(fp16_t)),
+            static_cast<fp16_t*>(tempBuf), static_cast<int>(_origContent->byteSize() / sizeof(fp16_t)),
             _KX, _KY, _channels);
 }
 
@@ -117,6 +125,8 @@ size_t DepthDeconvolutionHWCWeightsContent::byteSize() const {
 //
 // DeconvolutionWeightsContent
 //
+
+namespace {
 
 void deconvolutionRelayout(
         const fp16_t* src, int src_size,
@@ -142,9 +152,11 @@ void deconvolutionRelayout(
     });
 }
 
+} // namespace
+
 DeconvolutionWeightsContent::DeconvolutionWeightsContent(
         const DataContent::Ptr& origContent,
-        DataDesc desc,
+        const DataDesc& desc,
         int KX, int KY,
         int IC, int OC) :
         _origContent(origContent), _desc(desc),

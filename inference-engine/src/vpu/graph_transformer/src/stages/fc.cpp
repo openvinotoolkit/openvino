@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,9 @@
 
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
+
+#include <vpu/utils/hw_disabled.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 namespace vpu {
 
@@ -37,13 +40,13 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
     // Check if HW is applicable
     //
 
-    auto tryHW = env.config.hwOptimization;
+    auto tryHW = env.config.get<HwAccelerationOption>();
 
     if (output->desc().dim(Dim::W, 1) != 1 || output->desc().dim(Dim::H, 1) != 1) {
         tryHW = false;
     }
 
-    if (env.config.hwDisabled(layer->name)) {
+    if (HwDisabled(env.config, layer->name)) {
         tryHW = false;
     }
 
@@ -59,7 +62,7 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
     std::tie(weights, biases) = getWeightsAndBiases(model, layer);
 
     IE_ASSERT(weights->desc().totalDimSize() >=
-              input->desc().totalDimSize() / input->desc().dim(Dim::N, 1) * layer->_out_num);
+              input->desc().totalDimSize() / input->desc().dim(Dim::N, 1) * static_cast<int>(layer->_out_num));
     weights = model->duplicateData(
         weights,
         "@fc",

@@ -1,0 +1,288 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
+resources:
+  repositories:
+  - repository: openvino_contrib
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/openvino_contrib
+
+  - repository: testdata
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/testdata
+
+jobs:
+- job: Win
+  strategy:
+    matrix:
+      Dynamic:
+        CMAKE_BUILD_SHARED_LIBS: 'ON'
+      Static:
+        CMAKE_BUILD_SHARED_LIBS: 'OFF'
+    maxParallel: 2
+
+  # About 150% of total time
+  timeoutInMinutes: 120
+
+  pool:
+    name: WIN_VMSS_VENV_F8S_WU2
+
+  variables:
+    system.debug: true
+    VSTS_HTTP_RETRY: 5
+    VSTS_HTTP_TIMEOUT: 200
+    BUILD_TYPE: Release
+    REPO_DIR: $(Build.Repository.LocalPath)
+    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)\..\openvino_contrib
+    MODELS_PATH: $(REPO_DIR)\..\testdata
+    WORK_DIR: $(Pipeline.Workspace)\_w
+    BUILD_DIR: D:\build
+    BUILD_SAMPLES_DIR: D:\build_samples
+    BUILD_SAMPLES_TESTS_DIR: D:\build_samples_tests
+    MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
+    MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
+    INSTALL_DIR: $(WORK_DIR)\install_pkg
+    INSTALL_TEST_DIR: $(INSTALL_DIR)\tests
+    SETUPVARS: $(INSTALL_DIR)\setupvars.bat
+    IB_DIR: C:\Program Files (x86)\IncrediBuild
+    IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
+    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.7.6\x64
+    CMAKE_VERSION: 3.21.0
+    CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
+    OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
+
+  steps:
+  - script: |
+      powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
+      where python3
+      python3 --version
+      where python
+      python --version
+      where java
+      java -version
+      wmic computersystem get TotalPhysicalMemory
+      wmic cpu list
+      wmic logicaldisk get description,name
+      wmic VOLUME list
+      set
+    displayName: 'System info'
+
+  - script: |
+      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
+      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+      rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
+      rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'Make dir'
+
+  - script: |
+      certutil -urlcache -split -f https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
+      call install_ib_console.bat
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install IncrediBuild'
+
+  - checkout: self
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino
+
+  - checkout: openvino_contrib
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino_contrib
+
+  - checkout: testdata
+    clean: true
+    lfs: true
+    path: testdata
+
+  - script: |
+      python -m pip install --upgrade pip
+      rem For running Python API tests
+      python -m pip install -r $(REPO_DIR)\inference-engine\ie_bridges\python\src\requirements-dev.txt
+      rem For running PaddlePaddle frontend unit tests
+      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddlepaddle\requirements_dev.txt
+      rem For running ONNX frontend unit tests
+      python -m pip install -r $(REPO_DIR)\src\core\tests\requirements_test_onnx.txt
+      rem For MO unit tests
+      python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
+      python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
+      rem Speed up build
+      certutil -urlcache -split -f https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip cmake-$(CMAKE_VERSION)-windows-x86_64.zip
+      powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
+      certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip ninja-win.zip
+      powershell -command "Expand-Archive -Force ninja-win.zip"
+      git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install dependencies'
+
+  - powershell: |
+      Write-Host "##vso[task.setvariable variable=CMAKE_TOOLCHAIN_FILE]$(OV_CMAKE_TOOLCHAIN_FILE)"
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    displayName: "Set cmake toolchain"
+
+  - script: |
+      set PATH=$(WORK_DIR)\ninja-win;%PATH%
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" -DENABLE_ONEDNN_FOR_GPU=OFF -DENABLE_INTEL_GNA=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_INTEL_GPU=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_GAPI_PREPROCESSING=$(CMAKE_BUILD_SHARED_LIBS) -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_REQUIREMENTS_INSTALL=OFF -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.7.6\x64\libs\python37.lib" -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'CMake'
+
+  - script: dir $(REPO_DIR)\temp\ /s
+    displayName: 'List temp SDKs'
+
+  - script: |
+      set PATH=$(WORK_DIR)\ninja-win;%PATH%
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(CMAKE_CMD) --build . --config Release"
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build Win - IB'
+
+  - script: dir $(REPO_DIR)\bin\ /s
+    displayName: 'List bin files'
+
+  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install'
+
+  - script: dir $(INSTALL_DIR) /s
+    displayName: 'List install files'
+
+  - script: call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)"  $(REPO_DIR)\tests\samples_tests
+    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'CMake'
+
+  - script: $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'Install Samples Tests'
+
+  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(REPO_DIR)\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install tests'
+
+  - script: dir $(INSTALL_DIR) /s
+    displayName: 'List install files'
+
+  - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build cpp samples'
+    continueOnError: false
+
+  - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build c samples'
+    continueOnError: false
+
+  - script: |
+      python -m pip install -r $(INSTALL_DIR)\tests\smoke_tests\requirements.txt
+    workingDirectory: $(INSTALL_DIR)
+    displayName: 'Install dependencies for samples smoke tests'
+    continueOnError: false
+
+  - script: |
+      call $(SETUPVARS) && set IE_APP_PATH=$(INSTALL_DIR)\samples_bin
+      set IE_APP_PYTHON_PATH=$(INSTALL_DIR)\samples\python\
+      set SHARE=$(INSTALL_DIR)\tests\smoke_tests\samples_smoke_tests_data\
+      set WORKSPACE=$(INSTALL_DIR)
+      set IE_APP_PYTHON_TOOL_PATH=$(INSTALL_DIR)\tools\
+      python -m pytest $(INSTALL_DIR)\tests\smoke_tests\  --env_conf $(INSTALL_DIR)\tests\smoke_tests\env_config.yml -s --junitxml=TEST-SamplesSmokeTests.xml
+    workingDirectory: $(INSTALL_DIR)
+    displayName: 'Samples Smoke Tests'
+    continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+
+  - script: rd /Q /S $(BUILD_DIR)
+    displayName: 'Clean build dir'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
+    displayName: 'OV Core UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddlepaddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-PaddlePaddle.xml
+    displayName: 'PaddlePaddle Frontend UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
+    displayName: 'Tensorflow Frontend UT'
+    continueOnError: false
+
+  - script: |
+      set PATH=$(IB_DIR);%PATH%
+      call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml
+    displayName: 'IE UT old - IB'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
+    displayName: 'IE UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
+    displayName: 'CPU UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
+    displayName: 'GNA UT'
+    continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
+    displayName: 'VPU UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
+    displayName: 'ONNX Importer UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:TEST-ieMultiPluginUnitTests.xml
+    displayName: 'MULTI UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+    displayName: 'IE FuncTests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\templateFuncTests --gtest_output=xml:TEST-templateFuncTests.xml
+    displayName: 'TEMPLATE FuncTests'
+    continueOnError: false
+
+    # call $(SETUPVARS) && $(INSTALL_TEST_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests.xml
+  - script: |
+      set PATH=$(IB_DIR);%PATH%
+      call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio*:*smoke_GRUSequenceCommonZeroClip/GRUSequenceTest.CompareWithRefs/mode=CONVERT_TO_TI_MAX_SEQ_LEN_CONST_seq_lengths* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=24
+    displayName: 'CPU FuncTests - IB'
+    continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
+
+  - script: |
+      set DATA_PATH=$(MODELS_PATH)
+      set MODELS_PATH=$(MODELS_PATH)
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
+    displayName: 'IE CAPITests'
+    continueOnError: false
+
+  - task: PublishTestResults@2
+    condition: always()
+    inputs:
+      testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
+      testResultsFiles: '**/TEST-*.xml'
+      #searchFolder: '$(BUILD_DIR)'
+      mergeTestResults: false # Optional
+      #failTaskOnFailedTests: false # Optional
+      #testRunTitle: 'Pre/Post-Commit' # Optional
+      buildPlatform: 'x64' # Optional
+      buildConfiguration: 'Windows' # Optional
+      #publishRunAttachments: true # Optional
+
+  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
+    displayName: Stop IncrediBuild
+    continueOnError: true
+    enabled: false

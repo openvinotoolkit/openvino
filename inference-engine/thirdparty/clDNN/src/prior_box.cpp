@@ -1,22 +1,10 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "prior_box_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 
 #include <cmath>
@@ -33,7 +21,7 @@ primitive_type_id prior_box::type_id() {
 
 namespace {
 template <typename dtype>
-void calculate_prior_box_output(memory_impl& output_mem, layout const& input_layout, prior_box& argument) {
+void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout const& input_layout, prior_box& argument) {
     // Calculate output.
     // All the inputs for this layer are known at this point,
     // so the output buffer is written here and not in execute().
@@ -51,10 +39,10 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
     const float offset = argument.offset;
     int num_priors = argument.is_clustered() ?
         static_cast<int>(argument.widths.size()) :
-        output_mem.get_layout().size.spatial[1] / 4 / layer_width / layer_height;
+        output_mem->get_layout().size.spatial[1] / 4 / layer_width / layer_height;
     int var_size = static_cast<int>(argument.variance.size());
 
-    mem_lock<dtype> lock{output_mem};
+    mem_lock<dtype> lock{output_mem, stream};
     auto out_ptr = lock.begin();
     int dim = layer_height * layer_width * num_priors * 4;
 
@@ -216,7 +204,7 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
     }
 
     // set the variance.
-    int count = output_mem.get_layout().size.spatial[0] * output_mem.get_layout().size.spatial[1];
+    int count = output_mem->get_layout().size.spatial[0] * output_mem->get_layout().size.spatial[1];
     int var_loop_count = argument.is_clustered() ? var_size : 4;
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {
@@ -231,12 +219,12 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
 }
 }  // namespace
 
-prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program_impl& prog) : parent(prim, prog) {
+prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {
     constant = true;
 }
 
 void prior_box_node::calc_result() {
-    if (result != (memory_impl::ptr) nullptr)
+    if (result != nullptr)
         return;
 
     auto& argument = *typed_desc();
@@ -352,22 +340,22 @@ void prior_box_node::calc_result() {
     CLDNN_ERROR_BOOL(id(), "Prior box padding", is_padded(), "Prior-box layer doesn't support output padding.");
 
     // allocate storage
-    result = get_program().get_engine().allocate_memory(get_output_layout(), 0, false);
+    result = get_program().get_engine().allocate_memory(get_output_layout());
 
     // perform calculations
-    if (input().get_output_layout().data_type == data_types::f16)
-        calculate_prior_box_output<data_type_to_type<data_types::f16>::type>(*result,
+    if (get_output_layout().data_type == data_types::f16)
+        calculate_prior_box_output<data_type_to_type<data_types::f16>::type>(result,
+                                                                             get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
     else
-        calculate_prior_box_output<data_type_to_type<data_types::f32>::type>(*result,
+        calculate_prior_box_output<data_type_to_type<data_types::f32>::type>(result,
+                                                                             get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
 }
 
 layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for prior_box_node!");
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
 
@@ -400,6 +388,8 @@ layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
     // Second feature stores the variance of each prior coordinate.
 
     auto output_data_type = input_layout.data_type == data_types::f16 ? data_types::f16 : data_types::f32;
+    if (node.get_primitive()->output_data_type)
+        output_data_type = *node.get_primitive()->output_data_type;
     return {output_data_type, cldnn::format::bfyx, cldnn::tensor(1, 2, 1, layer_width * layer_height * num_priors * 4)};
 }
 
@@ -462,7 +452,7 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     return primitive_description.str();
 }
 
-prior_box_inst::typed_primitive_inst(network_impl& network, prior_box_node const& node) : parent(network, node) {
+prior_box_inst::typed_primitive_inst(network& network, prior_box_node const& node) : parent(network, node) {
     CLDNN_ERROR_MESSAGE(node.id(), "Prior box primitive instance should not be created!");
 }
 

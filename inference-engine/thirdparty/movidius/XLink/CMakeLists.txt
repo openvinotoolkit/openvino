@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,11 +19,10 @@ if(NOT WIN32)
             ${LIBUSB_LIBRARY})
 endif()
 
-target_include_directories(${TARGET_NAME}
-        PUBLIC
-        ${XLINK_INCLUDE}
-        PRIVATE
-        ${XLINK_PLATFORM_INCLUDE})
+target_include_directories(${TARGET_NAME} PRIVATE ${XLINK_PLATFORM_INCLUDE})
+foreach(dir IN LISTS XLINK_INCLUDE)
+    target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${dir}>)
+endforeach()
 
 target_compile_definitions(${TARGET_NAME}
         PRIVATE
@@ -40,3 +39,6 @@ if (ENABLE_MYRIAD_NO_BOOT)
 endif()
 
 set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 99)
+
+openvino_developer_export_targets(COMPONENT vpu TARGETS ${TARGET_NAME})
+ov_install_static_lib(${TARGET_NAME} myriad)

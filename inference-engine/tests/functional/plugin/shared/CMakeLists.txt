@@ -1,16 +1,32 @@
-# Copyright (C) 2019 Intel Corporation
-#
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME funcSharedTests)
 
-list(APPEND EXPORT_DEPENDENCIES
-        funcTestUtils
-        ngraphFunctions
-        )
-
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+set(DEPENDENCIES mock_engine)
+
+if(ENABLE_HETERO)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
+endif()
+
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    list(APPEND DEPENDENCIES ov_auto_plugin)
+endif()
+
+# remove once CVS-69781 is fixed
+if(ENABLE_OV_IR_FRONTEND)
+    list(APPEND DEPENDENCIES ir_ov_frontend)
+endif()
+
+if (ENABLE_OV_ONNX_FRONTEND)
+    list(APPEND DEPENDENCIES test_model_zoo)
+    list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")
+else()
+    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
+endif()
 
 addIeTarget(
         NAME ${TARGET_NAME}
@@ -20,27 +36,31 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
         DEVELOPER_PACKAGE
+            tests
+        EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
+        DEFINES ${DEFINES}
+        INCLUDES
+            PUBLIC
+                ${PUBLIC_HEADERS_DIR}
+        LINK_LIBRARIES
+            PUBLIC
+                pugixml::static
+                funcTestUtils
+                ngraph_test_util
+                ngraphFunctions
+                lptNgraphFunctions
+                sharedTestClasses
+            PRIVATE
+                openvino::util
+                inference_engine_transformations
         DEPENDENCIES
-            mock_engine
-            HeteroPlugin
-            MultiDevicePlugin
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
+            ${DEPENDENCIES}
 )
 
-if (TARGET MKLDNNPlugin)
-    add_dependencies(${TARGET_NAME} MKLDNNPlugin)
+if(ENABLE_GAPI_PREPROCESSING)
+    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
 endif()
 
-target_include_directories(${TARGET_NAME} PUBLIC
-        ${PUBLIC_HEADERS_DIR}
-        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
-        )
-
-target_link_libraries(${TARGET_NAME}
-        PUBLIC
-        ${EXPORT_DEPENDENCIES}
-
-        PRIVATE
-        inference_engine_transformations
-        )
+ie_faster_build(${TARGET_NAME}
+    PCH PRIVATE "src/precomp.hpp"
+)

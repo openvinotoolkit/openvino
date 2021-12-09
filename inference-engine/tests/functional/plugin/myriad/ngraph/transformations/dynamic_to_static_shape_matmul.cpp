@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,7 +132,7 @@ protected:
         const auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{node}, parameters, "Actual");
         node->set_output_type(0, node->get_output_element_type(0), ngraph::PartialShape::dynamic(node->get_output_partial_shape(0).rank()));
 
-        const auto transformations = vpu::Transformations{{ngraph::opset3::MatMul::type_info, vpu::dynamicToStaticShapeMatMul}};
+        const auto transformations = vpu::Transformations{{ngraph::opset3::MatMul::get_type_info_static(), vpu::dynamicToStaticShapeMatMul}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -204,6 +204,6 @@ protected:
 
 TEST_P(DynamicToStaticShapeMatMul, CompareFunctions) {
 }
-INSTANTIATE_TEST_CASE_P(MatMul, DynamicToStaticShapeMatMul, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul, DynamicToStaticShapeMatMul, combinations);
 
 }  // namespace

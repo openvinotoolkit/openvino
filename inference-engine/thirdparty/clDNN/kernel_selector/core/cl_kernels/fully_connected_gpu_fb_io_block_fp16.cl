@@ -1,19 +1,9 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-
-#include "include/include_all.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Just-in-time macro definitions:
@@ -214,8 +204,9 @@ KERNEL (fully_connected_gpu_xb_xb_block_fp16)(
     CHUNK_TYPE acc[UNITS_PER_SG_READ] = {};
 
     // Iterate over yxf linear plane (both filters/weights and input).
-    for (uint input_offset = input_base, filter_offset = filter_base; input_offset < input_byte_size; input_offset += input_sg_reads_distance)
-    {
+    uint input_offset = input_base;
+    uint filter_offset = filter_base;
+    do {
         CHUNK_TYPE input_val = INPUT0_READ(input, input_offset + sg_elem_offset);
 
         // Iterate over filters needed to process input read by sub-group.
@@ -233,7 +224,9 @@ KERNEL (fully_connected_gpu_xb_xb_block_fp16)(
                 acc[acc_pos] = AS_CHUNK(fma(AS_UNITS(input_val), SG_UNIT_SELECT(filter_val, acc_pos), AS_UNITS(acc[acc_pos])));
             }
         }
-    }
+
+        input_offset += input_sg_reads_distance;
+    } while (input_offset < input_byte_size);
 
     // WRITE OUTPUT
     // BATCH = 32x? (HF) / 16x? (F)
@@ -247,7 +240,7 @@ KERNEL (fully_connected_gpu_xb_xb_block_fp16)(
         uint output_offset = output_base;
         __attribute__((opencl_unroll_hint(UNITS_PER_SG_READ)))
         for (uint acc_pos = 0; acc_pos < UNITS_PER_SG_READ; ++acc_pos)
-        {         
+        {
 #if BIAS_TERM
             CHUNK_UNITS_TYPE output_val = AS_UNITS(acc[acc_pos]) + SG_UNIT_SELECT(bias_val, acc_pos);
 #else
@@ -282,7 +275,6 @@ KERNEL (fully_connected_gpu_xb_xb_block_fp16)(
 
 #undef CONCAT_TOKEN_HANDLER1
 #undef CONCAT_TOKEN
-#undef MAKE_VECTOR_TYPE
 #undef CVT_UNIT
 #undef CHUNK_UNITS_TYPE
 #undef AS_CHUNK

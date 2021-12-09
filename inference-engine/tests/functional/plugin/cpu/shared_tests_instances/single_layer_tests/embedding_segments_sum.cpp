@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ const auto embSegmentsSumArgSet = ::testing::Combine(
         ::testing::ValuesIn(with_default_index)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke, EmbeddingSegmentsSumLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke, EmbeddingSegmentsSumLayerTest,
                         ::testing::Combine(
                                 embSegmentsSumArgSet,
                                 ::testing::ValuesIn(netPrecisions),

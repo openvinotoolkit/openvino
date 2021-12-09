@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,11 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/convert_reduce_to_pooling.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+
+#include <ngraph/pass/manager.hpp>
 
 using namespace testing;
 
@@ -54,8 +56,7 @@ public:
         f_ref = get_reference_function(input_shape, reduce_type, reference_params);
     }
 
-private:
-    std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & input_shape,
+    static std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & input_shape,
                                                            const std::vector<int64_t> & axes,
                                                            const ReduceType & reduce_type,
                                                            const bool keep_dims) {
@@ -72,7 +73,7 @@ private:
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{reduce}, ngraph::ParameterVector{input});
     }
 
-    std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialShape & input_shape,
+    static std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialShape & input_shape,
                                                              const ReduceType & reduce,
                                                              const ReduceToPoolParams & params) {
         auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
@@ -89,11 +90,11 @@ private:
         }
 
         if (!params.pooling_kernel.empty()) {
-            if (reduce->get_type_info() == ngraph::opset1::ReduceMax::type_info) {
+            if (reduce->get_type_info() == ngraph::opset1::ReduceMax::get_type_info_static()) {
                 input = std::make_shared<ngraph::opset1::MaxPool>(input, ngraph::Strides{1, 1}, ngraph::Shape{0, 0},
                         ngraph::Shape{0, 0}, params.pooling_kernel, ngraph::op::RoundingType::FLOOR /*any*/);
-            } else if (reduce->get_type_info() == ngraph::opset1::ReduceMean::type_info ||
-                       reduce->get_type_info() == ngraph::opset1::ReduceSum::type_info) {
+            } else if (reduce->get_type_info() == ngraph::opset1::ReduceMean::get_type_info_static() ||
+                       reduce->get_type_info() == ngraph::opset1::ReduceSum::get_type_info_static()) {
                 input = std::make_shared<ngraph::opset1::AvgPool>(input, ngraph::Strides{1, 1}, ngraph::Shape{0, 0},
                         ngraph::Shape{0, 0}, params.pooling_kernel, false /*any*/, ngraph::op::RoundingType::FLOOR /*any*/);
             } else {
@@ -103,9 +104,12 @@ private:
 
         // TODO: handle multiply_value for ReduceSum case when set_keep_dims is ready
 
-        if (!params.reshape_end.empty()) {
+        //Convert std::vector<int64_t> -> ov::Shape
+        ov::Shape reshape_end(params.reshape_end.begin(), params.reshape_end.end());
+
+        if (reshape_end != input.get_shape()) {
             input = std::make_shared<ngraph::opset1::Reshape>(input,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_end.size()}, params.reshape_end), true);
+                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_end.size()}, reshape_end), true);
         }
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{input.get_node_shared_ptr()}, ngraph::ParameterVector{param});
@@ -113,30 +117,43 @@ private:
 };
 
 TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertReduceToPooling().run_on_function(f);
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    ngraph::pass::Manager m;
+    m.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ngraph::pass::ConvertReduceToPooling>();
+    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #define MAX std::make_shared<ngraph::opset1::ReduceMax>()
 
-INSTANTIATE_TEST_CASE_P(ReduceToMaxPooling, ConvertReduceToPoolingTests,
-        testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3},    KeepDims{true}, ReduceToPoolParams({}, {1, 64}, {})),
-                        std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3, 2}, KeepDims{true}, ReduceToPoolParams({}, {64, 64}, {}))));
+INSTANTIATE_TEST_SUITE_P(ReduceToMaxPooling, ConvertReduceToPoolingTests,
+        testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3},    KeepDims{true}, ReduceToPoolParams({}, {1, 64},  {1, 3, 64, 1})),
+                        std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3, 2}, KeepDims{true}, ReduceToPoolParams({}, {64, 64}, {1, 3,  1, 1}))));
 
-INSTANTIATE_TEST_CASE_P(ReduceToReshape, ConvertReduceToPoolingTests,
-        testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 1}, ReduceAxes{3},       KeepDims{false}, ReduceToPoolParams({1, 3, 64}, {}, {})),
-                        std::make_tuple(MAX, InputShape{2, 3},        ReduceAxes{-2},      KeepDims{false}, ReduceToPoolParams({3}, {}, {})),
-                        std::make_tuple(MAX, InputShape{2, 3, 1},     ReduceAxes{2},       KeepDims{false}, ReduceToPoolParams({1, 3}, {}, {})),
-                        std::make_tuple(MAX, InputShape{2, 3, 1, 1},  ReduceAxes{0, 3, 2}, KeepDims{false}, ReduceToPoolParams({3}, {}, {}))));
+INSTANTIATE_TEST_SUITE_P(ReduceToReshape, ConvertReduceToPoolingTests,
+        testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 1}, ReduceAxes{3},       KeepDims{false}, ReduceToPoolParams({1, 3, 64}, {}, { 1, 3, 64 })),
+                        std::make_tuple(MAX, InputShape{2, 3},        ReduceAxes{-2},      KeepDims{false}, ReduceToPoolParams({3}, {}, {3})),
+                        std::make_tuple(MAX, InputShape{2, 3, 1},     ReduceAxes{2},       KeepDims{false}, ReduceToPoolParams({1, 3}, {}, {1, 3})),
+                        std::make_tuple(MAX, InputShape{2, 3, 1, 1},  ReduceAxes{0, 3, 2}, KeepDims{false}, ReduceToPoolParams({3}, {}, {3}))));
 
-INSTANTIATE_TEST_CASE_P(ReduceToReshapePoolReshape, ConvertReduceToPoolingTests,
+INSTANTIATE_TEST_SUITE_P(ReduceToReshapePoolReshape, ConvertReduceToPoolingTests,
         testing::Values(std::make_tuple(MAX, InputShape{2, 3, 3},    ReduceAxes{1, 2},    KeepDims{false}, ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1})),
                         std::make_tuple(MAX, InputShape{2, 9},       ReduceAxes{-1},      KeepDims{true},  ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1, 1})),
-                        std::make_tuple(MAX, InputShape{2, 3, 4, 1}, ReduceAxes{1, 3, 2}, KeepDims{false}, ReduceToPoolParams({1, 1, 12, 1}, {12, 1}, {1}))));
+                        std::make_tuple(MAX, InputShape{2, 3, 4, 1}, ReduceAxes{1, 3, 2}, KeepDims{false}, ReduceToPoolParams({1, 1, 12, 1}, {12, 1}, {1})),
+                        std::make_tuple(MAX, InputShape{20, 4},      ReduceAxes{0, 1},    KeepDims{false}, ReduceToPoolParams({1, 1, 40, 1}, {40, 1}, {}))));
+
+TEST(ConvertReduceToPooling, Negative) {
+    auto f = ConvertReduceToPoolingTests::get_initial_function(ngraph::PartialShape::dynamic(), {3}, MAX, true);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertReduceToPooling>();
+    ASSERT_NO_THROW(manager.run_passes(f));
+}
 
 #undef MAX
-
-

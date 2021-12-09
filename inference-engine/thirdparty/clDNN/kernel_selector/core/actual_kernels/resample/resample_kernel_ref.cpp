@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include <core/common/kernel_selector_utils.h>
 #include "resample_kernel_ref.h"
@@ -40,6 +30,8 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
     k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableReampleType(ResampleType::CUBIC);
+    k.EnableReampleType(ResampleType::LINEAR_ONNX);
     return k;
 }
 
@@ -58,11 +50,10 @@ static size_t packing_factor(const resample_params& params) {
     auto get_layout_packing_factor = [](const DataLayout& layout) -> size_t {
         switch (layout) {
         case DataLayout::b_fs_yx_fsv16:
+        case DataLayout::bs_fs_yx_bsv32_fsv16:
             return 16;
         case DataLayout::b_fs_yx_fsv4:
             return 4;
-        case DataLayout::byxf_af32:
-            return 16;
         default:
             break;
         }
@@ -91,7 +82,7 @@ static bool use_packing(const resample_params& params) {
     auto packed_work_items = params.output.X().v * params.output.Y().v * params.output.Z().v
         * CeilDiv(params.output.Feature().v, pack) * params.output.Batch().v;
     // TODO Loosen this requirement to minimum EUs needed to saturate cache bandwidth
-    constexpr size_t max_work_items_per_eu = 32 * 7;
+    size_t max_work_items_per_eu = 32 * static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
     auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
 
     if (packed_work_items < minimum_work_items)
@@ -124,25 +115,23 @@ JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) c
 }
 
 ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_params& arg) const {
-    auto dispatch = Parent::SetDefault(arg);
+    auto dispatchData = Parent::SetDefault(arg);
+    auto in_layout = arg.inputs[0].GetLayout();
+    auto out_layout = arg.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
+                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
     if (use_packing(arg)) {
         auto pack = packing_factor(arg);
-        std::vector<size_t> global;
-        std::vector<size_t> local;
-
-        global = { arg.output.X().v, arg.output.Y().v * arg.output.Z().v, CeilDiv(arg.output.Feature().v, pack) * arg.output.Batch().v };
-        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
-
-        dispatch.gws0 = global[0];
-        dispatch.gws1 = global[1];
-        dispatch.gws2 = global[2];
-
-        dispatch.lws0 = local[0];
-        dispatch.lws1 = local[1];
-        dispatch.lws2 = local[2];
+        dispatchData.gws = { arg.output.X().v, arg.output.Y().v * arg.output.Z().v, CeilDiv(arg.output.Feature().v, pack) * arg.output.Batch().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
-    return dispatch;
+    return dispatchData;
+}
+
+KernelsPriority ResampleKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

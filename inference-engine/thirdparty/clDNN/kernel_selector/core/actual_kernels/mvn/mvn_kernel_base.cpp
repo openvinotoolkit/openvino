@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "mvn_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -37,6 +26,7 @@ JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelB
         MakeJitConstant("EPSILON", params.epsilon),
         MakeJitConstant(toString(params.mvnMode), ""),
         MakeJitConstant("NORMALIZE_VARIANCE", params.mvnNormalizeVariance),
+        MakeJitConstant("EPS_" + toString(params.mvnEpsMode), ""),
     });
 
     return jit;
@@ -45,34 +35,20 @@ JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelB
 MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) const {
     const auto& output = params.output;
 
-    DispatchData kd;
-
-    std::vector<size_t> global(3);
-
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
+    DispatchData dispatchData;
     if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-        global = {output.Batch().v, output.Feature().v, 1};
+        dispatchData.gws = {output.Batch().v, output.Feature().v, 1};
     } else {
-        global = {output.Batch().v, 1, 1};
+        dispatchData.gws = {output.Batch().v, 1, 1};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
-                                                const optional_params& options,
-                                                float estimated_time) const {
+                                                const optional_params& options) const {
     assert(params.GetType() == KernelType::MVN);
 
     if (!Validate(params, options))
@@ -80,20 +56,18 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
 
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
 
-    DispatchData runInfo;
-
-    runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<mvn_params>(params);
 
     auto finalKernelName = GetKernelName(orgParams);
-    auto cldnn_jit = GetJitConstants(orgParams, runInfo);
-    auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
+    auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
+    auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      finalKernelName,
                      jit,
@@ -104,13 +78,11 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
                      1,
                      GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = estimated_time;
-
     return {kd};
 }
 
 Datatype MVNKernelBase::GetActivationType(const mvn_params& params) const {
-    if (params.output.GetDType() == Datatype::F16)
+    if (params.inputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
     return Datatype::F32;
 }

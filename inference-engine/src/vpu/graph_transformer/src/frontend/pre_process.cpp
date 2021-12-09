@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <precision_utils.h>
-#include <ie_parallel.hpp>
 
 #include <vector>
 #include <memory>
@@ -112,12 +111,13 @@ void FrontEnd::addPreProcessStages(const Model& model) {
                 "@after-std-scale");
 
             bindData(newInput, ieData);
+            auto scale = 1 / preProcess[0]->stdScale;
 
             _stageBuilder->addPowerStage(
                 model,
                 input->name() + "@stdScale=" + InferenceEngine::CNNLayer::ie_serialize_float(preProcess[0]->stdScale),
                 nullptr,
-                preProcess[0]->stdScale,
+                scale,
                 1.0f,
                 0.0f,
                 input,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ public:
         _maxTilingOptions(other._maxTilingOptions),
         _dirTiling(PoolGraphDataTilingFactory::makeDirTiling(*other._dirTiling)),
         _tilingOptions(other._tilingOptions) {}
-    HWPoolingTilingSearcher(ConvolutionOptions convolutionOptions, const Direction& direction,
+    HWPoolingTilingSearcher(const ConvolutionOptions& convolutionOptions, const Direction& direction,
                             std::size_t maxTilingOptions) :
         _convolutionOptions(std::move(convolutionOptions)),
         _dirTiling(PoolGraphDataTilingFactory::makeDirTiling(_convolutionOptions, direction)),

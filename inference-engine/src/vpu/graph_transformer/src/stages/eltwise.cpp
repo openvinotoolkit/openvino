@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,7 @@ static const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::
         MAP_ELEMENTS(Logical_XOR,   moreThanOneInput),
         MAP_ELEMENTS(Pow,           onlyTwoInputs),
         MAP_ELEMENTS(Floor_mod,     onlyTwoInputs),
+        MAP_ELEMENTS(Abs,           onlyOneInput),
 };
 
 class EltwiseStage final : public StageNode {
@@ -148,6 +149,10 @@ private:
                     StageType::Prod,
                     StageType::Max,
                     StageType::Div,
+                    StageType::Min,
+                    StageType::Logical_NOT,
+                    StageType::Logical_AND,
+                    StageType::Abs,
             };
             auto supportedDataTypesInput0 = EnumSet<DataType>{DataType::FP16};
             if (stageTypesWhichSupportS32.count(operation)) {
@@ -167,7 +172,8 @@ private:
                              static_cast<Handle<StageNode>>(this), dataTypeInput1, supportedDataTypesInput1);
 
             assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput1}, {dataTypeInput1}}, {{dataTypeInput1}});
-        } else if (operation == StageType::Greater && dataTypeInput0 != dataTypeOutput) {
+        } else if ((operation == StageType::Greater || operation == StageType::Less || operation == StageType::Equal)
+                        && dataTypeInput0 != dataTypeOutput) {
             assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::S32}});
         } else {
             assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput0}, {dataTypeInput0}}, {{dataTypeInput0}});
@@ -184,7 +190,7 @@ private:
             serializer.append(attrs().getOrDefault<std::int32_t>("coeff1", 1));
             serializer.append(attrs().getOrDefault<std::int32_t>("coeff2", 1));
         } else {
-             THROW_IE_EXCEPTION << type << " isn't supported";
+             IE_THROW() << type << " isn't supported";
         }
 
         auto postOperation = attrs().getOrDefault<StageType>("postOperation", StageType::Empty);
@@ -260,7 +266,7 @@ void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, c
     DataVector tempInputs(3);
     tempInputs[0] = inputs[0];
 
-    if (stageType == StageType::Logical_NOT)
+    if (stageType == StageType::Logical_NOT || stageType == StageType::Abs)
         tempInputs[1] = model->addFakeData();
     else
         tempInputs[1] = inputs[1];
@@ -282,14 +288,14 @@ void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, c
             if (type == DataType::FP16) {
                 stage->attrs().set<float>("coeff1", layer->coeff[0]);
             } else {
-                stage->attrs().set<std::int32_t>("coeff1", layer->coeff[0]);
+                stage->attrs().set<std::int32_t>("coeff1", static_cast<int32_t>(layer->coeff[0]));
             }
         }
         if (layer->coeff.size() > 1 || subCoefficient != 1) {
             if (type == DataType::FP16) {
                 stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
             } else {
-                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1));
+                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? static_cast<int32_t>(layer->coeff[1]) : 1));
             }
         }
     }
@@ -348,6 +354,22 @@ Stage StageBuilder::addSumStage(
         layer,
         {input0, input1, fakeInput2},
         {output});
+}
+
+Stage StageBuilder::addProdStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input0,
+        const Data& input1,
+        const Data& output) {
+    const Data& fakeInput2 = model->addFakeData();
+    return model->addNewStage<EltwiseStage>(
+            name,
+            StageType::Prod,
+            layer,
+            {input0, input1, fakeInput2},
+            {output});
 }
 
 Stage StageBuilder::addMaxStage(

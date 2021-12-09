@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
@@ -26,6 +14,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <locale>
 
 namespace kernel_selector {
 
@@ -91,7 +80,10 @@ std::string getMeanOpString(MeanOp op);
 // TODO improve to_code_string specializations
 template <typename T>
 std::string toCodeString(T val) {
-    return std::to_string(val);
+    std::stringstream ss;
+    ss.imbue(std::locale("C"));
+    ss << val;
+    return ss.str();
 }
 
 inline std::string toCodeString(const std::string& val) { return val; }
@@ -99,6 +91,9 @@ inline std::string toCodeString(const char* val) { return val; }
 inline std::string toCodeString(bool val) { return val ? "1" : "0"; }
 std::string toCodeString(float val);
 std::string toCodeString(double val);
+std::string toCodeString(size_t val);
+std::string toCodeString(uint8_t val);
+std::string toCodeString(int8_t val);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JitConstant
@@ -290,6 +285,12 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         bool disable_type_conversion = false);
 JitConstants MakeBaseParamsJitConstants(const base_params& params);
 JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
+
+// Generates macro CONST_LOOP(count, macro), where:
+// count - should expand to integer with number of loop iterations;
+// macro - is macro name that will be expanded at each iteration with current iteration number as single argument.
+JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount);
+
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName);
 JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& macroName);
 inline JitConstants MakeUnitTypeJitConstants(Datatype dataType) { return MakeTypeJitConstants(dataType, "UNIT"); }
@@ -302,12 +303,13 @@ public:
     struct idx_desc {
         std::string b;
         std::string f;
+        std::string w;
         std::string z;
         std::string y;
         std::string x;
         size_t dims;
         explicit idx_desc(std::vector<std::string> idx, DataTensor t)
-            : b("0"), f("0"), z("0"), y("0"), x("0"), dims(0) {
+            : b("0"), f("0"), w("0"), z("0"), y("0"), x("0"), dims(0) {
             dims = idx.size();
             switch (dims) {
                 case 1: f = idx[0]; break;
@@ -315,7 +317,8 @@ public:
                 case 3: b = idx[0]; f = idx[1]; y = idx[2]; break;
                 case 4: b = idx[0]; f = idx[1]; y = idx[2]; x = idx[3]; break;
                 case 5: b = idx[0]; f = idx[1]; z = idx[2]; y = idx[3]; x = idx[4]; break;
-                default: throw std::runtime_error("More than 5 dimenstions is not supported in fused op generator");
+                case 6: b = idx[0]; f = idx[1]; w = idx[2]; z = idx[3]; y = idx[4]; x = idx[5]; break;
+                default: throw std::runtime_error("More than 6 dimenstions is not supported in fused op generator");
             }
 
             if (t.Batch().v == 1) {
@@ -323,6 +326,9 @@ public:
             }
             if (t.Feature().v == 1) {
                 f = "0";
+            }
+            if (t.W().v == 1) {
+                w = "0";
             }
             if (t.Z().v == 1) {
                 z = "0";
@@ -341,7 +347,7 @@ public:
     JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
     JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
                                     const std::string in_var, const Datatype in_type,
-                                    std::string& out_var, Datatype& out_type) const;
+                                    std::string& out_var) const;
 
     bool CanPreloadData(const FusedOpsConfiguration& conf) const;
 
@@ -354,7 +360,7 @@ public:
     std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
     std::string GetInputPtrName(size_t input_id) const;
     std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
-    std::string GetOutputVarName(std::string input_var_name) const;
+    std::string GetOutputVarName(std::string input_var_name, size_t op_id) const;
     std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
     std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;

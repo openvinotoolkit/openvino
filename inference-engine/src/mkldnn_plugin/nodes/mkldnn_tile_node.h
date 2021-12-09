@@ -1,29 +1,48 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-#include <mkldnn_node.h>
+#include "common/tile_broadcast_utils.h"
+
 #include <string>
 
 namespace MKLDNNPlugin {
 
-class MKLDNNTileNode : public MKLDNNNode {
+class MKLDNNTileNode : public MKLDNNNode, public TileBroadcastCommon {
 public:
-    MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNTileNode() override = default;
+    MKLDNNTileNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override {
+        execute(strm);
+    }
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+protected:
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+    bool needShapeInfer() const override;
+    std::vector<VectorDims> shapeInfer() const override;
+
 private:
-    int axis = 0;
+    void plainExecute(mkldnn::stream strm);
+
+    static constexpr size_t TILE_INPUT = 0lu;
+    static constexpr size_t TILE_REPEATS = 1lu;
+
+    int axis = -1;
     int tiles = 0;
+    bool noTiling = false;
+    VectorDims originRepeats;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

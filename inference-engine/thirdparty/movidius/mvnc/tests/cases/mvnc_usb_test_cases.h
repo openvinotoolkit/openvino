@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,12 +29,11 @@ class MvncCloseUSBDevice : public MvncOpenUSBDevice {
 //------------------------------------------------------------------------------
 //      class MvncDevicePlatform
 //------------------------------------------------------------------------------
-class MvncDevicePlatform : public MvncOpenUSBDevice,
-                           public testing::WithParamInterface<ncDevicePlatform_t>{
+class MvncDevicePlatform : public MvncOpenUSBDevice
+                        {
 public:
     long available_myriadX_ = 0;
     long available_myriad2_ = 0;
-    ncDevicePlatform_t devicePlatform_;
 
     ~MvncDevicePlatform() override = default;
 

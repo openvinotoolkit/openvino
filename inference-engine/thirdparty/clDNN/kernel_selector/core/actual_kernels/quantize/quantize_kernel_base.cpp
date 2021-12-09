@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include <iostream>
 #include "quantize_kernel_base.h"
@@ -33,7 +22,7 @@ bool QuantizeKernelBase::Validate(const Params& p, const optional_params&) const
     return true;
 }
 
-JitConstants QuantizeKernelBase::GetJitConstants(const quantize_params& params, const CommonDispatchData& runInfo) const {
+JitConstants QuantizeKernelBase::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     if (params.packed_binary_output) {
@@ -55,9 +44,9 @@ JitConstants QuantizeKernelBase::GetJitConstants(const quantize_params& params, 
 
     jit.AddConstant(MakeJitConstant("LEVELS", static_cast<float>(params.levels)));
 
-    jit.AddConstant(MakeJitConstant("LWS_0", runInfo.lws0));
-    jit.AddConstant(MakeJitConstant("LWS_1", runInfo.lws1));
-    jit.AddConstant(MakeJitConstant("LWS_2", runInfo.lws2));
+    jit.AddConstant(MakeJitConstant("LWS_0", dispatchData.lws[0]));
+    jit.AddConstant(MakeJitConstant("LWS_1", dispatchData.lws[1]));
+    jit.AddConstant(MakeJitConstant("LWS_2", dispatchData.lws[2]));
 
     return jit;
 }
@@ -72,19 +61,17 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optio
         return {};
     }
 
-    auto runInfo = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-    auto cldnn_jit = GetJitConstants(newParams, runInfo);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto dispatchData = SetDefault(newParams, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto cldnn_jit = GetJitConstants(newParams, dispatchData);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false);
-
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false);
 
     return {kd};
 }

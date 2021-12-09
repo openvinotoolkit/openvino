@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
 #include <legacy/layer_transform.hpp>
-#include <gna-api-types-xnn.h>
+#include "backend/gna_types.h"
 #include "frontend/model_quantizer.hpp"
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
@@ -99,8 +99,7 @@ TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
     auto newNet = q.quantize(network, 1000);
-    InputsDataMap inputs;
-    newNet->getInputsInfo(inputs);
+    InputsDataMap inputs = newNet.getInputsInfo();
     auto affineDataPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second->outData.front();
 
     ASSERT_EQ(affineDataPtr->getTensorDesc().getPrecision(), Precision::I32);
@@ -130,15 +129,14 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
     auto newNet = q.quantize(network, 1000);
-    InputsDataMap inputs;
-    newNet->getInputsInfo(inputs);
+    InputsDataMap inputs = newNet.getInputsInfo();
     auto affineLayerPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second;
 
     auto quantParams = getInjectedData<QuantizedLayerParams>(affineLayerPtr);
 
 
-    ASSERT_FLOAT_EQ(quantParams->_dst_quant.scale, 100);
-    ASSERT_FLOAT_EQ(quantParams->_weights_quant.scale, 100);
+    ASSERT_FLOAT_EQ(quantParams->_dst_quant.GetScale(), 100);
+    ASSERT_FLOAT_EQ(quantParams->_weights_quant.GetScale(), 100);
 }
 
 TEST_F(I16QuantisationTest, OnlyAffine_NoActivationInsertion) {
@@ -218,12 +216,6 @@ TEST_F(I16QuantisationTest, canDetectLeakyRelu) {
     assert_that().onInferModel(TFLeakyReluModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().pwl_inserted_into_nnet();
-}
-
-TEST_F(I16QuantisationTest, canDetectSoftWSignSubgraph) {
-    assert_that().onInferModel(TFSoftsignUnfoldedModel())
-        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-        .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActSigmoid});
 }
 
 TEST_F(I16QuantisationTest, MaxPool_followedAfterActivation) {

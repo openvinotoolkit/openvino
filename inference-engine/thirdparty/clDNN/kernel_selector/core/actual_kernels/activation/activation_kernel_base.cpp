@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "activation_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -22,32 +11,31 @@ namespace kernel_selector {
 
 ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activation_params& arg) const {
     const auto& out = arg.output;
+    auto in_layout = arg.inputs[0].GetLayout();
+    auto out_layout = arg.output.GetLayout();
 
-    DispatchData runInfo;
-    std::vector<size_t> global;
-    std::vector<size_t> local;
-    if (out.GetLayout() == DataLayout::yxfb) {
-        global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
-        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
-    } else if (out.GetLayout() == DataLayout::b_fs_yx_fsv16) {
-        global = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
-        local = {16, 1, 1};
+    DispatchData dispatchData;
+    if (out_layout == DataLayout::yxfb) {
+        dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
+                                                                         {Tensor::DataChannelName::X},
+                                                                         {Tensor::DataChannelName::Y}};
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
+    } else if (out_layout == DataLayout::b_fs_yx_fsv16 || out_layout == DataLayout::b_fs_yx_fsv32) {
+        dispatchData.gws = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
+        dispatchData.lws = {16, 1, 1};
+    } else if (out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+        dispatchData.gws = {out.X().v * out.Y().v, Align(out.Feature().v, 16), Align(out.Batch().v, 16)};
+        dispatchData.lws = {1, 16, 16};
     } else {
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
+        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
+                                                                         {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                                                                         {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ActivationKernelBase::GetJitConstants(const activation_params& params, DispatchData) const {
@@ -92,22 +80,19 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     KernelData kd = KernelData::Default<activation_params>(params);
 
     activation_params& newParams = *static_cast<activation_params*>(kd.params.get());
-    const std::string kernel_id = GetEntryPoint(kernelName, params.layerID, options);
 
-    auto runInfo = SetDefault(newParams);
-    auto cldnn_jit = GetJitConstants(newParams, runInfo);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto dispatchData = SetDefault(newParams);
+    auto cldnn_jit = GetJitConstants(newParams, dispatchData);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     if (!newParams.inputActivationParams.empty()) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
     }
-
-    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

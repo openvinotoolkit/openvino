@@ -1,22 +1,12 @@
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "include/reshape_dims.cl"
-#include "include/fetch.cl"
+#include "include/batch_headers/fetch_data.cl"
 
-#include "include/data_types.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/image_data.cl"
 
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)
 #define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_TYPE, 4)
@@ -176,9 +166,7 @@ KERNEL (reorder_data)(
     IMAGE_WRITE(output, (int2)(x, y), colorRGBA);
 #else
 #if INPUT0_IS_FP && !OUTPUT_IS_FP
-    // TODO: check if this round really needed. Right now it's added to have the same behavior as CPU plugin
-    // becuase CPU's convert instruction performs round
-    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(round(res)), ACTIVATION_PARAMS_TYPED);
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
 #else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
 #endif

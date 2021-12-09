@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,12 @@
 
 XLinkError_t XLinkStreamInitialize(
     streamDesc_t* stream, streamId_t id, const char* name) {
-    mvLog(MVLOG_DEBUG, "name: %s, id: %ld\n", name, id);
+    mvLog(MVLOG_DEBUG, "name: %s, id: %lu\n", name, id);
     ASSERT_XLINK(stream);
 
     memset(stream, 0, sizeof(*stream));
 
-    if (sem_init(&stream->sem, 0, 0)) {
+    if (XLink_sem_init(&stream->sem, 0, 0)) {
         mvLog(MVLOG_ERROR, "Cannot initialize semaphore\n");
         return X_LINK_ERROR;
     }
@@ -39,7 +39,7 @@ void XLinkStreamReset(streamDesc_t* stream) {
         return;
     }
 
-    if(sem_destroy(&stream->sem)) {
+    if(XLink_sem_destroy(&stream->sem)) {
         mvLog(MVLOG_DEBUG, "Cannot destroy semaphore\n");
     }
 

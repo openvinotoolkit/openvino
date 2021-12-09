@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,19 +11,39 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+const std::vector<ConcatTransformationTestValues> testValues = {
+    // U8
+    {
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
+    },
+    // I8
+    {
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
+    },
+    // mixed
+    {
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
+    },
+    // FQ with unexpected quantizationLevels
+    {
+        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} }
+    },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::ValuesIn(precisions),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(testValues)),
     ConcatTransformation::getTestCaseName);
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,9 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/model/data_contents/replicated_data_content.hpp>
 #include <vpu/model/data_contents/scaled_content.hpp>
+
+#include <vpu/configuration/options/vpu_scales_option.hpp>
+#include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 
 #include <precision_utils.h>
 
@@ -24,6 +27,17 @@
 #include <memory>
 #include <list>
 #include <set>
+
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 9) && !defined(__clang__) && !defined(IE_GCC_4_8)
+# define IE_GCC_4_8
+#endif
+
+#ifndef IE_GCC_4_8
+# include <regex>
+# define STD_REGEX_SEARCH(SRC, PATTERN) std::regex_search(SRC, std::regex(PATTERN))
+#else
+# define STD_REGEX_SEARCH(SRC, PATTERN) false
+#endif
 
 namespace vpu {
 
@@ -67,7 +81,7 @@ int getMeanValue(const std::vector<short>& exponents) {
     if (realSize == 0) {
         return smallestExp;
     } else {
-        return sum / realSize;
+        return static_cast<int>(sum / realSize);
     }
 }
 
@@ -87,7 +101,12 @@ bool isScalable(const Stage& stage) {
 }
 
 bool checkGrowingOutput(const Model& model) {
-    static const float SCALE_THRESHOLD = 0.125f;
+    const auto& env = CompileEnv::get();
+    if (!env.config.get<CheckPreprocessingInsideModelOption>()) {
+        return false;
+    }
+
+    static const float SCALE_THRESHOLD = 0.1f;
 
     for (const auto& stage : model->getStages()) {
         if (stage->type() != StageType::Power &&
@@ -198,6 +217,16 @@ void scaleWeightableStage(const Model& model, const Stage& stage, float factor) 
     stage->attrs().set<float>("scaleFactor", factor);
 }
 
+float getScaleValue(const std::string layerName, const std::map<std::string, float>& vpuScalemap) {
+    float scaleForAnyLayer = 0.0;
+    for (const auto& pair : vpuScalemap) {
+        if (STD_REGEX_SEARCH(layerName, pair.first)) {
+            return pair.second;
+        }
+    }
+    return scaleForAnyLayer;
+}
+
 class PassImpl final : public Pass {
 public:
     void run(const Model& model) override;
@@ -219,9 +248,9 @@ void PassImpl::run(const Model& model) {
             continue;
         }
         IE_ASSERT(stage->origLayer() != nullptr);
-
-        // Get scale from IR, compute if it was absent
-        auto scale = stage->origLayer()->GetParamAsFloat("vpu_scale", 0);
+        // Get scale from config, compute if it was absent
+        const auto map = env.config.get<VPUScalesOption>();
+        auto scale = getScaleValue(stage->origLayerName(), map);
         if (!scale) {
             auto weights = stage->input(1);
 
@@ -243,19 +272,14 @@ void PassImpl::run(const Model& model) {
                 if (firstStage && shift < 4 && isGrowingOutput && weights->desc().dim(Dim::C) > 1) {
                     normalVal = 5;
                 }
-
                 shift = correctShift(shift, firstStage, stage->origLayer()->type);
                 shift -= normalVal;
             }
 
             firstStage = false;
             scale = 1;
-            if (shift > scaleThreshold) {
+            if (shift >= scaleThreshold) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
-            }
-
-            if (!env.config.irWithVpuScalesDir.empty()) {
-                stage->origLayer()->params["vpu_scale"] = toString(scale);
             }
         }
         scaleWeightableStage(model, stage, scale);

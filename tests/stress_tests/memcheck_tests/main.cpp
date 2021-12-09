@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,6 @@ int main(int argc, char **argv) {
         return 0;   // TODO return correct status
     }
 
-    Environment::Instance().setCollectResultsOnly(FLAGS_collect_results_only);
     pugi::xml_document config;
     config.load_file(FLAGS_test_conf.c_str());
     Environment::Instance().setTestConfig(config);

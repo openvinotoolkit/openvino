@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "reorg_yolo_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -44,46 +32,45 @@ JitConstants ReorgYoloKernelRef::GetJitConstants(const reorg_yolo_params& ry) co
     return jit;
 }
 ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
-    ReorgYoloKernelRef::DispatchData kd;
-
-    kd.fp16UnitUsed = (params.inputs[0].GetDType() == Datatype::F16);
+    ReorgYoloKernelRef::DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& input = params.inputs[0];
-    std::vector<size_t> global;
     if (input.GetLayout() == DataLayout::bfyx) {
-        global = {input.X().v, input.Y().v, input.Feature().v};
+        dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE}};
     } else {
-        global = {input.Feature().v * input.Batch().v, input.X().v, input.Y().v};
+        dispatchData.gws = {input.Feature().v * input.Batch().v, input.X().v, input.Y().v};
+        dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
+                       {Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y}};
     }
-    // Determine global work sizes.
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::REORG_YOLO);
     const reorg_yolo_params& orgParams = static_cast<const reorg_yolo_params&>(params);
 
-    DispatchData runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
     KernelData kd = KernelData::Default<reorg_yolo_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
-
-    kd.estimatedTime = FORCE_PRIORITY_9;
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     return {kd};
+}
+
+KernelsPriority ReorgYoloKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

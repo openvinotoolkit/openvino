@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,9 +110,12 @@ WatchdogImpl::WatchdogImpl() {
     if (rc != 0) {
         throw std::runtime_error("failed to set condition variable clock. rc: " + std::to_string(rc));
     }
+
+    rc = pthread_cond_init(&wakeUpPingThread, &attr);
+#else
+    rc = pthread_cond_init(&wakeUpPingThread, NULL);
 #endif // !(defined(__APPLE__) || defined(_WIN32))
 
-    rc = pthread_cond_init(&wakeUpPingThread, NULL);
     if (rc != 0) {
         throw std::runtime_error("failed to initialize \"wakeUpPingThread\" condition variable. rc: " + std::to_string(rc));
     }
@@ -230,14 +233,15 @@ void WatchdogImpl::waitFor(const milliseconds sleepInterval) {
 
 #if (defined(__APPLE__) || defined(_WIN32))
     timeToWait.tv_sec = sec.count();
-    timeToWait.tv_nsec =
+    timeToWait.tv_nsec = (long)(
         std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
-        std::chrono::nanoseconds(sec).count();
+        std::chrono::nanoseconds(sec).count());
 #else
     clock_gettime(CLOCK_MONOTONIC, &timeToWait);
     const auto secondInNanoSeconds = 1000000000L;
-    const auto nsecSum = std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
-                         std::chrono::nanoseconds(sec).count() + timeToWait.tv_nsec;
+    const auto nsecSum = static_cast<long long>(
+                            std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
+                            std::chrono::nanoseconds(sec).count() + timeToWait.tv_nsec);
     timeToWait.tv_sec += sec.count() + nsecSum / secondInNanoSeconds;
     timeToWait.tv_nsec = nsecSum % secondInNanoSeconds;
 #endif // (defined(__APPLE__) || defined(_WIN32))

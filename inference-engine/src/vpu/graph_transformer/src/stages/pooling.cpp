@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@
 
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
+
+#include <vpu/utils/hw_disabled.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
 
 namespace vpu {
 
@@ -221,8 +224,8 @@ void parsePool2D(const     Model      & model,
     //
 
     const auto& env = CompileEnv::get();
-    bool hwOptimization = env.config.hwOptimization;
-    bool hwDisabled = env.config.hwDisabled(layer->name);
+    bool hwOptimization = env.config.get<HwAccelerationOption>();
+    bool hwDisabled = HwDisabled(env.config, layer->name);
 
     int inputWidth = input->desc().dim(Dim::W);
     int inputHeight = input->desc().dim(Dim::H);
@@ -360,7 +363,7 @@ private:
     }
 
     static void append_pv(BlobSerializer& serializer, const PV& pv) {
-        int ndims = pv.size();
+        int ndims = static_cast<int>(pv.size());
         append_i(serializer, ndims);
         for (int i = 0; i < ndims; i++) {
             append_i(serializer, pv[i]);
@@ -387,7 +390,7 @@ void parsePoolND(const     Model      & model,
     VPU_THROW_UNLESS(poolLayer != nullptr, "failed dynamic cast to PoolingLayer");
 
     auto kernel_shape = poolLayer->_kernel;
-    int kernel_ndims = kernel_shape.size();
+    int kernel_ndims = static_cast<int>(kernel_shape.size());
     // Yet, only 3D kernel supported (NCDHW)
     // Later, if support 4D, 5D, etc, please
     // check if (kernelNDims >= 3), so that
@@ -480,8 +483,8 @@ void parsePoolND(const     Model      & model,
     //
 
     const auto& env = CompileEnv::get();
-    bool hwOptimization = env.config.hwOptimization;
-    bool hwDisabled = env.config.hwDisabled(layer->name);
+    bool hwOptimization = env.config.get<HwAccelerationOption>();
+    bool hwDisabled = HwDisabled(env.config, layer->name);
 
     bool tryHW = canTryHW(poolLayer->_type,
                           input_shape[0],

@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "pass_manager.h"
 #include "eltwise_inst.h"
@@ -20,7 +8,7 @@
 
 using namespace cldnn;
 
-void eltwise_shrinking::run(program_impl& p) {
+void eltwise_shrinking::run(program& p) {
     std::vector<program_node*> convs_to_shrink;
 
     for (auto& node : p.get_processing_order()) {
@@ -96,7 +84,7 @@ void eltwise_shrinking::run(program_impl& p) {
                 if (can_shrink) {
                     // add stride for every eltwise's inputs to have shrinked output
                     auto e = const_cast<eltwise*>(&(*eltw));
-                    for (size_t dep = 0; dep < node->get_dependencies().size(); dep++) {
+                    for (size_t dep = 0; dep < e->input_size(); dep++) {
                         auto dep_stride_x = stride_x;
                         auto dep_stride_y = stride_y;
                         // don't shrink if input is broadcasted

@@ -1,17 +1,6 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "pooling_kernel_gpu_fs_b_yx_fsv32.h"
 
@@ -43,19 +32,19 @@ ParamsKey PoolingKerneGPU_fs_b_yx_fsv32::GetSupportedKey() const {
 }
 
 PoolingKernelBase::DispatchData PoolingKerneGPU_fs_b_yx_fsv32::SetDefault(const pooling_params& params) const {
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    runInfo.gws0 = params.output.X().v;  // X output blocks
-    runInfo.gws1 = params.output.Y().v;  // Y output clocks
+    dispatchData.gws[0] = params.output.X().v;  // X output blocks
+    dispatchData.gws[1] = params.output.Y().v;  // Y output clocks
     // in fs_b_yx_fsv32 format we will process 2 features per work item, so reads/writes are done in full writes for
     // fp16
-    runInfo.gws2 = RoundUp(params.output.Feature().v, 32) * params.output.Batch().v / 2;
+    dispatchData.gws[2] = RoundUp(params.output.Feature().v, 32) * params.output.Batch().v / 2;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 16;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 16;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p, const optional_params& o) const {
@@ -68,11 +57,14 @@ bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p, const optional_par
     if (pp.output.Feature().pad.before % 32 != 0)
         return false;
 
+    if (pp.inputs[0].Feature().pad.before % 32 != 0)
+        return false;
+
     return true;
 }
 
-JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
     auto pp = static_cast<const pooling_params&>(params);
 
     // Heurestic needed for very big pool size.
@@ -101,6 +93,10 @@ JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params
 }
 
 KernelsData PoolingKerneGPU_fs_b_yx_fsv32::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority PoolingKerneGPU_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

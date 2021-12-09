@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,9 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_shuffle_channels3.hpp>
+#include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/init_node_info.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -21,21 +22,14 @@ using namespace ngraph;
 std::shared_ptr<ngraph::Function> buildInputGraph(int64_t axis, int64_t group, const ::PartialShape& p) {
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, p);
     auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input, axis, group);
-    shuffle_channels->set_friendly_name("shc");
-
-    auto f = std::make_shared<::Function>(::NodeVector{shuffle_channels}, ::ParameterVector{input});
-
-    ::pass::InitNodeInfo().run_on_function(f);
-    ::pass::ConvertShuffleChannels3().run_on_function(f);
-    f->validate_nodes_and_infer_types();
-    return f;
+    return std::make_shared<::Function>(::NodeVector{shuffle_channels}, ::ParameterVector{input});
 }
 
-TEST(TransformationTests, ConvertShuffleChannelsAxis0) {
+TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis0) {
     int64_t group = 4;
     auto ps = ::PartialShape{12, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
-    std::shared_ptr<ngraph::Function> f = buildInputGraph(0, group, ps), f_ref(nullptr);
-    ASSERT_NO_THROW(check_rt_info(f));
+    function = buildInputGraph(0, group, ps);
+    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
 
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, ps);
 
@@ -58,21 +52,14 @@ TEST(TransformationTests, ConvertShuffleChannelsAxis0) {
                                                                                       {1, 0, 2}));
     auto reshape_back = std::make_shared<::opset2::Reshape>(transpose->output(0), original_shape->output(0), false);
 
-    f_ref = std::make_shared<::Function>(::NodeVector{reshape_back}, ::ParameterVector{input});
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(output_node->get_friendly_name() == "shc") << "ConvertShuffleChannels3 should keep output names.\n";
+    function_ref = std::make_shared<::Function>(::NodeVector{reshape_back}, ::ParameterVector{input});
 }
 
-TEST(TransformationTests, ConvertShuffleChannelsAxis1) {
+TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis1) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), 12, Dimension::dynamic(), Dimension::dynamic()};
-    std::shared_ptr<ngraph::Function> f = buildInputGraph(1, group, ps), f_ref(nullptr);
-    ASSERT_NO_THROW(check_rt_info(f));
+    function = buildInputGraph(1, group, ps);
+    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
 
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, ps);
 
@@ -96,21 +83,14 @@ TEST(TransformationTests, ConvertShuffleChannelsAxis1) {
                                                                                       {0, 2, 1, 3}));
     auto reshape_back = std::make_shared<::opset2::Reshape>(transpose->output(0), original_shape->output(0), false);
 
-    f_ref = std::make_shared<::Function>(::NodeVector{reshape_back}, ::ParameterVector{input});
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(output_node->get_friendly_name() == "shc") << "ConvertShuffleChannels3 should keep output names.\n";
+    function_ref = std::make_shared<::Function>(::NodeVector{reshape_back}, ::ParameterVector{input});
 }
 
-TEST(TransformationTests, ConvertShuffleChannelsAxis2) {
+TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis2) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), Dimension::dynamic(), 12, Dimension::dynamic()};
-    std::shared_ptr<ngraph::Function> f = buildInputGraph(2, group, ps), f_ref(nullptr);
-    ASSERT_NO_THROW(check_rt_info(f));
+    function = buildInputGraph(2, group, ps);
+    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
 
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, ps);
 
@@ -134,21 +114,14 @@ TEST(TransformationTests, ConvertShuffleChannelsAxis2) {
                                                                                       {0, 2, 1, 3}));
     auto reshape_back = std::make_shared<::opset2::Reshape>(transpose->output(0), original_shape->output(0), false);
 
-    f_ref = std::make_shared<::Function>(::NodeVector{reshape_back}, ::ParameterVector{input});
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(output_node->get_friendly_name() == "shc") << "ConvertShuffleChannels3 should keep output names.\n";
+    function_ref = std::make_shared<::Function>(::NodeVector{reshape_back}, ::ParameterVector{input});
 }
 
-TEST(TransformationTests, ConvertShuffleChannelsLastAxis) {
+TEST_F(TransformationTestsF, ConvertShuffleChannelsLastAxis) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 12};
-    std::shared_ptr<ngraph::Function> f = buildInputGraph(-1, group, ps), f_ref(nullptr);
-    ASSERT_NO_THROW(check_rt_info(f));
+    function = buildInputGraph(-1, group, ps);
+    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
 
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, ps);
 
@@ -171,12 +144,5 @@ TEST(TransformationTests, ConvertShuffleChannelsLastAxis) {
                                                                                       {0, 2, 1}));
     auto reshape_back = std::make_shared<::opset2::Reshape>(transpose->output(0), original_shape->output(0), false);
 
-    f_ref = std::make_shared<::Function>(::NodeVector{reshape_back}, ::ParameterVector{input});
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(output_node->get_friendly_name() == "shc") << "ConvertShuffleChannels3 should keep output names.\n";
+    function_ref = std::make_shared<::Function>(::NodeVector{reshape_back}, ::ParameterVector{input});
 }
