@@ -5,6 +5,7 @@ from typing import Dict
 
 import numpy as np
 
+from graph.port import Port
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.elementwise import Sub, Div, Mul, Negative, Equal
 from openvino.tools.mo.ops.select import Select
@@ -142,6 +143,18 @@ class CompressQuantizeWeights(BackReplacementPattern):
         cast.out_port(0).connect(fake_quantize.in_port(0))
 
     @staticmethod
+    def convert_to(source_port: Port, dst_type: type):
+        precise_in_low = Cast(source_port.node.graph, {
+            'name': source_port.node.name + '_precise',
+            'dst_type': dst_type}).create_node()
+        precise_in_low.in_port(0).connect(source_port)
+        return precise_in_low.out_port(0)
+
+    @staticmethod
+    def make_precise(source_port):
+        return CompressQuantizeWeights.convert_to(source_port, np.float32)
+
+    @staticmethod
     def dequantize_data(fake_quantize: Node, dst_type: type, quantized_type: type) -> Node:
         graph = fake_quantize.graph
         quantized_data = fake_quantize.in_port(0).get_source().node
@@ -155,11 +168,14 @@ class CompressQuantizeWeights(BackReplacementPattern):
             dst_type=dst_type, stop_value_propagation=True)).create_node()
         fake_quantize.in_port(0).get_connection().set_destination(dequantizing_cast.in_port(0))
 
+        # performing calculation based on fq limits (scale and zero point) in fp32
+        make_precise = CompressQuantizeWeights.make_precise
+
         # limits of dequantize
-        in_low = fake_quantize.in_port(1).get_source()
-        in_high = fake_quantize.in_port(2).get_source()
-        out_low = fake_quantize.in_port(3).get_source()
-        out_high = fake_quantize.in_port(4).get_source()
+        in_low = make_precise(fake_quantize.in_port(1).get_source())
+        in_high = make_precise(fake_quantize.in_port(2).get_source())
+        out_low = make_precise(fake_quantize.in_port(3).get_source())
+        out_high = make_precise(fake_quantize.in_port(4).get_source())
 
         # scale calculation
         output_range = Sub(graph, {'name': name + '/output_range'}).create_node()
@@ -183,7 +199,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         shift.in_port(0).connect(in_low)
         shift.in_port(1).connect(descaled_output_low.out_port(0))
 
-        zero = Const(graph, {'name': name + '/zero', 'value': np.array(0, dtype=dst_type)}).create_node()
+        zero = Const(graph, {'name': name + '/zero', 'value': np.array(0, dtype=np.float32)}).create_node()
         scale_eq_zero = Equal(graph, {'name': name + '/scale_eq_zero'}).create_node()
         scale_eq_zero.in_port(0).connect(scale.out_port(0))
         scale_eq_zero.in_port(1).connect(zero.out_port(0))
@@ -192,15 +208,20 @@ class CompressQuantizeWeights(BackReplacementPattern):
         zero_point.in_port(0).connect(scale_eq_zero.out_port(0))
         zero_point.in_port(1).connect(zero.out_port(0))
         zero_point.in_port(2).connect(shift.out_port(0))
-
+        
+        convert_to = CompressQuantizeWeights.convert_to
+        
+        scale = convert_to(scale.out_port(0), dst_type)
+        zero_point = convert_to(zero_point.out_port(0), dst_type)
+        
         # DeQuantize(x) == Mul(Sub(x, zero_point), scale)
         sub_zp = Sub(graph, {'name': name + '/minus_zp'}).create_node()
         sub_zp.in_port(0).connect(dequantizing_cast.out_port(0))
-        sub_zp.in_port(1).connect(zero_point.out_port(0))
+        sub_zp.in_port(1).connect(zero_point)
 
         mul_scale = Mul(graph, {'name': name + '/mulpiply_by_scale'}).create_node()
         mul_scale.in_port(0).connect(sub_zp.out_port(0))
-        mul_scale.in_port(1).connect(scale.out_port(0))
+        mul_scale.in_port(1).connect(scale)
 
         fake_quantize.out_port(0).get_connection().set_source(mul_scale.out_port(0))
 
@@ -221,6 +242,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
 
         self.quantize_data(fake_quantize, dst_type, quantized_type, mode)
         self.dequantize_data(fake_quantize, dst_type, quantized_type)
+        graph.graph['dump_value_propagation_statistics'] = True
 
 
 class ZeroPointOptimizer(BackReplacementPattern):

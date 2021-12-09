@@ -62,8 +62,9 @@ class FakeQuantize(Op):
         node.out_node().shape = x.shape.copy()
 
         if all([node.in_node(i).has_valid('value') for i in range(5)]):
+            dtype = inputs[0].value.dtype
             x, input_low, input_high, output_low, output_high = \
-                [np.array(np.broadcast_to(node.value, x.value.shape), dtype=inputs[0].value.dtype) for node in inputs]
+                [np.array(np.broadcast_to(node.value, x.value.shape), dtype=dtype) for node in inputs]
 
             assert node.has_valid('levels')
             assert isinstance(node.levels, int)
@@ -77,7 +78,7 @@ class FakeQuantize(Op):
                 return round_half_up((x - input_low) / (input_high - input_low) * (node.levels - 1)) / \
                     (node.levels - 1) * (output_high - output_low) + output_low
 
-            output = np.zeros_like(x)
+            output = np.zeros_like(x, dtype=dtype)
             # pylint: disable=unsupported-assignment-operation
             output[middle_mask] = middle_part(
                 x[middle_mask],
