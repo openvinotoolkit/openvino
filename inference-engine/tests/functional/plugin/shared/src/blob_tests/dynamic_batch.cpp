@@ -54,10 +54,10 @@ namespace ConfigurationTestsDefinitions {
         ConfigureNetwork();
         cnnNetwork.setBatchSize(max_batch_size);
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
-        inferRequest = executableNetwork.CreateInferRequest();
     }
 
     void DynamicBatchTest::Infer() {
+        inferRequest = executableNetwork.CreateInferRequest();
         inputs.clear();
 
         for (int i = 0; i < batch_sizes.size(); i++) {
