@@ -176,7 +176,6 @@ elif [ "$os" == "centos7" ] ; then
         # 1 RPMFusion
         extra_repos+=(https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm)
         pkgs_opencv_opt+=(ffmpeg-libs)
-        )
     fi
 
 else
