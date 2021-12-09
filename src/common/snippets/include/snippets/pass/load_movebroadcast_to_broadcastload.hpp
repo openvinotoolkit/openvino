@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/matcher.hpp>
 
@@ -19,7 +17,7 @@ namespace pass {
  * The pass is used to convert function to a canonical form for code generation
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API LoadMoveBroadcastToBroadcastLoad: public ngraph::pass::MatcherPass {
+class LoadMoveBroadcastToBroadcastLoad: public ngraph::pass::MatcherPass {
 public:
     LoadMoveBroadcastToBroadcastLoad();
 };

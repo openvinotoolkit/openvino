@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <vector>
 #include <cstdint>
 
@@ -20,7 +18,7 @@ using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
  * @brief Base class for all target specific code emitters used by generator.
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API Emitter {
+class Emitter {
 public:
     /**
      * @brief Default constructor

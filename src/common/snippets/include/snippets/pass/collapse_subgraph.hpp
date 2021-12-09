@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/matcher.hpp>
@@ -20,7 +18,7 @@ namespace pass {
  * @brief Matches multiple output loyout-oblivious operations to start a new subgraph
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API StartSubgraph: public ngraph::pass::MatcherPass {
+class StartSubgraph: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     explicit StartSubgraph(bool tokenize_by_node = false);
@@ -31,7 +29,7 @@ public:
  * @brief Matches loyout-oblivious operations with subgraph operation as an input to attech this node into it
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API AttachToSubgraph: public ngraph::pass::MatcherPass {
+class AttachToSubgraph: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     explicit AttachToSubgraph(bool tokenize_by_node = false);
@@ -60,7 +58,7 @@ public:
  * Scalar constants are placed as is into subgraph due to optimization purpose
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API TokenizeSnippets: public ngraph::pass::GraphRewrite {
+class TokenizeSnippets: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     TokenizeSnippets(bool tokenize_by_node = false) {
