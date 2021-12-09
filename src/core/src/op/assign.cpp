@@ -105,7 +105,6 @@ bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor) {
 
 bool op::v6::Assign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v6_Assign_evaluate);
-
     outputs[0]->set_unary(inputs[0]);
     void* input = inputs[0]->get_data_ptr();
     outputs[0]->write(input, outputs[0]->get_size_in_bytes());
