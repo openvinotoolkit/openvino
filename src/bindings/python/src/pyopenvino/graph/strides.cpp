@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 void regclass_graph_Strides(py::module m) {
     py::class_<ov::Strides, std::shared_ptr<ov::Strides>> strides(m, "Strides");
-    strides.doc() = "openvino.impl.Strides wraps ov::Strides";
+    strides.doc() = "openvino.runtime.Strides wraps ov::Strides";
     strides.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_strides"));
     strides.def(py::init<const std::vector<size_t>&>(), py::arg("axis_strides"));
     strides.def(py::init<const ov::Strides&>(), py::arg("axis_strides"));

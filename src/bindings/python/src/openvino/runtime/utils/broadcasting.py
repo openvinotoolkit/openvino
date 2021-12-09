@@ -4,7 +4,7 @@
 import logging
 from typing import List
 
-from openvino.runtime.impl import AxisSet, Node
+from openvino.runtime import AxisSet, Node
 from openvino.runtime.utils.types import NodeInput, TensorShape, get_dtype, make_constant_node
 
 log = logging.getLogger(__name__)

@@ -4,7 +4,7 @@
 from functools import wraps
 from typing import Any, Callable
 
-from openvino.runtime.impl import Node, Output
+from openvino.runtime import Node, Output
 from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
 
 

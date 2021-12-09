@@ -11,7 +11,7 @@
 namespace py = pybind11;
 
 void regmodule_graph_layout_helpers(py::module m) {
-    py::module mod = m.def_submodule("layout_helpers", "openvino.impl.layout_helpers");
+    py::module mod = m.def_submodule("layout_helpers", "openvino.runtime.layout_helpers");
 
     mod.def("has_batch", &ov::layout::has_batch, py::arg("layout"));
     mod.def("batch_idx", &ov::layout::batch_idx, py::arg("layout"));

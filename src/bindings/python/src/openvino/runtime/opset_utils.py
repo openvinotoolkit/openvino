@@ -4,7 +4,7 @@
 from typing import Optional
 import numpy as np
 
-from openvino.runtime.impl import Node
+from openvino.runtime import Node
 from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.node_factory import NodeFactory
 from openvino.runtime.utils.types import (

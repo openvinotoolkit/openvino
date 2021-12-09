@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from openvino.pyopenvino import NodeFactory as _NodeFactory
 
-from openvino.runtime.impl import Node, Output
+from openvino.runtime import Node, Output
 
 from openvino.runtime.exceptions import UserInputError
 

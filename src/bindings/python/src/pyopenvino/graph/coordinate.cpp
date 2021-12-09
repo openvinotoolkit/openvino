@@ -13,7 +13,7 @@ namespace py = pybind11;
 
 void regclass_graph_Coordinate(py::module m) {
     py::class_<ov::Coordinate, std::shared_ptr<ov::Coordinate>> coordinate(m, "Coordinate");
-    coordinate.doc() = "openvino.impl.Coordinate wraps ov::Coordinate";
+    coordinate.doc() = "openvino.runtime.Coordinate wraps ov::Coordinate";
     coordinate.def(py::init<const std::initializer_list<size_t>&>());
     coordinate.def(py::init<const ov::Shape&>());
     coordinate.def(py::init<const std::vector<size_t>&>());

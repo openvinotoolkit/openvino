@@ -46,7 +46,7 @@ ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>&
 
 void regclass_graph_Function(py::module m) {
     py::class_<ov::Function, std::shared_ptr<ov::Function>> function(m, "Function", py::module_local());
-    function.doc() = "openvino.impl.Function wraps ov::Function";
+    function.doc() = "openvino.runtime.Function wraps ov::Function";
 
     function.def(py::init([](const ov::ResultVector& res,
                              const std::vector<std::shared_ptr<ov::Node>>& nodes,

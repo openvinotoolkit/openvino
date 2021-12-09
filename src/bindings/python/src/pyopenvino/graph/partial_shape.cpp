@@ -21,7 +21,7 @@ static const char* CAPSULE_NAME = "ngraph_partial_shape";
 
 void regclass_graph_PartialShape(py::module m) {
     py::class_<ov::PartialShape, std::shared_ptr<ov::PartialShape>> shape(m, "PartialShape");
-    shape.doc() = "openvino.impl.PartialShape wraps ov::PartialShape";
+    shape.doc() = "openvino.runtime.PartialShape wraps ov::PartialShape";
 
     shape.def(py::init([](const std::vector<int64_t>& dimensions) {
         return ov::PartialShape(std::vector<ov::Dimension>(dimensions.begin(), dimensions.end()));
@@ -46,7 +46,7 @@ void regclass_graph_PartialShape(py::module m) {
                                 &ov::PartialShape::is_static,
                                 R"(
                                     True if this shape is static, else False.
-                                    A shape is considered static if it has static rank, 
+                                    A shape is considered static if it has static rank,
                                     and all dimensions of the shape are static.
                                 )");
     shape.def_property_readonly("rank",
@@ -57,7 +57,7 @@ void regclass_graph_PartialShape(py::module m) {
     shape.def_property_readonly("all_non_negative",
                                 &ov::PartialShape::all_non_negative,
                                 R"(
-                                    True if all static dimensions of the tensor are 
+                                    True if all static dimensions of the tensor are
                                     non-negative, else False.
                                 )");
 
@@ -67,7 +67,7 @@ void regclass_graph_PartialShape(py::module m) {
               R"(
                 Check whether this shape is compatible with the argument, i.e.,
                 whether it is possible to merge them.
-                
+
                 Parameters
                 ----------
                 s : PartialShape
@@ -88,8 +88,8 @@ void regclass_graph_PartialShape(py::module m) {
                 Parameters
                 ----------
                 s : PartialShape
-                    The shape which is being compared against this shape.        
-        
+                    The shape which is being compared against this shape.
+
                 Returns
                 ----------
                 refines : bool
@@ -104,8 +104,8 @@ void regclass_graph_PartialShape(py::module m) {
                 Parameters
                 ----------
                 s : PartialShape
-                    The shape which is being compared against this shape.        
-        
+                    The shape which is being compared against this shape.
+
                 Returns
                 ----------
                 relaxes : bool
@@ -120,8 +120,8 @@ void regclass_graph_PartialShape(py::module m) {
                 Parameters
                 ----------
                 s : PartialShape
-                    The shape which is being compared against this shape.        
-        
+                    The shape which is being compared against this shape.
+
                 Returns
                 ----------
                 same_scheme : bool

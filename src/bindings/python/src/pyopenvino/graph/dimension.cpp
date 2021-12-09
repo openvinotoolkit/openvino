@@ -19,7 +19,7 @@ void regclass_graph_Dimension(py::module m) {
     using value_type = ov::Dimension::value_type;
 
     py::class_<ov::Dimension, std::shared_ptr<ov::Dimension>> dim(m, "Dimension");
-    dim.doc() = "openvino.impl.Dimension wraps ov::Dimension";
+    dim.doc() = "openvino.runtime.Dimension wraps ov::Dimension";
     dim.def(py::init<>());
     dim.def(py::init<value_type&>(),
             py::arg("dimension"),
@@ -139,7 +139,7 @@ void regclass_graph_Dimension(py::module m) {
             &ov::Dimension::compatible,
             py::arg("d"),
             R"(
-                Check whether this dimension is capable of being merged 
+                Check whether this dimension is capable of being merged
                 with the argument dimension.
 
                 Parameters

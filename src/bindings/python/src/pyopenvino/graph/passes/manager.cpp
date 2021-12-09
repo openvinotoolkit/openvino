@@ -65,7 +65,7 @@ public:
 
 void regclass_graph_passes_Manager(py::module m) {
     py::class_<ManagerWrapper> manager(m, "Manager");
-    manager.doc() = "openvino.impl.passes.Manager wraps ov::pass::Manager using ManagerWrapper";
+    manager.doc() = "openvino.runtime.passes.Manager wraps ov::pass::Manager using ManagerWrapper";
 
     manager.def(py::init<>());
 
