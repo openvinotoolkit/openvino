@@ -63,7 +63,7 @@ class FakeQuantize(Op):
 
         if all([node.in_node(i).has_valid('value') for i in range(5)]):
             x, input_low, input_high, output_low, output_high = \
-                [np.array(np.broadcast_to(node.value, x.value.shape), dtype=np.float32) for node in inputs]
+                [np.array(np.broadcast_to(node.value, x.value.shape), dtype=inputs[0].value.dtype) for node in inputs]
 
             assert node.has_valid('levels')
             assert isinstance(node.levels, int)
