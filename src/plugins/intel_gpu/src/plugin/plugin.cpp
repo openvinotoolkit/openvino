@@ -857,7 +857,14 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             new_shapes[name] = shape;
         }
         if (batch_detected) { // reshape only for batched layout
-            cloned_network.reshape(new_shapes);
+            try {
+                cloned_network.reshape(new_shapes);
+            } catch (...) {
+                GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Failed to reshape with base_batch_size: return 1" << std::endl;
+                }
+                IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(1));
+            }
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
                 GPU_DEBUG_COUT << "Reshaped base batch size to " << base_batch_size << std::endl;
             }
@@ -871,7 +878,14 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto nGraphFunc = cloned_network.getFunction();
         TransformationsPipeline transformations(config, device_info);
         transformations.apply(nGraphFunc);
-        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        try {
+            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        } catch (...) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Failed to create cldnn::program with base_batch_size: return 1" << std::endl;
+            }
+            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(1));
+        }
         std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
         int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
                                   static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
