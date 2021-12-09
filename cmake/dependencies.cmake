@@ -84,10 +84,10 @@ if(THREADING STREQUAL "OMP")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     debug_message(STATUS "intel_omp=" ${OMP})
-    
+
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-    install(FILES ${source_list} 
+    install(FILES ${source_list}
             DESTINATION "runtime/3rdparty/omp/lib"
             COMPONENT omp)
 endif()
@@ -267,7 +267,7 @@ endif()
 
 include(${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake)
 
-if(ENABLE_GNA)
+if(ENABLE_INTEL_GNA)
     reset_deps_cache(
             GNA
             GNA_PLATFORM_DIR
@@ -297,7 +297,7 @@ if(ENABLE_GNA)
         else()
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
-     
+
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"

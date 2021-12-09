@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/lstm_dynamic_input.hpp"
+#include "intel_gpu/primitives/lstm_dynamic_input.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

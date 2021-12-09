@@ -7,8 +7,8 @@ import os
 from sys import platform
 from pathlib import Path
 
-import openvino.opset8 as ov
-from openvino import Function, Core, ExecutableNetwork, Tensor, tensor_from_file, compile_model
+import openvino.runtime.opset8 as ov
+from openvino.runtime import Function, Core, ExecutableNetwork, Tensor, tensor_from_file, compile_model
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
@@ -24,7 +24,7 @@ def test_compact_api_xml():
     model = compile_model(test_net_xml)
     assert(isinstance(model, ExecutableNetwork))
     results = model.infer_new_request({"data": img})
-    assert np.argmax(results) == 2
+    assert np.argmax(results[list(results)[0]]) == 2
 
 
 def test_compact_api_onnx():
@@ -33,7 +33,7 @@ def test_compact_api_onnx():
     model = compile_model(test_net_onnx)
     assert(isinstance(model, ExecutableNetwork))
     results = model.infer_new_request({"data": img})
-    assert np.argmax(results) == 2
+    assert np.argmax(results[list(results)[0]]) == 2
 
 
 def test_core_class():
@@ -53,8 +53,7 @@ def test_core_class():
 
     input_tensor = Tensor(input_data)
     results = request.infer({"parameter": input_tensor})
-
-    assert np.allclose(results, expected_output)
+    assert np.allclose(results[list(results)[0]], expected_output)
 
 
 def test_compile_model(device):

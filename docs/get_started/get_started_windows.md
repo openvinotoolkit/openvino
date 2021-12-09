@@ -396,13 +396,6 @@ Template to call sample code or a demo application:
 <path_to_app> -i <path_to_media> -m <path_to_model> -d <target_device>
 ```
 
-With the sample information specified, the command might look like this:
-
-```bat
-.\object_detection_demo_ssd_async -i C:\Users\<USER_ID>\Documents\Videos\catshow.mp4 \
--m C:\Users\<USER_ID>\Documents\ir\fp32\mobilenet-ssd.xml -d CPU
-```
-
 ## <a name="advanced-samples"></a> Advanced Demo Use
 
 Some demo applications let you use multiple models for different purposes. In these cases, the output of the first model is usually used as the input for later models.
@@ -416,22 +409,6 @@ In these cases, the use pattern in the last part of the template above is usuall
 For head pose:
 
 `-m_hp <headpose model> -d_hp <headpose hardware target>`
-
-**Example of an Entire Command (object_detection + head pose):**
-
-```bat
-.\object_detection_demo_ssd_async -i C:\Users\<USER_ID>\Documents\Videos\catshow.mp4 \
--m C:\Users\<USER_ID>\Documents\ir\fp32\mobilenet-ssd.xml -d CPU -m_hp headpose.xml \
--d_hp CPU
-``` 
-
-**Example of an Entire Command (object_detection + head pose + age-gender):**
-
-```bat
-.\object_detection_demo_ssd_async -i C:\Users\<USER_ID>\Documents\Videos\catshow.mp4 \
--m C:\Users\<USER_ID>\Documents\ir\fp32\mobilenet-ssd.xml -d CPU -m_hp headpose.xml \
--d_hp CPU -m_ag age-gender.xml -d_ag CPU
-```
 
 You can see all the sample application’s parameters by adding the `-h` or `--help` option at the command line.
 

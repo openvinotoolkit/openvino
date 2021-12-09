@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <openvino/util/env_util.hpp>
+#include <openvino/util/file_util.hpp>
+
 #include "common/frontend_exceptions.hpp"
 #include "common/place.hpp"
 #include "manager.hpp"
@@ -16,59 +19,174 @@ using namespace ov::frontend;
 
 //----------- FrontEndManager ---------------------------
 class FrontEndManager::Impl {
-    std::vector<PluginHandle> m_loaded_libs;  // must be a first class member (destroyed last)
-    std::map<std::string, FrontEndFactory> m_factories;
+    std::mutex m_loading_mutex;
+    std::vector<PluginInfo> m_plugins;
 
 public:
     Impl() {
-        register_plugins();
+        search_all_plugins();
     }
 
     ~Impl() = default;
 
     FrontEnd::Ptr load_by_framework(const std::string& framework) {
-        FRONT_END_INITIALIZATION_CHECK(m_factories.count(framework),
-                                       "FrontEnd for Framework ",
-                                       framework,
-                                       " is not found");
-        return m_factories[framework]();
-    }
-
-    std::vector<std::string> available_front_ends() const {
-        std::vector<std::string> keys;
-
-        std::transform(m_factories.begin(),
-                       m_factories.end(),
-                       std::back_inserter(keys),
-                       [](const std::pair<std::string, FrontEndFactory>& item) {
-                           return item.first;
-                       });
-        return keys;
-    }
-
-    FrontEnd::Ptr load_by_model(const std::vector<std::shared_ptr<Variant>>& variants) {
-        for (const auto& factory : m_factories) {
-            auto FE = factory.second();
-            if (FE->supported(variants)) {
-                return FE;
+        // Mapping of default FE name to file name (without prefix and suffix)
+        std::map<std::string, std::string> predefined_frontends = {
+            {"ir", "ir"},
+            {"onnx", "onnx"},
+            {"tf", "tensorflow"},
+            {"paddle", "paddlepaddle"},
+        };
+        auto it = predefined_frontends.find(framework);
+        std::lock_guard<std::mutex> guard(m_loading_mutex);
+        if (it != predefined_frontends.end()) {
+            auto file_name = it->second;
+            auto plugin_it = std::find_if(m_plugins.begin(), m_plugins.end(), [&file_name](const PluginInfo& item) {
+                return item.is_file_name_match(file_name);
+            });
+            if (plugin_it != m_plugins.end()) {
+                if (plugin_it->load()) {
+                    return plugin_it->get_creator().m_creator();
+                }
             }
         }
-        return FrontEnd::Ptr();
+        // Load plugins until we found the right one
+        for (auto& plugin : m_plugins) {
+            plugin.load();
+            if (plugin.get_creator().m_name == framework) {
+                return plugin.get_creator().m_creator();
+            }
+        }
+        FRONT_END_INITIALIZATION_CHECK(false, "FrontEnd for Framework ", framework, " is not found");
+    }
+
+    std::vector<std::string> available_front_ends() {
+        std::vector<std::string> names;
+        // Load all not loaded plugins/frontends
+        std::lock_guard<std::mutex> guard(m_loading_mutex);
+        for (auto& plugin_info : m_plugins) {
+            if (!plugin_info.load()) {
+                continue;
+            }
+            names.push_back(plugin_info.get_creator().m_name);
+        }
+        return names;
+    }
+
+    FrontEnd::Ptr load_by_model(const std::vector<ov::Any>& variants) {
+        std::lock_guard<std::mutex> guard(m_loading_mutex);
+        // Step 1: Search from hard-coded prioritized frontends first
+        auto ptr = search_priority(variants);
+        if (ptr) {
+            return ptr;
+        }
+        // Step 2: Load and search from all available frontends
+        for (auto& plugin : m_plugins) {
+            if (!plugin.load()) {
+                continue;
+            }
+            auto fe = plugin.get_creator().m_creator();
+            OPENVINO_ASSERT(fe, "Frontend error: frontend '", plugin.get_creator().m_name, "' created null FrontEnd");
+            if (fe->supported(variants)) {
+                return fe;
+            }
+        }
+        return {};
     }
 
     void register_front_end(const std::string& name, FrontEndFactory creator) {
-        m_factories.insert({name, creator});
+        PluginInfo plugin_info(name, std::move(creator));
+        std::lock_guard<std::mutex> guard(m_loading_mutex);
+        m_plugins.push_back(std::move(plugin_info));
     }
 
 private:
-    void register_plugins() {
-        auto register_from_dir = [&](const std::string& dir) {
-            if (!dir.empty()) {
-                auto plugins = load_plugins(dir);
-                for (auto& plugin : plugins) {
-                    register_front_end(plugin.m_plugin_info.m_name, plugin.m_plugin_info.m_creator);
-                    m_loaded_libs.push_back(std::move(plugin.m_lib_handle));
+    // Helper structure for searching plugin either by name or by file name
+    // File name here doesn't contain prefix/suffix (like "_ov_frontend.so")
+    struct FrontEndNames {
+        FrontEndNames(std::string n, std::string f) : name(std::move(n)), file_name(std::move(f)) {}
+        bool operator==(const FrontEndNames& other) const {
+            return name == other.name && file_name == other.file_name;
+        }
+        std::string name;
+        std::string file_name;
+    };
+
+    static bool name_match(const PluginInfo& info, const FrontEndNames& names) {
+        return info.is_file_name_match(names.file_name) || info.get_creator().m_name == names.name;
+    }
+
+    FrontEnd::Ptr search_priority(const std::vector<ov::Any>& variants) {
+        // Map between file extension and suitable frontend
+        static const std::map<std::string, FrontEndNames> priority_fe_extensions = {
+            {".xml", {"ir", "ir"}},
+            {".onnx", {"onnx", "onnx"}},
+            {".pb", {"tf", "tensorflow"}},
+            {".pdmodel", {"paddle", "paddlepaddle"}},
+        };
+
+        // List of prioritized frontends.
+        std::list<FrontEndNames> priority_list = {
+            {"ir", "ir"},
+            {"onnx", "onnx"},
+            {"tf", "tensorflow"},
+            {"paddle", "paddlepaddle"},
+        };
+        if (variants.empty()) {
+            return nullptr;
+        }
+        std::string model_path;
+
+        const auto& model_variant = variants.at(0);
+        if (model_variant.is<std::string>()) {
+            const auto& tmp_path = model_variant.as<std::string>();
+            model_path = tmp_path;
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        } else if (model_variant.is<std::wstring>()) {
+            auto wpath = model_variant.as<std::wstring>();
+            model_path = ov::util::wstring_to_string(wpath);
+#endif
+        }
+        if (!model_path.empty()) {
+            auto ext = ov::util::get_file_ext(model_path);
+            auto it = priority_fe_extensions.find(ext);
+            if (it != priority_fe_extensions.end()) {
+                // Priority FE is found by file extension, try this first
+                auto list_it = std::find(priority_list.begin(), priority_list.end(), it->second);
+                OPENVINO_ASSERT(list_it != priority_list.end(),
+                                "Internal error. Incorrect priority frontends configuration");
+                // Move frontend matched by extension (e.g. ".onnx") to the top of priority list
+                priority_list.splice(priority_list.begin(), priority_list, list_it);
+            }
+        }
+        for (const auto& priority_info : priority_list) {
+            auto plugin_it = std::find_if(m_plugins.begin(), m_plugins.end(), [&priority_info](const PluginInfo& info) {
+                return name_match(info, priority_info);
+            });
+            if (plugin_it == m_plugins.end()) {
+                continue;  // One of standard plugins is missing (correct case)
+            }
+            auto& plugin_info = *plugin_it;
+            if (!plugin_info.is_loaded()) {
+                if (!plugin_info.load()) {
+                    // If standard plugin can't be loaded, it can also be ok (incompatible version, etc)
+                    continue;
                 }
+            }
+            // Plugin from priority list is loaded, create FrontEnd and check if it supports model loading
+            auto fe = plugin_info.get_creator().m_creator();
+            if (fe && fe->supported(variants)) {
+                // Priority FE (e.g. IR) is found and is suitable
+                return fe;
+            }
+        }
+        return {};
+    }
+
+    void search_all_plugins() {
+        auto search_from_dir = [&](const std::string& dir) {
+            if (!dir.empty()) {
+                find_plugins(dir, m_plugins);
             }
         };
         std::string env_path = ov::util::getenv_string("OV_FRONTEND_PATH");
@@ -76,21 +194,21 @@ private:
             auto start = 0u;
             auto sep_pos = env_path.find(PathSeparator, start);
             while (sep_pos != std::string::npos) {
-                register_from_dir(env_path.substr(start, sep_pos - start));
+                search_from_dir(env_path.substr(start, sep_pos - start));
                 start = sep_pos + 1;
                 sep_pos = env_path.find(PathSeparator, start);
             }
-            register_from_dir(env_path.substr(start, sep_pos));
+            search_from_dir(env_path.substr(start, sep_pos));
         } else {
-            register_from_dir(get_frontend_library_path());
+            search_from_dir(get_frontend_library_path());
         }
     }
 };
 
 FrontEndManager::FrontEndManager() : m_impl(new Impl()) {}
 
-FrontEndManager::FrontEndManager(FrontEndManager&&) = default;
-FrontEndManager& FrontEndManager::operator=(FrontEndManager&&) = default;
+FrontEndManager::FrontEndManager(FrontEndManager&&) noexcept = default;
+FrontEndManager& FrontEndManager::operator=(FrontEndManager&&) noexcept = default;
 
 FrontEndManager::~FrontEndManager() = default;
 
@@ -98,20 +216,20 @@ FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework) {
     return m_impl->load_by_framework(framework);
 }
 
-FrontEnd::Ptr FrontEndManager::load_by_model_impl(const std::vector<std::shared_ptr<Variant>>& variants) {
+FrontEnd::Ptr FrontEndManager::load_by_model_impl(const std::vector<ov::Any>& variants) {
     return m_impl->load_by_model(variants);
 }
 
-std::vector<std::string> FrontEndManager::get_available_front_ends() const {
+std::vector<std::string> FrontEndManager::get_available_front_ends() {
     return m_impl->available_front_ends();
 }
 
 void FrontEndManager::register_front_end(const std::string& name, FrontEndFactory creator) {
-    m_impl->register_front_end(name, creator);
+    m_impl->register_front_end(name, std::move(creator));
 }
 
 template <>
-FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants) {
+FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants) {
     return load_by_model_impl(variants);
 }
 
@@ -121,34 +239,35 @@ FrontEnd::FrontEnd() = default;
 
 FrontEnd::~FrontEnd() = default;
 
-bool FrontEnd::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-InputModel::Ptr FrontEnd::load_impl(const std::vector<std::shared_ptr<Variant>>& params) const {
+InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& params) const {
     FRONT_END_NOT_IMPLEMENTED(load_impl);
 }
-std::shared_ptr<ngraph::Function> FrontEnd::convert(InputModel::Ptr model) const {
+std::shared_ptr<Function> FrontEnd::convert(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-void FrontEnd::convert(std::shared_ptr<ngraph::Function>) const {
+void FrontEnd::convert(std::shared_ptr<Function>) const {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(InputModel::Ptr model) const {
+std::shared_ptr<Function> FrontEnd::convert_partially(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(convert_partially);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(InputModel::Ptr model) const {
+std::shared_ptr<Function> FrontEnd::decode(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(decode);
 }
 
-void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const {
+void FrontEnd::normalize(std::shared_ptr<Function> function) const {
     FRONT_END_NOT_IMPLEMENTED(normalize);
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    // Left unimplemented intentionally.
     // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
 }
 
@@ -251,15 +370,15 @@ void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs, const s
 }
 
 // Setting tensor properties
-void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape&) {
+void InputModel::set_partial_shape(Place::Ptr place, const PartialShape&) {
     FRONT_END_NOT_IMPLEMENTED(set_partial_shape);
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(Place::Ptr place) const {
+PartialShape InputModel::get_partial_shape(Place::Ptr place) const {
     FRONT_END_NOT_IMPLEMENTED(get_partial_shape);
 }
 
-void InputModel::set_element_type(Place::Ptr place, const ngraph::element::Type&) {
+void InputModel::set_element_type(Place::Ptr place, const element::Type&) {
     FRONT_END_NOT_IMPLEMENTED(set_element_type);
 }
 

@@ -4,30 +4,30 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/quantize.hpp>
-#include <cldnn/primitives/eltwise.hpp>
-#include <cldnn/primitives/fully_connected.hpp>
-#include <cldnn/primitives/gemm.hpp>
-#include <cldnn/primitives/binary_convolution.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/resample.hpp>
-#include <cldnn/primitives/mvn.hpp>
-#include <cldnn/primitives/deconvolution.hpp>
-#include <cldnn/primitives/permute.hpp>
-#include <cldnn/primitives/gather.hpp>
-#include <cldnn/primitives/gather_nd.hpp>
-#include <cldnn/primitives/gather_elements.hpp>
-#include <cldnn/primitives/scatter_update.hpp>
-#include <cldnn/primitives/scatter_nd_update.hpp>
-#include <cldnn/primitives/scatter_elements_update.hpp>
-#include <cldnn/primitives/depth_to_space.hpp>
-#include <cldnn/primitives/space_to_depth.hpp>
-#include <cldnn/primitives/batch_to_space.hpp>
-#include <cldnn/primitives/space_to_batch.hpp>
-#include <cldnn/primitives/reduce.hpp>
-#include <cldnn/primitives/crop.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/gemm.hpp>
+#include <intel_gpu/primitives/binary_convolution.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/resample.hpp>
+#include <intel_gpu/primitives/mvn.hpp>
+#include <intel_gpu/primitives/deconvolution.hpp>
+#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/gather.hpp>
+#include <intel_gpu/primitives/gather_nd.hpp>
+#include <intel_gpu/primitives/gather_elements.hpp>
+#include <intel_gpu/primitives/scatter_update.hpp>
+#include <intel_gpu/primitives/scatter_nd_update.hpp>
+#include <intel_gpu/primitives/scatter_elements_update.hpp>
+#include <intel_gpu/primitives/depth_to_space.hpp>
+#include <intel_gpu/primitives/space_to_depth.hpp>
+#include <intel_gpu/primitives/batch_to_space.hpp>
+#include <intel_gpu/primitives/space_to_batch.hpp>
+#include <intel_gpu/primitives/reduce.hpp>
+#include <intel_gpu/primitives/crop.hpp>
 
 #include <cmath>
 
@@ -8749,13 +8749,23 @@ public:
 class gather_nd_quantize : public GatherNDPrimitiveFusingTest {};
 TEST_P(gather_nd_quantize, basic) {
     auto p = GetParam();
+
+    auto input_rank = 0;
+    if (p.input_format == format::bfyx) {
+        input_rank = 4;
+    } else if (p.input_format == format::bfzyx) {
+        input_rank = 5;
+    } else if (p.input_format == format::bfwzyx) {
+        input_rank = 6;
+    }
+
     create_topologies(input_layout("input", get_input_layout(p)),
         data("gather_nd_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        gather_nd("gather_nd_prim", "input", "gather_nd_indices", p.indices_rank, p.batch_dims),
+        gather_nd("gather_nd_prim", "input", "gather_nd_indices", input_rank, p.indices_rank, p.batch_dims),
         quantize("quantize", "gather_nd_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -8802,11 +8812,20 @@ class gather_nd_activation_scale_eltwise : public GatherNDPrimitiveFusingTest {}
 TEST_P(gather_nd_activation_scale_eltwise, basic) {
     auto p = GetParam();
 
+    auto input_rank = 0;
+    if (p.input_format == format::bfyx) {
+        input_rank = 4;
+    } else if (p.input_format == format::bfzyx) {
+        input_rank = 5;
+    } else if (p.input_format == format::bfwzyx) {
+        input_rank = 6;
+    }
+
     create_topologies(input_layout("input", get_input_layout(p)),
         data("gather_nd_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
-        gather_nd("gather_nd_prim", "input", "gather_nd_indices", p.indices_rank, p.batch_dims),
+        gather_nd("gather_nd_prim", "input", "gather_nd_indices", input_rank, p.indices_rank, p.batch_dims),
         activation("activation", "gather_nd_prim", activation_func::abs),
         scale("scale", "activation", "scale_data"),
         eltwise("eltwise", { "scale", "eltwise_data" }, eltwise_mode::sum, p.data_type),

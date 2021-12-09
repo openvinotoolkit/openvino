@@ -265,18 +265,18 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     CPUInfo cpuInfo;
 
     if (!inFmts.empty()) {
-        cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                std::make_shared<ngraph::MLKDNNInputMemoryFormats>(fmts2str(inFmts, "cpu:"))});
+        cpuInfo.insert({ngraph::MKLDNNInputMemoryFormats::get_type_info_static(),
+                ngraph::MKLDNNInputMemoryFormats(fmts2str(inFmts, "cpu:"))});
     }
     if (!outFmts.empty()) {
-        cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                std::make_shared<ngraph::MLKDNNOutputMemoryFormats>(fmts2str(outFmts, "cpu:"))});
+        cpuInfo.insert({ngraph::MKLDNNOutputMemoryFormats::get_type_info_static(),
+                ngraph::MKLDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
     }
 
-    cpuInfo.insert({"enforceBF16evenForGraphTail", ov::make_variant<int64_t>(true)});
+    cpuInfo.insert({"enforceBF16evenForGraphTail", ov::make_runtime_attribute<int64_t>(true)});
 
     return cpuInfo;
 }
@@ -308,6 +308,8 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
 auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
+            if (formats[i] == nCw16c)
+                formats[i] = nCw8c;
             if (formats[i] == nChw16c)
                 formats[i] = nChw8c;
             if (formats[i] == nCdhw16c)
