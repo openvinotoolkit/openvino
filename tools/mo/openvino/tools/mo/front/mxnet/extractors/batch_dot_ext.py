@@ -8,7 +8,12 @@ from openvino.tools.mo.ops.MatMul import MatMul
 
 class BatchDotExt(FrontExtractorOp):
     """
-    MXNet operation which compute dot product of x and y.
+    MXNet operation which compute dot product of x and y, where x and y are data in batch: [B_0, B_1, ..., B_N, :, :].
+    Two right-most axes in tensor are interpreted as matrix rows and columns dimensions.
+
+    Attributes:
+        transpose_a - if true then transpose the first input before dot
+        transpose_b - if true the transpose the second input before dot
     """
     op = 'batch_dot'
     enabled = True
