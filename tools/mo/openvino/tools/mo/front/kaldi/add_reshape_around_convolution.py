@@ -87,6 +87,20 @@ def set_time_dim(graph):
                 propagate_time_dim_through_branch(node, dest)
 
 
+def update_time_dim_for_start_convolution(graph):
+    """
+    If we have pattern like Parameter->Convolution->... then input already spliced outside network. So from set_time_dim
+    time_dim will be set as 1 and it will be wrong. For such pattern time_dim should be set as kernel[1]
+    (convolution run through the whole splice)
+    """
+    params = graph.get_op_nodes(op="Parameter")
+    for param_node in params:
+        if not param_node.out_port(0).disconnected() and \
+                param_node.out_port(0).get_destination().node.op == 'Convolution':
+            conv_node = param_node.out_port(0).get_destination().node
+            param_node.time_dim = conv_node.soft_get('kernel')[1] - 1
+
+
 class ReplaceConvolutionReshape(FrontReplacementPattern):
     """
        This pass adds Reshapes and Transposes around a Convolution/Pooling layer for reshaping from NH to NCHW
@@ -122,6 +136,8 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
             return
 
         set_time_dim(graph)
+
+        update_time_dim_for_start_convolution(graph)
 
         for node in conv_pool_nodes:
             node_name = node.soft_get('name', node.id)
