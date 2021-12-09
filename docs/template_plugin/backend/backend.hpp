@@ -7,7 +7,6 @@
 #include <memory>
 #include <mutex>
 
-#include "backend_visibility.hpp"
 #include "executable.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/shape.hpp"
@@ -25,7 +24,7 @@ class Backend;
 /// \brief Interface to a generic backend.
 ///
 /// Backends are responsible for function execution and value allocation.
-class BACKEND_API ngraph::runtime::Backend {
+class ngraph::runtime::Backend {
 public:
     virtual ~Backend();
     /// \brief Create a new Backend object
@@ -38,11 +37,7 @@ public:
     ///    DynamicWrapperBackend. This feature is EXPERIMENTAL.
     /// \returns shared_ptr to a new Backend or nullptr if the named backend
     ///   does not exist.
-    static std::shared_ptr<Backend> create(const std::string& type, bool must_support_dynamic = false);
-
-    /// \brief Query the list of registered devices
-    /// \returns A vector of all registered devices.
-    static std::vector<std::string> get_registered_devices();
+    static std::shared_ptr<Backend> create();
 
     /// \brief Create a tensor specific to this backend
     /// This call is used when an output is dynamic and not known until execution time. When
@@ -114,9 +109,6 @@ public:
     /// \returns true if the configuration is supported, false otherwise. On false the error
     ///     parameter value is valid.
     virtual bool set_config(const std::map<std::string, std::string>& config, std::string& error);
-
-    static void set_backend_shared_library_search_directory(const std::string& path);
-    static const std::string& get_backend_shared_library_search_directory();
 
     /// \brief Get the version of the backend
     /// The default value of 0.0.0 is chosen to be a parsable version number

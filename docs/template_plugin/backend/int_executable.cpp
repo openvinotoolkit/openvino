@@ -6,7 +6,6 @@
 
 #include <cstring>
 
-#include "backend_manager.hpp"
 #include "evaluates_map.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"

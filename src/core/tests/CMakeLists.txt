@@ -10,8 +10,6 @@ endif()
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 set(OV_ONNX_NAMESPACE ngraph_onnx)
 
-# add_subdirectory(runtime)
-
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
     add_subdirectory(util)
@@ -69,28 +67,29 @@ set(SRC
     rtti.cpp
     op.cpp
     opset.cpp
-    op_eval/binary_convolution.cpp
-    op_eval/bucketize.cpp
-    op_eval/clamp.cpp
-    op_eval/einsum.cpp
-    op_eval/floor_mod.cpp
-    op_eval/gelu.cpp
-    op_eval/hsigmoid.cpp
-    op_eval/hswish.cpp
-    op_eval/interpolate.cpp
-    op_eval/matmul.cpp
-    op_eval/memory.cpp
-    op_eval/mish.cpp
-    op_eval/non_zero.cpp
-    op_eval/roi_align.cpp
-    op_eval/roi_pooling.cpp
-    op_eval/round.cpp
-    op_eval/softplus.cpp
-    op_eval/split.cpp
-    op_eval/swish.cpp
-    op_eval/strided_slice.cpp
-    op_eval/transpose.cpp
-    op_eval/variadic_split.cpp
+    # It should be a part of template plugin
+    # op_eval/binary_convolution.cpp
+    # op_eval/bucketize.cpp
+    # op_eval/clamp.cpp
+    # op_eval/einsum.cpp
+    # op_eval/floor_mod.cpp
+    # op_eval/gelu.cpp
+    # op_eval/hsigmoid.cpp
+    # op_eval/hswish.cpp
+    # op_eval/interpolate.cpp
+    # op_eval/matmul.cpp
+    # op_eval/memory.cpp
+    # op_eval/mish.cpp
+    # op_eval/non_zero.cpp
+    # op_eval/roi_align.cpp
+    # op_eval/roi_pooling.cpp
+    # op_eval/round.cpp
+    # op_eval/softplus.cpp
+    # op_eval/split.cpp
+    # op_eval/swish.cpp
+    # op_eval/strided_slice.cpp
+    # op_eval/transpose.cpp
+    # op_eval/variadic_split.cpp
     opset1.cpp
     ov_default_allocator_test.cpp
     ov_tensor_test.cpp
