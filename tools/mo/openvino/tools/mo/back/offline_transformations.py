@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument("--framework")
     parser.add_argument("--transform")
     parser.add_argument("--compress_fp16", action='store_true')
+
     args = parser.parse_args()
 
     apply_offline_transformations(args.input_model, args.framework, parse_transform(args.transform), args.compress_fp16)
