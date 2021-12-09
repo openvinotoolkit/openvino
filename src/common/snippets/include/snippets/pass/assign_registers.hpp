@@ -17,7 +17,7 @@ namespace pass {
  * Changing order of variables or datafrow lead to invalidation of register assignment.
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API AssignRegisters : public ngraph::pass::FunctionPass {
+class AssignRegisters : public ngraph::pass::FunctionPass {
 public:
     AssignRegisters() {
         set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);

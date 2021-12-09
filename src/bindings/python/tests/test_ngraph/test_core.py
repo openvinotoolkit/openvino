@@ -4,7 +4,7 @@
 import numpy as np
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime.impl import Dimension, Model, PartialShape, Shape
+from openvino.runtime import Dimension, Model, PartialShape, Shape
 
 
 def test_dimension():

@@ -4,7 +4,7 @@
 from collections import defaultdict
 import datetime
 from openvino.runtime import Core, Model, PartialShape, Dimension, Layout
-from openvino.runtime.impl import Type
+from openvino.runtime import Type
 from openvino.preprocess import PrePostProcessor
 from openvino.offline_transformations_pybind import serialize
 

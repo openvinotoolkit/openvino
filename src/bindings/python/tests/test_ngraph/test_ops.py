@@ -6,10 +6,9 @@
 import numpy as np
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime.impl import AxisSet, Model, Shape, Type
-from openvino.runtime.impl.op import Constant, Parameter
+from openvino.runtime import AxisSet, Model, Shape, Type
+from openvino.runtime.op import Constant, Parameter
 from tests.runtime import get_runtime
-
 
 
 def binary_op(op_str, a, b):

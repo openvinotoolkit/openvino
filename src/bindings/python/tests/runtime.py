@@ -11,7 +11,7 @@ import numpy as np
 from openvino.runtime import Core
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.impl import Model, Node, PartialShape, Type
+from openvino.runtime import Model, Node, PartialShape, Type
 from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
 
 import tests

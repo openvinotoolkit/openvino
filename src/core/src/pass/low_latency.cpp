@@ -44,7 +44,7 @@ ngraph::pass::LowLatency::LowLatency() {
         }
         // Mark the TI layer to be unrolled. Enable unconditional ti unrolling for all plugins.
         auto& rt_info = sub_graph_op->get_rt_info();
-        rt_info["UNROLL_TI"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(1);
+        rt_info["UNROLL_TI"] = int64_t(1);
 
         int64_t variable_id = 0;
         std::vector<std::shared_ptr<ngraph::op::Sink>> assigns;

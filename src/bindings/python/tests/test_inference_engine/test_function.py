@@ -7,7 +7,7 @@ import pytest
 import openvino.runtime.opset8 as ops
 
 from openvino.runtime import Model, Tensor
-from openvino.runtime.impl import Type, PartialShape, Shape
+from openvino.runtime import Type, PartialShape, Shape
 
 
 def test_test_descriptor_tensor():

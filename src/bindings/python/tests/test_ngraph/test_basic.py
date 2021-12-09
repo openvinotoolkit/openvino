@@ -12,10 +12,10 @@ import openvino.runtime as ov
 from openvino.pyopenvino import Variant
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.impl import Model, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Tensor
 from openvino.pyopenvino import DescriptorTensor
-from openvino.runtime.impl.op import Parameter
+from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 

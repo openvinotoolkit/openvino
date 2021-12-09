@@ -51,7 +51,7 @@ public:
         return load_impl({ov::Any{vars}...});
     }
 
-    inline InputModel::Ptr load(const ov::RuntimeAttributeVector& vars) const {
+    inline InputModel::Ptr load(const ov::AnyVector& vars) const {
         return load_impl(vars);
     }
 
