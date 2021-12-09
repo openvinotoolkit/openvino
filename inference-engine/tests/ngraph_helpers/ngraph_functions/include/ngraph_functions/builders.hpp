@@ -481,9 +481,6 @@ std::shared_ptr<ngraph::Node> makeLogical(const ngraph::ParameterVector& inputs,
 std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &inputs,
                                                   const ngraph::op::DetectionOutputAttrs& attrs);
 
-std::shared_ptr<ngraph::Node> makeDetectionOutputV8(const ngraph::OutputVector &inputs,
-                                                    const ngraph::op::v8::DetectionOutput::Attributes &attrs);
-
 std::shared_ptr<ngraph::Node> makeFullyConnected(const ngraph::Output<Node>& in,
                                                  const element::Type& type,
                                                  const size_t outputSize,

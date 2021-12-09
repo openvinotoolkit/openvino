@@ -69,7 +69,6 @@ public:
         DetectionOutputAttributes commonAttrs;
         ParamsWhichSizeDependsDynamic specificAttrs;
         ngraph::op::DetectionOutputAttrs attrs;
-        ngraph::op::v8::DetectionOutput::Attributes attrsv8;
         size_t batch;
         bool replaceDynamicShapesToIntervals;
         std::string targetDevice;
@@ -77,15 +76,10 @@ public:
 
         std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
                  attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
-        std::tie(attrs.num_classes, attrsv8.background_label_id, attrsv8.top_k, attrsv8.keep_top_k, attrsv8.code_type,
-                 attrsv8.nms_threshold, attrsv8.confidence_threshold, attrsv8.clip_after_nms, attrsv8.clip_before_nms,
-                 attrsv8.decrease_label_id) = commonAttrs;
 
         const size_t numInputs = 5;
         std::vector<ov::test::InputShape> inShapes(numInputs);
         std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
-                 inShapes[idxLocation], inShapes[idxConfidence], inShapes[idxPriors], inShapes[idxArmConfidence], inShapes[idxArmLocation]) = specificAttrs;
-        std::tie(attrsv8.variance_encoded_in_target, attrsv8.share_location, attrsv8.normalized, attrsv8.input_height, attrsv8.input_width,
                  inShapes[idxLocation], inShapes[idxConfidence], inShapes[idxPriors], inShapes[idxArmConfidence], inShapes[idxArmLocation]) = specificAttrs;
 
         if (inShapes[idxArmConfidence].first.rank().get_length() == 0ul) {
@@ -183,14 +177,9 @@ public:
 
         std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
                  attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
-        std::tie(attrs.num_classes, attrsv8.background_label_id, attrsv8.top_k, attrsv8.keep_top_k,
-                 attrsv8.code_type, attrsv8.nms_threshold, attrsv8.confidence_threshold, attrsv8.clip_after_nms,
-                 attrsv8.clip_before_nms, attrsv8.decrease_label_id) = commonAttrs;
 
         inShapes.resize(numInputs);
         std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
-                 inShapes[idxLocation], inShapes[idxConfidence], inShapes[idxPriors], inShapes[idxArmConfidence], inShapes[idxArmLocation]) = specificAttrs;
-        std::tie(attrsv8.variance_encoded_in_target, attrsv8.share_location, attrsv8.normalized, attrsv8.input_height, attrsv8.input_width,
                  inShapes[idxLocation], inShapes[idxConfidence], inShapes[idxPriors], inShapes[idxArmConfidence], inShapes[idxArmLocation]) = specificAttrs;
 
         if (inShapes[idxArmConfidence].first.rank().get_length() == 0) {
@@ -212,12 +201,7 @@ public:
 
         auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-        std::shared_ptr<ov::Node> detOut = nullptr;
-        if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-            detOut = ngraph::builder::makeDetectionOutputV8(paramOuts, attrsv8);
-        } else {
-            detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
-        }
+        auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
         function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
     }
@@ -255,7 +239,6 @@ private:
         }
     }
     ngraph::op::DetectionOutputAttrs attrs;
-    ngraph::op::v8::DetectionOutput::Attributes attrsv8;
     std::vector<ov::test::InputShape> inShapes;
 };
 
