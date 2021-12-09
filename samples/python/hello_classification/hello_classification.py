@@ -43,11 +43,11 @@ def main():
     # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation or ONNX format---------------
     log.info(f'Reading the network: {args.model}')
     # (.xml and .bin files) or (.onnx file)
-    
+
     model = core.read_model(model=args.model)
 
     # ---------------------------Step 3. Configure image_tensor----------------------------------------------------------
-    
+
     if len(model.inputs) != 1:
         log.error('Sample supports only single input topologies')
         return -1
@@ -94,11 +94,11 @@ def main():
     # ---------------------------Step 5. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     exec_net = core.compile_model(model=model, device_name=args.device)
-    
+
     # ---------------------------Step 6. Create infer request--------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    
-    res = exec_net.infer_new_request(inputs={0:image_tensor})
+
+    res = exec_net.infer_new_request(inputs={0: image_tensor})
 
     # ---------------------------Step 7. Process output--------------------------------------------------------------------
     # Generate a label list
@@ -107,7 +107,7 @@ def main():
             labels = [line.split(',')[0].strip() for line in f]
 
     predictions = next(iter(res.values()))
-    
+
     # Change a shape of a numpy.ndarray with results to get another one with one dimension
     probs = predictions.reshape(num_of_classes)
     # Get an array of args.number_top class IDs in descending order of probability
