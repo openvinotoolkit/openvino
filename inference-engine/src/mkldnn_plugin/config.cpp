@@ -169,8 +169,7 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
         _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
                          std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
-        if (!cache_dir.empty())
-            _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
+        _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
     }
 }
 
