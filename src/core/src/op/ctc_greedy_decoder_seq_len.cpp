@@ -42,7 +42,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_validate_and_infer_types);
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_len_pshape = get_input_partial_shape(1);
-
+    std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_len_pshape};
     // check optional input type: blank index
     if (get_input_size() == 3) {
         const auto& blank_index_type = get_input_element_type(2);
@@ -50,10 +50,10 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
                               blank_index_type.is_integral_number(),
                               "The blank index type is expected to be an integer type. Got: ",
                               blank_index_type);
+        input_shapes.push_back(get_input_partial_shape(2));
     }
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_len_pshape, get_input_partial_shape(2)};
     shape_infer(this, input_shapes, output_shapes);
     NODE_VALIDATION_CHECK(this, output_shapes.size() == 2);
     set_output_type(0, m_classes_index_type, output_shapes[0]);

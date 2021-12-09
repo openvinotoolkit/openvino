@@ -40,21 +40,23 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
         op,
         op->m_padding == PadType::VALID || op->m_padding == PadType::SAME_LOWER || op->m_padding == PadType::SAME_UPPER,
         "Attribute padding should be in either valid or same_lower or same_upper.");
-
-    if (input_shape[1].is_dynamic() || input_shape[2].is_dynamic() || input_shape[3].is_dynamic()) {
-        output_shape[0] = input_shape[0];
+    // Determine Batch, depth
+    output_shape[0] = input_shape[0];
+    auto out_depth = input_shape[1] * op->m_patch_sizes[0] * op->m_patch_sizes[1];
+    output_shape[1] = out_depth;
+    // Determine spatial shape
+    if (input_shape[2].is_dynamic() || input_shape[3].is_dynamic()) {
         return;
     } else {
-        int32_t input_depth = input_shape[1].get_length();
         int32_t input_rows = input_shape[2].get_length();
         int32_t input_cols = input_shape[3].get_length();
         int32_t out_rows(0);
         int32_t out_cols(0);
 
         if (input_rows == 0 || input_cols == 0) {
-            out_rows = 0;
-            out_cols = 0;
-            output_shape = input_shape;
+            output_shape[2] = DimType(0);
+            output_shape[3] = DimType(0);
+            return;
         } else if (op->m_padding == PadType::VALID) {
             out_rows = (((input_rows) -
                          static_cast<int32_t>(op->m_patch_selection_rates[0]) *
@@ -78,13 +80,9 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
         if (out_cols < 0)
             out_cols = 0;
 
-        auto out_depth_cast =
-            static_cast<typename DimType::value_type>(input_depth * op->m_patch_sizes[0] * op->m_patch_sizes[1]);
         auto out_rows_cast = static_cast<typename DimType::value_type>(out_rows);
         auto out_cols_cast = static_cast<typename DimType::value_type>(out_cols);
 
-        output_shape[0] = input_shape[0];
-        output_shape[1] = out_depth_cast;
         output_shape[2] = out_rows_cast;
         output_shape[3] = out_cols_cast;
     }
