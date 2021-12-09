@@ -1167,6 +1167,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
     REQUIRED_IE_CONVERSION_CREATOR("Interpolate", "Interp");
     REQUIRED_IE_CONVERSION_CREATOR("NormalizeL2", "NormalizeIE");
     REQUIRED_IE_CONVERSION_CREATOR("GroupConvolution", "ConvolutionIE");
+    REQUIRED_IE_CONVERSION_CREATOR("GroupConvolution", "GNAConvolution");
     REQUIRED_IE_CONVERSION_CREATOR("GroupConvolutionBackpropData", "DeconvolutionIE");
 
     addSpecificCreator({ "Convolution", "GatherTree", "GRUCell", "GRUSequence", "HardSigmoid",
@@ -1775,7 +1776,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     const auto isInternalConstLayer = [](const std::shared_ptr<::ngraph::op::Constant> &constLayer,
                                          const std::shared_ptr<::ngraph::Node> &consumerLayer,
                                          bool keep_constants) -> bool {
+
+        const auto isGNAConvolution = [](const std::shared_ptr<::ngraph::Node> &node) -> bool {
+            return (node->get_friendly_name().find("gna_convolution") != std::string::npos);
+        };
+
         if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
+            isGNAConvolution(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) && !keep_constants) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||

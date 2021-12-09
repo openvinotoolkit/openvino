@@ -83,6 +83,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/transpose_nchw.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -742,6 +743,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
+        pass_config->disable<ngraph::pass::TransposeToReshape>();
         pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
         // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue 52034
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
