@@ -74,6 +74,8 @@ protected:
                 config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
             if (device_name.find("CPU") != std::string::npos)
                 config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
+            // minimize timeout to reduce test time
+            config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
             auto exec_net_ref = ie.LoadNetwork(net, std::string(CommonTestUtils::DEVICE_BATCH) + ":" +
                                                     device_name + "(" + std::to_string(num_batch) + ")",
                                                config);

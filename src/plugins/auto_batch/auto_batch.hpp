@@ -66,6 +66,8 @@ public:
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
     virtual ~AutoBatchExecutableNetwork();
 
+protected:
+    static unsigned int ParseTimeoutValue(const std::string&);
     std::atomic_bool                                            _terminate = {false};
     DeviceInformation                                           _device;
     InferenceEngine::SoExecutableNetworkInternal                _network;
@@ -74,6 +76,7 @@ public:
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
     std::atomic_size_t                                          _numRequestsCreated = {0};
+    std::atomic_int                                             _timeOut = {1000};  // in ms
 };
 
 class AutoBatchInferRequest : public InferenceEngine::IInferRequestInternal {
@@ -126,20 +129,24 @@ public:
                                                             const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
+    void CheckConfig(const std::map<std::string, std::string>& config);
+
     InferenceEngine::Parameter GetConfig(const std::string& name,
                         const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork&       network,
                       const std::map<std::string, std::string>& config) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-
-    DeviceInformation ParseMetaDevice(const std::string & devicesBatchCfg,
-                                                  const std::map<std::string, std::string> & config) const;
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap&) override;
 
 protected:
+    DeviceInformation ParseMetaDevice(const std::string & devicesBatchCfg,
+                                      const std::map<std::string, std::string> & config) const;
+
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
                                                           const DeviceName & deviceName) const;
+    static DeviceInformation ParseBatchDevice(const std::string& deviceWithBatch);
+
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(
             const InferenceEngine::CNNNetwork& network,
             const std::shared_ptr<InferenceEngine::RemoteContext> context,

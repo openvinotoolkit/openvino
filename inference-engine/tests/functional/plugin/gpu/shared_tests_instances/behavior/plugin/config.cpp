@@ -91,6 +91,31 @@ namespace {
                  CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU},
                     {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}}
     };
+
+
+    const std::vector<std::map<std::string, std::string>> auto_batch_inconfigs = {
+            {{CONFIG_KEY(AUTO_BATCH), CommonTestUtils::DEVICE_GPU},
+                    {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "-1"}},
+            {{CONFIG_KEY(AUTO_BATCH), CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
+            {{CONFIG_KEY(AUTO_BATCH), CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, "unknown_file"}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_DUMP_KERNELS, "ON"}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_TUNING_MODE, "TUNING_UNKNOWN_MODE"}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}},
+    };
+
+
     IE_SUPPRESS_DEPRECATED_END
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
@@ -111,6 +136,12 @@ namespace {
                 ::testing::ValuesIn(autoinconfigs)),
             IncorrectConfigTests::getTestCaseName);
 
+
+    INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, IncorrectConfigTests,
+             ::testing::Combine(
+                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                     ::testing::ValuesIn(auto_batch_inconfigs)),
+             IncorrectConfigTests::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> conf = {
             {}
@@ -154,17 +185,6 @@ namespace {
     };
     IE_SUPPRESS_DEPRECATED_END
 
-    const std::vector<std::map<std::string, std::string>> multiconf = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-                {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-                {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-                {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-                {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}}
-    };
-
     const std::vector<std::map<std::string, std::string>> autoConfigs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
@@ -204,6 +224,19 @@ namespace {
              {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, InferenceEngine::PluginConfigParams::LOG_TRACE}}
     };
 
+    const std::vector<std::map<std::string, std::string>> auto_batch_configs = {
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+             {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
+            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
+                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}},
+    };
+
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, DefaultValuesConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
@@ -229,4 +262,15 @@ namespace {
             IncorrectConfigAPITests::getTestCaseName);
 
 
+    INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, IncorrectConfigAPITests,
+             ::testing::Combine(
+                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                     ::testing::ValuesIn(auto_batch_inconfigs)),
+             IncorrectConfigAPITests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, CorrectConfigTests,
+             ::testing::Combine(
+                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                     ::testing::ValuesIn(auto_batch_configs)),
+             CorrectConfigTests::getTestCaseName);
 } // namespace

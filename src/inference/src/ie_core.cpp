@@ -534,18 +534,18 @@ public:
             // do not reshape/re-batch originally batched networks!
             const InputsDataMap inputInfo = network.getInputsInfo();
             ICNNNetwork::InputShapes shapes = network.getInputShapes();
-            for (const InputsDataMap::value_type &item : inputInfo) {
+            for (const InputsDataMap::value_type& item : inputInfo) {
                 auto layout = item.second->getTensorDesc().getLayout();
-                if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
-                    || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
-                    || layout == InferenceEngine::Layout::NDHWC) {
-                    if (1 != shapes[item.first][0]) // do not reshape/re-batch originally batched networks
+                if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
+                    layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+                    layout == InferenceEngine::Layout::NDHWC) {
+                    if (1 != shapes[item.first][0])  // do not reshape/re-batch originally batched networks
                         IE_THROW(NotImplemented)
-                                << "Auto-batching does not reshape/re-batch originally batched networks!";
+                            << "Auto-batching does not reshape/re-batch originally batched networks!";
                 }
-                auto deviceNameWithoutBatch =
-                        !deviceNameWithBatchSize.empty() ? DeviceIDParser::getBatchDevice(deviceNameWithBatchSize)
-                                                         : deviceName;
+                auto deviceNameWithoutBatch = !deviceNameWithBatchSize.empty()
+                                                  ? DeviceIDParser::getBatchDevice(deviceNameWithBatchSize)
+                                                  : deviceName;
                 unsigned int requests = 0;
                 unsigned int optimalBatchSize = 0;
                 if (deviceNameWithBatchSize.empty()) {
@@ -554,15 +554,14 @@ public:
                     std::map<std::string, ie::Parameter> options;
                     options["MODEL_PTR"] = &network;
                     optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameWithoutBatch).getDeviceName())
-                            .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
-                            .as<unsigned int>();
+                                           .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
+                                           .as<unsigned int>();
                     auto res =
-                            GetConfig(deviceNameWithoutBatch,
-                                      CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+                        GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
                     requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-                    const auto &reqs = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+                    const auto& reqs = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
                     if (reqs != config_with_batch.end())
-                        requests = (unsigned int) PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
+                        requests = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
                     if (requests) {
                         std::cout << "!!!!!!!!!!!!!!!Detected reqs_limitation: " << requests << std::endl;
                         optimalBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
@@ -570,8 +569,8 @@ public:
                 }
                 auto function = network.getFunction();
                 bool bDetectionOutput = false;
-                for (auto &&node : function->get_ops()) {
-                    auto isDetectionOutputParent = [](decltype(node) &nd) {
+                for (auto&& node : function->get_ops()) {
+                    auto isDetectionOutputParent = [](decltype(node)& nd) {
                         for (size_t n = 0; n < nd->get_input_size(); n++) {
                             if (!std::strcmp("DetectionOutput", nd->get_input_node_ptr(n)->get_type_info().name))
                                 return true;
@@ -591,8 +590,8 @@ public:
                 }
                 if (optimalBatchSize > 1 || !deviceNameWithBatchSize.empty()) {
                     auto batchConfig = deviceNameWithBatchSize.empty()
-                                       ? deviceNameWithoutBatch + "(" + std::to_string(optimalBatchSize) + ")"
-                                       : deviceNameWithBatchSize;
+                                           ? deviceNameWithoutBatch + "(" + std::to_string(optimalBatchSize) + ")"
+                                           : deviceNameWithBatchSize;
                     if (bDetectionOutput) {
                         deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
                         std::cout << "HETERO code path!!!!" << std::endl;

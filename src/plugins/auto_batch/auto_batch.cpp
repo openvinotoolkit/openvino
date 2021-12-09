@@ -23,6 +23,8 @@
 namespace AutoBatchPlugin {
     using namespace InferenceEngine;
 
+    std::vector<std::string> supported_configKeys = { CONFIG_KEY(AUTO_BATCH), CONFIG_KEY(AUTO_BATCH_TIMEOUT) };
+
     template <Precision::ePrecision precision>
     Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob, size_t batch_id, size_t batch_num) {
         typedef typename PrecisionTrait<precision>::value_type TYPE;
@@ -250,6 +252,9 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     _needPerfCounters{needPerfCounters} {
     // WA for gcc 4.8 ( fails compilation with member init-list)
     _device = networkDevice;
+    auto time_out = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
+    if (time_out != config.end())
+        _timeOut = ParseTimeoutValue(time_out->second.as<std::string>());
 }
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
@@ -258,6 +263,14 @@ AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
         w->_thread.join();
     }
     _workerRequests.clear();
+}
+
+unsigned int AutoBatchExecutableNetwork::ParseTimeoutValue(const std::string& s) {
+    auto val = std::stoi(s);
+    if (val < 0)
+        IE_THROW(ParameterMismatch) << "Value for the " << CONFIG_KEY(AUTO_BATCH_TIMEOUT) << " should be unsigned int";
+    std::cout << "AutoBatching timeout is set to " << s << " ms" << std::endl;
+    return val;
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> AutoBatchExecutableNetwork::GetContext() const {
@@ -289,7 +302,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
             workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
                 while (1) {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(1000));
+                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(_timeOut));
                     // as we pop the tasks from the queue only here
                     // it is ok to call unsafe_size (as the _tasks can only grow in parallel)
                     const int sz = workerRequestPtr->_tasks.unsafe_size();
@@ -353,15 +366,27 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 }
 
 void AutoBatchExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
-    // TODO
-    IE_THROW(NotImplemented);
+    auto timeout = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
+    if (timeout == config.end() || config.size() > 1) {
+        IE_THROW() << "The only config that can be changed on the fly for the AutoBatching the is the " <<
+            CONFIG_KEY(AUTO_BATCH_TIMEOUT);
+    } else {
+        _timeOut = ParseTimeoutValue(timeout->second.as<std::string>());
+    }
 }
 
 InferenceEngine::Parameter AutoBatchExecutableNetwork::GetConfig(const std::string &name) const {
-    auto res = _config.find(name);
-    if (res != _config.end()) {
-        return res->second;
+    auto it = _config.find(name);
+    if (it != _config.end()) {
+        return it->second;
     } else {
+        // find config key among networks config keys
+        auto param = _network->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        for (auto &&configKey : param.as<std::vector<std::string>>()) {
+            if (configKey == name) {
+                return _network->GetConfig(configKey);
+            }
+        }
         IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
     }
 }
@@ -391,8 +416,7 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
             METRIC_KEY(SUPPORTED_CONFIG_KEYS)
         });
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys = { CONFIG_KEY(AUTO_BATCH) };
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, {CONFIG_KEY(AUTO_BATCH_TIMEOUT)}); // only timeout can be changed on the fly
     } else {
         IE_THROW() <<"Unsupported Network metric: " << name;
     }
@@ -425,9 +449,26 @@ std::map<std::string, std::string> AutoBatchInferencePlugin::GetSupportedConfig(
     return supportedConfig;
 }
 
+DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& deviceWithBatch ) {
+    auto && d = deviceWithBatch;
+    auto openingBracket = d.find_first_of('(');
+    auto closingBracket = d.find_first_of(')', openingBracket);
+    auto deviceName = d.substr(0, openingBracket);
+
+    int batch = 1;
+    if (closingBracket != std::string::npos && openingBracket < closingBracket) {
+        batch = std::stol(d.substr(openingBracket + 1, closingBracket - 1));
+
+        if (batch <= 0) {
+            IE_THROW() <<"Batch value for '" << deviceName << "' must be > 0, while " << batch
+                       << "is passed";
+        }
+    }
+    return { deviceName, {{}}, batch };
+}
+
 DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& devicesBatchCfg,
                                                                           const std::map<std::string, std::string> & config) const {
-    DeviceInformation metaDevice;
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
         std::string deviceName = deviceParser.getDeviceName();
@@ -442,26 +483,8 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
         return GetSupportedConfig(tconfig, deviceName);
     };
 
-    auto && d = devicesBatchCfg;
-    {
-        auto openingBracket = d.find_first_of('(');
-        auto closingBracket = d.find_first_of(')', openingBracket);
-        auto deviceName = d.substr(0, openingBracket);
-
-        int batch = 1;
-        if (closingBracket != std::string::npos && openingBracket < closingBracket) {
-            batch = std::stol(d.substr(openingBracket + 1, closingBracket - 1));
-
-            if (batch <= 0) {
-                IE_THROW() <<"Batch value for '" << deviceName << "' must be > 0, while " << batch
-                    << "is passed";
-            }
-        }
-
-        // create meta device
-        auto cfg = getDeviceConfig(deviceName);
-        metaDevice = { deviceName, cfg, batch };
-    }
+    auto metaDevice = ParseBatchDevice(devicesBatchCfg);
+    metaDevice.config = getDeviceConfig(metaDevice.deviceName);
 
     return metaDevice;
 }
@@ -481,19 +504,39 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
 
 Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
         const std::map<std::string, Parameter> & options) const {
-    if (name == CONFIG_KEY(AUTO_BATCH)) {
-        auto it = _config.find(CONFIG_KEY(AUTO_BATCH));
+    if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
+        auto it = _config.find(name);
         if (it == _config.end()) {
-            IE_THROW() <<"Value for KEY_AUTO_BATCH is not set";
+            IE_THROW() << "Value for " << name << " is not set";
         } else {
             return { it->second };
         }
     } else {
-        IE_THROW() <<"Unsupported config key: " << name;
+        IE_THROW() << "Unsupported config key: " << name;
     }
 }
 
-void AutoBatchInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
+void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config) {
+    for (auto &&kvp : config) {
+        const auto name =  kvp.first;
+        const auto val  =  kvp.second;
+        if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
+            IE_THROW() << "Unsupported config key: " << name;
+        if (name == CONFIG_KEY(AUTO_BATCH)) {
+            ParseBatchDevice(val);
+        } else if (name == CONFIG_KEY(AUTO_BATCH_TIMEOUT)) {
+            try {
+                std::stoi(val);
+            } catch (const std::exception& e) {
+                IE_THROW(ParameterMismatch) << " Expecting unsigned int value for " << CONFIG_KEY(AUTO_BATCH_TIMEOUT)
+                                            << " got " << val;
+            }
+        }
+    }
+}
+
+void AutoBatchInferencePlugin::SetConfig(const std::map<std::string, std::string>& config) {
+    CheckConfig(config);
     for (auto && kvp : config) {
         _config[kvp.first] = kvp.second;
     }
@@ -517,13 +560,11 @@ InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(const std::string
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _pluginName);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys = PerfHintsConfig::SupportedKeys();
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
     } else {
         IE_THROW(NotFound) << "Unsupported metric key " << name;
     }
 }
-
 
 IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&network,
                                                                                  const std::map<std::string, std::string>& config) {
@@ -575,10 +616,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
         }
     }
-    // device settings + auto-batch settings
+    // auto-batch settings
     std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
-    networkConfig.insert(*device_batch);
-    networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
+    for (auto c : fullConfig) {
+        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), c.first))
+            networkConfig.insert(c);
+    }
 
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
     if (metaDevice.batchForDevice > 1) {

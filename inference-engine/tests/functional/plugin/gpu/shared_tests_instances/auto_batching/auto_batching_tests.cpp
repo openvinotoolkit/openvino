@@ -3,10 +3,10 @@
 //
 #include <auto_batching/auto_batching_tests.hpp>
 
-const std::vector<size_t> num_streams{ 1, 2 };
+const std::vector<size_t> num_streams{ 2 };
 const std::vector<bool>   get_vs_set{ true, false };
 const std::vector<size_t> num_requests{ 1, 8, 16, 64 };
-const std::vector<size_t> num_batch{ 1, 4, 8, 16, 32, 64, 128, 256 };
+const std::vector<size_t> num_batch{ 1, 8, 32, 256 };
 using namespace AutoBatchingTests;
 
 namespace AutoBatchingTests {

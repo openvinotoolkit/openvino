@@ -256,11 +256,11 @@ DECLARE_CONFIG_VALUE(YES);
 DECLARE_CONFIG_VALUE(NO);
 
 /**
- * @brief Auto-batching configuration: device + batch size
+ * @brief Auto-batching configuration, string for the device + batch size, e.g. "GPU(4)"
  */
 DECLARE_CONFIG_KEY(AUTO_BATCH);
 /**
- * @brief Auto-batching configuration: timeout
+ * @brief Auto-batching configuration: string with timeout (in ms), e.g. "100"
  */
 DECLARE_CONFIG_KEY(AUTO_BATCH_TIMEOUT);
 
