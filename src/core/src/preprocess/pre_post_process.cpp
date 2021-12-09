@@ -385,8 +385,6 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         if (!input->get_tensor_data()->is_layout_set()) {
             if (!color_info->default_layout().empty()) {
                 input->get_tensor_data()->set_layout(color_info->default_layout());
-            } else if (!param->get_layout().empty()) {
-                input->get_tensor_data()->set_layout(param->get_layout());
             }
         }
 
@@ -408,11 +406,15 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                 new_param_shape = PartialShape(dims);
             }
         } else {
-            Layout param_layout;
-            std::tie(new_param_shape, param_layout) =
+            Layout new_layout;
+            std::tie(new_param_shape, new_layout) =
                 input->get_preprocess()->calculate_param_shape(new_param_shape, param->get_layout());
-            input->get_tensor_data()->set_layout(param_layout);
+            if (!input->get_tensor_data()->is_layout_set()) {
+                // Reusing param's layout according to converted calculated layout
+                input->get_tensor_data()->set_layout(new_layout);
+            }
         }
+
         if (input->get_tensor_data()->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->get_tensor_data()->get_layout(), new_param_shape);
             auto width_idx = get_and_check_width_idx(input->get_tensor_data()->get_layout(), new_param_shape);
