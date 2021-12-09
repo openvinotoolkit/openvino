@@ -276,19 +276,22 @@ shared_mem_params gpu_dx_buffer::get_internal_params() const {
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type)
     : lockable_gpu_mem()
     , memory(engine, new_layout, type, true)
-    , _buffer(buffer) {
+    , _buffer(buffer)
+    , _host_buffer(engine->get_usm_helper()) {
 }
 
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer)
     : lockable_gpu_mem()
     , memory(engine, new_layout, detect_allocation_type(engine, buffer), true)
-    , _buffer(buffer) {
+    , _buffer(buffer)
+    , _host_buffer(engine->get_usm_helper()) {
 }
 
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()
     , memory(engine, layout, type, false)
-    , _buffer(engine->get_usm_helper()) {
+    , _buffer(engine->get_usm_helper())
+    , _host_buffer(engine->get_usm_helper()) {
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
         _buffer.allocateHost(_bytes_count);
@@ -306,11 +309,17 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
 }
 
 void* gpu_usm::lock(const stream& stream, mem_lock_type /*type*/) {
-    assert(get_allocation_type() != allocation_type::usm_device && "Can't lock usm device memory!");
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-        stream.finish();  // Synchronization needed for OOOQ.
-        _mapped_ptr = _buffer.get();
+        auto& cl_stream = downcast<const ocl_stream>(stream);
+        cl_stream.finish();  // Synchronization needed for OOOQ.
+        if (get_allocation_type() == allocation_type::usm_device) {
+            _host_buffer.allocateHost(_bytes_count);
+            cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
+            _mapped_ptr = _host_buffer.get();
+        } else {
+            _mapped_ptr = _buffer.get();
+        }
     }
     _lock_count++;
     return _mapped_ptr;
@@ -320,6 +329,9 @@ void gpu_usm::unlock(const stream& /* stream */) {
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
+        if (get_allocation_type() == allocation_type::usm_device) {
+            _host_buffer.freeMem();
+        }
         _mapped_ptr = nullptr;
     }
 }
