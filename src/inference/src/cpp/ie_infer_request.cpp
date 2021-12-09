@@ -254,6 +254,22 @@ void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& te
     set_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()), tensor);
 }
 
+void InferRequest::set_tensors(const std::string& name, const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+                                    ov::Output<const ov::Node> port;
+                                    OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs()}),
+                                                    "Input port for tensor name " + name + " was not found.");
+                                    set_tensors(port, tensors);
+                                })
+}
+
+void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
+    auto impls = std::vector<InferenceEngine::Blob::Ptr>();
+    std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls),
+                   [](const Tensor& item) { return item._impl; });
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlobs(get_legacy_name_from_port(port), impls); })
+}
+
 void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;

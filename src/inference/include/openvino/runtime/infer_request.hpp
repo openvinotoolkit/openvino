@@ -80,6 +80,30 @@ public:
     void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
 
     /**
+     * @brief Sets batch of tensors for input data to infer by input name
+     * Model input shall have batch dimension and number of 'tensors' shall match with batch size
+     * Current version supports set tensors to model inputs only. In case if `name` is associated
+     * with output (or any other non-input node) - exception will be thrown
+     *
+     * @param name Name of input tensor.
+     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
+     * input precision and size (except batch dimension). Total size of tensors shall match with input's size
+     */
+    void set_tensors(const std::string& name, const std::vector<Tensor>& tensors);
+
+    /**
+     * @brief Sets batch of tensors for input data to infer by input name
+     * Model input shall have batch dimension and number of 'tensors' shall match with batch size
+     * Current version supports set tensors to model inputs only. In case if `name` is associated
+     * with output (or any other non-input node) - exception will be thrown
+     *
+     * @param port Port of input tensor.
+     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
+     * input precision and size (except batch dimension). Total size of tensors shall match with input's size
+     */
+    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors);
+
+    /**
      * @brief Sets input tensor to infer
      *
      * @param idx Index of input tensor.

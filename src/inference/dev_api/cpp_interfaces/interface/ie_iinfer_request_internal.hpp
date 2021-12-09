@@ -88,6 +88,17 @@ public:
     virtual void SetBlob(const std::string& name, const Blob::Ptr& data);
 
     /**
+     * @brief Set batch of input data to infer
+     * @note Default implementation may allocate new blob with concatenated input blobs into a single batch,
+     * thus memory allocation may occur.
+     * Plugin-specific implementations may override this behavior to handle remote tensors case
+     * @param name - a name of input or output blob.
+     * @param blobs - input blobs <TBD>. The type of Blob must correspond to the network input
+     * precision and size.
+     */
+    virtual void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs);
+
+    /**
      * @brief Get input/output data to infer
      * @note Memory allocation doesn't happen
      * @param name - a name of input or output blob.

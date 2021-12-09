@@ -10,6 +10,7 @@
 #include <string>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
 #include "debug.h"
 #include "ie_algorithm.hpp"
@@ -155,6 +156,63 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         // }
         _outputs[name] = userBlob;
     }
+}
+
+void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
+    OPENVINO_ASSERT(!std::any_of(blobs.begin(), blobs.end(),
+                                 [](const Blob::Ptr& item) { return item->is<RemoteBlob>(); }),
+                    "set_input_tensors/set_tensors error. Default implementation doesn't support RemoteTensor objects");
+
+    OPENVINO_ASSERT(!blobs.empty(),
+                    "set_input_tensors/set_tensors can't be called with empty blobs for input '", name, "'");
+    if (blobs.size() == 1) {
+        SetBlob(name, blobs[0]);
+        return;
+    }
+    std::shared_ptr<ov::op::v0::Parameter> param;
+    const auto& inputs = GetInputs();
+    for (const auto& input : inputs) {
+        if (auto p = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input)) {
+            const auto& names = p->output(0).get_tensor().get_names();
+            if (names.find(name) != names.end()) {
+                param = p;
+                break;
+            }
+        }
+    }
+    OPENVINO_ASSERT(param, "set_input_tensors/set_tensors error. Parameter '", name, "' is not found");
+    OPENVINO_ASSERT(ov::layout::has_batch(param->get_layout()),
+                    "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
+                    " 'layout' defined. Current layout for '", name,
+                    "' is ", param->get_layout().to_string());
+    auto batch_idx = ov::layout::batch_idx(param->get_layout());
+    if (batch_idx < 0) {
+        batch_idx += static_cast<int64_t>(blobs[0]->getTensorDesc().getDims().size());
+    }
+    auto input_size = std::accumulate(blobs.begin(), blobs.end(), 0,
+                                      [&batch_idx](int res, const Blob::Ptr& item) {
+                                          return res + item->getTensorDesc().getDims()[batch_idx];
+                                      });
+    if (param->get_partial_shape().rank().is_static()) {
+        OPENVINO_ASSERT(batch_idx > 0 && batch_idx < param->get_partial_shape().rank().get_length(),
+                        "set_input_tensors/set_tensors error. Layout ", param->get_layout().to_string(),
+                        " is incorrect for input '", name, "' with shape ", param->get_partial_shape());
+        auto batch = param->get_partial_shape()[batch_idx];
+
+        OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == input_size,
+                        "set_input_tensors/set_tensors error. Input shape ",
+                        param->get_partial_shape(), "batch ", batch,
+                        "doesn't match with total blobs count: ", input_size);
+    }
+    // Initial implementation always performs creation of new Blob and 'memcpy'
+    // In future consider checking if blobs point to contiguous range of memory
+    auto desc = blobs[0]->getTensorDesc();
+    desc.getDims()[batch_idx] = input_size;
+    // TODO: no API to get allocator of original blobs, use default one
+    auto batched_blob = make_blob_with_precision(desc);
+    batched_blob->allocate();
+    // Perform memcpy
+
 }
 
 Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
