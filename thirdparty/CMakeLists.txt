@@ -191,20 +191,18 @@ endif()
 #
 # nlohmann json
 #
-if(ENABLE_SAMPLES OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE)
-    function(build_json_libs)
-        set(JSON_Install ON)
-        add_subdirectory(json/nlohmann_json EXCLUDE_FROM_ALL)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
+function(build_json_libs)
+    set(JSON_Install ON)
+    add_subdirectory(json/nlohmann_json EXCLUDE_FROM_ALL)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 
-        set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(json/nlohmann_json_schema_validator EXCLUDE_FROM_ALL)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json_schema_validator)
-    endfunction()
-    build_json_libs()
-    set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdparty)
-    ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
-endif()
+    set(BUILD_SHARED_LIBS OFF)
+    add_subdirectory(json/nlohmann_json_schema_validator EXCLUDE_FROM_ALL)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json_schema_validator)
+endfunction()
+build_json_libs()
+set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdparty)
+ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 
 #
 # Install
