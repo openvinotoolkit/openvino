@@ -100,7 +100,7 @@ public:
      *
      * @param userdata data passed to InferRequest's callback. Can be anything that matches ov::Any.
      */
-    void start_async(const ov::Any userdata = nullptr);
+    void start_async(const ov::Any& userdata = nullptr);
 
     /**
      * @brief Starts asynchronous inference with given input data. Blocking call if there are no free jobs.
@@ -108,7 +108,7 @@ public:
      * @param inputs map containing integers (index) and Tensor pairs.
      * @param userdata data passed to InferRequest's callback. Can be anything that matches ov::Any.
      */
-    void start_async(std::map<size_t, ov::runtime::Tensor> inputs, const ov::Any userdata = nullptr);
+    void start_async(std::map<size_t, ov::runtime::Tensor> inputs, const ov::Any& userdata = nullptr);
 
     /**
      * @brief Starts asynchronous inference with given input data. Blocking call if there are no free jobs.
@@ -116,7 +116,7 @@ public:
      * @param inputs map containing strings (names) and Tensor pairs.
      * @param userdata data passed to InferRequest's callback. Can be anything that matches ov::Any.
      */
-    void start_async(std::map<std::string, ov::runtime::Tensor> inputs, const ov::Any userdata = nullptr);
+    void start_async(std::map<std::string, ov::runtime::Tensor> inputs, const ov::Any& userdata = nullptr);
 
     /**
      * @brief Waits for any request to become avaiable. Blocking call if there are no free jobs.

@@ -47,9 +47,9 @@ public:
     size_t get_idle_handle();
     size_t pop_idle_handle();
 
-    void start_async(const ov::Any userdata);
-    void start_async(std::map<size_t, ov::runtime::Tensor>& inputs, const ov::Any userdata);
-    void start_async(std::map<std::string, ov::runtime::Tensor>& inputs, const ov::Any userdata);
+    void start_async(const ov::Any& userdata);
+    void start_async(std::map<size_t, ov::runtime::Tensor>& inputs, const ov::Any& userdata);
+    void start_async(std::map<std::string, ov::runtime::Tensor>& inputs, const ov::Any& userdata);
 
     bool is_ready();
     void wait_all();
@@ -97,7 +97,7 @@ size_t AsyncInferQueue::Impl::pop_idle_handle() {
     return idle_handle;
 }
 
-void AsyncInferQueue::Impl::start_async(ov::Any userdata) {
+void AsyncInferQueue::Impl::start_async(const ov::Any& userdata) {
     auto handle = pop_idle_handle();
     if (!userdata.empty()) {
         m_userdata[handle] = userdata;
@@ -105,7 +105,7 @@ void AsyncInferQueue::Impl::start_async(ov::Any userdata) {
     m_ref_pool[handle].get().start_async();
 }
 
-void AsyncInferQueue::Impl::start_async(std::map<size_t, ov::runtime::Tensor>& inputs, ov::Any userdata) {
+void AsyncInferQueue::Impl::start_async(std::map<size_t, ov::runtime::Tensor>& inputs, const ov::Any& userdata) {
     size_t handle = pop_idle_handle();
     if (!userdata.empty()) {
         m_userdata[handle] = userdata;
@@ -116,7 +116,7 @@ void AsyncInferQueue::Impl::start_async(std::map<size_t, ov::runtime::Tensor>& i
     m_ref_pool[handle].get().start_async();
 }
 
-void AsyncInferQueue::Impl::start_async(std::map<std::string, ov::runtime::Tensor>& inputs, ov::Any userdata) {
+void AsyncInferQueue::Impl::start_async(std::map<std::string, ov::runtime::Tensor>& inputs, const ov::Any& userdata) {
     size_t handle = pop_idle_handle();
     if (!userdata.empty()) {
         m_userdata[handle] = userdata;
@@ -196,15 +196,15 @@ size_t AsyncInferQueue::get_idle_handle() {
     return m_pimpl->get_idle_handle();
 }
 
-void AsyncInferQueue::start_async(const ov::Any userdata) {
+void AsyncInferQueue::start_async(const ov::Any& userdata) {
     m_pimpl->start_async(userdata);
 }
 
-void AsyncInferQueue::start_async(std::map<size_t, ov::runtime::Tensor> inputs, const ov::Any userdata) {
+void AsyncInferQueue::start_async(std::map<size_t, ov::runtime::Tensor> inputs, const ov::Any& userdata) {
     m_pimpl->start_async(inputs, userdata);
 }
 
-void AsyncInferQueue::start_async(std::map<std::string, ov::runtime::Tensor> inputs, const ov::Any userdata) {
+void AsyncInferQueue::start_async(std::map<std::string, ov::runtime::Tensor> inputs, const ov::Any& userdata) {
     m_pimpl->start_async(inputs, userdata);
 }
 
