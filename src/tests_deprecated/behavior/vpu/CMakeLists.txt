@@ -77,5 +77,5 @@ endfunction(enable_vpu)
 
 if (ENABLE_MYRIAD)
     set(MYRIAD_TARGET_NAME MyriadBehaviorTests)
-    enable_vpu(${MYRIAD_TARGET_NAME} USE_MYRIAD myriadPlugin)
+    enable_vpu(${MYRIAD_TARGET_NAME} USE_MYRIAD ov_intel_vpu_plugin)
 endif()

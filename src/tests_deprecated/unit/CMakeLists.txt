@@ -72,12 +72,12 @@ if (ENABLE_MYRIAD)
             engines/vpu/myriad_tests/*cpp
             engines/vpu/myriad_tests/helpers/*cpp
             engines/vpu/myriad_tests/helpers/*h
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/*.cpp
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/configuration/*.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/myriad_plugin/*.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/myriad_plugin/configuration/*.cpp
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
-            $<TARGET_PROPERTY:myriadPlugin,SOURCE_DIR>
+            $<TARGET_PROPERTY:ov_intel_vpu_plugin,SOURCE_DIR>
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
