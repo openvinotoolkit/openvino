@@ -142,7 +142,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
-                                           outputs=["out1", "out2"])
+                                           outputs=["out1", "out2"], name="split1", axis=0)
     expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
                                          outputs=["out4"])
     graph = make_graph([expected_split, expected_mul], "test_graph", input_tensors, output_tensors)
@@ -201,7 +201,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
-                                           outputs=["out1", "out2"])
+                                           outputs=["out1", "out2"], name="split1", axis=0)
     expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
                                          outputs=["out4"])
     graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)

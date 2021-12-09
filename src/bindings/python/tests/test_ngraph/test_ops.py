@@ -11,7 +11,6 @@ from openvino.runtime.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
 
 
-
 def binary_op(op_str, a, b):
 
     if op_str == "+":

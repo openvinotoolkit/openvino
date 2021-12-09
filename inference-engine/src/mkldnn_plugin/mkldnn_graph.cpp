@@ -121,12 +121,8 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
-            auto prev = op->get_input_node_shared_ptr(0);
-            std::string inputID;
-            inputID = prev->get_friendly_name();
-            if (prev->get_output_size() > 1) {
-                inputID += "." + std::to_string(op->get_input_source_output(0).get_index());
-            }
+            const auto prev = op->input_value(0);
+            const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
 
             outputNodesMap[inputID] = node;
         }
@@ -227,7 +223,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            auto name = ngraph::op::util::get_ie_output_name(input);
+            const auto name = ngraph::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;

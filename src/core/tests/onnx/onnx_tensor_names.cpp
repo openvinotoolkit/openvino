@@ -18,49 +18,44 @@ static std::string s_manifest = "${MANIFEST}";
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
+template <typename OpType, typename DerivedFromNode>
+bool matching_node_found_in_graph(const std::vector<DerivedFromNode>& ops,
+                                  const std::string& friendly_name,
+                                  const std::unordered_set<std::string>& output_names,
+                                  int out_tensor_number = 0) {
+    return std::any_of(std::begin(ops), std::end(ops), [&](const DerivedFromNode op) {
+        if (const std::shared_ptr<OpType> casted = std::dynamic_pointer_cast<OpType>(op)) {
+            const auto& op_friendly_name = casted->get_friendly_name();
+            const auto& op_output_names = casted->get_output_tensor(out_tensor_number).get_names();
+            if (op_friendly_name == friendly_name && op_output_names == output_names) {
+                return true;
+            }
+        }
+        return false;
+    });
+}
+
 NGRAPH_TEST(onnx_tensor_names, simple_model) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/tensor_names.onnx"));
 
-    auto ops = function->get_ordered_ops();
-    // Parameter
-    ASSERT_EQ(ops[0]->get_friendly_name(), "input");
-    ASSERT_EQ(ops[0]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"input"});
-
-    ASSERT_EQ(ops[1]->get_friendly_name(), "relu_t");
-    ASSERT_EQ(ops[1]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"relu_t"});
-
-    // should be abs_t, but Identity operator gets cut out and that makes Abs become the 'final_output'
-    ASSERT_EQ(ops[2]->get_friendly_name(), "final_output");
-    ASSERT_EQ(ops[2]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"final_output"});
-
-    // Result node
-    ASSERT_EQ(ops[3]->get_friendly_name(), "final_output");
-    ASSERT_EQ(ops[3]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"final_output"});
-
-    ASSERT_EQ(function->get_result()->get_input_tensor(0).get_names(), std::unordered_set<std::string>{"final_output"});
-    ASSERT_EQ(function->get_result()->input_value(0).get_tensor().get_names(),
-              std::unordered_set<std::string>{"final_output"});
+    const auto ops = function->get_ordered_ops();
+    EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "input", {"input", "identity_on_input"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Relu>(ops, "relu", {"relu_t"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Abs>(ops, "abs", {"abs_t", "final_output"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(function->get_results(),
+                                                         "final_output/sink_port_0",
+                                                         {"abs_t", "final_output"}));
 }
 
 NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/top_k.onnx"));
 
-    auto ops = function->get_ordered_ops();
+    const auto ops = function->get_ordered_ops();
+    EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "x", {"x"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"values"}, 0));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"indices"}, 1));
 
-    ASSERT_EQ(ops[0]->get_friendly_name(), "x");
-    ASSERT_EQ(ops[0]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"x"});
-    // ops[1] is a constant created in the ONNX importer as part of TopK operator(K value)
-    ASSERT_EQ(ops[2]->get_friendly_name(), "indices");
-    ASSERT_EQ(ops[2]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"values"});
-    ASSERT_EQ(ops[2]->get_output_tensor(1).get_names(), std::unordered_set<std::string>{"indices"});
-    // result nodes are generated in different order than function results.
-    ASSERT_EQ(ops[3]->get_friendly_name(), "indices");
-    ASSERT_EQ(ops[4]->get_friendly_name(), "values");
-
-    ASSERT_EQ(function->get_results()[0]->get_input_tensor(0).get_names(), std::unordered_set<std::string>{"values"});
-    ASSERT_EQ(function->get_results()[1]->get_input_tensor(0).get_names(), std::unordered_set<std::string>{"indices"});
-    ASSERT_EQ(function->get_results()[0]->input_value(0).get_tensor().get_names(),
-              std::unordered_set<std::string>{"values"});
-    ASSERT_EQ(function->get_results()[1]->input_value(0).get_tensor().get_names(),
-              std::unordered_set<std::string>{"indices"});
+    const auto results = function->get_results();
+    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "values/sink_port_0", {"values"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "indices/sink_port_1", {"indices"}));
 }

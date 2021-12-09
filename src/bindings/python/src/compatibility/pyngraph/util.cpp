@@ -6,6 +6,7 @@
 
 #include <pybind11/numpy.h>
 
+#include "ngraph/op/result.hpp"
 #include "ngraph/validation_util.hpp"
 #include "ngraph/version.hpp"
 
