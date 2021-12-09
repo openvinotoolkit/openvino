@@ -5,7 +5,6 @@
 #pragma once
 
 #include <ngraph/pass/pass.hpp>
-#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace snippets {
