@@ -242,7 +242,6 @@ class CompressQuantizeWeights(BackReplacementPattern):
 
         self.quantize_data(fake_quantize, dst_type, quantized_type, mode)
         self.dequantize_data(fake_quantize, dst_type, quantized_type)
-        graph.graph['dump_value_propagation_statistics'] = True
 
 
 class ZeroPointOptimizer(BackReplacementPattern):
