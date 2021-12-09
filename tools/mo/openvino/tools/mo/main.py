@@ -313,6 +313,17 @@ def arguments_post_parsing(argv: argparse.Namespace):
     return argv
 
 
+def check_fallback(argv : argparse.Namespace):
+    fallback_reasons = {}
+    fallback_reasons['extensions'] = \
+        lambda argv : hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0
+    fallback_reasons['transformations_config'] = \
+        lambda argv: hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config) > 0
+
+    reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
+    return reasons
+
+
 def prepare_ir(argv : argparse.Namespace):
     argv = arguments_post_parsing(argv)
 
@@ -320,17 +331,18 @@ def prepare_ir(argv : argparse.Namespace):
     graph = None
     ngraph_function = None
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
-    apply_fallback = False
-    apply_fallback |= hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0
-    apply_fallback |= hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config) > 0
-    if moc_front_end and not apply_fallback:
+    fallback_reasons = check_fallback(argv)
+    if moc_front_end and len(fallback_reasons) == 0:
         t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
         try:
             ngraph_function = moc_pipeline(argv, moc_front_end)
             return graph, ngraph_function
-        except:
-            pass # TODO Handle event
+        except Exception as e:
+            fallback_reasons.append(f"frontend failure with exception:\n{e}")
+    if len(fallback_reasons) > 0:
+        t.send_event("mo", "fallback_reason", "\n".join(fallback_reasons))
+
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
 
