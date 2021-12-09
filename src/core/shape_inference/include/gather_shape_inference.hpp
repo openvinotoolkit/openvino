@@ -32,7 +32,7 @@ void shape_infer(const GatherBase* op,
                               axis_pshape);
     }
 
-    const int64_t& batch_dims = op->get_batch_dims();
+    int64_t batch_dims = op->get_batch_dims();
     if (batch_dims < 0 && indices_rank.is_static()) {
         batch_dims += indices_rank.get_length();
     }
