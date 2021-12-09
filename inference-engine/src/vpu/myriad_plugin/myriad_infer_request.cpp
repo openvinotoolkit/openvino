@@ -138,7 +138,7 @@ static void convert(const T* const src, U* dst, size_t n) {
     std::transform(src, src + n, dst, [] (T i) -> U { return static_cast<U>(i); });
 }
 
-static const char* const NOT_ENOUGH_INPUT_SPACE_ERR_MSG = "Not enough space available in inputBuffer. Either input offset or input size is too big";
+static const char* const NOT_ENOUGH_INPUT_SPACE_ERR_MSG = "Not enough space available in inputBuffer. Input size is too big";
 
 static void convertInput(const uint8_t* const src, uint8_t* dst, const Precision& precision, size_t size, size_t remainingSize) {
     size_t numElements = 0;
