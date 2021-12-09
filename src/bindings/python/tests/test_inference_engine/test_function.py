@@ -339,7 +339,6 @@ def test_set_batch_default_batch_size():
     add = ops.add(param1, param2)
     func = Function(add, [param1, param2], "TestFunction")
     func_param1 = func.get_parameters()[0]
-    func_param2 = func.get_parameters()[1]
     func_param1.set_layout(Layout("NC"))
     set_batch(func)
-    assert func.is_dynamic() == True
+    assert func.is_dynamic()
