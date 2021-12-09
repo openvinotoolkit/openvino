@@ -47,5 +47,5 @@ endif()
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine_tests
+openvino_developer_export_targets(COMPONENT tests
                                   TARGETS ieTestHelpers ieTestHelpers_s)

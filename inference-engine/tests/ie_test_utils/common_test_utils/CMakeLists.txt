@@ -12,7 +12,7 @@ function(add_common_utils ADD_TARGET_NAME)
                 ${CMAKE_CURRENT_SOURCE_DIR}/gtest
             ADD_CPPLINT
             DEVELOPER_PACKAGE
-                inference_engine_tests
+                tests
             LINK_LIBRARIES
                 PUBLIC
                     ngraph

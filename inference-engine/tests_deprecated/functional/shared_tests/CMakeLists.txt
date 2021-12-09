@@ -62,4 +62,4 @@ endif()
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine_tests TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT tests TARGETS ${TARGET_NAME})

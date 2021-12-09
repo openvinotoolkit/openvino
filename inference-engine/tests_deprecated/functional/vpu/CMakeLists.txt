@@ -14,20 +14,22 @@ endif()
 
 addIeTarget(
         NAME myriadTestData
-        DEVELOPER_PACKAGE inference_engine_tests
+        DEVELOPER_PACKAGE
+            tests
         TYPE STATIC
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/test_data
         LINK_LIBRARIES
-        ieTestHelpers
+            ieTestHelpers
         DEFINES
-        PUBLIC
-        DATA_PATH=\"${DATA_PATH}\"
-        MODELS_PATH=\"${MODELS_PATH}\"
+            PUBLIC
+            DATA_PATH=\"${DATA_PATH}\"
+            MODELS_PATH=\"${MODELS_PATH}\"
 )
 
 addIeTarget(
     NAME VPUCommonTests
-    DEVELOPER_PACKAGE inference_engine_tests
+    DEVELOPER_PACKAGE
+        tests
     TYPE STATIC
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}/common
     ADDITIONAL_SOURCE_DIRS
@@ -52,7 +54,7 @@ target_include_directories(VPUCommonTests INTERFACE
     $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
-openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS vpu_custom_kernels)
+openvino_developer_export_targets(COMPONENT vpu TARGETS vpu_custom_kernels)
 
 addIeTargetTest(
     NAME MyriadFunctionalTests

@@ -66,30 +66,30 @@ if(BUILD_SHARED_LIBS)
         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>)
     target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_compile_definitions(${TARGET_NAME}_static PUBLIC USE_STATIC_FRONTEND_COMMON)
-    ov_install_static_lib(${TARGET_NAME}_static ngraph)
+    ov_install_static_lib(${TARGET_NAME}_static core)
 else()
     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 endif()
 
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 # Installation rules for shared version only
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::common)
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
 
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/common
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT ngraph_dev
+        COMPONENT core_dev
         FILES_MATCHING PATTERN "*.hpp")
 
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT ngraph_dev
+        COMPONENT core_dev
         FILES_MATCHING PATTERN "manager.hpp")
 
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::

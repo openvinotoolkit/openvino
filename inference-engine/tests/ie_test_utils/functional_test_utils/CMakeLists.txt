@@ -10,7 +10,7 @@ addIeTarget(
     ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
     ADD_CPPLINT
     DEVELOPER_PACKAGE
-        inference_engine_tests
+        tests
     INCLUDES
         PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
