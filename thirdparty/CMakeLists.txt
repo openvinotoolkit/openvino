@@ -74,7 +74,7 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
-    openvino_developer_export_targets(COMPONENT inference_engine_tests
+    openvino_developer_export_targets(COMPONENT tests
                                       TARGETS gmock gmock_main gtest gtest_main)
 endif()
 
