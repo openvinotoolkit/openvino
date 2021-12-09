@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <string>
-
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
@@ -22,17 +21,17 @@ public:
     ChannelFakeQuantInternal() = default;
 
     ChannelFakeQuantInternal(const Output<Node>& x,
-                      const Output<Node>& scale1,
-                      const Output<Node>& scale2,
-                      const std::string& op_type,
-                      const int quant_axis = 0,
-                      const int bit_length = 8);
+                             const Output<Node>& scale1,
+                             const Output<Node>& scale2,
+                             const std::string& op_type,
+                             const int quant_axis = 0,
+                             const int bit_length = 8);
 
     void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     std::string m_op_type;
     int m_quant_axis = 0;

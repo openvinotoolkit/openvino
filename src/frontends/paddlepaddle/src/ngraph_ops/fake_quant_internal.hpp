@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <string>
-
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
@@ -30,7 +29,7 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     std::string m_op_type;
     int m_bit_length = 8;

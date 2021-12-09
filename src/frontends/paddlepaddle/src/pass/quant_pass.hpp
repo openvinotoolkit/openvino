@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace frontend {

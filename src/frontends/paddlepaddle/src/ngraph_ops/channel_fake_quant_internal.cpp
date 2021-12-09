@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
-#include <ngraph/opsets/opset5.hpp>
 #include "ngraph_ops/channel_fake_quant_internal.hpp"
+
+#include <memory>
+#include <ngraph/opsets/opset5.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -13,18 +13,26 @@ using namespace ngraph;
 BWDCMP_RTTI_DEFINITION(op::internal::ChannelFakeQuantInternal);
 
 op::internal::ChannelFakeQuantInternal::ChannelFakeQuantInternal(const Output<Node>& x,
-                                                   const Output<Node>& scale1,
-                                                   const Output<Node>& scale2,
-                                                   const std::string& op_type,
-                                                   const int quant_axis,
-                                                   const int bit_length)
-        : Op({x, scale1, scale2}),
-          m_op_type(op_type), m_quant_axis(quant_axis), m_bit_length(bit_length) {
+                                                                 const Output<Node>& scale1,
+                                                                 const Output<Node>& scale2,
+                                                                 const std::string& op_type,
+                                                                 const int quant_axis,
+                                                                 const int bit_length)
+    : Op({x, scale1, scale2}),
+      m_op_type(op_type),
+      m_quant_axis(quant_axis),
+      m_bit_length(bit_length) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::internal::ChannelFakeQuantInternal::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
-    return make_shared<ChannelFakeQuantInternal>(new_args.at(0), new_args.at(1), new_args.at(2), m_op_type, m_quant_axis, m_bit_length);
+std::shared_ptr<Node> op::internal::ChannelFakeQuantInternal::clone_with_new_inputs(
+    const ngraph::OutputVector& new_args) const {
+    return make_shared<ChannelFakeQuantInternal>(new_args.at(0),
+                                                 new_args.at(1),
+                                                 new_args.at(2),
+                                                 m_op_type,
+                                                 m_quant_axis,
+                                                 m_bit_length);
 }
 
 bool op::internal::ChannelFakeQuantInternal::visit_attributes(AttributeVisitor& visitor) {

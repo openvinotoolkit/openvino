@@ -11,22 +11,22 @@
 
 #include "decoder.hpp"
 #include "framework.pb.h"
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "paddlepaddle_frontend/exceptions.hpp"
-#include "paddlepaddle_frontend/model.hpp"
-#include "paddlepaddle_frontend/place.hpp"
-#include "pdpd_fw_node.hpp"
-#include "pdpd_utils.hpp"
-#include "pass/quant_pass.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/constant_folding.hpp"
+#include "ngraph_ops/channel_fake_quant_internal.hpp"
 #include "ngraph_ops/fake_dequant_internal.hpp"
 #include "ngraph_ops/fake_quant_dequant_internal.hpp"
 #include "ngraph_ops/fake_quant_internal.hpp"
-#include "ngraph_ops/channel_fake_quant_internal.hpp"
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "paddlepaddle_frontend/exceptions.hpp"
+#include "paddlepaddle_frontend/model.hpp"
+#include "paddlepaddle_frontend/place.hpp"
+#include "pass/quant_pass.hpp"
+#include "pdpd_fw_node.hpp"
+#include "pdpd_utils.hpp"
 
 using namespace ov::opset7;
 using namespace ov;
@@ -57,7 +57,8 @@ NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
             named_inputs[input_port.parameter()].push_back(node_it->second);
         }
     }
-    // fake_channel_wise_quantize_dequantize_abs_max only stores the scale in OutScale, we also pass them in inputs, ref:
+    // fake_channel_wise_quantize_dequantize_abs_max only stores the scale in OutScale, we also pass them in inputs,
+    // ref:
     //    https://github.com/PaddlePaddle/Paddle/blob/21b307ca4e59173a7588281b92a037cd9cf1dcd6/python/paddle/nn/quant/quant_layers.py#L298
     if (op_desc.type() == "fake_channel_wise_quantize_dequantize_abs_max") {
         for (const auto& output_port : op_desc.outputs()) {
@@ -306,9 +307,11 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert(InputModel::Ptr model) const {
         });
 
     normalize(f);
-    // workaround: shared_ptr has virtual table & virtual function which will exist in the caller so such as libpaddle_ov_frontend.so,
-    //   when Function returned from here and FrontEndManager may be descontrcuted which will call dlclose with libpaddle_ov_frontend.so,
-    //   calling the shared_ptr destructor created in libpaddld_ov_frontend.so will crash. Here make a new shared_ptr in ngraph.so to work around.
+    // workaround: shared_ptr has virtual table & virtual function which will exist in the caller so such as
+    // libpaddle_ov_frontend.so,
+    //   when Function returned from here and FrontEndManager may be descontrcuted which will call dlclose with
+    //   libpaddle_ov_frontend.so, calling the shared_ptr destructor created in libpaddld_ov_frontend.so will crash.
+    //   Here make a new shared_ptr in ngraph.so to work around.
     return ngraph::clone_function(*f);
 }
 
@@ -340,9 +343,11 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(InputModel::Ptr model
             return named_outputs;
         });
     normalize(f);
-    // workaround: shared_ptr has virtual table & virtual function which will exist in the caller so such as libpaddle_ov_frontend.so,
-    //   when Function returned from here and FrontEndManager may be descontrcuted which will call dlclose with libpaddle_ov_frontend.so,
-    //   calling the shared_ptr destructor created in libpaddld_ov_frontend.so will crash. Here make a new shared_ptr in ngraph.so to work around.
+    // workaround: shared_ptr has virtual table & virtual function which will exist in the caller so such as
+    // libpaddle_ov_frontend.so,
+    //   when Function returned from here and FrontEndManager may be descontrcuted which will call dlclose with
+    //   libpaddle_ov_frontend.so, calling the shared_ptr destructor created in libpaddld_ov_frontend.so will crash.
+    //   Here make a new shared_ptr in ngraph.so to work around.
     return ngraph::clone_function(*f);
 }
 
@@ -355,14 +360,12 @@ std::shared_ptr<ov::Model> FrontEndPDPD::decode(InputModel::Ptr model) const {
 
 bool FrontEndPDPD::is_function_quantized(const std::shared_ptr<ngraph::Function>& function) const {
     for (auto& node : function->get_ordered_ops()) {
-        static const auto fake_ops_type = {
-            &ngraph::op::internal::ChannelFakeQuantInternal::get_type_info_static(),
-            &ngraph::op::internal::FakeDequantInternal::get_type_info_static(),
-            &ngraph::op::internal::FakeQuantDequantInternal::get_type_info_static(),
-            &ngraph::op::internal::FakeQuantInternal::get_type_info_static()
-            };
+        static const auto fake_ops_type = {&ngraph::op::internal::ChannelFakeQuantInternal::get_type_info_static(),
+                                           &ngraph::op::internal::FakeDequantInternal::get_type_info_static(),
+                                           &ngraph::op::internal::FakeQuantDequantInternal::get_type_info_static(),
+                                           &ngraph::op::internal::FakeQuantInternal::get_type_info_static()};
         if (std::any_of(fake_ops_type.begin(), fake_ops_type.end(), [node](const ov::DiscreteTypeInfo* info) {
-            return &node->get_type_info() == info;
+                return &node->get_type_info() == info;
             })) {
             return true;
         }

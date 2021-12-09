@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
-#include <ngraph/opsets/opset5.hpp>
 #include "ngraph_ops/fake_dequant_internal.hpp"
+
+#include <memory>
+#include <ngraph/opsets/opset5.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -13,15 +13,17 @@ using namespace ngraph;
 BWDCMP_RTTI_DEFINITION(op::internal::FakeDequantInternal);
 
 op::internal::FakeDequantInternal::FakeDequantInternal(const Output<Node>& x,
-                                                   const Output<Node>& scale,
-                                                   const int bit_length,
-                                                   const float max_range)
-        : Op({x, scale}),
-          m_bit_length(bit_length), m_max_range(max_range) {
+                                                       const Output<Node>& scale,
+                                                       const int bit_length,
+                                                       const float max_range)
+    : Op({x, scale}),
+      m_bit_length(bit_length),
+      m_max_range(max_range) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::internal::FakeDequantInternal::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<Node> op::internal::FakeDequantInternal::clone_with_new_inputs(
+    const ngraph::OutputVector& new_args) const {
     return make_shared<FakeDequantInternal>(new_args.at(0), new_args.at(1), m_bit_length, m_max_range);
 }
 
