@@ -24,11 +24,11 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
 
     const auto& data_shape = input_shapes[0];
     const ov::Rank data_rank = data_shape.rank();
-    const auto block_size = op->get_block_size();
+    const auto& block_size = op->get_block_size();
 
     if (data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              !(data_shape.size() < 3),
+                               data_shape.size() >= 3,
                               "The input tensor with rank lower than 3 is not supported (input rank: ",
                               data_shape.size(),
                               ")");

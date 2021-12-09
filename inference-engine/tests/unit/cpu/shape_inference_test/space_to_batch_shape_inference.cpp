@@ -72,3 +72,16 @@ TEST(StaticShapeInferenceTest, SpaceToBatchThrowExceptionWithMissingPadsHostTens
 
     EXPECT_THROW(shape_inference(space_to_batch.get(), input_shapes, output_shapes), NodeValidationFailure);
 }
+
+TEST(StaticShapeInferenceTest, space_to_batch_output_with_const_inputs) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, -1, -1});
+    auto block_shape = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 12, 100, 2});
+    auto pads_begin = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 38, 1});
+    auto pads_end = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 5, 38, 0});
+    const auto space_to_batch = std::make_shared<ov::op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+    std::vector<StaticShape> input_shapes = {{2, 100, 1024, 3}, {4}, {4}, {4}};
+    std::vector<StaticShape> output_shapes = {{}};
+    shape_inference(space_to_batch.get(), input_shapes, output_shapes);
+
+    ASSERT_EQ(output_shapes[0], (StaticShape{2 * 12 * 100 * 2, (100 + 3 + 5) / 12, (1024 + 38 + 38) / 100, (3 + 1) / 2}));
+}
