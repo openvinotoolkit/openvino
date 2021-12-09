@@ -78,6 +78,13 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
 
     // Estimate basic block params ratio
     auto test_block_params = BlockParams{ block_width, 1, 1, simd, in_block_width, 1, 1, 1 };
+
+    // Use default block parameters for asymmetric weights quantization for devices with immad support due to unoptimized tuning
+    if ((params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS || params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) &&
+        params.engineInfo.bIMMADSupport) {
+        return test_block_params;
+    }
+
     auto best_block_params_ratio = EstimateBlockParamsRatio(params, test_block_params);
 
     size_t max_slm_split = params.engineInfo.maxWorkGroupSize / simd;
