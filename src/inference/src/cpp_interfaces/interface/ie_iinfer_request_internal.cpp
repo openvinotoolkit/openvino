@@ -169,10 +169,10 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
         SetBlob(name, blobs[0]);
         return;
     }
-    std::shared_ptr<ov::op::v0::Parameter> param;
+    std::shared_ptr<const ov::op::v0::Parameter> param;
     const auto& inputs = GetInputs();
     for (const auto& input : inputs) {
-        if (auto p = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input)) {
+        if (auto p = std::dynamic_pointer_cast<const ov::op::v0::Parameter>(input)) {
             const auto& names = p->output(0).get_tensor().get_names();
             if (names.find(name) != names.end()) {
                 param = p;
@@ -204,10 +204,34 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
                         param->get_partial_shape(), "batch ", batch,
                         "doesn't match with total blobs count: ", input_size);
     }
+    OPENVINO_ASSERT(batch_idx == 0,
+                    "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
+                    batch_idx, " != 0");
     // Initial implementation always performs creation of new Blob and 'memcpy'
     // In future consider checking if blobs point to contiguous range of memory
-    auto desc = blobs[0]->getTensorDesc();
+    auto& desc = blobs[0]->getTensorDesc();
     desc.getDims()[batch_idx] = input_size;
+    auto desc_to_string = [](const TensorDesc& desc) {
+        std::stringstream s;
+        s << "{ " << desc.getLayout() << " " << desc.getPrecision().name();
+        s << "dim=(";
+        for (const auto& d : desc.getDims()) {
+            s << " " << d;
+        }
+        s << " ) }";
+        return s.str();
+    };
+    std::for_each(blobs.begin(), blobs.end(), [&desc, &batch_idx, &desc_to_string](const Blob::Ptr& item) {
+        auto item_desc = item->getTensorDesc();
+        item_desc.getDims()[batch_idx] = desc.getDims()[batch_idx];
+        OPENVINO_ASSERT(item_desc.getDims() == desc.getDims() &&
+                        item_desc.getLayout() == desc.getLayout() &&
+                        item_desc.getPrecision() == desc.getPrecision(),
+                        "set_input_tensors/set_tensors error. Blob ",
+                        desc_to_string(item_desc),
+                        " is not compatible with batched blob ",
+                        desc_to_string(desc));
+    });
     // TODO: no API to get allocator of original blobs, use default one
     auto batched_blob = make_blob_with_precision(desc);
     batched_blob->allocate();
