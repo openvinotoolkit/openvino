@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 import datetime
-from openvino.runtime import Core, Function, PartialShape, Dimension, Layout
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout
 from openvino.runtime.impl import Type
 from openvino.preprocess import PrePostProcessor
 from openvino.offline_transformations_pybind import serialize
@@ -71,7 +71,7 @@ def get_element_type(precision):
     raise Exception("Can't find openvino element type for precision: " + precision)
 
 
-def pre_post_processing(function: Function, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+def pre_post_processing(function: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
     pre_post_processor = PrePostProcessor(function)
     if input_precision:
         element_type = get_element_type(input_precision)
@@ -148,7 +148,7 @@ def get_precision(element_type: Type):
     raise Exception("Can't find  precision for openvino element type: " + str(element_type))
 
 
-def print_inputs_and_outputs_info(function: Function):
+def print_inputs_and_outputs_info(function: Model):
     parameters = function.get_parameters()
     input_names = get_input_output_names(parameters)
     for i in range(len(parameters)):
