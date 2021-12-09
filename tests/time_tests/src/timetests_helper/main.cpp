@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-int runPipeline(const std::string &model, const std::string &device, const std::string &performanceHint,
+int runPipeline(const std::string &model, const std::string &device, const bool performanceHint,
                 const bool isCacheEnabled, const std::string &vpuCompiler);
 
 /**

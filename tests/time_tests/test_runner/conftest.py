@@ -66,10 +66,8 @@ def pytest_addoption(parser):
     )
     test_args_parser.addoption(
         "--perf_hint",
-        choices=['LATENCY', 'THROUGHPUT'],
-        default='LATENCY',
-        type=str,
-        help='Enables performance hint for specified device. Default hint is LATENCY'
+        action='store_true',
+        help="Enables 'LATENCY' performance hint for specified device."
     )
     test_args_parser.addoption(
         "--vpu_compiler",
@@ -273,6 +271,10 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     if db_meta_path:
         with open(db_meta_path, "r") as db_meta_f:
             test_info["db_info"].update(json.load(db_meta_f))
+
+    # add cpu cache status
+    cpu_cache = True if request.config.getoption("cpu_cache") else False
+    test_info["db_info"].update({"use_cpu_cache": cpu_cache})
 
     # add test info
     info = {
