@@ -168,7 +168,8 @@ std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_sour
 }
 
 bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Output<Node>& constant, const Output<Node>& non_constant_input) {
-    if (!is_type<opset8::Subtract>(eltwise) &&
+    if (!is_type<opset8::Add>(eltwise) &&
+        !is_type<opset8::Subtract>(eltwise) &&
         !is_type<opset8::Multiply>(eltwise) &&
         !is_type<opset8::Divide>(eltwise)) {
         return false;

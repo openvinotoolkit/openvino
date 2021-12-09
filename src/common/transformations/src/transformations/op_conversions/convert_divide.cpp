@@ -38,8 +38,6 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
             NGRAPH_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
             return false;
         }
-    } else {
-        ngraph::copy_runtime_info(div, pow);
     }
 
     auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);

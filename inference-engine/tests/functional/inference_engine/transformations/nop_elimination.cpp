@@ -946,6 +946,8 @@ std::vector<ShapeParams> shape_params = {
 
 std::vector<TypeParams> type_params = {
     // op type, constant value, can fuse
+    { EltwiseTypes::ADD, 0, true },
+    { EltwiseTypes::ADD, 1, false },
     { EltwiseTypes::SUBTRACT, 0, true },
     { EltwiseTypes::SUBTRACT, 1, false },
     { EltwiseTypes::MULTIPLY, 1, true },

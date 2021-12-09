@@ -510,7 +510,8 @@ pass::EliminateEltwise::EliminateEltwise() {
     MATCHER_SCOPE(EliminateEltwise);
     auto input = pattern::any_input();
     auto constant_pattern = pattern::wrap_type<opset8::Constant>();
-    auto eltwise_pattern = pattern::wrap_type<opset8::Subtract,
+    auto eltwise_pattern = pattern::wrap_type<opset8::Add,
+                                              opset8::Subtract,
                                               opset8::Multiply,
                                               opset8::Divide>({input, constant_pattern});
 
