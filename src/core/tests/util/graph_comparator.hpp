@@ -16,7 +16,6 @@
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/serialize.hpp"
 
-
 class FunctionsComparator {
 public:
     enum CmpValues {
@@ -463,8 +462,7 @@ public:
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
                storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number() +
-               storage<ov::PartialShape>().get_attributes_number() +
-               storage<ov::Dimension>().get_attributes_number();
+               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number();
     }
 };
 
