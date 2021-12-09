@@ -3,7 +3,6 @@
 //
 
 #include <inference_engine.hpp>
-#include <ie_plugin_config.hpp>
 #include <iostream>
 
 #include "common_utils.h"
@@ -17,34 +16,15 @@ using namespace InferenceEngine;
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device, const std::string &performanceHint,
+int runPipeline(const std::string &model, const std::string &device, const bool performanceHint,
                 const bool isCacheEnabled, const std::string &vpuCompiler) {
-  auto pipeline = [](const std::string &model, const std::string &device, const std::string &performanceHint,
+  auto pipeline = [](const std::string &model, const std::string &device, const bool performanceHint,
                      const bool isCacheEnabled, const std::string &vpuCompiler) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
     InferRequest inferRequest;
     size_t batchSize = 0;
-
-    if (!performanceHint.empty()) {
-      std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-
-      // enables performance hint for specified device
-      std::string performanceConfig;
-      if (performanceHint == "THROUGHPUT")
-        performanceConfig = CONFIG_VALUE(THROUGHPUT);
-      else if (performanceHint == "LATENCY")
-        performanceConfig = CONFIG_VALUE(LATENCY);
-
-      if (std::find(supported_config_keys.begin(), supported_config_keys.end(), "PERFORMANCE_HINT") ==
-          supported_config_keys.end()) {
-        std::cerr << "Device " << device << " doesn't support config key 'PERFORMANCE_HINT'!\n"
-                  << "Performance config was not set.";
-      }
-      else
-        ie.SetConfig({{CONFIG_KEY(PERFORMANCE_HINT), performanceConfig}}, device);
-    }
 
     // set config for VPUX device
     std::map<std::string, std::string> vpuConfig = {};
@@ -58,6 +38,9 @@ int runPipeline(const std::string &model, const std::string &device, const std::
       SCOPED_TIMER(time_to_inference);
       {
         SCOPED_TIMER(load_plugin);
+        if (performanceHint) {
+          TimeTest::setPerformanceConfig(ie, device);
+        }
         ie.GetVersions(device);
 
         if (isCacheEnabled)

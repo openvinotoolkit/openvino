@@ -48,7 +48,7 @@ std::shared_ptr<ngraph::Function> ElementwiseWithMultiParentDequantizationFuncti
     const auto add = std::make_shared<ngraph::opset1::Add>(parent1, parent2);
     add->set_friendly_name("output");
     auto& rtInfo = add->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("add");
+    rtInfo["Variant::std::string"] = "add";
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
     ngraph::ParameterVector parameters = { input1_1, input1_2, input2_1, input2_2 };

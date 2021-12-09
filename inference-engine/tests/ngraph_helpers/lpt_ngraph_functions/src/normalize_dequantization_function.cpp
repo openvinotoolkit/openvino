@@ -32,7 +32,7 @@ namespace subgraph {
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
         auto& rtInfo = targetOp->get_rt_info();
-        rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("targetOp");
+        rtInfo["Variant::std::string"] = "targetOp";
 
         return std::make_shared<ngraph::Function>(
             ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(targetOp) },
