@@ -119,51 +119,51 @@ add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 set(library_sources $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-if(BUILD_SHARED_LIBS)
-    set(library_type MODULE)
-else()
-    if(ENABLE_GAPI_PREPROCESSING)
-        set(library_type STATIC)
+if(ENABLE_GAPI_PREPROCESSING)
+    if(BUILD_SHARED_LIBS)
+        set(library_type MODULE)
     else()
-        set(library_type INTERFACE)
-        unset(library_sources)
+        set(library_type STATIC)
     endif()
+else()
+    set(library_type INTERFACE)
+    unset(library_sources)
 endif()
 
 add_library(${TARGET_NAME} ${library_type} ${library_sources})
-
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Preprocessing plugin")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
 if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
     target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
-endif()
 
-if(BUILD_SHARED_LIBS)
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
-else()
-    # for static linkage the dependencies are in opposite order
-    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+    if(BUILD_SHARED_LIBS)
+        target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+    else()
+        # for static linkage the dependencies are in opposite order
+        target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+    endif()
+
+    # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
+       (CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 5.5))
+        set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+    endif()
+
+    if(WIN32 AND NOT library_type STREQUAL "INTERFACE")
+        set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+    endif()
+
+    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+    
+    ie_add_vs_version_file(NAME ${TARGET_NAME}
+                           FILEDESCRIPTION "Inference Engine Preprocessing plugin")
 endif()
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
-
-# Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
-if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
-   (CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 5.5))
-    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
-endif()
-
-if(WIN32 AND NOT library_type STREQUAL "INTERFACE")
-    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
-endif()
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # Static library used for unit tests which are always built
 
@@ -197,7 +197,7 @@ endif()
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 # install
 

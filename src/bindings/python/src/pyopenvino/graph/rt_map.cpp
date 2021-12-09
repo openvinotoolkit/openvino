@@ -15,6 +15,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/variant.hpp"
 
@@ -25,8 +26,8 @@ using PyRTMap = ov::RTMap;
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_graph_PyRTMap(py::module m) {
-    auto py_map = py::bind_map<PyRTMap>(m, "PyRTMap");
-    py_map.doc() = "openvino.impl.PyRTMap makes bindings for std::map<std::string, "
+    auto py_map = py::class_<PyRTMap>(m, "PyRTMap");
+    py_map.doc() = "openvino.runtime.PyRTMap makes bindings for std::map<std::string, "
                    "ov::Any, which can later be used as ov::Node::RTMap";
 
     py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const std::string v) {
@@ -35,4 +36,44 @@ void regclass_graph_PyRTMap(py::module m) {
     py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const int64_t v) {
         m[k] = v;
     });
+    py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) -> py::object {
+        return Common::from_ov_any(m[k]).as<py::object>();
+    });
+    py_map.def(
+        "__bool__",
+        [](const PyRTMap& m) -> bool {
+            return !m.empty();
+        },
+        "Check whether the map is nonempty");
+
+    py_map.def(
+        "__iter__",
+        [](PyRTMap& m) {
+            return py::make_key_iterator(m.begin(), m.end());
+        },
+        py::keep_alive<0, 1>() /* Essential: keep list alive while iterator exists */
+    );
+
+    py_map.def(
+        "items",
+        [](PyRTMap& m) {
+            return py::make_iterator(m.begin(), m.end());
+        },
+        py::keep_alive<0, 1>() /* Essential: keep list alive while iterator exists */
+    );
+
+    py_map.def("__contains__", [](PyRTMap& m, const std::string& k) -> bool {
+        auto it = m.find(k);
+        if (it == m.end())
+            return false;
+        return true;
+    });
+    py_map.def("__delitem__", [](PyRTMap& m, const std::string& k) {
+        auto it = m.find(k);
+        if (it == m.end())
+            throw py::key_error();
+        m.erase(it);
+    });
+
+    py_map.def("__len__", &PyRTMap::size);
 }
