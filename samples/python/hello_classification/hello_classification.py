@@ -92,7 +92,7 @@ def main():
 
     # ---------------------------Step 5. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
-    exec_net = core.compile_model(model=model, device_name=args.device)
+    compiled_model = core.compile_model(model=model, device_name=args.device)
 
     # ---------------------------Step 6. Create infer request--------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
