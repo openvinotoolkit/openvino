@@ -10,24 +10,24 @@ import openvino.runtime as ov
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
-    (ov.impl.Type.f32, np.float32),
-    (ov.impl.Type.f64, np.float64),
-    (ov.impl.Type.f16, np.float16),
-    (ov.impl.Type.bf16, np.float16),
-    (ov.impl.Type.i8, np.int8),
-    (ov.impl.Type.u8, np.uint8),
-    (ov.impl.Type.i32, np.int32),
-    (ov.impl.Type.u32, np.uint32),
-    (ov.impl.Type.i16, np.int16),
-    (ov.impl.Type.u16, np.uint16),
-    (ov.impl.Type.i64, np.int64),
-    (ov.impl.Type.u64, np.uint64),
-    (ov.impl.Type.boolean, np.bool),
-    # (ov.impl.Type.u1, np.uint8),
+    (ov.Type.f32, np.float32),
+    (ov.Type.f64, np.float64),
+    (ov.Type.f16, np.float16),
+    (ov.Type.bf16, np.float16),
+    (ov.Type.i8, np.int8),
+    (ov.Type.u8, np.uint8),
+    (ov.Type.i32, np.int32),
+    (ov.Type.u32, np.uint32),
+    (ov.Type.i16, np.int16),
+    (ov.Type.u16, np.uint16),
+    (ov.Type.i64, np.int64),
+    (ov.Type.u64, np.uint64),
+    (ov.Type.boolean, np.bool),
+    # (ov.Type.u1, np.uint8),
 ])
 def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors = []
-    ov_tensors.append(Tensor(type=ov_type, shape=ov.impl.Shape([1, 3, 32, 32])))
+    ov_tensors.append(Tensor(type=ov_type, shape=ov.Shape([1, 3, 32, 32])))
     ov_tensors.append(Tensor(type=ov_type, shape=[1, 3, 32, 32]))
     assert np.all([list(ov_tensor.shape) == [1, 3, 32, 32] for ov_tensor in ov_tensors])
     assert np.all(ov_tensor.element_type == ov_type for ov_tensor in ov_tensors)
@@ -36,22 +36,22 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
-    (ov.impl.Type.f32, np.float32),
-    (ov.impl.Type.f64, np.float64),
-    (ov.impl.Type.f16, np.float16),
-    (ov.impl.Type.i8, np.int8),
-    (ov.impl.Type.u8, np.uint8),
-    (ov.impl.Type.i32, np.int32),
-    (ov.impl.Type.u32, np.uint32),
-    (ov.impl.Type.i16, np.int16),
-    (ov.impl.Type.u16, np.uint16),
-    (ov.impl.Type.i64, np.int64),
-    (ov.impl.Type.u64, np.uint64),
-    (ov.impl.Type.boolean, np.bool)
+    (ov.Type.f32, np.float32),
+    (ov.Type.f64, np.float64),
+    (ov.Type.f16, np.float16),
+    (ov.Type.i8, np.int8),
+    (ov.Type.u8, np.uint8),
+    (ov.Type.i32, np.int32),
+    (ov.Type.u32, np.uint32),
+    (ov.Type.i16, np.int16),
+    (ov.Type.u16, np.uint16),
+    (ov.Type.i64, np.int64),
+    (ov.Type.u64, np.uint64),
+    (ov.Type.boolean, np.bool)
 ])
 def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     shape = (1, 3, 127, 127)
-    ov_shape = ov.impl.Shape(shape)
+    ov_shape = ov.Shape(shape)
     ov_tensors = []
     ov_tensors.append(Tensor(type=numpy_dtype, shape=shape))
     ov_tensors.append(Tensor(type=np.dtype(numpy_dtype), shape=shape))
@@ -66,18 +66,18 @@ def test_init_with_numpy_dtype(ov_type, numpy_dtype):
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
-    (ov.impl.Type.f32, np.float32),
-    (ov.impl.Type.f64, np.float64),
-    (ov.impl.Type.f16, np.float16),
-    (ov.impl.Type.i8, np.int8),
-    (ov.impl.Type.u8, np.uint8),
-    (ov.impl.Type.i32, np.int32),
-    (ov.impl.Type.u32, np.uint32),
-    (ov.impl.Type.i16, np.int16),
-    (ov.impl.Type.u16, np.uint16),
-    (ov.impl.Type.i64, np.int64),
-    (ov.impl.Type.u64, np.uint64),
-    (ov.impl.Type.boolean, np.bool)
+    (ov.Type.f32, np.float32),
+    (ov.Type.f64, np.float64),
+    (ov.Type.f16, np.float16),
+    (ov.Type.i8, np.int8),
+    (ov.Type.u8, np.uint8),
+    (ov.Type.i32, np.int32),
+    (ov.Type.u32, np.uint32),
+    (ov.Type.i16, np.int16),
+    (ov.Type.u16, np.uint16),
+    (ov.Type.i64, np.int64),
+    (ov.Type.u64, np.uint64),
+    (ov.Type.boolean, np.bool)
 ])
 def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     arr = read_image().astype(numpy_dtype)
@@ -96,18 +96,18 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
-    (ov.impl.Type.f32, np.float32),
-    (ov.impl.Type.f64, np.float64),
-    (ov.impl.Type.f16, np.float16),
-    (ov.impl.Type.i8, np.int8),
-    (ov.impl.Type.u8, np.uint8),
-    (ov.impl.Type.i32, np.int32),
-    (ov.impl.Type.u32, np.uint32),
-    (ov.impl.Type.i16, np.int16),
-    (ov.impl.Type.u16, np.uint16),
-    (ov.impl.Type.i64, np.int64),
-    (ov.impl.Type.u64, np.uint64),
-    (ov.impl.Type.boolean, np.bool)
+    (ov.Type.f32, np.float32),
+    (ov.Type.f64, np.float64),
+    (ov.Type.f16, np.float16),
+    (ov.Type.i8, np.int8),
+    (ov.Type.u8, np.uint8),
+    (ov.Type.i32, np.int32),
+    (ov.Type.u32, np.uint32),
+    (ov.Type.i16, np.int16),
+    (ov.Type.u16, np.uint16),
+    (ov.Type.i64, np.int64),
+    (ov.Type.u64, np.uint64),
+    (ov.Type.boolean, np.bool)
 ])
 def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     arr = read_image().astype(numpy_dtype)
@@ -142,47 +142,47 @@ def test_init_with_roi_tensor():
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
-    (ov.impl.Type.f32, np.float32),
-    (ov.impl.Type.f64, np.float64),
-    (ov.impl.Type.f16, np.float16),
-    (ov.impl.Type.bf16, np.float16),
-    (ov.impl.Type.i8, np.int8),
-    (ov.impl.Type.u8, np.uint8),
-    (ov.impl.Type.i32, np.int32),
-    (ov.impl.Type.u32, np.uint32),
-    (ov.impl.Type.i16, np.int16),
-    (ov.impl.Type.u16, np.uint16),
-    (ov.impl.Type.i64, np.int64),
-    (ov.impl.Type.u64, np.uint64),
-    (ov.impl.Type.boolean, np.bool),
-    # (ov.impl.Type.u1, np.uint8),
+    (ov.Type.f32, np.float32),
+    (ov.Type.f64, np.float64),
+    (ov.Type.f16, np.float16),
+    (ov.Type.bf16, np.float16),
+    (ov.Type.i8, np.int8),
+    (ov.Type.u8, np.uint8),
+    (ov.Type.i32, np.int32),
+    (ov.Type.u32, np.uint32),
+    (ov.Type.i16, np.int16),
+    (ov.Type.u16, np.uint16),
+    (ov.Type.i64, np.int64),
+    (ov.Type.u64, np.uint64),
+    (ov.Type.boolean, np.bool),
+    # (ov.Type.u1, np.uint8),
 ])
 def test_write_to_buffer(ov_type, numpy_dtype):
-    ov_tensor = Tensor(ov_type, ov.impl.Shape([1, 3, 32, 32]))
+    ov_tensor = Tensor(ov_type, ov.Shape([1, 3, 32, 32]))
     ones_arr = np.ones([1, 3, 32, 32], numpy_dtype)
     ov_tensor.data[:] = ones_arr
     assert np.array_equal(ov_tensor.data, ones_arr)
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
-    (ov.impl.Type.f32, np.float32),
-    (ov.impl.Type.f64, np.float64),
-    (ov.impl.Type.f16, np.float16),
-    (ov.impl.Type.bf16, np.float16),
-    (ov.impl.Type.i8, np.int8),
-    (ov.impl.Type.u8, np.uint8),
-    (ov.impl.Type.i32, np.int32),
-    (ov.impl.Type.u32, np.uint32),
-    (ov.impl.Type.i16, np.int16),
-    (ov.impl.Type.u16, np.uint16),
-    (ov.impl.Type.i64, np.int64),
-    (ov.impl.Type.u64, np.uint64),
-    (ov.impl.Type.boolean, np.bool),
-    # (ov.impl.Type.u1, np.uint8),
+    (ov.Type.f32, np.float32),
+    (ov.Type.f64, np.float64),
+    (ov.Type.f16, np.float16),
+    (ov.Type.bf16, np.float16),
+    (ov.Type.i8, np.int8),
+    (ov.Type.u8, np.uint8),
+    (ov.Type.i32, np.int32),
+    (ov.Type.u32, np.uint32),
+    (ov.Type.i16, np.int16),
+    (ov.Type.u16, np.uint16),
+    (ov.Type.i64, np.int64),
+    (ov.Type.u64, np.uint64),
+    (ov.Type.boolean, np.bool),
+    # (ov.Type.u1, np.uint8),
 ])
 def test_set_shape(ov_type, numpy_dtype):
-    shape = ov.impl.Shape([1, 3, 32, 32])
-    ref_shape = ov.impl.Shape([1, 3, 48, 48])
+    shape = ov.Shape([1, 3, 32, 32])
+    ref_shape = ov.Shape([1, 3, 48, 48])
     ref_shape_np = [1, 3, 28, 28]
     ov_tensor = Tensor(ov_type, shape)
     ov_tensor.shape = ref_shape
