@@ -784,7 +784,15 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             try {
                 n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint32_t>();
             } catch (...) {
-                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be uint32_t type";
+                try {
+                    std::string n_streams_str = options.find("GPU_THROUGHPUT_STREAMS")->second.as<std::string>();
+                    if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO)) {
+                        IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+                    }
+                    n_streams = default_num_streams_for_tput;
+                } catch (...) {
+                    IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+                }
             }
         }
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -858,6 +866,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
         try {
             if (batch_detected) { // reshape only for batched layout
+                cloned_network.reshape(new_shapes);
                 GPU_DEBUG_IF(debug_config->verbose >= 1) {
                     GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Reshaped base batch size to " << base_batch_size << std::endl;
                 }
@@ -884,7 +893,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             }
         } catch (std::exception& e) {
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what(t ) << std::endl;
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
             }
         }
         IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
