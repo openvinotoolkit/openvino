@@ -535,12 +535,12 @@ TEST(pre_post_process, reuse_model_layout_no_tensor_info) {
 }
 
 TEST(pre_post_process, set_layout_out_of_bounds) {
-    auto shape = PartialShape{Dimension::dynamic(), 3, 2, 1};
+    auto shape = PartialShape{1, 2};
     std::stringstream shape_str;
     shape_str << shape;
     auto f = create_simple_function(element::f32, shape);
-    Layout from{"N???C"};
-    Layout to{"NC???"};
+    Layout from{"NHWC"};
+    Layout to{"NCHW"};
     // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
     try {
         auto p = PrePostProcessor(f);
