@@ -19,7 +19,6 @@ nibabel>=3.2.1
 pydicom>=2.1.2
 sentencepiece>=0.1.95
 tokenizers>=0.10.1
-editdistance>=0.5.3
 parasail>=1.2.4
 fast-ctc-decode>=0.2.5
 rawpy>=0.16.0
