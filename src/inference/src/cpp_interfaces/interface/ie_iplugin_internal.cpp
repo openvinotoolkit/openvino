@@ -29,7 +29,7 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/function.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
@@ -296,7 +296,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
     if (it != rt_info.end()) {
-        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
+        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(it->second);
         OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
         const int64_t ir_version = ir_version_impl->get();
         // here we decide whether we need to add operation_names as tensor names for

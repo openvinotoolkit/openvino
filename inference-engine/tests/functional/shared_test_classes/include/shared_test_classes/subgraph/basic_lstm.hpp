@@ -36,6 +36,9 @@ public:
         std::vector<float>* cell_memory_init_out = nullptr);
     void GenerateInputs() override;
 protected:
+    void LoadNetwork() override;
+    void Infer() override;
+
     size_t hidden_size;
     size_t third_dim;
     std::vector<float> hidden_memory_init;

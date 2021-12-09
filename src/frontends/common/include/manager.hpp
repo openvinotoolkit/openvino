@@ -10,8 +10,7 @@
 
 #include "common/frontend.hpp"
 #include "common/frontend_defs.hpp"
-#include "common/parameters.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/any.hpp"
 
 namespace ov {
 namespace frontend {
@@ -56,7 +55,7 @@ public:
     /// if no suitable frontend is found
     template <typename... Types>
     FrontEnd::Ptr load_by_model(const Types&... vars) {
-        return load_by_model_impl({make_variant(vars)...});
+        return load_by_model_impl({ov::Any{vars}...});
     }
 
     /// \brief Gets list of registered frontends. Any not loaded frontends will be loaded by this call
@@ -73,13 +72,13 @@ public:
 private:
     class Impl;
 
-    FrontEnd::Ptr load_by_model_impl(const std::vector<std::shared_ptr<Variant>>& variants);
+    FrontEnd::Ptr load_by_model_impl(const std::vector<ov::Any>& variants);
 
     std::unique_ptr<Impl> m_impl;
 };
 
 template <>
-FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants);
+FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants);
 
 // --------- Plugin exporting information --------------
 
