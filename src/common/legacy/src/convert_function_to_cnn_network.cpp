@@ -155,19 +155,9 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
             temp_body.inputs[counter++] = info->getInputData();
         }
 
-        auto map_ng_result_to_ie_name = [] (std::shared_ptr<ngraph::op::v0::Result> res_op) {
-            auto result = res_op->input(0).get_source_output();
-
-            std::string name = result.get_node()->get_friendly_name();
-            if (result.get_node()->get_output_size() > 1) {
-                name += "." + std::to_string(result.get_index());
-            }
-            return name;
-        };
-
         counter = 0;
         for (const auto& result : results) {
-            auto data = out_info_map.at(map_ng_result_to_ie_name(result));
+            auto data = out_info_map.at(ngraph::op::util::get_ie_output_name(result->input_value(0)));
             temp_body.outputs[counter++] = data;
         }
 
@@ -1634,7 +1624,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
                 << " attribute is set in " << node->get_friendly_name() << " node";
         }
 
-        auto getStringValue = [] (const std::shared_ptr<ngraph::Variant> & variant) {
+        auto getStringValue = [] (const ov::Any& variant) {
             auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(variant);
             IE_ASSERT(castedVariant != nullptr);
             return castedVariant->get();
@@ -1937,13 +1927,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
 
         // Copy runtime info attributes from Nodes to CNNLayers if they have VariantWrapper<std::string> type
-        using VariantString = ::ngraph::VariantWrapper<std::string>;
         for (const auto &rt : rt_info) {
-            if (auto str_attr = std::dynamic_pointer_cast<VariantString>(rt.second)) {
+            if (rt.second.is<std::string>()) {
+                auto str_attr = rt.second.as<std::string>();
                 if (details::CaselessEq<std::string>()(rt.first, "affinity")) {
-                    cnnLayer->affinity = str_attr->get();
+                    cnnLayer->affinity = str_attr;
                 } else {
-                    cnnLayer->params[rt.first] = str_attr->get();
+                    cnnLayer->params[rt.first] = str_attr;
                 }
             }
         }

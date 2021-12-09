@@ -603,10 +603,11 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
     return params;
 }
 
-std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngraph::Output<ngraph::Node>>& inputs,
-                                                          const pugi::xml_node& node,
-                                                          const ov::Weights& weights,
-                                                          const GenericLayerParams& params) {
+std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
+    const std::vector<ngraph::Output<ngraph::Node>>& inputs,
+    const pugi::xml_node& node,
+    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+    const GenericLayerParams& params) {
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
@@ -702,7 +703,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
     if (dn) {
         const auto pr_data = dn.attribute("PrimitivesPriority");
         if (pr_data) {
-            rtInfo["PrimitivesPriority"] = std::make_shared<::ngraph::VariantWrapper<std::string>>(pr_data.value());
+            rtInfo.emplace(ov::PrimitivesPriority::get_type_info_static(), ov::PrimitivesPriority{pr_data.value()});
         }
         const auto aw_data = dn.attribute("alt_width");
         if (aw_data) {
@@ -723,24 +724,33 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
         for (const auto& item : rt_attrs) {
             std::string attribute_name, attribute_version;
             if (!getStrAttribute(item, "name", attribute_name)) {
-                IE_THROW() << "rt_info attribute has no \"name\" field";
+                std::stringstream ss;
+                item.print(ss);
+                IE_THROW() << "rt_info attribute has no \"name\" field: " << ss.str();
             }
             if (!getStrAttribute(item, "version", attribute_version)) {
-                IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field";
+                std::stringstream ss;
+                item.print(ss);
+                IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
             }
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
-            if (rt_info.count(type_info)) {
-                IE_THROW() << "multiple rt_info attributes are detected: " << type_info;
-            }
-            if (auto attr = attrs_factory.create_by_type_info(type_info)) {
-                RTInfoDeserializer attribute_visitor(item);
-                if (attr->visit_attributes(attribute_visitor)) {
-                    rt_info[type_info] = attr;
+            auto attr = attrs_factory.create_by_type_info(type_info);
+            if (!attr.empty()) {
+                if (attr.is<ov::RuntimeAttribute>()) {
+                    RTInfoDeserializer attribute_visitor(item);
+                    if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
+                        auto res = rt_info.emplace(type_info, attr);
+                        if (!res.second) {
+                            IE_THROW() << "multiple rt_info attributes are detected: " << attribute_name;
+                        }
+                    } else {
+                        IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
+                    }
                 } else {
-                    IE_THROW() << "VisitAttributes is not supported for: " << attribute_name << " attribute";
+                    IE_THROW() << "Attribute: " << item.name() << " is not recognized as runtime attribute";
                 }
             } else {
-                IE_THROW() << "Attribute: " << attribute_name << " is not recognized";
+                IE_THROW() << "Attribute: " << item.name() << " is not recognized";
             }
         }
     };

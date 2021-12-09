@@ -20,6 +20,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 using namespace ngraph;
 
@@ -139,20 +140,14 @@ public:
         for (const auto& rt_info_name : list_of_names) {
             const auto& found_rt_info = rt_info.find(rt_info_name);
             if (found_rt_info != rt_info.end()) {
-                xml_node_append_attribute<std::string>(rt_info_name, found_rt_info->second);
+                std::stringstream strm;
+                found_rt_info->second.print(strm);
+                m_xml_node.append_attribute(rt_info_name.c_str()).set_value(strm.str().c_str());
             }
         }
     }
 
 private:
-    template <typename VariantType>
-    void xml_node_append_attribute(const std::string& name, const std::shared_ptr<ngraph::Variant>& variant) {
-        if (auto v = std::dynamic_pointer_cast<ngraph::VariantImpl<VariantType>>(variant)) {
-            const auto& value = v->get();
-            m_xml_node.append_attribute(name.c_str()).set_value(value.c_str());
-        }
-    }
-
     pugi::xml_node& m_xml_node;
 };
 
@@ -890,22 +885,23 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        auto append_runtime_info = [](pugi::xml_node& node, const RTMap& attributes) {
+        auto append_runtime_info = [](pugi::xml_node& node, RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
-            for (const auto& item : attributes) {
-                auto attribute_node = rt_node.append_child("attribute");
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                attribute_node.append_attribute("name").set_value(item.second->get_type_info().name);
-                attribute_node.append_attribute("version").set_value(
-                    item.second->get_type_info().get_version().c_str());
-                rt_info::RTInfoSerializer serializer(attribute_node);
-                if (!item.second->visit_attributes(serializer)) {
-                    rt_node.remove_child(attribute_node);
-                } else {
-                    has_attrs = true;
+            for (auto& item : attributes) {
+                if (item.second.is<ov::RuntimeAttribute>()) {
+                    auto attribute_node = rt_node.append_child("attribute");
+                    auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
+                    const auto& type_info = rt_attribute.get_type_info();
+                    attribute_node.append_attribute("name").set_value(type_info.name);
+                    attribute_node.append_attribute("version").set_value(type_info.get_version().c_str());
+                    rt_info::RTInfoSerializer serializer(attribute_node);
+                    if (!rt_attribute.visit_attributes(serializer)) {
+                        rt_node.remove_child(attribute_node);
+                    } else {
+                        has_attrs = true;
+                    }
                 }
-                OPENVINO_SUPPRESS_DEPRECATED_END
             }
             if (!has_attrs) {
                 node.remove_child(rt_node);
@@ -920,7 +916,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/input>
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
-            for (const auto& i : node->inputs()) {
+            for (auto& i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
                 if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell*>(node)) {
                     port_id++;
@@ -950,7 +946,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/output>
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
-            for (const auto& o : node->outputs()) {
+            for (auto& o : node->outputs()) {
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision").set_value(get_precision_name(o.get_element_type()).c_str());
