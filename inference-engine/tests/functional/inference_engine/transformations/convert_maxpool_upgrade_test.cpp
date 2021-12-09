@@ -43,3 +43,29 @@ TEST_F(TransformationTestsF, ConvertMaxPool1ToMaxPool8) {
                                                           ngraph::ParameterVector{data});
     }
 }
+
+TEST_F(TransformationTestsF, negative_ConvertMaxPool1ToMaxPool8_dynamic_rank) {
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        ngraph::Strides strides{1};
+        ngraph::Shape pads_begin{0}, pads_end{0}, kernel{1};
+        auto maxpool_1 = std::make_shared<ngraph::opset1::MaxPool>(data, strides, pads_begin, pads_end,
+                                                                   kernel);
+
+        function = std::make_shared<ngraph::Function>(ngraph::OutputVector{maxpool_1->output(0)},
+                                                      ngraph::ParameterVector{data});
+
+        manager.register_pass<ngraph::pass::ConvertMaxPool1ToMaxPool8>();
+    }
+
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        ngraph::Strides strides{1};
+        ngraph::Shape pads_begin{0}, pads_end{0}, kernel{1};
+        auto maxpool_1 = std::make_shared<ngraph::opset1::MaxPool>(data, strides, pads_begin, pads_end,
+                                                                   kernel);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{maxpool_1->output(0)},
+                                                          ngraph::ParameterVector{data});
+    }
+}

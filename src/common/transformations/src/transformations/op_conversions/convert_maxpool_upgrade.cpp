@@ -14,7 +14,8 @@ ngraph::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
     MATCHER_SCOPE(ConvertMaxPool1ToMaxPool8);
     // Replaces v1::MaxPool with v8::MaxPool with default dilations, axis and index_element_type attributes
 
-    auto maxpool_v1_pattern = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>();
+    auto input = pattern::any_input(pattern::has_static_rank());
+    auto maxpool_v1_pattern = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>({input});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto maxpool_v1_node = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(m.get_match_root());
