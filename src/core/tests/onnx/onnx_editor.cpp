@@ -7,7 +7,6 @@
 
 #include "default_opset.hpp"
 #include "editor.hpp"
-#include "engines_util/interpreter_engine.hpp"
 #include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -1225,6 +1224,7 @@ NGRAPH_TEST(onnx_editor, editor_api_input_edge_from_tensor_with_single_consumer_
     }
 }
 
+#if 0
 using TestEngine = ngraph::test::INTERPRETER_Engine;
 
 NGRAPH_TEST(onnx_editor, values__append_one_initializer) {
@@ -1343,6 +1343,7 @@ NGRAPH_TEST(onnx_editor, read_model_from_stream) {
 
     stream.close();
 }
+#endif
 
 NGRAPH_TEST(onnx_editor, combined__cut_and_replace_shape) {
     ONNXModelEditor editor{

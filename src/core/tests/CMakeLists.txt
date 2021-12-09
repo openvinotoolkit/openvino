@@ -10,12 +10,12 @@ endif()
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 set(OV_ONNX_NAMESPACE ngraph_onnx)
 
-add_subdirectory(runtime)
+# add_subdirectory(runtime)
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
     add_subdirectory(util)
-    add_subdirectory(engines_util)
+    # add_subdirectory(engines_util)
     if (ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_test_util)
     endif()
@@ -428,7 +428,6 @@ set(SRC
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
-    util.cpp
 )
 
 # For type relaxed types
@@ -446,33 +445,6 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
-if (ENABLE_MKL_DNN AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
-    message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-    if (ENABLE_STRICT_DEPENDENCIES)
-        # For convinience add a runtime dependency to build along with this target.
-        # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
-    endif()
-endif()
-
-if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
-    message(STATUS "OV_CORE_TESTS: IE:GPU enabled")
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-    if (ENABLE_STRICT_DEPENDENCIES)
-        # For convinience add a runtime dependency to build along with this target.
-        # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_gpu_plugin)
-    endif()
-endif()
-
-if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
-    list(APPEND SRC
-        builder.cpp
-        backend_api.cpp)
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
-endif()
-
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the `test/backend` directory
@@ -482,46 +454,43 @@ endif()
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 
-set(MULTI_TEST_SRC
-    backend/abc.in.cpp
-    backend/interpolate.in.cpp
-    backend/region_yolo.in.cpp
-    backend/sqrt.in.cpp
-)
+# TODO: Enable these tests in new infrastructure
+# set(MULTI_TEST_SRC
+#     backend/abc.in.cpp
+#     backend/interpolate.in.cpp
+#     backend/region_yolo.in.cpp
+#     backend/sqrt.in.cpp
+# )
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND MULTI_TEST_SRC
-            onnx/onnx_import.in.cpp
-            onnx/onnx_import_com_microsoft.in.cpp
-            onnx/onnx_import_controlflow.in.cpp
-            onnx/onnx_import_const_folding.in.cpp
-            onnx/onnx_import_convpool.in.cpp
-            onnx/onnx_import_deprecated.in.cpp
-            onnx/onnx_import_dyn_shapes.in.cpp
-            onnx/onnx_import_external_data.in.cpp
-            onnx/onnx_import_org_openvino.in.cpp
-            onnx/onnx_import_reshape.in.cpp
-            onnx/onnx_import_rnn.in.cpp
-            onnx/onnx_import_quant.in.cpp)
+    # list(APPEND MULTI_TEST_SRC
+    #         onnx/onnx_import.in.cpp
+    #         onnx/onnx_import_com_microsoft.in.cpp
+    #         onnx/onnx_import_controlflow.in.cpp
+    #         onnx/onnx_import_const_folding.in.cpp
+    #         onnx/onnx_import_convpool.in.cpp
+    #         onnx/onnx_import_deprecated.in.cpp
+    #         onnx/onnx_import_dyn_shapes.in.cpp
+    #         onnx/onnx_import_external_data.in.cpp
+    #         onnx/onnx_import_org_openvino.in.cpp
+    #         onnx/onnx_import_reshape.in.cpp
+    #         onnx/onnx_import_rnn.in.cpp
+    #         onnx/onnx_import_quant.in.cpp
+    #         onnx/onnx_test_utils.in.cpp
+    #         onnx/onnx_import_with_editor.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
             onnx/onnx_tensor_names.cpp
-            onnx/onnx_transformations.cpp)
-endif()
-
-if (ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND SRC onnx/onnx_editor.cpp)
-    list(APPEND MULTI_TEST_SRC
-        onnx/onnx_test_utils.in.cpp
-        onnx/onnx_import_with_editor.in.cpp)
+            onnx/onnx_transformations.cpp
+            onnx/onnx_editor.cpp)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-foreach(src IN LISTS SRC MULTI_TEST_SRC)
+foreach(src IN LISTS SRC)
     if(IS_ABSOLUTE "${src}")
         list(APPEND full_src_names ${src})
     else()
@@ -530,27 +499,11 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC)
 endforeach()
 add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
-foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
-    string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
-    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
-
-    foreach(TEST_SRC ${MULTI_TEST_SRC})
-        string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
-        string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
-        configure_file(${TEST_SRC} ${TARGET_NAME})
-        set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
-    endforeach()
-
-    message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
-endforeach()
-
 add_executable(ov_core_unit_tests ${SRC})
 
 add_dependencies(ov_core_unit_tests template_extension)
 
 target_include_directories(ov_core_unit_tests PRIVATE ".")
-target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
 get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
 target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
@@ -565,8 +518,8 @@ if(UNIT_TESTS_DEPENDENCIES)
 endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
-                                        engines_test_util
                                         ngraph::builder
+                                        ngraph_reference
                                         openvino::util
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
