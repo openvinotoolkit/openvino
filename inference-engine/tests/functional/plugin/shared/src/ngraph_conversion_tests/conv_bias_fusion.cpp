@@ -51,9 +51,7 @@ TEST_P(ConvBiasFusion, ConvBiasFusion) {
             auto rtInfo = op->get_rt_info();
             auto it = rtInfo.find("originalLayersNames");
             ASSERT_NE(rtInfo.end(), it);
-            auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            ASSERT_NE(nullptr, variant);
-            ASSERT_EQ(variant->get(), "add,conv");
+            ASSERT_EQ(it->second.as<std::string>(), "add,conv");
             break;
         }
     }
