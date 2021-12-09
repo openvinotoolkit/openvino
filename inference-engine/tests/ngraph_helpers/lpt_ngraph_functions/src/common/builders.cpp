@@ -64,7 +64,7 @@ std::shared_ptr<Node> makeDequantization(
 
             auto& rt = subtractConstConvert->get_rt_info();
             for (const std::string& attribute : dequantizationOperations.subtract.convertAttributes) {
-                rt[attribute] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
+                rt[attribute] = "";
             }
 
             subtractConst = subtractConstConvert;
@@ -105,7 +105,7 @@ std::shared_ptr<Node> makeDequantization(
         if (!dequantizationOperations.subtract.attributes.empty()) {
             auto& rt = subtract->get_rt_info();
             for (const std::string& attribute : dequantizationOperations.subtract.attributes) {
-                rt[attribute] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
+                rt[attribute] = "";
             }
         }
 

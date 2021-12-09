@@ -186,7 +186,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
         }
 
         for (auto && kvp : meta_data)
-            return_node->get_rt_info()[kvp.first] = std::make_shared<::ov::RuntimeAttributeWrapper<std::string>>(kvp.second);
+            return_node->get_rt_info()[kvp.first] = kvp.second;
         return_node->set_friendly_name(node->getName());
 
         return return_node;

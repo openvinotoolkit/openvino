@@ -45,7 +45,7 @@ private:
     typedef struct {} init_rt_result;
 
     init_rt_result init_rt_info() {
-        BaseNmsOp::get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("ie_internal_opset");
+        BaseNmsOp::get_rt_info()["opset"] = "ie_internal_opset";
         return {};
     }
 

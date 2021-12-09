@@ -100,9 +100,7 @@ protected:
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
                 auto it = rtInfo.find(paramName);
                 IE_ASSERT(rtInfo.end() != it);
-                auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-                IE_ASSERT(nullptr != value);
-                return value->get();
+                return it->second.as<std::string>();
             };
 
             if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "Convolution") {

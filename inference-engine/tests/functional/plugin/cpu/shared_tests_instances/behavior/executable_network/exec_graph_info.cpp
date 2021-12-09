@@ -33,10 +33,9 @@ for (const auto & op : function->get_ops()) {
 const auto & rtInfo = op->get_rt_info();
 auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
 ASSERT_NE(rtInfo.end(), it);
-auto opType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-ASSERT_NE(nullptr, opType);
+auto opType = it->second.as<std::string>();
 
-if (opType->get() == "Reorder") {
+if (opType == "Reorder") {
 numReorders++;
 }
 }

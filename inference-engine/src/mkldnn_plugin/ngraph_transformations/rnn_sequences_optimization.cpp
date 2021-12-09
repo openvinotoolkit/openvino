@@ -67,7 +67,7 @@ namespace {
             ngraph::replace_node(transposeAfter, {reshape2->output(0)});
         }
 
-        sequenceOp->get_rt_info()["seqAxis"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(seqAxis);
+        sequenceOp->get_rt_info()["seqAxis"] = seqAxis;
 
         return true;
     }

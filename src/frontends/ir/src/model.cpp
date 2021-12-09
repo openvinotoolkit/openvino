@@ -235,7 +235,7 @@ std::shared_ptr<Function> InputModelIR::InputModelIRImpl::convert() {
     ov::XmlDeserializer visitor(m_root, m_weights, m_opsets, m_extensions, variables, version);
     std::shared_ptr<ngraph::Function> function;
     visitor.on_attribute("net", function);
-    function->get_rt_info()["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(version);
+    function->get_rt_info()["version"] = int64_t(version);
     ParsePreProcess(m_root, m_weights, function);
 
     return function;

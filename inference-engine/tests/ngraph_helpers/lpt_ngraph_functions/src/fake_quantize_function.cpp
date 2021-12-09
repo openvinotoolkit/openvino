@@ -38,7 +38,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginalWithMaxPool(
 
     fakeQuantize->set_friendly_name("fakeQuantize");
     auto& rtInfo = fakeQuantize->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
+    rtInfo["Variant::std::string"] = "fakeQuantize";
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxPool) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
@@ -56,7 +56,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
     const auto fakeQuantize = makeFakeQuantize(input, ngraph::element::f32, fakeQuantizeOnData);
     fakeQuantize->set_friendly_name("fakeQuantize");
     auto& rtInfo = fakeQuantize->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
+    rtInfo["Variant::std::string"] = "fakeQuantize";
 
     std::shared_ptr<Node> lastOperation = fakeQuantize;
     if (addNotPrecisionPreservedOperation) {
@@ -90,7 +90,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     auto fakeQuantize = makeFakeQuantizeTypeRelaxed(input, ngraph::element::f32, fakeQuantizeOnData);
 
     auto& rtInfo = fakeQuantize->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
+    rtInfo["Variant::std::string"] = "fakeQuantize";
 
     std::shared_ptr<Node> lastOperation = fakeQuantize;
     if (addNotPrecisionPreservedOperation) {

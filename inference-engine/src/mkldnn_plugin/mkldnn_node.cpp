@@ -162,8 +162,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 
     const auto it = rtInfo.find("enforceBF16evenForGraphTail");
     if (it != rtInfo.end()) {
-        if (const auto value = std::dynamic_pointer_cast<ov::RuntimeAttributeImpl<int64_t>>(it->second))
-            enforceBF16evenForGraphTail = value->get();
+        enforceBF16evenForGraphTail = it->second.as<bool>();
     }
 }
 

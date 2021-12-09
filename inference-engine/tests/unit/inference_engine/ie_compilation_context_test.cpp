@@ -220,7 +220,7 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
     op2[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("testPriority");
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["PrimitivesPriority"] = std::make_shared<ngraph::VariantWrapper<std::string> > ("testPriority");
+    op3["PrimitivesPriority"] = "testPriority";
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
@@ -254,10 +254,10 @@ TEST(NetworkContext_CNNNetwork, HashWithAffinity) {
     auto net2 = createNetwork();
     auto net3 = createNetwork();
     auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
-    op2["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("testAffinity");
+    op2["affinity"] = "testAffinity";
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("testAffinity");
+    op3["affinity"] = "testAffinity";
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
@@ -272,13 +272,13 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_string) {
     auto net3 = createNetwork();
 
     auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
-    op1["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<std::string>>("hello");
+    op1["someFutureKey"] = "hello";
 
     auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
-    op2["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<std::string>>("hello");
+    op2["someFutureKey"] = "hello";
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<std::string>>("olleh");
+    op3["someFutureKey"] = "olleh";
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
@@ -293,13 +293,13 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_int64) {
     auto net3 = createNetwork();
 
     auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
-    op1["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(42);
+    op1["someFutureKey"] = int64_t(42);
 
     auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
-    op2["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(42);
+    op2["someFutureKey"] = int64_t(42);
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(43);
+    op3["someFutureKey"] = int64_t(43);
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));

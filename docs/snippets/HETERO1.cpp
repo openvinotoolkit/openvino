@@ -24,7 +24,7 @@ res.supportedLayersMap["layerName"] = "CPU";
 for (auto&& node : function->get_ops()) {
     auto& affinity = res.supportedLayersMap[node->get_friendly_name()];
     // Store affinity mapping using node runtime information
-    node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+    node->get_rt_info()["affinity"] = affinity;
 }
 
 // load network with affinities set before

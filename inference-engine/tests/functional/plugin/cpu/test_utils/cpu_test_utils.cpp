@@ -138,17 +138,13 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Funct
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-            return value->get();
+            return it->second.as<std::string>();
         };
         auto getExecValueOutputsLayout = [] (std::shared_ptr<ngraph::Node> node) -> std::string {
             auto rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-            return value->get();
+            return it->second.as<std::string>();
         };
         // skip policy
         auto should_be_skipped = [] (const ngraph::PartialShape &partialShape, cpu_memory_format_t fmt) {
@@ -273,10 +269,10 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
                 ngraph::MKLDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
-        cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
+        cpuInfo.insert({"PrimitivesPriority", impls2str(priority)});
     }
 
-    cpuInfo.insert({"enforceBF16evenForGraphTail", ov::make_runtime_attribute<int64_t>(true)});
+    cpuInfo.insert({"enforceBF16evenForGraphTail", true});
 
     return cpuInfo;
 }
@@ -337,9 +333,7 @@ void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::stri
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-            return value->get();
+            return it->second.as<std::string>();
         };
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
             actualNodeCount++;
