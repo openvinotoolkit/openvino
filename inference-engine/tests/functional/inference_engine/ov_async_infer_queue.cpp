@@ -49,10 +49,11 @@ TEST(AsyncInferQueueOVTests, BasicFlowTest) {
 
     size_t counter = 0;
     std::vector<ov::Any> callback_data;
+    std::mutex user_mutex;
 
-    auto f = [&counter, &callback_data](std::exception_ptr e,
-                                        ov::runtime::InferRequest &request,
-                                        const ov::Any &data) {
+    auto f = [&counter, &callback_data, &user_mutex](std::exception_ptr e,
+                                                     ov::runtime::InferRequest &request,
+                                                     const ov::Any &data) {
         try {
             if (e) {
                 std::rethrow_exception(e);
@@ -60,6 +61,7 @@ TEST(AsyncInferQueueOVTests, BasicFlowTest) {
         } catch (const std::exception& err) {
             throw ov::Exception(err.what());
         }
+        std::unique_lock<std::mutex> lock(user_mutex);
         counter += 1;
         callback_data.push_back(data);
     };
@@ -95,8 +97,11 @@ TEST(AsyncInferQueueOVTests, AccessRequestInsideCallbackTest) {
 
     ov::runtime::AsyncInferQueue basic_queue(net, 3);
 
-    auto f = [&results](std::exception_ptr e,
-                        ov::runtime::InferRequest &request, const ov::Any &data) {
+    std::mutex user_mutex;
+
+    auto f = [&results, &user_mutex](std::exception_ptr e,
+                                     ov::runtime::InferRequest &request,
+                                     const ov::Any &data) {
         try {
             if (e) {
                 std::rethrow_exception(e);
@@ -105,6 +110,7 @@ TEST(AsyncInferQueueOVTests, AccessRequestInsideCallbackTest) {
             throw ov::Exception(err.what());
         }
         float* data_ptr = request.get_output_tensor().data<float>();
+        std::unique_lock<std::mutex> lock(user_mutex);
         results.push_back(data_ptr[0]);
     };
 
@@ -179,8 +185,11 @@ TEST(AsyncInferQueueOVTests, AccessInferRequestInLoopTest) {
 
     ov::runtime::AsyncInferQueue basic_queue(net);
 
-    auto f = [&results](std::exception_ptr e,
-                        ov::runtime::InferRequest &request, const ov::Any &data) {
+    std::mutex user_mutex;
+
+    auto f = [&results, &user_mutex](std::exception_ptr e,
+                                     ov::runtime::InferRequest &request,
+                                     const ov::Any &data) {
         try {
             if (e) {
                 std::rethrow_exception(e);
@@ -189,6 +198,7 @@ TEST(AsyncInferQueueOVTests, AccessInferRequestInLoopTest) {
             throw ov::Exception(err.what());
         }
         float *data_ptr = request.get_output_tensor().data<float>();
+        std::unique_lock<std::mutex> lock(user_mutex);
         results.push_back(data_ptr[0]);
     };
 
@@ -256,8 +266,11 @@ TEST(AsyncInferQueueOVTests, ConnectAsyncInferQueuesTest) {
 
     add_queue.set_callback(f);
 
-    auto h = [&results](std::exception_ptr e,
-                        ov::runtime::InferRequest &request, const ov::Any &data) {
+    std::mutex user_mutex;
+
+    auto h = [&results, &user_mutex](std::exception_ptr e,
+                                     ov::runtime::InferRequest &request,
+                                     const ov::Any &data) {
         try {
             if (e) {
                 std::rethrow_exception(e);
@@ -266,6 +279,7 @@ TEST(AsyncInferQueueOVTests, ConnectAsyncInferQueuesTest) {
             throw ov::Exception(err.what());
         }
         float *data_ptr = request.get_output_tensor().data<float>();
+        std::unique_lock<std::mutex> lock(user_mutex);
         results.push_back(data_ptr[0]);
     };
 
