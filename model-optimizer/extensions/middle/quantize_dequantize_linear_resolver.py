@@ -16,20 +16,12 @@ from mo.ops.reshape import Reshape
 from mo.utils.error import Error
 from mo.utils.graph import node_incoming_neighbourhood
 
+
 class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
     """
-    Replaces QuantizeLinear with FakeQuantize
-    Transformation result depends on the axis value.
-    If the axis is not set or x_scale input is scalar or 1D tensor with one element then QuantizeLinear is
-    replaced with the sub-graph which can be expressed with the following formula:
-        QuantizeLinear -> FakeQuantize(input
-                                       Mul(y_scale, Const(low_value))
-                                       Mul(y_scale, Const(high_value))
-                                       Const(low_value)
-                                       Const(high_value))
-        low_value and high_value depend on from y_zero_point type
-    In other cases y_scale and y_zero_point can be transform with addition reshape.
-    Target shape for y_scale and y_zero_point depend on axis value.
+    This transformation replaces QuantizeLinear in pair QuantizeLinear/DequantizeLinear with
+    constant inputs to FakeQuantize with flag stop_value_propagation=True. This transformation prepare FakeQuantize for
+    ConvertQuantizeDequantize in offline transformations.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
@@ -48,12 +40,12 @@ class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
 
                 if quantize_node.soft_get('op') != 'QuantizeLinear':
                     continue
-                if input.soft_get('op')!='Const':
+                if input.soft_get('op') != 'Const':
                     continue
                 scale_zerop_is_exist = quantize_node.is_in_port_connected(1) and \
-                                    quantize_node.is_in_port_connected(2) and \
-                                    dequantize_node.is_in_port_connected(1) and \
-                                    dequantize_node.is_in_port_connected(2)
+                                       quantize_node.is_in_port_connected(2) and \
+                                       dequantize_node.is_in_port_connected(1) and \
+                                       dequantize_node.is_in_port_connected(2)
                 if not scale_zerop_is_exist:
                     continue
                 q_scale = quantize_node.in_port(1).get_source().node
@@ -61,16 +53,13 @@ class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
                 dq_scale = dequantize_node.in_port(1).get_source().node
                 dq_zerop = dequantize_node.in_port(2).get_source().node
                 scales_and_zerop_is_const = q_scale.soft_get('type') == 'Const' and \
-                    dq_scale.soft_get('type') == 'Const' and q_zerop.soft_get('type') == 'Const' and \
-                    dq_zerop.soft_get('type') == 'Const'
+                                            dq_scale.soft_get('type') == 'Const' and \
+                                            q_zerop.soft_get('type') == 'Const' and \
+                                            dq_zerop.soft_get('type') == 'Const'
                 scales_and_zerop_equals = np.array_equal(q_scale.value, dq_scale.value) and \
-                    np.array_equal(q_zerop.value, dq_zerop.value)
+                                          np.array_equal(q_zerop.value, dq_zerop.value)
                 # only constant as for zero_point/scale supported
                 # only patterns with same scale/zero_point values for Q and DQ are supported
                 if not (scales_and_zerop_is_const or scales_and_zerop_equals):
                     continue
-                fq_node_with_cast = QuantizeLinearResolver.quantize_to_fakequantize(graph, quantize_node)
-                fq_node_with_cast['stop_value_propagation'] = True
-                # dequantize_node.out_port(0).get_connection().set_source(fq_node_with_cast.out_port(0))
-                # dq_name = dequantize_node.soft_get('name', dequantize_node.id)
-                # rename_nodes([(dequantize_node, dq_name + '/to_be_removed'), (fq_node_with_cast, dq_name)])
+                QuantizeLinearResolver.quantize_to_fakequantize(graph, quantize_node, True)

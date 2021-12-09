@@ -34,7 +34,7 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
 
     def run_after(self):
-        from extensions.middle.quantize_dequantize_linera_resolver import QuantizeDequantizeLinearResolver
+        from extensions.middle.quantize_dequantize_linear_resolver import QuantizeDequantizeLinearResolver
         return [QuantizeDequantizeLinearResolver]
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -42,7 +42,7 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
             QuantizeLinearResolver.quantize_to_fakequantize(graph, quantize_node)
 
     @staticmethod
-    def quantize_to_fakequantize(graph: Graph, quantize_node: Node):
+    def quantize_to_fakequantize(graph: Graph, quantize_node: Node, set_stop_value_propagation=False):
         node_name = quantize_node.soft_get('name', quantize_node.id)
         axis = quantize_node.soft_get('axis', None)
         scale_y_shape = quantize_node.in_port(1).data.get_shape()
@@ -69,6 +69,8 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
         fake_quantize = create_op_with_const_inputs(graph, FakeQuantize, {3: float_array(output_low_value),
                                                                           4: float_array(output_high_value)},
                                                     {'levels': 256, 'name': node_name + '/FakeQuantize'})
+        if set_stop_value_propagation:
+            fake_quantize['stop_value_propagation'] = True
         quantize_node.in_port(0).get_connection().set_destination(fake_quantize.in_port(0))
 
         # Calculate input_low value
@@ -103,4 +105,3 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
 
             mul_low_reshape.out_port(0).connect(fake_quantize.in_port(1))
             mul_high_reshape.out_port(0).connect(fake_quantize.in_port(2))
-        return fake_quantize
