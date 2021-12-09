@@ -80,6 +80,10 @@ class CustomBuild(build):
         self.announce('Installing packages', level=log.INFO)
         for cmp, cmp_data in PKG_INSTALL_CFG.items():
             self.announce(f'Processing package: {cmp}', level=log.INFO)
+            if not cmp_data['src_dir'].is_dir():
+                raise FileNotFoundError(
+                    f'The source directory was not found: {cmp_data["src_dir"]}'
+                )
             subprocess.call([sys.executable, 'setup.py', 'install',
                             '--root', str(SCRIPT_DIR),
                              '--prefix', str(cmp_data.get("prefix"))],
