@@ -149,11 +149,13 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
             time_dim = node.in_port(0).get_source().node.time_dim + 1
             if node.op == 'Convolution':
                 frame_height = node.patch_stride if node.has_valid('patch_stride') else node.height_in
-                # set time t instead of 1 in kernel as H and update C to have kernel shape correct
-                node.kernel[2] = time_dim
-                assert node.kernel[1] % time_dim == 0
-                node.kernel[1] = node.kernel[1] // time_dim
-                node.kernel_spatial = node.kernel[2:]
+                # set time t instead of 1 in kernel as H and update C to have kernel shape
+                if node.kernel[2] != time_dim:
+                    assert node.kernel[2] == 1
+                    node.kernel[2] = time_dim
+                    assert node.kernel[1] % time_dim == 0
+                    node.kernel[1] = node.kernel[1] // time_dim
+                    node.kernel_spatial = node.kernel[2:]
                 index_const = 2
                 index_div = 3
             else:
