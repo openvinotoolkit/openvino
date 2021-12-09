@@ -19,6 +19,7 @@
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "pyopenvino/core/containers.hpp"
+#include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 
@@ -40,9 +41,11 @@ namespace Common
 
     void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inputs);
 
-    PyObject* parse_parameter(const InferenceEngine::Parameter& param);
+    PyAny from_ov_any(const ov::Any& any);
 
     uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual);
+
+    py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::runtime::InferRequest& request);
 
     // Use only with classes that are not creatable by users on Python's side, because
     // Objects created in Python that are wrapped with such wrapper will cause memory leaks.
