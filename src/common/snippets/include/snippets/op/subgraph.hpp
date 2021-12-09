@@ -6,10 +6,6 @@
 
 #include <memory>
 
-<<<<<<< HEAD
-#include <snippets/snippets_visibility.hpp>
-=======
->>>>>>> upstream/master
 #include <ngraph/function.hpp>
 #include <ngraph/op/op.hpp>
 #include <ngraph/rt_info.hpp>
@@ -26,11 +22,7 @@ namespace op {
  * @brief An operation that is implemented by a function
  * @ingroup snippets
  */
-<<<<<<< HEAD
-class SNIPPETS_API Subgraph : public ngraph::op::Op {
-=======
 class Subgraph : public ngraph::op::Op {
->>>>>>> upstream/master
 public:
     OPENVINO_OP("Subgraph", "SnippetsOpset");
 
