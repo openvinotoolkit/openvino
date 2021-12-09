@@ -22,6 +22,7 @@ public:
         , _event(ev) {}
 
     ze_event_handle_t get() override { return _event; }
+    ze_event_pool_handle_t get_pool() { return _event_pool; }
 
 private:
     void wait_impl() override;
