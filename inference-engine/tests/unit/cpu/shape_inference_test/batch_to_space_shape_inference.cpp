@@ -67,9 +67,9 @@ TEST(StaticShapeInferenceTest, BatchToSpaceWithMissingTensorData) {
 
 TEST(StaticShapeInferenceTest, batch_to_space_output_with_const_inputs) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1, -1, -1});
-    auto block_shape = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
-    auto crops_begin = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
-    auto crops_end = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+    auto block_shape = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
+    auto crops_begin = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
+    auto crops_end = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
     const auto batch_to_space = std::make_shared<ov::op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
     std::vector<StaticShape> input_shapes = {{100, 7, 13, 3}, {4}, {4}, {4}};
     std::vector<StaticShape> output_shapes = {{}};
