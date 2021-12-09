@@ -17,7 +17,7 @@
 
 XLinkError_t XLinkStreamInitialize(
     streamDesc_t* stream, streamId_t id, const char* name) {
-    mvLog(MVLOG_DEBUG, "name: %s, id: %ld\n", name, id);
+    mvLog(MVLOG_DEBUG, "name: %s, id: %lu\n", name, id);
     ASSERT_XLINK(stream);
 
     memset(stream, 0, sizeof(*stream));

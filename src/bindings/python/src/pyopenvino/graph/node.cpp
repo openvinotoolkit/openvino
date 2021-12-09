@@ -37,7 +37,7 @@ PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_graph_Node(py::module m) {
     py::class_<ov::Node, std::shared_ptr<ov::Node>, PyNode> node(m, "Node", py::dynamic_attr());
-    node.doc() = "openvino.impl.Node wraps ov::Node";
+    node.doc() = "openvino.runtime.Node wraps ov::Node";
     node.def(
         "__add__",
         [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
