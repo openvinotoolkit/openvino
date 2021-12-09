@@ -214,14 +214,20 @@ void shape_infer(const GNAConvolution* op,
     // Channel is the last in NHWC layout
     *(output_shape.rbegin()) = filters_shape[0]; // NHWC C is last instead of filters_shape[0] for NCHW layout
 
+    EMUTEX_DEBUG_VAL(input_shape);
+    EMUTEX_DEBUG_VAL(filters_shape);
+
+    const auto n_data_channel = *(input_shape.rbegin());
+    const auto n_filter_channel = *(filters_shape.rbegin());
+
     NODE_VALIDATION_CHECK(
             op,
-            input_shape[1].compatible(filters_shape[1]),
+            n_data_channel.compatible(n_filter_channel), // instead of input_shape[1].compatible(filters_shape[1]),
             "Data batch channel count (",
-            input_shape[1],
+            n_data_channel, // instead of input_shape[1],
             ") does not match filter input ",
             "channel count (",
-            filters_shape[1],
+            n_filter_channel, // instead of filters_shape[1],
             ").");
 
     const auto& dilations = op->m_dilations;
