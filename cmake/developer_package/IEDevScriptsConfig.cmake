@@ -129,7 +129,7 @@ set(IE_DEBUG_POSTFIX_WIN "d")
 set(IE_RELEASE_POSTFIX_WIN "")
 set(IE_DEBUG_POSTFIX_LIN "")
 set(IE_RELEASE_POSTFIX_LIN "")
-set(IE_DEBUG_POSTFIX_MAC "d")
+set(IE_DEBUG_POSTFIX_MAC "")
 set(IE_RELEASE_POSTFIX_MAC "")
 
 if(WIN32)
@@ -207,7 +207,7 @@ endif()
 macro(ov_install_static_lib target comp)
     if(NOT BUILD_SHARED_LIBS)
         install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp})
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp} ${ARGN})
     endif()
 endmacro()
 

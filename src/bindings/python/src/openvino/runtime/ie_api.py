@@ -10,7 +10,9 @@ from openvino.pyopenvino import Core as CoreBase
 from openvino.pyopenvino import ExecutableNetwork as ExecutableNetworkBase
 from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
+from openvino.pyopenvino import Output
 from openvino.pyopenvino import Tensor
+from openvino.pyopenvino import Variant as VariantBase
 
 from openvino.runtime.utils.types import get_dtype
 
@@ -32,29 +34,39 @@ def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
                 raise TypeError("Incompatible key type for tensor named: {}".format(k))
         except KeyError:
             raise KeyError("Port for tensor named {} was not found!".format(k))
-        py_dict[k] = val if isinstance(val, Tensor) else Tensor(np.array(val, get_dtype(ov_type)))
+        py_dict[k] = (
+            val
+            if isinstance(val, Tensor)
+            else Tensor(np.array(val, get_dtype(ov_type)))
+        )
     return py_dict
 
 
 def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
-    """Get all precisions from object inputs."""
-    return {i.get_any_name(): i.get_element_type() for i in obj.inputs}
+    """Map all tensor names of all inputs to the data types of those tensors."""
+
+    def map_tensor_names_to_types(input: Output) -> dict:
+        return {n: input.get_element_type() for n in input.get_names()}
+
+    input_types: dict = {}
+    for input in obj.inputs:
+        input_types = {**input_types, **map_tensor_names_to_types(input)}
+    return input_types
 
 
 class InferRequest(InferRequestBase):
     """InferRequest wrapper."""
 
-    def infer(self, inputs: dict = None) -> List[np.ndarray]:
+    def infer(self, inputs: dict = None) -> dict:
         """Infer wrapper for InferRequest."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        res = super().infer(inputs)
-        # Required to return list since np.ndarray forces all of tensors data to match in
-        # dimensions. This results in errors when running ops like variadic split.
-        return [copy.deepcopy(tensor.data) for tensor in res]
+        return super().infer(inputs)
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for InferRequest."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        inputs = (
+            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        )
         super().start_async(inputs, userdata)
 
 
@@ -65,13 +77,10 @@ class ExecutableNetwork(ExecutableNetworkBase):
         """Create new InferRequest object."""
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: dict = None) -> List[np.ndarray]:
+    def infer_new_request(self, inputs: dict = None) -> dict:
         """Infer wrapper for ExecutableNetwork."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        res = super().infer_new_request(inputs)
-        # Required to return list since np.ndarray forces all of tensors data to match in
-        # dimensions. This results in errors when running ops like variadic split.
-        return [copy.deepcopy(tensor.data) for tensor in res]
+        return super().infer_new_request(inputs)
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
@@ -86,7 +95,9 @@ class AsyncInferQueue(AsyncInferQueueBase):
         inputs = (
             {}
             if inputs is None
-            else normalize_inputs(inputs, get_input_types(self[self.get_idle_request_id()]))
+            else normalize_inputs(
+                inputs, get_input_types(self[self.get_idle_request_id()])
+            )
         )
         super().start_async(inputs, userdata)
 
@@ -107,7 +118,9 @@ class Core(CoreBase):
     ) -> ExecutableNetwork:
         """Compile a model from given model file path."""
         return ExecutableNetwork(
-            super().import_model(model_file, device_name, {} if config is None else config)
+            super().import_model(
+                model_file, device_name, {} if config is None else config
+            )
         )
 
 
@@ -123,3 +136,46 @@ def compile_model(model_path: str) -> ExecutableNetwork:
     """Compact method to compile model with AUTO plugin."""
     core = Core()
     return ExtendedNetwork(core, core.compile_model(model_path, "AUTO"))
+
+
+class Variant(VariantBase):
+    """Variant wrapper.
+
+    Wrapper provides some useful overloads for simple built-in Python types.
+
+    Access to the Variant value is direct if it is a built-in Python data type.
+    Example:
+    @code{.py}
+        variant = Variant([1, 2])
+        print(variant[0])
+
+        Output: 2
+    @endcode
+
+    Otherwise if Variant value is a custom data type (for example user class),
+    access to the value is possible by 'get()' method or property 'value'.
+    Example:
+    @code{.py}
+        class Test:
+            def __init__(self):
+                self.data = "test"
+
+        v = Variant(Test())
+        print(v.value.data)
+    @endcode
+    """
+
+    def __getitem__(self, key: Union[str, int]) -> Any:
+        return self.value[key]
+
+    def __get__(self) -> Any:
+        return self.value
+
+    def __setitem__(self, key: Union[str, int], val: Any) -> None:
+        self.value[key] = val
+
+    def __set__(self, val: Any) -> None:
+        self.value = val
+
+    def __len__(self) -> int:
+        return len(self.value)

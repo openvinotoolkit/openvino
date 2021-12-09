@@ -72,20 +72,14 @@ ov::Layout op::Result::get_layout() const {
     if (it == input(0).get_rt_info().end()) {
         return {};
     }
-    auto layout = std::dynamic_pointer_cast<ov::LayoutAttribute>(it->second);
-    OPENVINO_ASSERT(layout,
-                    "'",
-                    ov::LayoutAttribute::get_type_info_static(),
-                    "' runtime info for result is invalid, use set_layout API");
-    return layout->get();
+    return it->second.as<ov::LayoutAttribute>().value;
 }
 
 void op::Result::set_layout(const ov::Layout& layout) {
     if (layout.empty()) {
         input(0).get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
     } else {
-        input(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] =
-            std::make_shared<ov::LayoutAttribute>(layout);
+        input(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = ov::LayoutAttribute{layout};
     }
 }
 

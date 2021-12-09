@@ -165,8 +165,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Failure happened on win and macos for current seeds.
         R"(.*CTCLossLayerTest.*CMR=1.*)",
         R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
-        // Issue: 72151
-        R"(.*smoke_ROIAlignLayoutTest.*)",
     };
 
 #define FIX_62820 0
