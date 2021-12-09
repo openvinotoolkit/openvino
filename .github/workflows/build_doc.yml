@@ -14,6 +14,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -e
           # install doc dependencies
           sudo apt update
           sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive
