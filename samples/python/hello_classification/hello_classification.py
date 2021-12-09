@@ -48,7 +48,7 @@ def main():
 
     # ---------------------------Step 3. Configure image_tensor----------------------------------------------------------
     
-    if len(model.get_parameters()) != 1:
+    if len(model.inputs) != 1:
         log.error('Sample supports only single input topologies')
         return -1
     if model.get_output_size() != 1:
