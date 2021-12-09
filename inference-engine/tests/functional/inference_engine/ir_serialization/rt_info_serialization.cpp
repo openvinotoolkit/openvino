@@ -34,7 +34,7 @@ protected:
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
-        ov::RuntimeAttributeVector params{model_path, weights_path};
+        ov::AnyVector params{model_path, weights_path};
 
         FE = manager.load_by_model(params);
         if (FE)

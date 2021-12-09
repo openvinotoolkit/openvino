@@ -6,7 +6,7 @@ import pytest
 
 import openvino.runtime as ov
 import openvino.runtime.opset8 as ops
-from openvino.runtime.impl import Function, Output, Type
+from openvino.runtime import Function, Output, Type
 from openvino.runtime.utils.decorators import custom_preprocess_function
 from openvino.runtime import Core
 from tests.runtime import get_runtime
