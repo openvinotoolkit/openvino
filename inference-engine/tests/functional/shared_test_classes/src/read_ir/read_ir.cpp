@@ -26,7 +26,16 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     }
     result << "IR_name=" << splittedFilename.back() << "_";
     result << "TargetDevice=" << deviceName << "_";
-//    result << "Config=" << config;
+    result << "Config=(";
+    auto configItem = config.begin();
+    while (configItem != config.end()) {
+        result << configItem->first << "=" << configItem->second;
+        if (++configItem == config.end()) {
+            result << ")";
+        } else {
+            result << "_";
+        }
+    }
     return result.str();
 }
 
