@@ -43,6 +43,7 @@
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_upgrade.hpp>
+#include <transformations/op_conversions/detection_output_downgrade.hpp>
 #include <transformations/op_conversions/detection_output_upgrade.hpp>
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
@@ -375,6 +376,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
     pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
     pass_config->disable<ngraph::pass::SliceToStridedSlice>();
+    pass_config->disable<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
 
     pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
