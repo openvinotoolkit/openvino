@@ -70,6 +70,10 @@ private:
         elseInputPortMap,
         elseOutputPortMap;
 
+    // if condition was changed or there are new input shapes,
+    // after subgraph inference we should redefine out memory of 'If'
+    bool new_state = false;
+
     bool condition;
     const std::shared_ptr<ov::Node> ovOp;
 };
