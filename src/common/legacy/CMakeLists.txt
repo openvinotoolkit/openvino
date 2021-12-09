@@ -85,5 +85,5 @@ if(BUILD_SHARED_LIBS)
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core OPTIONAL
             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core OPTIONAL)
 else()
-    ov_install_static_lib(${TARGET_NAME} core)
+    ov_install_static_lib(${TARGET_NAME} core OPTIONAL)
 endif()
