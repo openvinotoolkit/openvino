@@ -60,5 +60,7 @@ class Parameter(Op):
             return
         for i, out_port in node.out_ports().items():
             out_shape = out_port.data.get_shape()
+            # todo: add comparison and choose most defined partial shape,
+            # e.g. if it contains not only Rank but also number of channels
             if out_shape is not None:
                 node['shape'] = out_shape

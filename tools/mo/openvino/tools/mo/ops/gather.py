@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, shape_array, undefined_shape_of_rank, dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 from openvino.tools.mo.utils.error import Error
@@ -22,6 +22,7 @@ class Gather(Op):
             'batch_dims': 0,
             'reinterp_shape': True,
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'force_precision_in_ports': {1: 'int32', 2: 'int64'},
             'in_ports_count': 3,
             'out_ports_count': 1,
@@ -99,6 +100,27 @@ class Gather(Op):
         else:
             node.out_port(0).data.set_shape(out_shape)
 
+    @staticmethod
+    def reverse_infer(node: Node):
+        out_shape = node.out_port(0).data.get_shape()
+        data_shape = node.out_port(0).data.get_shape()
+        indices_shape = node.out_port(1).data.get_shape()
+        batch_dims = node.batch_dims
+        batch_dims = batch_dims + len(indices_shape) if batch_dims < 0 else batch_dims
+
+        # out_rank = data_rank - 1 + indices_rank - batch_dims
+        # therefore we can calculate rank of data (indices)
+        # if out_rank and indices (data) ranks are defined
+        if out_shape is not None and data_shape is None and indices_shape is not None:
+            out_rank = len(out_shape)
+            indices_rank = len(indices_shape)
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(out_rank + 1 - indices_rank + batch_dims))
+
+        if out_shape is not None and indices_shape is None and data_shape is not None:
+            out_rank = len(out_shape)
+            data_rank = len(data_shape)
+            node.in_port(1).data.set_shape(undefined_shape_of_rank(out_rank + 1 - data_rank + batch_dims))
+
 
 class AttributedGather(Op):
     op = 'AttributedGather'
@@ -112,6 +134,7 @@ class AttributedGather(Op):
             'axis': 0,
             'reinterp_shape': True,
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
 
             'force_precision_in_ports': {1: 'int32'},
 
@@ -158,3 +181,22 @@ class AttributedGather(Op):
             shape = np.concatenate((shape, data_shape[axis + 1:]))
 
         node.out_port(0).data.set_shape(int64_array(shape))
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        out_shape = node.out_port(0).data.get_shape()
+        data_shape = node.out_port(0).data.get_shape()
+        indices_shape = node.out_port(1).data.get_shape()
+
+        # out_rank = data_rank - 1 + indices_rank
+        # therefore we can calculate rank of data (indices)
+        # if out_rank and indices (data) ranks are defined
+        if out_shape is not None and data_shape is None and indices_shape is not None:
+            out_rank = len(out_shape)
+            indices_rank = len(indices_shape)
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(out_rank + 1 - indices_rank))
+
+        if out_shape is not None and indices_shape is None and data_shape is not None:
+            out_rank = len(out_shape)
+            data_rank = len(data_shape)
+            node.in_port(1).data.set_shape(undefined_shape_of_rank(out_rank + 1 - data_rank))
