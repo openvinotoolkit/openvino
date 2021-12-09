@@ -177,4 +177,3 @@ class Variant(VariantBase):
 
     def __len__(self) -> int:
         return len(self.value)
-
