@@ -33,6 +33,8 @@ private:
 protected:
     void SetUp() override;
     void Run() override;
+    void LoadNetwork() override;
+    void Infer() override;
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<memoryEltwiseReshapeConcatParams> &obj);
 };
