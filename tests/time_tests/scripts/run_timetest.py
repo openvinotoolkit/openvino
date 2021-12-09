@@ -133,11 +133,11 @@ def cli_parser():
     parser.add_argument("-s",
                         dest="stats_path",
                         type=Path,
-                        help="path to a file to save aggregated statistics")
+                        help="Path to a file to save aggregated statistics")
     parser.add_argument("-c",
                         dest="model_cache",
                         action="store_true",
-                        help="Enable CPU model cache usage")
+                        help="Enable model cache usage")
 
     args = parser.parse_args()
 
