@@ -10,6 +10,7 @@
 
 #include "ie_ngraph_utils.hpp"
 #include "ir_frontend/model.hpp"
+#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/op/loop.hpp"
@@ -175,12 +176,12 @@ private:
 
     std::shared_ptr<ov::Node> createNode(const ov::OutputVector& inputs,
                                          const pugi::xml_node& node,
-                                         const ov::Weights& weights,
+                                         const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                                          const GenericLayerParams& params);
 
     // -- DATA --
     const pugi::xml_node m_node;
-    const ov::Weights& m_weights;
+    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& m_weights;
     const std::unordered_map<std::string, ngraph::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;

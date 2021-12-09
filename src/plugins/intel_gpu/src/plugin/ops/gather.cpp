@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/gather.hpp"
 
-#include "cldnn/primitives/gather.hpp"
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::gather::gather_axis GetGatherAxis(int32_t axis, cldnn::format inputFormat) {
     if (axis == 0) {
@@ -70,7 +72,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if (inputDataType == cldnn::data_types::i64) {
-            // clDNN primitive does not support i64 inputs,
+            // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -95,7 +97,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                     reorderedInputs[1],
                                     GetGatherAxis(axis, DefaultFormatForDims(op->get_input_shape(0).size())),
                                     outLayout,
-                                    CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                    tensor_from_dims(op->get_output_shape(0)),
                                     batch_dim,
                                     support_neg_ind,
                                     op->get_friendly_name());
@@ -125,4 +127,6 @@ static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v8::Gat
 
 REGISTER_FACTORY_IMPL(v8, Gather);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

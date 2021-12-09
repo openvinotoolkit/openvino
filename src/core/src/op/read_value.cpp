@@ -103,9 +103,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
-    auto variable_context = std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context->second);
-    NODE_VALIDATION_CHECK(this, variable_context != nullptr, "Cannot cast found Context to VariableContext.");
-    const auto& variable_values = variable_context->get().get_variable_values();
+    const auto& variable_values = found_context->second.as<VariableContext>().get_variable_values();
     const auto& var_value = variable_values.find(m_variable);
 
     bool use_context = var_value != variable_values.end() && !var_value->second->get_reset();

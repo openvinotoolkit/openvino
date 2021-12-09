@@ -6,7 +6,7 @@
 #include "deformable_convolution_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -96,6 +96,7 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
     interp_info.add("dilation", dilation.to_string());
     interp_info.add("deformable_groups", desc->deformable_groups);
     interp_info.add("groups", desc->groups);
+    interp_info.add("bilinear_interpolation_pad", desc->bilinear_interpolation_pad);
 
     json_composite ud_out_size_info;
     ud_out_size_info.add("size", desc->output_size.to_string());

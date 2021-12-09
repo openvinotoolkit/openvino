@@ -95,15 +95,15 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
-    auto variable_context = std::dynamic_pointer_cast<VariantWrapper<VariableContext>>(found_context->second);
-    NODE_VALIDATION_CHECK(this, variable_context != nullptr, "Cannot cast found Context to VariableContext.");
-    const auto& variable_values = variable_context->get().get_variable_values();
+    auto& variable_context = const_cast<VariableContext&>(found_context->second.as<VariableContext>());
+
+    const auto& variable_values = variable_context.get_variable_values();
 
     // automatically allocate memory if not provided by user
     if (variable_values.find(m_variable) == variable_values.end()) {
         auto host_tensor =
             std::make_shared<ngraph::HostTensor>(m_variable->get_info().data_type, m_variable->get_info().data_shape);
-        variable_context->get().set_variable_value(m_variable, make_shared<VariableValue>(host_tensor));
+        variable_context.set_variable_value(m_variable, make_shared<VariableValue>(host_tensor));
     }
 
     const auto var_value = variable_values.find(m_variable)->second;

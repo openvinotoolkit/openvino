@@ -73,7 +73,7 @@ jobs:
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ls -alR $(BUILD_DIR)/temp/
+  - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
   - script: |
