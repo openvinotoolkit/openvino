@@ -210,6 +210,20 @@ int main(int argc, char* argv[]) {
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
+        if (FLAGS_hint.empty()) {
+            for (auto& device : devices) {
+                std::vector<std::string> supported_config_keys =
+                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                if (std::find(supported_config_keys.begin(), supported_config_keys.end(), CONFIG_KEY(PERFORMANCE_HINT)) !=
+                    supported_config_keys.end()) {
+                    slog::warn << "-hint default value is determined as \'THROUGHPUT\' automatically for " << device
+                               << " device. For more detailed information look at README." << slog::endl;
+                    //config[device][CONFIG_KEY(PERFORMANCE_HINT)] = "throughput";
+                    FLAGS_hint = "throughput";
+                }
+            }
+        }
+
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
         slog::info << "Device info: " << slog::endl;
         slog::info << ie.GetVersions(device_name) << slog::endl;
@@ -532,18 +546,16 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------
         next_step();
         // output of the actual settings that the device selected based on the hint
-        if (!ov_perf_hint.empty()) {
-            for (const auto& device : devices) {
-                std::vector<std::string> supported_config_keys =
-                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                slog::info << "Device: " << device << slog::endl;
-                for (const auto& cfg : supported_config_keys) {
-                    try {
-                        slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
-                    } catch (...) {
-                    };
-                    slog::info << " }" << slog::endl;
-                }
+        for (const auto& device : devices) {
+            std::vector<std::string> supported_config_keys =
+                ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            slog::info << "Device: " << device << slog::endl;
+            for (const auto& cfg : supported_config_keys) {
+                try {
+                    slog::info << "  {" << cfg << " , " << ie.GetConfig(device, cfg).as<std::string>();
+                } catch (...) {
+                };
+                slog::info << " }" << slog::endl;
             }
         }
 
