@@ -80,7 +80,7 @@ def main():
     # - apply linear resize from tensor spatial dims to model spatial dims
     preproc.input().preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
     # 3) Here we suppose model has 'NCHW' layout for input
-    preproc.input().network().set_layout(Layout("NCHW"))
+    preproc.input().network().set_layout(Layout('NCHW'))
     # 4) Set output tensor information:
     # - precision of tensor is supposed to be 'f32'
     preproc.output().tensor().set_element_type(Type.f32)
