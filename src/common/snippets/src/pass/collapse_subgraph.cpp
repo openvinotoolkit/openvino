@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -179,12 +180,16 @@ auto get_num_result_children(std::shared_ptr<Node> node) -> size_t {
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph) -> void {
     bool not_set = true;
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
-        for (auto &in : subgraph->get_output_target_inputs(i)) {
+        for (const auto &in : subgraph->get_output_target_inputs(i)) {
             if (ov::is_type<opset1::Result>(in.get_node())) {
-                const auto& body_result = subgraph->get_body()->get_output_op(i);
-                const std::string newTensorName = body_result->get_input_node_shared_ptr(0)->get_friendly_name();
+                auto out_tensor = subgraph->output(i).get_tensor_ptr();
                 NGRAPH_SUPPRESS_DEPRECATED_START
-                subgraph->output(i).get_tensor_ptr()->set_name(newTensorName);
+                if (out_tensor->get_name().empty()) {
+                    const auto& body_result = subgraph->get_body()->get_output_op(i);
+                    const std::string newTensorName = ngraph::op::util::get_ie_output_name(
+                            body_result->get_input_source_output(0));
+                    out_tensor->set_name(newTensorName);
+                }
                 NGRAPH_SUPPRESS_DEPRECATED_END
                 not_set = false;
                 break;
@@ -290,8 +295,6 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             }
             return false;
         };
-
-        std::string fusedNames;
         const auto getFusedNames = [](const std::shared_ptr<Node> n) -> std::string {
             auto rt_info = n->get_rt_info();
             auto it = rt_info.find("originalLayersNames");
@@ -345,7 +348,9 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 }
             }
         }
-
+        std::string newSubgraphName{};
+        std::string fusedNames{};
+        size_t num_result_children = 0;
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
         cyclicDependencyIsIntoduced(node, currentTopoBounds);
         assert(!cyclicDependencyIsIntoduced(node, currentTopoBounds) && "Cyclic dependency is introduced by the node itself");
@@ -357,12 +362,16 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 if (!input_subgraphs.count(input_node)) {
                     input_subgraphs.insert(input_node);
 
+                    fusedNames += getFusedNames(subgraph);
+                    if (newSubgraphName.empty())
+                            newSubgraphName = subgraph->get_friendly_name();
+                    num_result_children += has_result_child(subgraph);
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
                     // Todo:
-                    // Some of the imput subgraphs might have common parents, so some of the input_parameters might already be
-                    // in external_inputs and hence in body_parameters. Here we handle this case and remove repeated body_parameters.
-                    // Would it be better to incorporate all inputs first and then remove repeated params.
+                    //  Some of the input subgraphs might have common parents, so some of the input_parameters might already be
+                    //  in external_inputs and hence in body_parameters. Here we handle this case and remove repeated body_parameters.
+                    //  Would it be better to incorporate all inputs first and then remove repeated params.
                     for (size_t i = 0; i < input_body_parameters.size(); ++i) {
                         auto found = std::find(external_inputs.begin(), external_inputs.end(), subgraph->input_value(i));
                         if (found != external_inputs.end()) {
@@ -430,19 +439,12 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 }
             }
         }
-        size_t num_result_children = get_num_result_children(node);
-        std::string newSubgraphName{};
-        for (const auto& subgraph : input_subgraphs) {
-            num_result_children += has_result_child(subgraph);
-            fusedNames += getFusedNames(subgraph);
-            if (newSubgraphName.empty())
-                newSubgraphName = subgraph->get_friendly_name();
-        }
         fusedNames += node->get_friendly_name();
-        if (newSubgraphName.empty())
-            newSubgraphName = node->get_friendly_name();
+        num_result_children += get_num_result_children(node);
         if (num_result_children > 1)
             return abort_with_strategy("New subgraph is created since too many Result children are detected");
+        if (newSubgraphName.empty())
+            newSubgraphName = node->get_friendly_name();
 
         auto body_node = node->copy_with_new_inputs(internal_inputs);
         body_node->set_friendly_name(node->get_friendly_name());
