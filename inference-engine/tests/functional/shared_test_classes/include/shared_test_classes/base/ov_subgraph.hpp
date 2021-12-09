@@ -33,9 +33,9 @@ public:
     }
 
 protected:
-    void compare(const std::vector<ov::runtime::Tensor> &expected,
+    virtual void compare(const std::vector<ov::runtime::Tensor> &expected,
                  const std::vector<ov::runtime::Tensor> &actual);
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
+    virtual void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
 
     virtual void configure_model();
     virtual void compile_model();
@@ -52,7 +52,7 @@ protected:
     std::shared_ptr<ov::Function> function, functionRefs = nullptr;
     std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor> inputs;
     std::vector<ngraph::PartialShape> inputDynamicShapes;
-    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
+    std::vector<std::vector<ov::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
     ov::runtime::ExecutableNetwork executableNetwork;

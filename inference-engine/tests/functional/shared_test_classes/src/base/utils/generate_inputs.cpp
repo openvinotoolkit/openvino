@@ -23,7 +23,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
     size_t inNodeCnt = node->get_input_size();
     InputGenerateData inGenData;
     if (elemType.is_real()) {
-        inGenData.resolution = 10;
+        inGenData.range = 2560;
+        inGenData.resolution = 256;
     }
     auto it = inputRanges.find(node->get_type_info());
     if (it != inputRanges.end()) {

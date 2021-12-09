@@ -7,6 +7,8 @@
 #include <transformations/utils/utils.hpp>
 #include <shared_test_classes/base/utils/generate_inputs.hpp>
 #include <shared_test_classes/base/utils/compare_results.hpp>
+#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <transformations/convert_precision.hpp>
 
 #ifdef _WIN32
 #include <process.h>

@@ -8,13 +8,13 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-TEST_P(ReadIRTest, ReadIR) {
+TEST_P(ReadIRTest, CompareResultsWithRef) {
     run();
 }
 
 
-TEST_P(ReadIRTest, QueryNetwork) {
-    QueryNetwork();
+TEST_P(ReadIRTest, QueryModel) {
+   query_model();
 }
 
 } // namespace subgraph
