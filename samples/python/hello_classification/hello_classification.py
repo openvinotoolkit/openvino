@@ -97,7 +97,7 @@ def main():
     # ---------------------------Step 6. Create infer request--------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
 
-    res = exec_net.infer_new_request(inputs={0: image_tensor})
+    res = compiled_model.infer_new_request(inputs={0: image_tensor})
 
     # ---------------------------Step 7. Process output--------------------------------------------------------------------
     # Generate a label list
