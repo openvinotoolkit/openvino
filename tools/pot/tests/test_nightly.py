@@ -44,9 +44,9 @@ TEST_MODELS_DEFAULT = [
     ('octave-resnet-26-0.25', 'mxnet', 'FP32', {
         'performance': {'accuracy@top1': 0.7581, 'accuracy@top5': 0.9256},
         'mixed': {'accuracy@top1': 0.759, 'accuracy@top5': 0.92466}}),
-    ('ssd_mobilenet_v1_coco', 'tf', 'FP16', {
-        'performance': {'coco_precision': 0.2312},
-        'mixed': {'coco_precision': 0.2314}})
+    # ('ssd_mobilenet_v1_coco', 'tf', 'FP16', {
+    #     'performance': {'coco_precision': 0.2312},
+    #     'mixed': {'coco_precision': 0.2314}})
 ]
 
 TEST_MODELS_ACC_AWARE = [
