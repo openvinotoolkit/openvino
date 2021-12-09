@@ -25,7 +25,7 @@ void lstm_shape_infer(const OpsType* op,
     cell_shape.resize(2);
 
     // If rank is dynamic, then output_shape is undefined
-    for (size_t i = 0; i < input_shapes.size(); i++) {
+    for (size_t i = 0; i < input_shapes.size() && i < 6; i++) {
         input_rank_static[i] = input_shapes[i].rank().is_static();
         all_rank_dynamic &= !input_rank_static[i];
         all_rank_static &= input_rank_static[i];
@@ -43,7 +43,7 @@ void lstm_shape_infer(const OpsType* op,
     bool is_hidden_init = false;
 
     // deduce batch/hidden_size
-    for (size_t i = 0; i < input_shapes.size(); i++) {
+    for (size_t i = 0; i < input_shapes.size() && i < 6 ; i++) {
         const auto& input = input_shapes[i];
         if (input_rank_static[i]) {
             // batch could be deduced from x, cell_state or hidden_state
