@@ -162,7 +162,7 @@ jobs:
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ls -alR $(BUILD_DIR)/temp/
+  - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
   - script: ccache --zero-stats --max-size=1T --show-config
@@ -207,7 +207,7 @@ jobs:
       set -e
       mkdir $(INSTALL_DIR)/opencv/
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
-      cp -R $(BUILD_DIR)/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
+      cp -R $(REPO_DIR)/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
@@ -241,6 +241,7 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
+    enabled: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
@@ -333,6 +334,7 @@ jobs:
     displayName: 'Samples Smoke Tests'
     continueOnError: false
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    enabled: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -351,6 +353,7 @@ jobs:
     workingDirectory: $(LAYER_TESTS_DIR)
     displayName: 'Layer Tests'
     continueOnError: false
+    enabled: false
 
   - task: PublishTestResults@2
     condition: always()

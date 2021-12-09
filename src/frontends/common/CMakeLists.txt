@@ -71,9 +71,12 @@ else()
     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 endif()
 
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ${TARGET_NAME})
+
 # Installation rules for shared version only
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::common)
+
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
