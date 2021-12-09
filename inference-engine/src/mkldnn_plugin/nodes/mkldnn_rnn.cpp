@@ -367,7 +367,7 @@ void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
     const auto rtInfo = op->get_rt_info();
 
     if (rtInfo.count("seqAxis")) {
-        nativeOrder = std::dynamic_pointer_cast<ov::RuntimeAttributeWrapper<int64_t>>(rtInfo.at("seqAxis"))->get() == 0;
+        nativeOrder = rtInfo.at("seqAxis").as<int64_t>() == 0;
     }
     out_data_dims.erase(out_data_dims.begin() + 1);
 
