@@ -2535,12 +2535,25 @@ int PassManager::run(int index) {
     FunctionTracer<InferenceEngine::CNNNetwork> func_tracer(network);
 #endif
 
+#if defined PLOT || defined ENABLE_V7_SERIALIZE
+    bool is_start = true;
+#endif
     for (auto && pass : passes) {
         if (settings.runBeforeCopy != pass->runBeforeCopyPass()) {
             continue;
         }
         auto layers = CNNNetSortTopologically(network);
         pass->attach(layers);
+#if defined PLOT || defined ENABLE_V7_SERIALIZE
+        if (is_start)
+        {
+            std::ofstream out("gna_passes_start.dot");
+            saveGraphToDot(network, out, [](const CNNLayerPtr layer,
+                                            ordered_properties &printed_properties,
+                                            ordered_properties &node_properties) {});
+            is_start = false;
+        }
+#endif
         gnalog() << "PASS: " << ++index << "/" << passes.size() << ":" << pass->getName() << "\n";
         pass->run();
         dumpNetworkAfterPass(pass);

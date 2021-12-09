@@ -641,10 +641,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 #endif
 
 //#undef DEBUG_USE_NEW_PASS
-//#undef DEBUG_USE_NEW_PASS_TRANSPOSE_SINK
-
 #define DEBUG_USE_NEW_PASS 1
-#define DEBUG_USE_NEW_PASS_TRANSPOSE_SINK 1
 
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");

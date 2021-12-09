@@ -1496,7 +1496,10 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
 
         // Restore output and kernel size
         auto shape = node->get_input_shape(1);
-        shape.erase(shape.begin(), shape.begin() + 2);
+        //shape.erase(shape.begin(), shape.begin() + 2); - NCHW needs to have HW, for NHWC we need second and third
+        // what about NC or N ?
+        shape.erase(shape.begin());
+        shape.erase(shape.end() - 1);
 
         res->params["kernel"] = Builder::asString(static_cast<std::vector<size_t>&>(shape));
         res->params["output"] = Builder::asString(*(node->get_shape().rbegin())); // instead of ->get_shape()[1]
@@ -2024,12 +2027,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
 
             if (!ptr) {
-                Layout layout = TensorDesc::getLayoutByDims(dims);
-                if (outName.find("gna_convolution") != std::string::npos)
-                    layout = Layout::NHWC;
                 ptr.reset(new Data(outName,
                                    {details::convertPrecision(layer->get_output_element_type(i)), dims,
-                                    /*TensorDesc::getLayoutByDims(dims)*/layout}));
+                                    TensorDesc::getLayoutByDims(dims)}));
             }
 
             getCreatorLayer(ptr) = cnnLayer;

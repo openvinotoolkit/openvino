@@ -49,6 +49,7 @@ private:
     static void printPoolingLayer(const InferenceEngine::PoolingLayer& layer);
     static void assertConvolutionLayoutProper(const InferenceEngine::DataPtr&);
     std::vector<uint8_t> static transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
+    std::vector<uint8_t> static copyMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
 
     static const GNALimitations::Cnn2D::Validator cnn2dValidator;
 
