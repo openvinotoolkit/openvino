@@ -564,7 +564,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_EQ(f_10_core->get_parameters()[0]->get_layout(), ov::Layout("NCHW"))
             << f_10_core->get_parameters()[0]->get_layout().to_string();
         EXPECT_EQ(f_10_core->get_results()[0]->get_layout(), ov::Layout("NCHW"))
-            << f_10_core->get_results()[0]->get_layout().to_string() << f_10_core->output().get_partial_shape();
+            << f_10_core->get_results()[0]->get_layout().to_string();
     }
 }
 
