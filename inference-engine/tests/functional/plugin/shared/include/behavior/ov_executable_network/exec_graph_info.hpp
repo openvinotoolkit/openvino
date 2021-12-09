@@ -273,8 +273,9 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_NO_THROW(importedExecNet.output("relu_op").get_node());
     EXPECT_NO_THROW(importedExecNet.output("concat_op").get_node());
 
-    const auto outputType = elementType == ngraph::element::i32 ||
-                            elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
+    const auto outputType = (elementType == ngraph::element::i32 ||
+                             elementType == ngraph::element::i64 ||
+                             elementType == ngraph::element::u64) ? ngraph::element::i32 : ngraph::element::f32;
     const auto inputType = elementType == ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
 
     EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
