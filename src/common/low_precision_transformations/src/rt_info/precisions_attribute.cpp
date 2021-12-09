@@ -12,12 +12,10 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include "low_precision/network_helper.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 using namespace ngraph;
 using namespace ov;
-
-// order defines default precision
-std::vector<ngraph::element::Type> PrecisionsAttribute::defaultPrecisions = {ngraph::element::u8,  ngraph::element::i8};
 
 PrecisionsAttribute::PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions) :
     SharedAttribute(precisions) {
@@ -27,7 +25,8 @@ ov::Any PrecisionsAttribute::create(
     const std::shared_ptr<ngraph::Node>& node,
     const AttributeParameters& params) {
     auto& rt = ov::is_type<opset1::FakeQuantize>(node) ? node->output(0).get_rt_info() : node->get_rt_info();
-    return (rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute());
+    return (rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(
+        ngraph::pass::low_precision::LayerTransformation::getDefaultPrecisions()));
 }
 
 void PrecisionsAttribute::merge(std::vector<ov::Any>& attributes) {

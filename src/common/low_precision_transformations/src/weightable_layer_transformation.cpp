@@ -300,7 +300,7 @@ bool WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const st
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
     const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
     const auto precisions = precisionsAttribute.empty() ?
-        PrecisionsAttribute::defaultPrecisions :
+        getDefaultPrecisions() :
         precisionsAttribute.as<PrecisionsAttribute>().value();
 
     const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
@@ -367,7 +367,7 @@ DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std
 
     const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
     const auto precisions = precisionsAttribute.empty() ?
-        PrecisionsAttribute::defaultPrecisions :
+        getDefaultPrecisions() :
         precisionsAttribute.as<PrecisionsAttribute>().value();
 
     return getDataPrecision(fq, quantizationDetails, precisions);

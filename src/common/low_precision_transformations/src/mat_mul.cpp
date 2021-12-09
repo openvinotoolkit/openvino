@@ -56,7 +56,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
             const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fakeQuantize);
             const auto precisions = precisionsAttribute.empty() ?
-                PrecisionsAttribute::defaultPrecisions :
+                getDefaultPrecisions() :
                 precisionsAttribute.as<PrecisionsAttribute>().value();
             const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
 
@@ -261,7 +261,7 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
         const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(matMul->input(1));
         const auto precisions = precisionsAttribute.empty() ?
-            PrecisionsAttribute::defaultPrecisions :
+            getDefaultPrecisions() :
             precisionsAttribute.as<PrecisionsAttribute>().value();
 
         const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
