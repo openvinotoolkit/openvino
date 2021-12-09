@@ -10,7 +10,6 @@
 #include <vector>
 #include <memory>
 #include <caseless.hpp>
-#include <cache/cache.h>
 
 namespace MKLDNNPlugin {
 
@@ -86,22 +85,6 @@ public:
         virtual ~IEltwiseExecutor() = default;
     };
 
-    struct EltwiseKey {
-        std::vector<EltwiseData> eltwise_data;
-        std::vector<Type> ops_list;
-        VectorDims outBlkDims;
-        VectorDims outOrder;
-        std::vector<VectorDims> inpDims;
-        std::vector<InferenceEngine::Precision> inpPrc;
-        InferenceEngine::Precision outPrc;
-        mkldnn::post_ops postOps;
-        bool useDynBatch;
-        bool useJit;
-
-        size_t hash() const;
-        bool operator==(const EltwiseKey& rhs) const;
-    };
-
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
@@ -149,10 +132,6 @@ public:
 
 private:
     executorPtr execPtr = nullptr;
-
-    using cacheType = ExecutorCache<EltwiseKey, executorPtr>;
-    static cacheType cache;
-
     BroadcastingPolicy broadcastingPolicy;
 
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;

@@ -1017,6 +1017,72 @@ const std::map<const ngraph::DiscreteTypeInfo, MKLDNNEltwiseNode::Initializer> M
 
 
 namespace {
+struct EltwiseKey {
+    std::vector<MKLDNNEltwiseNode::EltwiseData> eltwise_data;
+    std::vector<Type> ops_list;
+    VectorDims outBlkDims;
+    VectorDims outOrder;
+    std::vector<VectorDims> inpDims;
+    std::vector<InferenceEngine::Precision> inpPrc;
+    InferenceEngine::Precision outPrc;
+    mkldnn::post_ops postOps;
+    bool useDynBatch;
+    bool useJit;
+
+    size_t hash() const {
+        using namespace dnnl::impl;
+        using namespace dnnl::impl::primitive_hashing;
+        size_t seed = 0;
+        auto hash_combine_eltwiseData = [](size_t seed, const MKLDNNEltwiseNode::EltwiseData& eltwiseData) {
+            seed = hash_combine(seed, eltwiseData.algo);
+            seed = hash_combine(seed, eltwiseData.mkldnnAlgorithm);
+            seed = hash_combine(seed, eltwiseData.alpha);
+            seed = hash_combine(seed, eltwiseData.beta);
+            seed = hash_combine(seed, eltwiseData.gamma);
+            return seed;
+        };
+        std::for_each(eltwise_data.begin(), eltwise_data.end(), [&](const MKLDNNEltwiseNode::EltwiseData& item) {
+            seed = hash_combine_eltwiseData(seed, item);
+        });
+        seed = get_array_hash(seed, ops_list.data(), ops_list.size());
+        seed = get_array_hash(seed, outBlkDims.data(), outBlkDims.size());
+        seed = get_array_hash(seed, outOrder.data(), outOrder.size());
+        for (auto&& item : inpDims) {
+            seed = get_array_hash(seed, item.data(), item.size());
+        }
+        std::for_each(inpPrc.begin(), inpPrc.end(), [&](const Precision& item) {
+            seed = hash_combine(seed, item.getPrecVal());
+        });
+        seed = hash_combine(seed, outPrc.getPrecVal());
+        seed = get_post_op_hash(seed, *postOps.get());
+        seed = hash_combine(seed, useDynBatch);
+        seed = hash_combine(seed, useJit);
+        return seed;
+    }
+
+    bool operator==(const EltwiseKey& rhs) const {
+        if (inpDims.size() != rhs.inpDims.size()) {
+            return false;
+        }
+
+        bool result = eltwise_data == rhs.eltwise_data &&
+                      ops_list == rhs.ops_list &&
+                      outBlkDims == rhs.outBlkDims &&
+                      outOrder == rhs.outOrder &&
+                      inpPrc == rhs.inpPrc &&
+                      outPrc == rhs.outPrc &&
+                      *postOps.get() == *rhs.postOps.get() &&
+                      useDynBatch == rhs.useDynBatch &&
+                      useJit == rhs.useJit;
+        if (result && !inpDims.empty()) {
+            for (size_t i = 0; i < inpDims.size() && result; ++i) {
+                result = result && (inpDims[i] == rhs.inpDims[i]);
+            }
+        }
+        return result;
+    }
+};
+
 class EltwiseJitExecutor : public MKLDNNEltwiseNode::IEltwiseExecutor {
 public:
     static void offset_out_calc(VectorDims& offset, const VectorDims& dims) {
@@ -1452,61 +1518,7 @@ bool MKLDNNEltwiseNode::EltwiseData::operator==(const EltwiseData &rhs) const no
            gamma == rhs.gamma;
 }
 
-
-bool MKLDNNEltwiseNode::EltwiseKey::operator==(const EltwiseKey &rhs) const {
-    if (inpDims.size() != rhs.inpDims.size()) {
-        return false;
-    }
-
-    bool result = eltwise_data == rhs.eltwise_data &&
-            ops_list == rhs.ops_list &&
-            outBlkDims == rhs.outBlkDims &&
-            outOrder == rhs.outOrder &&
-            inpPrc == rhs.inpPrc &&
-            outPrc == rhs.outPrc &&
-            *postOps.get() == *rhs.postOps.get() &&
-            useDynBatch == rhs.useDynBatch &&
-            useJit == rhs.useJit;
-    if (result && !inpDims.empty()) {
-        for (size_t i = 0; i < inpDims.size() && result; ++i) {
-            result = result && (inpDims[i] == rhs.inpDims[i]);
-        }
-    }
-    return result;
-}
-
-size_t MKLDNNEltwiseNode::EltwiseKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-    size_t seed = 0;
-    auto hash_combine_eltwiseData = [](size_t seed, const EltwiseData& eltwiseData) {
-        seed = hash_combine(seed, eltwiseData.algo);
-        seed = hash_combine(seed, eltwiseData.mkldnnAlgorithm);
-        seed = hash_combine(seed, eltwiseData.alpha);
-        seed = hash_combine(seed, eltwiseData.beta);
-        seed = hash_combine(seed, eltwiseData.gamma);
-        return seed;
-    };
-    std::for_each(eltwise_data.begin(), eltwise_data.end(), [&](const EltwiseData& item) {
-       seed = hash_combine_eltwiseData(seed, item);
-    });
-    seed = get_array_hash(seed, ops_list.data(), ops_list.size());
-    seed = get_array_hash(seed, outBlkDims.data(), outBlkDims.size());
-    seed = get_array_hash(seed, outOrder.data(), outOrder.size());
-    for (auto&& item : inpDims) {
-        seed = get_array_hash(seed, item.data(), item.size());
-    }
-    std::for_each(inpPrc.begin(), inpPrc.end(), [&](const Precision& item) {
-        seed = hash_combine(seed, item.getPrecVal());
-    });
-    seed = hash_combine(seed, outPrc.getPrecVal());
-    seed = get_post_op_hash(seed, *postOps.get());
-    seed = hash_combine(seed, useDynBatch);
-    seed = hash_combine(seed, useJit);
-    return seed;
-}
-
-static MKLDNNEltwiseNode::executorPtr buildExecutor(const MKLDNNEltwiseNode::EltwiseKey& key) {
+static MKLDNNEltwiseNode::executorPtr buildExecutor(const EltwiseKey& key) {
     MKLDNNEltwiseNode::executorPtr execPtr;
     if (key.useJit) {
         execPtr = std::make_shared<EltwiseJitExecutor>(key.eltwise_data,
@@ -1525,8 +1537,6 @@ static MKLDNNEltwiseNode::executorPtr buildExecutor(const MKLDNNEltwiseNode::Elt
     }
     return execPtr;
 }
-
-MKLDNNEltwiseNode::cacheType MKLDNNEltwiseNode::cache(100, buildExecutor);
 
 bool MKLDNNEltwiseNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -1927,7 +1937,9 @@ void MKLDNNEltwiseNode::prepareParams() {
         memset(data, 0, sizeof(data));
     }
     // end of the dirty hack
-    execPtr = cache.getOrCreate(key);
+    auto cache = getExecutorCache();
+    auto result = cache->getOrCreate(key, buildExecutor);
+    execPtr = result.first;
 }
 
 bool MKLDNNEltwiseNode::needPrepareParams() const {

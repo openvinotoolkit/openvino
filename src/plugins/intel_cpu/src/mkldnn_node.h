@@ -29,6 +29,7 @@
 #include "cpu_types.h"
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "cache/multi_cache.h"
 
 namespace MKLDNNPlugin {
 
@@ -589,6 +590,11 @@ public:
      */
     virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
 
+    // TODO [mkutakov]: Temporal!!!!
+    void setExecutorCache(MultyCachePtr cache) {
+        executorCache = cache;
+    }
+
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
 
@@ -756,6 +762,10 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
+    MultyCachePtr getExecutorCache() const {
+        return executorCache;
+    }
+
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<ngraph::Node> opToShapeInfer;
@@ -780,6 +790,8 @@ private:
 
     PerfCount perfCounter;
     PerfCounters profiling;
+
+    MultyCachePtr executorCache;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
