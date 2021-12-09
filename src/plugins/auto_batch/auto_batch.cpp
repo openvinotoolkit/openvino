@@ -591,12 +591,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
                     || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
                     || layout == InferenceEngine::Layout::NDHWC) {
-                    if (1 == shapes[item.first][0]) { // do not reshape/re-batch originally batched networks
-                        shapes[item.first][0] = metaDevice.batchForDevice;
-                        std::cout << "  reshaping the input " << item.first << " (layout " << layout << ")"
-                                  << " by the batch"
-                                  << std::endl;
-                    }
+                    assert(1 == shapes[item.first][0]); // do not reshape/re-batch originally batched networks
+                    shapes[item.first][0] = metaDevice.batchForDevice;
+                    std::cout << "  reshaping the input " << item.first << " (layout " << layout << ")"
+                              << " by the batch"
+                              << std::endl;
                 }
             }
             std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
