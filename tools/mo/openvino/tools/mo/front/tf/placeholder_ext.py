@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import logging as log
+
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape
