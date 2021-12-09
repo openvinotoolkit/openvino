@@ -9,17 +9,6 @@
 namespace ov {
 namespace op {
 namespace v0 {
-void inline normal_reverse_sequence_axis(ReverseSequence* op) {
-    const auto& data_pshape = op->get_input_partial_shape(0);
-    const auto& data_rank = data_pshape.rank();
-    NODE_VALIDATION_CHECK(op,
-                          data_rank.is_dynamic() || data_rank.get_length() >= 2,
-                          "Data input rank should be equal or greater than 2. Got: ",
-                          data_pshape);
-    op->m_normalized_batch_axis = ov::normalize_axis(op, op->m_batch_axis, data_rank);
-    op->m_normalized_seq_axis = ov::normalize_axis(op, op->m_seq_axis, data_rank);
-}
-
 template <class T>
 void shape_infer(const ReverseSequence* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);

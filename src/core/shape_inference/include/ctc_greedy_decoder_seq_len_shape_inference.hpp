@@ -20,7 +20,19 @@ void shape_infer(const CTCGreedyDecoderSeqLen* op, const std::vector<T>& input_s
     auto& seq_shape = output_shapes[1];
     decoded_shape.resize(2);
     seq_shape.resize(1);
-
+    if(input_shapes.size() == 3) {
+        const auto& blank_shape = input_shapes[2];
+        const auto& blank_rank = blank_shape.rank();
+        if (blank_rank.is_static() && blank_shape.is_static()) {
+            const auto blank_is_scalar = blank_rank.get_length() == 0;
+            const auto blank_has_one_elem = blank_rank.get_length() == 1 && blank_shape[0].get_length() == 1;
+            NODE_VALIDATION_CHECK(
+                    op,
+                    blank_is_scalar || blank_has_one_elem,
+                    "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
+                    blank_shape);
+        }
+    }
     auto& batch_size = decoded_shape[0];
     auto& time_size = decoded_shape[1];
 

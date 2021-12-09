@@ -50,20 +50,10 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
                               blank_index_type.is_integral_number(),
                               "The blank index type is expected to be an integer type. Got: ",
                               blank_index_type);
-
-        const auto& blank_index_partial_shape = get_input_partial_shape(2);
-        if (blank_index_partial_shape.is_static()) {
-            ov::Shape blank_index_shape = blank_index_partial_shape.to_shape();
-            NODE_VALIDATION_CHECK(
-                this,
-                ngraph::is_scalar(blank_index_shape) || (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),
-                "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
-                blank_index_shape);
-        }
     }
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_len_pshape};
+    std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_len_pshape, get_input_partial_shape(2)};
     shape_infer(this, input_shapes, output_shapes);
     NODE_VALIDATION_CHECK(this, output_shapes.size() == 2);
     set_output_type(0, m_classes_index_type, output_shapes[0]);
