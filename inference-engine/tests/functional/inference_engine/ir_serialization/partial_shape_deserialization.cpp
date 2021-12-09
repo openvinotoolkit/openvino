@@ -26,7 +26,7 @@ protected:
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
-        ov::RuntimeAttributeVector params{&modelStream};
+        ov::AnyVector params{&modelStream};
 
         FE = manager.load_by_model(params);
         if (FE)
