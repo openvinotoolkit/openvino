@@ -69,6 +69,9 @@ TEST_F(RTInfoDeserialization, NodeV10) {
             </rt_info>
             <output>
                 <port id="0" precision="FP16" names="input_tensor">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -368,6 +371,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </rt_info>
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,H,W,C]"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -403,6 +409,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </rt_info>
             <input>
                 <port id="0" precision="FP32">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -552,9 +561,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         check_old_api_rt_info(f_10_core->get_result()->get_rt_info());
 
         // check information about layout
-        EXPECT_TRUE(f_10_core->get_parameters()[0]->get_layout().empty())
+        EXPECT_EQ(f_10_core->get_parameters()[0]->get_layout(), ov::Layout("NCHW"))
             << f_10_core->get_parameters()[0]->get_layout().to_string();
-        EXPECT_TRUE(f_10_core->get_results()[0]->get_layout().empty())
+        EXPECT_EQ(f_10_core->get_results()[0]->get_layout(), ov::Layout("NHWC"))
             << f_10_core->get_results()[0]->get_layout().to_string();
     }
 }

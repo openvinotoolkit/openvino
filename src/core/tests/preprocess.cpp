@@ -757,9 +757,11 @@ TEST(pre_post_process, preprocess_convert_layout_dims) {
 
     auto p = PrePostProcessor(f);
     p.input().preprocess().convert_layout({0, 3, 1, 2});
+    p.input().model().set_layout("NCHW");
     p.build();
 
     EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_parameters()[0]->get_layout(), Layout("NHWC"));
 }
 
 TEST(pre_post_process, preprocess_convert_layout_dims_empty) {

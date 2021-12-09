@@ -408,7 +408,10 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                 new_param_shape = PartialShape(dims);
             }
         } else {
-            new_param_shape = input->get_preprocess()->calculate_param_shape(new_param_shape);
+            Layout param_layout;
+            std::tie(new_param_shape, param_layout) =
+                input->get_preprocess()->calculate_param_shape(new_param_shape, param->get_layout());
+            input->get_tensor_data()->set_layout(param_layout);
         }
         if (input->get_tensor_data()->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->get_tensor_data()->get_layout(), new_param_shape);
