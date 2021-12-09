@@ -19,14 +19,14 @@
 
 class PartialShapeDeserialization : public testing::Test {
 protected:
-    std::shared_ptr<ov::Function> getWithIRFrontend(const std::string& model) {
+    std::shared_ptr<ngraph::Function> getWithIRFrontend(const std::string& model) {
         std::istringstream modelStringStream(model);
         std::istream& modelStream = modelStringStream;
 
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
-        ov::VariantVector params{ov::make_variant(&modelStream)};
+        ov::RuntimeAttributeVector params{&modelStream};
 
         FE = manager.load_by_model(params);
         if (FE)
@@ -270,4 +270,109 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRank) {
             .enable(FunctionsComparator::CONST_VALUES);
     auto res = fc.compare(f, f_11_ref);
     EXPECT_TRUE(res.valid) << res.message;
+}
+
+
+TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRankNegative) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f16" shape="...,..."/>
+            <output>
+                <port id="0" precision="FP16" names="input_tensor">
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset8">
+            <input>
+                <port id="0" precision="FP16">
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    ASSERT_THROW(getWithIRFrontend(model), InferenceEngine::Exception);
+}
+
+TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicDimNegative) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f16" shape="1,...,2"/>
+            <output>
+                <port id="0" precision="FP16" names="input_tensor">
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset8">
+            <input>
+                <port id="0" precision="FP16">
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    ASSERT_THROW(getWithIRFrontend(model), InferenceEngine::Exception);
+}
+
+TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongDim) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f16" shape="1s,2"/>
+            <output>
+                <port id="0" precision="FP16" names="input_tensor">
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset8">
+            <input>
+                <port id="0" precision="FP16">
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    ASSERT_THROW(getWithIRFrontend(model), InferenceEngine::Exception);
+}
+
+TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongBoundary) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f16" shape="1..g,2"/>
+            <output>
+                <port id="0" precision="FP16" names="input_tensor">
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset8">
+            <input>
+                <port id="0" precision="FP16">
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    ASSERT_THROW(getWithIRFrontend(model), InferenceEngine::Exception);
 }

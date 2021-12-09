@@ -23,40 +23,60 @@ bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::s
     return true;
 }
 
+bool check_all_digits(const std::string& value) {
+    auto val = ov::util::trim(value);
+    for (const auto& c : val) {
+        if (!std::isdigit(c) || c == '-')
+            return false;
+    }
+    return true;
+}
+
 Dimension str_to_dimension(const std::string& value) {
-    if (value.find('?') != std::string::npos) {
+    auto val = ov::util::trim(value);
+    if (val == "?") {
         return {-1};
     }
-    if (value.find("..") == std::string::npos) {
-        return {stringToType<int64_t>(value)};
+    if (val.find("..") == std::string::npos) {
+        if (!check_all_digits(val))
+            IE_THROW() << "Cannot parse dimension: \"" << val << "\"";
+        return {stringToType<int64_t>(val)};
     }
-    std::string min_value_str = value.substr(0, value.find(".."));
+
+    std::string min_value_str = val.substr(0, val.find(".."));
+    if (!check_all_digits(min_value_str))
+        IE_THROW() << "Cannot parse min bound: \"" << min_value_str << "\"";
+
     int64_t min_value;
-    if (min_value_str.find_first_not_of(' ') == std::string::npos)
+    if (min_value_str.empty())
         min_value = 0;
     else
         min_value = stringToType<int64_t>(min_value_str);
 
-    std::string max_value_str = value.substr(value.find("..") + 2);
+    std::string max_value_str = val.substr(val.find("..") + 2);
     int64_t max_value;
-    if (max_value_str.find_first_not_of(' ') == std::string::npos)
+    if (max_value_str.empty())
         max_value = -1;
     else
         max_value = stringToType<int64_t>(max_value_str);
+
+    if (!check_all_digits(max_value_str))
+        IE_THROW() << "Cannot parse max bound: \"" << max_value_str << "\"";
 
     return {min_value, max_value};
 }
 
 PartialShape str_to_partial_shape(const std::string& value) {
-    if (value == "...") {
+    auto val = ov::util::trim(value);
+    if (val == "...") {
         return PartialShape::dynamic();
     }
     PartialShape res;
-    std::stringstream ss(value);
+    std::stringstream ss(val);
     std::string field;
     while (getline(ss, field, ',')) {
         if (field.empty())
-            IE_THROW() << "Cannot get vector of dimensions! \"" << value << "\" is incorrect";
+            IE_THROW() << "Cannot get vector of dimensions! \"" << val << "\" is incorrect";
         res.insert(res.end(), str_to_dimension(field));
     }
     return res;

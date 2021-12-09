@@ -25,11 +25,12 @@ protected:
         CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
     }
 
-    std::shared_ptr<ov::Function> getWithIRFrontend(const std::string& model_path, const std::string& weights_path) {
+    std::shared_ptr<ngraph::Function> getWithIRFrontend(const std::string& model_path,
+                                                        const std::string& weights_path) {
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
-        ov::VariantVector params{ov::make_variant(model_path), ov::make_variant(weights_path)};
+        ov::RuntimeAttributeVector params{model_path, weights_path};
 
         FE = manager.load_by_model(params);
         if (FE)
