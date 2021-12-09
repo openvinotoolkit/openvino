@@ -63,6 +63,8 @@
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_softmax_downgrade.hpp"
+#include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
@@ -177,6 +179,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
+    manager.register_pass<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
+    manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8, false>();
     manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
     manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
     manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();

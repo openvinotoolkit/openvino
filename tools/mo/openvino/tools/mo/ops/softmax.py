@@ -12,10 +12,10 @@ class Softmax(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
-            'version': 'opset1',
-            'infer': Softmax.infer,
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset8',
+            'infer': self.infer,
             'axis': 1,
             'in_ports_count': 1,
             'out_ports_count': 1,
@@ -26,8 +26,6 @@ class Softmax(Op):
 
     @staticmethod
     def infer(node: Node):
-        if node.axis < 0:
-            node.axis = len(node.in_node().shape) + node.axis
         copy_shape_infer(node)
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
 
