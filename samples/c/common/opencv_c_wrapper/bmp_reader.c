@@ -46,7 +46,8 @@ int readBmpImage(const char* fileName, BitMap* image) {
     fseek(input, image->header.offset, 0);
 
     // reading by rows in invert vertically
-    for (int i = 0; i < image->height; i++) {
+    int i;
+    for (i = 0; i < image->height; i++) {
         unsigned int storeAt = image->infoHeader.height < 0 ? i : (unsigned int)image->height - 1 - i;
         fread(image->data + image->width * 3 * storeAt, image->width * 3, 1, input);
         fread(pad, padSize, 1, input);
