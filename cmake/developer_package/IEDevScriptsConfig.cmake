@@ -207,7 +207,7 @@ endif()
 macro(ov_install_static_lib target comp)
     if(NOT BUILD_SHARED_LIBS)
         install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp})
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp} ${ARGN})
     endif()
 endmacro()
 

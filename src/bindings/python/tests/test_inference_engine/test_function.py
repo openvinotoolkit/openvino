@@ -6,8 +6,8 @@ import pytest
 
 import openvino.runtime.opset8 as ops
 
-from openvino.runtime import Function, Tensor, get_batch, set_batch, Dimension, Layout
-from openvino.runtime.impl import Type, PartialShape, Shape
+from openvino.runtime import Function, Tensor
+from openvino.runtime import Type, PartialShape, Shape
 
 
 def test_test_descriptor_tensor():
@@ -271,44 +271,3 @@ def test_evaluate_invalid_input_shape():
             [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
         )
     assert "must be compatible with the partial shape: {2,1}" in str(e.value)
-
-
-def test_get_batch():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Function(add, [param1, param2], "TestFunction")
-    param = func.get_parameters()[0]
-    param.set_layout(Layout("NC"))
-    assert get_batch(func) == 2
-
-
-def test_get_batch_CHWN():
-    param1 = ops.parameter(Shape([3, 1, 3, 4]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([3, 1, 3, 4]), dtype=np.float32, name="data2")
-    param3 = ops.parameter(Shape([3, 1, 3, 4]), dtype=np.float32, name="data3")
-    add = ops.add(param1, param2)
-    add2 = ops.add(add, param3)
-    func = Function(add2, [param1, param2, param3], "TestFunction")
-    param = func.get_parameters()[0]
-    param.set_layout(Layout("CHWN"))
-    assert get_batch(func) == 4
-
-
-def test_set_batch():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    func = Function(add, [param1, param2], "TestFunction")
-    func_param1 = func.get_parameters()[0]
-    func_param2 = func.get_parameters()[1]
-    # batch == 2
-    func_param1.set_layout(Layout("NC"))
-    assert get_batch(func) == 2
-    # set batch to 1
-    set_batch(func, Dimension(1))
-    assert get_batch(func) == 1
-    # check if shape of param 1 has changed
-    assert str(func_param1.get_output_shape(0) == {1, 1})
-    # check if shape of param 2 has not changed
-    assert str(func_param2.get_output_shape(0) == {2, 1})
