@@ -156,11 +156,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _multiPlugin(plugin)
                                                            , _workModeIsAUTO(true) {
     if (_multiPlugin->GetCore() == nullptr) {
-        IE_THROW() << "Please, work with " << _multiPlugin->GetName() << "device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
 
     if (modelPath.empty() && network.getFunction() == nullptr) {
-        IE_THROW() << "MULTI plugin supports just ngraph network representation";
+        IE_THROW() << "MULTI " << _multiPlugin->GetName() << " device supports just ngraph network representation";
     }
 
     _core = _multiPlugin->GetCore(); // shared_ptr that holds the Core
@@ -500,7 +500,7 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
             return n->GetContext();
         } catch (const NotImplemented&) {}
     }
-    IE_THROW(NotImplemented) << "None of the devices in the MULTI plugin has an associated remote context."
+    IE_THROW(NotImplemented) << "None of the devices in the MULTI device has an associated remote context."
                              << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
@@ -640,7 +640,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
                 }
             }
         }
-        IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 }
 
