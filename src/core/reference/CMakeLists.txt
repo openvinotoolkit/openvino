@@ -34,7 +34,7 @@ endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
 link_system_libraries(${TARGET_NAME} PRIVATE xbyak)
 

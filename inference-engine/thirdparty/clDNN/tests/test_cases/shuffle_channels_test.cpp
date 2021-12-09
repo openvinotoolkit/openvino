@@ -6,8 +6,8 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/shuffle_channels.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/shuffle_channels.hpp>
 
 #include <cstddef>
 

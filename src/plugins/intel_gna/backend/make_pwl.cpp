@@ -365,77 +365,13 @@ void make_gna_pwl(const DnnActivation&  fun,
         }
         case kActPow: {
             float pow_exponent = fun.args.pow.exponent;
-            if (pow_exponent == 0.0f || pow_exponent == 1.0f) {
-                float pow_scale = fun.args.pow.scale;
-                float pow_offset = fun.args.pow.offset;
+            IE_ASSERT(pow_exponent != 1.0f);
+            if (pow_exponent == 0.0f) {
                 int32_t x_lower = INT32_MIN;
                 int32_t x_upper = INT32_MAX;
-                int16_t y_lower = y_min;
-                int16_t y_upper = y_max;
+                int16_t y_lower = FLOAT_TO_INT16(1 * out_scale);
+                int16_t y_upper = y_lower;
                 auto n_segments = 2;
-
-                if (pow_exponent == 0.0f) {
-                    y_lower = y_upper = FLOAT_TO_INT16(1 * out_scale);
-                } else if (pow_exponent == 1.0f) {
-                    if (x_lower < y_lower * in_scale / out_scale)
-                        x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
-                    if (x_upper > y_upper * in_scale / out_scale)
-                        x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
-                    if (y_lower < x_lower * out_scale / in_scale)
-                        y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
-                    if (y_upper > x_upper * out_scale / in_scale)
-                        y_upper = FLOAT_TO_INT16(x_upper * out_scale / in_scale);
-
-                    if (pow_scale < 1) {
-                        int16_t tmp = y_lower;
-                        y_lower = y_upper;
-                        y_upper = tmp;
-                    }
-
-                    int64_t x_lower_new = FLOAT_TO_INT32((x_lower / in_scale) / std::fabs(pow_scale) * in_scale);
-                    int64_t x_upper_new = FLOAT_TO_INT32((x_upper / in_scale) / std::fabs(pow_scale) * in_scale);
-                    x_lower = static_cast<int32_t>(x_lower_new);
-                    x_upper = static_cast<int32_t>(x_upper_new);
-                    if (x_lower_new < INT32_MIN) {
-                        int16_t offset_lower = std::abs(x_lower_new - INT32_MIN) / in_scale * out_scale;
-                        x_lower = INT32_MIN;
-                        y_lower = y_lower + offset_lower;
-                    }
-
-                    if (x_upper_new > INT32_MAX) {
-                        int16_t offset_upper = (x_upper_new - INT32_MAX) / in_scale * out_scale;
-                        x_upper = INT32_MAX;
-                        y_upper = y_upper - offset_upper;
-                    }
-
-                    int32_t y_lower_new = FLOAT_TO_INT32((y_lower / out_scale + pow_offset) * out_scale);
-                    int32_t y_upper_new = FLOAT_TO_INT32((y_upper / out_scale + pow_offset) * out_scale);
-                    y_lower = static_cast<int16_t>(y_lower_new);
-                    y_upper = static_cast<int16_t>(y_upper_new);
-                    if (y_lower_new < y_min) {
-                        int32_t offset_lower = abs(y_lower_new - y_min) / out_scale * in_scale;
-                        y_lower = y_min;
-                        x_lower = x_lower + offset_lower;
-                    }
-
-                    if (y_lower_new > y_max) {
-                        int32_t offset_lower = (y_lower_new - y_max) / out_scale * in_scale;
-                        y_lower = y_max;
-                        x_upper = x_upper + offset_lower;
-                    }
-
-                    if (y_upper_new > y_max) {
-                        int32_t offset_upper = (y_upper_new - y_max) / out_scale * in_scale;
-                        y_upper = y_max;
-                        x_upper = x_upper - offset_upper;
-                    }
-
-                    if (y_upper_new < y_min) {
-                        int32_t offset_upper = abs(y_upper_new - y_max) / out_scale * in_scale;
-                        y_upper = y_min;
-                        x_lower = x_lower - offset_upper;
-                    }
-                }
 
                 gna_pwl.resize(n_segments);
 

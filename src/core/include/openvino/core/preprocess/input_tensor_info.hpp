@@ -30,7 +30,7 @@ public:
 };
 
 /// \brief Information about user's input tensor. By default, it will be initialized to same data (type/shape/etc) as
-/// network's input parameter. User application can override particular parameters (like 'element_type') according to
+/// model's input parameter. User application can override particular parameters (like 'element_type') according to
 /// application's data and specify appropriate conversions in pre-processing steps
 ///
 /// \code{.cpp}
@@ -63,14 +63,14 @@ public:
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     InputTensorInfo& set_layout(const ov::Layout& layout);
 
-    /// \brief By default, input image shape is inherited from network input shape. This method specifies that user's
+    /// \brief By default, input image shape is inherited from model input shape. This method specifies that user's
     /// input image has dynamic spatial dimensions (width & height). This can be useful for adding resize preprocessing
-    /// from any input image to network's expected dimensions.
+    /// from any input image to model's expected dimensions.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     InputTensorInfo& set_spatial_dynamic_shape();
 
-    /// \brief By default, input image shape is inherited from network input shape. Use this method to specify different
+    /// \brief By default, input image shape is inherited from model input shape. Use this method to specify different
     /// width and height of user's input image. In case if input image size is not known, use
     /// `set_spatial_dynamic_shape` method.
     ///
@@ -105,6 +105,19 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     InputTensorInfo& set_memory_type(const std::string& memory_type);
+
+    /// \brief By default, input shape is inherited from model's input shape. Use this method to specify different
+    /// input data shape. If it is needed to change only input height & width of input image, consider define layout and
+    /// use `set_spatial_static_shape' or 'set_spatial_dynamic_shape' instead. This method allows defining any custom
+    /// input shape and can be useful for custom preprocessing operations
+    ///
+    /// \note Methods 'set_spatial_dynamic_shape', 'set_spatial_static_shape' are also intended to modify input shape,
+    /// using those methods together will throw ov::AssertFailure exception
+    ///
+    /// \param shape New shape for input tensor.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo& set_shape(const ov::PartialShape& shape);
 };
 
 }  // namespace preprocess

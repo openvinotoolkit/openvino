@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "api/cldnn/runtime/device_info.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "convolution_kernel_base.h"
 #include <string>
 #include <vector>
@@ -41,7 +41,7 @@ protected:
             // In such case, using larger worksize will result in larger computational inefficiency
             // w.r.t the unalined output feature
             if (params.output.Feature().v > 8 || !IsSIMDSizeSupported(params.engineInfo, 8)
-               || (params.output.GetDType() == Datatype::F16) && params.output.Feature().v == 8) {
+               || ((params.output.GetDType() == Datatype::F16) && params.output.Feature().v == 8)) {
                 return 16;
             } else {
                 return 8;

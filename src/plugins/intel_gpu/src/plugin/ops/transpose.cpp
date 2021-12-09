@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/permute.hpp"
+#include "intel_gpu/primitives/permute.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpose>& op) {
     p.ValidateInputs(op, {1, 2});
@@ -46,4 +48,6 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
 
 REGISTER_FACTORY_IMPL(v1, Transpose);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

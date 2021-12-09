@@ -284,7 +284,7 @@ int main(int argc, char* argv[]) {
         // - precision of tensor is supposed to be 'u8'
         input_info.tensor().set_layout(tensor_layout).set_element_type(element::u8);
         // 3) Here we suppose model has 'NCHW' layout for input
-        input_info.network().set_layout("NCHW");
+        input_info.model().set_layout("NCHW");
         // 4) Once the build() method is called, the preprocessing steps
         // for layout and precision conversions are inserted automatically
         model = proc.build();

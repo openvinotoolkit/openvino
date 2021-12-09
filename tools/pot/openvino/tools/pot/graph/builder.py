@@ -3,7 +3,7 @@
 
 from copy import deepcopy
 
-from mo.graph.graph import Graph
+from openvino.tools.mo.graph.graph import Graph
 
 from openvino.tools.pot.graph.node_utils import get_node_data_type, get_node_input, get_node_inputs
 from .editor import create_node, connect_nodes_by_name, get_node_by_name
