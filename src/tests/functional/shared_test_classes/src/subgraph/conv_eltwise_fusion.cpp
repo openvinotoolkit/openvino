@@ -3,8 +3,6 @@
 //
 
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
-#include "transformations/op_conversions/convert_convolutions.hpp"
-#include "transformations/common_optimizations/conv_bias_fusion.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
@@ -70,8 +68,6 @@ void ConvEltwiseFusion::SetUp() {
             manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
         } else if (eltwise_type == ngraph::opset4::Add::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset4::Add>(conv, eltwise_const);
-            manager.register_pass<ngraph::pass::ConvertConvolutions>();
-            manager.register_pass<ngraph::pass::ConvFusion>();
         } else {
             throw ngraph::ngraph_error("Unsupported type");
         }
