@@ -61,7 +61,7 @@ def main():
     image = np.expand_dims(image, axis=0)
     # Wrap input image into openvino.runtime.Tensor without allocating of new memory
     image_tensor = Tensor(image)
-    tensor_layout = Layout("NHWC")
+    tensor_layout = Layout('NHWC')
     h, w = image_tensor.shape[1], image_tensor.shape[2]
 
     # ---------------------------Step 4. Apply preprocessing----------------------------------------------------------
