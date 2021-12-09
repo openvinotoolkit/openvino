@@ -91,9 +91,6 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
                 deviceName.substr(std::string("AUTO:").size());
         }
     } else {
-        if (deviceName_.empty()) {
-            deviceName_ = "AUTO";
-        }
         ie::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
         std::string deviceIDLocal = parser.getDeviceID();
@@ -202,7 +199,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     bool DeviceSupportsImportExport(const ov::runtime::InferencePlugin& plugin) const {
         std::vector<std::string> supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-        bool supported =
+        auto supported =
             (it != supportedMetricKeys.end()) && plugin.get_metric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
         return supported;
     }

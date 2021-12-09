@@ -2,67 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME onnx_ov_frontend)
+ov_add_frontend(NAME onnx
+                LINKABLE_FRONTEND
+                PROTOBUF_LITE
+                SKIP_NCC_STYLE
+                FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
+                LINK_LIBRARIES ngraph::builder openvino::util onnx_common inference_engine_transformations)
 
-set(ONNX_OPSET_VERSION 13 CACHE INTERNAL "Supported version of ONNX operator set")
-set(ONNX_FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
-file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${ONNX_FRONTEND_INCLUDE_DIR}/*.hpp)
-
-# Remove disabled ops
-list(REMOVE_ITEM LIBRARY_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
-    )
-list(REMOVE_ITEM LIBRARY_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.hpp
-    )
-
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
-
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${LIBRARY_HEADERS})
-source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
-
-# Create library
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
-add_library(openvino::frontend::onnx ALIAS ${TARGET_NAME})
-
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
-
-ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                   INCLUDE_DIRECTORY "${ONNX_FRONTEND_INCLUDE_DIR}"
-                   DEFINITIONS
-                       $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>
-                   ADDITIONAL_INCLUDE_DIRECTORIES
-                       $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
-
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "nGraph ONNX frontend library")
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph PRIVATE frontend_common ngraph::builder openvino::util onnx_common inference_engine_transformations)
-
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>
-                                                $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
-target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
+set(ONNX_OPSET_VERSION 15 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::onnx)
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${${TARGET_NAME}_INCLUDE_DIR}"
+                    DEFINITIONS
+                        $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>
+                    ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
-install(DIRECTORY ${ONNX_FRONTEND_INCLUDE_DIR}/onnx_frontend
-                  ${ONNX_FRONTEND_INCLUDE_DIR}/onnx_import
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ngraph_dev
         FILES_MATCHING PATTERN "*.hpp")
-
-export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

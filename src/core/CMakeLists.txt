@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions(-DIN_NGRAPH_LIBRARY)
+add_definitions(-DIN_OV_CORE_LIBRARY)
 
-set(NGRAPH_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
@@ -93,6 +93,7 @@ file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_
 file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/fix_rt_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
@@ -101,7 +102,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
+target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
                                   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
@@ -121,6 +122,9 @@ export(TARGETS ngraph NAMESPACE openvino::
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
+
+ie_cpack_add_component(ngraph REQUIRED)
+ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
 install(TARGETS ngraph EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph

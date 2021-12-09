@@ -18,6 +18,7 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "shared_node_info.hpp"
 
 using namespace std;
@@ -124,6 +125,9 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     }
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        clone->get_output_tensor(i).set_name(get_output_tensor(i).get_name());
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
     return clone;
 }
@@ -781,7 +785,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
 
-    if (m_rt_info.count("disabled_constant_folding_0")) {
+    if (m_rt_info.count(ov::pass::DisableConstantFolding::get_type_info_static())) {
         return false;
     }
 

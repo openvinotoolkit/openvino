@@ -114,13 +114,16 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
                         << "which should be smaller than or equal to input tensor rank";
                 }
 
-                SizeVector expectUpdateShape = {};
                 size_t tupleRank = indicesRank - 1;
+                SizeVector expectUpdateShape(tupleRank + srcRank - k, 0);
+                int updateAxisIter = 0;
                 for (size_t ri = 0; ri < tupleRank; ri++) {
-                    expectUpdateShape.push_back(indicesDim[ri]);
+                    expectUpdateShape[updateAxisIter] = indicesDim[ri];
+                    updateAxisIter++;
                 }
                 for (size_t rd = k; rd < srcRank; rd++) {
-                    expectUpdateShape.push_back(srcDataDim[rd]);
+                    expectUpdateShape[updateAxisIter] = srcDataDim[rd];
+                    updateAxisIter++;
                 }
                 if (expectUpdateShape.size() != updateRank) {
                     IE_THROW() << errorPrefix << " do not have matched tensor rank relationship for input, indices and update";
@@ -315,13 +318,16 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
             size_t indicesRank = indicesDim.size();
             size_t updateRank = updateDim.size();
-            SizeVector expectUpdateShape = {};
+            SizeVector expectUpdateShape(srcRank + indicesRank - 1, 0);
+            int axisIter = 0;
             for (size_t rs = 0; rs < srcRank; rs++) {
                 if (rs != axis) {
-                    expectUpdateShape.push_back(srcDataDim[rs]);
+                    expectUpdateShape[axisIter] = srcDataDim[rs];
+                    axisIter++;
                 } else {
                     for (size_t ri = 0; ri < indicesRank; ri++) {
-                        expectUpdateShape.push_back(indicesDim[ri]);
+                        expectUpdateShape[axisIter] = indicesDim[ri];
+                        axisIter++;
                     }
                 }
             }

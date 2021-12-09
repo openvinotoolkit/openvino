@@ -294,6 +294,13 @@ std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &shrink_mask = std::vector<int64_t>{},
                                                const std::vector<int64_t> &ellipsis_mask = std::vector<int64_t>{});
 
+std::shared_ptr<ngraph::Node> makeSlice(const ngraph::Output<Node> &in,
+                                        const std::vector<int64_t> &begin,
+                                        const std::vector<int64_t> &end,
+                                        const std::vector<int64_t> &stride,
+                                        const std::vector<int64_t> &axes,
+                                        const element::Type &type);
+
 std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool acrossChannels,
                                       bool normalizeVariance,
@@ -420,6 +427,15 @@ std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
                                   const op::PadType &padType,
                                   bool excludePad,
                                   const ngraph::helpers::PoolingTypes &poolType);
+
+std::shared_ptr<Node> makeMaxPoolingV8(const ngraph::Output<Node> &in,
+                                       const std::vector<size_t> &strides,
+                                       const std::vector<size_t> &dilation,
+                                       const std::vector<size_t> &padsBegin,
+                                       const std::vector<size_t> &padsEnd,
+                                       const std::vector<size_t> &kernel,
+                                       const op::RoundingType &roundingType,
+                                       const op::PadType &padType);
 
 std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
                                      const Output<Node>& coords,

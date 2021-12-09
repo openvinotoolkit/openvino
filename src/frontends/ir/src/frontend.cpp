@@ -11,7 +11,7 @@
 #include "ir_frontend/utility.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/util/file_util.hpp"
 #include "so_extension.hpp"
 #include "xml_parse_utils.h"
@@ -59,7 +59,7 @@ size_t GetIRVersion(std::istream& model) {
 
 }  // namespace
 
-bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+bool FrontEndIR::supported_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
 
@@ -68,18 +68,18 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
     }
 
     const auto& model_variant = variants[0];
-    if (ov::is_type<ov::VariantWrapper<std::string>>(model_variant)) {
-        const auto& path = ov::as_type_ptr<ov::VariantWrapper<std::string>>(model_variant)->get();
+    if (model_variant.is<std::string>()) {
+        const auto& path = model_variant.as<std::string>();
         local_model_stream.open(path, std::ios::in | std::ifstream::binary);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    } else if (ov::is_type<ov::VariantWrapper<std::wstring>>(model_variant)) {
-        const auto& path = ov::as_type_ptr<ov::VariantWrapper<std::wstring>>(model_variant)->get();
+    } else if (model_variant.is<std::wstring>()) {
+        const auto& path = model_variant.as<std::wstring>();
         local_model_stream.open(path, std::ios::in | std::ifstream::binary);
 #endif
-    } else if (ov::is_type<ov::VariantWrapper<std::istream*>>(model_variant)) {
-        provided_model_stream = ov::as_type_ptr<ov::VariantWrapper<std::istream*>>(model_variant)->get();
-    } else if (ov::is_type<ov::VariantWrapper<std::istringstream*>>(model_variant)) {
-        provided_model_stream = ov::as_type_ptr<ov::VariantWrapper<std::istringstream*>>(model_variant)->get();
+    } else if (model_variant.is<std::istream*>()) {
+        provided_model_stream = model_variant.as<std::istream*>();
+    } else if (model_variant.is<std::istringstream*>()) {
+        provided_model_stream = model_variant.as<std::istringstream*>();
     }
 
     if (provided_model_stream && local_model_stream.is_open()) {
@@ -100,17 +100,18 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
 }
 
 void FrontEndIR::add_extension(const ov::Extension::Ptr& ext) {
-    if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext)) {
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(ext)) {
+        m_telemetry = telemetry;
+    } else if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext)) {
         if (std::dynamic_pointer_cast<ov::BaseOpExtension>(so_ext->extension())) {
             shared_objects.emplace_back(so_ext->shared_object());
             extensions.emplace_back(so_ext->extension());
         }
-    }
-    if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
+    } else if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
         extensions.emplace_back(ext);
 }
 
-InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+InputModel::Ptr FrontEndIR::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
@@ -141,10 +142,10 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
     std::string weights_path, model_path;
 #endif
 
-    // Load model
     const auto& model_variant = variants.at(0);
-    if (ov::is_type<ov::VariantWrapper<std::string>>(model_variant)) {
-        const auto& tmp_path = ov::as_type_ptr<ov::VariantWrapper<std::string>>(model_variant)->get();
+
+    if (model_variant.is<std::string>()) {
+        const auto& tmp_path = model_variant.as<std::string>();
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         model_path = ov::util::string_to_wstring(tmp_path.c_str());
 #else
@@ -152,32 +153,32 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
 #endif
         local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    } else if (ov::is_type<ov::VariantWrapper<std::wstring>>(model_variant)) {
-        model_path = ov::as_type_ptr<ov::VariantWrapper<std::wstring>>(model_variant)->get();
+    } else if (model_variant.is<std::wstring>()) {
+        model_path = model_variant.as<std::wstring>();
         local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
 #endif
-    } else if (ov::is_type<ov::VariantWrapper<std::istream*>>(model_variant)) {
-        provided_model_stream = ov::as_type_ptr<ov::VariantWrapper<std::istream*>>(model_variant)->get();
-    } else if (ov::is_type<ov::VariantWrapper<std::istringstream*>>(model_variant)) {
-        provided_model_stream = ov::as_type_ptr<ov::VariantWrapper<std::istringstream*>>(model_variant)->get();
+    } else if (model_variant.is<std::istream*>()) {
+        provided_model_stream = model_variant.as<std::istream*>();
+    } else if (model_variant.is<std::istringstream*>()) {
+        provided_model_stream = model_variant.as<std::istringstream*>();
     }
 
     // Check weights and extensions
     for (size_t variant_id = 1; variant_id < variants.size(); ++variant_id) {
         const auto& variant = variants.at(variant_id);
-        if (ov::is_type<ov::VariantWrapper<std::string>>(variant)) {
-            const auto& tmp_path = ov::as_type_ptr<ov::VariantWrapper<std::string>>(variant)->get();
+        if (variant.is<std::string>()) {
+            const auto& tmp_path = variant.as<std::string>();
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
             weights_path = ov::util::string_to_wstring(tmp_path.c_str());
 #else
             weights_path = tmp_path;
 #endif
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        } else if (ov::is_type<ov::VariantWrapper<std::wstring>>(variant)) {
-            weights_path = ov::as_type_ptr<ov::VariantWrapper<std::wstring>>(variant)->get();
+        } else if (variant.is<std::wstring>()) {
+            weights_path = variant.as<std::wstring>();
 #endif
-        } else if (ov::is_type<VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(variant)) {
-            weights = ov::as_type_ptr<VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(variant)->get();
+        } else if (variant.is<std::shared_ptr<ngraph::runtime::AlignedBuffer>>()) {
+            weights = variant.as<std::shared_ptr<ngraph::runtime::AlignedBuffer>>();
         }
     }
 
@@ -236,11 +237,11 @@ std::string FrontEndIR::get_name() const {
 }  // namespace frontend
 }  // namespace ov
 
-extern "C" IR_API ov::frontend::FrontEndVersion GetAPIVersion() {
+IR_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" IR_API void* GetFrontEndData() {
+IR_C_API void* GetFrontEndData() {
     frontend::FrontEndPluginInfo* res = new frontend::FrontEndPluginInfo();
     res->m_name = "ir";
     res->m_creator = []() {

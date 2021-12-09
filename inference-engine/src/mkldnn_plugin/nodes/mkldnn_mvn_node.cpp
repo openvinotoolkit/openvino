@@ -676,10 +676,10 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         IE_THROW(NotImplemented) << errorMessage;
     }
 
+    epsMode_ = INSIDE_SQRT;
     if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v6::MVN>(op)) {
         normalizeVariance_ = mvnOp->get_normalize_variance();
         epsValue_ = mvnOp->get_eps();
-        epsMode_ = INSIDE_SQRT;
         if (mvnOp->get_eps_mode() == ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
             epsMode_ = OUTSIDE_SQRT;
         }
@@ -691,7 +691,6 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
     } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
         normalizeVariance_ = mvnOp->get_normalize_variance();
         epsValue_ = mvnOp->get_eps();
-        epsMode_ = INSIDE_SQRT;
         initAcrossChannels_ = mvnOp->get_across_channels();
     }
     execAcrossChannels_ = initAcrossChannels_;

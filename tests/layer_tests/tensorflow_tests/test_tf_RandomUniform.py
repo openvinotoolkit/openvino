@@ -3,7 +3,7 @@
 
 import pytest
 import tensorflow as tf
-from mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
     shaped_data, connect_front
 

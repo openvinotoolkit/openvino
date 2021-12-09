@@ -28,15 +28,22 @@ add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HE
 add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
 
-target_include_directories(${TARGET_NAME} PUBLIC
+target_include_directories(${TARGET_NAME}
+    PUBLIC
         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
+        $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
+    PRIVATE
+        # for ov_frontends.hpp in static build
+        "${CMAKE_CURRENT_BINARY_DIR}/src")
+
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+set_property(SOURCE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_manager.cpp
+        APPEND PROPERTY COMPILE_DEFINITIONS
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
-        )
+        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -64,9 +71,12 @@ else()
     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 endif()
 
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ${TARGET_NAME})
+
 # Installation rules for shared version only
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::common)
+
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
@@ -76,7 +86,7 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/common
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ngraph_dev
         FILES_MATCHING PATTERN "*.hpp")
-        
+
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ngraph_dev

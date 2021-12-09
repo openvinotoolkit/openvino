@@ -14,7 +14,7 @@ add_subdirectory(ittapi)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
-if(ENABLE_CLDNN)
+if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
 endif()
 
@@ -71,7 +71,7 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 # Google Tests framework
 #
 
-if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
+if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     openvino_developer_export_targets(COMPONENT inference_engine_tests
@@ -82,34 +82,36 @@ endif()
 # Protobuf
 #
 
-if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE)
-    if(NGRAPH_USE_SYSTEM_PROTOBUF)
+if(ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
+    if(ENABLE_SYSTEM_PROTOBUF)
         set(Protobuf_USE_STATIC_LIBS ON)
         if(VERBOSE_BUILD)
             set(Protobuf_DEBUG ON)
         endif()
         find_package(Protobuf 3.9.0 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
+        set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(SYSTEM_PROTOC protobuf::protoc)
         set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 
-        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LITE_LIBRARIES})
+        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
             set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL TRUE)
         endforeach()
     else()
-        add_subdirectory(protobuf)
+        add_subdirectory(protobuf EXCLUDE_FROM_ALL)
     endif()
 
     # forward variables used in the other places
     set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
     set(PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE} PARENT_SCOPE)
+    set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_LITE_LIBRARIES ${Protobuf_LITE_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
 
     # set public / interface compile options
-    foreach(target IN LISTS Protobuf_LITE_LIBRARIES)
+    foreach(target IN LISTS Protobuf_LITE_LIBRARIES Protobuf_LIBRARIES)
         set(link_type PUBLIC)
-        if(NGRAPH_USE_SYSTEM_PROTOBUF)
+        if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
@@ -122,7 +124,7 @@ endif()
 # ONNX
 #
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()
 
@@ -184,6 +186,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # TODO: install onednn_gpu in static builds
     endfunction()
     build_onednn_gpu()
+endif()
+
+#
+# nlohmann json
+#
+if(ENABLE_SAMPLES OR ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
+    add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 endif()
 
 #

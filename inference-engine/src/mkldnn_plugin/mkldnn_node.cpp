@@ -137,7 +137,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
     }
 
     if (op != nullptr) {
-        std::string inputMemoryFormats = ngraph::getMLKDNNInputMemoryFormats(op);
+        std::string inputMemoryFormats = ngraph::getMKLDNNInputMemoryFormats(op);
         if (!inputMemoryFormats.empty()) {
             std::istringstream stream(inputMemoryFormats);
             std::string str;
@@ -148,7 +148,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
             }
         }
 
-        std::string outputMemoryFormats = ngraph::getMLKDNNOutputMemoryFormats(op);
+        std::string outputMemoryFormats = ngraph::getMKLDNNOutputMemoryFormats(op);
         if (!outputMemoryFormats.empty()) {
             std::istringstream stream(outputMemoryFormats);
             std::string str;
@@ -162,7 +162,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 
     const auto it = rtInfo.find("enforceBF16evenForGraphTail");
     if (it != rtInfo.end()) {
-        if (const auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second))
+        if (const auto value = std::dynamic_pointer_cast<ov::RuntimeAttributeImpl<int64_t>>(it->second))
             enforceBF16evenForGraphTail = value->get();
     }
 }
@@ -491,7 +491,8 @@ std::vector<memory::format_tag> MKLDNNNode::getAvailableFormatsForDims(const Sha
     else if (dims.getRank() == 2)
         return {memory::format_tag::nc};
     else if (dims.getRank() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc};
+        return {memory::format_tag::tnc, memory::format_tag::ntc,
+                memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
     else if (dims.getRank() == 4)
         return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c};
     else if (dims.getRank() == 5)
@@ -524,10 +525,17 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
     }
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto edges = getChildEdgesAtPort(i);
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShapes[i]);
+
+        // avoid 0D shape incompatible
+        auto newOutputShape = newOutputShapes[i];
+        if (newOutputShape.empty()) {
+            newOutputShape.push_back(1);
+        }
+
+        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
 
         const auto &currDesc = edges[0]->getMemory().getDesc();
-        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShapes[i])
+        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
             continue;
 
         // this path neccesary if there are several edges per one port
@@ -762,15 +770,29 @@ void MKLDNNNode::prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_de
     }
 }
 
-bool MKLDNNNode::isInplace() const {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
-    auto config = selected_pd->getConfig();
+bool MKLDNNNode::isInPlace() {
+    if (inplace == InPlaceType::Unknown) {
+        auto selected_pd = getSelectedPrimitiveDescriptor();
+        if (selected_pd == nullptr)
+            IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    for (auto &in : config.inConfs) if (in.inPlace >= 0) return true;
-    for (auto &out : config.outConfs) if (out.inPlace >= 0) return true;
-    return false;
+        inplace = InPlaceType::NoInPlace;
+        auto config = selected_pd->getConfig();
+        for (auto &in : config.inConfs) {
+            if (in.inPlace >= 0) {
+                inplace = InPlaceType::InPlace;
+                break;
+            }
+        }
+        for (auto &out : config.outConfs) {
+            if (out.inPlace >= 0) {
+                inplace = InPlaceType::InPlace;
+                break;
+            }
+        }
+    }
+
+    return inplace == InPlaceType::InPlace;
 }
 
 bool MKLDNNNode::isConstant() {
@@ -1294,6 +1316,19 @@ bool MKLDNNNode::inputShapesDefined() const {
             return false;
     }
     return true;
+}
+
+bool MKLDNNNode::outputShapesDefined() const {
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        if (!getChildEdgesAtPort(i)[0]->getMemory().getDesc().isDefined()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MKLDNNNode::shapesDefined() const {
+    return inputShapesDefined() && outputShapesDefined();
 }
 
 bool MKLDNNNode::needPrepareParams() const {
