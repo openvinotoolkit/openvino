@@ -34,6 +34,11 @@ public:
         return m_variable_id;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool has_evaluate() const override;
+
 private:
     std::string m_variable_id;
 };
@@ -70,6 +75,7 @@ public:
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool evaluate(const HostTensorVector& outputs,
                   const HostTensorVector& inputs,
                   const EvaluationContext& evaluation_context) const override;

@@ -52,6 +52,20 @@ bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+bool op::v3::ReadValue::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v3_ReadValue_evaluate);
+
+    outputs[0]->set_unary(inputs[0]);
+    void* input = inputs[0]->get_data_ptr();
+    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
+    return true;
+}
+
+bool op::v3::ReadValue::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v3_ReadValue_has_evaluate);
+    return true;
+}
+
 op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Variable>& variable)
     : ReadValueBase({init_value}) {
     m_variable = variable;
@@ -81,12 +95,12 @@ void op::v6::ReadValue::validate_and_infer_types() {
 shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ReadValue>(new_args.at(0), m_variable);
+    return make_shared<op::v6::ReadValue>(new_args.at(0), m_variable);
 }
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v6_ReadValue_visit_attributes);
-    visitor.on_attribute("variable_id", m_variable);
+    visitor.on_attribute("variable_id", m_variable->get_info().variable_id);
     return true;
 }
 
@@ -96,10 +110,20 @@ void op::v6::ReadValue::revalidate_and_infer_types() {
     Node::revalidate_and_infer_types();
 }
 
+bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v6_ReadValue_evaluate);
+
+    outputs[0]->set_unary(inputs[0]);
+    void* input = inputs[0]->get_data_ptr();
+    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
+    return true;
+}
+
 bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs,
                                  const EvaluationContext& evaluation_context) const {
     NGRAPH_OP_SCOPE(v6_ReadValue_evaluate);
+
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
@@ -111,7 +135,9 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     // initial value (inputs[0]) is not supported, use zeros
     auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
     auto zero_tensor = make_shared<HostTensor>(zero_const);
+
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
+    //const auto& input_tensor = var_value->second->get_value();
     outputs[0]->set_unary(input_tensor);
 
     void* input = input_tensor->get_data_ptr();

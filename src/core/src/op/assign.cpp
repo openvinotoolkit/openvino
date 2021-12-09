@@ -61,6 +61,21 @@ bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+bool op::v3::Assign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v6_Assign_evaluate);
+
+    outputs[0]->set_unary(inputs[0]);
+    void* input = inputs[0]->get_data_ptr();
+    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
+
+    return true;
+}
+
+bool op::v3::Assign::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v1_Assign_has_evaluate);
+    return true;
+}
+
 op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Variable>& variable)
     : AssignBase({new_value}) {
     m_variable = variable;
@@ -84,7 +99,17 @@ shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v6_Assign_visit_attributes);
-    visitor.on_attribute("variable_id", m_variable);
+    visitor.on_attribute("variable_id", m_variable->get_info().variable_id);
+    return true;
+}
+
+bool op::v6::Assign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v6_Assign_evaluate);
+
+    outputs[0]->set_unary(inputs[0]);
+    void* input = inputs[0]->get_data_ptr();
+    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
+
     return true;
 }
 
@@ -92,6 +117,7 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs,
                               const EvaluationContext& evaluation_context) const {
     NGRAPH_OP_SCOPE(v6_Assign_evaluate);
+
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
