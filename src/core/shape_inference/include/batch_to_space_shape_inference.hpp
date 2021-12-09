@@ -94,11 +94,7 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
             }
 
             int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
-            if (data_shape[0].is_dynamic() && data_shape[0] == ov::Dimension::dynamic())
-                output_shape[0] = ov::Dimension::dynamic();
-            else
-                output_shape[0] = data_shape[0] / static_cast<ValType>(block_prod);
-
+            output_shape[0] = data_shape[0] / static_cast<ValType>(block_prod);
             for (size_t idx = 1; idx < data_shape.size(); idx++) {
                 output_shape[idx] = data_shape[idx] * static_cast<ValType>(block_val[idx]) -
                                     static_cast<ValType>(crops_begin_val[idx]) -

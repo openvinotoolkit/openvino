@@ -41,10 +41,7 @@ void shape_infer(const ov::op::v0::SpaceToDepth* op,
         out_shape[0] = data_shape[0];
         out_shape[1] = data_shape[1] * multiplier;
         for (size_t i = 2; i < out_shape.size(); i++) {
-            if (data_shape[i].is_dynamic() && data_shape[i] == ov::Dimension::dynamic())
-                out_shape[i] = ov::Dimension::dynamic();
-            else
-                out_shape[i] = data_shape[i] / static_cast<ValType>(block_size);
+            out_shape[i] = data_shape[i] / static_cast<ValType>(block_size);
         }
     } else {
         // For PartialShape, Set the output to be dynamic;
