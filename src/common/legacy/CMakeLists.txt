@@ -82,8 +82,8 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core OPTIONAL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core OPTIONAL)
 else()
     ov_install_static_lib(${TARGET_NAME} core)
 endif()

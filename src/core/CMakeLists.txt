@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions(-DIN_NGRAPH_LIBRARY)
+add_definitions(-DIN_OV_CORE_LIBRARY)
 
-set(NGRAPH_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
@@ -97,7 +97,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
+target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
                                       PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_library(ngraph INTERFACE)

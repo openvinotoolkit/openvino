@@ -6,15 +6,26 @@ CODEOWNERS  @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-maintaine
 
 # CI:
 Jenkinsfile  @openvinotoolkit/openvino-admins
-azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /.github/  @openvinotoolkit/openvino-admins
 /.ci/  @openvinotoolkit/openvino-admins
+
+# OpenVINO Samples:
+/samples/  @openvinotoolkit/openvino-samples-maintainers
+
+# OpenVINO Scripts:
+/scripts/  @openvinotoolkit/openvino-scripts-maintainers
 
 # QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
 
-# OpenVINO Scripts
-/scripts/  @openvinotoolkit/openvino-scripts-maintainers
+# Tools:
+/tools/  @openvinotoolkit/openvino-tools-maintainers
+
+# Model Optimizer:
+/tools/mo/  @openvinotoolkit/openvino-mo-maintainers
+
+# POT:
+/tools/pot/  @openvinotoolkit/openvino-pot-maintainers
 
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
@@ -22,6 +33,8 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /src/common/transformations/  @GlebKazantaev @ilyachur
 /src/common/legacy/  @openvinotoolkit/openvino-ngraph-maintainers
 /src/common/  @openvinotoolkit/openvino-ie-maintainers
+/src/core/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/frontends/  @openvinotoolkit/openvino-ngraph-maintainers
 /inference-engine/tests_deprecated/readers/  @openvinotoolkit/openvino-ngraph-maintainers
 
 # IE CPU:
@@ -62,20 +75,7 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/tests/functional/inference_engine/ngraph_reader/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 /inference-engine/tests/functional/inference_engine/transformations/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 
-# MO:
-/model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
-
-# nGraph:
-/src/core/  @openvinotoolkit/openvino-ngraph-maintainers
-/src/frontends/  @openvinotoolkit/openvino-ngraph-maintainers
-
-# POT Tools
-/tools/pot/  @openvinotoolkit/openvino-pot-maintainers
-
-# Tools
-/tools/  @openvinotoolkit/openvino-tools-maintainers
-
-# Documentation
+# Documentation:
 /docs/  @openvinotoolkit/openvino-docs-maintainers
 /docs/template_plugin/  @openvinotoolkit/openvino-ie-template-maintainers
 *.md  @openvinotoolkit/openvino-docs-maintainers
