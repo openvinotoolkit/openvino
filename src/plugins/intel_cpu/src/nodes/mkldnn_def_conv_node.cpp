@@ -578,10 +578,6 @@ private:
 
 bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (!one_of(op->get_type_info(),
                 ngraph::op::v1::DeformableConvolution::get_type_info_static(),
                 ngraph::op::v8::DeformableConvolution::get_type_info_static())) {
@@ -675,8 +671,9 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 
     impl_desc_type impl_type;
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
-    if (group != 1 || (((getInputShapeAtPort(0).getStaticDims()[1] / group) % simd_w != 0)
-    || ((getOutputShapeAtPort(0).getStaticDims()[1] / group) % simd_w != 0))) {
+
+    if (group != 1 || (((getInputShapeAtPort(0).getDims()[1] / group) % simd_w != 0)
+    || ((getOutputShapeAtPort(0).getDims()[1] / group) % simd_w != 0))) {
         enforceRef = true;
     }
 
@@ -867,6 +864,69 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
 }
 
 void MKLDNNDeformableConvolutionNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
+                                                       const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) {
+    const int G = jcp.ngroups;
+    const int MB = jcp.mb;
+    const int OH = jcp.oh;
+    const int OW = jcp.ow;
+
+    const int OC = jcp.oc;
+    const int IC = jcp.ic;
+    const int KH = jcp.kh;
+    const int KW = jcp.kw;
+    const int ker_size = KH * KW;
+
+    const int DG = jcp.dg;
+
+    const int DGHW = DG * OH * OW;
+    const int HW = OH * OW;
+
+    const int channel_per_deformable_group = (IC * G) / DG;
+    const size_t group_wei_stride = wei_strides[0] * OC;
+    auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
+        float d = 0;
+        for (int ic = 0; ic < IC; ic++) {
+            const float *data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1];
+            const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
+            int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
+            size_t weiIndex = (size_t) g * group_wei_stride + oc * wei_strides[0] + ic * wei_strides[1];
+            for (int kh_off = 0; kh_off < KH * wei_strides[2]; kh_off += wei_strides[2]) {
+                for (int kw_off = 0; kw_off < KW * wei_strides[3]; kw_off += wei_strides[3]) {
+                    // check if current addendum marked as equal zero
+                    if (sampledCoordsVector[sampledCoordIndex] != -1) {
+                        const int v11 = sampledCoordsVector[sampledCoordIndex];
+                        const int v12 = sampledCoordsVector[sampledCoordIndex + 1];
+                        const int v21  = sampledCoordsVector[sampledCoordIndex + 2];
+                        const int v22 = sampledCoordsVector[sampledCoordIndex + 3];
+                        float val = interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
+                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
+                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
+                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
+                        d += val * weights[weiIndex + kh_off + kw_off];
+                    } else {
+                        sampledCoordIndex += sampledPointsPerPixel;
+                    }
+                }
+            }
+        }
+        return d;
+    };
+
+    parallel_nd(G, MB, OC, OH, OW,
+                [&](int g, int mb, int oc, int oh, int ow)  {
+                    dst[mb * dst_strides[0] + (g * OC + oc) * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]] = compKer(g, mb, oc, oh, ow);
+                });
+}
+
+void MKLDNNDeformableConvolutionNode::prepareParams() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
@@ -939,61 +999,9 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
         def_conv_kernel->create_ker();
 }
 
-void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
-                                                       const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) {
-    const int G = jcp.ngroups;
-    const int MB = jcp.mb;
-    const int OH = jcp.oh;
-    const int OW = jcp.ow;
-
-    const int OC = jcp.oc;
-    const int IC = jcp.ic;
-    const int KH = jcp.kh;
-    const int KW = jcp.kw;
-    const int ker_size = KH * KW;
-
-    const int DG = jcp.dg;
-
-    const int DGHW = DG * OH * OW;
-    const int HW = OH * OW;
-
-    const int channel_per_deformable_group = (IC * G) / DG;
-    const size_t group_wei_stride = wei_strides[0] * OC;
-    auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
-        float d = 0;
-        for (int ic = 0; ic < IC; ic++) {
-            const float *data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1];
-            const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
-            int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
-            size_t weiIndex = (size_t) g * group_wei_stride + oc * wei_strides[0] + ic * wei_strides[1];
-            for (int kh_off = 0; kh_off < KH * wei_strides[2]; kh_off += wei_strides[2]) {
-                for (int kw_off = 0; kw_off < KW * wei_strides[3]; kw_off += wei_strides[3]) {
-                    // check if current addendum marked as equal zero
-                    if (sampledCoordsVector[sampledCoordIndex] != -1) {
-                        const int v11 = sampledCoordsVector[sampledCoordIndex];
-                        const int v12 = sampledCoordsVector[sampledCoordIndex + 1];
-                        const int v21  = sampledCoordsVector[sampledCoordIndex + 2];
-                        const int v22 = sampledCoordsVector[sampledCoordIndex + 3];
-                        float val = interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
-                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
-                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
-                        d += val * weights[weiIndex + kh_off + kw_off];
-                    } else {
-                        sampledCoordIndex += sampledPointsPerPixel;
-                    }
-                }
-            }
-        }
-        return d;
-    };
-
-    parallel_nd(G, MB, OC, OH, OW,
-                [&](int g, int mb, int oc, int oh, int ow)  {
-                    dst[mb * dst_strides[0] + (g * OC + oc) * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]] = compKer(g, mb, oc, oh, ow);
-                });
+void MKLDNNDeformableConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
 }
-
 
 void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const float* weights, float* dst,
                                                        const std::vector<size_t>& src_strides,
