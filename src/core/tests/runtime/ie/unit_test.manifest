@@ -142,10 +142,6 @@ onnx_model_quantize_linear_const_scale_const_zero_p
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
 
-# OneHot operation has a form that is not supported
-onnx_model_one_hot_without_axis
-onnx_model_one_hot_with_axis
-
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
 onnx_dyn_shapes_model_acosh_1_3
 onnx_dyn_shapes_model_acosh_3_2
