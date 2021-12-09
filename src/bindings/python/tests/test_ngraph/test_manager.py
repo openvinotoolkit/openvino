@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime.impl import Function, PartialShape, Shape
-from openvino.runtime.impl.passes import Manager
+from openvino.runtime import Function, PartialShape, Shape
+from openvino.runtime.passes import Manager
 from tests.test_ngraph.util import count_ops_of_type
 from openvino.runtime import Core
 

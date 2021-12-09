@@ -6,6 +6,7 @@
 
 #include <mkldnn_extension_utils.h>
 #include <ie_ngraph_utils.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include <map>
 #include <string>
@@ -83,11 +84,8 @@ void MKLDNNIfNode::getSupportedDescriptors() {
 
     const auto &outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
-        auto prev = out->get_input_node_shared_ptr(0);
-        std::string inputID = prev->get_friendly_name();
-        if (prev->get_output_size() > 1) {
-            inputID += "." + std::to_string(out->get_input_source_output(0).get_index());
-        }
+        const auto prev = out->input_value(0);
+        const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
         auto outNode = outMapThen.find(inputID);
         if (outNode != outMapThen.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
@@ -100,11 +98,8 @@ void MKLDNNIfNode::getSupportedDescriptors() {
 
     const auto &outMapElse = subGraphElse.GetOutputNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
-        auto prev = out->get_input_node_shared_ptr(0);
-        std::string inputID = prev->get_friendly_name();
-        if (prev->get_output_size() > 1) {
-            inputID += "." + std::to_string(out->get_input_source_output(0).get_index());
-        }
+        const auto prev = out->input_value(0);
+        const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
         auto outNode = outMapElse.find(inputID);
         if (outNode != outMapElse.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();

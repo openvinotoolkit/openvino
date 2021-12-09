@@ -91,15 +91,13 @@ PYBIND11_MODULE(pyopenvino, m) {
 #endif
     regmodule_graph_op_util(m_op);
     py::module m_preprocess =
-        m.def_submodule("preprocess", "Package openvino.impl.preprocess that wraps ov::preprocess");
+        m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
     regclass_graph_Function(m);
     regmodule_graph_passes(m);
     regmodule_graph_util(m);
     regmodule_graph_layout_helpers(m);
     regclass_graph_Variant(m);
-    regclass_graph_VariantWrapper<std::string>(m, std::string("String"));
-    regclass_graph_VariantWrapper<int64_t>(m, std::string("Int"));
     regclass_graph_Output<ov::Node>(m, std::string(""));
     regclass_graph_Output<const ov::Node>(m, std::string("Const"));
 
