@@ -187,13 +187,13 @@ macro(ov_add_frontend)
     if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
             if(NOT protobuf_lite_installed)
-                ov_install_static_lib(${Protobuf_LITE_LIBRARIES} ngraph)
+                ov_install_static_lib(${Protobuf_LITE_LIBRARIES} core)
                 set(protobuf_lite_installed ON CACHE INTERNAL "" FORCE)
             endif()
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
         else()
             if(NOT protobuf_installed)
-                ov_install_static_lib(${Protobuf_LIBRARIES} ngraph)
+                ov_install_static_lib(${Protobuf_LIBRARIES} core)
                 set(protobuf_installed ON CACHE INTERNAL "" FORCE)
             endif()
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
@@ -216,18 +216,18 @@ macro(ov_add_frontend)
                 set(export_set EXPORT OpenVINOTargets)
             endif()
             install(TARGETS ${TARGET_NAME} ${export_set}
-                    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-                    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
+                    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+                    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
         else()
-            ov_install_static_lib(${TARGET_NAME} ngraph)
+            ov_install_static_lib(${TARGET_NAME} core)
         endif()
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install -dev part
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/${OV_FRONTEND_NAME}_frontend
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-                    COMPONENT ngraph_dev
+                    COMPONENT core_dev
                     FILES_MATCHING PATTERN "*.hpp")
 
             set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
@@ -236,6 +236,6 @@ macro(ov_add_frontend)
         endif()
     else()
         # skipped frontend has to be installed in static libraries case
-        ov_install_static_lib(${TARGET_NAME} ngraph)
+        ov_install_static_lib(${TARGET_NAME} core)
     endif()
 endmacro()

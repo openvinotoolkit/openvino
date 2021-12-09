@@ -9,7 +9,7 @@ from openvino.runtime.exceptions import UserInputError
 import openvino.runtime.opset8 as ov
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
-from openvino.runtime.impl import Type
+from openvino.runtime import Type
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
