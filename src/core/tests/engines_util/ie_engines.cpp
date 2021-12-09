@@ -7,6 +7,7 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "shared_utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ngraph;
 
@@ -303,10 +304,7 @@ std::string test::IE_Engine::get_output_name(const std::shared_ptr<op::v0::Resul
         return m_network_outputs.begin()->first;
     } else {
         const auto& prev_layer = ng_result->input_value(0);
-        auto network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
-        if (prev_layer.get_node_shared_ptr()->get_output_size() != 1) {
-            network_out_name += "." + std::to_string(prev_layer.get_index());
-        }
+        const auto network_out_name = ngraph::op::util::get_ie_output_name(prev_layer);
 
         NGRAPH_CHECK(m_network_outputs.count(network_out_name) == 1,
                      "nGraph function's output number ",
