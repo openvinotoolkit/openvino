@@ -246,7 +246,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevices = FilterDevice(metaDevices, filterConfig);
         if (supportDevices.size() == 0) {
-             IE_THROW() << "there is no device support the configure";
+             IE_THROW() << "There is no device support the configure";
         }
         // replace the configure with configure that auto want to pass to device
         // and reset the strDevices to support devices
