@@ -339,8 +339,6 @@ cdef class IECore:
         else:
             weights_ = "".encode()
             model = os.fspath(model)
-            if not os.path.isfile(model):
-                raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
             model_ = model.encode()
 
             if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")) and weights:
