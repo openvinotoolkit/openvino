@@ -3,12 +3,13 @@
 
 import os
 import tempfile
+import ngraph as ng
 from copy import deepcopy
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.inference_engine import IECore  # pylint: disable=E0611
-from openvino.offline_transformations import ApplyPOTTransformations  # pylint: disable=import-error,no-name-in-module
+from openvino.offline_transformations_pybind import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
 
 from ..graph.passes import ModelPreprocessor, remove_converts, add_removed_converts
 from ..utils.logger import stdout_redirect
@@ -29,7 +30,7 @@ def load_graph(model_config, target_device='ANY'):
 
     if target_device in special_transform_devices:
         network = ie.read_network(model=xml_path, weights=bin_path)
-        ApplyPOTTransformations(network, target_device.encode('utf-8'))
+        apply_pot_transformations(ng.function_from_cnn(network), target_device.encode('utf-8'))
         bin_path = serialized_bin_path
         xml_path = serialized_xml_path
         network.serialize(xml_path, bin_path)
