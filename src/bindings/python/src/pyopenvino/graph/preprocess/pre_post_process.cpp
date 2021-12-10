@@ -7,7 +7,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "pyopenvino/core/common.hpp"
@@ -390,7 +390,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         "PrePostProcessor");
     proc.doc() = "openvino.runtime.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
-    proc.def(py::init<const std::shared_ptr<ov::Function>&>());
+    proc.def(py::init<const std::shared_ptr<ov::Model>&>());
 
     proc.def("input", [](ov::preprocess::PrePostProcessor& me) {
         return &me.input();

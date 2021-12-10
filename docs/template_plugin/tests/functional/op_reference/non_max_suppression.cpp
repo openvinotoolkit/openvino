@@ -71,7 +71,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const NonMaxSuppressionParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const NonMaxSuppressionParams& params) {
         const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, params.boxes.shape);
         const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, params.scores.shape);
         const auto max_output_boxes_per_class = std::make_shared<op::v0::Constant>(
@@ -90,7 +90,7 @@ private:
                                                                      soft_nms_sigma,
                                                                      params.boxEncoding,
                                                                      false);
-        const auto f = std::make_shared<Function>(nms->outputs(), ParameterVector{boxes, scores});
+        const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
 };
@@ -129,7 +129,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const NonMaxSuppressionParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const NonMaxSuppressionParams& params) {
         const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, params.boxes.shape);
         const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, params.scores.shape);
         const auto max_output_boxes_per_class = std::make_shared<op::v0::Parameter>(
@@ -148,7 +148,7 @@ private:
                                                                      soft_nms_sigma,
                                                                      params.boxEncoding,
                                                                      false);
-        const auto f = std::make_shared<Function>(nms->outputs(),
+        const auto f = std::make_shared<Model>(nms->outputs(),
                                                   ParameterVector{boxes, scores, max_output_boxes_per_class,
                                                                   iou_threshold, score_threshold, soft_nms_sigma});
         return f;

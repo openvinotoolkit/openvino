@@ -21,5 +21,5 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
 class ngraph::pass::low_precision::MarkupCanBeQuantized : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

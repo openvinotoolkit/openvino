@@ -58,21 +58,21 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const TransposeParams& params) {
-        std::shared_ptr<Function> function;
+    static std::shared_ptr<Model> CreateFunction(const TransposeParams& params) {
+        std::shared_ptr<Model> function;
         if (params.dynamicDataShape.is_static()) {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
             const auto axis = std::make_shared<op::v0::Constant>(params.axisTensor.type, params.axisTensor.shape,
                                                                  params.axisTensor.data.data());
             const auto axisI64 = std::make_shared<op::v0::Convert>(axis, element::i64);
             const auto transpose = std::make_shared<op::v1::Transpose>(data, axisI64);
-            function = std::make_shared<ov::Function>(NodeVector {transpose}, ParameterVector {data});
+            function = std::make_shared<ov::Model>(NodeVector {transpose}, ParameterVector {data});
         } else {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
             const auto axis = std::make_shared<op::v0::Parameter>(params.axisTensor.type, PartialShape{Dimension::dynamic()});
             const auto axisI64 = std::make_shared<op::v0::Convert>(axis, element::i64);
             const auto transpose = std::make_shared<op::v1::Transpose>(data, axisI64);
-            function = std::make_shared<ov::Function>(NodeVector {transpose}, ParameterVector {data, axis});
+            function = std::make_shared<ov::Model>(NodeVector {transpose}, ParameterVector {data, axis});
         }
         return function;
     }

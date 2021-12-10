@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const Shape& expected_shape,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_type,
@@ -101,12 +101,12 @@ private:
                                                     const op::AutoBroadcastSpec& broadcast) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         if (broadcast == op::AutoBroadcastType::NONE) {
-            return std::make_shared<Function>(
+            return std::make_shared<Model>(
                 NodeVector{std::make_shared<op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels)},
                 ParameterVector{in});
 
         } else {
-            return std::make_shared<Function>(
+            return std::make_shared<Model>(
                 NodeVector{std::make_shared<op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels, broadcast)},
                 ParameterVector{in});
         }

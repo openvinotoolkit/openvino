@@ -90,7 +90,7 @@
 //        }
 //
 //        ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(gatherNode) };
-//        function = std::make_shared<ov::Function>(results, functionParams, "Gather");
+//        function = std::make_shared<ov::Model>(results, functionParams, "Gather");
 //    }
 //
 //    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const override {

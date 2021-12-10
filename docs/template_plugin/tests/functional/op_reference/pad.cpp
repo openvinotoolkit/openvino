@@ -67,7 +67,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PadParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
                                                               params.inputData.shape);
         const auto padsBegin = op::v0::Constant::create(params.padsBegin.type,
@@ -82,7 +82,7 @@ private:
                 const auto padVal = op::v0::Constant::create(params.constantValue.type,
                                                              params.constantValue.shape,
                                                              params.constantValue.data.data());
-                return std::make_shared<Function>(std::make_shared<op::v1::Pad>(data,
+                return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
                                                                                 padsBegin,
                                                                                 padsEnd,
                                                                                 padVal,
@@ -90,7 +90,7 @@ private:
                                                   ParameterVector{data});
             }
 
-            return std::make_shared<Function>(std::make_shared<op::v1::Pad>(data,
+            return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
                                                                             padsBegin,
                                                                             padsEnd,
                                                                             params.padMode),
@@ -130,7 +130,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PadParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
                                                               params.inputData.shape);
         const auto padsBegin = std::make_shared<op::v0::Parameter>(params.padsBegin.type,
@@ -142,7 +142,7 @@ private:
                 // pad_value should be used only in CONSTANT mode
                 const auto padVal = std::make_shared<op::v0::Parameter>(params.constantValue.type,
                                                                         params.constantValue.shape);
-                return std::make_shared<Function>(std::make_shared<op::v1::Pad>(data,
+                return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
                                                                                 padsBegin,
                                                                                 padsEnd,
                                                                                 padVal,
@@ -150,7 +150,7 @@ private:
                                                   ParameterVector{data, padsBegin, padsEnd, padVal});
             }
 
-            return std::make_shared<Function>(std::make_shared<op::v1::Pad>(data,
+            return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
                                                                             padsBegin,
                                                                             padsEnd,
                                                                             params.padMode),

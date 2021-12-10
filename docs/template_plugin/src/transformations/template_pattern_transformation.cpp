@@ -143,7 +143,7 @@ void run_matcher_with_gr(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::GraphRewrite pass;
     pass.add_matcher<ngraph::pass::DecomposeDivideMatcher>();
     pass.add_matcher<ngraph::pass::ReluReluFusionMatcher>();
-    pass.run_on_function(f);
+    pass.run_on_model(f);
     // ! [matcher_pass:graph_rewrite]
 }
 

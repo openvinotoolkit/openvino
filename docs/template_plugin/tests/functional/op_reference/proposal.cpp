@@ -178,12 +178,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ProposalV1Params& params) {
+    static std::shared_ptr<Model> CreateFunction(const ProposalV1Params& params) {
         const auto class_probs_param = std::make_shared<op::v0::Parameter>(params.inType, params.clsScoreShape);
         const auto bbox_deltas_param = std::make_shared<op::v0::Parameter>(params.inType, params.bboxPredShape);
         const auto image_shape_param = std::make_shared<op::v0::Parameter>(params.inType, params.imageShapeShape);
         const auto Proposal = std::make_shared<op::v0::Proposal>(class_probs_param, bbox_deltas_param, image_shape_param, params.attrs);
-        return std::make_shared<ov::Function>(NodeVector {Proposal}, ParameterVector {class_probs_param, bbox_deltas_param, image_shape_param});
+        return std::make_shared<ov::Model>(NodeVector {Proposal}, ParameterVector {class_probs_param, bbox_deltas_param, image_shape_param});
     }
 };
 
@@ -213,12 +213,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ProposalV4Params& params) {
+    static std::shared_ptr<Model> CreateFunction(const ProposalV4Params& params) {
         const auto class_probs_param = std::make_shared<op::v0::Parameter>(params.inType, params.clsScoreShape);
         const auto bbox_deltas_param = std::make_shared<op::v0::Parameter>(params.inType, params.bboxPredShape);
         const auto image_shape_param = std::make_shared<op::v0::Parameter>(params.inType, params.imageShapeShape);
         const auto Proposal = std::make_shared<op::v4::Proposal>(class_probs_param, bbox_deltas_param, image_shape_param, params.attrs);
-        return std::make_shared<ov::Function>(Proposal->outputs(), ParameterVector {class_probs_param, bbox_deltas_param, image_shape_param});
+        return std::make_shared<ov::Model>(Proposal->outputs(), ParameterVector {class_probs_param, bbox_deltas_param, image_shape_param});
     }
 };
 

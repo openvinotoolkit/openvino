@@ -1,13 +1,13 @@
 #include <ie_core.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/pass/visualize_tree.hpp>
 
 int main() {
 using namespace InferenceEngine;
 //! [part0]
-std::shared_ptr<ngraph::Function> nGraph;
+std::shared_ptr<ov::Model> model;
 // ...
-ngraph::pass::VisualizeTree("after.png").run_on_function(nGraph);     // Visualize the nGraph function to an image
+ov::pass::VisualizeTree("after.png").run_on_model(model);     // Visualize the nGraph function to an image
 //! [part0]
 return 0;
 }

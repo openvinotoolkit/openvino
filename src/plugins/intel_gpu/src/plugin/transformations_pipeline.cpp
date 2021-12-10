@@ -103,7 +103,7 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
+void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 

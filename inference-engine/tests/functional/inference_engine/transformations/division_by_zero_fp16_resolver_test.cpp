@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPattern) {
         auto add = std::make_shared<opset4::Add>(input_2, eps_const);
         auto divide = std::make_shared<opset4::Divide>(input_1, add);
 
-        function = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
+        function = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
 
         manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPattern) {
         auto add = std::make_shared<opset4::Add>(input_2, eps_const);
         auto divide = std::make_shared<opset4::Divide>(input_1, add);
 
-        function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
+        function_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, PowWithNegativeExponent) {
         auto pow = std::make_shared<opset4::Power>(add, pow_exp_const);
         auto mul = std::make_shared<opset4::Multiply>(input_1, pow);
 
-        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
+        function = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
 
         manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, PowWithNegativeExponent) {
         auto pow = std::make_shared<opset4::Power>(add, pow_exp_const);
         auto mul = std::make_shared<opset4::Multiply>(input_1, pow);
 
-        function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
+        function_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, PowWithPositiveExponent) {
         auto pow = std::make_shared<opset4::Power>(add, pow_exp_const);
         auto mul = std::make_shared<opset4::Multiply>(input_1, pow);
 
-        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
+        function = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
 
         manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
@@ -104,7 +104,7 @@ TEST_F(TransformationTestsF, PowWithPositiveExponent) {
         auto pow = std::make_shared<opset4::Power>(add, pow_exp_const);
         auto mul = std::make_shared<opset4::Multiply>(input_1, pow);
 
-        function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
+        function_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -120,7 +120,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPatternUnchanged) {
         auto add = std::make_shared<opset4::Add>(input_2, eps_const);
         auto divide = std::make_shared<opset4::Divide>(input_1, add);
 
-        function = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
+        function = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
 
         manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
@@ -132,7 +132,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPatternUnchanged) {
         auto add = std::make_shared<opset4::Add>(input_2, eps_const);
         auto divide = std::make_shared<opset4::Divide>(input_1, add);
 
-        function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
+        function_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -151,7 +151,7 @@ TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithMax) {
         auto sqrt = std::make_shared<opset4::Sqrt>(max);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        function = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
+        function = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
 
         manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
@@ -167,7 +167,7 @@ TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithMax) {
         auto sqrt = std::make_shared<opset4::Sqrt>(max);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
+        function_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -187,7 +187,7 @@ TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
         auto sqrt = std::make_shared<opset4::Sqrt>(add);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        function = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
+        function = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
 
         manager.register_pass<pass::DivisionByZeroFP16Resolver>();
     }
@@ -203,7 +203,7 @@ TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
         auto sqrt = std::make_shared<opset4::Sqrt>(add);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
+        function_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);

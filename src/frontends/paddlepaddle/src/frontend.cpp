@@ -134,7 +134,7 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
 }  // namespace
 }  // namespace pdpd
 
-std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
+std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_each_node(
     const std::shared_ptr<InputModelPDPD>& model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                       const std::shared_ptr<OpPlacePDPD>&)> func) {
@@ -201,7 +201,7 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
         result_nodes.push_back(result);
     }
 
-    return std::make_shared<ov::Function>(result_nodes, parameter_nodes);
+    return std::make_shared<ov::Model>(result_nodes, parameter_nodes);
 }
 
 bool FrontEndPDPD::supported_impl(const std::vector<ov::Any>& variants) const {
@@ -276,7 +276,7 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<ov::Any>& variants) co
     PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");
 }
 
-std::shared_ptr<ov::Function> FrontEndPDPD::convert(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::convert(InputModel::Ptr model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(
@@ -287,7 +287,7 @@ std::shared_ptr<ov::Function> FrontEndPDPD::convert(InputModel::Ptr model) const
     return f;
 }
 
-void FrontEndPDPD::convert(std::shared_ptr<ov::Function> partiallyConverted) const {
+void FrontEndPDPD::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<PDPDFrameworkNode>(node)) {
             pdpd::normalize_framework_node(std::dynamic_pointer_cast<PDPDFrameworkNode>(node),
@@ -299,7 +299,7 @@ void FrontEndPDPD::convert(std::shared_ptr<ov::Function> partiallyConverted) con
     }
 }
 
-std::shared_ptr<ov::Function> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(
@@ -316,7 +316,7 @@ std::shared_ptr<ov::Function> FrontEndPDPD::convert_partially(InputModel::Ptr mo
     return f;
 }
 
-std::shared_ptr<ov::Function> FrontEndPDPD::decode(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::decode(InputModel::Ptr model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);

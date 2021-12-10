@@ -73,7 +73,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const LSTMCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
         const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
         const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
@@ -90,7 +90,7 @@ private:
                                                op::util::convert_lstm_node_format(B, op::util::LSTMWeightsFormat::IOFC),
                                                params.hiddenSize);
 
-        auto function = std::make_shared<Function>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B});
+        auto function = std::make_shared<Model>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B});
         return function;
     }
 };
@@ -106,7 +106,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const LSTMCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
         const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
         const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
@@ -123,7 +123,7 @@ private:
                                                op::util::convert_lstm_node_format(B, op::util::LSTMWeightsFormat::IOFC),
                                                params.hiddenSize);
 
-        auto function = std::make_shared<Function>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B});
+        auto function = std::make_shared<Model>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B});
         return function;
     }
 };
@@ -139,7 +139,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const LSTMCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
         const float clip_threshold = 3.5f;
 
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
@@ -162,7 +162,7 @@ private:
                                                std::vector<float>{},
                                                clip_threshold);
 
-        auto function = std::make_shared<Function>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B});
+        auto function = std::make_shared<Model>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B});
         return function;
     }
 };

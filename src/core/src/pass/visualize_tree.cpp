@@ -178,7 +178,7 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
     return ss.str();
 }
 
-bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     unordered_map<Node*, HeightMap> height_maps;
 
     for (auto& node : f->get_ops()) {

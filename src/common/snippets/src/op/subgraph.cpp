@@ -211,7 +211,7 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     opt.run_passes(m_body);
 
     // generation flow
-    snippets::pass::AssignRegisters().run_on_function(m_body);
+    snippets::pass::AssignRegisters().run_on_model(m_body);
 
     // shedule generation should go here and be target agnostic
 
@@ -349,7 +349,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
 void snippets::op::Subgraph::serialize() const {
     std::stringstream xmlFile, binFile;
     ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
-    serializer.run_on_function(get_body());
+    serializer.run_on_model(get_body());
     auto m_constants = binFile.str();
     auto m_model = xmlFile.str();
     std::cout << m_model << std::endl;

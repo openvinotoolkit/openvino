@@ -77,7 +77,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type_t& input_type,
                                                     const float epsilon) {
         Shape channel_shape{input_shape.at(1)};
@@ -88,7 +88,7 @@ private:
         auto variance = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
         auto batch_norm = std::make_shared<op::v0::BatchNormInference>(in, gamma, beta, mean, variance, epsilon);
 
-        return std::make_shared<ov::Function>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
+        return std::make_shared<ov::Model>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
     }
 };
 
@@ -102,7 +102,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type_t& input_type,
                                                     const float epsilon) {
         Shape channel_shape{input_shape.at(1)};
@@ -113,7 +113,7 @@ private:
         auto variance = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
         auto batch_norm = std::make_shared<op::v5::BatchNormInference>(in, gamma, beta, mean, variance, epsilon);
 
-        return std::make_shared<ov::Function>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
+        return std::make_shared<ov::Model>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
     }
 };
 

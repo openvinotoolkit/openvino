@@ -12,7 +12,7 @@ namespace pass {
 class BACKEND_API ShapeRelevance : public FunctionPass {
 public:
     ShapeRelevance() : FunctionPass() {}
-    virtual bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 }  // namespace pass
 }  // namespace ngraph

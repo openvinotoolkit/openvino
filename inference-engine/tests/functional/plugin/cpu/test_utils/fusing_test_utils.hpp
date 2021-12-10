@@ -64,10 +64,10 @@ protected:
                                               ngraph::ParameterVector &params,
                                               const std::shared_ptr<ngraph::Node> &lastNode) override;
 
-    void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const override;
+    void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const override;
 
 private:
-    void CheckFusingResults(std::shared_ptr<const ov::Function> function, std::string nodeType) const;
+    void CheckFusingResults(std::shared_ptr<const ov::Model> function, std::string nodeType) const;
 
 protected:
     std::shared_ptr<postOpMgr> postOpMgrPtr;

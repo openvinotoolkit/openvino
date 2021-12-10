@@ -87,7 +87,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type& input_type,
                                                     const Strides& strides,
                                                     const Shape& pads_begin,
@@ -105,7 +105,7 @@ private:
                                                                exclude_pad,
                                                                rounding_type,
                                                                pad_type);
-        return std::make_shared<Function>(NodeVector{avgPool}, ParameterVector{in});
+        return std::make_shared<Model>(NodeVector{avgPool}, ParameterVector{in});
     }
 };
 

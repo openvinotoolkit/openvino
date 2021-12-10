@@ -100,7 +100,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
-bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);

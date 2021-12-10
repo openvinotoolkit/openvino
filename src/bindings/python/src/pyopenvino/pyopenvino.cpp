@@ -103,7 +103,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     py::module m_preprocess =
         m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
-    regclass_graph_Function(m);
+    regclass_graph_Model(m);
     regmodule_graph_passes(m);
     regmodule_graph_util(m);
     regmodule_graph_layout_helpers(m);

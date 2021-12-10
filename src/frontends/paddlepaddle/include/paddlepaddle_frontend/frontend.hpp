@@ -19,28 +19,28 @@ public:
     FrontEndPDPD() = default;
 
     /// \brief Completely convert the remaining, not converted part of a function.
-    /// \param partiallyConverted partially converted OV function
-    /// \return fully converted OV function
-    std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
+    /// \param partiallyConverted partially converted OV Model
+    /// \return fully converted OV Model
+    std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override;
 
     /// \brief Completely convert the remaining, not converted part of a function.
-    /// \param partiallyConverted partially converted OV function
-    void convert(std::shared_ptr<Function> partiallyConverted) const override;
+    /// \param partiallyConverted partially converted OV Model
+    void convert(std::shared_ptr<Model> partiallyConverted) const override;
 
     /// \brief Convert only those parts of the model that can be converted leaving others
     /// as-is. Converted parts are not normalized by additional transformations; normalize
     /// function or another form of convert function should be called to finalize the
     /// conversion process.
     /// \param model Input model
-    /// \return partially converted OV function
-    std::shared_ptr<Function> convert_partially(InputModel::Ptr model) const override;
+    /// \return partially converted OV Model
+    std::shared_ptr<Model> convert_partially(InputModel::Ptr model) const override;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
     /// Each decoding node is an OV node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
-    /// \return OV function after decoding
-    std::shared_ptr<Function> decode(InputModel::Ptr model) const override;
+    /// \return OV Model after decoding
+    std::shared_ptr<Model> decode(InputModel::Ptr model) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model
@@ -65,7 +65,7 @@ protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 private:
-    static std::shared_ptr<Function> convert_each_node(
+    static std::shared_ptr<Model> convert_each_node(
         const std::shared_ptr<InputModelPDPD>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlacePDPD>&)> func);

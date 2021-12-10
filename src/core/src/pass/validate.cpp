@@ -5,11 +5,8 @@
 #include "openvino/pass/validate.hpp"
 
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
 
-using namespace ngraph;
-
-bool ov::pass::Validate::run_on_function(std::shared_ptr<Function> f) {
-    f->validate_nodes_and_infer_types();
+bool ov::pass::Validate::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    m->validate_nodes_and_infer_types();
     return false;
 }

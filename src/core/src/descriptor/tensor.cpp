@@ -4,7 +4,6 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
-#include "atomic_guard.hpp"
 #include "ngraph/node.hpp"
 
 using namespace std;

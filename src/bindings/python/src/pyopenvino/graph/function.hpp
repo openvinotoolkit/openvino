@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_graph_Function(py::module m);
+void regclass_graph_Model(py::module m);

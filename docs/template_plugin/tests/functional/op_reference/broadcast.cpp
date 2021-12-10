@@ -52,9 +52,9 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParams& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto f = std::make_shared<Function>(
+        const auto f = std::make_shared<Model>(
             std::make_shared<opset1::Broadcast>(A, opset1::Constant::create(params.targetShapeTensor.type,
                                                                             params.targetShapeTensor.shape,
                                                                             params.targetShapeTensor.data.data())),
@@ -69,9 +69,9 @@ TEST_P(ReferenceBroadcastTest, CompareWithRefs) {
 
 class ReferenceBroadcastTestV3 : public ReferenceBroadcastTest {
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParams& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto f = std::make_shared<Function>(
+        const auto f = std::make_shared<Model>(
             std::make_shared<opset3::Broadcast>(A, opset1::Constant::create(params.targetShapeTensor.type,
                                                                             params.targetShapeTensor.shape,
                                                                             params.targetShapeTensor.data.data())),
@@ -123,9 +123,9 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParamsExplicitAxis& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParamsExplicitAxis& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto f = std::make_shared<Function>(
+        const auto f = std::make_shared<Model>(
             std::make_shared<opset1::Broadcast>(A,
                                                 opset1::Constant::create(params.targetShapeTensor.type,
                                                                          params.targetShapeTensor.shape,
@@ -191,7 +191,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParamsTestHelper& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParamsTestHelper& params) {
         const auto A = std::make_shared<opset1::Parameter>(element::f32, params.shapeA);
         const auto shape_const = opset1::Constant::create(element::u64, Shape{params.shapeR.size()}, params.shapeR);
         std::shared_ptr<Node> broadcast;
@@ -201,7 +201,7 @@ private:
         } else {
             broadcast = std::make_shared<opset1::Broadcast>(A, shape_const);
         }
-        auto f = std::make_shared<Function>(broadcast, ParameterVector{A});
+        auto f = std::make_shared<Model>(broadcast, ParameterVector{A});
         return f;
     }
 
@@ -226,7 +226,7 @@ TEST_P(ReferenceBroadcastTestTestHelper, CompareWithRefs) {
 
 class ReferenceBroadcastTestExplicitAxisReversed : public ReferenceBroadcastTestExplicitAxis {
 private:
-    static std::shared_ptr<Function> CreateFunction(const BroadcastParamsExplicitAxis& params) {
+    static std::shared_ptr<Model> CreateFunction(const BroadcastParamsExplicitAxis& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         auto broadcast = std::make_shared<opset1::Broadcast>(
             A,
@@ -239,7 +239,7 @@ private:
         auto reverse = std::make_shared<opset1::Reverse>(broadcast,
                                                          opset1::Constant::create(element::i64, {1}, {1}),
                                                          opset1::Reverse::Mode::INDEX);
-        auto f = std::make_shared<Function>(NodeVector{reverse}, ParameterVector{A});
+        auto f = std::make_shared<Model>(NodeVector{reverse}, ParameterVector{A});
         return f;
     }
 };

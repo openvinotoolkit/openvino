@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/function.hpp>
+#include <openvino/core/model.hpp>
 #include <string>
 #include <utility>
 
@@ -28,11 +28,11 @@ protected:
 
 }  // namespace test
 
-class FunctionAccessor {
-    std::weak_ptr<Function> m_function;
+class ModelAccessor {
+    std::weak_ptr<Model> m_function;
 
 public:
-    FunctionAccessor(std::weak_ptr<Function> f) : m_function(std::move(f)) {}
+    ModelAccessor(std::weak_ptr<Model> f) : m_function(std::move(f)) {}
 
     std::shared_ptr<SharedRTInfo> get_shared_info() const;
 };

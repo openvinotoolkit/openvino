@@ -18,7 +18,7 @@ public:
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted nGraph function
     /// \return fully converted nGraph function
-    std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
+    std::shared_ptr<Model> convert(InputModel::Ptr model) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model

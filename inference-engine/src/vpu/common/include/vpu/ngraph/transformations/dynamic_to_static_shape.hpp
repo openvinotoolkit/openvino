@@ -17,10 +17,10 @@ class DynamicToStaticShape: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     explicit DynamicToStaticShape(const Transformations& specificTransformations = {});
-    bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
     // Keep this method for backward compatibility with other plugins
-    void transform(std::shared_ptr<ngraph::Function> function) { run_on_function(std::move(function)); }
+    void transform(std::shared_ptr<ngraph::Function> function) { run_on_model(function); }
 private:
     Transformations transformations;
 };

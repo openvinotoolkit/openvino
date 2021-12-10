@@ -110,13 +110,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PriorBoxParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const PriorBoxParams& params) {
         auto LS =
             std::make_shared<op::v0::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
         auto IS =
             std::make_shared<op::v0::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBox = std::make_shared<op::v0::PriorBox>(LS, IS, params.attrs);
-        return std::make_shared<ov::Function>(NodeVector{PriorBox}, ParameterVector{});
+        return std::make_shared<ov::Model>(NodeVector{PriorBox}, ParameterVector{});
     }
 };
 
@@ -141,13 +141,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PriorBoxV8Params& params) {
+    static std::shared_ptr<Model> CreateFunction(const PriorBoxV8Params& params) {
         auto LS =
             std::make_shared<op::v0::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
         auto IS =
             std::make_shared<op::v0::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBoxV8 = std::make_shared<op::v8::PriorBox>(LS, IS, params.attrs);
-        return std::make_shared<ov::Function>(NodeVector{PriorBoxV8}, ParameterVector{});
+        return std::make_shared<ov::Model>(NodeVector{PriorBoxV8}, ParameterVector{});
     }
 };
 

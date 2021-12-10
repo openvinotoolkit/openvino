@@ -7,6 +7,7 @@
 #    include <cxxabi.h>
 #endif
 
+#include "atomic_guard.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -44,11 +45,43 @@ void ov::pass::PassBase::set_callback(const param_callback& callback) {
     m_pass_config->set_callback(callback);
 }
 
+namespace {
+class RunLocker {
+public:
+    RunLocker(bool& flag) : m_flag(flag) {
+        OPENVINO_ASSERT(m_flag == false,
+                        "Cycle detected. run_on_model() or run_on_function() method should be overridden.");
+        m_flag = true;
+    }
+    ~RunLocker() {
+        m_flag = false;
+    }
+
+private:
+    bool& m_flag;
+};
+}  // namespace
+
 // The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM
 
-ov::pass::FunctionPass::~FunctionPass() = default;
+ov::pass::ModelPass::~ModelPass() = default;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
+
+bool ov::pass::ModelPass::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RunLocker locked(call_on_model);
+    OPENVINO_ASSERT(!call_on_function,
+                    "Cycle detected. run_on_model() or run_on_function() method should be overridden.");
+    bool sts = run_on_function(m);
+    return sts;
+}
+
+bool ov::pass::ModelPass::run_on_function(std::shared_ptr<ov::Model> m) {
+    RunLocker locked(call_on_function);
+    OPENVINO_ASSERT(!call_on_model, "Cycle detected. run_on_model() or run_on_function() method should be overridden.");
+    bool sts = run_on_model(m);
+    return sts;
+}
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass", 0);
 

@@ -89,7 +89,7 @@ namespace ngraph {
 ///       which a Constant node with element type parameter_element_types[i] and shape
 ///       parameter_shapes[i] can be created.
 ///
-NGRAPH_DEPRECATED("This function was deprecated. Please modify the original ov::Function instead.")
+NGRAPH_DEPRECATED("This function was deprecated. Please modify the original ov::Model instead.")
 NGRAPH_API
 std::shared_ptr<Function> specialize_function(std::shared_ptr<Function> f,
                                               const std::vector<element::Type>& parameter_element_types,

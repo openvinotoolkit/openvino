@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 
 from ..conftest import model_path, read_image
-from openvino.runtime import Function, ConstOutput, Shape
+from openvino.runtime import Model, ConstOutput, Shape
 
 from openvino.runtime import Core, Tensor
 
@@ -33,12 +33,12 @@ def test_get_config(device):
     assert config == "NO"
 
 
-def test_get_runtime_function(device):
+def test_get_runtime_model(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    runtime_func = exec_net.get_runtime_function()
-    assert isinstance(runtime_func, Function)
+    runtime_func = exec_net.get_runtime_model()
+    assert isinstance(runtime_func, Model)
 
 
 @pytest.mark.skip(reason="After infer will be implemented")

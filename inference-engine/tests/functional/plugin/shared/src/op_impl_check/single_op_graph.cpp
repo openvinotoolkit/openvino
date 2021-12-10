@@ -10,11 +10,11 @@ namespace test {
 namespace subgraph {
 
 namespace {
-std::shared_ptr<ov::Function> generate(const std::shared_ptr<ov::op::Op> &node) {
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::Op> &node) {
     return nullptr;
 }
 
-std::shared_ptr<ov::Function> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
+std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::Op> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 2},
                                                                               {1, 2}});
     std::shared_ptr<ov::Node> eltwiseNode;
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Function> generateBinaryEltwise(const std::shared_ptr<ov::op
 } // namespace
 
 template <typename T>
-std::shared_ptr<ov::Function> generateGraph() {
+std::shared_ptr<ov::Model> generateGraph() {
         std::shared_ptr<T> node = std::shared_ptr<T>(new T);
     if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node)) {
         return generateBinaryEltwise(node);

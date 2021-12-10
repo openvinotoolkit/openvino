@@ -36,7 +36,7 @@ CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::Param
     return retNode;
 }
 
-void CpuTestWithFusing::CheckFusingResults(std::shared_ptr<const ov::Function> function, std::string nodeType) const {
+void CpuTestWithFusing::CheckFusingResults(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
     ASSERT_NE(nullptr, function);
     bool isNodeFound = false;
     for (const auto & op : function->get_ops()) {
@@ -64,7 +64,7 @@ void CpuTestWithFusing::CheckFusingResults(std::shared_ptr<const ov::Function> f
     ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
 }
 
-void CpuTestWithFusing::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const {
+void CpuTestWithFusing::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
     CPUTestsBase::CheckPluginRelatedResultsImpl(function, nodeType);
     CheckFusingResults(function, nodeType);
 }

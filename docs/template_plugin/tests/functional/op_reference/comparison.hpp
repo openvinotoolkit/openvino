@@ -46,13 +46,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Function> CreateFunction(ngraph::helpers::ComparisonTypes comp_op_type, const ov::PartialShape& input_shape1,
+    static std::shared_ptr<ov::Model> CreateFunction(ngraph::helpers::ComparisonTypes comp_op_type, const ov::PartialShape& input_shape1,
                                                             const ov::PartialShape& input_shape2, const ov::element::Type& input_type,
                                                             const ov::element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto comp = ngraph::builder::makeComparison(in, in2, comp_op_type);
-        return std::make_shared<ov::Function>(ov::NodeVector {comp}, ov::ParameterVector {in, in2});
+        return std::make_shared<ov::Model>(ov::NodeVector {comp}, ov::ParameterVector {in, in2});
     }
 };
 }  // namespace ComparisonOpsRefTestDefinitions

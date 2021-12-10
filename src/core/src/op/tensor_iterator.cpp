@@ -224,12 +224,12 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
 
     op->m_num_iterations = m_num_iterations;
     auto func =
-        std::make_shared<Function>(m_bodies[0]->get_results(), m_bodies[0]->get_sinks(), m_bodies[0]->get_parameters());
+        std::make_shared<Model>(m_bodies[0]->get_results(), m_bodies[0]->get_sinks(), m_bodies[0]->get_parameters());
     NGRAPH_SUPPRESS_DEPRECATED_START;
     auto spec_func = specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
     NGRAPH_SUPPRESS_DEPRECATED_END;
     op->m_bodies[0] =
-        std::make_shared<Function>(spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
+        std::make_shared<Model>(spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(input_description->copy());

@@ -38,9 +38,9 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI32) {
     auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -55,9 +55,9 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI64) {
     auto A = ov::opset8::Constant::create(ov::element::i64, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ov::opset8::Constant::create(ov::element::i64, shape, {1, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -72,9 +72,9 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP16) {
     auto A = ov::opset8::Constant::create(ov::element::f16, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ov::opset8::Constant::create(ov::element::f16, shape, {1, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -89,9 +89,9 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP32) {
     auto A = ov::opset8::Constant::create(ov::element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ov::opset8::Constant::create(ov::element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -107,9 +107,9 @@ TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstantsI64) {
     auto A = ov::opset8::Constant::create(ov::element::i64, shape, {2, 2});
     auto B = ov::opset8::Constant::create(ov::element::i64, shape, {0, 128});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -126,9 +126,9 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwo) {
     auto C = ov::opset8::Constant::create(ov::element::i32, shape, {0, 3, 1, 2, 5, 6, 25, 3});
     auto D = ov::opset8::Constant::create(ov::element::i32, shape, {0, 3, 1, 2, 5, 6, 25, 3});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B, C, D}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B, C, D}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -147,9 +147,9 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOc
     auto E = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto F = ov::opset8::Constant::create(ov::element::i32, shape, {0, 3, 1, 2, 5, 6, 25, 3});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B, C, D, E, F}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B, C, D, E, F}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -164,9 +164,9 @@ TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstants) {
     auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto B = ov::opset8::Constant::create(ov::element::i32, shape, {2, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -181,9 +181,9 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I
     auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 0, 2, 0, 3, 0, 4, 0});
     auto B = ov::opset8::Constant::create(ov::element::i64, ov::Shape({1, 2, 2}), {1, 2, 3, 4});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
@@ -198,9 +198,9 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I
     auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2});
     auto B = ov::opset8::Constant::create(ov::element::i8, ov::Shape({1, 2, 4}), {1, 0, 0, 0, 2, 0, 0, 0});
 
-    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);

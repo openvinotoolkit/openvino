@@ -225,7 +225,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<ov::Any>& variants) cons
     return create_input_model();
 }
 
-std::shared_ptr<ov::Function> FrontEndIR::convert(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndIR::convert(InputModel::Ptr model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModelIR>(model);
     OPENVINO_ASSERT(ir_model != nullptr);
     return ir_model->convert();

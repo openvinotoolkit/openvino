@@ -11,7 +11,7 @@ import numpy as np
 
 from openvino.preprocess import PrePostProcessor        # pylint: disable=no-name-in-module,import-error
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Function, Layout, PartialShape, layout_helpers
+from openvino.runtime import Model, Layout, PartialShape, layout_helpers
 
 
 def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
@@ -59,7 +59,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
-def check_keys_valid(ov_function: Function, keys: list, search_outputs: bool):
+def check_keys_valid(ov_function: Model, keys: list, search_outputs: bool):
     """
     Internal function: checks if keys from cmd line arguments correspond to ov_function's inputs/outputs
     Throws if some key is not found
@@ -88,7 +88,7 @@ def check_keys_valid(ov_function: Function, keys: list, search_outputs: bool):
                 raise Error('Input/Output with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
 
 
-def update_layout_is_input_flag(ov_function: Function, layout_values: dict):
+def update_layout_is_input_flag(ov_function: Model, layout_values: dict):
     """
     Internal function: updates layout_values with flag whether each layout belongs to input or to output
     """
@@ -162,7 +162,7 @@ def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, l
     return layout_values
 
 
-def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mean_scale_values: dict):
+def guess_source_layouts_by_mean_scale(ov_function: Model, layout_values, mean_scale_values: dict):
     """
     Internal function. Try to guess source layout for input by its shape and/or framework
     :param: ov_function Original model
@@ -241,7 +241,7 @@ def check_suitable_for_reverse(layout: Layout, ov_input):
     return c_num.is_dynamic or c_num.get_length() == 3
 
 
-def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_values):
+def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values):
     """
     Internal function. Try to guess source layout for input by finding dimension with size=3 (RGB/BGR)
     Additionally checks existing layouts and detects suitable inputs for reversing of input channels
@@ -297,7 +297,7 @@ def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_valu
     return suitable_params
 
 
-def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
+def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     """
     Applies pre-processing of model inputs by adding appropriate operations
     On return, 'ov_function' object will be updated

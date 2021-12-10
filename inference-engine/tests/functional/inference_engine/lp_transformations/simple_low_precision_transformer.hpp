@@ -26,7 +26,7 @@ public:
     }
 
     void transform(std::shared_ptr<ngraph::Function>& function);
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
     std::shared_ptr<ngraph::pass::Manager> markup;
     std::shared_ptr<ngraph::pass::Manager> common;

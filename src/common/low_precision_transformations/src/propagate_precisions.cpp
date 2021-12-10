@@ -17,7 +17,7 @@ using namespace ngraph::pass::low_precision;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PropagatePrecisions, "PropagatePrecisions", 0);
 
-bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::PropagatePrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();

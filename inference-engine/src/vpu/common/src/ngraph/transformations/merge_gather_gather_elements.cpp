@@ -20,7 +20,7 @@ NGRAPH_RTTI_DEFINITION(vpu::MergeGatherGatherElements, "MergeGatherGatherElement
 
 namespace vpu {
 
-bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool MergeGatherGatherElements::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     bool wasGraphChanged = false;
 
     const auto gatherData = ngraph::pattern::any_input();

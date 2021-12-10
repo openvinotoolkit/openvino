@@ -69,7 +69,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GRUCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GRUCellParams& params) {
         float clip = 2.88f;
 
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
@@ -90,7 +90,7 @@ private:
                                                                 clip,
                                                                 params.linearBeforeReset);
 
-        auto function = std::make_shared<Function>(NodeVector{gru_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(NodeVector{gru_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
@@ -107,7 +107,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GRUCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GRUCellParams& params) {
         float clip = 2.88f;
 
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
@@ -128,7 +128,7 @@ private:
                                                                 clip,
                                                                 params.linearBeforeReset);
 
-        auto function = std::make_shared<Function>(NodeVector{gru_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(NodeVector{gru_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };

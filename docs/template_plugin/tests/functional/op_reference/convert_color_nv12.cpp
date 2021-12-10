@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/core/function.hpp>
+#include <openvino/core/model.hpp>
 #include <tuple>
 #include <openvino/op/nv12_to_rgb.hpp>
 #include <openvino/op/nv12_to_bgr.hpp>
@@ -26,22 +26,22 @@ public:
 
 public:
     template <typename T>
-    static std::shared_ptr<Function> CreateFunction(const Tensor& input) {
+    static std::shared_ptr<Model> CreateFunction(const Tensor& input) {
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
         std::shared_ptr<Node> conv;
         conv = std::make_shared<T>(in);
         auto res = std::make_shared<op::v0::Result>(conv);
-        return std::make_shared<Function>(ResultVector{res}, ParameterVector {in});
+        return std::make_shared<Model>(ResultVector{res}, ParameterVector {in});
     }
 
     template <typename T>
-    static std::shared_ptr<Function> CreateFunction2(const Tensor& input1, const Tensor& input2) {
+    static std::shared_ptr<Model> CreateFunction2(const Tensor& input1, const Tensor& input2) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input1.type, input1.shape);
         const auto in2 = std::make_shared<op::v0::Parameter>(input2.type, input2.shape);
         std::shared_ptr<Node> conv;
         conv = std::make_shared<T>(in1, in2);
         auto res = std::make_shared<op::v0::Result>(conv);
-        return std::make_shared<Function>(ResultVector{res}, ParameterVector {in1, in2});
+        return std::make_shared<Model>(ResultVector{res}, ParameterVector {in1, in2});
     }
 };
 

@@ -143,7 +143,7 @@ private:
 
 using InternalPreprocessOp =
     std::function<std::tuple<std::vector<Output<Node>>, bool>(const std::vector<Output<Node>>& nodes,
-                                                              const std::shared_ptr<Function>& function,
+                                                              const std::shared_ptr<Model>& function,
                                                               PreprocessingContext& context)>;
 
 /// \brief PreProcessStepsImpl - internal data structure
@@ -188,11 +188,11 @@ public:
 
 private:
     static std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
-                                                                        const std::shared_ptr<Function>& function,
+                                                                        const std::shared_ptr<Model>& function,
                                                                         PreprocessingContext& context);
 
     static std::tuple<std::vector<Output<Node>>, bool> cut_last_channel(const std::vector<Output<Node>>& nodes,
-                                                                        const std::shared_ptr<Function>& function,
+                                                                        const std::shared_ptr<Model>& function,
                                                                         PreprocessingContext& context);
 
 private:

@@ -28,7 +28,7 @@
 #include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -133,14 +133,14 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     // if IR `version` is not set, suppose it's IR v10 for old API
     // it allows to use operation names in set_ / get_tensor instead of tensor_names
     auto orig_function = orig_network.getFunction();
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     InferenceEngine::CNNNetwork network = orig_network;
     if (orig_function) {
-        function = std::make_shared<ov::Function>(orig_function->get_results(),
-                                                  orig_function->get_sinks(),
-                                                  orig_function->get_parameters(),
-                                                  orig_function->get_variables(),
-                                                  orig_function->get_friendly_name());
+        function = std::make_shared<ov::Model>(orig_function->get_results(),
+                                               orig_function->get_sinks(),
+                                               orig_function->get_parameters(),
+                                               orig_function->get_variables(),
+                                               orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
     if (function && GetCore() && !GetCore()->isNewAPI()) {
@@ -285,7 +285,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 }
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                                         const std::shared_ptr<ov::Function>& function) {
+                                         const std::shared_ptr<ov::Model>& function) {
     OPENVINO_ASSERT(exeNetwork != nullptr);
     OPENVINO_ASSERT(function != nullptr);
 

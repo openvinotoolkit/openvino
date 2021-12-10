@@ -865,7 +865,7 @@ TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
 TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
     auto ie = createCoreWithTemplate();
     auto net = ie.compile_model(actualNetwork, deviceName);
-    auto runtime_function = net.get_runtime_function();
+    auto runtime_function = net.get_runtime_model();
     ASSERT_NE(nullptr, runtime_function);
     auto actual_parameters = runtime_function->get_parameters();
     auto actual_results = runtime_function->get_results();

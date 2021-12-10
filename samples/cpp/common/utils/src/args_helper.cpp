@@ -327,7 +327,7 @@ void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
     }
 }
 
-void printInputAndOutputsInfo(const ov::Function& network) {
+void printInputAndOutputsInfo(const ov::Model& network) {
     slog::info << "model name: " << network.get_friendly_name() << slog::endl;
 
     const std::vector<ov::Output<const ov::Node>> inputs = network.inputs();

@@ -12,7 +12,7 @@ import openvino.runtime as ov
 from openvino.pyopenvino import Variant
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime import Function, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Tensor
 from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
@@ -31,7 +31,7 @@ def test_ngraph_function_api():
     assert parameter_a.partial_shape == PartialShape([2, 2])
     parameter_a.layout = ov.Layout("NCWH")
     assert parameter_a.layout == ov.Layout("NCWH")
-    function = Function(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
+    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
 
@@ -540,7 +540,7 @@ def test_sink_function_ctor():
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    function = Function(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
+    function = Model(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
 
     ordered_ops = function.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]

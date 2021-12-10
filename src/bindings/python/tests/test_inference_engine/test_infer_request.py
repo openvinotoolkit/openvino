@@ -8,7 +8,7 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Function
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
 
 from ..conftest import model_path, read_image
 
@@ -22,7 +22,7 @@ def create_function_with_memory(input_shape, data_type):
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    func = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
     return func
 
 

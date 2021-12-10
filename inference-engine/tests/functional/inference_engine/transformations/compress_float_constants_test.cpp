@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
@@ -20,7 +20,7 @@
 using namespace testing;
 
 TEST(TransformationTests, CompressConstants_f32) {
-    std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 12, 12 });
         auto const_weights = ov::opset8::Constant::create(ov::element::f32,
@@ -49,7 +49,7 @@ TEST(TransformationTests, CompressConstants_f32) {
 
         auto resize = std::make_shared<ov::opset8::Interpolate>(conv, convert2, default_scales_node, axes_node, interpolate4_attr);
 
-        f = std::make_shared<ov::Function>(ov::NodeVector{ resize }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::NodeVector{ resize }, ov::ParameterVector{ input });
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -88,7 +88,7 @@ TEST(TransformationTests, CompressConstants_f32) {
 
         auto resize = std::make_shared<ov::opset8::Interpolate>(conv, convert2, default_scales_node, axes_node, interpolate4_attr);
 
-        f_ref = std::make_shared<ov::Function>(ov::NodeVector{ resize }, ov::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ resize }, ov::ParameterVector{ input });
     }
 
     auto res = compare_functions(f, f_ref, true);
@@ -96,7 +96,7 @@ TEST(TransformationTests, CompressConstants_f32) {
 }
 
 TEST(TransformationTests, CompressConstants_f64) {
-    std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f64, ov::Shape{ 1, 3, 12, 12 });
         auto const_weights = ov::opset8::Constant::create(ov::element::f64,
@@ -108,7 +108,7 @@ TEST(TransformationTests, CompressConstants_f64) {
             ov::CoordinateDiff{ 0, 0 },
             ov::CoordinateDiff{ 0, 0 },
             ov::Strides{ 1, 1 });
-        f = std::make_shared<ov::Function>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -130,7 +130,7 @@ TEST(TransformationTests, CompressConstants_f64) {
             ov::CoordinateDiff{ 0, 0 },
             ov::CoordinateDiff{ 0, 0 },
             ov::Strides{ 1, 1 });
-        f_ref = std::make_shared<ov::Function>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
     }
 
     auto res = compare_functions(f, f_ref, true);

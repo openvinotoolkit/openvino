@@ -62,7 +62,7 @@ int main() {
     //! [ov_api_2_0:create_core]
 
     //! [ov_api_2_0:read_model]
-    std::shared_ptr<ov::Function> network = core.read_model("model.xml");
+    std::shared_ptr<ov::Model> network = core.read_model("model.xml");
     //! [ov_api_2_0:read_model]
 
     //! [ov_api_2_0:get_inputs_outputs]

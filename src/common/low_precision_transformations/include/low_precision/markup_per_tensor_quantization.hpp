@@ -37,7 +37,7 @@ public:
 
     NGRAPH_RTTI_DECLARATION;
     explicit MarkupPerTensorQuantization(const std::vector<OperationPerTensorQuantizationRestriction>& restrictions = {});
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:
     std::unordered_map<std::string, PerTensorQuantization> restrictionsByOperation;

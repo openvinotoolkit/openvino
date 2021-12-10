@@ -57,11 +57,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type, const int64_t axis) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Softmax = std::make_shared<op::v1::Softmax>(in, axis);
-        return std::make_shared<ov::Function>(NodeVector {Softmax}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {Softmax}, ParameterVector {in});
     }
 };
 

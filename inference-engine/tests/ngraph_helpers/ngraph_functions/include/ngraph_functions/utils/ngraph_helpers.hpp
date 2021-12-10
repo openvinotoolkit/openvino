@@ -324,7 +324,7 @@ std::ostream& operator<<(std::ostream & os, op::util::NmsBase::SortResultType ty
 
 std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::DecayFunction type);
 
-void resize_function(std::shared_ptr<ov::Function> function, const std::vector<ov::Shape>& targetInputStaticShapes);
+void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes);
 
 }  // namespace helpers
 }  // namespace ngraph

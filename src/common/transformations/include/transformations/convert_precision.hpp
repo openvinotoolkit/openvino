@@ -87,7 +87,7 @@ public:
         m_precisions(precisions),
         m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
 
-    bool run_on_function(std::shared_ptr<Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:
     precisions_array m_precisions;
     type_to_fuse_map m_additional_type_to_fuse_map;

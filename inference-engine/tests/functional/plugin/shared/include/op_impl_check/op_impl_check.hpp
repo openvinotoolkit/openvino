@@ -17,7 +17,7 @@ namespace test {
 namespace subgraph {
 
 using OpImplParams = std::tuple<
-        std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>>,       // Function to check
+        std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>,       // Function to check
         std::string,                         // Target Device
         std::map<std::string, std::string>>; // Plugin Config
 
@@ -26,7 +26,7 @@ class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
 protected:
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
     std::shared_ptr<ov::runtime::Core> core = ov::test::utils::PluginCache::get().core();
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
 

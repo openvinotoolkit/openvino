@@ -12,7 +12,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::POTTransformations, "POTTransformations", 0);
 
-bool ngraph::pass::POTTransformations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::POTTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::Manager manager(get_pass_config());
     if (m_device == "GNA") {
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();

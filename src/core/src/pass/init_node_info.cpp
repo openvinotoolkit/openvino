@@ -17,7 +17,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::InitNodeInfo, "InitNodeInfo", 0);
 
-bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // TODO: enable conditional compile
     // RUN_ON_FUNCTION_SCOPE(InitNodeInfo);
 
@@ -25,12 +25,12 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
             if (auto sub_graph = sub_graph_node->get_function()) {
-                run_on_function(sub_graph);
+                run_on_model(sub_graph);
             }
         }
         auto& rtInfo = node->get_rt_info();
         rtInfo.emplace(FusedNames::get_type_info_static(), FusedNames{node->get_friendly_name()});
     }
-    FixRtInfo{}.run_on_function(f);
+    FixRtInfo{}.run_on_model(f);
     return false;
 }

@@ -16,7 +16,7 @@ namespace pass {
  * @brief The transformation replaces the provided pairs Parameter and Result with ngraph Memory layers
  * ReadValue and Assign
  */
-class OPENVINO_API MakeStateful : public FunctionPass {
+class OPENVINO_API MakeStateful : public ModelPass {
 public:
     OPENVINO_RTTI("MakeStateful");
 
@@ -26,7 +26,7 @@ public:
     explicit MakeStateful(const ParamResPairs& pairs_to_replace) : m_param_res_pairs(pairs_to_replace) {}
     explicit MakeStateful(const std::map<std::string, std::string>& param_res_names)
         : m_param_res_names(param_res_names) {}
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:
     ParamResPairs m_param_res_pairs;

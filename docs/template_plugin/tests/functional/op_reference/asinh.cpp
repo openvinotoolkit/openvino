@@ -40,10 +40,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& shape, const element::Type& type) {
         const auto in = std::make_shared<op::v0::Parameter>(type, shape);
         const auto Asinh = std::make_shared<op::v3::Asinh>(in);
-        return std::make_shared<ov::Function>(NodeVector {Asinh}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {Asinh}, ParameterVector {in});
     }
 };
 

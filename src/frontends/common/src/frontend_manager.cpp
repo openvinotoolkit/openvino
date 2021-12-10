@@ -246,23 +246,23 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& params) const {
     FRONT_END_NOT_IMPLEMENTED(load_impl);
 }
-std::shared_ptr<Function> FrontEnd::convert(InputModel::Ptr model) const {
+std::shared_ptr<Model> FrontEnd::convert(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-void FrontEnd::convert(std::shared_ptr<Function>) const {
+void FrontEnd::convert(std::shared_ptr<Model>) const {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-std::shared_ptr<Function> FrontEnd::convert_partially(InputModel::Ptr model) const {
+std::shared_ptr<Model> FrontEnd::convert_partially(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(convert_partially);
 }
 
-std::shared_ptr<Function> FrontEnd::decode(InputModel::Ptr model) const {
+std::shared_ptr<Model> FrontEnd::decode(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(decode);
 }
 
-void FrontEnd::normalize(std::shared_ptr<Function> function) const {
+void FrontEnd::normalize(std::shared_ptr<Model> model) const {
     FRONT_END_NOT_IMPLEMENTED(normalize);
 }
 

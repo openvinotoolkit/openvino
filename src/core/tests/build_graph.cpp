@@ -91,9 +91,9 @@ TEST(build_graph, function_undeclared_parameters) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Undeclared parameter not detected.";
     } catch (const ngraph_error& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Function references undeclared parameter"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Model references undeclared parameter"));
     } catch (...) {
-        FAIL() << "Function construction failed for unexpected reason";
+        FAIL() << "Model construction failed for unexpected reason";
     }
 }
 

@@ -51,8 +51,8 @@ public:
     ngraph::PartialShape get_partial_shape(Place::Ptr place) const override;
     void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override;
 
-    std::shared_ptr<Function> decode();
-    std::shared_ptr<Function> convert();
+    std::shared_ptr<Model> decode();
+    std::shared_ptr<Model> convert();
 
     // Editor features
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;

@@ -13,7 +13,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Pruning, "Pruning", 0);
 
-bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
+bool ngraph::pass::Pruning::run_on_model(const std::shared_ptr<Function>& f) {
     Manager manager(get_pass_config());
 
     // Initialize masks only for Convolutions/GroupConvolutions weights (needed to init mask in source Constant of

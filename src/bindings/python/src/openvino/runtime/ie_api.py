@@ -5,7 +5,7 @@ import numpy as np
 import copy
 from typing import Any, List, Union
 
-from openvino.pyopenvino import Function
+from openvino.pyopenvino import Model
 from openvino.pyopenvino import Core as CoreBase
 from openvino.pyopenvino import ExecutableNetwork as ExecutableNetworkBase
 from openvino.pyopenvino import InferRequest as InferRequestBase
@@ -104,9 +104,9 @@ class Core(CoreBase):
     """Core wrapper."""
 
     def compile_model(
-        self, model: Union[Function, str], device_name: str, config: dict = None
+        self, model: Union[Model, str], device_name: str, config: dict = None
     ) -> ExecutableNetwork:
-        """Compile a model from given Function."""
+        """Compile a model from given Model."""
         return ExecutableNetwork(
             super().compile_model(model, device_name, {} if config is None else config)
         )

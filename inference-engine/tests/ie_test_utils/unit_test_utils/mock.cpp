@@ -73,7 +73,7 @@ std::shared_ptr<ngraph::Function> MockNotEmptyICNNNetwork::getFunction() noexcep
     relu->set_friendly_name(OUTPUT_BLOB_NAME);
     ngraph::ResultVector results;
     results.push_back(std::make_shared<ngraph::op::v0::Result>(relu));
-    return std::make_shared<ov::Function>(results, parameters, "empty_function");
+    return std::make_shared<ov::Model>(results, parameters, "empty_function");
 }
 std::shared_ptr<const ngraph::Function> MockNotEmptyICNNNetwork::getFunction() const noexcept {
     ngraph::ParameterVector parameters;
@@ -84,5 +84,5 @@ std::shared_ptr<const ngraph::Function> MockNotEmptyICNNNetwork::getFunction() c
     relu->set_friendly_name(OUTPUT_BLOB_NAME);
     ngraph::ResultVector results;
     results.push_back(std::make_shared<ngraph::op::v0::Result>(relu));
-    return std::make_shared<const ov::Function>(results, parameters, "empty_function");
+    return std::make_shared<const ov::Model>(results, parameters, "empty_function");
 }
