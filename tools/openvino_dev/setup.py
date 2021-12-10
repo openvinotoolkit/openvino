@@ -46,6 +46,7 @@ PKG_INSTALL_CFG = {
         'black_list': ['*tests*'],
         'prefix': 'accuracy_checker',
         'extract_entry_points': True,
+        'extract_requirements': True,
     },
     "omz_tools": {
         'src_dir': OPENVINO_DIR / 'tools' / 'pot' / 'thirdparty' / 'open_model_zoo' / 'tools' / 'model_tools',  # noqa:E501
