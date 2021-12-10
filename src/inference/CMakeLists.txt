@@ -246,7 +246,7 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
 
 # Export for developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME}_plugin_api)
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_plugin_api)
 
 # install TBB
 
@@ -310,7 +310,7 @@ endif()
 # Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
+ie_cpack_add_component(core_dev REQUIRED core)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)

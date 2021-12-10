@@ -123,11 +123,9 @@ TEST_P(ExecGraphRuntimePrecision, CheckRuntimePrecision) {
         if (rtIter == rtInfo.end())
             FAIL() << "Runtime precision is not found for node: " << opIter->get()->get_friendly_name();
 
-        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(rtIter->second);
-
-        if (expectedPrc.second.name() != rtPrecisionPtr->get())
+        if (expectedPrc.second.name() != rtIter->second.as<std::string>())
             FAIL() << "`" << expectedPrc.first << "' node runtime precision mismatch: actual = " <<
-                rtPrecisionPtr->get() << ", expected = " << expectedPrc.second.name();
+                rtIter->second.as<std::string>() << ", expected = " << expectedPrc.second.name();
     }
 
     fnPtr.reset();
