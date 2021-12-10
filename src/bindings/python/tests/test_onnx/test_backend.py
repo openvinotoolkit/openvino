@@ -34,7 +34,7 @@ from tests import (
     xfail_issue_44968,
     xfail_issue_45180,
     xfail_issue_47323,
-    xfail_issue_47337,
+    xfail_issue_73538,
     xfail_issue_48052,
     xfail_issue_49207,
     xfail_issue_49750,
@@ -234,7 +234,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_momentum_multiple_cpu",
     ),
     (
-        xfail_issue_47337,
+        xfail_issue_73538,
         "OnnxBackendNodeModelTest.test_onehot_negative_indices_cpu",
     ),
     (
