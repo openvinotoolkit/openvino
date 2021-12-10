@@ -25,13 +25,10 @@ def tensor_from_file(path: str) -> Tensor:
 def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
     """Normalize a dictionary of inputs to Tensors."""
     for k, val in py_dict.items():
+        if not isinstance(k, (str, int)):
+            raise TypeError("Incompatible key type for tensor named: {}".format(k))
         try:
-            if isinstance(k, int):
-                ov_type = list(py_types.values())[k]
-            elif isinstance(k, str):
-                ov_type = py_types[k]
-            else:
-                raise TypeError("Incompatible key type for tensor named: {}".format(k))
+            ov_type = py_types[k]
         except KeyError:
             raise KeyError("Port for tensor named {} was not found!".format(k))
         py_dict[k] = (
@@ -49,8 +46,9 @@ def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict
         return {n: input.get_element_type() for n in input.get_names()}
 
     input_types: dict = {}
-    for input in obj.inputs:
-        input_types = {**input_types, **map_tensor_names_to_types(input)}
+    for idx, input in enumerate(obj.inputs):
+        input_types.update(map_tensor_names_to_types(input))
+        input_types[idx] = input.get_element_type()
     return input_types
 
 
