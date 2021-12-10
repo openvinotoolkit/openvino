@@ -623,6 +623,7 @@ def test_coordinate_diff_iteration_methods():
 
     assert np.equal(coordinateDiff, data2).all()
 
+
 def test_layout():
     layout = ov.Layout("NCWH")
     layout2 = ov.Layout("NCWH")
