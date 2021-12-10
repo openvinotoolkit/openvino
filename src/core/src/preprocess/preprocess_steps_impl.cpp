@@ -5,6 +5,7 @@
 #include "preprocess_steps_impl.hpp"
 
 #include "color_utils.hpp"
+#include "layout_utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
@@ -174,7 +175,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
                         "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                         "RGB/BGR color format using 'convert_color'");
         Layout dst_layout = layout.empty() ? context.target_layout() : layout;
-        auto permutation = layout::find_permutation(context.layout(), nodes[0].get_partial_shape(), dst_layout);
+        auto permutation = layout::utils::find_permutation(context.layout(), nodes[0].get_partial_shape(), dst_layout);
         if (permutation.empty()) {
             // No transpose is needed, just update layout
             if (!layout.empty()) {
@@ -203,7 +204,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         OPENVINO_ASSERT(nodes.size() == 1,
                         "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                         "RGB/BGR color format using 'convert_color'");
-        auto new_layout = layout::apply_permutation(context.layout(), dims);
+        auto new_layout = layout::utils::apply_permutation(context.layout(), dims);
         auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
         context.layout() = std::move(new_layout);  // Update context's current layout
@@ -430,7 +431,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {
     m_actions.emplace_back([layout](const Output<Node>& node, PostprocessingContext& context) {
         Layout dst_layout = layout.empty() ? context.target_layout() : layout;
-        auto permutation = layout::find_permutation(context.layout(), node.get_partial_shape(), dst_layout);
+        auto permutation = layout::utils::find_permutation(context.layout(), node.get_partial_shape(), dst_layout);
         if (permutation.empty()) {
             // No transpose is needed, just update layout
             if (!layout.empty()) {
@@ -451,7 +452,7 @@ void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
     }
     m_actions.emplace_back([dims](const Output<Node>& node, PostprocessingContext& context) {
         auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
-        auto new_layout = layout::apply_permutation(context.layout(), dims);
+        auto new_layout = layout::utils::apply_permutation(context.layout(), dims);
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
         auto res = std::make_tuple(Output<Node>(transpose), true);
         context.layout() = std::move(new_layout);  // Update context's current layout

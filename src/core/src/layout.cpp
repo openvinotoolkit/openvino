@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 
+#include "layout_utils.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/util.hpp"
 
@@ -238,9 +239,15 @@ std::string Layout::to_string() const {
     return res.str();
 }
 
-namespace layout {
+class LayoutUtils {
+public:
+    static Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
+    static std::vector<int64_t> find_permutation(const Layout& src_layout,
+                                                 const PartialShape& src_shape,
+                                                 const Layout& dst_layout);
+};
 
-Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
+Layout LayoutUtils::apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
     {  // Validate dims
         std::vector<bool> used(dims.size(), false);
         for (size_t i = 0; i < dims.size(); i++) {
@@ -274,7 +281,9 @@ Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& 
     return res;
 }
 
-std::vector<int64_t> find_permutation(const Layout& src_layout, const PartialShape& src_shape, const Layout& dst) {
+std::vector<int64_t> LayoutUtils::find_permutation(const Layout& src_layout,
+                                                   const PartialShape& src_shape,
+                                                   const Layout& dst) {
     auto rank = src_shape.rank();
     auto check_trivial = [](std::vector<int64_t>& res) -> std::vector<int64_t>& {
         size_t i = 0;
@@ -346,13 +355,13 @@ std::vector<int64_t> find_permutation(const Layout& src_layout, const PartialSha
             return {};
         }
         for (size_t i = 0; i < inverted.size(); i++) {
-            res[inverted[i]] = i;
+            res[inverted[i]] = static_cast<int64_t>(i);
         }
         return check_trivial(res);
     }
     std::vector<bool> mapped(src_static.m_left_size, false);
     // Fill known names (??c? -> nc??) will produce res=[-1,2,-1,-1], mapped=[false,false,true,false]
-    for (auto src_item : src_static.m_index_map) {
+    for (const auto& src_item : src_static.m_index_map) {
         OPENVINO_ASSERT(dst.has_name(src_item.second),
                         "Dimension name '",
                         src_item.second,
@@ -383,6 +392,19 @@ std::vector<int64_t> find_permutation(const Layout& src_layout, const PartialSha
     }
     return check_trivial(res);
 }
+
+namespace layout {
+namespace utils {
+Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
+    return LayoutUtils::apply_permutation(src_layout, dims);
+}
+
+std::vector<int64_t> find_permutation(const Layout& src_layout,
+                                      const PartialShape& src_shape,
+                                      const Layout& dst_layout) {
+    return LayoutUtils::find_permutation(src_layout, src_shape, dst_layout);
+}
+}  // namespace utils
 
 // Helper functions
 bool has_batch(const Layout& layout) {
