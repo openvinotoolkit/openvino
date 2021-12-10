@@ -151,11 +151,12 @@ void set_result_shape_bidirectional(const ov::Node* op, const T& arg_shape, T& t
             result_shape[i] = arg_shape_vec[i];
         } else {
             NODE_VALIDATION_CHECK(op,
-                                  DimType::merge(result_shape[i], arg_shape_vec[i], target_shape[i]),
+                                  arg_shape_vec[i].compatible(target_shape[i]),
                                   "Broadcast incorrect target shape. Expecting either 1 or ",
                                   arg_shape_vec[i],
                                   ". Got ",
                                   target_shape[i]);
+            result_shape[i] = target_shape[i];
         }
     }
 }
