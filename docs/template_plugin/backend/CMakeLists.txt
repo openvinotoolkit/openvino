@@ -19,6 +19,11 @@ set (SRC
 
 add_library(interpreter_backend STATIC EXCLUDE_FROM_ALL ${SRC})
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-sign-compare)
+endif()
+
 ie_faster_build(interpreter_backend UNITY)
 
 ie_add_vs_version_file(NAME interpreter_backend

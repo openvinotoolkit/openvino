@@ -386,6 +386,6 @@ if(ENABLE_DOCS)
 endif()
 
 # Enable interpreter backend
-if (ENABLE_TESTS OR ENABLE_TEMPLATE)
+if (ENABLE_TESTS AND NOT ENABLE_TEMPLATE)
     add_subdirectory(template_plugin/backend)
 endif()
