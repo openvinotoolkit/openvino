@@ -204,24 +204,22 @@ ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 # Install
 #
 
-ie_cpack_add_component(cpp_samples_deps)
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
