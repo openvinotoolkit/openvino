@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/convolution.hpp"
 #include "ngraph/op/binary_convolution.hpp"
@@ -13,13 +13,15 @@
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-#include "cldnn/primitives/convolution.hpp"
-#include "cldnn/primitives/deconvolution.hpp"
-#include "cldnn/primitives/binary_convolution.hpp"
-#include "cldnn/primitives/permute.hpp"
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/deconvolution.hpp"
+#include "intel_gpu/primitives/binary_convolution.hpp"
+#include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 struct ConvoltuionParameters {
     cldnn::tensor stride;
@@ -82,7 +84,7 @@ static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::o
                                        params.stride,
                                        params.padding,
                                        params.dilation,
-                                       CldnnTensorFromIEDims(outDims),
+                                       tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
                                        weights_have_group_dim,
                                        op->get_friendly_name());
@@ -111,7 +113,7 @@ static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1
                                        params.stride,
                                        params.padding,
                                        params.dilation,
-                                       CldnnTensorFromIEDims(outDims),
+                                       tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
                                        weights_have_group_dim,
                                        op->get_friendly_name());
@@ -168,7 +170,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
                                            params.groups,
                                            params.stride,
                                            params.padding,
-                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim,
                                            op->get_friendly_name());
 
@@ -225,7 +227,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
                                            params.groups,
                                            params.stride,
                                            params.padding,
-                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim,
                                            op->get_friendly_name());
 
@@ -272,7 +274,7 @@ static void DeformableConvolutionImpl(Program& p,
                                                           params.stride,
                                                           params.padding,
                                                           params.dilation,
-                                                          CldnnTensorFromIEDims(outDims),
+                                                          tensor_from_dims(outDims),
                                                           kernel,
                                                           bilinearInterpolationPad,
                                                           op->get_friendly_name());
@@ -283,7 +285,7 @@ static void DeformableConvolutionImpl(Program& p,
                                                   weights,
                                                   {},
                                                   params.groups,
-                                                  CldnnTensorFromIEDims(outDims),
+                                                  tensor_from_dims(outDims),
                                                   op->get_friendly_name());
         p.AddPrimitive(defConvPrim);
         p.AddPrimitiveToProfiler(defConvLayerNameConv, op);
@@ -297,7 +299,7 @@ static void DeformableConvolutionImpl(Program& p,
                                            params.stride,
                                            params.padding,
                                            params.dilation,
-                                           CldnnTensorFromIEDims(outDims),
+                                           tensor_from_dims(outDims),
                                            bilinearInterpolationPad,
                                            op->get_friendly_name());
 
@@ -334,7 +336,7 @@ static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::
                                               params.stride,
                                               params.padding,
                                               params.dilation,
-                                              CldnnTensorFromIEDims(outDims),
+                                              tensor_from_dims(outDims),
                                               params.groups,
                                               op->get_pad_value(),
                                               calc_precision,
@@ -352,4 +354,6 @@ REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v1, BinaryConvolution);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

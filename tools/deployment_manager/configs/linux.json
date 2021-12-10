@@ -80,7 +80,7 @@
         "runtime/lib/intel64/libgna.so.2",
         "runtime/lib/intel64/libgna.so.3.0.0.1377",
         "runtime/lib/intel64/libinference_engine_legacy.so",
-        "runtime/lib/intel64/libGNAPlugin.so"
+        "runtime/lib/intel64/libov_intel_gna_plugin.so"
       ]
     },
     "hddl": {
