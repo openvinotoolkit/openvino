@@ -7,7 +7,7 @@
 
 #include <map>
 
-#include <openvino/core/function.hpp>
+#include <openvino/core/model.hpp>
 #include <openvino/core/shape.hpp>
 #include <openvino/core/type/element_type.hpp>
 
@@ -24,20 +24,20 @@
 using namespace ::testing;
 using namespace std;
 
-std::shared_ptr<ov::Function> create_add_model(ov::Shape shape) {
+std::shared_ptr<ov::Model> create_add_model(ov::Shape shape) {
     auto arg0 = make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto arg1 = make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto add = make_shared<ov::op::v1::Add>(arg0, arg1);
 
-    return make_shared<ov::Function>(add, ov::ParameterVector{arg0, arg1});
+    return make_shared<ov::Model>(add, ov::ParameterVector{arg0, arg1});
 }
 
-std::shared_ptr<ov::Function> create_mul_model(ov::Shape shape) {
+std::shared_ptr<ov::Model> create_mul_model(ov::Shape shape) {
     auto arg0 = make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto arg1 = make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto mul = make_shared<ov::op::v1::Multiply>(arg0, arg1);
 
-    return make_shared<ov::Function>(mul, ov::ParameterVector{arg0, arg1});
+    return make_shared<ov::Model>(mul, ov::ParameterVector{arg0, arg1});
 }
 
 TEST(AsyncInferQueueOVTests, BasicFlowTest) {

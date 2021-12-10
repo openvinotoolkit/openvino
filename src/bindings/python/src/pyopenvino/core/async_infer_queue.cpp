@@ -35,8 +35,9 @@ public:
         // NOTE: Userdata has to be initialized with nullptrs to comply with
         // AsyncInferQueue internal implementation standards!
         for (size_t handle = 0; handle < jobs; handle++) {
-            m_pypool.push_back(PyInferRequest(net.create_infer_request(), net.inputs(), net.outputs()));
-            m_pyuserdata.push_back(py::none());
+            m_pypool.push_back(std::pair<PyInferRequest, py::object>(
+                PyInferRequest(net.create_infer_request(), net.inputs(), net.outputs()),
+                py::none()));
             handles.push(handle);
             userdata.push_back(ov::Any(nullptr));
         }
@@ -45,7 +46,7 @@ public:
         std::vector<std::reference_wrapper<ov::runtime::InferRequest>> ref_pool;
 
         for (auto& job : m_pypool) {
-            ref_pool.push_back(std::reference_wrapper<ov::runtime::InferRequest>(job.cpp_request));
+            ref_pool.push_back(std::reference_wrapper<ov::runtime::InferRequest>(job.first.cpp_request));
         }
 
         // Create AsyncInferQueue using ctor that accepts "outside" references.
@@ -86,7 +87,7 @@ public:
                                      [this, handle](std::exception_ptr exception_ptr,
                                                     ov::runtime::InferRequest& request,
                                                     const ov::Any& userdata) {
-                                         m_pypool[handle]._end_time = Time::now();
+                                         m_pypool[handle].first._end_time = Time::now();
                                          try {
                                              if (exception_ptr) {
                                                  std::rethrow_exception(exception_ptr);
@@ -104,7 +105,7 @@ public:
                                      [this, f_callback, handle](std::exception_ptr exception_ptr,
                                                                 ov::runtime::InferRequest& request,
                                                                 const ov::Any& userdata) {
-                                         m_pypool[handle]._end_time = Time::now();
+                                         m_pypool[handle].first._end_time = Time::now();
                                          try {
                                              if (exception_ptr) {
                                                  std::rethrow_exception(exception_ptr);
@@ -115,7 +116,7 @@ public:
                                          // Acquire GIL, execute Python function
                                          py::gil_scoped_acquire acquire;
                                          try {
-                                             f_callback(m_pypool[handle], m_pyuserdata[handle]);
+                                             f_callback(m_pypool[handle].first, m_pypool[handle].second);
                                          } catch (py::error_already_set py_error) {
                                              assert(PyErr_Occurred());
                                              m_pyerrors.push(py_error);
@@ -124,9 +125,14 @@ public:
         }
     }
 
+    // Underlaying C++ AsyncInferQueue.
     ov::runtime::AsyncInferQueue m_queue;
-    std::vector<PyInferRequest> m_pypool;
-    std::vector<py::object> m_pyuserdata;
+    // This pool differs from original pool from AsyncInferQueue.
+    // It holds pairs of Python Wrappers for InferRequest and py::objects
+    // which are used as userdata inside Python-based callbacks.
+    std::vector<std::pair<PyInferRequest, py::object>> m_pypool;
+    // Special vector to hold Python errors thrown inside callbacks.
+    // TO-DO: investigate other solutions to the problem.
     std::queue<py::error_already_set> m_pyerrors;
 };
 
@@ -139,10 +145,10 @@ void regclass_AsyncInferQueue(py::module m) {
         "start_async",
         [](PyAsyncInferQueue& self, py::object& userdata) {
             auto handle = self.m_queue.get_idle_handle();
-            self.m_pyuserdata[handle] = userdata;
+            self.m_pypool[handle].second = userdata;
             {
                 py::gil_scoped_release release;
-                self.m_pypool[handle]._start_time = Time::now();
+                self.m_pypool[handle].first._start_time = Time::now();
                 // Start InferRequest in asynchronus mode
                 self.m_queue.start_async();
             }
@@ -154,10 +160,10 @@ void regclass_AsyncInferQueue(py::module m) {
         [](PyAsyncInferQueue& self, const py::dict& inputs, py::object& userdata) {
             auto handle = self.get_idle_handle();
             Common::set_request_tensors(self.m_queue[handle], inputs);
-            self.m_pyuserdata[handle] = userdata;
+            self.m_pypool[handle].second = userdata;
             {
                 py::gil_scoped_release release;
-                self.m_pypool[handle]._start_time = Time::now();
+                self.m_pypool[handle].first._start_time = Time::now();
                 // Start InferRequest in asynchronus mode
                 self.m_queue.start_async();
             }
@@ -197,6 +203,6 @@ void regclass_AsyncInferQueue(py::module m) {
         py::keep_alive<0, 1>()); /* Keep set alive while iterator is used */
 
     cls.def("__getitem__", [](PyAsyncInferQueue& self, size_t i) {
-        return self.m_pypool[i];
+        return self.m_pypool[i].first;
     });
 }
