@@ -717,13 +717,37 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto network = options.find("MODEL_PTR")->second.as<InferenceEngine::CNNNetwork const*>();
         Config config = _impl->m_configs.GetConfig(device_id);
         auto networkCloned = CloneAndTransformNetwork(*network, config);
-        // TGL-i7-1185G7
-        const float L3_cache_size = 12*1024*1024;
+        static std::map<cldnn::gfx_version, size_t> gen_kbytes_per_bank = {
+                {{12, 0, 0}, 480},  // TGL
+                {{12, 1, 0}, 2048}, // DG1
+                {{12, 5, 0}, 320},
+                {{12, 7, 0}, 512},
+        };
+        cldnn::gfx_version gen = {device_info.gfx_ver.major, device_info.gfx_ver.minor, 0 /*ignore the revision*/};
+        auto val = gen_kbytes_per_bank.find(gen);
+        size_t kbytes_per_bank = 192; //Gen9 and before
+        if (gen_kbytes_per_bank.end() != val)
+            kbytes_per_bank = val->second;
+        auto next_pow_of_2 = [] (float x) {
+            return pow(2, ceil(log(x)/log(2)));
+        };
+        auto closest_pow_of_2 = [] (float x) {
+            return pow(2, floor(log(x)/log(2)));
+        };
+        auto num_banks_per_slice = device_info.num_sub_slices_per_slice > 4
+                ? next_pow_of_2(device_info.num_sub_slices_per_slice)
+                : 2 * device_info.num_sub_slices_per_slice;
+        auto L3_cache_size = kbytes_per_bank * 1024 * num_banks_per_slice * device_info.num_slices;
+        std::cout << "DEVICE_INFO:"
+                  << "num_slices " << device_info.num_slices
+                  << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
+                  << ", gen_kbytes_per_bank : " << kbytes_per_bank
+                  << ", L3_cache_size is (MB): " << float(L3_cache_size)/1024/1024 << std::endl;
         ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(
                 networkCloned.getFunction(), L3_cache_size);
         unsigned int batch = 1;
         if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
-            batch = 4 * pow(2, floor(log(memPressure.max_mem_tolerance)/log(2))); // closest_pow2
+            batch = 16 * closest_pow_of_2(memPressure.max_mem_tolerance);
         std::cout << "memPressure.max_mem_tolerance: " << memPressure.max_mem_tolerance << std::endl;
         std::cout << "SELECTED BATCH: " << batch << std::endl;
         std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
@@ -731,7 +755,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
         auto max_batch_size = GetMetric(GPU_METRIC_KEY(MAX_BATCH_SIZE), options_for_max_batch).as<unsigned int>();
         std::cout << "MAX_BATCH: " << max_batch_size << std::endl;
-        unsigned int closest = pow(2, floor(log(max_batch_size)/log(2)));
+        unsigned int closest = closest_pow_of_2(max_batch_size);
         std::cout << "!!!!!!!!!!!!!! (CLOSEST):" << closest << std::endl;
         batch = std::min(closest, batch);
         batch = std::min(256u, batch); //batch 256 is a max
