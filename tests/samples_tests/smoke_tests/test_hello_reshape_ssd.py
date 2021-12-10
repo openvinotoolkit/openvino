@@ -22,8 +22,8 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=s
 
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('500x500', 'cat.bmp')],
                                        'm': [os.path.join('ssd512', 'FP32', 'ssd512.xml')],
-                                       'd': ['CPU'],
-                                       'batch': [1, 2, 4]}, use_device=['d'], use_batch=True
+                                       'd': ['CPU']},
+                                       use_device=['d'], use_batch=False
                            )
 
 
