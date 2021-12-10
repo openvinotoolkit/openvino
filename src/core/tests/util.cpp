@@ -183,7 +183,7 @@ public:
         nodes.push_back(A);
         nodes.push_back(B);
         nodes.push_back(C);
-        func->get_rt_info()["version"] = std::make_shared<VariantWrapper<int64_t>>(10);
+        func->get_rt_info()["version"] = int64_t(10);
     }
 
     bool CompareNodeVector(const std::vector<std::shared_ptr<ngraph::Node>>& orig,
@@ -237,9 +237,8 @@ TEST_F(CloneTest, clone_function_full) {
     ASSERT_TRUE(CompareNodeVector(func->get_ops(), cloned_func->get_ops(), node_map));
     ASSERT_EQ(cloned_func->get_rt_info().size(), func->get_rt_info().size());
     ASSERT_TRUE(cloned_func->get_rt_info().count("version"));
-    auto ver = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(cloned_func->get_rt_info().at("version"));
-    ASSERT_NE(nullptr, ver);
-    ASSERT_EQ(10, ver->get());
+    auto ver = cloned_func->get_rt_info().at("version").as<int64_t>();
+    ASSERT_EQ(10, ver);
 }
 
 TEST(graph_util, clone_multiple_results) {
@@ -317,12 +316,12 @@ TEST(graph_util, clone_rt_info) {
     for (auto&& node : original_f->get_ordered_ops()) {
         auto& nodeInfo = node->get_rt_info();
 
-        nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
+        nodeInfo["affinity"] = testAffinity;
         affinity[node->get_friendly_name()] = testAffinity;
 
         for (auto&& output : node->outputs()) {
             auto& outputInfo = output.get_rt_info();
-            outputInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
+            outputInfo["affinity"] = testAffinity;
         }
     }
 
@@ -332,7 +331,7 @@ TEST(graph_util, clone_rt_info) {
         auto& nodeInfo = node->get_rt_info();
         auto itInfo = nodeInfo.find("affinity");
         ASSERT_TRUE(itInfo != nodeInfo.end());
-        auto value = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(itInfo->second)->get();
+        auto value = itInfo->second.as<std::string>();
         ASSERT_TRUE(affinity.find(node->get_friendly_name()) != affinity.end());
         ASSERT_TRUE(affinity[node->get_friendly_name()] == value);
 

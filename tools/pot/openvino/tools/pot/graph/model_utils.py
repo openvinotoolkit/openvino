@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import networkx as nx
-from mo.graph.graph import Node
-from mo.middle.passes.infer import type_infer
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.infer import type_infer
 
 from . import editor as ge, builder as gb
 from .nx_model import NXModel

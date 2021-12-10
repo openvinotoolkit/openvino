@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/split.hpp"
 #include "ngraph/op/variadic_split.hpp"
 
 #include "intel_gpu/primitives/crop.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
@@ -37,8 +39,8 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
         }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
-        auto outTensor = CldnnTensorFromIEDims(outLayerDims, 1);
-        auto offsetTensor = CldnnTensorFromIEDims(startOffset, 0);
+        auto outTensor = tensor_from_dims(outLayerDims, 1);
+        auto offsetTensor = tensor_from_dims(startOffset, 0);
 
         auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor, op->get_friendly_name());
         p.primitiveIDs[outLayerName] = outLayerName;
@@ -71,4 +73,6 @@ static void CreateVariadicSplitOp(Program& p, const std::shared_ptr<ngraph::op::
 REGISTER_FACTORY_IMPL(v1, Split);
 REGISTER_FACTORY_IMPL(v1, VariadicSplit);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov
