@@ -18,8 +18,7 @@ namespace pass {
  */
 class FilterFused : public ngraph::pass::FunctionPass {
 public:
-    FilterFused() : FunctionPass() {}
-    bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
 /*
  FusedWithConvolution, FusedWithConvolutionSumActivation, FusedWithMisc - fusing chain is active and may be continued

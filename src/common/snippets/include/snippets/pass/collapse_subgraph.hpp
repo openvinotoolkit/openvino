@@ -37,7 +37,7 @@ public:
 
 /**
  * @interface TokenizeSnippets
- * @brief Splits function to subgraphs if possible using rules above
+ * @brief Splits model to subgraphs if possible using rules above
  * This pass tokenizes topology graph into subgraphs.
  * Those subgraphs consists of unary or binary layout-oblivious (LO) opetations found in subset 1.
  * Non-layout-oblivious (NLO) operations operations (called also support in this context) are ignored and become a fullstop in tokenization routine

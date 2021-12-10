@@ -38,7 +38,7 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
     return std::make_pair(rin, rout);
 }
 
-ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngraph::Function>& f,
+ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& f,
                                                              const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     if (!target->is_supported())
@@ -59,7 +59,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
 
     // scalar tile
-    auto f_scalar = ngraph::clone_function(*f.get());
+    auto f_scalar = ov::clone_model(*f.get());
     ngraph::pass::Manager m;
     m.register_pass<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>();
     m.register_pass<ngraph::snippets::pass::ReplaceStoresWithScalarStores>();

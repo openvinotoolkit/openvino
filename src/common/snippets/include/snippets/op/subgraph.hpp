@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <ngraph/function.hpp>
+#include <openvino/core/model.hpp>
 #include <ngraph/op/op.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -19,7 +19,7 @@ namespace op {
 
 /**
  * @interface Subgraph
- * @brief An operation that is implemented by a function
+ * @brief An operation that is implemented by a model
  * @ingroup snippets
  */
 class Subgraph : public ngraph::op::Op {
@@ -70,9 +70,9 @@ public:
     using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
-    Subgraph(const OutputVector& args, std::shared_ptr<Function> body);
+    Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body);
 
-    Subgraph(const NodeVector& args, std::shared_ptr<Function> body);
+    Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -80,7 +80,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    std::shared_ptr<Function> get_body() const {
+    std::shared_ptr<ov::Model> get_body() const {
         return m_body;
     }
 
@@ -95,7 +95,7 @@ public:
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
                                 const void* compile_params = nullptr);
     /// Set a new body for the op; body needs to satisfy requirements on inputs/outputs
-    void set_body(std::shared_ptr<Function> body);
+    void set_body(std::shared_ptr<ov::Model> body);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
@@ -112,7 +112,7 @@ private:
     void canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
     void convert_to_snippet_dialect();
 
-    std::shared_ptr<Function> m_body;
+    std::shared_ptr<ov::Model> m_body;
     std::shared_ptr<ngraph::snippets::Generator> m_generator;
 };
 
@@ -126,13 +126,13 @@ static inline auto is_scalar_constant(const std::shared_ptr<ngraph::Node>& sourc
 };
 
 static inline auto create_body(std::string name, const ngraph::ResultVector& results, const ngraph::ParameterVector& parameters) ->
-    std::shared_ptr<ngraph::Function> {
-    auto body = std::make_shared<ngraph::Function>(results, parameters, name);
+    std::shared_ptr<ov::Model> {
+    auto body = std::make_shared<ov::Model>(results, parameters, name);
     return body;
 };
 
 static inline auto build_subgraph(const std::shared_ptr<ngraph::Node>& node, const ngraph::OutputVector& inputs,
-                                  const std::shared_ptr<ngraph::Function>& body, const std::string name = "")
+                                  const std::shared_ptr<ov::Model>& body, const std::string name = "")
     -> std::shared_ptr<Subgraph>{
     auto subgraph = std::make_shared<Subgraph>(inputs, body);
     copy_runtime_info(node, subgraph);

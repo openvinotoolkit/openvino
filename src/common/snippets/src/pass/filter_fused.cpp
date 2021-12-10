@@ -315,7 +315,7 @@ void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) 
     rt["MayBeFusedInPlugin"] = nodeType;
 }
 
-bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
+bool FilterFused::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(FulterFused);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::FilterFused")
     std::cerr << "FilterFused started" << std::endl;

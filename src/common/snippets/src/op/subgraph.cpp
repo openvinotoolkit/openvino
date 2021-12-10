@@ -25,17 +25,17 @@ void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Gen
     m_generator = generator;
 }
 
-snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<Function> body)
+snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
     : Op(args), m_body(body), m_generator(nullptr) {
     constructor_validate_and_infer_types();
 }
 
-snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<Function> body)
+snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body)
     : Subgraph(as_output_vector(args), body) {}
 
 std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return make_shared<Subgraph>(inputs, ngraph::clone_function(*m_body.get()));
+    return make_shared<Subgraph>(inputs, ov::clone_model(*m_body.get()));
 }
 
 void snippets::op::Subgraph::validate_and_infer_types() {
@@ -66,7 +66,7 @@ bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<op::Subgraph> {
+auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<op::Subgraph> {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::wrap_node_as_subgraph")
     ngraph::ParameterVector body_parameters;
@@ -95,7 +95,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
     }
 
     // Clear the node dependencies so graph::topological_sort will not find any extra ops in get_ordered_ops()
-    //  This is needed so the body function will be created correctly
+    //  This is needed so the model body will be created correctly
     body_node->clear_control_dependencies();
     ngraph::ResultVector body_results;
     for (auto output : node->outputs()) {
@@ -122,7 +122,7 @@ std::shared_ptr<snippets::op::Subgraph> snippets::op::Subgraph::make_canonical_f
     for (auto input : this->input_values()) {
         subgraph_node_inputs.push_back(input);
     }
-    auto new_body = ngraph::clone_function(*this->get_body().get());
+    auto new_body = ov::clone_model(*this->get_body().get());
     auto snippet = std::make_shared<op::Subgraph>(subgraph_node_inputs, new_body);
     ngraph::copy_runtime_info(this->shared_from_this(), snippet);
     snippet->set_friendly_name(this->get_friendly_name());
@@ -302,7 +302,7 @@ void snippets::op::Subgraph::print() const {
 
 void snippets::op::Subgraph::print_statistics(bool verbose) {
     INTERNAL_OP_SCOPE(Subgraph);
-    auto getNodeInventory = [](std::shared_ptr<ngraph::Node> n) -> size_t {
+    auto getNodeInventory = [](std::shared_ptr<ov::Node> n) -> size_t {
         size_t total = 0;
 
         for (auto input : n->inputs()) {
@@ -324,7 +324,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
         return total;
     };
 
-    auto getFunctionInventory = [getNodeInventory](std::shared_ptr<ngraph::Function> f) -> size_t {
+    auto getModelInventory = [getNodeInventory](std::shared_ptr<ov::Model> f) -> size_t {
         size_t total = 0;
         for (auto op : f->get_ordered_ops()) {
             // Results and parameters are artificially introduced,
@@ -339,7 +339,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
         return total;
     };
 
-    auto countConstants = [](std::shared_ptr<ngraph::Function> f) -> size_t {
+    auto countConstants = [](std::shared_ptr<ov::Model> f) -> size_t {
         size_t count = 0;
         for (auto op : f->get_ordered_ops()) {
             count += !!ngraph::as_type_ptr<ngraph::opset1::Constant>(op) ? 1 : 0;
@@ -355,7 +355,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
                 << ";" << body->get_parameters().size()
                 << ";" << body->get_results().size()
                 << ";" << countConstants(body)
-                << ";" << getFunctionInventory(body)
+                << ";" << getModelInventory(body)
                 << ";" << getNodeInventory(this->shared_from_this()) << std::endl;
 
     if (verbose) {

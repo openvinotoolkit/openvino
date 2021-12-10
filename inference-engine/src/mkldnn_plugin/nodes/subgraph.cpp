@@ -44,7 +44,7 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
             auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
             subgraph_node_inputs.push_back(new_input);
         }
-        auto new_body = ngraph::clone_function(*tmp_snippet->get_body().get());
+        auto new_body = ov::clone_model(*tmp_snippet->get_body().get());
         snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
         ngraph::copy_runtime_info(tmp_snippet, snippet);
         snippet->set_friendly_name(tmp_snippet->get_friendly_name());

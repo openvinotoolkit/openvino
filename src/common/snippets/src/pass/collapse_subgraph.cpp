@@ -176,7 +176,7 @@ auto get_num_result_children(std::shared_ptr<Node> node) -> size_t {
 }
 // Need to update tensor name manually, since MKLDNNGraph::Replicate() looks at input.get_tensor().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
-// todo: remove this function when MKLDNNGraph::Replicate() will rely only on node->get_friendly_name()
+// todo: remove this model when MKLDNNGraph::Replicate() will rely only on node->get_friendly_name()
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph) -> void {
     bool not_set = true;
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
@@ -271,7 +271,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         // inputs that are already subgraphs
         std::unordered_set<std::shared_ptr<Node>> input_subgraphs;
         // clone bodies because we need a rollback if loop is found
-        std::map<std::shared_ptr<Node>, std::shared_ptr<ngraph::Function>> clones;
+        std::map<std::shared_ptr<Node>, std::shared_ptr<ov::Model>> clones;
 
         ParameterVector body_parameters;
         // inputs to merged subgraph
@@ -340,7 +340,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         for (const auto &input_node : ngraph::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
-                    auto f = ngraph::clone_function(*subgraph->get_body().get());
+                    auto f = ov::clone_model(*subgraph->get_body().get());
                     f->set_friendly_name(subgraph->get_body()->get_friendly_name());
                     clones[input_node] = f;
                 }
