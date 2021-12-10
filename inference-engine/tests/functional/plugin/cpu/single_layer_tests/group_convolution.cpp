@@ -90,7 +90,7 @@ public:
 protected:
     bool isBias = false;
 
-    void checkBiasFusing(ov::runtime::ExecutableNetwork &execNet) const {
+    void checkBiasFusing(ov::runtime::CompiledModel &execNet) const {
         auto execGraph = execNet.get_runtime_function();
         ASSERT_NE(nullptr, execGraph);
 

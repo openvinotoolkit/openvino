@@ -16,7 +16,7 @@ public:
     void Exec();
 
     void LoadNetwork();
-    void FillInputs(); // Both for legacy and for OV2.0 API
+    void FillInputs();  // Both for legacy and for OV2.0 API
     void Infer();
 
     void LoadNetworkLegacy();
@@ -29,8 +29,8 @@ protected:
     std::shared_ptr<ov::Function> function;
     InferenceEngine::CNNNetwork legacy_network;
 
-    float threshold = 1e-5f;    // Relative diff
-    float abs_threshold = -1.f; // Absolute diff (not used when negative)
+    float threshold = 1e-5f;     // Relative diff
+    float abs_threshold = -1.f;  // Absolute diff (not used when negative)
 
     std::vector<ov::runtime::Tensor> outputs_ov20;
     std::vector<ov::runtime::Tensor> outputs_legacy;
@@ -42,7 +42,7 @@ protected:
 
 private:
     std::shared_ptr<ov::runtime::Core> core;
-    ov::runtime::ExecutableNetwork executableNetwork;
+    ov::runtime::CompiledModel executableNetwork;
     ov::runtime::InferRequest inferRequest;
 
     std::shared_ptr<InferenceEngine::Core> legacy_core;

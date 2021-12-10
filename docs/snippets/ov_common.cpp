@@ -71,7 +71,7 @@ int main() {
     //! [ov_api_2_0:get_inputs_outputs]
 
     //! [ov_api_2_0:compile_model]
-    ov::runtime::ExecutableNetwork exec_network = core.compile_model(network, "CPU");
+    ov::runtime::CompiledModel exec_network = core.compile_model(network, "CPU");
     //! [ov_api_2_0:compile_model]
 
     //! [ov_api_2_0:create_infer_request]

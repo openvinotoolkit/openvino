@@ -34,8 +34,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/runtime/executable_network.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
@@ -1441,27 +1441,27 @@ ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
 
 }  // namespace
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
-                                      const std::string& deviceName,
-                                      const ConfigMap& config) {
+CompiledModel Core::compile_model(const std::shared_ptr<const ov::Function>& model,
+                                  const std::string& deviceName,
+                                  const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
         return {exec._so, exec._ptr};
     });
 }
 
-ExecutableNetwork Core::compile_model(const std::string& modelPath,
-                                      const std::string& deviceName,
-                                      const ConfigMap& config) {
+CompiledModel Core::compile_model(const std::string& modelPath,
+                                  const std::string& deviceName,
+                                  const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
         return {exec._so, exec._ptr};
     });
 }
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
-                                      const RemoteContext& context,
-                                      const ConfigMap& config) {
+CompiledModel Core::compile_model(const std::shared_ptr<const ov::Function>& model,
+                                  const RemoteContext& context,
+                                  const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), context._impl, config);
         return {exec._so, exec._ptr};
@@ -1488,9 +1488,7 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
     OV_CORE_CALL_STATEMENT({ _impl->AddOVExtensions(extensions); });
 }
 
-ExecutableNetwork Core::import_model(std::istream& modelStream,
-                                     const std::string& deviceName,
-                                     const ConfigMap& config) {
+CompiledModel Core::import_model(std::istream& modelStream, const std::string& deviceName, const ConfigMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->ImportNetwork(modelStream, deviceName, config);
@@ -1498,7 +1496,7 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
     });
 }
 
-ExecutableNetwork Core::import_model(std::istream& modelStream, const RemoteContext& context, const ConfigMap& config) {
+CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const ConfigMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
     using ExportMagic = std::array<char, 4>;

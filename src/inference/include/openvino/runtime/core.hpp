@@ -22,7 +22,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/executable_network.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -113,9 +113,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& model,
-                                    const std::string& device_name,
-                                    const ConfigMap& config = {});
+    CompiledModel compile_model(const std::shared_ptr<const ov::Function>& model,
+                                const std::string& device_name,
+                                const ConfigMap& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -130,9 +130,9 @@ public:
      *
      * @return An executable network reference
      */
-    ExecutableNetwork compile_model(const std::string& model_path,
-                                    const std::string& device_name,
-                                    const ConfigMap& config = {});
+    CompiledModel compile_model(const std::string& model_path,
+                                const std::string& device_name,
+                                const ConfigMap& config = {});
 
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
@@ -142,9 +142,9 @@ public:
      * operation
      * @return An executable network object
      */
-    ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& model,
-                                    const RemoteContext& context,
-                                    const ConfigMap& config = {});
+    CompiledModel compile_model(const std::shared_ptr<const ov::Function>& model,
+                                const RemoteContext& context,
+                                const ConfigMap& config = {});
 
     /**
      * @brief Registers extension
@@ -234,9 +234,9 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork import_model(std::istream& model_stream,
-                                   const std::string& device_name,
-                                   const ConfigMap& config = {});
+    CompiledModel import_model(std::istream& model_stream,
+                               const std::string& device_name,
+                               const ConfigMap& config = {});
 
     /**
      * @brief Creates an executable network from a previously exported one within a specified
@@ -248,9 +248,7 @@ public:
      * operation
      * @return An executable network reference
      */
-    ExecutableNetwork import_model(std::istream& model_stream,
-                                   const RemoteContext& context,
-                                   const ConfigMap& config = {});
+    CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const ConfigMap& config = {});
 
     /**
      * @brief Query device if it supports specified model with specified configuration

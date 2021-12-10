@@ -34,20 +34,20 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "compile_model",
-        (ov::runtime::ExecutableNetwork(
+        (ov::runtime::CompiledModel(
             ov::runtime::Core::*)(const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&)) &
             ov::runtime::Core::compile_model,
         py::arg("model"),
         py::arg("device_name"),
         py::arg("config") = py::dict());
 
-    cls.def("compile_model",
-            (ov::runtime::ExecutableNetwork(
-                ov::runtime::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
-                ov::runtime::Core::compile_model,
-            py::arg("model_path"),
-            py::arg("device_name"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "compile_model",
+        (ov::runtime::CompiledModel(ov::runtime::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
+            ov::runtime::Core::compile_model,
+        py::arg("model_path"),
+        py::arg("device_name"),
+        py::arg("config") = py::dict());
 
     cls.def("get_versions", &ov::runtime::Core::get_versions);
 
@@ -92,13 +92,12 @@ void regclass_Core(py::module m) {
         py::arg("model"),
         py::arg("weights") = "");
 
-    cls.def(
-        "import_model",
-        (ov::runtime::ExecutableNetwork(ov::runtime::Core::*)(std::istream&, const std::string&, const ConfigMap&)) &
-            ov::runtime::Core::import_model,
-        py::arg("model_file"),
-        py::arg("device_name"),
-        py::arg("config") = py::none());
+    cls.def("import_model",
+            (ov::runtime::CompiledModel(ov::runtime::Core::*)(std::istream&, const std::string&, const ConfigMap&)) &
+                ov::runtime::Core::import_model,
+            py::arg("model_file"),
+            py::arg("device_name"),
+            py::arg("config") = py::none());
 
     cls.def(
         "get_config",

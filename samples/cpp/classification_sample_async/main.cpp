@@ -153,7 +153,7 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 6. Loading model to the device --------
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, FLAGS_d);
+        ov::runtime::CompiledModel executable_network = core.compile_model(model, FLAGS_d);
 
         // -------- Step 6. Create infer request --------
         slog::info << "Create infer request" << slog::endl;
