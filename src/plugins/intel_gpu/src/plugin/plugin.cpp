@@ -789,7 +789,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                     if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO)) {
                         IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
                     }
-                    n_streams = default_num_streams_for_tput;
+                    n_streams = config.GetDefaultNStreamsForThroughputMode();
                 } catch (...) {
                     IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
                 }

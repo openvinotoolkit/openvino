@@ -16,7 +16,6 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-const uint32_t default_num_streams_for_tput = 2;
 
 struct Config {
     Config(std::string device_id = "0") : device_id(device_id),
@@ -49,6 +48,9 @@ struct Config {
         adjustKeyMapValues();
     }
 
+    uint32_t GetDefaultNStreamsForThroughputMode() const {
+        return 2;
+    }
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void adjustKeyMapValues();
 
