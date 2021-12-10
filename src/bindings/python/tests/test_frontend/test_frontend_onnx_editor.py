@@ -258,7 +258,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, relu, split], "test_graph", input_tensors, output_tensors)
     models["remove_output.onnx"] = make_model(graph, producer_name="ONNX Importer",
-                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                              opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # test partial shape
     input_tensors = [
