@@ -9,10 +9,10 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import Variant
+from openvino.pyopenvino import OVAny
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime import Function, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Tensor
 from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
@@ -31,7 +31,7 @@ def test_ngraph_function_api():
     assert parameter_a.partial_shape == PartialShape([2, 2])
     parameter_a.layout = ov.Layout("NCWH")
     assert parameter_a.layout == ov.Layout("NCWH")
-    function = Function(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
+    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
 
@@ -489,18 +489,18 @@ def test_node_target_inputs_soruce_output():
     assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
 
 
-def test_variants():
-    variant_int = Variant(32)
-    variant_str = Variant("test_text")
+def test_any():
+    any_int = OVAny(32)
+    any_str = OVAny("test_text")
 
-    assert variant_int.get() == 32
-    assert variant_str.get() == "test_text"
+    assert any_int.get() == 32
+    assert any_str.get() == "test_text"
 
-    variant_int.set(777)
-    variant_str.set("another_text")
+    any_int.set(777)
+    any_str.set("another_text")
 
-    assert variant_int.get() == 777
-    assert variant_str.get() == "another_text"
+    assert any_int.get() == 777
+    assert any_str.get() == "another_text"
 
 
 def test_runtime_info():
@@ -540,7 +540,7 @@ def test_sink_function_ctor():
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    function = Function(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
+    function = Model(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
 
     ordered_ops = function.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]

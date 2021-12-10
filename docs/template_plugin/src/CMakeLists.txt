@@ -40,5 +40,5 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 #                     POSSIBLE_PLUGINS ${TARGET_NAME})
 # [cmake:plugin]
 
-ov_install_static_lib(ngraph_backend ngraph)
-ov_install_static_lib(interpreter_backend ngraph)
+ov_install_static_lib(ngraph_backend tests)
+ov_install_static_lib(interpreter_backend tests)

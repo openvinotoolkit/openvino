@@ -15,7 +15,7 @@ try:
 
     # pylint: disable=no-name-in-module,import-error
     import openvino.runtime.opset8 as ops
-    from openvino.runtime import Function, Layout, PartialShape
+    from openvino.runtime import Model, Layout, PartialShape
 
 except Exception:
     print("No OpenVINO API available,"
@@ -34,7 +34,7 @@ def create_function2(shape1=[2, 2], shape2=[2, 2], dtype1=np.float32, dtype2=np.
     relu2 = ops.relu(input2)
     res2 = ops.result(relu2, "res2")
     res2.get_output_tensor(0).set_names({'res2', 'res2a'})
-    function = Function(results=[res1, res2], parameters=[input1, input2], name="TestFunction")
+    function = Model(results=[res1, res2], parameters=[input1, input2], name="TestFunction")
     return function
 
 
@@ -44,11 +44,11 @@ def create_function1(shape1=[2, 2]):
     relu1 = ops.relu(input1)
     res1 = ops.result(relu1, "res1")
     res1.get_output_tensor(0).set_names({'res1', 'res1a'})
-    function = Function(results=[res1], parameters=[input1], name="TestFunction")
+    function = Model(results=[res1], parameters=[input1], name="TestFunction")
     return function
 
 
-def process_function(ov_function: Function, argv: Namespace):
+def process_function(ov_function: Model, argv: Namespace):
     apply_preprocessing(ov_function=ov_function, argv=argv)
 
 

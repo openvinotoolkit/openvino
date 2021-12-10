@@ -24,7 +24,7 @@ addIeTarget(
         DEPENDENCIES
             ngraphFunctions
         DEVELOPER_PACKAGE
-            inference_engine_tests
+            tests
 )
 
 ie_faster_build(${TARGET_NAME}
