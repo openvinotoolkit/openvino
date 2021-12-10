@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
         ov::runtime::Tensor input_tensor = infer_request.get_input_tensor();
 
         for (size_t image_id = 0; image_id < images_data.size(); ++image_id) {
-            const size_t image_size = shape_size(input_shape) / batchSize;
+            const size_t image_size = shape_size(model->input().get_shape()) / batchSize;
             std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
                         images_data[image_id].get(),
                         image_size);

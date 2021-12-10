@@ -52,10 +52,10 @@ def _check_output(self, param):
     stdout = stdout.split('\n')
     is_ok = 0
     for line in stdout:
-        if re.match("\d+ +\d+.\d+$", line.strip()) is not None:
+        if re.match("\\d+ +\\d+.\\d+$", line.strip()) is not None:
             is_ok = True
             top1 = line.strip().split(' ')[0]
-            top1 = re.sub("\D", "", top1)
+            top1 = re.sub("\\D", "", top1)
             assert '215' in top1, "Wrong top1 class"
             log.info('[INFO] Accuracy passed')
             break

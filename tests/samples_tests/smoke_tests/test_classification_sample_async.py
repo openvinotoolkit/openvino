@@ -29,7 +29,7 @@ test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')]
                            )
 
 test_data_fp16 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                                       'm': [os.path.join('squeezenet1.1', 'FP16', 'squeezenet1.1.xml')],
                                        'sample_type': ['C++','Python'],
                                        'batch': [1, 2, 4],
                                        'd': ['CPU']}, 
@@ -64,7 +64,7 @@ def _check_output(self, param):
     stdout = stdout.split('\n')
     is_ok = 0
     for line in range(len(stdout)):
-        if re.match("\d+ +\d+.\d+$", stdout[line].replace('[ INFO ]', '').strip()) is not None:
+        if re.match("\\d+ +\\d+.\\d+$", stdout[line].replace('[ INFO ]', '').strip()) is not None:
             if is_ok == 0:
                 is_ok = True
             top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
