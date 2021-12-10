@@ -119,10 +119,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json" AND
-        EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json_schema_validator")
-    add_subdirectory(thirdparty/json/nlohmann_json EXCLUDE_FROM_ALL)
-    add_subdirectory(thirdparty/json/nlohmann_json_schema_validator EXCLUDE_FROM_ALL)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json")
+    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")

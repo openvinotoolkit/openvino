@@ -192,20 +192,13 @@ endif()
 # nlohmann json
 #
 
-function(build_json_libs)
-    # suppress shadowing names warning
-    set(JSON_SystemInclude ON)
-    add_subdirectory(json/nlohmann_json EXCLUDE_FROM_ALL)
+add_subdirectory(json)
 
-    set(BUILD_SHARED_LIBS OFF)
-    add_subdirectory(json/nlohmann_json_schema_validator EXCLUDE_FROM_ALL)
-    set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdparty)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json nlohmann_json_schema_validator)
+openvino_developer_export_targets(COMPONENT openvino_common
+                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
 
-    ov_install_static_lib(nlohmann_json openvino_common)
-    ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
-endfunction()
-build_json_libs()
+ov_install_static_lib(nlohmann_json openvino_common)
+ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 
 #
 # Install
@@ -224,6 +217,11 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
+        DESTINATION "samples/cpp/thirdparty"
+        COMPONENT cpp_samples_deps
+        USE_SOURCE_PERMISSIONS)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
         DESTINATION "samples/cpp/thirdparty"
         COMPONENT cpp_samples_deps
         USE_SOURCE_PERMISSIONS)
