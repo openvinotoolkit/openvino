@@ -61,13 +61,13 @@ TEST_F(PartialShapeSerializationTest, pshape_serialize) {
         }
     };
 
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     {
         auto pshape = ov::PartialShape{-1, ov::Dimension(-1, 20), ov::Dimension(10, -1), ov::Dimension(2, 100)};
         auto data = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, pshape);
         auto add = std::make_shared<ov::opset8::Add>(data, data);
         auto result = std::make_shared<ov::opset8::Result>(add);
-        function = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{data});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data});
     }
 
     ov::pass::Manager m;
@@ -96,13 +96,13 @@ TEST_F(PartialShapeSerializationTest, pshape_serialize_dymamic_rank) {
         }
     };
 
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     {
         auto pshape = ov::PartialShape::dynamic();
         auto data = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, pshape);
         auto add = std::make_shared<ov::opset8::Add>(data, data);
         auto result = std::make_shared<ov::opset8::Result>(add);
-        function = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{data});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data});
     }
 
     ov::pass::Manager m;

@@ -111,7 +111,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestCase1) {
     auto result = std::make_shared<ov::opset8::Result>(round);
     result->set_friendly_name("output");
 
-    auto f_11_ref = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{param});
+    auto f_11_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     f_11_ref->set_friendly_name("Network");
 
     const auto fc = FunctionsComparator::with_default()
@@ -193,7 +193,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestCase2) {
     auto result = std::make_shared<ov::opset8::Result>(round);
     result->set_friendly_name("output");
 
-    auto f_11_ref = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{param});
+    auto f_11_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     f_11_ref->set_friendly_name("Network");
 
     const auto fc = FunctionsComparator::with_default()
@@ -259,7 +259,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRank) {
     auto result = std::make_shared<ov::opset8::Result>(round);
     result->set_friendly_name("output");
 
-    auto f_11_ref = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{param});
+    auto f_11_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     f_11_ref->set_friendly_name("Network");
 
     const auto fc = FunctionsComparator::with_default()
