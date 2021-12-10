@@ -43,12 +43,23 @@ if sys.platform == "win32":
 
 
 # Openvino pybind bindings and python extended classes
-from openvino.runtime.impl import Dimension
-from openvino.runtime.impl import Function
-from openvino.runtime.impl import Node
-from openvino.runtime.impl import PartialShape
-from openvino.runtime.impl import Layout
-from openvino.runtime.impl import layout_helpers
+from openvino.pyopenvino import Dimension
+from openvino.pyopenvino import Function
+from openvino.pyopenvino import Input
+from openvino.pyopenvino import Output
+from openvino.pyopenvino import Node
+from openvino.pyopenvino import Type
+from openvino.pyopenvino import PartialShape
+from openvino.pyopenvino import Shape
+from openvino.pyopenvino import Strides
+from openvino.pyopenvino import CoordinateDiff
+from openvino.pyopenvino import AxisSet
+from openvino.pyopenvino import AxisVector
+from openvino.pyopenvino import Coordinate
+from openvino.pyopenvino import Layout
+from openvino.pyopenvino import ConstOutput
+from openvino.pyopenvino import util
+from openvino.pyopenvino import layout_helpers
 
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import ExecutableNetwork
@@ -60,6 +71,8 @@ from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import ProfilingInfo
 from openvino.pyopenvino import get_version
+from openvino.pyopenvino import get_batch
+from openvino.pyopenvino import set_batch
 
 # Import opsets
 from openvino.runtime import opset1
