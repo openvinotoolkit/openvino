@@ -146,14 +146,14 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ngraph::Sh
             auto *dataPtr = tensor.data<bool>();
             dataPtr[0] = condition;
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, -5);
         }
 
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
 }
 
-void SimpleIfNotConstConditionAndDiffOutputsTest::SetUp() {
+void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
     std::vector<ov::test::InputShape> shapes;
     ov::test::ElementType inType;
     std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
@@ -168,15 +168,17 @@ void SimpleIfNotConstConditionAndDiffOutputsTest::SetUp() {
     auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
 
     // then body
-    std::vector<int64_t> padsBegin(inputDynamicShapes[0].size(), 5);
-    std::vector<int64_t> padsEnd(inputDynamicShapes[0].size(), 5);
-    auto thenOp = ngraph::builder::makePad(p1, padsBegin, padsEnd, 0, ngraph::helpers::PadMode::CONSTANT);
-    auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp);
+    auto thenOp_0 = std::make_shared<ov::op::v3::NonZero>(p1, ov::element::i32);
+    auto thenOp_1 = std::make_shared<ov::op::v0::Convert>(thenOp_0, inType);
+    auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp_1);
     auto thenBody = std::make_shared<ov::Function>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
 
     // else body
-    auto elseOp = ngraph::builder::makeActivation(p2, inType, ngraph::helpers::ActivationTypes::Relu);
-    auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp);
+    auto add_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, std::vector<float>{ 2 });
+    auto elseOp_0 = std::make_shared<ov::op::v1::Add>(p2, add_const);
+    auto elseOp_1 = std::make_shared<ov::op::v3::NonZero>(p2, ov::element::i32);
+    auto elseOp_2 = std::make_shared<ov::op::v0::Convert>(elseOp_1, inType);
+    auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp_2);
     auto elseBody = std::make_shared<ov::Function>(ov::OutputVector{elseRes}, ov::ParameterVector{p2});
 
     auto ifOp = std::make_shared<ov::op::v8::If>(params[1]);
@@ -185,10 +187,8 @@ void SimpleIfNotConstConditionAndDiffOutputsTest::SetUp() {
     ifOp->set_input(params[0], p1, p2);
     auto ifRes = ifOp->set_output(thenRes, elseRes);
 
-    // activation result
-    auto round = ngraph::builder::makeActivation(ifRes, inType, ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero);
-    function = std::make_shared<ov::Function>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(round)},
-                                              params, "SimpleIfNotConstConditionAndDiffOutputsTest");
+    function = std::make_shared<ov::Function>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(ifOp)},
+                                              params, "SimpleIfNotConstConditionAndInternalDynamismTest");
 }
 
 } // namespace SubgraphTestsDefinitions

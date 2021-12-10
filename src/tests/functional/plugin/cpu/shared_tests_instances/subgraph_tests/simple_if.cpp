@@ -74,7 +74,7 @@ TEST_P(SimpleIfNotConstConditionTest, CompareWithRefs) {
     run();
 };
 
-std::vector<std::vector<ov::test::InputShape>> inputShapesDiffOutputs = {
+std::vector<std::vector<ov::test::InputShape>> inputShapes_2 = {
         {
             {{-1, -1, -1}, {{10, 20, 5}, {10, 20, 5}, {1, 5, 5}}},
         },
@@ -86,20 +86,20 @@ std::vector<std::vector<ov::test::InputShape>> inputShapesDiffOutputs = {
         },
 };
 
-const std::vector<ov::test::ElementType> inTypesDiffOutputs = {
+const std::vector<ov::test::ElementType> inTypes_2 = {
         ov::test::ElementType::f32,
         ov::test::ElementType::bf16
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionAndDiffOutputsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionAndInternalDynamismTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesDiffOutputs),
-                                 ::testing::ValuesIn(inTypesDiffOutputs),
+                                 ::testing::ValuesIn(inputShapes_2),
+                                 ::testing::ValuesIn(inTypes_2),
                                  ::testing::ValuesIn(conditions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          SimpleIfNotConstConditionTest::getTestCaseName);
 
-TEST_P(SimpleIfNotConstConditionAndDiffOutputsTest, CompareWithRefs) {
+TEST_P(SimpleIfNotConstConditionAndInternalDynamismTest, CompareWithRefs) {
     run();
 };
 

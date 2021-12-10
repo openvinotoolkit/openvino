@@ -44,7 +44,7 @@ protected:
     bool condition;
 };
 
-class SimpleIfNotConstConditionAndDiffOutputsTest : public SimpleIfNotConstConditionTest {
+class SimpleIfNotConstConditionAndInternalDynamismTest : public SimpleIfNotConstConditionTest {
 protected:
     void SetUp() override;
 };
