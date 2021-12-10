@@ -17,7 +17,7 @@
 
 #include "ie_plugin_config.hpp"
 #include "openvino/core/extension.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/op.hpp"
@@ -74,7 +74,7 @@ public:
      *  * bin_path parameter is not used.
      * @return Model
      */
-    std::shared_ptr<ov::Function> read_model(const std::wstring& model_path, const std::wstring& bin_path = {}) const;
+    std::shared_ptr<ov::Model> read_model(const std::wstring& model_path, const std::wstring& bin_path = {}) const;
 #endif
 
     /**
@@ -88,7 +88,7 @@ public:
      *  * bin_path parameter is not used.
      * @return Model
      */
-    std::shared_ptr<ov::Function> read_model(const std::string& model_path, const std::string& bin_path = {}) const;
+    std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path = {}) const;
     /**
      * @brief Reads models from IR and ONNX formats
      * @param model string with model in IR or ONNX format
@@ -99,7 +99,7 @@ public:
      * constant data becomes to point to invalid memory.
      * @return Model
      */
-    std::shared_ptr<ov::Function> read_model(const std::string& model, const Tensor& weights) const;
+    std::shared_ptr<ov::Model> read_model(const std::string& model, const Tensor& weights) const;
 
     /**
      * @brief Creates an executable network from a model object.
@@ -113,9 +113,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    CompiledModel compile_model(const std::shared_ptr<const ov::Function>& model,
-                                const std::string& device_name,
-                                const ConfigMap& config = {});
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
+                                    const std::string& device_name,
+                                    const ConfigMap& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -142,9 +142,9 @@ public:
      * operation
      * @return An executable network object
      */
-    CompiledModel compile_model(const std::shared_ptr<const ov::Function>& model,
-                                const RemoteContext& context,
-                                const ConfigMap& config = {});
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
+                                    const RemoteContext& context,
+                                    const ConfigMap& config = {});
 
     /**
      * @brief Registers extension
@@ -258,7 +258,7 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a operation name -> a device name supporting this operation.
      */
-    SupportedOpsMap query_model(const std::shared_ptr<const ov::Function>& model,
+    SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                 const std::string& device_name,
                                 const ConfigMap& config = {}) const;
 

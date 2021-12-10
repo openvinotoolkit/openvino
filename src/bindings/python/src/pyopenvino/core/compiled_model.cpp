@@ -54,7 +54,7 @@ void regclass_CompiledModel(py::module m) {
         },
         py::arg("name"));
 
-    cls.def("get_runtime_function", &ov::runtime::CompiledModel::get_runtime_function);
+    cls.def("get_runtime_model", &ov::runtime::CompiledModel::get_runtime_model);
 
     cls.def_property_readonly("inputs", &ov::runtime::CompiledModel::inputs);
 

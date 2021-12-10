@@ -3,6 +3,7 @@
 
 #include <pybind11/pybind11.h>
 
+#include <openvino/core/function.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
 #include <string>
@@ -65,6 +66,15 @@ std::string get_version() {
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
     m.def("get_version", &get_version);
+    m.def("get_batch", &ov::get_batch);
+    m.def("set_batch", &ov::set_batch);
+    m.def(
+        "set_batch",
+        [](const std::shared_ptr<ov::Function>& f, int64_t value) {
+            return ov::set_batch(f, ov::Dimension(value));
+        },
+        py::arg("function"),
+        py::arg("batch_size") = -1);
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
@@ -93,7 +103,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     py::module m_preprocess =
         m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
-    regclass_graph_Function(m);
+    regclass_graph_Model(m);
     regmodule_graph_passes(m);
     regmodule_graph_util(m);
     regmodule_graph_layout_helpers(m);

@@ -16,7 +16,7 @@ TEST(ExecutableNetworkOVTests, throwsOnUninitializedExportStream) {
 
 TEST(ExecutableNetworkOVTests, throwsOnUninitializedGetFunction) {
     ov::runtime::CompiledModel exec;
-    ASSERT_THROW(exec.get_runtime_function(), ov::Exception);
+    ASSERT_THROW(exec.get_runtime_model(), ov::Exception);
 }
 
 TEST(ExecutableNetworkOVTests, throwsOnUninitializedOutputs) {

@@ -119,8 +119,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<void>& so,
     OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized.");
 }
 
-std::shared_ptr<const Function> CompiledModel::get_runtime_function() const {
-    OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
+std::shared_ptr<const Model> CompiledModel::get_runtime_model() const {
+    OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Model>(_impl->GetExecGraphInfo()));
 }
 
 std::vector<ov::Output<const ov::Node>> CompiledModel::inputs() const {

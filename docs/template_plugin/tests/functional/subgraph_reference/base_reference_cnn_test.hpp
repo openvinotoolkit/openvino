@@ -26,7 +26,7 @@ public:
 
 protected:
     const std::string targetDevice;
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     InferenceEngine::CNNNetwork legacy_network;
 
     float threshold = 1e-5f;     // Relative diff

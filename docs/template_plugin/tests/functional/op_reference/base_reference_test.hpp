@@ -31,7 +31,7 @@ public:
 protected:
     const std::string targetDevice;
     std::shared_ptr<ov::runtime::Core> core;
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
 
     ov::runtime::CompiledModel executableNetwork;
     ov::runtime::InferRequest inferRequest;
