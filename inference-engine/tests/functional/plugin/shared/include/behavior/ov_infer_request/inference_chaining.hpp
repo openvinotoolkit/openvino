@@ -13,7 +13,7 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
@@ -30,11 +30,11 @@ namespace behavior {
 
 class OVInferenceChaining : public OVInferRequestTests {
 protected:
-    static std::shared_ptr<ov::Function> getFirstStaticFunction(const ov::PartialShape &shape = {3});
+    static std::shared_ptr<ov::Model> getFirstStaticFunction(const ov::PartialShape &shape = {3});
 
-    static std::shared_ptr<ov::Function> getSecondStaticFunction(const ov::PartialShape &shape = {3});
+    static std::shared_ptr<ov::Model> getSecondStaticFunction(const ov::PartialShape &shape = {3});
 
-    static std::shared_ptr<ov::Function> getThirdStaticFunction(const ov::PartialShape &shape = {3});
+    static std::shared_ptr<ov::Model> getThirdStaticFunction(const ov::PartialShape &shape = {3});
 
     template<typename T>
     ov::runtime::Tensor tensor(const std::vector<T> &v) {
@@ -45,9 +45,9 @@ protected:
         return tensor;
     }
 
-    std::shared_ptr<ov::Function> function0;
-    std::shared_ptr<ov::Function> function1;
-    std::shared_ptr<ov::Function> function2;
+    std::shared_ptr<ov::Model> function0;
+    std::shared_ptr<ov::Model> function1;
+    std::shared_ptr<ov::Model> function2;
 
     bool outputToInput = true;
 

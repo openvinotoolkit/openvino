@@ -44,7 +44,7 @@ if sys.platform == "win32":
 
 # Openvino pybind bindings and python extended classes
 from openvino.pyopenvino import Dimension
-from openvino.pyopenvino import Function
+from openvino.pyopenvino import Model
 from openvino.pyopenvino import Input
 from openvino.pyopenvino import Output
 from openvino.pyopenvino import Node
@@ -65,7 +65,7 @@ from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import ExecutableNetwork
 from openvino.runtime.ie_api import InferRequest
 from openvino.runtime.ie_api import AsyncInferQueue
-from openvino.runtime.ie_api import Variant
+from openvino.runtime.ie_api import OVAny
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import Tensor
