@@ -485,22 +485,9 @@ endif()
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/aliased_output.in.cpp
-    backend/api.in.cpp
-    backend/auto_broadcast.in.cpp
-    backend/builder_reduce_ops_opset1.in.cpp
-    backend/dyn_reshape.in.cpp
-    backend/dynamic.in.cpp
-    backend/function_name.in.cpp
     backend/interpolate.in.cpp
-    backend/multiple_backends.in.cpp
-    backend/multiple_result.in.cpp
-    backend/node_name.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
-    backend/unhandled_op.in.cpp
-    backend/validate_call.in.cpp
-    backend/zero_sized.in.cpp
 )
 
 if (ENABLE_OV_ONNX_FRONTEND)

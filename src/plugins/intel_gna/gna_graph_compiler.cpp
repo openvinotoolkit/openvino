@@ -952,6 +952,16 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
     }
 
+    // Concat axis validation
+    if (!GNALimitations::ValidateConvConcatAxis(concatLayer) && gnaFlags->log_level == PluginConfigParams::LOG_WARNING) {
+        std::ostringstream in_dims_oss;
+        auto in_dims = concatLayer->insData[0].lock()->getDims();
+        std::copy(in_dims.begin(), in_dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
+        std::cout << "[ WARNING ] Topology with layer: " + layer->name + ", type: " + layer->type +
+            ", and concatenation axis(" + std::to_string(concatLayer->_axis) +
+            ") for input dimensions(" + in_dims_oss.str() + ") not supported\n";
+    }
+
     auto& concatLayerInfo = concat_connection.find(concatLayer->name)->second;
     for (auto &&outLayer : getInputTo(concatLayer->outData.front())) {
         auto concatCandidate = outLayer.second;
