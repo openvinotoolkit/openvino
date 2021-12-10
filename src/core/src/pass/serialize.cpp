@@ -696,7 +696,6 @@ bool has_dynamic_output(const std::shared_ptr<Node>& n) {
     return false;
 }
 
-git branch
 void auto_pad_resolving(ov::Node* node) {
     const std::set<ov::op::PadType> pad_agnostic_types = {
         ov::op::PadType::SAME_LOWER,
