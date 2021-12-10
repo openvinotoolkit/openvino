@@ -21,7 +21,7 @@ namespace {
 
 struct RefPreprocessParams {
     RefPreprocessParams(const std::string& val): name(val) {}
-    std::function<std::shared_ptr<ov::Function>()> function;
+    std::function<std::shared_ptr<ov::Model>()> function;
     std::vector<Tensor> inputs;
     std::vector<Tensor> expected;
     float abs_threshold = 0.01f;
@@ -58,7 +58,7 @@ TEST_P(ReferencePreprocessTest, CompareWithHardcodedRefs) {
 }
 } // namespace
 
-static std::shared_ptr<Function> create_simple_function(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
@@ -68,11 +68,11 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
-    return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
 template <int N>
-static std::shared_ptr<Function> create_n_inputs(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
     auto params = ParameterVector();
     auto results = ResultVector();
     for (int i = 1; i <= N; i++) {
@@ -88,7 +88,7 @@ static std::shared_ptr<Function> create_n_inputs(element::Type type, const Parti
         results.push_back(res1);
         params.push_back(param);
     }
-    return std::make_shared<ov::Function>(results, params);
+    return std::make_shared<ov::Model>(results, params);
 }
 
 static RefPreprocessParams simple_mean_scale() {

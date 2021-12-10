@@ -44,16 +44,15 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 # install
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-            NAMELINK_COMPONENT core_dev
-            OPTIONAL)
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core OPTIONAL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core OPTIONAL
+            NAMELINK_COMPONENT core_dev OPTIONAL)
 else()
-    ov_install_static_lib(${TARGET_NAME} core)
+    ov_install_static_lib(${TARGET_NAME} core OPTIONAL)
 endif()

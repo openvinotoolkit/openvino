@@ -30,5 +30,5 @@ protected:
 
     void doLoadFromFile();
 
-    void runConvertedModel(const std::shared_ptr<ov::Function> function, const std::string& model_file);
+    void runConvertedModel(const std::shared_ptr<ov::Model> function, const std::string& model_file);
 };

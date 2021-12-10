@@ -72,19 +72,3 @@ if(ENABLE_PYTHON)
             USE_SOURCE_PERMISSIONS
             COMPONENT ${OV_COMP_PYTHON_SAMPLES})
 endif()
-
-# install scripts to run samples fast
-
-if(UNIX)
-    install(DIRECTORY scripts/
-            DESTINATION share/openvino/samples/scripts
-            COMPONENT ${OV_COMP_CPP_SAMPLES}
-            USE_SOURCE_PERMISSIONS
-            PATTERN *.bat EXCLUDE)
-elseif(WIN32)
-    install(DIRECTORY scripts/
-            DESTINATION share/openvino/samples/scripts
-            COMPONENT ${OV_COMP_CPP_SAMPLES}
-            USE_SOURCE_PERMISSIONS
-            PATTERN *.sh EXCLUDE)
-endif()

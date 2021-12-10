@@ -89,7 +89,7 @@ public:
 };
 
 TEST_P(ReshapeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
+    InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
@@ -353,9 +353,9 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
-            {}
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1, 1, 1}}},
         }
     },
     // U8: no subtract 4D -> 6D: channels are not affected: with subtract
@@ -373,13 +373,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
+            {},
+            ngraph::element::u8,
             {
                 { ngraph::element::f32 },
-                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
-            },
-            ngraph::element::f32,
-            {}
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1, 1, 1}}
+            }
         }
     },
     // U8: no subtract 4D -> 2D: channels are affected: per tensor quantization
@@ -469,13 +469,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}}
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}},
-            ngraph::element::f32,
-            {}
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1, 1, 1}}},
         }
     },
     // U8: no subtract 4D -> 5D: channels are not affected: no subtract
