@@ -107,7 +107,7 @@ public:
 };
 
 TEST_P(AvgPoolTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
+    InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
     auto res = compare_functions(referenceFunction, actualFunction, true, true);

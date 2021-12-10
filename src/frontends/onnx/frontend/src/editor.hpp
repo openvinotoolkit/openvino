@@ -139,7 +139,7 @@ public:
     std::string model_string() const;
 
     /// \brief     Converts an edited ONNX model to an nGraph Function representation.
-    std::shared_ptr<Function> get_function() const;
+    std::shared_ptr<Model> get_function() const;
 
     /// \brief Returns a list of all inputs of the in-memory model.
     ///        The returned value might depend on the previous operations executed on an
@@ -274,7 +274,7 @@ public:
     /// \brief Returns a nGraph function based on edited model
     ///        decoded to framework nodes
     ///
-    std::shared_ptr<Function> decode();
+    std::shared_ptr<Model> decode();
 
 private:
     void update_mapper_if_needed() const;
