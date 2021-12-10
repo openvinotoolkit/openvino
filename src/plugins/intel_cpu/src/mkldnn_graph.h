@@ -248,7 +248,7 @@ private:
     std::vector<MKLDNNNodePtr> constantGraphNodes;
     std::vector<MKLDNNNodePtr> executableGraphNodes;
 
-    MultyCachePtr executorCache;
+    MultiCachePtr rtParamsCache;
 
     void EnforceBF16();
 };

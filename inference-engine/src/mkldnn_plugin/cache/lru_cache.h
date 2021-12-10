@@ -25,11 +25,20 @@ public:
 public:
     explicit LruCache(size_t capacity) : _capacity(capacity) {}
 
+    /**
+     * @brief Puts the value associated with a key into the cache.
+     * @param key
+     * @param value
+     */
+
     void put(Key key, Value val) {
+        if (0 == _capacity) {
+            return;
+        }
         auto mapItr = _cacheMapper.find(key);
         if (mapItr != _cacheMapper.end()) {
             touch(mapItr->second);
-            mapItr->second->second = val;
+            mapItr->second->second = std::move(val);
         } else {
             if (_cacheMapper.size() == _capacity) {
                 evict(1);
@@ -38,6 +47,12 @@ public:
             _cacheMapper.insert({std::move(key), itr});
         }
     }
+
+    /**
+     * @brief Search a value associated with the key.
+     * @param key
+     * @return Value associated with the key or default constructed instance of Value type.
+     */
 
     Value get(const Key &key) {
         auto itr = _cacheMapper.find(key);
@@ -48,6 +63,11 @@ public:
         touch(itr->second);
         return _lruList.front().second;
     }
+
+    /**
+     * @brief Evicts n last recently used cache records
+     * @param n number of records to be evicted, can be greater than capacity
+     */
 
     void evict(size_t n) {
         for (size_t i = 0; i < n && !_lruList.empty(); ++i) {
