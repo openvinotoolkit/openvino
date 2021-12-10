@@ -3,7 +3,7 @@
 
 #include <pybind11/pybind11.h>
 
-#include <openvino/core/function.hpp>
+#include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
 #include <string>
