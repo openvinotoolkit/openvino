@@ -30,7 +30,7 @@ public:
 
 } // namespace
 
-static std::shared_ptr<Function> create_simple_function(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1", "input1"});
@@ -40,10 +40,10 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1", "Result1", "Add0"});
-    return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-static std::shared_ptr<Function> create_simple_function_yuv(const PartialShape& shape) {
+static std::shared_ptr<Model> create_simple_function_yuv(const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::u8, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1", "input1"});
@@ -52,7 +52,7 @@ static std::shared_ptr<Function> create_simple_function_yuv(const PartialShape& 
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1", "Result1", "Convert1"});
-    return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
 TEST_F(ReferencePreprocessLegacyTest, mean) {
