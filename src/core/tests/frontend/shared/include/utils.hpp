@@ -30,12 +30,10 @@ inline std::string find_my_pathname() {
     HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ov_runtime" SHARED_LIB_SUFFIX);
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
-    wstring ws(wpath);
-    string path(ws.begin(), ws.end());
-    replace(path.begin(), path.end(), '\\', '/');
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    path = file_util::get_directory(path);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    std::wstring ws(wpath);
+    std::string path(ws.begin(), ws.end());
+    std::replace(path.begin(), path.end(), '\\', '/');
+    path = ov::util::get_directory(path);
     path += "/";
     return path;
 #elif defined(__linux) || defined(__APPLE__)
