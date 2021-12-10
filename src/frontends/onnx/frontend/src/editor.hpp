@@ -282,11 +282,11 @@ public:
     ///
     void add_output(const OutputEdge& output_edge) const;
 
-    /// \brief     Provides element type for given tensor name.
+    /// \brief     Provides element type for given input tensor name.
     ///
     /// \param output_edge Name of tensor for which element type will be returned.
     ///
-    element::Type_t get_element_type(const std::string& tensor_name);
+    element::Type_t get_input_type(const std::string& tensor_name);
 
 private:
     void update_mapper_if_needed() const;

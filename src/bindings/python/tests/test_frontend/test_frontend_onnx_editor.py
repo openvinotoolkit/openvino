@@ -245,6 +245,21 @@ def create_test_onnx_models():
     models["cut_and_add_new_input_place.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                                             opset_imports=[onnx.helper.make_opsetid("", 13)])
 
+    # Expected for remove_output
+    input_tensors = [
+        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in3", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    graph = make_graph([add, relu, split], "test_graph", input_tensors, output_tensors)
+    models["remove_output.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
+
     # test partial shape
     input_tensors = [
         make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (8, 16)),
@@ -1133,11 +1148,12 @@ def test_remove_output():
     place = model.get_place_by_tensor_name(tensorName="out4")
     model.remove_output(place)
 
-    out_names = [place.get_names()[0] for place in model.get_outputs()]
-    assert out_names == ["out1", "out2", "out3"]
+    expected_model = fe.load("remove_output.onnx")
+    expected_func = fe.convert(expected_model)
+    model_func = fe.convert(model)
 
-    in_names = [place.get_names()[0] for place in model.get_inputs()]
-    assert in_names == ["in1", "in2", "in3"]
+    res = compare_functions(model_func, expected_func)
+    assert res
 
 
 def test_remove_output_when_place_is_input():
@@ -1151,11 +1167,12 @@ def test_remove_output_when_place_is_input():
     place = model.get_place_by_tensor_name(tensorName="in1")
     model.remove_output(place)
 
-    out_names = [place.get_names()[0] for place in model.get_outputs()]
-    assert out_names == ["out1", "out2", "out3", "out4"]
+    expected_model = fe.load("input_model.onnx")
+    expected_func = fe.convert(expected_model)
+    model_func = fe.convert(model)
 
-    in_names = [place.get_names()[0] for place in model.get_inputs()]
-    assert in_names == ["in1", "in2", "in3"]
+    res = compare_functions(model_func, expected_func)
+    assert res
 
 
 def test_get_place_by_operation_name_and_input_port():

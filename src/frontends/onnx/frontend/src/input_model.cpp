@@ -236,21 +236,17 @@ void InputModelONNX::cut_and_add_new_input(Place::Ptr place, const std::string& 
     if (place->is_input())
         return;
 
-    m_editor->serialize("orig_for_cut_and_new.onnx");
+    const auto edge_place = convert_place_to_input_edge({place});
+    const auto edge_outputs = convert_place_to_output_edge(outputs);
 
-    const auto place_inputs = convert_place_to_input_edge({place});
-    const auto onnx_outputs = convert_place_to_output_edge(outputs);
+    if (!edge_place.empty() && !edge_outputs.empty()) {
+        m_editor->cut_graph_fragment(edge_place, edge_outputs, true);
 
-    m_editor->cut_graph_fragment(place_inputs, onnx_outputs, true);
-
-    // change name for newly created input, it is the last entry in get_inputs()
-    if (!new_name_optional.empty()) {
-        auto new_inputs = get_inputs();
-        m_editor->set_tensor_name(new_inputs.back()->get_names().at(0), new_name_optional);
-    }
-
-    for (auto& input : get_inputs()) {
-        std::cout << input->get_names().at(0) << std::endl;
+        // change name for newly created input, it is the last entry in get_inputs()
+        if (!new_name_optional.empty()) {
+            auto new_inputs = get_inputs();
+            m_editor->set_tensor_name(new_inputs.back()->get_names().at(0), new_name_optional);
+        }
     }
 }
 
@@ -260,7 +256,7 @@ void InputModelONNX::set_tensor_value(Place::Ptr place, const void* value) {
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
         auto name = place->get_names().at(0);
         auto p_shape = m_editor->get_tensor_shape(name);
-        auto el_type = m_editor->get_element_type(name);
+        auto el_type = m_editor->get_input_type(name);
 
         std::shared_ptr<ngraph::op::Constant> constant =
             ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);

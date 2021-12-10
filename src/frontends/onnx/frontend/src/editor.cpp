@@ -280,7 +280,7 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
     }
 }
 
-element::Type_t onnx_editor::ONNXModelEditor::get_element_type(const std::string& tensor_name) {
+element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
     auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
 
