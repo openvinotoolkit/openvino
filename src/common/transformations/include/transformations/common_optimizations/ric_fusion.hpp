@@ -6,6 +6,8 @@
 
 #include <transformations_visibility.hpp>
 
+#include <openvino/pass/pass.hpp>
+#include <openvino/core/model.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
@@ -21,8 +23,8 @@ class TRANSFORMATIONS_API ReverseInputChannelsFusion;
  * @brief ReverseInputChannelsFusion
  */
 
-class ngraph::pass::ReverseInputChannelsFusion: public ngraph::pass::FunctionPass {
+class ngraph::pass::ReverseInputChannelsFusion: public ov::pass::ModelPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<Function>) override;
+    bool run_on_model(const std::shared_ptr<ov::Model> &) override;
 };

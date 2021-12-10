@@ -16,6 +16,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/framework_node.hpp>
 #include <transformations/init_node_info.hpp>
+#include <openvino/core/model.hpp>
 
 #include "ie_common.h"
 
@@ -77,9 +78,9 @@ public:
         m_enable_accuracy_check = true;
     }
 
-    void accuracy_check(std::shared_ptr<ov::Function> ref_function, std::shared_ptr<ov::Function> cur_function);
+    void accuracy_check(std::shared_ptr<ov::Model> ref_function, std::shared_ptr<ov::Model> cur_function);
 
-    std::shared_ptr<ngraph::Function> function, function_ref;
+    std::shared_ptr<ov::Model> function, function_ref;
     ngraph::pass::Manager manager;
     FunctionsComparator comparator;
 

@@ -617,7 +617,7 @@ public:
 };
 }// namespace fuse
 
-bool ngraph::pass::ReverseInputChannelsFusion::run_on_function(std::shared_ptr<Function> f) {
+bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model> & model) {
     Manager m;
     m.set_per_pass_validation(false);
 
@@ -641,7 +641,7 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_function(std::shared_ptr<F
     ric_fuse->add_matcher<fuse::EraseSplitConcat>();
     ric_fuse->add_matcher<fuse::EraseGather>();
 
-    m.run_passes(f);
+    m.run_passes(model);
     return false;
 }
 }// namespace pass

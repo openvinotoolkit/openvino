@@ -190,8 +190,8 @@ void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std:
 }
 } // namespace
 
-void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Function> ref_function,
-                                          std::shared_ptr<ov::Function> cur_function) {
+void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Model> ref_function,
+                                          std::shared_ptr<ov::Model> cur_function) {
     try {
         if (ref_function->is_dynamic() || cur_function->is_dynamic()) {
             return;
