@@ -218,7 +218,7 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
                   << " Creating new snippet - no input subgraphs found" << std::endl;
 
         auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
-        subgraph->get_rt_info()["originalLayersNames"] = ov::make_runtime_attribute(node->get_friendly_name());
+        subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
         ngraph::replace_node(node, subgraph);
         update_out_tensor_name(subgraph);
 
@@ -257,7 +257,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             if (strategy == continuation_strategy::reset) {
                 remark(priority) << message_reset << std::endl;
                 auto single_node_subgraph = op::Subgraph::wrap_node_as_subgraph(node);
-                single_node_subgraph->get_rt_info()["originalLayersNames"] = ov::make_runtime_attribute(node->get_friendly_name());
+                single_node_subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
                 single_node_subgraph->validate_and_infer_types();
                 ngraph::replace_node(node, single_node_subgraph);
                 return true;
@@ -299,9 +299,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             auto rt_info = n->get_rt_info();
             auto it = rt_info.find("originalLayersNames");
             if (it != rt_info.end()) {
-                auto value = std::dynamic_pointer_cast<ov::RuntimeAttributeImpl<std::string>>(it->second);
-                if (value)
-                    return value->get() + ",";
+                return it->second.as<std::string>() + ",";
             }
                 return "";
         };
@@ -536,7 +534,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        subgraph->get_rt_info()["originalLayersNames"] = ov::make_runtime_attribute(node->get_friendly_name());
+        subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()
