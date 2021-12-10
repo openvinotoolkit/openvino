@@ -314,9 +314,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' be specified in the short form, e.g. nhwc, or in complex form, e.g. [n,h,w,c].'
                                    ' Example for many names: '
                                    'in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc). Layout can be '
-                                   'partially defined, "?" can be used to specify undefined layout dimension, "..." '
-                                   'can be used to specify multiple undefined dimensions, for example ?c??, nc..., '
-                                   'n...c, etc.',
+                                   'partially defined, "?" can be used to specify undefined layout for one dimension, '
+                                   '"..." can be used to specify undefined layout for multiple dimensions, for example '
+                                   '?c??, nc..., n...c, etc.',
                               default=())
     common_group.add_argument('--target_layout',
                               help='Same as --source_layout, but specifies target layout that will be in the model '
@@ -900,6 +900,17 @@ def split_layouts_by_arrow(s: str) -> tuple:
         return s, None
 
 
+def validate_layout(layout: str):
+    """
+    Checks if layout is of valid format.
+    :param layout: string containing layout
+    :raises: if layout is incorrect
+    """
+    valid_layout_re = re.compile(r'\[?[^\[\]\(\)\s]*\]?')
+    if layout and not valid_layout_re.fullmatch(layout):
+        raise Error('Invalid layout parsed: {}'.format(layout))
+
+
 def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = None):
     """
     Writes found layout data to the 'parsed' dict.
@@ -922,6 +933,8 @@ def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = N
         t_layout = found_layout
     else:
         s_layout, t_layout = split_layouts_by_arrow(found_layout)
+    validate_layout(s_layout)
+    validate_layout(t_layout)
     parsed[name] = {'source_layout': s_layout, 'target_layout': t_layout}
 
 
@@ -945,7 +958,7 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
             p1 = re.compile(r'(\S+)\((\S+)\)')
             m1 = p1.match(layout_str)
             # case for: "name1[n,h,w,c]->[n,c,h,w]"
-            p2 = re.compile(r'(\S+)(\[\S+\])')
+            p2 = re.compile(r'(\S+)(\[\S*\])')
             m2 = p2.match(layout_str)
             if m1:
                 found_g = m1.groups()
@@ -960,7 +973,7 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
 def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_target_layout: str = ''):
     """
     Parses layout string.
-    :param argv_layout: string with a list of layouts passed asa --layout.
+    :param argv_layout: string with a list of layouts passed as a --layout.
     :param argv_source_layout: string with a list of layouts passed as a --source_layout.
     :param argv_target_layout: string with a list of layouts passed as a --target_layout.
     :return: dict with names and layouts associated

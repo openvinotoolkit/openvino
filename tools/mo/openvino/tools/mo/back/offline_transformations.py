@@ -39,27 +39,30 @@ def compress_model(func: object):
 
 
 def add_layouts(ov_function, argv: argparse.Namespace):
-    from openvino.runtime import Layout  # pylint: disable=import-error,no-name-in-module
     from openvino.preprocess import PrePostProcessor  # pylint: disable=no-name-in-module,import-error
+    from openvino.runtime import Layout  # pylint: disable=import-error,no-name-in-module
 
     prep = PrePostProcessor(ov_function)
     layout_values = argv.layout_values
     if '' in layout_values:
-        if len(ov_function.inputs) > 1:
+        if len(ov_function.inputs) == 1:
+            layout_values = {
+                list(ov_function.input().get_tensor().get_names())[0]: {
+                    'source_layout': layout_values[''].get('source_layout'),
+                    'target_layout': layout_values[''].get('target_layout')
+                }
+            }
+        else:
             input_names = [list(ov_input.get_tensor().get_names())[0] for ov_input in ov_function.inputs]
             raise Error('Layout without name can be specified for models with only one input, '
                         'but provided model has {} inputs: \'{}\'. '
                         'Please specify explicitly input/output name for --layout option'
                         .format(len(input_names), input_names))
-        layout_values = {
-            list(ov_function.input().get_tensor().get_names())[0]: {
-                'source_layout': layout_values[''].get('source_layout'),
-                'target_layout': layout_values[''].get('target_layout')
-            }
-        }
+
     set_layout_names = set(layout_values.keys())
     for idx, ov_input in enumerate(ov_function.inputs):
         found = set.intersection(set(ov_input.get_tensor().get_names()), set_layout_names)
+        assert len(found) <= 1, 'More then one name point to the same node'
         if len(found) == 1:
             node_name = list(found)[0]
             found_layout = layout_values[node_name]
@@ -70,6 +73,7 @@ def add_layouts(ov_function, argv: argparse.Namespace):
 
     for idx, ov_output in enumerate(ov_function.outputs):
         found = set.intersection(set(ov_output.get_tensor().get_names()), set_layout_names)
+        assert len(found) <= 1, 'More then one name point to the same node'
         if len(found) == 1:
             node_name = list(found)[0]
             found_layout = layout_values[node_name]
