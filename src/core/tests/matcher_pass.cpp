@@ -21,6 +21,8 @@
 using namespace ngraph;
 using namespace std;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 class TestMatcherPass : public pass::MatcherPass {
 public:
     TestMatcherPass() {
