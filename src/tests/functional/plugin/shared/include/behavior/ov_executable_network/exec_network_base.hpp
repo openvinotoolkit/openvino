@@ -80,6 +80,10 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function, targetDevice, configuration));
 }
 
+TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToDefaultDevice) {
+    EXPECT_NO_THROW(auto execNet = core->compile_model(function, configuration));
+}
+
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
     EXPECT_ANY_THROW(auto execNet = core->compile_model(function, targetDevice, incorrectConfig));

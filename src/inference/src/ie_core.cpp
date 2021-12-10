@@ -1460,18 +1460,28 @@ ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
 
 }  // namespace
 
-CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                  const std::string& deviceName,
-                                  const ConfigMap& config) {
+ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
+                                      const ConfigMap& config) {
+    return compile_model(model, DEFAULT_DEVICE_NAME, config);
+}
+
+ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
+                                      const std::string& deviceName,
+                                      const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
         return {exec._so, exec._ptr};
     });
 }
 
-CompiledModel Core::compile_model(const std::string& modelPath,
-                                  const std::string& deviceName,
-                                  const ConfigMap& config) {
+ExecutableNetwork Core::compile_model(const std::string& modelPath,
+                                      const ConfigMap& config) {
+    return compile_model(modelPath, DEFAULT_DEVICE_NAME, config);
+}
+
+ExecutableNetwork Core::compile_model(const std::string& modelPath,
+                                      const std::string& deviceName,
+                                      const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
         return {exec._so, exec._ptr};
