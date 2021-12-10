@@ -9,11 +9,13 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import VariantInt, VariantString
+from openvino.pyopenvino import Variant
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers
-from openvino.runtime.impl.op import Parameter
+from openvino.runtime import Function, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime import Tensor
+from openvino.pyopenvino import DescriptorTensor
+from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -362,6 +364,78 @@ def test_node_output():
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
 
 
+def test_node_input_size():
+    node = ops.add([1], [2])
+    assert node.get_input_size() == 2
+
+
+def test_node_input_values():
+    shapes = [Shape([3]), Shape([3])]
+    data1 = np.array([1, 2, 3])
+    data2 = np.array([3, 2, 1])
+
+    node = ops.add(data1, data2)
+
+    assert node.get_input_size() == 2
+
+    assert np.equal(
+        [input_node.get_shape() for input_node in node.input_values()],
+        shapes
+    ).all()
+
+    assert np.equal(
+        [node.input_value(i).get_shape() for i in range(node.get_input_size())],
+        shapes
+    ).all()
+
+    assert np.allclose(
+        [input_node.get_node().get_vector() for input_node in node.input_values()],
+        [data1, data2]
+    )
+
+    assert np.allclose(
+        [node.input_value(i).get_node().get_vector() for i in range(node.get_input_size())],
+        [data1, data2]
+    )
+
+
+def test_node_input_tensor():
+    data1 = np.array([[1, 2, 3], [1, 2, 3]])
+    data2 = np.array([3, 2, 1])
+
+    node = ops.add(data1, data2)
+
+    inputTensor1 = node.get_input_tensor(0)
+    inputTensor2 = node.get_input_tensor(1)
+
+    assert(isinstance(inputTensor1, DescriptorTensor))
+    assert(isinstance(inputTensor2, DescriptorTensor))
+    assert np.equal(inputTensor1.get_shape(), data1.shape).all()
+    assert np.equal(inputTensor2.get_shape(), data2.shape).all()
+
+
+def test_node_evaluate():
+    data1 = np.array([3, 2, 3])
+    data2 = np.array([4, 2, 3])
+    expected_result = data1 + data2
+
+    data1 = np.ascontiguousarray(data1)
+    data2 = np.ascontiguousarray(data2)
+
+    output = np.array([0, 0, 0])
+    output = np.ascontiguousarray(output)
+
+    node = ops.add(data1, data2)
+
+    inputTensor1 = Tensor(array=data1, shared_memory=True)
+    inputTensor2 = Tensor(array=data2, shared_memory=True)
+    inputsTensorVector = [inputTensor1, inputTensor2]
+
+    outputTensorVector = [Tensor(array=output, shared_memory=True)]
+    assert node.evaluate(outputTensorVector, inputsTensorVector) is True
+    assert np.equal(outputTensorVector[0].data, expected_result).all()
+
+
 def test_node_input():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -416,8 +490,8 @@ def test_node_target_inputs_soruce_output():
 
 
 def test_variants():
-    variant_int = VariantInt(32)
-    variant_str = VariantString("test_text")
+    variant_int = Variant(32)
+    variant_str = Variant("test_text")
 
     assert variant_int.get() == 32
     assert variant_str.get() == "test_text"
@@ -438,7 +512,6 @@ def test_runtime_info():
     runtime_info["affinity"] = "test_affinity"
     relu_node.set_friendly_name("testReLU")
     runtime_info_after = relu_node.get_rt_info()
-
     assert runtime_info_after["affinity"] == "test_affinity"
 
 

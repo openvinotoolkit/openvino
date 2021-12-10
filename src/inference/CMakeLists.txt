@@ -200,7 +200,7 @@ endif()
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS MultiDevicePlugin ov_hetero_plugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
+                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin MKLDNNPlugin myriadPlugin)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -246,12 +246,12 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
 
 # Export for developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME}_plugin_api)
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_plugin_api)
 
 # install TBB
 
 list(APPEND core_components ngraph)
-list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
+list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
                       "IE_PARALLEL_CMAKE")
 
 # define variables for InferenceEngineConfig.cmake
@@ -310,7 +310,7 @@ endif()
 # Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
+ie_cpack_add_component(core_dev REQUIRED core)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
@@ -351,7 +351,7 @@ install(EXPORT OpenVINOTargets
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
-set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/src/core")
+set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
 set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
@@ -366,7 +366,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
                               PATH_VARS ${PATH_VARS})
 
 set(IE_INCLUDE_DIR "include/ie")
-set(IE_NGRAPH_DIR ".")
+set(OV_CORE_DIR ".")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")

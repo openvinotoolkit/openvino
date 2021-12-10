@@ -9,9 +9,9 @@
 
 #include "common/frontend.hpp"
 #include "common/input_model.hpp"
+#include "common/telemetry_extension.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/core/variant.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
@@ -67,11 +67,13 @@ public:
         return "tf";
     }
 
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
+
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
-    bool supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
+    bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
-    ov::frontend::InputModel::Ptr load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
+    ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
 private:
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
@@ -79,6 +81,8 @@ private:
                          bool fail_fast,
                          bool no_conversion,
                          std::shared_ptr<ov::Function>& ng_function) const;
+
+    std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 }  // namespace frontend
 }  // namespace ov

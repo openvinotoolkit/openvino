@@ -7,38 +7,53 @@
 #include <pybind11/pybind11.h>
 
 #include "openvino/core/any.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
 void regclass_graph_Variant(py::module m) {
-    py::class_<ov::Any> variant_base(m, "Variant", py::module_local());
-    variant_base.doc() = "openvino.impl.Variant wraps ov::Any";
+    py::class_<PyAny, std::shared_ptr<PyAny>> variant(m, "Variant", py::module_local());
+    variant.doc() = "openvino.runtime.Variant wraps ov::Any";
+    variant.def(py::init<py::object>());
 
-    variant_base.def(
-        "__eq__",
-        [](const ov::Any& a, const ov::Any& b) {
-            return a == b;
-        },
-        py::is_operator());
-    variant_base.def(
-        "__eq__",
-        [](const ov::Any& a, const std::string& b) {
-            return a.as<std::string>() == b;
-        },
-        py::is_operator());
-    variant_base.def(
-        "__eq__",
-        [](const ov::Any& a, const int64_t& b) {
-            return a.as<int64_t>() == b;
-        },
-        py::is_operator());
-
-    variant_base.def("__repr__", [](const ov::Any self) {
+    variant.def("__repr__", [](const PyAny& self) {
         std::stringstream ret;
         self.print(ret);
         return ret.str();
     });
-}
+    variant.def("__eq__", [](const PyAny& a, const PyAny& b) -> bool {
+        return a == b;
+    });
+    variant.def("__eq__", [](const PyAny& a, const ov::Any& b) -> bool {
+        return a == b;
+    });
+    variant.def("__eq__", [](const PyAny& a, py::object b) -> bool {
+        return a == PyAny(b);
+    });
+    variant.def(
+        "get",
+        [](const PyAny& self) -> py::object {
+            return self.as<py::object>();
+        },
+        R"(
+            Returns
+            ----------
+            get : Any
+                Value of ov::Any.
+        )");
+    variant.def(
+        "set",
+        [](PyAny& self, py::object value) {
+            self = PyAny(value);
+        },
+        R"(
+            Parameters
+            ----------
+            set : Any
+                Value to be set in ov::Any.
 
-template void regclass_graph_VariantWrapper<std::string>(py::module m, std::string typestring);
-template void regclass_graph_VariantWrapper<int64_t>(py::module m, std::string typestring);
+    )");
+    variant.def_property_readonly("value", [](const PyAny& self) {
+        return self.as<py::object>();
+    });
+}
