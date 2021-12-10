@@ -13,10 +13,10 @@
 #include "framework.pb.h"
 #include "node_context.hpp"
 #include "op_table.hpp"
-#include "openvino/opsets/opset7.hpp"
 #include "openvino/frontends/paddlepaddle/exceptions.hpp"
 #include "openvino/frontends/paddlepaddle/model.hpp"
 #include "openvino/frontends/paddlepaddle/place.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "paddlepaddle_fw_node.hpp"
 #include "paddlepaddle_utils.hpp"
 
@@ -83,8 +83,7 @@ NamedOutputs make_framework_node(const std::map<paddlepaddle::TensorName, Output
         }
     }
 
-    auto node =
-        std::make_shared<FrameworkNode>(DecoderProto(op_place), inputs_vector, inputs_names);
+    auto node = std::make_shared<FrameworkNode>(DecoderProto(op_place), inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
@@ -270,7 +269,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         std::istream* p_weights_stream = paddlepaddle::variant_to_stream_ptr(variants[1], weights_stream);
         if (p_model_stream && p_weights_stream) {
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
-                                                    m_telemetry);
+                                                m_telemetry);
         }
     }
     FRONT_END_THROW("Model can be loaded either from 1 or 2 files/streams");
@@ -291,7 +290,7 @@ void FrontEnd::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
             paddlepaddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node),
-                                           paddlepaddle::get_supported_ops());
+                                                   paddlepaddle::get_supported_ops());
         }
     }
     for (auto result : partiallyConverted->get_results()) {
@@ -333,7 +332,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     }
 }
 
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov
 

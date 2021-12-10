@@ -51,6 +51,6 @@ private:
     std::shared_ptr<OpPlace> op_place;
 };
 
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

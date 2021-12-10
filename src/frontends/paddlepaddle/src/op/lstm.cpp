@@ -5,7 +5,6 @@
 #include <node_context.hpp>
 
 #include "openvino/opsets/opset6.hpp"
-
 #include "paddlepaddle_utils.hpp"
 
 namespace ov {

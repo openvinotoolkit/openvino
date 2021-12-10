@@ -41,6 +41,6 @@ public:
     void set_tensor_value(Place::Ptr place, const void* value) override;
 };
 
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

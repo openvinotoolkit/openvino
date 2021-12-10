@@ -27,8 +27,8 @@ NamedOutputs stack(const NodeContext& node) {
 
     for (const auto& data : datas) {
         PADDLEPADDLE_OP_CHECK(node,
-                                 data_type == data.get_element_type(),
-                                 "stack input tensor must have the same data types!");
+                              data_type == data.get_element_type(),
+                              "stack input tensor must have the same data types!");
 
         node_datas_reshape.push_back(std::make_shared<Unsqueeze>(data, axis_const));
     }

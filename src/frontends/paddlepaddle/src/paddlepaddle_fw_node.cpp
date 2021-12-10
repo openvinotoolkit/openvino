@@ -34,6 +34,6 @@ std::map<std::string, OutputVector> FrameworkNode::return_named_outputs() {
     });
 }
 
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

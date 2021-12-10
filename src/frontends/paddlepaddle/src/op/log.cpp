@@ -6,7 +6,6 @@
 
 #include "openvino/opsets/opset6.hpp"
 
-
 namespace ov {
 namespace frontend {
 namespace paddlepaddle {

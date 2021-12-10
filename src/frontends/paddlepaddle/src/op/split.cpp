@@ -6,7 +6,6 @@
 
 #include "openvino/opsets/opset7.hpp"
 
-
 namespace ov {
 namespace frontend {
 namespace paddlepaddle {
@@ -35,8 +34,9 @@ NamedOutputs split(const NodeContext& node) {
             auto inputs = node.get_ng_inputs("SectionsTensorList");
             sections_node = std::make_shared<ov::opset7::Concat>(inputs, 0);
         } else {
-            PADDLEPADDLE_OP_CHECK(node, node.has_attribute<std::vector<int32_t>>("sections"),
-                        "split: num==0 && no sections is invalid.");
+            PADDLEPADDLE_OP_CHECK(node,
+                                  node.has_attribute<std::vector<int32_t>>("sections"),
+                                  "split: num==0 && no sections is invalid.");
             auto sections = node.get_attribute<std::vector<int32_t>>("sections");
             sections_node = Constant::create(element::i32, {sections.size()}, sections);
         }

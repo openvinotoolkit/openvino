@@ -74,6 +74,6 @@ private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

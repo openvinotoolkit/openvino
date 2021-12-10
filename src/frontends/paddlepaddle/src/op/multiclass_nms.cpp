@@ -5,7 +5,6 @@
 
 #include "openvino/opsets/opset8.hpp"
 
-
 namespace ov {
 namespace frontend {
 namespace paddlepaddle {
@@ -29,8 +28,9 @@ NamedOutputs multiclass_nms(const NodeContext& node) {
 
     auto type_index = node.get_out_port_type("Index");
     auto type_num = node.get_out_port_type("NmsRoisNum");
-    PADDLEPADDLE_OP_CHECK(node, (type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
-                "Unexpected data type of outputs of MulticlassNMS: " + std::to_string(out_names.size()));
+    PADDLEPADDLE_OP_CHECK(node,
+                          (type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
+                          "Unexpected data type of outputs of MulticlassNMS: " + std::to_string(out_names.size()));
 
     auto normalized = node.get_attribute<bool>("normalized");
 

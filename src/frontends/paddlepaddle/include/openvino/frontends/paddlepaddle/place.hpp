@@ -198,6 +198,6 @@ private:
     std::vector<std::weak_ptr<InPortPlace>> m_consuming_ports;
 };
 
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

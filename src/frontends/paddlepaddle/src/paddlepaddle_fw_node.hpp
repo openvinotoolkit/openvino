@@ -15,9 +15,7 @@ class FrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("FrameworkNode", "util", ov::op::util::FrameworkNode);
 
-    FrameworkNode(const DecoderProto& decoder,
-                  const OutputVector& inputs,
-                  const std::vector<std::string>& inputs_names)
+    FrameworkNode(const DecoderProto& decoder, const OutputVector& inputs, const std::vector<std::string>& inputs_names)
         : ov::op::util::FrameworkNode(inputs, decoder.get_output_size()),
           m_decoder{decoder},
           m_inputs_names{inputs_names} {
@@ -50,6 +48,6 @@ private:
     const DecoderProto m_decoder;
     std::vector<std::string> m_inputs_names;
 };
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

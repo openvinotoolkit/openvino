@@ -6,7 +6,6 @@
 
 #include "openvino/opsets/opset6.hpp"
 
-
 namespace ov {
 namespace frontend {
 namespace paddlepaddle {
@@ -14,10 +13,11 @@ namespace op {
 NamedOutputs lstm(const NodeContext& node);
 NamedOutputs rnn(const NodeContext& node) {
     auto mode = node.get_attribute<std::string>("mode");
-    PADDLEPADDLE_OP_CHECK(node, mode == "LSTM",
-                "[Paddle Frontend]RNN Only Supports LSTM Ops Conversion now, don't "
-                "support " +
-                    mode);
+    PADDLEPADDLE_OP_CHECK(node,
+                          mode == "LSTM",
+                          "[Paddle Frontend]RNN Only Supports LSTM Ops Conversion now, don't "
+                          "support " +
+                              mode);
     return lstm(node);
 }
 

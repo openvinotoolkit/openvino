@@ -10,9 +10,9 @@
 #include "decoder.hpp"
 #include "framework.pb.h"
 #include "node_context.hpp"
-#include "openvino/opsets/opset7.hpp"
 #include "openvino/frontends/paddlepaddle/exceptions.hpp"
 #include "openvino/frontends/paddlepaddle/place.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "paddlepaddle_utils.hpp"
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -434,8 +434,7 @@ InputModel::InputModel(const std::wstring& path, const std::shared_ptr<Telemetry
     : _impl{std::make_shared<InputModelPDPDImpl>(path, *this, telemetry)} {}
 #endif
 
-InputModel::InputModel(const std::vector<std::istream*>& streams,
-                       const std::shared_ptr<TelemetryExtension>& telemetry)
+InputModel::InputModel(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelPDPDImpl>(streams, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places() const {
@@ -490,6 +489,6 @@ void InputModel::set_tensor_value(Place::Ptr place, const void* value) {
     _impl->setTensorValue(place, value);
 }
 
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

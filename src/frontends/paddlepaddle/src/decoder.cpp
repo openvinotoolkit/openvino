@@ -149,6 +149,6 @@ std::map<std::string, OutputVector> DecoderProto::map_for_each_output(
     return map_for_each_input_impl(op_place->get_desc().outputs(), func);
 }
 
-}
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov
