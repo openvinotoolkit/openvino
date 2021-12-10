@@ -267,15 +267,18 @@ void InferRequest::set_tensors(const std::string& name, const std::vector<Tensor
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
         OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs()}),
-                        "set_tensors error. Input port for tensor name ", name, " was not found.");
+                        "set_tensors error. Input port for tensor name ",
+                        name,
+                        " was not found.");
         set_tensors(port, tensors);
     })
 }
 
 void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
     auto impls = std::vector<InferenceEngine::Blob::Ptr>();
-    std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls),
-                   [](const Tensor& item) { return item._impl; });
+    std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls), [](const Tensor& item) {
+        return item._impl;
+    });
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlobs(get_legacy_name_from_port(port), impls); })
 }
 
@@ -283,7 +286,9 @@ void InferRequest::set_input_tensors(const std::string& name, const std::vector<
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
         OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs()}),
-                        "set_input_tensors error. Input port for tensor name ", name, " was not found.");
+                        "set_input_tensors error. Input port for tensor name ",
+                        name,
+                        " was not found.");
         set_input_tensors(port, tensors);
     })
 }
@@ -291,8 +296,11 @@ void InferRequest::set_input_tensors(const std::string& name, const std::vector<
 void InferRequest::set_input_tensors(size_t idx, const std::vector<Tensor>& tensors) {
     OV_INFER_REQ_CALL_STATEMENT({
         OPENVINO_ASSERT(idx < _impl->GetInputs().size(),
-                        "set_input_tensors error. Input port for index ", idx, " is out of bounds. Model has only ",
-                        _impl->GetInputs().size(), " inputs");
+                        "set_input_tensors error. Input port for index ",
+                        idx,
+                        " is out of bounds. Model has only ",
+                        _impl->GetInputs().size(),
+                        " inputs");
         set_input_tensors(_impl->GetInputs().at(idx)->output(0), tensors);
     })
 }
@@ -301,18 +309,19 @@ void InferRequest::set_input_tensors(const std::vector<Tensor>& tensors) {
     OV_INFER_REQ_CALL_STATEMENT({
         OPENVINO_ASSERT(_impl->GetInputs().size() == 1,
                         "set_input_tensors(tensors) must be used for single-input models only. Model has ",
-                        _impl->GetInputs().size(), " inputs");
+                        _impl->GetInputs().size(),
+                        " inputs");
         set_input_tensors(_impl->GetInputs().at(0)->output(0), tensors);
     })
 }
 
 void InferRequest::set_input_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
     auto impls = std::vector<InferenceEngine::Blob::Ptr>();
-    std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls),
-                   [](const Tensor& item) { return item._impl; });
+    std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls), [](const Tensor& item) {
+        return item._impl;
+    });
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlobs(get_legacy_name_from_port(port), impls); })
 }
-
 
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({

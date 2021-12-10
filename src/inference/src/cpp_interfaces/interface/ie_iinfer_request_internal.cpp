@@ -9,8 +9,8 @@
 #include <openvino/core/partial_shape.hpp>
 #include <string>
 
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
 #include "debug.h"
 #include "ie_algorithm.hpp"
@@ -159,13 +159,19 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
 }
 
 void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
-    OPENVINO_ASSERT(!std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& item) {
-        return !item || item->is<RemoteBlob>() || item->is<CompoundBlob>();
-    }), "set_input_tensors/set_tensors error. Default implementation doesn't support RemoteTensor or legacy "
+    OPENVINO_ASSERT(
+        !std::any_of(blobs.begin(),
+                     blobs.end(),
+                     [](const Blob::Ptr& item) {
+                         return !item || item->is<RemoteBlob>() || item->is<CompoundBlob>();
+                     }),
+        "set_input_tensors/set_tensors error. Default implementation doesn't support RemoteTensor or legacy "
         "CompoundBlob objects");
 
     OPENVINO_ASSERT(!blobs.empty(),
-                    "set_input_tensors/set_tensors can't be called with empty blobs for input '", name, "'");
+                    "set_input_tensors/set_tensors can't be called with empty blobs for input '",
+                    name,
+                    "'");
     if (blobs.size() == 1) {
         SetBlob(name, blobs[0]);
         return;
@@ -184,34 +190,43 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
     OPENVINO_ASSERT(param, "set_input_tensors/set_tensors error. Parameter '", name, "' is not found");
     OPENVINO_ASSERT(ov::layout::has_batch(param->get_layout()),
                     "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
-                    " 'layout' defined. Current layout for '", name,
-                    "' is ", param->get_layout().to_string());
+                    " 'layout' defined. Current layout for '",
+                    name,
+                    "' is ",
+                    param->get_layout().to_string());
     auto batch_idx = ov::layout::batch_idx(param->get_layout());
     if (batch_idx < 0) {
         batch_idx += static_cast<int64_t>(blobs[0]->getTensorDesc().getDims().size());
     }
-    auto input_size = std::accumulate(
-            blobs.begin(), blobs.end(), 0,
-            [&batch_idx](int res, const Blob::Ptr& item) {
-                OPENVINO_ASSERT(item->getTensorDesc().getDims()[batch_idx] == 1,
-                                "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
-                                item->getTensorDesc().getDims()[batch_idx], " provided");
-                return res + item->getTensorDesc().getDims()[batch_idx];
-            });
+    auto input_size = std::accumulate(blobs.begin(), blobs.end(), 0, [&batch_idx](int res, const Blob::Ptr& item) {
+        OPENVINO_ASSERT(item->getTensorDesc().getDims()[batch_idx] == 1,
+                        "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
+                        item->getTensorDesc().getDims()[batch_idx],
+                        " provided");
+        return res + item->getTensorDesc().getDims()[batch_idx];
+    });
     if (param->get_partial_shape().rank().is_static()) {
         OPENVINO_ASSERT(batch_idx >= 0 && batch_idx < param->get_partial_shape().rank().get_length(),
-                        "set_input_tensors/set_tensors error. Layout ", param->get_layout().to_string(),
-                        " is incorrect for input '", name, "' with shape ", param->get_partial_shape());
+                        "set_input_tensors/set_tensors error. Layout ",
+                        param->get_layout().to_string(),
+                        " is incorrect for input '",
+                        name,
+                        "' with shape ",
+                        param->get_partial_shape());
         auto batch = param->get_partial_shape()[batch_idx];
 
         OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == input_size,
                         "set_input_tensors/set_tensors error. Input shape ",
-                        param->get_partial_shape(), "batch ", batch,
-                        "doesn't match with total blobs count: ", input_size);
+                        param->get_partial_shape(),
+                        "batch ",
+                        batch,
+                        "doesn't match with total blobs count: ",
+                        input_size);
     }
     OPENVINO_ASSERT(batch_idx == 0,
                     "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
-                    batch_idx, " != 0");
+                    batch_idx,
+                    " != 0");
     // Initial implementation always performs creation of new Blob and 'memcpy'
     // In future consider checking if blobs point to contiguous range of memory
     auto& desc = blobs[0]->getTensorDesc();
@@ -237,9 +252,8 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
     std::for_each(blobs.begin(), blobs.end(), [&desc, &batch_idx, &desc_to_string](const Blob::Ptr& item) {
         auto item_desc = item->getTensorDesc();
         item_desc.getDims()[batch_idx] = desc.getDims()[batch_idx];
-        OPENVINO_ASSERT(item_desc.getDims() == desc.getDims() &&
-                        item_desc.getLayout() == desc.getLayout() &&
-                        item_desc.getPrecision() == desc.getPrecision(),
+        OPENVINO_ASSERT(item_desc.getDims() == desc.getDims() && item_desc.getLayout() == desc.getLayout() &&
+                            item_desc.getPrecision() == desc.getPrecision(),
                         "set_input_tensors/set_tensors error. Blob ",
                         desc_to_string(item_desc),
                         " is not compatible with batched blob ",
