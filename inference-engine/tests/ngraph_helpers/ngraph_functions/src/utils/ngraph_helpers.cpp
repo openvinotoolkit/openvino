@@ -246,7 +246,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
     NGRAPH_SUPPRESS_DEPRECATED_START;
     const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
     NGRAPH_SUPPRESS_DEPRECATED_END;
-    ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
+    ngraph::pass::ConstantFolding().run_on_model(foldedFunc);
     for (const auto &op : foldedFunc->get_ops()) {
         NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
                      "Function was not fully folded to constant state!\n",
@@ -903,7 +903,38 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
     return os;
 }
 
-void resize_function(std::shared_ptr<ov::Function> function,
+std::ostream& operator<<(std::ostream & os, ngraph::op::util::NmsBase::SortResultType type) {
+    switch (type) {
+        case op::util::NmsBase::SortResultType::CLASSID:
+            os << "CLASSID";
+            break;
+        case op::util::NmsBase::SortResultType::SCORE:
+            os << "SCORE";
+            break;
+        case op::util::NmsBase::SortResultType::NONE:
+            os << "NONE";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::DecayFunction type) {
+    switch (type) {
+        case op::v8::MatrixNms::DecayFunction::GAUSSIAN:
+            os << "GAUSSIAN";
+            break;
+        case op::v8::MatrixNms::DecayFunction::LINEAR:
+            os << "LINEAR";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
+void resize_function(std::shared_ptr<ov::Model> function,
                      const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputs = function->inputs();
     std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;

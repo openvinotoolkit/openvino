@@ -11,7 +11,7 @@ Before creating a transformation, do the following:
 
 ### Transformation Library Structure
 Transformation library is independent from Inference Engine target library named as `inference_engine_transformations`
-and is located in the `inference-engine/src/transformations` directory.
+and is located in the `src/common/transformations` directory.
 
 Transformations root directory contains two folders:
 * `ngraph_ops` - Contains internal opset operations that are common for plugins.
@@ -47,7 +47,7 @@ For examples of how to build an nGraph function, see the [Build nGraph Function]
 
 ## Transformations types <a name="transformations_types"></a>
 
-nGraph has three main transformation types: 
+nGraph has three main transformation types:
 
 * `ngraph::pass::FunctionPass` - straightforward way to work with `ngraph::Function` directly
 * `ngraph::pass::MatcherPass` - pattern-based transformation approach
@@ -81,7 +81,7 @@ Template for MatcherPass transformation class
 
 To use `ngraph::pass::MatcherPass`, you need to complete these steps:
 1. Create a pattern
-2. Implement a callback 
+2. Implement a callback
 3. Register the pattern and Matcher
 4. Execute MatcherPass
 
@@ -90,7 +90,7 @@ So let's go through each of these steps.
 ### Create a pattern
 Pattern is a single root `ngraph::Function`. But the only difference is that you do not need to create a function object, you just need to create and connect opset or special pattern operations.
 Then you need to take the last created operation and put it as a root of the pattern. This root node will be used as a root node in pattern matching.
-> **NOTE**: Any nodes in a pattern that have no consumers and are not registered as root will not be used in pattern matching. 
+> **NOTE**: Any nodes in a pattern that have no consumers and are not registered as root will not be used in pattern matching.
 
 @snippet example_ngraph_utils.cpp pattern:simple_example
 
@@ -105,7 +105,7 @@ Callback is an action applied to every pattern entrance. In general, callback is
 
 The example above shows the callback structure and how Matcher can be used for accessing nodes detected by pattern.
 Callback return value is `true` if root node was replaced and another pattern cannot be applied to the same root node; otherwise, it is `false`.
-> **NOTE**: It is not recommended to manipulate with nodes that are under root node. This may affect GraphRewrite execution as it is expected that all nodes that come after root node in topological order are valid and can be used in pattern matching. 
+> **NOTE**: It is not recommended to manipulate with nodes that are under root node. This may affect GraphRewrite execution as it is expected that all nodes that come after root node in topological order are valid and can be used in pattern matching.
 
 MatcherPass also provides functionality that allows reporting of the newly created nodes that can be used in additional pattern matching.
 If MatcherPass was registered in `pass::Manager` or `pass::GraphRewrite`, these registered nodes will be added for additional pattern matching.
@@ -144,7 +144,7 @@ Example:
 
 In addition, GraphRewrite handles nodes that were registered by MatcherPasses during their execution. This nodes will be added to the beginning of the sequence with nodes for pattern matching.
 
-> **NOTE**: when using `pass::Manager` temporary GraphRewrite is used to execute single MatcherPass. 
+> **NOTE**: when using `pass::Manager` temporary GraphRewrite is used to execute single MatcherPass.
 
 GraphRewrite has two algorithms for MatcherPasses execution. First algorithm is straightforward. It applies each MatcherPass in registration order to current node.
 
@@ -153,7 +153,7 @@ GraphRewrite has two algorithms for MatcherPasses execution. First algorithm is 
 But it is not really efficient when you have a lot of registered passes. So first of all GraphRewrite checks that all MatcherPass patterns has type-based root node (it means that type of this node is not hidden into predicate).
 And then creates map from registered MatcherPasses. That helps to avoid additional cost of applying each MatcherPass for each node.
 
-![graph_rewrite_efficient_search] 
+![graph_rewrite_efficient_search]
 
 > **NOTE**: GraphRewrite execution algorithm cannot be set manually and depends only on root nodes registered inside MatcherPasses.
 
@@ -161,7 +161,7 @@ And then creates map from registered MatcherPasses. That helps to avoid addition
 
 Sometimes patterns cannot be expressed via regular nGraph operations or it is too complicated.
 For example, if you want to detect Convolution->Add sub-graph without specifying particular input type for Convolution operation or you want to create a pattern where some of operations can have different types.
-And for these cases nGraph provides additional helpers to construct patterns for GraphRewrite transformations. 
+And for these cases nGraph provides additional helpers to construct patterns for GraphRewrite transformations.
 
 There are two main helpers:
 1. `ngraph::pattern::any_input` - helps to express inputs if their types are undefined.
@@ -172,7 +172,7 @@ Let's go through the example to have better understanding of how it works:
 > **NOTE**: Node attributes do not participate in pattern matching and are needed only for operations creation. Only operation types participate in pattern matching.
 
 The example below shows basic usage of `pattern::any_input`.
-Here we construct Multiply pattern with arbitrary first input and Constant as a second input. 
+Here we construct Multiply pattern with arbitrary first input and Constant as a second input.
 Also as Multiply is commutative operation, it does not matter in which order we set inputs (any_input/Constant or Constant/any_input) because both cases will be matched.
 
 @snippet example_ngraph_utils.cpp pattern:label_example
@@ -196,7 +196,7 @@ In this chapter we will review nGraph API that allows us to manipulate with `ngr
 First of all let's talk about `ngraph::Node` input/output ports. Each nGraph operation has input and output ports except cases when operation has `Result`, `Parameter`, or `Constant` type.
 
 Every port belongs to its node, so using a port we can access parent node, get shape and type for particular input/output, get all consumers in case of output port, and get producer node in case of input port.
-With output port we can set inputs for newly created operations. 
+With output port we can set inputs for newly created operations.
 
 Lets look at the code example.
 
@@ -208,8 +208,8 @@ std::shared_ptr<Node> neg_const = opset1::Constant::create(sub->get_input_elemen
 Output<Node> data = node->input_value(0);
 auto neg = std::make_shared<ngraph::opset1::Multiply>(data, neg_const);
 ```
-In this example, the `opset3::Multiply` operation takes `Output<Node>` and `std::shared_ptr<Node>` as inputs. But the constructor takes both as `Output<Node>`. 
-In this case, `std::shared_ptr<Node>` will be automatically converted to `Output<Node>` if node has exactly one output port; otherwise, conversion raises an exception.   
+In this example, the `opset3::Multiply` operation takes `Output<Node>` and `std::shared_ptr<Node>` as inputs. But the constructor takes both as `Output<Node>`.
+In this case, `std::shared_ptr<Node>` will be automatically converted to `Output<Node>` if node has exactly one output port; otherwise, conversion raises an exception.
 
 ### ngraph::Node replacement
 
@@ -251,9 +251,9 @@ To eliminate operation, nGraph has special method that considers all limitations
 @snippet example_ngraph_utils.cpp ngraph:eliminate_node
 
 `replace_output_update_name` in case of successful replacement it automatically preserves friendly name and runtime info.
-  
 
-## Transformation conditional compilation 
+
+## Transformation conditional compilation
 
 Transformation library has two internal macros to support conditional compilation feature.
 
@@ -272,14 +272,14 @@ Use the latest version of OpSet in your transformation. An exception is op_conve
 
 ###2. Dynamic Shape and Rank
 
-nGraph has two types for shape representation: 
+nGraph has two types for shape representation:
 `ngraph::Shape` - represents static shape.
 `ngraph::PartialShape` - represents dynamic shape. It means that rank or some of dimensions are dynamic (undefined).
 `ngraph::PartialShape` can be converted to `ngraph::Shape` using the `get_shape()` method if all dimensions are static; otherwise, conversion raises an exception.
 
 @snippet example_ngraph_utils.cpp ngraph:shape
 
-But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.  
+But in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
 
 Also if your transformation requires only input shape rank or particular dimension value, please do not use the `get_shape()` method. See the example below demonstrating how to avoid using `get_shape()`
 
@@ -289,7 +289,7 @@ Not using `get_shape()` method makes your transformation more flexible and appli
 
 ###3. Friendly Names
 
-Each `ngraph::Node` has a unique name (used for nGraph internals) and a friendly name. In transformations we care only about friendly name because it represents the name from intermediate representation (IR). 
+Each `ngraph::Node` has a unique name (used for nGraph internals) and a friendly name. In transformations we care only about friendly name because it represents the name from intermediate representation (IR).
 Also friendly name is used as output tensor name (until we do not have other way to represent output tensor name) and user code that requests intermediate outputs based on these names.
 To avoid losing friendly name when replacing node with other node or subgraph, set the original friendly name to the latest node in replacing subgraph. See the example below.
 
@@ -306,7 +306,7 @@ In more advanced cases, when replaced operation has several outputs and we add a
 
 ###4. Runtime Info
 
-Runtime info is a map `std::map<std::string, std::shared_ptr<Variant>>` located inside `ngraph::Node` class. It represents additional attributes in `ngraph::Node`.
+Runtime info is a map `std::map<std::string, ov::Any>` located inside `ngraph::Node` class. It represents additional attributes in `ngraph::Node`.
 These attributes can be set by users or by plugins and when executing transformation that changes `ngraph::Function` we need to preserve these attributes as they will not be automatically propagated.
 In most cases, transformations have the following types: 1:1 (replace node with another node), 1:N (replace node with a sub-graph), N:1 (fuse sub-graph into a single node), N:M (any other transformation).
 Currently, there is no mechanism that automatically detects transformation types, so we need to propagate this runtime information manually. See the examples below.
@@ -331,7 +331,7 @@ ngraph::copy_runtime_info({conv, bias}, {conv_ie});
 ngraph::copy_runtime_info({a, b, c}, {e, f});
 ```
 
-When transformation has multiple fusions or decompositions, `ngraph::copy_runtime_info` must be called multiple times for each case. 
+When transformation has multiple fusions or decompositions, `ngraph::copy_runtime_info` must be called multiple times for each case.
 
 > **Note**: copy_runtime_info removes rt_info from destination nodes. If you want to keep it, you need to specify them in source nodes like this: copy_runtime_info({a, b, c}, {a, b})
 
@@ -341,12 +341,12 @@ If your transformation inserts constant sub-graphs that need to be folded, do no
 The example below shows how constant subgraph can be constructed.
 
 ```cpp
-// After ConstantFolding pass Power will be replaced with Constant 
+// After ConstantFolding pass Power will be replaced with Constant
 auto pow = std::make_shared<ngraph::opset3::Power>(
                     opset3::Constant::create(element::f32, Shape{1}, {2})
                     opset3::Constant::create(element::f32, Shape{1}, {3}));
 auto mul = std::make_shared<ngraph::opset3::Multiply>(input /* not constant input */, pow);
-``` 
+```
 
 Manual constant folding is more preferable than `ngraph::pass::ConstantFolding()` because it is much faster.
 
@@ -358,18 +358,18 @@ Below you can find an example of manual constant folding:
 
 In transformation development process:
 
-* Do not use deprecated nGraph API. Deprecated methods has the `NGRAPH_DEPRECATED` macros in its definition. 
+* Do not use deprecated nGraph API. Deprecated methods has the `NGRAPH_DEPRECATED` macros in its definition.
 * Do not pass `shared_ptr<Node>` as an input for other node if type of node is unknown or it has multiple outputs. Use explicit output port.
 * If you replace node with another node that produces different shape, remember that new shape will not be propagated until the first `validate_nodes_and_infer_types` call for `ngraph::Function`. If you are using `pass::Manager`, it will automatically call this method after each transformation execution.
 * Do not forget to call the `ngraph::ConstantFolding` pass if your transformation creates constant subgraphs.
 * Use latest OpSet if you are not developing downgrade transformation pass.
-* When developing a callback for `ngraph::pass::MatcherPass`,  do not change nodes that come after the root node in topological order. 
+* When developing a callback for `ngraph::pass::MatcherPass`,  do not change nodes that come after the root node in topological order.
 
 ## Using pass manager <a name="using_pass_manager"></a>
 
 `ngraph::pass::Manager` is a container class that can store the list of transformations and execute them. The main idea of this class is to have high-level representation for grouped list of transformations.
 It can register and apply any [transformation types](#transformations_types) on function.
-In addition, `ngraph::pass::Manager` has extended debug capabilities (find more information in the [how to debug transformations](#how_to_debug_transformations) section). 
+In addition, `ngraph::pass::Manager` has extended debug capabilities (find more information in the [how to debug transformations](#how_to_debug_transformations) section).
 
 The example below shows basic usage of `ngraph::pass::Manager`
 

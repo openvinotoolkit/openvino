@@ -90,7 +90,7 @@ protected:
     bool isBias = false;
 
     void checkBiasFusing(ov::runtime::ExecutableNetwork &execNet) const {
-        auto execGraph = execNet.get_runtime_function();
+        auto execGraph = execNet.get_runtime_model();
         ASSERT_NE(nullptr, execGraph);
 
         bool foundConv = false;
@@ -99,9 +99,7 @@ protected:
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
                 auto it = rtInfo.find(paramName);
                 IE_ASSERT(rtInfo.end() != it);
-                auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-                IE_ASSERT(nullptr != value);
-                return value->get();
+                return it->second.as<std::string>();
             };
 
             if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "Convolution") {
@@ -155,6 +153,8 @@ protected:
                 PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16]) {
             selectedType += "_BF16";
             rel_threshold = 1e-2f;
+            if (selectedType == "jit_gemm_BF16")
+                rel_threshold = 0.05f;
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netType);
         }
@@ -180,7 +180,7 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
 
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
-    if (!inFmts.empty() && (inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
+    if (!inFmts.empty() && (inFmts.front() == nwc || inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
         auto inpChannels = function->get_parameters().front()->get_partial_shape()[1].get_length();
         auto outChannels = function->get_output_partial_shape(0)[1].get_length();
         if ((inpChannels % 8) || (outChannels % 8)) {
@@ -229,10 +229,66 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
 };
 
 /* ============= Convolution params (GEMM layout) ============= */
-const SizeVector numOutChannels_Gemm = {6 };
+const SizeVector numOutChannels_Gemm = { 6 };
 
 /* ============= Convolution params (blocked and nspc layout) ============= */
 const SizeVector numOutChannels = { 64, 63 };
+
+/* ============= Convolution params (1D) ============= */
+const std::vector<SizeVector> kernels1d = { {3}, {1} };
+const std::vector<SizeVector> strides1d = { {1}, {2} };
+const std::vector<std::vector<ptrdiff_t>> padBegins1d = { {0}, {1} };
+const std::vector<std::vector<ptrdiff_t>> padEnds1d = { {0} };
+const std::vector<SizeVector> dilations1d = { {1}, {2} };
+std::vector<InputShape> inputShapes1d = {
+        {{}, {{ 2, 64, 7 }}},
+        {{}, {{ 1, 67, 7 }}},
+        {
+            //dynamic shape
+            { -1, 64, {1, 200} },
+            { //target static shapes
+                { 2, 64, 7 },
+                { 1, 64, 9 }
+            }
+        },
+        {
+            //dynamic shape
+            { -1, 67, {1, 200} },
+            { //target static shapes
+                { 2, 67, 7 },
+                { 1, 67, 9 }
+            }
+        },
+        {
+            //dynamic shape
+            { {1, 200}, 64, -1 },
+            { //target static shapes
+                { 2, 64, 7 },
+                { 1, 64, 5 }
+            }
+        }
+};
+std::vector<InputShape> inputShapesPlain2Blocked1d = {
+        {{}, {{1, 1, 7}}},
+        {{}, {{1, 2, 7}}},
+        {{}, {{1, 3, 7}}},
+        {
+        //dynamic shapes
+            {-1, 1, {1, 200}},
+            { //target static shapes
+                {2, 1, 7},
+                {1, 1, 9}
+            }
+        },
+        {
+        //dynamic shapes
+            {-1, 3, {1, 200}},
+            { //target static shapes
+                {2, 3, 7},
+                {1, 3, 9}
+            }
+        }
+};
 
 /* ============= Convolution params (2D) ============= */
 const std::vector<SizeVector> kernels2d = { {3, 3}, {1, 1} };
@@ -332,6 +388,76 @@ std::vector<InputShape> inputShapesPlain2Blocked3d = {
 /* ============= */
 
 /* INSTANCES */
+/* ============= Convolution (Gemm 1D) ============= */
+const auto convParams_ExplicitPadding_GEMM_1D = ::testing::Combine(
+        ::testing::ValuesIn(kernels1d),
+        ::testing::ValuesIn(strides1d),
+        ::testing::ValuesIn(padBegins1d),
+        ::testing::ValuesIn(padEnds1d),
+        ::testing::ValuesIn(dilations1d),
+        ::testing::ValuesIn(numOutChannels_Gemm),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+const std::vector<CPUSpecificParams> CPUParams_GEMM_1D = {
+        conv_gemm_1D,
+        conv_gemm_1D_nspc
+};
+
+std::vector<InputShape> inShapesGemm1D = {
+        {{}, {{ 2, 12, 7 }}},
+        {
+            //dynamic shape
+            { {1, 200}, 12, {1, 200} },
+            { //target static shapes
+                { 2, 12, 7 },
+                { 1, 12, 5 }
+            }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_GEMM_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inShapesGemm1D),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_1D)),
+                                 ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_BF16, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_GEMM_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inShapesGemm1D),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_1D})), // todo: [AV] what about conv_gemm_1D_nspc?
+                                 ::testing::ValuesIn(fusingParamsSetBF16),
+                                 ::testing::Values(cpuBF16PluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_I8, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_GEMM_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::i8),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inShapesGemm1D),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_1D)),
+                                 ::testing::Values(fusingSum),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
 /* ============= Convolution (Gemm 2D) ============= */
 const auto convParams_ExplicitPadding_GEMM_2D = ::testing::Combine(
         ::testing::ValuesIn(kernels2d),
@@ -576,6 +702,102 @@ INSTANTIATE_TEST_SUITE_P(Conv_3D_GEMM_I8_dilated, ConvolutionLayerCPUTest,
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
+/* ============= Convolution (1D) ============= */
+const auto convParams_ExplicitPadding_1D = ::testing::Combine(
+        ::testing::ValuesIn(kernels1d),
+        ::testing::ValuesIn(strides1d),
+        ::testing::ValuesIn(padBegins1d),
+        ::testing::ValuesIn(padEnds1d),
+        ::testing::ValuesIn(dilations1d),
+        ::testing::ValuesIn(numOutChannels),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+const std::vector<CPUSpecificParams> CPUParams_1D = {
+        conv_sse42_1D,
+        conv_avx2_1D,
+        conv_avx512_1D,
+        conv_sse42_1D_nspc,
+        conv_avx2_1D_nspc,
+        conv_avx512_1D_nspc
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_FP32, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes1d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D)),
+                                 ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_BF16, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes1d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_1D})), // todo: [AV] what about conv_avx512_1D_nspc?
+                                 ::testing::ValuesIn(fusingParamsSetBF16),
+                                 ::testing::Values(cpuBF16PluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_I8, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::i8),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes1d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D)),
+                                 ::testing::Values(fusingSum),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+const std::vector<CPUSpecificParams> CPUParams_1D_plain_to_blocked = {
+        conv_sse42_plain_to_blocked_1D,
+        conv_avx2_plain_to_blocked_1D,
+        conv_avx512_plain_to_blocked_1D,
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_PlainToBlocked_FP32, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapesPlain2Blocked1d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D_plain_to_blocked)),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_PlainToBlocked_BF16, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapesPlain2Blocked1d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_plain_to_blocked_1D})),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
 /* ============= Convolution (2D) ============= */
 const auto convParams_ExplicitPadding_2D = ::testing::Combine(
         ::testing::ValuesIn(kernels2d),
@@ -696,7 +918,7 @@ const std::vector<CPUSpecificParams> CPUParams_2D_plain_to_blocked = {
         conv_avx512_plain_to_blocked_2D,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_2D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_PlainToBlocked_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_2D,
@@ -710,7 +932,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_2D_FP32, ConvolutionLayerCPUT
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_2D_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_PlainToBlocked_BF16, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_2D,
@@ -870,7 +1092,7 @@ const std::vector<CPUSpecificParams> CPUParams_3D_plain_to_blocked = {
         conv_avx512_plain_to_blocked_3D,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_3D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_PlainToBlocked_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_3D,
@@ -884,7 +1106,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_3D_FP32, ConvolutionLayerCPUT
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_3D_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_PlainToBlocked_BF16, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_3D,
@@ -923,6 +1145,69 @@ INSTANTIATE_TEST_SUITE_P(Conv_PlainToBlocked_3D_BF16_dilated, ConvolutionLayerCP
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_plain_to_blocked_3D})),
                                  ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+/* ============= Kernel_1x1 (1D) ============= */
+
+const auto convParams_ExplicitPadding_1x1_1D = ::testing::Combine(
+        ::testing::Values(SizeVector({1})),
+        ::testing::Values(SizeVector({1})),
+        ::testing::Values(std::vector<ptrdiff_t>({0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0})),
+        ::testing::Values(SizeVector({1})),
+        ::testing::Values(63),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+const std::vector<CPUSpecificParams> CPUParams_1x1_1D = {
+        conv_sse42_1D_1x1,
+        conv_avx2_1D_1x1,
+        conv_avx512_1D_1x1,
+        conv_sse42_1D_1x1_nspc,
+        conv_avx2_1D_1x1_nspc,
+        conv_avx512_1D_1x1_nspc
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_1x1_FP32, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_1x1_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes1d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1x1_1D)),
+                                 ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_1x1_BF16, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_1x1_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes1d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_1D_1x1, conv_avx512_2D_1x1_nspc})),
+                                 ::testing::ValuesIn(fusingParamsSetBF16),
+                                 ::testing::Values(cpuBF16PluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_1x1_I8, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_1x1_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::i8),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes1d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1x1_1D)),
+                                 ::testing::Values(fusingSum),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
@@ -989,56 +1274,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_I8, ConvolutionLayerCPUTest,
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-/* ============= Convolution (1D) ============= */
-/* ============= Convolution params (1D) ============= */
-const std::vector<SizeVector> kernels1d = { {3} };
-const std::vector<SizeVector> strides1d = { {1}, {2} };
-const std::vector<std::vector<ptrdiff_t>> padBegins1d = { {0}, {1} };
-const std::vector<std::vector<ptrdiff_t>> padEnds1d = { {0} };
-const std::vector<SizeVector> dilations1d = { {1}, {2} };
-
-const auto convParams_1D = ::testing::Combine(
-        ::testing::ValuesIn(kernels1d),
-        ::testing::ValuesIn(strides1d),
-        ::testing::ValuesIn(padBegins1d),
-        ::testing::ValuesIn(padEnds1d),
-        ::testing::ValuesIn(dilations1d),
-        ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
-);
-
-const std::vector<CPUSpecificParams> CPUParams_1D = {
-        conv_sse42_1D,
-        conv_avx2_1D,
-        conv_avx512_1D
-};
-
-std::vector<InputShape> inShapes1D = {
-        {{}, {{ 2, 64, 7 }}},
-        {
-            //dynamic shape
-            { {1, 200}, 64, -1 },
-            { //target static shapes
-                { 2, 64, 7 },
-                { 1, 64, 5 }
-            }
-        }
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D, ConvolutionLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Combine(
-                                         convParams_1D,
-                                         ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inShapes1D),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D)),
-                                 ::testing::Values(fusingAddPerChannel),
-                                 ::testing::Values(cpuEmptyPluginConfig)),
-                         ConvolutionLayerCPUTest::getTestCaseName);
-
 /* ============= Jit Planar ============= */
 
 /* ============= Convolution planar params (2D) ============= */
@@ -1068,7 +1303,7 @@ const auto convParams_Planar_ExplicitPadding_2D_dilated = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_2D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_Jit_Planar_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_Planar_ExplicitPadding_2D,
@@ -1082,7 +1317,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_2D_FP32, ConvolutionLayerCPUTest,
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(Conv_Jit_Planar_2D_FP32_dilated, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(Conv_2D_Jit_Planar_FP32_dilated, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_Planar_ExplicitPadding_2D_dilated,
@@ -1123,7 +1358,7 @@ const auto convParams_Planar_ExplicitPadding_3D_dilated = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_3D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_Jit_Planar_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_Planar_ExplicitPadding_3D,
@@ -1137,7 +1372,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_3D_FP32, ConvolutionLayerCPUTest,
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(Conv_Jit_Planar_3D_FP32_dilated, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(Conv_3D_Jit_Planar_FP32_dilated, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_Planar_ExplicitPadding_3D_dilated,

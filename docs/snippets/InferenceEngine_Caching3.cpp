@@ -14,7 +14,7 @@ using namespace InferenceEngine;
     auto it = std::find(keys.begin(), keys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
 
     // If metric 'IMPORT_EXPORT_SUPPORT' exists, check it's value
-    bool cachingSupported = (it != keys.end()) && ie.GetMetric(deviceName, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+    auto cachingSupported = (it != keys.end()) && ie.GetMetric(deviceName, METRIC_KEY(IMPORT_EXPORT_SUPPORT)).as<bool>();
 //! [part3]
     return 0;
 }

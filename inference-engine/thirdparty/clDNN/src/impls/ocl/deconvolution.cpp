@@ -5,7 +5,7 @@
 #include "deconvolution_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "deconvolution/deconvolution_kernel_selector.h"
 #include "deconvolution/deconvolution_kernel_base.h"
@@ -66,7 +66,7 @@ public:
 #endif
         const auto actual_split = split;
 
-        const auto& input_offset = primitive->input_offset;
+        const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
@@ -86,9 +86,9 @@ public:
         uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
         deconv_params.filterSize = { kx, ky, kz };
 
-        deconv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
-                                 (uint32_t)std::max(-input_offset.spatial[1], 0),
-                                 (uint32_t)std::max(-input_offset.spatial[2], 0)};
+        deconv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
+                                 (uint32_t)std::max(pad.spatial[1], 0),
+                                 (uint32_t)std::max(pad.spatial[2], 0)};
 
         deconv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
 
@@ -119,13 +119,17 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::i8, format::bfyx),
@@ -134,10 +138,14 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
         std::make_tuple(data_types::u8, format::bfzyx),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
     });

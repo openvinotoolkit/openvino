@@ -21,8 +21,19 @@ std::vector<std::vector<ov::Shape>> inShapesStatic = {
         {{1, 2, 4}},
         {{1, 4, 4}},
         {{1, 4, 4, 1}},
+        {{16, 16, 16, 16, 16}},
+        {{16, 16, 16, 16, 1}},
+        {{16, 16, 16, 1, 16}},
+        {{16, 32, 1, 1, 1}},
         {{1, 1, 1, 1, 1, 1, 3}},
         {{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
+};
+
+std::vector<std::vector<ov::Shape>> inShapesStaticCheckCollapse = {
+        {{16, 16, 16, 16}, {16, 16, 16, 1}},
+        {{16, 16, 16, 1}, {16, 16, 16, 1}},
+        {{16, 16, 16, 16}, {16, 16, 1, 16}},
+        {{16, 16, 1, 16}, {16, 16, 1, 16}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inShapesDynamic = {
@@ -84,6 +95,17 @@ const auto multiply_params = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
+const auto collapsing_params = ::testing::Combine(
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesStaticCheckCollapse)),
+        ::testing::ValuesIn(eltwiseOpTypes),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::Values(opTypes[1]),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config));
+
 const auto multiply_params_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamic),
         ::testing::ValuesIn(eltwiseOpTypesDynamic),
@@ -96,6 +118,7 @@ const auto multiply_params_dynamic = ::testing::Combine(
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static_check_collapsing, EltwiseLayerTest, collapsing_params, EltwiseLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, EltwiseLayerTest, multiply_params_dynamic, EltwiseLayerTest::getTestCaseName);
 
 

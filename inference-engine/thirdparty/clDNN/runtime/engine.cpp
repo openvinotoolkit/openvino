@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/device_query.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
 
@@ -83,6 +83,17 @@ memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
 
 memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
     shared_mem_params params = { shared_mem_type::shared_mem_buffer, nullptr, nullptr, buf,
+#ifdef _WIN32
+        nullptr,
+#else
+        0,
+#endif
+        0 };
+    return reinterpret_handle(layout, params);
+}
+
+memory_ptr engine::share_usm(const layout& layout, shared_handle usm_ptr) {
+    shared_mem_params params = { shared_mem_type::shared_mem_usm, nullptr, nullptr, usm_ptr,
 #ifdef _WIN32
         nullptr,
 #else

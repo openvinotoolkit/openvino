@@ -307,6 +307,9 @@ void printPerformanceCounters(
     std::string fullDeviceName,
     const uint64_t numberOfFramesOnHw) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+    if (numberOfFrames == 0)
+        throw std::runtime_error("printPerformanceCounters: numberOfFrames=0, incorrect input");
+    std::ios::fmtflags fmt(std::cout.flags());
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
            << "Counter descriptions";
@@ -340,6 +343,7 @@ void printPerformanceCounters(
     stream << "Number of frames delivered to GNA HW: " << numberOfFramesOnHw;
     stream << "/" << numberOfFrames;
     stream << std::endl;
+    std::cout.flags(fmt);
 #endif
 }
 
@@ -586,7 +590,7 @@ int main(int argc, char* argv[]) {
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
 
         slog::info << "Device info: " << slog::endl;
-        std::cout << ie.GetVersions(deviceStr) << std::endl;
+        slog::info << ie.GetVersions(deviceStr) << slog::endl;
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin
@@ -681,6 +685,7 @@ int main(int argc, char* argv[]) {
 
         gnaPluginConfig[GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
         gnaPluginConfig[GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
+        gnaPluginConfig[PluginConfigParams::KEY_LOG_LEVEL] = FLAGS_log;
         gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
             std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);

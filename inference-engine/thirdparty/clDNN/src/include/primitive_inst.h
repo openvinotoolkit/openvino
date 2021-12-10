@@ -4,12 +4,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/primitive.hpp"
-#include "cldnn/primitives/concatenation.hpp"
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/graph/network.hpp"
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
 #include "program_node.h"
@@ -151,6 +151,8 @@ public:
     }
 
     void allocate_internal_buffers();
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool,
+                                        const program_node& _node, bool is_internal);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 

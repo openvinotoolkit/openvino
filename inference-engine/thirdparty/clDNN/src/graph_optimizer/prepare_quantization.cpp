@@ -15,7 +15,7 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 #include <algorithm>
 #include <string>
@@ -693,7 +693,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
                 old_conv_prim->groups,
                 *old_conv_prim->output_data_type,
                 old_conv_prim->stride,
-                old_conv_prim->input_offset,
+                old_conv_prim->pad,
                 old_conv_prim->dilation,
                 output_size,
                 old_conv_prim->grouped_weights_shape,

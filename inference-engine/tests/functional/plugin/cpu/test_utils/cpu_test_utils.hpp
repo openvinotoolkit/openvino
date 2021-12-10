@@ -116,7 +116,7 @@ namespace CPUTestUtils {
 
 class CPUTestsBase {
 public:
-    typedef std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUInfo;
+    typedef std::map<std::string, ov::Any> CPUInfo;
 
 public:
     static std::string getTestCaseName(CPUSpecificParams params);
@@ -140,7 +140,7 @@ public:
     void CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &execNet, std::string nodeType) const;
 
 protected:
-    virtual void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const;
+    virtual void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const;
     /**
      * @brief This function modifies the initial single layer test graph to add any necessary modifications that are specific to the cpu test scope.
      * @param ngPrc Graph precision.

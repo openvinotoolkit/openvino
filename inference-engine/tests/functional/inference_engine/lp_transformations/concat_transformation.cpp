@@ -146,7 +146,6 @@ public:
             {},
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);
-
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
             ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
         });
@@ -162,7 +161,6 @@ public:
         transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
         transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
         transformer.transform(actualFunction);
-
         {
             ngraph::pass::Manager standaloneCleanupManager;
             standaloneCleanupManager.register_pass<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
@@ -199,9 +197,9 @@ public:
             testValues.result.convert2,
             testValues.result.dequantization2,
             {
-                make_shared_attribute_ptr<PrecisionPreservedAttribute>(true),
-                make_shared_attribute_ptr<IntervalsAlignmentAttribute>(interval, 256),
-                make_shared_attribute_ptr<QuantizationAlignmentAttribute>(false)
+                PrecisionPreservedAttribute(true),
+                IntervalsAlignmentAttribute(interval, 256),
+                QuantizationAlignmentAttribute(false)
             },
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter,
@@ -235,13 +233,13 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     ConcatTransformationTestValues testValues = std::get<2>(GetParam());
     const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
     if (testValues.axis == 1) {
-        ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
+        ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes)) <<
             "PrecisionsAttribute are not the same";
 
         if (testValues.checkIntervalsAlignmentAttributes) {
             auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
             operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-            ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
+            ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(operations)) <<
                 "IntervalsAlignmentAttribute are not the same";
         }
     }
@@ -275,13 +273,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2550.f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {0.1f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -304,7 +302,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}, ngraph::element::f32,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -331,7 +329,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}, ngraph::element::f32,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -352,13 +350,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -390,13 +388,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -428,13 +426,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -462,13 +460,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -496,13 +494,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -526,13 +524,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -556,13 +554,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -586,13 +584,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {1.275f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -616,13 +614,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {{1}, {1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {{1}, {1}, {}, {}}, {0.f}, {1.275f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -657,7 +655,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
                 {0.f, 0.f, 0.f}, {2.55f, 2.55f, 2.55f}, {0.f}, {255.f},
                 ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -666,7 +664,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
                 {0.f, 0.f, 0.f}, {1.275f, 1.275f, 1.275f}, {0.f}, {255.f},
                 ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -692,13 +690,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -722,13 +720,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -752,13 +750,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -866,6 +864,382 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {}
         },
     },
+    // U8: concat with subtract convert and subtract without convert
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                { 127.f },
+                { 0.01f }
+            },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                  { 127 },
+                  element::f32,
+                  {},
+                  false,
+                  1ul,
+                  ngraph::element::u8,
+                  true,
+                  {},
+                  {}
+                },
+                { 0.01f }
+            },
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, { 127 }, { 0.01f } }
+        }
+    },
+    // U8: concat multi channels with subtract convert and subtract without convert
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f}
+            },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {{ 127, 127, 127 }},
+                {{ 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }}
+            },
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f}
+            },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {{ 127, 127, 127 }},
+                {{ 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }}
+            },
+        },
+        {
+             {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
+                ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
+                ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, { 127 }, {{  0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }} }
+        }
+    },
+    // U8: concat with subtract convert on both branches
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                  { 128 },
+                  element::f32,
+                  {},
+                  false,
+                  1ul,
+                  ngraph::element::u8,
+                  true,
+                  {},
+                  {}
+                },
+                { 0.01f }
+            },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                  { 127 },
+                  element::f32,
+                  {},
+                  false,
+                  1ul,
+                  ngraph::element::u8,
+                  true,
+                  {},
+                  {}
+                },
+                { 0.01f }
+            },
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32,
+            {
+              { 128, 128, 128, 127, 127, 127 },
+              element::f32,
+              {1, 6, 1, 1},
+              false,
+              1ul,
+              ngraph::element::u8,
+              true,
+              {},
+              {}
+            },
+            { 0.01f } }
+        }
+    },
+    // U8: concat with subtract convert
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {},
+            {},
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                  { 127 },
+                  element::f32,
+                  {},
+                  false,
+                  1ul,
+                  ngraph::element::u8,
+                  true,
+                  {},
+                  {}
+                },
+                { 0.01f }
+            },
+        },
+        {
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            {
+                ngraph::element::f32,
+                {
+                    { 0, 0, 0, 127, 127, 127 },
+                    element::f32,
+                    {1, 6, 1, 1},
+                    false,
+                    1ul,
+                    ngraph::element::u8,
+                    true,
+                    {},
+                    {}
+                },
+                { 0.01f }
+            }
+        }
+    },
+    // U8: concat multi channels with subtract convert
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f, 2.55f, 2.55}
+            },
+            {},
+            {},
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f}
+            },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                    { 128, 128, 128 },
+                    element::f32,
+                    {1, 3, 1, 1},
+                    false,
+                    1ul,
+                    ngraph::element::u8,
+                    true
+                },
+                {{ 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }}
+            },
+        },
+        {
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f},
+                ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
+                ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            {
+                ngraph::element::f32,
+                {
+                    {0.f, 0.f, 0.f, 128.f, 128.f, 128.f},
+                    element::f32,
+                    {1, 6, 1, 1},
+                    false,
+                    1ul,
+                    ngraph::element::u8,
+                    true
+                },
+                {{ 0.01f , 0.01f, 0.01f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }}
+            }
+        }
+    },
+    // U8: concat multi channels with subtract convert on both branches
+    {
+        LayerTransformation::createParamsU8I8(),
+        true,
+        1,
+        {
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f}
+            },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                    { 128, 128, 128 },
+                    element::f32,
+                    {1, 3, 1, 1},
+                    false,
+                    1ul,
+                    ngraph::element::u8,
+                    true
+                },
+                {{ 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }}
+            },
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f}
+            },
+            { ngraph::element::u8 },
+            {
+                { element::f32 },
+                {
+                    { 127, 127, 127 },
+                    element::f32,
+                    {1, 3, 1, 1},
+                    false,
+                    1ul,
+                    ngraph::element::u8,
+                    true
+                },
+                {{ 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }}
+            },
+        },
+        {
+             {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
+                ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            {
+                256ul,
+                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+                {0.f, 0.f, 0.f}, {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f}, {0.f, 0.f, 0.f}, {255.f, 255.f, 255.f},
+                ngraph::element::u8,
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+            },
+            {},
+            {},
+            ngraph::element::u8,
+            { ngraph::element::f32,
+            {
+              { 128, 128, 128, 127, 127, 127 },
+              element::f32,
+              {1, 6, 1, 1},
+              false,
+              1ul,
+              ngraph::element::u8,
+              true,
+              {},
+              {}
+            },
+            {{  0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f }} }
+        }
+    },
     // U8: concat multi channels with subtract
     // Features:
     //  1. fakeQuantize1 defines precision
@@ -886,13 +1260,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
@@ -924,13 +1298,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             {
                 256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul) }
             },
             {},
             {},
             {
                 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)
             }
             },
             {},

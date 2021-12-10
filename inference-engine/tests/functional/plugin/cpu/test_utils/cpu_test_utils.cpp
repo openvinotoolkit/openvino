@@ -127,28 +127,24 @@ void CPUTestsBase::CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &exe
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
-    auto function = execNet.get_runtime_function();
+    auto function = execNet.get_runtime_model();
     CheckPluginRelatedResultsImpl(function, std::move(nodeType));
 }
 
-void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
     ASSERT_NE(nullptr, function);
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-            return value->get();
+            return it->second.as<std::string>();
         };
         auto getExecValueOutputsLayout = [] (std::shared_ptr<ngraph::Node> node) -> std::string {
             auto rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-            return value->get();
+            return it->second.as<std::string>();
         };
         // skip policy
         auto should_be_skipped = [] (const ngraph::PartialShape &partialShape, cpu_memory_format_t fmt) {
@@ -265,18 +261,18 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     CPUInfo cpuInfo;
 
     if (!inFmts.empty()) {
-        cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts, "cpu:")))});
+        cpuInfo.insert({ngraph::MKLDNNInputMemoryFormats::get_type_info_static(),
+                ngraph::MKLDNNInputMemoryFormats(fmts2str(inFmts, "cpu:"))});
     }
     if (!outFmts.empty()) {
-        cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
-                std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:")))});
+        cpuInfo.insert({ngraph::MKLDNNOutputMemoryFormats::get_type_info_static(),
+                ngraph::MKLDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
-        cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
+        cpuInfo.insert({"PrimitivesPriority", impls2str(priority)});
     }
 
-    cpuInfo.insert({"enforceBF16evenForGraphTail", ov::make_variant<int64_t>(true)});
+    cpuInfo.insert({"enforceBF16evenForGraphTail", true});
 
     return cpuInfo;
 }
@@ -308,6 +304,8 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
 auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
+            if (formats[i] == nCw16c)
+                formats[i] = nCw8c;
             if (formats[i] == nChw16c)
                 formats[i] = nChw8c;
             if (formats[i] == nCdhw16c)
@@ -335,9 +333,7 @@ void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::stri
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-            return value->get();
+            return it->second.as<std::string>();
         };
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
             actualNodeCount++;

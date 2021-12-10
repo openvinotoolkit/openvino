@@ -67,7 +67,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PadParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
                                                               params.inputData.shape);
         const auto padsBegin = op::v0::Constant::create(params.padsBegin.type,
@@ -82,7 +82,7 @@ private:
                 const auto padVal = op::v0::Constant::create(params.constantValue.type,
                                                              params.constantValue.shape,
                                                              params.constantValue.data.data());
-                return std::make_shared<Function>(std::make_shared<op::v1::Pad>(data,
+                return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
                                                                                 padsBegin,
                                                                                 padsEnd,
                                                                                 padVal,
@@ -90,7 +90,7 @@ private:
                                                   ParameterVector{data});
             }
 
-            return std::make_shared<Function>(std::make_shared<op::v1::Pad>(data,
+            return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
                                                                             padsBegin,
                                                                             padsEnd,
                                                                             params.padMode),
@@ -113,6 +113,66 @@ TEST_P(ReferencePadTestParamsTooLarge, CompareWithRefs) {
 class ReferencePadTestParamsOk : public ReferencePadTest {};
 
 TEST_P(ReferencePadTestParamsOk, CompareWithRefs) {
+    EXPECT_NO_THROW(Exec());
+}
+
+class ReferencePadTestNonConstPadsBeginPadsEndPadVal : public ReferencePadTest {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        auto params = GetParam();
+        function = CreateFunction(params);
+        if (params.useConstValue)
+            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data, params.constantValue.data};
+        else
+            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data};
+        refOutData = {params.expectedOutput.data};
+    }
+
+private:
+    static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
+        const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
+                                                              params.inputData.shape);
+        const auto padsBegin = std::make_shared<op::v0::Parameter>(params.padsBegin.type,
+                                                                   params.padsBegin.shape);
+        const auto padsEnd = std::make_shared<op::v0::Parameter>(params.padsEnd.type,
+                                                                 params.padsEnd.shape);
+        const auto f = [&] {
+            if (params.useConstValue) {
+                // pad_value should be used only in CONSTANT mode
+                const auto padVal = std::make_shared<op::v0::Parameter>(params.constantValue.type,
+                                                                        params.constantValue.shape);
+                return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
+                                                                                padsBegin,
+                                                                                padsEnd,
+                                                                                padVal,
+                                                                                params.padMode),
+                                                  ParameterVector{data, padsBegin, padsEnd, padVal});
+            }
+
+            return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
+                                                                            padsBegin,
+                                                                            padsEnd,
+                                                                            params.padMode),
+                                              ParameterVector{data, padsBegin, padsEnd});
+        }();
+        return f;
+    }
+};
+
+TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadVal, CompareWithRefs) {
+    Exec();
+}
+
+class ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge : public ReferencePadTestNonConstPadsBeginPadsEndPadVal {};
+
+TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge, CompareWithRefs) {
+    EXPECT_ANY_THROW(Exec());
+}
+
+class ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk : public ReferencePadTestNonConstPadsBeginPadsEndPadVal {};
+
+TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk, CompareWithRefs) {
     EXPECT_NO_THROW(Exec());
 }
 
@@ -1005,6 +1065,9 @@ std::vector<PadParams> generateCombinedParams() {
 INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTest,
     testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadVal,
+    testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
+
 template <element::Type_t ET, element::Type_t ET_INT>
 std::vector<PadParams> generateParamsTooLarge() {
     using T = typename element_type_traits<ET>::value_type;
@@ -1052,6 +1115,9 @@ std::vector<PadParams> generateCombinedParamsTooLarge() {
 INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestParamsTooLarge,
     testing::ValuesIn(generateCombinedParamsTooLarge()), ReferencePadTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge,
+    testing::ValuesIn(generateCombinedParamsTooLarge()), ReferencePadTest::getTestCaseName);
+
 template <element::Type_t ET, element::Type_t ET_INT>
 std::vector<PadParams> generateParamsOk() {
     using T = typename element_type_traits<ET>::value_type;
@@ -1097,5 +1163,8 @@ std::vector<PadParams> generateCombinedParamsOk() {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestParamsOk,
+    testing::ValuesIn(generateCombinedParamsOk()), ReferencePadTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk,
     testing::ValuesIn(generateCombinedParamsOk()), ReferencePadTest::getTestCaseName);
 } // namespace

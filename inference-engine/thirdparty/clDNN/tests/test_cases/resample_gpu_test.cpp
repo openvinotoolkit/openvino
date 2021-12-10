@@ -6,10 +6,10 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/resample.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/resample.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -647,7 +647,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
                         auto output_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         auto output_val = out_ptr[output_lay.get_linear_offset(output_coords)];
 
-                        EXPECT_NEAR(static_cast<float>(output_val), final_val, 1.e-1f)
+                        ASSERT_NEAR(static_cast<float>(output_val), final_val, 1.e-1f)
                             << " at bi=" << bi << ", fi=" << fi << ", xi=" << xi << ", yi=" << yi;
                     }
                 }

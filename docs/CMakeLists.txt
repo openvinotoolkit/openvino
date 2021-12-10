@@ -17,7 +17,7 @@ if(NOT ENABLE_DOCKER)
         set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
     endif()
 
-    if(NGRAPH_ONNX_FRONTEND_ENABLE)
+    if(ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_custom_op)
     endif()
     add_subdirectory(template_extension)
@@ -65,13 +65,14 @@ function(build_docs)
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(DOXYGEN_DIR "${OpenVINO_SOURCE_DIR}/docs/doxygen")
     set(IE_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/inference-engine")
+    set(OV_INFERENCE_DIR "${OpenVINO_SOURCE_DIR}/src/inference")
     set(PYTHON_API_IN "${IE_SOURCE_DIR}/ie_bridges/python/src/openvino/inference_engine/ie_api.pyx")
     set(PYTHON_API_OUT "${DOCS_BUILD_DIR}/python_api/ie_api.pyx")
-    set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
+    set(C_API "${OpenVINO_SOURCE_DIR}/bindings/c/include")
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
-    set(NGRAPH_DIR "${OpenVINO_SOURCE_DIR}/ngraph")
-    set(NGRAPH_PY_DIR "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/src/compatibility/ngraph/")
-    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
+    set(CORE_DIR "${OpenVINO_SOURCE_DIR}/src/core")
+    set(FRONTENDS_DIR "${OpenVINO_SOURCE_DIR}/src/frontends")
+    set(NGRAPH_PY_DIR "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/compatibility/ngraph/")
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
@@ -222,10 +223,10 @@ function(build_docs)
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg"
-        "${OpenVINO_SOURCE_DIR}/runtime/*.md"
-        "${OpenVINO_SOURCE_DIR}/runtime/*.png"
-        "${OpenVINO_SOURCE_DIR}/runtime/*.gif"
-        "${OpenVINO_SOURCE_DIR}/runtime/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/src/*.md"
+        "${OpenVINO_SOURCE_DIR}/src/*.png"
+        "${OpenVINO_SOURCE_DIR}/src/*.gif"
+        "${OpenVINO_SOURCE_DIR}/src/*.jpg"
         "${OpenVINO_SOURCE_DIR}/samples/*.md"
         "${OpenVINO_SOURCE_DIR}/samples/*.png"
         "${OpenVINO_SOURCE_DIR}/samples/*.gif"

@@ -1413,7 +1413,7 @@ static void* debugConsoleThreadReader(void* ctx) {
     fprintfsock(connfd, "=========================================\n");
     while(1){
         // use 0 as the timeout to prevent trigger false reset
-        xerr = XLinkReadDataWithTimeOut(streamId, &packet, 0);
+        xerr = XLinkReadDataWithTimeout(streamId, &packet, 0);
         if(X_LINK_SUCCESS != xerr || packet == NULL)
             break;
         fprintfsock(connfd, NULL, packet->data, packet->length);
@@ -1483,7 +1483,10 @@ static void printfOverXLinkOpen(struct _devicePrivate_t *d) {
 
     int portNum = 7788;
     int connfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
+    if (connfd != 0) {
+        fprintf(stderr,"ERROR in socket function, return value is : %d\n", connfd);
+        return;
+    }
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);

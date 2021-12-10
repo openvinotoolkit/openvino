@@ -10,14 +10,26 @@ namespace ov {
 namespace builder {
 namespace preprocess {
 
-using preprocess_func = std::tuple<std::function<std::shared_ptr<Function>()>, std::string, float>;
+struct preprocess_func {
+    preprocess_func() = default;
+    preprocess_func(const std::function<std::shared_ptr<Model>()>& f,
+                    const std::string& name,
+                    float acc,
+                    const std::vector<Shape>& shapes = {}):
+                    m_function(f), m_name(name), m_accuracy(acc), m_shapes(shapes) {
+    }
+    std::function<std::shared_ptr<Model>()> m_function = nullptr;
+    std::string m_name = {};
+    float m_accuracy = 0.01f;
+    std::vector<Shape> m_shapes = {};
+};
 
 inline std::vector<preprocess_func> generic_preprocess_functions();
 
 
 /// -------- Functions ---------------
 
-inline std::shared_ptr<Function> create_preprocess_1input(element::Type type,
+inline std::shared_ptr<Model> create_preprocess_1input(element::Type type,
                                                           const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
@@ -32,10 +44,10 @@ inline std::shared_ptr<Function> create_preprocess_1input(element::Type type,
     }
     res->set_friendly_name("Result1");
     res->output(0).get_tensor().set_names({"Result1"});
-    return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-inline std::shared_ptr<Function> create_preprocess_2inputs(element::Type type,
+inline std::shared_ptr<Model> create_preprocess_2inputs(element::Type type,
                                                            const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
@@ -59,10 +71,10 @@ inline std::shared_ptr<Function> create_preprocess_2inputs(element::Type type,
     res1->output(0).get_tensor().set_names({"Result1"});
     res2->set_friendly_name("Result2");
     res2->output(0).get_tensor().set_names({"Result2"});
-    return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
+    return std::make_shared<Model>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
-inline std::shared_ptr<Function> create_preprocess_2inputs_trivial() {
+inline std::shared_ptr<Model> create_preprocess_2inputs_trivial() {
     auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 1, 1});
     auto data2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 1, 1});
 
@@ -75,299 +87,271 @@ inline std::shared_ptr<Function> create_preprocess_2inputs_trivial() {
     auto res1 = std::make_shared<op::v0::Result>(data1);
     auto res2 = std::make_shared<op::v0::Result>(data2);
 
-    return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
+    return std::make_shared<Model>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
-inline std::shared_ptr<Function> mean_only() {
+inline std::shared_ptr<Model> mean_only() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, Shape{1, 3, 24, 24});
-    function = PrePostProcessor(function).input(InputInfo().preprocess(PreProcessSteps().mean(1.1f))).build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().mean(1.1f);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> scale_only() {
+inline std::shared_ptr<Model> scale_only() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, Shape{1, 3, 24, 24});
-    function = PrePostProcessor(function).input(InputInfo().preprocess(PreProcessSteps().scale(2.1f))).build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().scale(2.1f);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> mean_scale() {
+inline std::shared_ptr<Model> mean_scale() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, Shape{1, 3, 24, 24});
-    function = PrePostProcessor(function).input(InputInfo().preprocess(PreProcessSteps().mean(1.1f).scale(2.1f))).build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().mean(1.1f).scale(2.1f);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> scale_mean() {
+inline std::shared_ptr<Model> scale_mean() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, Shape{1, 3, 24, 24});
-    function = PrePostProcessor(function).input(InputInfo().preprocess(PreProcessSteps().scale(2.1f).mean(1.1f))).build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().scale(2.1f).mean(1.1f);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> mean_vector() {
+inline std::shared_ptr<Model> mean_vector() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, Shape{1, 3, 24, 24});
-    function = PrePostProcessor(function).input(InputInfo()
-                                                .tensor(InputTensorInfo().set_layout("NCHW"))
-                                                .preprocess(PreProcessSteps().mean({2.2f, 3.3f, 4.4f}))).build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_layout("NCHW");
+    p.input().preprocess().mean({2.2f, 3.3f, 4.4f});
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> scale_vector() {
+inline std::shared_ptr<Model> scale_vector() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, Shape{1, 3, 24, 24});
-    function = PrePostProcessor(function).input(InputInfo()
-                                                .tensor(InputTensorInfo().set_layout("NCHW"))
-                                                .preprocess(PreProcessSteps().scale({2.2f, 3.3f, 4.4f}))).build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_layout("NCHW");
+    p.input().preprocess().scale({2.2f, 3.3f, 4.4f});
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> convert_element_type_and_mean() {
+inline std::shared_ptr<Model> convert_element_type_and_mean() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::u8, Shape{1, 3, 24, 24});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .preprocess(PreProcessSteps()
-                                               .convert_element_type(element::f32)
-                                               .mean(0.2f)
-                                               .convert_element_type(element::u8)))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().convert_element_type(element::f32).mean(0.2f).convert_element_type(element::u8);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> tensor_element_type_and_mean() {
+inline std::shared_ptr<Model> tensor_element_type_and_mean() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::u8, Shape{1, 3, 12, 12});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_element_type(element::f32))
-                           .preprocess(PreProcessSteps().mean(0.1f).convert_element_type(element::u8)))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_element_type(element::f32);
+    p.input().preprocess().mean(0.1f).convert_element_type(element::u8);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> custom_preprocessing() {
+inline std::shared_ptr<Model> custom_preprocessing() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::i32, Shape{3, 4, 10, 20});
-    function = PrePostProcessor(function)
-            .input(InputInfo().preprocess(PreProcessSteps().custom([](const Output<Node>& node) {
-                auto abs = std::make_shared<op::v0::Abs>(node);
-                abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
-                return abs;
-            })))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().custom([](const Output<Node>& node) {
+        auto abs = std::make_shared<op::v0::Abs>(node);
+        abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
+        return abs;
+    });
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> lvalues_multiple_ops() {
+inline std::shared_ptr<Model> multiple_ops() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::u8, Shape{1, 3, 3, 3});
     auto p = PrePostProcessor(function);
     auto p1 = std::move(p);
     p = std::move(p1);
-    auto inputInfo = InputInfo();
-    auto inputInfo2 = std::move(inputInfo);
-    inputInfo = std::move(inputInfo2);
-    {
-        auto inputTensorInfo = InputTensorInfo();
-        auto inputTensorInfo2 = std::move(inputTensorInfo);
-        inputTensorInfo = std::move(inputTensorInfo2);
-        auto& same = inputTensorInfo.set_element_type(element::f32);
-        same.set_layout("?CHW");
-        inputInfo.tensor(std::move(same));
-    }
-    {
-        auto preprocessSteps = PreProcessSteps();
-        auto preprocessSteps2 = std::move(preprocessSteps);
-        preprocessSteps = std::move(preprocessSteps2);
-        preprocessSteps.mean(1.f);
-        preprocessSteps.scale(2.f);
-        preprocessSteps.mean({1.1f, 2.2f, 3.3f});
-        preprocessSteps.scale({2.f, 3.f, 4.f});
-        preprocessSteps.custom([](const Output<Node>& node) {
-            auto abs = std::make_shared<op::v0::Abs>(node);
-            abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
-            return abs;
-        });
-        auto& same = preprocessSteps.convert_element_type(element::u8);
-        inputInfo.preprocess(std::move(same));
-    }
-    p.input(std::move(inputInfo));
+    p.input().tensor().set_element_type(element::f32).set_layout("?CHW");
+    p.input().preprocess().mean(1.f)
+            .scale(2.f)
+            .mean({1.1f, 2.2f, 3.3f})
+            .scale({2.f, 3.f, 4.f})
+            .custom([](const Output<Node>& node) {
+                auto abs = std::make_shared<op::v0::Abs>(node);
+                abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
+                return abs;
+            });
+    p.input().preprocess().convert_element_type(element::u8);
     function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> two_inputs_basic() {
+inline std::shared_ptr<Model> two_inputs_basic() {
     using namespace ov::preprocess;
     auto function = create_preprocess_2inputs(element::f32, Shape{1, 3, 1, 1});
-    function = PrePostProcessor(function).input(InputInfo(1).preprocess(PreProcessSteps().mean(1.f).scale(2.0f))).build();
+    auto p = PrePostProcessor(function);
+    p.input(1).preprocess().mean(1.f).scale(2.0f);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> two_inputs_trivial() {
+inline std::shared_ptr<Model> two_inputs_trivial() {
     using namespace ov::preprocess;
     auto function = create_preprocess_2inputs_trivial();
-    function = PrePostProcessor(function).input(InputInfo(1).preprocess(PreProcessSteps().mean(1.f).scale(2.0f))).build();
+    auto p = PrePostProcessor(function);
+    p.input(1).preprocess().mean(1.f).scale(2.0f);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> reuse_network_layout() {
+inline std::shared_ptr<Model> reuse_network_layout() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{4, 3, 2, 1});
     function->get_parameters().front()->set_layout("NC??");
-    function = PrePostProcessor(function)
-            .input(InputInfo().preprocess(PreProcessSteps().mean({1.1f, 2.2f, 3.3f}).scale({2.f, 3.f, 4.f})))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().mean({1.1f, 2.2f, 3.3f}).scale({2.f, 3.f, 4.f});
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> tensor_layout() {
+inline std::shared_ptr<Model> tensor_layout() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{4, 3, 2, 1});
     function->get_parameters().front()->set_layout("NC??");
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_layout("NC??"))
-                           .preprocess(PreProcessSteps().mean({1.1f, 2.2f, 3.3f}).scale({2.f, 3.f, 4.f})))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_layout("NC??");
+    p.input().preprocess().mean({1.1f, 2.2f, 3.3f}).scale({2.f, 3.f, 4.f});
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> resize_linear() {
+inline std::shared_ptr<Model> resize_linear() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 10, 10});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_spatial_static_shape(20, 20))
-                           .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
-                           .network(InputNetworkInfo().set_layout("NCHW")))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_spatial_static_shape(20, 20);
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> resize_nearest() {
+inline std::shared_ptr<Model> resize_nearest() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 10, 10});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_spatial_static_shape(20, 20))
-                           .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_NEAREST))
-                           .network(InputNetworkInfo().set_layout("NCHW")))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_spatial_static_shape(20, 20);
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> resize_linear_nhwc() {
+inline std::shared_ptr<Model> resize_linear_nhwc() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 10, 10, 3});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_spatial_static_shape(20, 20))
-                           .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
-                           .network(InputNetworkInfo().set_layout("NHWC")))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_spatial_static_shape(20, 20);
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NHWC");
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> resize_cubic() {
+inline std::shared_ptr<Model> resize_cubic() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 20, 20});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_spatial_static_shape(10, 10))
-                           .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC))
-                           .network(InputNetworkInfo().set_layout("NCHW")))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_spatial_static_shape(10, 10);
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> resize_and_convert_layout() {
+inline std::shared_ptr<Model> resize_and_convert_layout() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 30, 20, 3});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo()
-                                           .set_layout("NHWC")
-                                           .set_spatial_static_shape(40, 30))
-                           .preprocess(PreProcessSteps()
-                                               .convert_layout()
-                                               .resize(ResizeAlgorithm::RESIZE_LINEAR))
-                           .network(InputNetworkInfo().set_layout("NCHW")))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_layout("NHWC").set_spatial_static_shape(40, 30);
+    p.input().preprocess().convert_layout().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> convert_layout_by_dims() {
+inline std::shared_ptr<Model> convert_layout_by_dims() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 30, 20, 3});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .preprocess(PreProcessSteps()
-                                               .convert_layout({0, 3, 1, 2})))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().convert_layout({0, 3, 1, 2});
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> resize_and_convert_layout_i8() {
+inline std::shared_ptr<Model> resize_and_convert_layout_i8() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::i8, PartialShape{1, 30, 20, 3});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo()
-                                           .set_layout("NHWC")
-                                           .set_spatial_static_shape(40, 30))
-                           .preprocess(PreProcessSteps()
-                                               .convert_layout()
-                                               .resize(ResizeAlgorithm::RESIZE_LINEAR))
-                           .network(InputNetworkInfo().set_layout("NCHW")))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_layout("NHWC").set_spatial_static_shape(40, 30);
+    p.input().preprocess().convert_layout().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> cvt_color_nv12_to_rgb_single_plane() {
+inline std::shared_ptr<Model> cvt_color_nv12_to_rgb_single_plane() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 20, 20, 3});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE))
-                           .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
+    p.input().preprocess().convert_color(ColorFormat::RGB);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> cvt_color_nv12_to_bgr_two_planes() {
+inline std::shared_ptr<Model> cvt_color_nv12_to_bgr_two_planes() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 20, 20, 3});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
-                           .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR)))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES);
+    p.input().preprocess().convert_color(ColorFormat::BGR);
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> cvt_color_nv12_cvt_layout_resize() {
+inline std::shared_ptr<Model> cvt_color_nv12_cvt_layout_resize() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 10, 10});
-    function = PrePostProcessor(function)
-            .input(InputInfo()
-                           .tensor(InputTensorInfo()
-                                .set_color_format(ColorFormat::NV12_TWO_PLANES)
-                                .set_element_type(element::u8)
-                                .set_spatial_static_shape(20, 20))
-                           .preprocess(PreProcessSteps()
-                                .convert_color(ColorFormat::RGB)
-                                .convert_layout()
-                                .convert_element_type(element::f32)
-                                .resize(ResizeAlgorithm::RESIZE_LINEAR))
-                           .network(InputNetworkInfo().set_layout("NCHW")))
-            .build();
+    auto p = PrePostProcessor(function);
+    p.input().tensor()
+            .set_color_format(ColorFormat::NV12_TWO_PLANES)
+            .set_element_type(element::u8)
+            .set_spatial_static_shape(20, 20);
+    p.input().preprocess()
+            .convert_color(ColorFormat::RGB)
+            .convert_layout()
+            .convert_element_type(element::f32)
+            .resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
     return function;
 }
 
-inline std::shared_ptr<Function> cvt_color_i420_to_rgb_single_plane() {
+inline std::shared_ptr<Model> cvt_color_i420_to_rgb_single_plane() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 20, 20, 3});
     auto p = PrePostProcessor(function);
@@ -376,13 +360,35 @@ inline std::shared_ptr<Function> cvt_color_i420_to_rgb_single_plane() {
     return p.build();
 }
 
-inline std::shared_ptr<Function> cvt_color_i420_to_bgr_three_planes() {
+inline std::shared_ptr<Model> cvt_color_i420_to_bgr_three_planes() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{1, 20, 20, 3});
     auto p = PrePostProcessor(function);
     p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
     p.input().preprocess().convert_color(ColorFormat::BGR);
     return p.build();
+}
+
+inline std::shared_ptr<Model> cvt_color_bgrx_to_bgr() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_2inputs(element::f32, PartialShape{1, 160, 160, 3});
+    auto p = PrePostProcessor(function);
+    p.input(0).tensor().set_color_format(ColorFormat::BGRX);
+    p.input(0).preprocess().convert_color(ColorFormat::BGR);
+    p.input(1).tensor().set_color_format(ColorFormat::RGBX);
+    p.input(1).preprocess().convert_color(ColorFormat::BGR);
+    return p.build();
+}
+
+inline std::shared_ptr<Model> resize_dynamic() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 20, 20});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_spatial_dynamic_shape();
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    function = p.build();
+    return function;
 }
 
 inline std::vector<preprocess_func> generic_preprocess_functions() {
@@ -396,7 +402,7 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(convert_element_type_and_mean, "convert_element_type_and_mean", 0.01f),
             preprocess_func(tensor_element_type_and_mean, "tensor_element_type_and_mean", 0.01f),
             preprocess_func(custom_preprocessing, "custom_preprocessing", 0.01f),
-            preprocess_func(lvalues_multiple_ops, "lvalues_multiple_ops", 0.01f),
+            preprocess_func(multiple_ops, "multiple_ops", 0.01f),
             preprocess_func(two_inputs_basic, "two_inputs_basic", 0.01f),
             preprocess_func(two_inputs_trivial, "two_inputs_trivial", 0.01f),
             preprocess_func(reuse_network_layout, "reuse_network_layout", 0.01f),
@@ -405,14 +411,16 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(resize_nearest, "resize_nearest", 0.01f),
             preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
             preprocess_func(resize_cubic, "resize_cubic", 0.01f),
+            preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { Shape {1, 3, 123, 123} }),
             preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
             preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
             preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
-            preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 2.f),
-            preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 2.f),
-            preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 2.f),
-            preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 2.f),
-            preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 2.f),
+            preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 1.f),
+            preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 1.f),
+            preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 1.f),
+            preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
+            preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
+            preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f),
     };
 }
 

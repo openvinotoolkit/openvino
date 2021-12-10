@@ -16,7 +16,6 @@
 #include <set>
 
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 
 namespace ngraph {
 
@@ -28,6 +27,11 @@ namespace ngraph {
 class Mask : public std::vector<std::set<uint64_t>>,
              public std::enable_shared_from_this<Mask> {
 public:
+    static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ::ov::DiscreteTypeInfo type_info{"Mask", 0, "0"};
+        return type_info;
+    }
+
     using Ptr = std::shared_ptr<Mask>;
 
     Mask() = default;
@@ -180,6 +184,7 @@ public:
             item.clear();
         }
     }
+
 private:
     bool m_is_shape_like{false};
 
@@ -199,22 +204,3 @@ Mask::Ptr getMask(const Output<Node> & output);
 void setMask(Output<Node> output, const Mask::Ptr & mask);
 
 }  // namespace ngraph
-
-namespace ov {
-
-extern template class VariantImpl<ngraph::Mask::Ptr>;
-
-template<>
-class VariantWrapper<ngraph::Mask::Ptr> : public VariantImpl<ngraph::Mask::Ptr> {
-public:
-    OPENVINO_RTTI("VariantWrapper<Mask::Ptr>");
-    BWDCMP_RTTI_DECLARATION;
-
-    static std::shared_ptr<VariantWrapper<ngraph::Mask::Ptr>> create(const value_type & value) {
-        return std::make_shared<VariantWrapper<ngraph::Mask::Ptr>>(value);
-    }
-
-    explicit VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
-};
-
-}  // namespace ov
