@@ -123,7 +123,9 @@ TEST_F(TransformationTestsF, RICFusionHard) {
         auto relu = std::make_shared<Relu>(input);
 
         auto input2 = create_param({ -1, 3, -1, -1 });
-        auto eltwise = std::make_shared<Add>(relu, input2);
+        auto split = std::make_shared<Split>(input2, Constant::create(element::i64, {}, {1}), 3);
+        auto concat = std::make_shared<Concat>(OutputVector{split->output(2), split->output(1), split->output(0)}, 1);
+        auto eltwise = std::make_shared<Add>(relu, concat);
         auto prelu = std::make_shared<PRelu>(eltwise, Constant::create(element::f32, Shape{}, {6.0f}));
 
         auto gconv = create_group_conv(prelu, {3, 4, 1, 3, 3});
@@ -135,11 +137,11 @@ TEST_F(TransformationTestsF, RICFusionHard) {
         auto gconv2 = create_group_conv(convert2, {12, 1, 1, 3, 3});
 
         auto conv = create_conv(gconv2, {6, 12, 3, 3});
-        auto conv2 = create_conv(input2, {6, 3, 3, 3});
+        auto conv2 = create_conv(concat, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv, conv2 }, ParameterVector{ input, input2 });
 
-        apply_reverse_input_channels(function, {{0, "NCHW"}, {1, "NCHW"}});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
 
         manager.register_pass<pass::ConstantFolding>();
         manager.register_pass<pass::ReverseInputChannelsFusion>();
@@ -424,4 +426,28 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
     enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionShapeOf) {
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto relu = std::make_shared<Relu>(input);
+        auto shape_of = std::make_shared<ShapeOf>(relu);
+
+        function = std::make_shared<Function>(NodeVector{ shape_of }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto relu = std::make_shared<Relu>(input);
+        auto shape_of = std::make_shared<ShapeOf>(relu);
+
+        function_ref = std::make_shared<Function>(NodeVector{ shape_of }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    disable_rt_info_check();
 }

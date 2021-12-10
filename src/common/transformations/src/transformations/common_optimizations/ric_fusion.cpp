@@ -169,7 +169,6 @@ void erase(T port) {
 }// namespace ric_attr
 
 namespace init {
-// TODO: cover with tests
 class SplitConcat : public ngraph::pass::MatcherPass {
 public:
     SplitConcat() {
