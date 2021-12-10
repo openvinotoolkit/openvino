@@ -23,12 +23,12 @@ public:
     virtual void Validate();
 
     static void ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob,
-                              float threshold, float abs_threshold);
+                              float threshold, float abs_threshold, size_t actual_comparision_size = 0);
 
 protected:
     const std::string targetDevice;
     std::shared_ptr<ov::runtime::Core> core;
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
 
     ov::runtime::ExecutableNetwork executableNetwork;
     ov::runtime::InferRequest inferRequest;
@@ -37,6 +37,7 @@ protected:
     std::vector<ov::runtime::Tensor> actualOutData;
     float threshold = 1e-2f;    // Relative diff
     float abs_threshold = -1.f; // Absolute diff (not used when negative)
+    size_t actual_comparision_size = 0;  // For ref output data is smaller than output blob size
 };
 
 template <class T>

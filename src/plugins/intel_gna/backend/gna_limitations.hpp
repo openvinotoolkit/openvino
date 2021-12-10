@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cpp/ie_cnn_network.h>
 #include <ie_algorithm.hpp>
+#include <legacy/ie_layers.h>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -67,6 +68,13 @@ struct RangeMultipleLimit : public RangeLimit {
     std::string GetErrorOrEmpty(const uint32_t val) const;
 };
 
+struct RectLimit {
+    uint32_t maxVectorHeight;
+    uint32_t maxVectorWidth;
+    bool isValid(const uint32_t h, const uint32_t w) const;
+    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const;
+};
+
 struct VectorOrSquareLimit {
     uint32_t maxSquare;
     uint32_t maxVectorHeight;
@@ -75,20 +83,18 @@ struct VectorOrSquareLimit {
     std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const;
 };
 
-struct VectorOrSquareLimitByChannels {
-    uint32_t smallChannelMax;
-    VectorOrSquareLimit smallChannel;
-    VectorOrSquareLimit bigChannel;
-    VectorOrSquareLimit GetByChannels(const uint32_t channels) const;
+struct RectLimitByChannels {
+    std::vector<std::pair<uint32_t, RectLimit> > limitPerChannel;
+    RectLimit GetByChannels(const uint32_t channels) const;
     bool isValid(const uint32_t h, const uint32_t w, const uint32_t channels) const;
     std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w,
         const uint32_t channels, std::string what) const;
 };
 
-struct VectorOrSquareLimitByChannelsAndPrecision {
-    VectorOrSquareLimitByChannels lowPrecision;
-    VectorOrSquareLimitByChannels defaultPrecision;
-    VectorOrSquareLimitByChannels GetByPrecision(const OvGnaType precision) const;
+struct RectLimitByChannelsAndPrecision {
+    RectLimitByChannels lowPrecision;
+    RectLimitByChannels defaultPrecision;
+    RectLimitByChannels GetByPrecision(const OvGnaType precision) const;
     bool isValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const;
     std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w,
         const OvGnaType precision, const uint32_t channels, std::string what) const;
@@ -98,11 +104,20 @@ class Validator {
     RangeLimit2D inputHWLimit{ { 16, 384, "input height"} , { 16, 240, "input width"} };
     RangeMultipleLimit inputChannelsNumberLimit{ {8, 384, "number of input channels"}, 8 };
 
-    RangeMultipleLimit kernelNumberLimit{ {8, 256, "number of kernels"}, 8 };
-    VectorOrSquareLimitByChannelsAndPrecision kernelLimit {
-        { 240, { 3, 7, 3 }, { 2, 7, 2 } },
-        { 120, { 3, 7, 3 }, { 1, 7, 1 } } };
-    VectorOrSquareLimitByChannelsAndPrecision& strideLimit = kernelLimit;
+    RangeMultipleLimit kernelNumberLimit{ {8, 1024, "number of kernels"}, 8 };
+    RectLimitByChannelsAndPrecision kernelLimit {
+        { { {96, {7, 7}},
+            {136, {7, 5}},
+            {168, {7, 4}},
+            {240, {7, 3}},
+            {384, {7, 2}} } },
+        { { {48, {7, 7}},
+            {64, {7, 5}},
+            {80, {7, 4}},
+            {120, {7, 3}},
+            {384, {7, 1}} } },
+    };
+    RectLimitByChannelsAndPrecision& strideLimit = kernelLimit;
     RangeLimit2D dilationLimit{ {convDilationHeight, convDilationHeight, "dilation height" },
         { convDilationWidth, convDilationWidth, "dilation width" } };
     const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
@@ -124,12 +139,21 @@ public:
 };
 } // namespace Cnn2D
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning);
 
 inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
     return total_size / bufferMaxSize + 1;
 }
+
+/**
+ * @brief Validates if concat layer axis is supported by GNA
+ * @param layer concat layer
+ * @return true if concat layer axis is valid
+ */
+IE_SUPPRESS_DEPRECATED_START
+bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concatLayer);
+IE_SUPPRESS_DEPRECATED_END
 
 } // namespace GNALimitations
 } // namespace GNAPluginNS

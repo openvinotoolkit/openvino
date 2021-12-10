@@ -7,6 +7,7 @@
 #include <ie_extension.h>
 #include <pybind11/stl.h>
 
+#include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
 
@@ -31,14 +32,13 @@ void regclass_Core(py::module m) {
             py::arg("config"),
             py::arg("device_name") = "");
 
-    cls.def(
-        "compile_model",
-        (ov::runtime::ExecutableNetwork(
-            ov::runtime::Core::*)(const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&)) &
-            ov::runtime::Core::compile_model,
-        py::arg("model"),
-        py::arg("device_name"),
-        py::arg("config") = py::dict());
+    cls.def("compile_model",
+            (ov::runtime::ExecutableNetwork(
+                ov::runtime::Core::*)(const std::shared_ptr<const ov::Model>&, const std::string&, const ConfigMap&)) &
+                ov::runtime::Core::compile_model,
+            py::arg("model"),
+            py::arg("device_name"),
+            py::arg("config") = py::dict());
 
     cls.def("compile_model",
             (ov::runtime::ExecutableNetwork(
@@ -71,17 +71,16 @@ void regclass_Core(py::module m) {
         py::arg("weights") = py::bytes());
 
     cls.def("read_model",
-            (std::shared_ptr<ov::Function>(ov::runtime::Core::*)(const std::string&, const std::string&) const) &
+            (std::shared_ptr<ov::Model>(ov::runtime::Core::*)(const std::string&, const std::string&) const) &
                 ov::runtime::Core::read_model,
             py::arg("model"),
             py::arg("weights") = "");
 
-    cls.def(
-        "read_model",
-        (std::shared_ptr<ov::Function>(ov::runtime::Core::*)(const std::string&, const ov::runtime::Tensor&) const) &
-            ov::runtime::Core::read_model,
-        py::arg("model"),
-        py::arg("weights"));
+    cls.def("read_model",
+            (std::shared_ptr<ov::Model>(ov::runtime::Core::*)(const std::string&, const ov::runtime::Tensor&) const) &
+                ov::runtime::Core::read_model,
+            py::arg("model"),
+            py::arg("weights"));
 
     cls.def(
         "read_model",
@@ -101,16 +100,16 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "get_config",
-        [](ov::runtime::Core& self, const std::string& device_name, const std::string& name) -> py::handle {
-            return Common::parse_parameter(self.get_config(device_name, name));
+        [](ov::runtime::Core& self, const std::string& device_name, const std::string& name) -> py::object {
+            return Common::from_ov_any(self.get_config(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
 
     cls.def(
         "get_metric",
-        [](ov::runtime::Core& self, const std::string device_name, const std::string name) -> py::handle {
-            return Common::parse_parameter(self.get_metric(device_name, name));
+        [](ov::runtime::Core& self, const std::string device_name, const std::string name) -> py::object {
+            return Common::from_ov_any(self.get_metric(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
@@ -121,14 +120,13 @@ void regclass_Core(py::module m) {
 
     cls.def("unload_plugin", &ov::runtime::Core::unload_plugin, py::arg("device_name"));
 
-    cls.def(
-        "query_model",
-        (ov::runtime::SupportedOpsMap(
-            ov::runtime::Core::*)(const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&)) &
-            ov::runtime::Core::query_model,
-        py::arg("model"),
-        py::arg("device_name"),
-        py::arg("config") = py::dict());
+    cls.def("query_model",
+            (ov::runtime::SupportedOpsMap(
+                ov::runtime::Core::*)(const std::shared_ptr<const ov::Model>&, const std::string&, const ConfigMap&)) &
+                ov::runtime::Core::query_model,
+            py::arg("model"),
+            py::arg("device_name"),
+            py::arg("config") = py::dict());
 
     cls.def(
         "add_extension",

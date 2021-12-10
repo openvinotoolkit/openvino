@@ -29,8 +29,6 @@
 #include "ngraph/variant.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/preprocess/input_network_info.hpp"
-#include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -301,9 +299,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         using namespace ov::preprocess;
         PrePostProcessor prepost(function);
 
-        auto ir_version_impl = it->second.as<std::shared_ptr<ov::RuntimeAttributeWrapper<int64_t>>>();
-        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
-        const int64_t ir_version = ir_version_impl->get();
+        const int64_t ir_version = it->second.as<int64_t>();
 
         if (ir_version == 10 && newAPI) {
             const auto inputs = function->inputs();
@@ -314,7 +310,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             }
 
             // in order to support the following scenarios for IR v10 cases:
-            // ov::Function f = ie.read_model(..);
+            // ov::Model f = ie.read_model(..);
             // f.input("input_operation_name");
             // f.output("output_operation_name");
             // f.add_output("operation_name[].port_index]");
@@ -347,7 +343,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             function = prepost.build();
 
             // Set version to 10
-            rt_info["version"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(10);
+            rt_info["version"] = int64_t(10);
         } else if (ir_version == 11 && !newAPI) {
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
@@ -390,7 +386,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             }
 
             // Set version to 10
-            rt_info["version"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(10);
+            rt_info["version"] = int64_t(10);
 
             function = prepost.build();
         }
@@ -453,7 +449,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::RuntimeAttributeVector params{model_path};
+    ov::AnyVector params{model_path};
 
     if (!binPath.empty()) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -519,7 +515,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::RuntimeAttributeVector params{&modelStream};
+    ov::AnyVector params{&modelStream};
     if (weights) {
         char* data = weights->cbuffer().as<char*>();
         std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =

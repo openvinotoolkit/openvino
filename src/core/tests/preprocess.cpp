@@ -11,7 +11,7 @@
 using namespace ov;
 using namespace ov::preprocess;
 
-static std::shared_ptr<Function> create_simple_function(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
@@ -21,11 +21,11 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
-    return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
 template <int N>
-static std::shared_ptr<Function> create_n_inputs(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
     ResultVector res;
     ParameterVector params;
     for (size_t i = 0; i < N; i++) {
@@ -41,7 +41,7 @@ static std::shared_ptr<Function> create_n_inputs(element::Type type, const Parti
         params.push_back(data1);
         res.push_back(res1);
     }
-    return std::make_shared<Function>(res, params);
+    return std::make_shared<Model>(res, params);
 }
 
 TEST(pre_post_process, simple_mean_scale) {
@@ -434,7 +434,7 @@ TEST(pre_post_process, convert_color_duplicate_internal_subnames_mean) {
         auto p = PrePostProcessor(f);
         p.input().tensor().set_layout("NHWC");
         p.input().preprocess().convert_layout("NCHW");
-        p.input().network().set_layout("NHWC");
+        p.input().model().set_layout("NHWC");
         f = p.build();
     }
     f = create_simple_function(element::f32, PartialShape{1, 2, 2, 3});
@@ -444,11 +444,11 @@ TEST(pre_post_process, convert_color_duplicate_internal_subnames_mean) {
     }
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
     p.input().tensor().set_spatial_static_shape(480, 640);
-    p.input().network().set_layout("NHWC");
+    p.input().model().set_layout("NHWC");
     EXPECT_NO_THROW(f = p.build());
 }
 
-TEST(pre_post_process, unsupported_network_color_format) {
+TEST(pre_post_process, unsupported_model_color_format) {
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
     EXPECT_THROW(auto p = PrePostProcessor(f); p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
                  f = p.build(), ov::AssertFailure);
@@ -469,7 +469,7 @@ TEST(pre_post_process, unsupported_network_color_format) {
                  f = p.build(), ov::AssertFailure);
 }
 
-TEST(pre_post_process, unsupported_network_color_format_i420) {
+TEST(pre_post_process, unsupported_model_color_format_i420) {
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
     EXPECT_THROW(
         {
@@ -525,7 +525,7 @@ TEST(pre_post_process, test_2_inputs_basic) {
     EXPECT_EQ(f->get_output_element_type(1), element::f32);
 }
 
-TEST(pre_post_process, reuse_network_layout_no_tensor_info) {
+TEST(pre_post_process, reuse_model_layout_no_tensor_info) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
     f->get_parameters().front()->set_layout("NC??");
     auto p = PrePostProcessor(f);
@@ -534,7 +534,7 @@ TEST(pre_post_process, reuse_network_layout_no_tensor_info) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
 }
 
-TEST(pre_post_process, reuse_network_layout_tensor_info) {
+TEST(pre_post_process, reuse_model_layout_tensor_info) {
     auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(), 3, 2, 1});
     f->get_parameters().front()->set_layout("NC??");
     auto p = PrePostProcessor(f);
@@ -617,7 +617,7 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
 }
 
 // Error cases for 'resize'
-TEST(pre_post_process, resize_no_network_layout) {
+TEST(pre_post_process, resize_no_model_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
     EXPECT_THROW(p.input().tensor().set_layout("NHWC"); p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
@@ -636,11 +636,47 @@ TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
                  p.build(), ov::AssertFailure);
 }
 
+TEST(pre_post_process, tensor_set_shape_incompatible) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    auto p = PrePostProcessor(f);
+    EXPECT_THROW(p.input().tensor().set_shape({1, 4, 224, 224}); p.build(), ov::AssertFailure);
+}
+
+// Check that 'set_shape' shall not be used together with set_spatial_..._shape
+// This test can be removed if this requirement is relaxed in future releases
+TEST(pre_post_process, tensor_set_shape_with_spatial) {
+    auto f = create_simple_function(element::f32, PartialShape{-1, -1, -1, -1});
+    {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        EXPECT_THROW(p.input().tensor().set_shape({1, 3, 224, 224}).set_spatial_static_shape(448, 448);
+                     p.build(), ov::AssertFailure);
+    }
+    {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        EXPECT_THROW(p.input().tensor().set_spatial_static_shape(448, 448).set_shape({1, 3, 224, 224});
+                     p.build(), ov::AssertFailure);
+    }
+    {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        EXPECT_THROW(p.input().tensor().set_shape({1, 3, 224, 224}).set_spatial_dynamic_shape();
+                     p.build(), ov::AssertFailure);
+    }
+    {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout("NCHW");
+        EXPECT_THROW(p.input().tensor().set_spatial_dynamic_shape().set_shape({1, 3, 224, 224});
+                     p.build(), ov::AssertFailure);
+    }
+}
+
 TEST(pre_post_process, resize_no_tensor_height) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
     EXPECT_THROW(p.input().tensor().set_layout("N?WC"); p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-                 p.input().network().set_layout("NHWC");
+                 p.input().model().set_layout("NHWC");
                  p.build(), ov::AssertFailure);
 }
 
@@ -648,7 +684,7 @@ TEST(pre_post_process, resize_no_tensor_width) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
     EXPECT_THROW(p.input().tensor().set_layout("NH?C"); p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-                 p.input().network().set_layout("NHWC");
+                 p.input().model().set_layout("NHWC");
                  p.build(), ov::AssertFailure);
 }
 
@@ -661,7 +697,7 @@ TEST(pre_post_process, preprocess_convert_layout_implicit) {
     auto p = PrePostProcessor(f);
 
     p.input().tensor().set_layout("NHWC");
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     p.build();
     EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NHWC");
     EXPECT_EQ(f->get_parameters()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
@@ -677,7 +713,7 @@ TEST(pre_post_process, preprocess_convert_layout_default) {
 
     p.input().tensor().set_layout("NHWC");
     p.input().preprocess().convert_layout();
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     p.build();
     EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NHWC");
     EXPECT_EQ(f->get_parameters()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
@@ -695,7 +731,7 @@ TEST(pre_post_process, preprocess_convert_layout_same_various) {
         stream << "]";
         auto l = stream.str();
         p.input().tensor().set_layout(ov::Layout(l));
-        p.input().network().set_layout(ov::Layout(std::string(i, '?')));
+        p.input().model().set_layout(ov::Layout(std::string(i, '?')));
         EXPECT_NO_THROW(p.build());
     }
 }
@@ -708,7 +744,7 @@ TEST(pre_post_process, preprocess_convert_layout_same) {
 
     p.input().tensor().set_layout("NCHW");
     p.input().preprocess().convert_layout("NCHW");
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     p.build();
     EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NCHW");
     EXPECT_EQ(f->get_parameters()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 3, 2, 2}));
@@ -770,28 +806,28 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined) {
 
     auto p = PrePostProcessor(f);
     p.input(0).tensor().set_layout("nc???");
-    p.input(0).network().set_layout("????c");
+    p.input(0).model().set_layout("????c");
 
     p.input(1).tensor().set_layout("...c??");
-    p.input(1).network().set_layout("ndhwc");
+    p.input(1).model().set_layout("ndhwc");
 
     p.input(2).tensor().set_layout("?cwh...");
-    p.input(2).network().set_layout("...hwc");
+    p.input(2).model().set_layout("...hwc");
 
     p.input(3).tensor().set_layout("...c");
-    p.input(3).network().set_layout("c...");
+    p.input(3).model().set_layout("c...");
 
     p.input(4).tensor().set_layout("...");
-    p.input(4).network().set_layout("c...");
+    p.input(4).model().set_layout("c...");
 
     p.input(5).tensor().set_layout("...c");
-    p.input(5).network().set_layout("...");
+    p.input(5).model().set_layout("...");
 
     p.input(6).tensor().set_layout("ndhwc");
-    p.input(6).network().set_layout("ndh?c");
+    p.input(6).model().set_layout("ndh?c");
 
     p.input(7).tensor().set_layout("ndh?c");
-    p.input(7).network().set_layout("ndhwc");
+    p.input(7).model().set_layout("ndhwc");
 
     f = p.build();
     EXPECT_EQ(f->input(0).get_partial_shape(), (PartialShape{1, 5, 2, 3, 4}));
@@ -810,16 +846,16 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined_trivial) {
 
     auto p = PrePostProcessor(f);
     p.input(0).tensor().set_layout("...");
-    p.input(0).network().set_layout("c...");
+    p.input(0).model().set_layout("c...");
 
     p.input(1).tensor().set_layout("...c");
-    p.input(1).network().set_layout("...");
+    p.input(1).model().set_layout("...");
 
     p.input(2).tensor().set_layout("ndhwc");
-    p.input(2).network().set_layout("ndh?c");
+    p.input(2).model().set_layout("ndh?c");
 
     p.input(3).tensor().set_layout("ndh?c");
-    p.input(3).network().set_layout("ndhwc");
+    p.input(3).model().set_layout("ndhwc");
 
     f = p.build();
     EXPECT_EQ(f->input(0).get_partial_shape(), (PartialShape{1, 2, 3, 4, 5}));
@@ -837,7 +873,7 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined_error) {
         {
             auto p = PrePostProcessor(f);
             p.input().tensor().set_layout("nch??");
-            p.input().network().set_layout("???wc");
+            p.input().model().set_layout("???wc");
             f = p.build();
         },
         ov::AssertFailure);
@@ -846,7 +882,7 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined_error) {
         {
             auto p = PrePostProcessor(f);
             p.input().tensor().set_layout("nch??");
-            p.input().network().set_layout("???wc?");
+            p.input().model().set_layout("???wc?");
             f = p.build();
         },
         ov::AssertFailure);
@@ -863,7 +899,7 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined_error_dyn_ran
         {
             auto p = PrePostProcessor(f);
             p.input().tensor().set_layout("nchw");
-            p.input().network().set_layout("...wc");
+            p.input().model().set_layout("...wc");
             f = p.build();
         },
         ov::AssertFailure);
@@ -872,7 +908,7 @@ TEST(pre_post_process, preprocess_convert_layout_partially_defined_error_dyn_ran
         {
             auto p = PrePostProcessor(f);
             p.input().tensor().set_layout("nchw");
-            p.input().network().set_layout("??wc?");
+            p.input().model().set_layout("??wc?");
             f = p.build();
         },
         ov::AssertFailure);
@@ -893,6 +929,20 @@ TEST(pre_post_process, preprocess_reverse_channels_no_c_dim) {
     auto p = PrePostProcessor(f);
     EXPECT_THROW(p.input().tensor().set_layout("N?HW"); p.input().preprocess().reverse_channels();
                  p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, preprocess_reverse_channels_no_shape_inference) {
+    auto f = create_simple_function(element::f32,
+                                    PartialShape{Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()});
+    auto out_shape = f->output(0).get_partial_shape();
+
+    using namespace ov::preprocess;
+    PrePostProcessor p(f);
+    p.input(0).tensor().set_layout("NCHW");
+    p.input(0).preprocess().reverse_channels();
+    ASSERT_NO_THROW(p.build());
+    // Ensure that {?,3,?,?} is not transformed to {?,?,?,?}
+    EXPECT_EQ(out_shape, f->output(0).get_partial_shape());
 }
 
 TEST(pre_post_process, preprocess_preserve_rt_info) {
@@ -1049,10 +1099,10 @@ TEST(pre_post_process, preprocess_keep_params_order) {
 }
 
 // --- PostProcess - set/convert layout ---
-TEST(pre_post_process, postprocess_set_layout_network) {
+TEST(pre_post_process, postprocess_set_layout_model) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
-    p.output().network().set_layout("NCHW");
+    p.output().model().set_layout("NCHW");
     p.build();
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
 }
@@ -1062,7 +1112,7 @@ TEST(pre_post_process, postprocess_convert_layout_implicit) {
 
     auto p = PrePostProcessor(f);
 
-    p.output().network().set_layout("NCHW");
+    p.output().model().set_layout("NCHW");
     p.output().tensor().set_layout("NHWC");
     p.build();
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
@@ -1073,7 +1123,7 @@ TEST(pre_post_process, postprocess_convert_layout_explicit_no_target) {
     auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
 
-    p.output(1).network().set_layout("NCHW");
+    p.output(1).model().set_layout("NCHW");
     p.output(1).postprocess().convert_layout("NHWC");
     p.build();
     EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 3, 2, 2}));
@@ -1085,7 +1135,7 @@ TEST(pre_post_process, postprocess_convert_layout_default) {
 
     auto p = PrePostProcessor(f);
 
-    p.output().network().set_layout("NCHW");
+    p.output().model().set_layout("NCHW");
     p.output().postprocess().convert_layout();
     p.output().tensor().set_layout("NHWC");
     p.build();
@@ -1098,7 +1148,7 @@ TEST(pre_post_process, postprocess_convert_layout_default_getters) {
 
     auto p = PrePostProcessor(f);
     auto& out = p.output();
-    out.network().set_layout("NCHW");
+    out.model().set_layout("NCHW");
     out.postprocess().convert_layout();
     out.tensor().set_layout("NHWC");
     f = p.build();
@@ -1112,7 +1162,7 @@ TEST(pre_post_process, postprocess_convert_layout_same) {
 
     auto p = PrePostProcessor(f);
 
-    p.output().network().set_layout("NCHW");
+    p.output().model().set_layout("NCHW");
     p.output().postprocess().convert_layout("NCHW");
     p.output().tensor().set_layout("NCHW");
     p.build();
@@ -1148,7 +1198,7 @@ TEST(pre_post_process, postprocess_convert_layout_has_layout) {
 
     auto p = PrePostProcessor(f);
 
-    p.output().network().set_layout("NC??");
+    p.output().model().set_layout("NC??");
     p.output().postprocess().convert_layout({0, 2, 3, 1});
     p.build();
 
@@ -1220,7 +1270,7 @@ TEST(pre_post_process, postprocess_implicit_convert_element_type_and_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
 
-    p.output().network().set_layout("NCHW");
+    p.output().model().set_layout("NCHW");
     p.output().tensor().set_layout("NHWC").set_element_type(element::u8);
     p.build();
     EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
@@ -1242,8 +1292,8 @@ TEST(pre_post_process, postprocess_keep_results_order) {
     auto names2 = f->output(2).get_tensor().get_names();
     auto p = PrePostProcessor(f);
 
-    p.output(0).network().set_layout("NCHW");
-    p.output(1).network().set_layout("NCHW");
+    p.output(0).model().set_layout("NCHW");
+    p.output(1).model().set_layout("NCHW");
     p.output(1).tensor().set_layout("NHWC").set_element_type(element::u8);
     p.build();
     ASSERT_EQ(f->get_results().size(), 3);
@@ -1269,7 +1319,7 @@ TEST(pre_post_process, postprocess_many) {
     bool custom_called = false;
 
     auto p = PrePostProcessor(f);
-    p.output("tensor_output1").network().set_layout("NCHW");
+    p.output("tensor_output1").model().set_layout("NCHW");
     p.output("tensor_output1")
         .postprocess()
         .convert_layout()
