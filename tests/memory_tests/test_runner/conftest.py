@@ -85,12 +85,6 @@ def pytest_addoption(parser):
         help="Path to Open Model Zoo (OMZ) repository root.",
     )
     omz_args_parser.addoption(
-        "--mo",
-        type=Path,
-        required=False,
-        help="Path to Model Optimizer.",
-    )
-    omz_args_parser.addoption(
         "--omz_models_out_dir",
         type=Path,
         default=abs_path('../_omz_out/models'),
@@ -207,8 +201,6 @@ def omz_models_conversion(instance, request):
             cache_dir = request.config.getoption("omz_cache_dir")
             omz_models_out_dir = request.config.getoption("omz_models_out_dir")
             omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
-            mo_path = request.config.getoption("mo")
-            mo_arg = ('--mo', mo_path) if mo_path else ''
 
             # get full model info
             cmd = [f'{sys.executable}', f'{info_dumper_path}', '--name', f'{model_name}']
@@ -235,7 +227,7 @@ def omz_models_conversion(instance, request):
 
             cmd = [f'{sys.executable}', f'{converter_path}', '--name', f'{model_name}', '-p', f'{sys.executable}',
                    '--precisions', f'{model_precision}', '--output_dir', f'{omz_irs_out_dir}',
-                   '--download_dir', f'{omz_models_out_dir}', *mo_arg]
+                   '--download_dir', f'{omz_models_out_dir}']
 
             return_code, _ = cmd_exec(cmd, log=logging)
             assert return_code == 0, "Converting OMZ models has failed!"
