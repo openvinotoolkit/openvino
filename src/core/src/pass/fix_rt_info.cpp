@@ -26,14 +26,16 @@ bool ngraph::pass::FixRtInfo::run_on_function(std::shared_ptr<ngraph::Function> 
                 run_on_function(sub_graph);
             }
         }
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto& rt_info = node->get_rt_info();
         {
             auto it_info = rt_info.find("PrimitivesPriority");
             if (it_info != rt_info.end()) {
-                if (it_info->second.is<std::shared_ptr<VariantWrapper<std::string>>>()) {
-                    rt_info.emplace(ov::PrimitivesPriority::get_type_info_static(),
-                                    ov::PrimitivesPriority{
-                                        it_info->second.as<std::shared_ptr<VariantWrapper<std::string>>>()->get()});
+                if (it_info->second.is<std::shared_ptr<ngraph::VariantWrapper<std::string>>>()) {
+                    rt_info.emplace(
+                        ov::PrimitivesPriority::get_type_info_static(),
+                        ov::PrimitivesPriority{
+                            it_info->second.as<std::shared_ptr<ngraph::VariantWrapper<std::string>>>()->get()});
                 } else if (it_info->second.is<ov::PrimitivesPriority>()) {
                     rt_info.emplace(ov::PrimitivesPriority::get_type_info_static(),
                                     it_info->second.as<ov::PrimitivesPriority>());
@@ -48,11 +50,12 @@ bool ngraph::pass::FixRtInfo::run_on_function(std::shared_ptr<ngraph::Function> 
         {
             auto it_info = rt_info.find("affinity");
             if (it_info != rt_info.end()) {
-                if (it_info->second.is<std::shared_ptr<VariantWrapper<std::string>>>()) {
-                    it_info->second = it_info->second.as<std::shared_ptr<VariantWrapper<std::string>>>()->get();
+                if (it_info->second.is<std::shared_ptr<ngraph::VariantWrapper<std::string>>>()) {
+                    it_info->second = it_info->second.as<std::shared_ptr<ngraph::VariantWrapper<std::string>>>()->get();
                 }
             }
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return false;
 }

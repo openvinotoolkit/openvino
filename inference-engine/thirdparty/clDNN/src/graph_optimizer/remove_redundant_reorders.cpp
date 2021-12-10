@@ -232,6 +232,9 @@ void remove_redundant_reorders::run(program& p) {
         if (!ident.second)
             continue;
 
+        if (r_node.is_output() && i_layout.get_linear_size() != o_layout.get_linear_size())
+            continue;
+
         // mark as optimized
         r_node.can_be_optimized(true);
         r_node.requires_reinterpret(!ident.first);
