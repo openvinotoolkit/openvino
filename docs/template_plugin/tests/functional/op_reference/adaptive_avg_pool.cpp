@@ -64,14 +64,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type& input_type,
                                                     const Shape& adaptive_shape,
                                                     const std::vector<int64_t> adaptive_values) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto out = op::v0::Constant::create<int64_t>(element::Type_t::i64, adaptive_shape, adaptive_values);
         const auto adaptive_avg_pool = std::make_shared<op::v8::AdaptiveAvgPool>(in, out);
-        return std::make_shared<Function>(NodeVector{adaptive_avg_pool}, ParameterVector{in});
+        return std::make_shared<Model>(NodeVector{adaptive_avg_pool}, ParameterVector{in});
     }
 };
 
