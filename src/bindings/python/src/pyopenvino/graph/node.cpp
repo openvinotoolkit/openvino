@@ -14,9 +14,9 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
-#include "pyopenvino/graph/variant.hpp"
 
 class PyNode : public ov::Node {
 public:
