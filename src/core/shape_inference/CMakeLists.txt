@@ -26,7 +26,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-ov_install_static_lib(${TARGET_NAME} ngraph)
+ov_install_static_lib(${TARGET_NAME} core)
 
 # developer package
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
