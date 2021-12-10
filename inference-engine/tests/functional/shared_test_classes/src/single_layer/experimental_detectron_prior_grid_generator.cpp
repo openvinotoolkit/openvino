@@ -65,7 +65,7 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
         params[1], // feature_map
         params[2], // im_data
         param.attributes);
-    function = std::make_shared<ov::Function>(
+    function = std::make_shared<ov::Model>(
             ov::OutputVector{experimentalDetectron->output(0)},
             "ExperimentalDetectronPriorGridGenerator");
 }
