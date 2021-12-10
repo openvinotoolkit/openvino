@@ -18,6 +18,8 @@
 using namespace testing;
 using namespace ngraph::pass;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions,
     const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions) {
@@ -39,12 +41,12 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
 }
 
 void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ngraph::Function>& function) {
-    run_on_function(function);
+    run_on_model(function);
 }
 
-bool SimpleLowPrecisionTransformer::run_on_function(std::shared_ptr<ngraph::Function> function) {
+bool SimpleLowPrecisionTransformer::run_on_model(const std::shared_ptr<ngraph::Function>& function) {
     ngraph::pass::low_precision::TypeRelaxedReplacer pass;
-    pass.run_on_function(function);
+    pass.run_on_model(function);
 
     markup->run_passes(function);
     common->run_passes(function);

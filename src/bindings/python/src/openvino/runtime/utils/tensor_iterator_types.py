@@ -5,8 +5,8 @@
 
 from typing import List
 
-from openvino.runtime.impl import Node
-from openvino.runtime.impl.op import Parameter
+from openvino.runtime import Node
+from openvino.runtime.op import Parameter
 
 
 class GraphBody(object):
@@ -112,7 +112,7 @@ class TensorIteratorOutputDesc(object):
 class TensorIteratorBodyOutputDesc(TensorIteratorOutputDesc):
     """Represents an output from a specific iteration."""
 
-    def __init__(self, body_value_idx: int, output_idx: int, iteration: int,) -> None:
+    def __init__(self, body_value_idx: int, output_idx: int, iteration: int = -1) -> None:
         super().__init__(body_value_idx, output_idx)
         self.iteration = iteration
 

@@ -610,7 +610,7 @@ private:
         switch (src_prc) {
             case Precision::FP32:
             case Precision::I32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case Precision::BF16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);
@@ -626,11 +626,11 @@ private:
                 break;
             case Precision::I8:
                 movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case Precision::U8:
                 movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
                 assert(!"unknown src_prc");
@@ -757,7 +757,7 @@ private:
         switch (dst_prc) {
             case Precision::FP32:
             case Precision::I32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case Precision::BF16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
@@ -1238,18 +1238,18 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 2, 4, 5);
+    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 2, 3, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1, 2, 4, 5);
+        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1, 2, 3, 4, 5);
         isChannelsFirstApplicable = isChannelsFirstApplicable && implication(getInputShapeAtPort(i).getRank() != 1,
                                                                              getOutputShapeAtPort(0).getRank() ==
                                                                                      getInputShapeAtPort(i).getRank());
     }
 
-    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 4, 5);
+    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1, 3, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto &inShape = getInputShapeAtPort(i);
-        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1, 4, 5);
+        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1, 3, 4, 5);
         isBlockedApplicable = isBlockedApplicable && implication(inShape.getRank() != 1,
                                                                  getOutputShapeAtPort(0).getRank() ==
                                                                  inShape.getRank());

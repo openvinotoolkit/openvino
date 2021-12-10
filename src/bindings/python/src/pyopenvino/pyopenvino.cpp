@@ -3,6 +3,7 @@
 
 #include <pybind11/pybind11.h>
 
+#include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
 #include <string>
@@ -16,7 +17,7 @@
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"
 #include "pyopenvino/graph/node_output.hpp"
-#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
+#if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyopenvino/core/async_infer_queue.hpp"
@@ -30,6 +31,11 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/frontend/frontend.hpp"
+#include "pyopenvino/frontend/frontend_manager.hpp"
+#include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/place.hpp"
+#include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/layout.hpp"
@@ -46,7 +52,6 @@
 #include "pyopenvino/graph/strides.hpp"
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
-#include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 
@@ -61,6 +66,15 @@ std::string get_version() {
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
     m.def("get_version", &get_version);
+    m.def("get_batch", &ov::get_batch);
+    m.def("set_batch", &ov::set_batch);
+    m.def(
+        "set_batch",
+        [](const std::shared_ptr<ov::Model>& model, int64_t value) {
+            return ov::set_batch(model, ov::Dimension(value));
+        },
+        py::arg("model"),
+        py::arg("batch_size") = -1);
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
@@ -82,20 +96,18 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
 
-#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
+#if defined(ENABLE_OV_ONNX_FRONTEND)
     regmodule_graph_onnx_import(m);
 #endif
     regmodule_graph_op_util(m_op);
     py::module m_preprocess =
-        m.def_submodule("preprocess", "Package openvino.impl.preprocess that wraps ov::preprocess");
+        m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
-    regclass_graph_Function(m);
+    regclass_graph_Model(m);
     regmodule_graph_passes(m);
     regmodule_graph_util(m);
     regmodule_graph_layout_helpers(m);
-    regclass_graph_Variant(m);
-    regclass_graph_VariantWrapper<std::string>(m, std::string("String"));
-    regclass_graph_VariantWrapper<int64_t>(m, std::string("Int"));
+    regclass_graph_Any(m);
     regclass_graph_Output<ov::Node>(m, std::string(""));
     regclass_graph_Output<const ov::Node>(m, std::string("Const"));
 
@@ -112,6 +124,18 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
+
+    regclass_frontend_Place(m);
+    regclass_frontend_InitializationFailureFrontEnd(m);
+    regclass_frontend_GeneralFailureFrontEnd(m);
+    regclass_frontend_OpConversionFailureFrontEnd(m);
+    regclass_frontend_OpValidationFailureFrontEnd(m);
+    regclass_frontend_NotImplementedFailureFrontEnd(m);
+    regclass_frontend_Extension(m);
+    regclass_frontend_FrontEndManager(m);
+    regclass_frontend_FrontEnd(m);
+    regclass_frontend_InputModel(m);
+    regclass_frontend_TelemetryExtension(m);
 
     regmodule_offline_transformations(m);
 }

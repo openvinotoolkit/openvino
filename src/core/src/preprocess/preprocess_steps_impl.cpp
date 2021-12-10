@@ -33,7 +33,7 @@ static Shape construct_mean_scale_shape(const Output<Node>& node,
 
 void PreStepsList::add_scale_impl(const std::vector<float>& values) {
     m_actions.emplace_back([values](const std::vector<Output<Node>>& nodes,
-                                    const std::shared_ptr<ov::Function>& function,
+                                    const std::shared_ptr<ov::Model>& function,
                                     PreprocessingContext& context) -> std::tuple<std::vector<Output<Node>>, bool> {
         OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't apply scale preprocessing for empty input.");
         OPENVINO_ASSERT(nodes.size() == 1,
@@ -43,9 +43,15 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
         if (values.size() == 1) {
             shape = Shape{1};
         } else {
-            shape = construct_mean_scale_shape(nodes[0].get_node_shared_ptr(), values.size(), context);
+            shape = construct_mean_scale_shape(nodes[0], values.size(), context);
         }
-        auto constant = op::v0::Constant::create(element::f32, shape, values);
+        auto element_type = nodes[0].get_element_type();
+        OPENVINO_ASSERT(element_type.is_real(),
+                        "Scale preprocessing can be applied to 'float' inputs. Consider using of "
+                        "'convert_element_type' before scaling. Current type is: ",
+                        element_type);
+
+        auto constant = op::v0::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
@@ -54,7 +60,7 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
 
 void PreStepsList::add_mean_impl(const std::vector<float>& values) {
     m_actions.emplace_back([values](const std::vector<Output<Node>>& nodes,
-                                    const std::shared_ptr<ov::Function>& function,
+                                    const std::shared_ptr<ov::Model>& function,
                                     PreprocessingContext& context) {
         OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't apply mean preprocessing for empty input.");
         OPENVINO_ASSERT(nodes.size() == 1,
@@ -66,7 +72,13 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
         } else {
             shape = construct_mean_scale_shape(nodes[0], values.size(), context);
         }
-        auto constant = op::v0::Constant::create(element::f32, shape, values);
+        auto element_type = nodes[0].get_element_type();
+        OPENVINO_ASSERT(element_type.is_real(),
+                        "Mean preprocessing can be applied to 'float' inputs. Consider using of 'convert_element_type' "
+                        "before scaling. Current type is: ",
+                        element_type);
+
+        auto constant = op::v0::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
@@ -75,7 +87,7 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
 
 void PreStepsList::add_convert_impl(const element::Type& type) {
     m_actions.emplace_back([type](const std::vector<Output<Node>>& nodes,
-                                  const std::shared_ptr<Function>& function,
+                                  const std::shared_ptr<Model>& function,
                                   PreprocessingContext& ctxt) {
         OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't set element type for empty input.");
         std::vector<Output<Node>> res;
@@ -102,7 +114,7 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
 void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width) {
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
     m_actions.emplace_back([alg, dst_width, dst_height](const std::vector<Output<Node>>& nodes,
-                                                        const std::shared_ptr<Function>& function,
+                                                        const std::shared_ptr<Model>& function,
                                                         PreprocessingContext& ctxt) {
         OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add resize for empty input.");
         OPENVINO_ASSERT(nodes.size() == 1,
@@ -130,11 +142,11 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
         auto height_idx = static_cast<int64_t>(get_and_check_height_idx(layout, node.get_partial_shape()));
         auto width_idx = static_cast<int64_t>(get_and_check_width_idx(layout, node.get_partial_shape()));
         if (dst_height < 0 || dst_width < 0) {
-            OPENVINO_ASSERT(ctxt.network_shape().rank().is_static(),
-                            "Resize is not fully specified while target network shape is dynamic");
+            OPENVINO_ASSERT(ctxt.model_shape().rank().is_static(),
+                            "Resize is not fully specified while target model shape is dynamic");
         }
-        int new_image_width = dst_width < 0 ? static_cast<int>(ctxt.get_network_width_for_resize()) : dst_width;
-        int new_image_height = dst_height < 0 ? static_cast<int>(ctxt.get_network_height_for_resize()) : dst_height;
+        int new_image_width = dst_width < 0 ? static_cast<int>(ctxt.get_model_width_for_resize()) : dst_width;
+        int new_image_height = dst_height < 0 ? static_cast<int>(ctxt.get_model_height_for_resize()) : dst_height;
 
         auto target_spatial_shape =
             op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {new_image_height, new_image_width});
@@ -155,7 +167,7 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
 
 void PreStepsList::add_convert_layout_impl(const Layout& layout) {
     m_actions.emplace_back([layout](const std::vector<Output<Node>>& nodes,
-                                    const std::shared_ptr<Function>& function,
+                                    const std::shared_ptr<Model>& function,
                                     PreprocessingContext& context) {
         OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
         OPENVINO_ASSERT(nodes.size() == 1,
@@ -185,7 +197,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
     }
     m_layout_converts.emplace_front(dims);
     m_actions.emplace_back([dims](const std::vector<Output<Node>>& nodes,
-                                  const std::shared_ptr<Function>& function,
+                                  const std::shared_ptr<Model>& function,
                                   PreprocessingContext& context) {
         OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
         OPENVINO_ASSERT(nodes.size() == 1,
@@ -203,7 +215,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
 
 void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
     m_actions.emplace_back([dst_format](const std::vector<Output<Node>>& nodes,
-                                        const std::shared_ptr<Function>& function,
+                                        const std::shared_ptr<Model>& function,
                                         PreprocessingContext& context) {
         if (context.color_format() == dst_format) {
             return std::make_tuple(nodes, false);
@@ -322,20 +334,39 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
 
 void PreStepsList::add_reverse_channels() {
     m_actions.emplace_back([](const std::vector<Output<Node>>& nodes,
-                              const std::shared_ptr<Function>& function,
+                              const std::shared_ptr<Model>& function,
                               PreprocessingContext& context) {
         return reverse_channels(nodes, function, context);
     });
 }
 
 std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const std::vector<Output<Node>>& nodes,
-                                                                           const std::shared_ptr<Function>& function,
+                                                                           const std::shared_ptr<Model>& function,
                                                                            PreprocessingContext& context) {
     OPENVINO_ASSERT(nodes.size() == 1, "Internal error: can't reverse channels for multi-plane inputs");
     OPENVINO_ASSERT(ov::layout::has_channels(context.layout()),
                     "Layout ",
                     context.layout().to_string(),
                     " doesn't have `channels` dimension");
+    auto shape = nodes[0].get_partial_shape();
+    if (shape.rank().is_static()) {
+        // This block of code is to preserve output shape if it contains dynamic dimensions
+        // Otherwise, dynamic version will transform shape {?,3,?,?} to {?,?,?,?} which is still ok but not desired
+        auto channels_idx = get_and_check_channels_idx(context.layout(), shape);
+        if (shape[channels_idx].is_static()) {
+            auto channels_count = shape[channels_idx].get_length();
+            // Add range from constants
+            auto range_from = op::v0::Constant::create(element::i64, {}, {channels_count - 1});
+            auto range_to = op::v0::Constant::create(element::i64, {}, {-1});
+            auto range_step = op::v0::Constant::create(element::i64, {}, {-1});
+            auto range = std::make_shared<op::v4::Range>(range_from, range_to, range_step, element::i32);
+
+            auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
+            auto convert = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
+            return std::make_tuple(std::vector<Output<Node>>{convert}, false);
+        }
+    }
+
     auto channels_idx = ov::layout::channels_idx(context.layout());
     // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
     auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
@@ -361,7 +392,7 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
 }
 
 std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const std::vector<Output<Node>>& nodes,
-                                                                           const std::shared_ptr<Function>& function,
+                                                                           const std::shared_ptr<Model>& function,
                                                                            PreprocessingContext& context) {
     OPENVINO_ASSERT(nodes.size() == 1, "Internal error: can't cut X channel for multi-plane inputs");
     OPENVINO_ASSERT(ov::layout::has_channels(context.layout()),

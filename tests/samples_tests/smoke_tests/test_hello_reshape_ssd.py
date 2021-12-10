@@ -21,10 +21,9 @@ from common.specific_samples_parsers import parse_hello_reshape_ssd
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('500x500', 'cat.bmp')],
-                                       'm': [os.path.join('ssd300',
-                                                          'caffe_ssd_300_FP32_v10.xml')],
-                                       'd': ['CPU'],
-                                       'batch': [1, 2, 4]}, use_device=['d'], use_batch=True
+                                       'm': [os.path.join('ssd512', 'FP32', 'ssd512.xml')],
+                                       'd': ['CPU']},
+                                       use_device=['d'], use_batch=False
                            )
 
 

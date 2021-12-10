@@ -15,22 +15,21 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace ov {
 
 OPENVINO_API
-void traverse_nodes(const std::shared_ptr<const Function>& p,
-                    const std::function<void(const std::shared_ptr<Node>&)>& f);
+void traverse_nodes(const std::shared_ptr<const Model>& p, const std::function<void(const std::shared_ptr<Node>&)>& f);
 
 OPENVINO_API
-void traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f);
+void traverse_nodes(const Model* p, const std::function<void(const std::shared_ptr<Node>&)>& f);
 
 /// \brief Visit each node in a sub-graph of the entire graph
 /// \param subgraph_results The output nodes of the sub-graph
-/// \param f Function to execute at each node in the traversal
+/// \param f Model to execute at each node in the traversal
 /// \param subgraph_params Input nodes of the sub-graph (optional)
 ///
 /// Traverses a sub-graph starting from subgraph_results moving up
@@ -193,7 +192,7 @@ OPENVINO_API
 void replace_node(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
 
 /// \brief Replace multiple nodes in a function.
-/// \param f Function where replacement is taking place.
+/// \param f Model where replacement is taking place.
 /// \param parameter_replacement_map A mapping from parameter shared pointers to parameter
 ///                                  shared pointers. For each pair (k,v) in the map, parameter
 ///                                  k is replaced by parameter v, except if k==v or k is not a
@@ -214,7 +213,7 @@ void replace_node(const std::shared_ptr<Node>& target, const std::shared_ptr<Nod
 ///    - If a parameter node appears as a key in both `parameter_replacement_map` _and_ in
 ///      `body_replacement_map`, behavior is unspecified.
 OPENVINO_API
-void replace_nodes(const std::shared_ptr<Function>& f,
+void replace_nodes(const std::shared_ptr<Model>& f,
                    const std::unordered_map<std::shared_ptr<op::v0::Parameter>, std::shared_ptr<op::v0::Parameter>>&
                        parameter_replacement_map,
                    const std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Node>>& body_replacement_map);
@@ -260,16 +259,16 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     return result;
 }
 
-// input function is cloned and returned
+// input Model is cloned and returned
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
-// NodeMap output (by reference) fully maps input and cloned function ops
+// NodeMap output (by reference) fully maps input and cloned Model ops
 OPENVINO_API
-std::shared_ptr<ov::Function> clone_function(const ov::Function& func,
-                                             std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+std::shared_ptr<ov::Model> clone_model(const ov::Model& func,
+                                       std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
-// input function is cloned and returned
+// input model is cloned and returned
 OPENVINO_API
-std::shared_ptr<ov::Function> clone_function(const ov::Function& func);
+std::shared_ptr<ov::Model> clone_model(const ov::Model& func);
 
 OPENVINO_API
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2);

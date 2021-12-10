@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
 #include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
 #include "kernel_selector/common/tensor_type.h"

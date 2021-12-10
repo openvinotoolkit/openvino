@@ -91,9 +91,6 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
                 deviceName.substr(std::string("AUTO:").size());
         }
     } else {
-        if (deviceName_.empty()) {
-            deviceName_ = "AUTO";
-        }
         ie::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
         std::string deviceIDLocal = parser.getDeviceID();
@@ -202,7 +199,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     bool DeviceSupportsImportExport(const ov::runtime::InferencePlugin& plugin) const {
         std::vector<std::string> supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-        bool supported =
+        auto supported =
             (it != supportedMetricKeys.end()) && plugin.get_metric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
         return supported;
     }
@@ -604,7 +601,7 @@ public:
             }
 
             // but for true support plugins need:
-            // 1. ensure order or parameters and results as in ov::Function
+            // 1. ensure order or parameters and results as in ov::Model
             // 2. provide tensor names for inputs and outputs
             // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
             //    not from ngraph. Plugins should use SetExeNetworkInfo
@@ -626,7 +623,7 @@ public:
         auto specialized_function = ngraph::clone_function(*func);
 
         std::string defDevice = res.supportedLayersMap.begin()->second;
-        ngraph::pass::ConstantFolding().run_on_function(specialized_function);
+        ngraph::pass::ConstantFolding().run_on_model(specialized_function);
         std::unordered_set<std::string> opNames;
 
         for (const auto& op : specialized_function->get_ops())
@@ -1414,18 +1411,18 @@ std::map<std::string, Version> Core::get_versions(const std::string& deviceName)
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::shared_ptr<ov::Function> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
+std::shared_ptr<ov::Model> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
     OV_CORE_CALL_STATEMENT(
         return _impl->ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath))
             .getFunction(););
 }
 #endif
 
-std::shared_ptr<ov::Function> Core::read_model(const std::string& modelPath, const std::string& binPath) const {
+std::shared_ptr<ov::Model> Core::read_model(const std::string& modelPath, const std::string& binPath) const {
     OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(modelPath, binPath).getFunction(););
 }
 
-std::shared_ptr<ov::Function> Core::read_model(const std::string& model, const ov::runtime::Tensor& weights) const {
+std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::runtime::Tensor& weights) const {
     InferenceEngine::Blob::Ptr blob;
     if (weights) {
         blob = weights._impl;
@@ -1444,7 +1441,7 @@ ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
 
 }  // namespace
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
+ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                       const std::string& deviceName,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
@@ -1462,7 +1459,7 @@ ExecutableNetwork Core::compile_model(const std::string& modelPath,
     });
 }
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
+ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                       const RemoteContext& context,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
@@ -1526,7 +1523,7 @@ ExecutableNetwork Core::import_model(std::istream& modelStream, const RemoteCont
     });
 }
 
-SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Function>& model,
+SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const ConfigMap& config) const {
     OV_CORE_CALL_STATEMENT({

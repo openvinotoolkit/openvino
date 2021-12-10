@@ -62,7 +62,7 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     ov::element::Type_t elementType;
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
 };
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunction) {

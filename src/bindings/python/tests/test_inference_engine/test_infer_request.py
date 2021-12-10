@@ -8,7 +8,7 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Function
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
 
 from ..conftest import model_path, read_image
 
@@ -22,7 +22,7 @@ def create_function_with_memory(input_shape, data_type):
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    func = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
     return func
 
 
@@ -33,7 +33,8 @@ def test_get_profiling_info(device):
     exec_net = core.compile_model(func, device)
     img = read_image()
     request = exec_net.create_infer_request()
-    request.infer({0: img})
+    tensor_name = exec_net.input("data").any_name
+    request.infer({tensor_name: img})
     assert request.latency > 0
     prof_info = request.get_profiling_info()
     soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
@@ -60,9 +61,10 @@ def test_tensor_setter(device):
     assert np.allclose(tensor.data, t1.data, atol=1e-2, rtol=1e-2)
 
     res = request1.infer({0: tensor})
-    res_1 = np.sort(res[0])
+    k = list(res)[0]
+    res_1 = np.sort(res[k])
     t2 = request1.get_tensor("fc_out")
-    assert np.allclose(t2.data, res[0].data, atol=1e-2, rtol=1e-2)
+    assert np.allclose(t2.data, res[k].data, atol=1e-2, rtol=1e-2)
 
     request = exec_net_2.create_infer_request()
     res = request.infer({"data": tensor})
@@ -186,7 +188,7 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res) == 2
+    assert np.argmax(res[list(res)[0]]) == 2
 
 
 def test_infer_queue(device):
@@ -303,11 +305,49 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             # reset initial state of ReadValue to zero
             mem_state.reset()
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-
             # always ones
             expected_res = np.full(input_shape, 1, dtype=data_type)
         else:
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, i, dtype=data_type)
-        assert np.allclose(res[0], expected_res, atol=1e-6), \
+
+        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), \
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+
+
+def test_get_results(device):
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    core.set_config({"PERF_COUNT": "YES"}, device)
+    exec_net = core.compile_model(func, device)
+    img = read_image()
+    request = exec_net.create_infer_request()
+    outputs = request.infer({0: img})
+    assert np.allclose(list(outputs.values()), list(request.results.values()))
+
+
+def test_results_async_infer(device):
+    jobs = 8
+    num_request = 4
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
+    infer_queue = AsyncInferQueue(exec_net, num_request)
+    jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
+
+    def callback(request, job_id):
+        jobs_done[job_id]["finished"] = True
+        jobs_done[job_id]["latency"] = request.latency
+
+    img = read_image()
+    infer_queue.set_callback(callback)
+    assert infer_queue.is_ready
+    for i in range(jobs):
+        infer_queue.start_async({"data": img}, i)
+    infer_queue.wait_all()
+
+    request = exec_net.create_infer_request()
+    outputs = request.infer({0: img})
+
+    for i in range(num_request):
+        np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
