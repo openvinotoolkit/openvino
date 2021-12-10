@@ -83,7 +83,7 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
         params[2], // deltas
         params[3], // scores
         attributes);
-    function = std::make_shared<ov::Function>(
+    function = std::make_shared<ov::Model>(
         ov::OutputVector{experimentalDetectron->output(0), experimentalDetectron->output(1)},
         "ExperimentalDetectronGenerateProposalsSingleImage");
 }

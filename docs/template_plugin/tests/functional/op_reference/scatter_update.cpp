@@ -64,7 +64,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(const ScatterUpdate3Params& params) {
+    static std::shared_ptr<ov::Model> CreateFunction(const ScatterUpdate3Params& params) {
         const auto data_shape = params.data.shape;
         const auto indices_shape = params.indices.shape;
         const auto updates_shape = params.updates.shape;
@@ -78,7 +78,7 @@ private:
         const auto updates = std::make_shared<ngraph::op::Parameter>(numeric_type, updates_shape);
         const auto axis = std::make_shared<ngraph::op::Parameter>(axis_type, axis_shape);
         const auto scatter_update = std::make_shared<op::v3::ScatterUpdate>(data, indices, updates, axis);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector {scatter_update}, ngraph::ParameterVector {data, indices, updates, axis});
+        return std::make_shared<ov::Model>(ngraph::NodeVector {scatter_update}, ngraph::ParameterVector {data, indices, updates, axis});
     }
 };
 

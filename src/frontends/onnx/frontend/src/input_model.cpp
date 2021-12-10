@@ -139,11 +139,11 @@ void InputModelONNX::set_element_type(Place::Ptr place, const ngraph::element::T
     m_editor->set_input_types(m);
 }
 
-std::shared_ptr<Function> InputModelONNX::decode() {
+std::shared_ptr<Model> InputModelONNX::decode() {
     return m_editor->decode();
 }
 
-std::shared_ptr<Function> InputModelONNX::convert() {
+std::shared_ptr<Model> InputModelONNX::convert() {
     return m_editor->get_function();
 }
 

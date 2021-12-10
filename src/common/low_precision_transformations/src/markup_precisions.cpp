@@ -62,7 +62,7 @@ void setRestriction(
 }
 } // namespace
 
-bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
             continue;
