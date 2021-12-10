@@ -244,10 +244,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
-        auto supportDevices = FilterDevice(metaDevices, filterConfig);
-        if (supportDevices.size() == 0) {
+        auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
+        if (supportDevicesByConfig.size() == 0) {
              IE_THROW() << "there is no device support the configure";
         }
+        auto supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
         // replace the configure with configure that auto want to pass to device
         // and reset the strDevices to support devices
         auto validConfigKey = PerfHintsConfig::SupportedKeys();
@@ -595,4 +596,34 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDevice(const st
     }
     return filterDevice;
 }
+std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
+                                                InferenceEngine::CNNNetwork network) {
+        std::vector<DeviceInformation> filterDevice;
+        IE_SUPPRESS_DEPRECATED_START
+        for (auto&item : network.getInputsInfo()) {
+            if (item.second->getPartialShape().is_dynamic()) {
+                for (auto& iter : metaDevices) {
+                    if (iter.deviceName.find("CPU") != std::string::npos) {
+                        filterDevice.push_back(iter);
+                        return filterDevice;
+                    } else {
+                         IE_THROW(NotFound) << "No available device for dynamic shape network !";
+                    }
+                }
+            }
+        }
+        for (auto&item : network.getOutputsInfo()) {
+            if (item.second->getPartialShape().is_dynamic()) {
+                for (auto& iter : metaDevices) {
+                    if (iter.deviceName.find("CPU") != std::string::npos) {
+                        filterDevice.push_back(iter);
+                        return filterDevice;
+                    } else {
+                         IE_THROW(NotFound) << "No available device for dynamic shape network !";
+                    }
+                }
+            }
+        }
+        IE_SUPPRESS_DEPRECATED_END
+        return metaDevices;                                              }
 }  // namespace MultiDevicePlugin

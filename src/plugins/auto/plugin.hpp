@@ -60,6 +60,8 @@ private:
                             std::map<std::string, std::string>& filterConfig);
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
+    std::vector<DeviceInformation> FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
+                                                InferenceEngine::CNNNetwork network);
 };
 
 }  // namespace MultiDevicePlugin
