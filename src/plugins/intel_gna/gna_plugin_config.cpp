@@ -226,8 +226,15 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             } else if (value == PluginConfigParams::NO) {
                 gnaFlags.gna_openmp_multithreading = true;
             } else {
-                log << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
-                THROW_GNA_EXCEPTION << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
+                log << "SINGLE_THREAD should be YES/NO, but not" << value;
+                THROW_GNA_EXCEPTION << "SINGLE_THREAD should be YES/NO, but not" << value;
+            }
+        } else if (key == CONFIG_KEY(LOG_LEVEL)) {
+            if (value == PluginConfigParams::LOG_WARNING || value == PluginConfigParams::LOG_NONE) {
+                gnaFlags.log_level = value;
+            } else {
+                log << "Currently only LOG_LEVEL = LOG_WARNING or LOG_NONE is supported, not " << value;
+                THROW_GNA_EXCEPTION << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
             }
         } else {
             IE_THROW(NotFound)
@@ -298,6 +305,7 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
     keyConfigMap[CONFIG_KEY(SINGLE_THREAD)] =
             gnaFlags.gna_openmp_multithreading ? PluginConfigParams::NO: PluginConfigParams::YES;
+    keyConfigMap[CONFIG_KEY(LOG_LEVEL)] = gnaFlags.log_level;
 }
 
 std::string Config::GetParameter(const std::string& name) const {
