@@ -73,13 +73,13 @@ def main():
     preproc.input().tensor() \
            .set_element_type(image_tensor.element_type) \
            .set_layout(tensor_layout) \
-           .set_spatial_static_shape(h, w) # noqa: ECE001, N400
+           .set_spatial_static_shape(h, w)  # noqa: ECE001, N400
     # 2) Adding explicit preprocessing steps:
     # - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
     # - apply linear resize from tensor spatial dims to model spatial dims
     preproc.input().preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
     # 3) Here we suppose model has 'NCHW' layout for input
-    preproc.input().network().set_layout(Layout('NCHW'))
+    preproc.input().model().set_layout(Layout('NCHW'))
     # 4) Set output tensor information:
     # - precision of tensor is supposed to be 'f32'
     preproc.output().tensor().set_element_type(Type.f32)
