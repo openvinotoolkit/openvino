@@ -131,7 +131,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         EXPECT_FALSE(info.count(key_old_api_element_type));
     };
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int version_ref) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int version_ref) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
         ASSERT_TRUE(rt_info.at("version").is<int64_t>());
@@ -284,7 +284,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
         ASSERT_FALSE(info.count(key));
     };
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
         ASSERT_TRUE(rt_info.at("version").is<int64_t>());
@@ -447,7 +447,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_EQ(old_api_map_attr_val, type);
     };
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
         ASSERT_TRUE(rt_info.at("version").is<int64_t>());
@@ -712,7 +712,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
         ASSERT_TRUE(rt_info.at("version").is<int64_t>());
@@ -874,7 +874,7 @@ TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
     auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
         ASSERT_TRUE(rt_info.at("version").is<int64_t>());
@@ -966,7 +966,7 @@ TEST_F(RTInfoDeserialization, V11toV10WithoutRTInfo) {
 </net>
 )V0G0N";
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
         ASSERT_TRUE(rt_info.at("version").is<int64_t>());

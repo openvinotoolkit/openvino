@@ -114,7 +114,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type_t& input_type,
                                                     const float& alpah,
                                                     const float& beta,
@@ -130,7 +130,7 @@ private:
             lrn = std::make_shared<op::v0::LRN>(in, alpah, beta, bias, size);
         }
 
-        return std::make_shared<ov::Function>(lrn, ParameterVector{in});
+        return std::make_shared<ov::Model>(lrn, ParameterVector{in});
     }
 };
 

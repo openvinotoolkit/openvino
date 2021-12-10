@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const RollParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const RollParams& params) {
         const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto shift = std::make_shared<opset1::Constant>(params.shiftTensor.type,
                                                               params.shiftTensor.shape,
@@ -63,7 +63,7 @@ private:
                                                              params.axesTensor.shape,
                                                              params.axesTensor.data.data());
         const auto roll = std::make_shared<opset7::Roll>(data, shift, axes);
-        return std::make_shared<Function>(NodeVector {roll}, ParameterVector {data});
+        return std::make_shared<Model>(NodeVector {roll}, ParameterVector {data});
     }
 };
 
