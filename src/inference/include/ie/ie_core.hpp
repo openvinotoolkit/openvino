@@ -105,7 +105,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network);
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
+                                  const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Creates an executable network from a network object.
@@ -134,7 +135,8 @@ public:
      *
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(const std::string& modelPath);
+    ExecutableNetwork LoadNetwork(const std::string& modelPath,
+                                  const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file

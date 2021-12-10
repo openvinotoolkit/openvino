@@ -1171,8 +1171,9 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
     return _impl->ReadNetwork(model, weights);
 }
 
-ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network) {
-    return LoadNetwork(network, DEFAULT_DEVICE_NAME);
+ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
+                                    const std::map<std::string, std::string>& config) {
+    return LoadNetwork(network, DEFAULT_DEVICE_NAME, config);
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
@@ -1196,8 +1197,9 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
     return {exec._so, exec._ptr};
 }
 
-ExecutableNetwork Core::LoadNetwork(const std::string& modelPath) {
-    return LoadNetwork(modelPath, DEFAULT_DEVICE_NAME);
+ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
+                                    const std::map<std::string, std::string>& config) {
+    return LoadNetwork(modelPath, DEFAULT_DEVICE_NAME,config);
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
