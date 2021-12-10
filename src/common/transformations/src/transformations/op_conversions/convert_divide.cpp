@@ -38,13 +38,14 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
             NGRAPH_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
             return false;
         }
+    } else {
+        ngraph::copy_runtime_info(div, pow);
     }
 
     auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
     // if Divide is an inverse, then we don't need the Multiply
     if (ngraph::op::util::can_eliminate_eltwise_node(mul, mul->input_value(0), mul->input_value(1))) {
         pow->set_friendly_name(div->get_friendly_name());
-        ngraph::copy_runtime_info(div, pow);
         ngraph::replace_node(div, pow);
     } else {
         mul->set_friendly_name(div->get_friendly_name());
