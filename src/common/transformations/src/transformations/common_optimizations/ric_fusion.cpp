@@ -171,9 +171,9 @@ public:
         auto pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p});
 
         auto callback = [=](pattern::Matcher& m) {
-            const auto & pattern_map = m.get_pattern_map();
-            auto concat = ov::as_type_ptr<opset8::Concat>(pattern_map.at(pattern_root));
-            auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p));
+            const auto & pattern_map = m.get_pattern_value_map();
+            auto concat = ov::as_type_ptr<opset8::Concat>(pattern_map.at(pattern_root).get_node_shared_ptr());
+            auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p).get_node_shared_ptr());
             if (!concat || !split) return false;
 
             std::vector<int64_t> order;
@@ -219,7 +219,7 @@ public:
         auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, indices_p, axis_p});
 
         auto callback = [=](pattern::Matcher& m) {
-            const auto & pattern_map = m.get_pattern_map();
+            const auto & pattern_map = m.get_pattern_value_map();
             const auto & output = pattern_map.at(pattern_root);
 
             auto order = ov::get_constant_from_source(pattern_map.at(indices_p));
