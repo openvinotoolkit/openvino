@@ -110,7 +110,7 @@ public:
         inferRequestNum++;
     }
 
-    void init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
+    void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
         if (function->get_parameters().size() == 1) {
             ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
         } else {
@@ -158,7 +158,7 @@ public:
         function = p.build();
     }
 
-    std::shared_ptr<ov::Function> createGraph(const std::vector<ov::PartialShape>& inShapes, ngraph::helpers::InputLayerType outShapeType) {
+    std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ngraph::helpers::InputLayerType outShapeType) {
         auto params = ngraph::builder::makeDynamicParams(prec, {inShapes.front()});
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
