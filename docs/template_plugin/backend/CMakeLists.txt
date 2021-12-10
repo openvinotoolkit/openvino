@@ -36,15 +36,6 @@ target_link_libraries(interpreter_backend PRIVATE ngraph::builder ngraph::refere
 
 target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
-install(TARGETS interpreter_backend
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
-if(NOT BUILD_SHARED_LIBS)
-    install(TARGETS interpreter_backend
-            RUNTIME DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
-endif()
-
 file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 add_clang_format_target(interpreter_backend_clang FOR_SOURCES ${all_backends_src})
 
