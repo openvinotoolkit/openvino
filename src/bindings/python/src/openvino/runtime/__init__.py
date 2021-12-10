@@ -62,7 +62,7 @@ from openvino.pyopenvino import util
 from openvino.pyopenvino import layout_helpers
 
 from openvino.runtime.ie_api import Core
-from openvino.runtime.ie_api import ExecutableNetwork
+from openvino.runtime.ie_api import CompiledModel
 from openvino.runtime.ie_api import InferRequest
 from openvino.runtime.ie_api import AsyncInferQueue
 from openvino.runtime.ie_api import Variant
