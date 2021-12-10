@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
 
         // Step 2. Read a model
         slog::info << "Loading model files: " << model_path << slog::endl;
-        std::shared_ptr<ov::Function> model = core.read_model(model_path);
+        std::shared_ptr<ov::Model> model = core.read_model(model_path);
         printInputAndOutputsInfo(*model);
 
         // Step 3. Validate model inputs and outputs
