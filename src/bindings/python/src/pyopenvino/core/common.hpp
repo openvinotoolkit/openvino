@@ -19,7 +19,7 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "pyopenvino/core/containers.hpp"
-#include "pyopenvino/graph/variant.hpp"
+#include "pyopenvino/graph/any.hpp"
 
 namespace py = pybind11;
 
