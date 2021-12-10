@@ -17,7 +17,7 @@
 #include <vector>
 #include <memory>
 
-#define IMMIDIATLY
+//#define IMMIDIATLY
 namespace cldnn {
 namespace ze {
 
@@ -252,7 +252,8 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     //auto ev = create_base_event();
     auto global = to_group_count(args_desc.workGroups.global);
     auto local = to_group_count(args_desc.workGroups.local);
-    //std::cout << local.groupCountX << "," << local.groupCountY << "," << local.groupCountZ << std::endl;
+    std::cout << "enqueue_kernel" << std::dynamic_pointer_cast<ze_base_event>(ev)->get() << std::endl;
+    std::cout << local.groupCountX << "," << local.groupCountY << "," << local.groupCountZ << std::endl;
     //std::cout << global.groupCountX << "," << global.groupCountY << "," << global.groupCountZ << std::endl;
     ze_group_count_t launchArgs = { global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountY, global.groupCountZ/local.groupCountZ };
     //ZE_CHECK(zeKernelSetGroupSize(kern, global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountY, global.groupCountZ/local.groupCountZ));
@@ -266,6 +267,9 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     //std::cout << "-------------------------------------" << std::endl;
     // zeCommandListAppendBarrier(get_queue(), ret_ev2, 0, nullptr);
     // zeEventHostSynchronize(ret_ev2, 0);
+    if (set_output_event) {
+        ZE_CHECK(zeEventHostSignal(std::dynamic_pointer_cast<ze_base_event>(ev)->get()));
+    }
     return std::make_shared<ze_event>(std::dynamic_pointer_cast<ze_event>(ev)->get_pool(), std::dynamic_pointer_cast<ze_event>(ev)->get(), ++_queue_counter);;//std::make_shared<ze_event>(_event_pool, ret_ev, ++_queue_counter);;//std::make_shared<ze_event>(_event_pool, ret_ev, ++_queue_counter);
     //return nullptr;
 }
@@ -361,7 +365,7 @@ ze_event::ptr ze_stream::create_user_event(bool set) {
     };
     ZE_CHECK(zeEventCreate(_event_pool, &tsEventDesc, &hEvent));
     auto result = std::make_shared<ze_event>(_event_pool, hEvent, set);
-    //std::cout << "create_user_event " << hEvent << " " << set << std::endl;
+    std::cout << "create_user_event " << hEvent << " " << set << std::endl;
     // if (!set) {
     //     ZE_CHECK(zeCommandListAppendSignalEvent(_command_list, hEvent));
     // }
@@ -389,16 +393,15 @@ ze_event::ptr ze_stream::create_base_event() {
 
     ZE_CHECK(zeEventCreate(_event_pool, &tsEventDesc, &hEvent));
     auto result =  std::make_shared<ze_event>(_event_pool, hEvent, ++_queue_counter);
-    //std::cout << "create_base_event " << hEvent << " " << _queue_counter << std::endl;
+    std::cout << "create_base_event " << hEvent << " " << _queue_counter << std::endl;
     return result;
 }
 
 void ze_stream::flush() const {
     //zeCommandQueueSynchronize
     //ZE_CHECK(zeCommandListAppendBarrier(get_queue(), nullptr, 0, nullptr));
-#ifdef IMMIDIATLY
+//#ifdef IMMIDIATLY
     ZE_CHECK(zeCommandListClose(_command_list));
-    _queue_counter.store(uint64_t(0));
 
     ze_command_queue_desc_t commandQueueDesc = {
         ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC ,
@@ -442,10 +445,11 @@ void ze_stream::flush() const {
     // zeCommandQueueSynchronize();
     ZE_CHECK(zeFenceHostSynchronize(hFence, UINT32_MAX));
     ZE_CHECK(zeFenceReset(hFence));
-    ZE_CHECK(zeFenceDestroy(hFence));
+    //ZE_CHECK(zeFenceDestroy(hFence));
 
     ZE_CHECK(zeCommandListReset(_command_list));
-#endif
+    _queue_counter.store(uint64_t(0));
+//#endif
 }
 
 void ze_stream::finish() const {
@@ -473,13 +477,14 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     for (auto& ev : events) {
         if (auto ze_base_ev = dynamic_cast<ze_base_event*>(ev.get())) {
             _ze_events.push_back(ze_base_ev->get());
+            std::cout << "wait_for_events: " << ze_base_ev->get() << std::endl;
             //ZE_CHECK(zeEventHostSynchronize(ze_base_ev->get(), UINT32_MAX));
         }
     }
     //auto evs = &_ze_events.at(0);
-    //ZE_CHECK(zeCommandListAppendBarrier(_command_list, nullptr, _ze_events.size(), evs));
+    //ZE_CHECK(zeCommandListAppendBarrier(_command_list, nullptr, _ze_events.size(), &_ze_events.at(0)));
 #ifndef IMMIDIATLY
-    ZE_CHECK(zeCommandListAppendWaitOnEvents(_command_list, _ze_events.size(), &_ze_events.at(0)));
+    //ZE_CHECK(zeCommandListAppendWaitOnEvents(_command_list, _ze_events.size(), &_ze_events.at(0)));
 #endif
     // std::vector<cl::Event> clevents;
     // for (auto& ev : events) {
