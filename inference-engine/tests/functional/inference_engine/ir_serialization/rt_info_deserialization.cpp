@@ -40,7 +40,7 @@ protected:
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
-        ov::RuntimeAttributeVector params{&modelStream};
+        ov::AnyVector params{&modelStream};
 
         FE = manager.load_by_model(params);
         if (FE)
@@ -134,9 +134,8 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     auto check_version = [](const std::shared_ptr<ov::Function>& f, int version_ref) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), version_ref);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), version_ref);
     };
     check_version(f, 10);
 
@@ -288,9 +287,8 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     check_version(f, 10);
 
@@ -452,9 +450,8 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        EXPECT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     check_version(f, 11);
 
@@ -718,9 +715,8 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     check_version(f, 11);
 
@@ -881,9 +877,8 @@ TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
     auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     check_version(f, 11);
 
@@ -974,9 +969,8 @@ TEST_F(RTInfoDeserialization, V11toV10WithoutRTInfo) {
     auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     InferenceEngine::Core core;
     auto cnn = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());

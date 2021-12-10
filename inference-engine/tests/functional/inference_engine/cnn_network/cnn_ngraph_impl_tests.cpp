@@ -348,7 +348,7 @@ TEST(CNNNGraphImplTests, TestSaveAffinity) {
         auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
         auto relu = std::make_shared<ngraph::op::Relu>(param);
         auto& rtInfo = relu->get_rt_info();
-        rtInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>> (testAffinity);
+        rtInfo["affinity"] = testAffinity;
         relu->set_friendly_name("testReLU");
         auto result = std::make_shared<ngraph::op::Result>(relu);
 

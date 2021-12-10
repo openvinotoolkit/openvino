@@ -15,9 +15,9 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/snippets/*.hpp)
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create library
+# Create static library
 
-add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -25,20 +25,13 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Snippets transformations library")
-
-target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
-
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph
                                      PRIVATE ngraph_reference)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 ie_mark_target_as_cc(${TARGET_NAME})
 
@@ -49,15 +42,4 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 # install
 
 # TODO: uncomment once snippets are integrated into CPU plugin
-# if(BUILD_SHARED_LIBS)
-#     install(TARGETS ${TARGET_NAME}
-#             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-#             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
-# else()
-#     ov_install_static_lib(${TARGET_NAME} core)
-# endif()
-
-# TODO: remove once install commands above are commented out
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+# ov_install_static_lib(${TARGET_NAME} core)
