@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
@@ -20,7 +20,7 @@
 using namespace testing;
 
 TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
-    std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 12, 12 });
         auto const_weights = ov::opset8::Constant::create(ov::element::f16,
@@ -35,7 +35,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
             ov::CoordinateDiff{ 0, 0 },
             ov::Strides{ 1, 1 });
 
-        f = std::make_shared<ov::Function>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -56,7 +56,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
             ov::CoordinateDiff{ 0, 0 },
             ov::Strides{ 1, 1 });
 
-        f_ref = std::make_shared<ov::Function>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
     }
 
     auto res = compare_functions(f, f_ref, true);
@@ -64,7 +64,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
 }
 
 TEST(TransformationTests, ConvertCompressionOnlyToLegacyNoConvertion) {
-    std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 12, 12 });
         auto const_weights = ov::opset8::Constant::create(ov::element::f32,
@@ -77,7 +77,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacyNoConvertion) {
             ov::CoordinateDiff{ 0, 0 },
             ov::Strides{ 1, 1 });
 
-        f = std::make_shared<ov::Function>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -98,7 +98,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacyNoConvertion) {
             ov::CoordinateDiff{ 0, 0 },
             ov::Strides{ 1, 1 });
 
-        f_ref = std::make_shared<ov::Function>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
     }
 
     auto res = compare_functions(f, f_ref, true);

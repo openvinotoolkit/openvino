@@ -29,4 +29,4 @@ target_include_directories(${TARGET_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests)
 
 # developer package
-openvino_developer_export_targets(COMPONENT inference_engine_tests TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT tests TARGETS ${TARGET_NAME})

@@ -8,7 +8,7 @@
 #include <string>
 
 #include "ngraph/opsets/opset.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -22,7 +22,7 @@ namespace pass {
  * get_ordered_ops()); MO generates file with different order, but they are
  * logically equivalent
  */
-class OPENVINO_API Serialize : public ov::pass::FunctionPass {
+class OPENVINO_API Serialize : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("Serialize");
 
@@ -31,7 +31,7 @@ public:
         IR_V10 = 10,      // v10 IR
         IR_V11 = 11       // v11 IR
     };
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
     Serialize(std::ostream& xmlFile,
@@ -61,7 +61,7 @@ private:
  * @attention
  * - dynamic shapes are not supported
  */
-class OPENVINO_API StreamSerialize : public ov::pass::FunctionPass {
+class OPENVINO_API StreamSerialize : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("StreamSerialize");
 
@@ -74,7 +74,7 @@ public:
         size_t model_size;
     };
 
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     OPENVINO_DEPRECATED("This constructor is deprecated. Please use new extension API")
     StreamSerialize(std::ostream& stream,

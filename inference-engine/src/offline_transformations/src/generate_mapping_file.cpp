@@ -12,7 +12,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GenerateMappingFile, "GenerateMappingFile", 0);
 
-bool ngraph::pass::GenerateMappingFile::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::GenerateMappingFile::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     pugi::xml_document xml_doc;
     pugi::xml_node root_node = xml_doc.append_child("mapping");
 
