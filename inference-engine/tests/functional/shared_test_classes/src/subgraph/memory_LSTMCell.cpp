@@ -254,6 +254,16 @@ namespace SubgraphTestsDefinitions {
         function = std::make_shared<Function>(final_reshape, input_parameter, "PureTI");
     }
 
+    void MemoryLSTMCellTest::LoadNetwork() {
+        LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+        inferRequest = executableNetwork.CreateInferRequest();
+    }
+
+    void MemoryLSTMCellTest::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
+    }
+
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         if (transformation != ngraph::helpers::MemoryTransformation::NONE) {
@@ -276,8 +286,7 @@ namespace SubgraphTestsDefinitions {
     }
 
     void MemoryLSTMCellTest::InitMemory() {
-        IE_SUPPRESS_DEPRECATED_START
-        auto states = executableNetwork.QueryState();
+        auto states = inferRequest.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
             if (name.find("cell_state_1") != std::string::npos) {
@@ -292,7 +301,6 @@ namespace SubgraphTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
-        IE_SUPPRESS_DEPRECATED_END
     }
 
     void MemoryLSTMCellTest::ApplyLowLatency() {
@@ -330,6 +338,7 @@ namespace SubgraphTestsDefinitions {
 
             ConfigureNetwork();
             executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+            inferRequest = executableNetwork.CreateInferRequest();
         } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::lowLatency2(cnnNetwork);
@@ -339,6 +348,7 @@ namespace SubgraphTestsDefinitions {
 
             ConfigureNetwork();
             executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+            inferRequest = executableNetwork.CreateInferRequest();
         }
     }
 }  // namespace SubgraphTestsDefinitions

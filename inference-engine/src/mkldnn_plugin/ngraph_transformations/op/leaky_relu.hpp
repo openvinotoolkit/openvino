@@ -27,7 +27,7 @@ public:
     ngraph::element::Type get_output_type() const { return m_output_type; }
 
 private:
-    float m_negative_slope;
+    float m_negative_slope = 0.f;
     ngraph::element::Type m_output_type;
 };
 

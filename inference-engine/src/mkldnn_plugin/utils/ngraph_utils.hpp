@@ -10,10 +10,10 @@
 
 namespace MKLDNNPlugin {
 
-inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ngraph::Variant>>& rtInfo, std::string paramName) {
+inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, std::string paramName) {
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
-        auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+        auto value = std::dynamic_pointer_cast<ov::RuntimeAttributeImpl<std::string>>(it->second);
         return value->get();
     } else {
         return "";
@@ -23,10 +23,13 @@ inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ng
 inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
 
-    if (!rtInfo.count(ov::PrimitivesPriority::get_type_info_static())) return "";
+    auto it_info = rtInfo.find(ov::PrimitivesPriority::get_type_info_static());
 
-    const auto &attr = rtInfo.at(ov::PrimitivesPriority::get_type_info_static());
-    return ngraph::as_type_ptr<ov::PrimitivesPriority>(attr)->get();
+    if (it_info == rtInfo.end()) {
+        return {};
+    }
+
+    return it_info->second.as<ov::PrimitivesPriority>().value;
 }
 
 template <typename T>

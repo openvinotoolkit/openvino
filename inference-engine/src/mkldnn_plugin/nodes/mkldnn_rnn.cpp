@@ -367,7 +367,7 @@ void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
     const auto rtInfo = op->get_rt_info();
 
     if (rtInfo.count("seqAxis")) {
-        nativeOrder = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rtInfo.at("seqAxis"))->get() == 0;
+        nativeOrder = std::dynamic_pointer_cast<ov::RuntimeAttributeWrapper<int64_t>>(rtInfo.at("seqAxis"))->get() == 0;
     }
     out_data_dims.erase(out_data_dims.begin() + 1);
 
@@ -794,6 +794,7 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
     (*prim).execute(strm, args);
 }
 
+}  // namespace MKLDNNPlugin
+
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);
-}  // namespace MKLDNNPlugin

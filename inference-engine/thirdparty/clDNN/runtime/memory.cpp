@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_memory.hpp"
 
@@ -32,7 +32,9 @@ memory::memory(engine* engine, const layout& layout, allocation_type type, bool 
 
 memory::~memory() {
     if (!_reused && _engine) {
-        _engine->subtract_memory_used(_bytes_count, _type);
+        try {
+            _engine->subtract_memory_used(_bytes_count, _type);
+        } catch (...) {}
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
             GPU_DEBUG_COUT << "Free " << _bytes_count << " bytes of " << _type << " allocation type"

@@ -54,7 +54,7 @@ struct jit_uni_eltwise_kernel {
         ker_(const_args, indexes);
     }
 
-    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
+    explicit jit_uni_eltwise_kernel(const jit_eltwise_params& jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
     virtual void create_ker() = 0;
@@ -154,7 +154,8 @@ private:
 
     std::vector<MKLDNNMemoryPtr> memPtrs = {};
 
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
+    using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
+    static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
 
     void executeOptimized6D(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
                             const VectorDims &dims_out) const;

@@ -7,39 +7,18 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "program_helpers.h"
 #include "binary_convolution_inst.h"
 #include "mvn_inst.h"
+#include "to_string_utils.h"
 
 #include <vector>
 #include <memory>
 #include <list>
 #include <map>
 #include <set>
-
-#define CLDNN_REORDER_INPUTS_VERBOSE 0
-
-// Prints overall statistics of performed selection, such as number of reorders required.
-#define CLDNN_REORDER_INPUTS_VERBOSE_STATISTICS          (CLDNN_REORDER_INPUTS_VERBOSE > 0)
-// Prints special cases and work-arounds matched.
-#define CLDNN_REORDER_INPUTS_VERBOSE_PATTERN_MATCH       (CLDNN_REORDER_INPUTS_VERBOSE > 1)
-// Prints full list of preferred formats for each node.
-#define CLDNN_REORDER_INPUTS_VERBOSE_PREFERRED           (CLDNN_REORDER_INPUTS_VERBOSE > 2)
-// Prints full list of selected formats for each node.
-#define CLDNN_REORDER_INPUTS_VERBOSE_FORMATS             (CLDNN_REORDER_INPUTS_VERBOSE > 2)
-
-#if CLDNN_REORDER_INPUTS_VERBOSE
-#include "to_string_utils.h"
-#include <iostream>
-#define CLDNN_REORDER_INPUTS_LOG(x) std::cout << "[clDNN][reorder_inputs] " << x << std::endl
-#endif
-
-#if CLDNN_REORDER_INPUTS_VERBOSE_PATTERN_MATCH
-#define CLDNN_REORDER_INPUTS_PATTERN_MATCH_LOG(desc, id) CLDNN_REORDER_INPUTS_LOG(id << " matched for pattern: " << desc)
-#else
-#define CLDNN_REORDER_INPUTS_PATTERN_MATCH_LOG(desc, id) do { } while (false)
-#endif
 
 using namespace cldnn;
 
@@ -52,7 +31,17 @@ void reorder_inputs::run(program& p) { run(p, _lo, _rf); }
 namespace {
 
 std::map<program_node*, format::type> get_preferred_formats(program& p, layout_optimizer& lo) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+
     std::map<program_node*, format::type> fmt_map;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t onednn_impls_counter = 0;
+    size_t all_impls_counter = 0;
+    const float onednn_min_threshold = 0.1f;
+    bool should_update_fmt_map = false;
+
+    // Calculate onednn kernels number and all kernels number inside the network
     for (auto n : p.get_processing_order()) {
         if (!n->is_in_data_flow())
             continue;
@@ -62,6 +51,51 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
         fmt_map[n] = ex;
 
         n->set_preferred_impl_type(impl);
+
+        if (impl == impl_types::onednn)
+            onednn_impls_counter++;
+
+        all_impls_counter++;
+    }
+
+    float onednn_usage_ratio = all_impls_counter ? static_cast<float>(onednn_impls_counter) / static_cast<float>(all_impls_counter) : 0.f;
+
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_COUT << "Onednn kernels number: " << onednn_impls_counter << " from " << all_impls_counter
+                       << " (" << onednn_usage_ratio * 100.f << "%)" << std::endl;
+        GPU_DEBUG_COUT << "Onednn usage threshold: " << onednn_min_threshold * 100.f << "%" << std::endl;
+    }
+
+    // Reverted to cldnn way for cases when onednn kernels number inside the whole network is extremely low =>
+    // improvements from onednn usage less than losses due to unoptimized formats for cldnn kernels, extra reorders, etc.
+    if (onednn_usage_ratio < onednn_min_threshold && lo.get_optimization_attributes().use_onednn_impls) {
+        should_update_fmt_map = true;
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 0);
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << "The return to clDNN implementations" << std::endl;
+        }
+    }
+
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (should_update_fmt_map)
+#endif
+    {
+        for (auto n : p.get_processing_order()) {
+            if (!n->is_in_data_flow())
+                continue;
+
+            auto ex = lo.get_preferred_format(*n);
+            auto impl = lo.get_preferred_impl_type(*n, ex);
+            fmt_map[n] = ex;
+
+            n->set_preferred_impl_type(impl);
+        }
     }
     return fmt_map;
 }
@@ -334,7 +368,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
 }
 
 template <direction_e dir>
-void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, program_node* node) {
+void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
     auto fmt = fmt_map.at(node);
 
     auto next_cpy = travel_direction_wrapper<dir>::next_nodes(node);
@@ -354,9 +388,15 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
         travel_direction_wrapper<dir>::first(in_layout, out_layout).format = fmt;
 
+        // When the input is fed into different convolutions, create separate cache entry
+        bool needs_split_reorder = false;
+        bool use_onednn_impls = lo.get_optimization_attributes().use_onednn_impls;
+        if (node->is_type<convolution>() && use_onednn_impls)
+            needs_split_reorder = lo.needs_onednn_bfyx_to_blocked(in_layout.format, out_layout.format, in_layout, node->as<convolution>());
+
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
-                                           out_layout);
+                                           out_layout, needs_split_reorder);
         auto reorder = reorder_pair.first;
 
         if (reorder) {
@@ -369,7 +409,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
     }
 }
 
-void insert_reorders(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf) {
+void insert_reorders(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo) {
     auto fwd_it = p.get_processing_order().begin();
     while (fwd_it != p.get_processing_order().end()) {
         auto node = *(fwd_it++);
@@ -381,7 +421,7 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
         if (fmt == format::any || format::is_image(fmt))
             continue;
 
-        insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, node);
+        insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, lo, node);
     }
 
     auto bwd_it = p.get_processing_order().rbegin();
@@ -395,41 +435,41 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
         if (fmt == format::any || format::is_image(fmt))
             continue;
 
-        insert_reorders_in_dir<direction_e::backwards>(p, fmt_map, rf, node);
+        insert_reorders_in_dir<direction_e::backwards>(p, fmt_map, rf, lo, node);
     }
 }
 
 }  // namespace
 
 void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+
     auto fmt_map = get_preferred_formats(p, lo);
-#if CLDNN_REORDER_INPUTS_VERBOSE_PREFERRED
-    {
-        CLDNN_REORDER_INPUTS_LOG("Preferred formats:");
+
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Preferred formats:" << std::endl;
         for (auto& node_fmt : fmt_map) {
             if (node_fmt.second != format::any) {
-                CLDNN_REORDER_INPUTS_LOG("  " << node_fmt.first->id() << " " << fmt_to_str(node_fmt.second));
+                GPU_DEBUG_COUT << "[clDNN][reorder_inputs]   " << node_fmt.first->id() << " " << fmt_to_str(node_fmt.second) << std::endl;
             }
         }
     }
-#endif
+
     propagate_formats(p, fmt_map, lo);
     minimize_local_reorders(p, fmt_map, lo);
 
-#if CLDNN_REORDER_INPUTS_VERBOSE_FORMATS
-    {
-        CLDNN_REORDER_INPUTS_LOG("Selected formats:");
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Selected formats:" << std::endl;
         for (auto node_ptr : p.get_processing_order()) {
             if (fmt_map.count(node_ptr) == 0)
                 continue;
 
             auto fmt = fmt_map.at(node_ptr);
-            CLDNN_REORDER_INPUTS_LOG("  " << node_ptr->id() << " " << fmt_to_str(fmt));
+            GPU_DEBUG_COUT << "[clDNN][reorder_inputs]   " << node_ptr->id() << " " << fmt_to_str(fmt) << std::endl;
         }
     }
-#endif
-#if CLDNN_REORDER_INPUTS_VERBOSE_STATISTICS
-    {
+
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
         reorder_cnt total_reorder_count = std::accumulate(
             p.get_processing_order().begin(),
             p.get_processing_order().end(),
@@ -441,8 +481,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             return reorder_cnt{ total.number + count.number, total.total_sizes + count.total_sizes };
         });
         // Divide results by two as above function will each reorder from both sides
-        CLDNN_REORDER_INPUTS_LOG("Total number of reorders: " << total_reorder_count.number / 2);
-        CLDNN_REORDER_INPUTS_LOG("Total elements count of all reorders: " << total_reorder_count.total_sizes / 2);
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Total number of reorders: " << total_reorder_count.number / 2 << std::endl;
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Total elements count of all reorders: " << total_reorder_count.total_sizes / 2 << std::endl;
 
         // Count number of reorders that will be fused
         size_t nodes_with_fusing = 0;
@@ -458,11 +498,11 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 }
             }
         }
-        CLDNN_REORDER_INPUTS_LOG("Number of nodes with fused reorders: " << nodes_with_fusing);
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Number of nodes with fused reorders: " << nodes_with_fusing << std::endl;
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
     }
-#endif
 
-    insert_reorders(p, fmt_map, rf);
+    insert_reorders(p, fmt_map, rf, lo);
 
     for (auto n : p.get_processing_order()) {
         n->recalc_output_layout(true);

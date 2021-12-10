@@ -16,8 +16,13 @@ extern "C"
 #endif
 
 #define XLINK_MAX_NAME_SIZE 28
+#ifdef XLINK_MAX_STREAM_RES
+#define XLINK_MAX_STREAMS XLINK_MAX_STREAM_RES
+#else
 #define XLINK_MAX_STREAMS 32
+#endif
 #define XLINK_MAX_PACKETS_PER_STREAM 64
+#define XLINK_NO_RW_TIMEOUT 0xFFFFFFFF
 
 typedef enum{
     X_LINK_SUCCESS = 0,

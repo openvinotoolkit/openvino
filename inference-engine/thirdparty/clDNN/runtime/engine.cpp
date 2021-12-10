@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/device_query.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
 
@@ -19,9 +19,10 @@
 
 namespace cldnn {
 
-engine::engine(const device::ptr device, const engine_configuration& configuration)
+engine::engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor)
 : _device(device)
-, _configuration(configuration) {}
+, _configuration(configuration)
+, _task_executor(task_executor) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -91,6 +92,17 @@ memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
     return reinterpret_handle(layout, params);
 }
 
+memory_ptr engine::share_usm(const layout& layout, shared_handle usm_ptr) {
+    shared_mem_params params = { shared_mem_type::shared_mem_usm, nullptr, nullptr, usm_ptr,
+#ifdef _WIN32
+        nullptr,
+#else
+        0,
+#endif
+        0 };
+    return reinterpret_handle(layout, params);
+}
+
 memory::ptr engine::share_image(const layout& layout, shared_handle img) {
     shared_mem_params params = { shared_mem_type::shared_mem_image, nullptr, nullptr, img,
 #ifdef _WIN32
@@ -148,17 +160,19 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
     return memory_usage;
 }
 
-void engine::get_memory_statistics(std::map<std::string, uint64_t>* statistics) const {
+std::map<std::string, uint64_t> engine::get_memory_statistics() const {
+    std::map<std::string, uint64_t> statistics;
     for (auto const& m : _memory_usage_map) {
         std::ostringstream oss;
         oss << m.first << "_current";
-        (*statistics)[oss.str()] = m.second.load();
+        statistics[oss.str()] = m.second.load();
     }
     for (auto const& m : _peak_memory_usage_map) {
         std::ostringstream oss;
         oss << m.first << "_peak";
-        (*statistics)[oss.str()] = m.second.load();
+        statistics[oss.str()] = m.second.load();
     }
+    return statistics;
 }
 
 void engine::add_memory_used(size_t bytes, allocation_type type) {
@@ -183,23 +197,29 @@ void engine::subtract_memory_used(size_t bytes, allocation_type type) {
     }
 }
 
+const InferenceEngine::ITaskExecutor::Ptr engine::get_task_executor() {
+    return _task_executor;
+}
+
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               runtime_types runtime_type,
                                               const device::ptr device,
-                                              const engine_configuration& configuration) {
+                                              const engine_configuration& configuration,
+                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     switch (engine_type) {
-        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration);
+        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
         default: throw std::runtime_error("Invalid engine type");
     }
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               runtime_types runtime_type,
-                                              const engine_configuration& configuration) {
+                                              const engine_configuration& configuration,
+                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     device_query query(engine_type, runtime_type);
     device::ptr default_device = query.get_available_devices().begin()->second;
 
-    return engine::create(engine_type, runtime_type, default_device, configuration);
+    return engine::create(engine_type, runtime_type, default_device, configuration, task_executor);
 }
 
 }  // namespace cldnn

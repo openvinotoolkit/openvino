@@ -4,19 +4,19 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "cldnn/graph/program.hpp"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/network.hpp"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -25,6 +25,7 @@
 #include "condition_inst.h"
 #include "loop_inst.h"
 #include "kernel_selector_helper.h"
+#include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 
 #include <algorithm>
@@ -214,6 +215,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     }
 
     allocate_primitives();
+    configure_primitives_second_output();
     check_names();
     build_insts_deps();
     build_exec_order();
@@ -368,7 +370,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
-        auto& cand = candidates.top();
+        auto cand = candidates.top();
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
         if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
@@ -466,6 +468,10 @@ std::string network::get_primitive_info(const primitive_id& id) const {
     return node.type()->to_string(node);
 }
 
+std::string network::get_implementation_info(const primitive_id& id) const {
+    return _program->get_implementation_info(id);
+}
+
 memory::ptr network::get_output_memory(const primitive_id& output_id) {
     return get_primitive(output_id)->output_memory_ptr();
 }
@@ -475,6 +481,13 @@ void network::allocate_primitives() {
     for (auto node : _program->get_processing_order()) {
         nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
     }
+
+    std::sort(nodes_to_allocate.begin(),
+              nodes_to_allocate.end(),
+              [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
+                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+              });
+
     for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
     }
@@ -490,13 +503,13 @@ void network::allocate_primitives() {
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = node->get_output_layout();
 
-                    if (eltw_in_layout.size == out_layout.size &&
-                        eltw_in_layout.format == out_layout.format &&
-                        eltw_in_layout.data_padding == out_layout.data_padding &&
-                        data_type_traits::size_of(eltw_in_layout.data_type) == data_type_traits::size_of(out_layout.data_type)) {
-                        if (eltw_dep > 0) {
+                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                        continue;
+
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout)) {
+                        if (eltw_dep > 0)
                             throw std::runtime_error("Unsupported multiple full size tensors.");
-                        }
+
                         eltw_dep = fused_op.dep_start_idx;
                         can_reuse_eltwise_mem = true;
                     }
@@ -530,6 +543,46 @@ void network::allocate_primitives() {
                 }
             }
         }
+    }
+    // allocate intermediate buffers
+    for (auto const& node : _program->get_processing_order()) {
+        auto prim = _primitives[node->id()];
+        prim->allocate_internal_buffers();
+    }
+}
+
+void network::configure_primitives_second_output() {
+    std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
+    for (auto& inst : _primitives) {
+        auto& node = inst.second->get_node();
+
+        if (!node.is_type<mutable_data>())
+            continue;
+
+        mutable_datas_ptrs[node.as<mutable_data>().get_attached_memory_ptr()].push_back(&node);
+    }
+
+    for (auto item : mutable_datas_ptrs) {
+        if (item.second.size() != 2)
+            continue;
+
+        auto is_first_node_input_md = [&](const cldnn::program_node* first,
+                                          const cldnn::program_node* second) {
+            for (auto user : first->get_users()) {
+                for (auto next_user : user->get_users()) {
+                    if (next_user == second)
+                        return true;
+                }
+            }
+            return false;
+        };
+
+        auto is_first_node_input = is_first_node_input_md(item.second[0], item.second[1]);
+
+        auto input_md_inst = is_first_node_input ? _primitives[item.second[0]->id()] : _primitives[item.second[1]->id()];
+        auto output_md_inst = is_first_node_input ? _primitives[item.second[1]->id()] : _primitives[item.second[0]->id()];
+
+        output_md_inst->set_output_memory(input_md_inst->output_memory_ptr(), false);
     }
 }
 
@@ -603,7 +656,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Execute " << inst->id() << std::endl;
+            GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
+                           << inst->output_memory().get_allocation_type() << std::endl;
         }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed
@@ -807,6 +861,10 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << node.id() << ": constant]" << std::endl;
+        }
         _memory_pool->release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }

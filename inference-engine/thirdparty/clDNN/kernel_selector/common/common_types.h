@@ -21,12 +21,12 @@ enum class KernelType {
     NORMALIZE,
     POOLING,
     ROI_POOLING,
+    ROI_ALIGN,
     FULLY_CONNECTED,
     ACTIVATION,
     SOFT_MAX,
     ELTWISE,
     SCALE,
-    FUSED_CONV_ELTWISE,
     REORDER,
     RESHAPE,
     PERMUTE,
@@ -72,7 +72,8 @@ enum class KernelType {
     EXTRACT_IMAGE_PATCHES,
     LOOP,
     NON_MAX_SUPPRESSION,
-    DETECTION_OUTPUT
+    DETECTION_OUTPUT,
+    EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

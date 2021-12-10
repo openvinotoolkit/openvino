@@ -26,7 +26,7 @@ std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
 }
 
 std::shared_ptr<ngraph::Node>
-CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
     CPUTestsBase::modifyGraph(ngPrc, params, lastNode);
     std::shared_ptr<ngraph::Node> retNode = lastNode;
     if (postOpMgrPtr) {
@@ -36,9 +36,7 @@ CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::Param
     return retNode;
 }
 
-void CpuTestWithFusing::CheckFusingResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
-    InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
-    auto function = execGraphInfo.getFunction();
+void CpuTestWithFusing::CheckFusingResults(std::shared_ptr<const ov::Function> function, std::string nodeType) const {
     ASSERT_NE(nullptr, function);
     bool isNodeFound = false;
     for (const auto & op : function->get_ops()) {
@@ -69,9 +67,9 @@ void CpuTestWithFusing::CheckFusingResults(InferenceEngine::ExecutableNetwork &e
     ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
 }
 
-void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
-    CPUTestsBase::CheckPluginRelatedResults(execNet, nodeType);
-    CheckFusingResults(execNet, nodeType);
+void CpuTestWithFusing::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const {
+    CPUTestsBase::CheckPluginRelatedResultsImpl(function, nodeType);
+    CheckFusingResults(function, nodeType);
 }
 
 std::shared_ptr<ngraph::Node>
@@ -103,7 +101,7 @@ std::string postNodesMgr::getFusedOpsNames() const {
     const char* separator = "";
     for (const auto& item : _postNodes) {
         result << separator << item.name;
-        separator = ",";
+        separator = ".";
     }
     return result.str();
 }

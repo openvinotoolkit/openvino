@@ -292,6 +292,46 @@ graph TB
 
 ---
 
+**Name:** se_block<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(ReduceMean) --> conv_fc(Convolution, MatMul)
+    conv_fc(Convolution, MatMul) --> bias(Add)
+    bias_const(Const) --> bias(Add)
+    bias(Add) --> act(ReLU, PReLU)
+    act(ReLU, PReLU) --> conv_fc_1(Convolution, MatMul)
+    conv_fc_1(Convolution, MatMul) --> bias_1(Add)
+    bias_const_1(Const) --> bias_1(Add)
+    bias_1(Add) --> act_1(Sigmoid)
+    act_1(Sigmoid) --> output(Multiply)
+    style input fill:#73C2FB
+    style output fill:#73C2FB
+```
+
+---
+
+**Name:** se_block_swish_activation<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(ReduceMean) --> conv_fc(Convolution, MatMul)
+    conv_fc(Convolution, MatMul) --> bias(Add)
+    bias_const(Const) --> bias(Add)
+    bias(Add) --> swish(Swish)
+    swish(Swish) --> conv_fc_1(Convolution, MatMul)
+    conv_fc_1(Convolution, MatMul) --> bias_1(Add)
+    bias_const_1(Const) --> bias_1(Add)
+    bias_1(Add) --> act_1(Sigmoid)
+    act_1(Sigmoid) --> output(Multiply)
+    style input fill:#73C2FB
+    style output fill:#73C2FB
+```
+
+---
+
 **Name:** softmax<br/>
 **Pattern:** <br/>
 
@@ -315,6 +355,20 @@ graph TB
     softmax(SoftMax) --> softmax_1(Reshape)
     softmax_const(Const) --> softmax_1(Reshape)
     softmax_1(Reshape) --> matmul(MatMul)
+    add(Add) --> reshape(Reshape)
+    reshape_const(Const) --> reshape(Reshape)
+    reshape(Reshape) --> transpose(Transpose)
+    transpose(Transpose) --> matmul(MatMul)
+```
+
+---
+
+**Name:** softmax_reshape_transpose_matmul<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    softmax(SoftMax) --> matmul(MatMul)
     add(Add) --> reshape(Reshape)
     reshape_const(Const) --> reshape(Reshape)
     reshape(Reshape) --> transpose(Transpose)

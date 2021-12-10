@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
 #include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
 #include "kernel_selector/common/tensor_type.h"
@@ -34,9 +34,7 @@ public:
     bool requires_reinterpret() const { return req_reinterpr; }
     void requires_reinterpret(bool val) { req_reinterpr = (optimized && val); }
 
-    void set_input_offset(tensor const& io) { input_offset = io; }
     void set_input_layout(layout const& lo) { input_layout = lo; }
-    tensor get_input_offset() const { return input_offset; }
 
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
         kernel_selector::DataLayout ks_input_layout = convert_data_tensor(input_layout).GetLayout();
@@ -46,7 +44,6 @@ public:
 
 private:
     bool req_reinterpr = false;
-    tensor input_offset = tensor{0};  // used by reorder to winograd domain
     layout input_layout = layout(data_types::f32, format::bfyx, { 0, 0, 0, 0 });
 };
 

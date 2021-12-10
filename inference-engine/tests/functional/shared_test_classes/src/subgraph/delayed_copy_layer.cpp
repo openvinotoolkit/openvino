@@ -6,8 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
     void DelayedCopyTestBase::InitMemory() {
-        IE_SUPPRESS_DEPRECATED_START
-        auto states = executableNetwork.QueryState();
+        auto states = inferRequest.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
             if (name.find("id") != std::string::npos) {
@@ -18,8 +17,18 @@ namespace SubgraphTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
-        IE_SUPPRESS_DEPRECATED_END
     }
+
+    void DelayedCopyTestBase::LoadNetwork() {
+        LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+        inferRequest = executableNetwork.CreateInferRequest();
+    }
+
+    void DelayedCopyTestBase::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
+    }
+
 
     void DelayedCopyTestBase::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()

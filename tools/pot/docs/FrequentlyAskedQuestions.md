@@ -16,11 +16,12 @@ What else can I do?</a>
 - <a href="#import">I get "Import Error:... No such file or directory". How can I avoid it?</a>
 - <a href="#python">When I execute POT CLI, I get "File "/workspace/venv/lib/python3.6/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong?</a>
 - <a href="#nomodule">What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?</a>
+- <a href="#dump">Is there a way to collect an intermidiate IR when the AccuracyAware mechanism fails?</a>
 
 
 ### <a name="opensourced">Is the Post-training Optimization Tool (POT) opensourced?</a>
 
-No, the POT is not available on any of the opensource platforms. It is distributed as a part of Intel&reg; [OpenVINO&trade;](@ref index) only.
+Yes, POT is developed on GitHub as a part of https://github.com/openvinotoolkit/openvino under Apache-2.0 License.
 
 ### <a name="dataset">Can I quantize my model without a dataset?</a>
 
@@ -78,7 +79,6 @@ It can happen due to the following reasons:
 
 Quantization time depends on multiple factors such as the size of the model and the dataset. It also depends on the algorithm:
 the [DefaultQuantization](../openvino/tools/pot/algorithms/quantization/default/README.md) algorithm takes less time than the [AccuracyAwareQuantization](../openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md) algorithm.
-The [Tree-Structured Parzen Estimator (TPE)](../openvino/tools/pot/optimization/tpe/README.md) algorithm might take even more time.
 The following configuration parameters also impact the quantization time duration
 (see details in [Post-Training Optimization Best Practices](BestPractices.md)):
 - `use_fast_bias`: when set to `false`, it increases the quantization time
@@ -104,3 +104,7 @@ on the [Post-Training Optimization Tool](../README.md) page.
 ### <a name="nomodule">What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?</a>
 
 It means that some required python module is not installed in your environment. To install it, run `pip install some_module_name`.
+
+### <a name="dump">Is there a way to collect an intermidiate IR when the AccuracyAware mechanism fails?</a>
+
+You can add `"dump_intermediate_model": true` to the POT configuration file and it will drop an intermidiate IR to `accuracy_aware_intermediate` folder. 

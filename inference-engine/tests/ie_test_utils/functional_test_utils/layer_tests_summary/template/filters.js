@@ -14,7 +14,7 @@ $(document).ready(function () {
         $('#operationName').val('');
         $('#status').prop("disabled", true).val('');
         $('#devices').val(0);
-        $('#references').val(0);
+        $('#implementation').val(0);
         $("#status").chosen("destroy");
         $("#status").chosen({max_selected_options: 6});
         filterTable();
@@ -79,7 +79,7 @@ function filterTable() {
     opsetNumber = $("#opsetNumber").val();
     operationName = $('#operationName').val().trim();
     status = $('#status').val();
-    references = $('#references').val();
+    implementation = $('#implementation').val();
 
     $("#report #data tr").show();
     $('#report').show();
@@ -96,14 +96,18 @@ function filterTable() {
         });
     }
 
-    if (references != 0) {
-        if (references == 'nv') {
+    if (implementation != 0) {
+        if (implementation == 'ni') {
             $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('th').hasClass("colorRed"))
+                $(this).toggle($(this).find('td').hasClass("not_impl"))
+            });
+        } else if (implementation == 'i') {
+            $("#report #data tr:not(:hidden)").filter(function () {
+                $(this).toggle($(this).find('td').hasClass("impl"));
             });
         } else {
             $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle(!$(this).find('th').hasClass("colorRed"));
+                $(this).toggle(!$(this).find('td').hasClass("not_impl") && !$(this).find('td').hasClass("impl"));
             });
         }
     }
@@ -111,8 +115,14 @@ function filterTable() {
         select = status.split(',');
         selector = [];
         select.forEach(item => {
-            if (item == 'p') {
+            if (item == '100p') {
                selector.push('.value:visible[crashed="0"][failed="0"][skipped="0"]');
+            }
+            if (item == '100f') {
+               selector.push('.value:visible[passed="0"]');
+            }
+            if (item == 'p') {
+                selector.push('.value:visible[passed!="0"]');
             }
             if (item == 'f') {
                 selector.push('.value:visible[failed!="0"]');
@@ -121,13 +131,16 @@ function filterTable() {
                 selector.push('.value:visible[crashed!="0"]');
             }
             if (item == 's') {
-                selector.push('.value:visible[skipped!="0"]');
+                selector.push('.value:visible[value!="---"][skipped!="0"]');
             }
             if (item == 'ex') {
-                selector.push('.value:visible');
+                selector.push('.value:visible[value!="---"]');
             }
             if (item == 'na') {
                 selector.push('.table-secondary:visible');
+            }
+            if (item == 'ns') {
+                selector.push('.value:visible[value="---"]');
             }
         });
         elements = selector.join(',');
@@ -173,14 +186,14 @@ function calculateColumnStatistics(device) {
     total = $("#report #data tr:not(:hidden)").length;
     $('#statistic .table-primary[scope="row"] i').text(total);
     // trusted op
-    count_trasted_op = $("#report #data tr:not(:hidden) ." + device + ".value[value^='100'][crashed='0'][failed='0'][skipped='0']").length;
-    all_operations = $("#report #data tr:not(:hidden) .value." + device).length;
+    count_trusted_op = $("#report #data tr:not(:hidden) ." + device + ".value[value^='100'][crashed='0'][failed='0'][skipped='0']").length;
+    all_operations = $("#report #data tr:not(:hidden) .value[value!='N/A'][value!='---']." + device).length;
     if (!all_operations) {
-        trasted_op = "---";
+        trusted_op = "---";
     } else {
-        trasted_op = (count_trasted_op * 100 / all_operations).toFixed(1) + ' %';
+        trusted_op = (count_trusted_op * 100 / all_operations).toFixed(1) + ' %';
     }
-    $('#statistic .table-primary.' + device + '.trusted-ops').text(trasted_op);
+    $('#statistic .table-primary.' + device + '.trusted-ops').text(trusted_op);
     $('#statistic .table-primary.' + device + '.test_total').text(all_operations || 0);
 
     // tested op_counter
@@ -188,10 +201,12 @@ function calculateColumnStatistics(device) {
     passed_tested_op_count = 0;
     $("#report #data tr:not(:hidden) ." + device + ".value span").each(function () {
         text = $(this).text().split(':')[1];
-        if ($(this).hasClass('green')) {
-            passed_tested_op_count += +text;
+        if (text) {
+            if ($(this).hasClass('green')) {
+                passed_tested_op_count += +text;
+            }
+            tested_op_count += +text;
         }
-        tested_op_count += +text;
     });
 
     // General Pass Rate
@@ -207,7 +222,9 @@ function calculateColumnStatistics(device) {
     // AVG Pass Rate
     sum_pass_rate = 0;
     $("#report #data tr:not(:hidden) ." + device + ".value").each(function () {
-        sum_pass_rate += +$(this).attr('value');
+        if ($(this).attr('value') != 'N/A' && $(this).attr('value') != '---') {
+            sum_pass_rate += +$(this).attr('value');
+        }
     });
     if (all_operations == 0) {
         $('#statistic .table-primary.' + device + '.avg_pass_rate').text('---');

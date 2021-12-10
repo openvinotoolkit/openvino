@@ -21,6 +21,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace ngraph;
 using namespace std;
 
@@ -559,7 +561,9 @@ TEST(nop_elimination, unsqueeze_squeeze_elimination) {
     auto check_usecase = [&](const Shape& shape, const std::vector<int64_t>& axes_val) {
         auto baseline_f = generate_func(shape, axes_val);
         auto optimized_f = generate_func(shape, axes_val);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(baseline_f), 1);
@@ -589,7 +593,9 @@ TEST(nop_elimination, reshape_unsqueeze_elimination) {
         auto B1 = make_shared<op::v0::Unsqueeze>(B, axes);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(baseline_f), 1);
@@ -618,7 +624,9 @@ TEST(nop_elimination, reshape_squeeze_elimination) {
         auto B1 = make_shared<op::v0::Squeeze>(B, axes);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(baseline_f), 1);
@@ -644,7 +652,9 @@ TEST(nop_elimination, reshape_reshape_elimination) {
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, true);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 2);
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(optimized_f), 1);
@@ -669,7 +679,9 @@ TEST(nop_elimination, squeeze_reshape_elimination) {
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, false);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(baseline_f), 1);
@@ -695,7 +707,9 @@ TEST(nop_elimination, unsqueeze_reshape_elimination) {
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, false);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(baseline_f), 1);
@@ -716,8 +730,9 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_negative) {
         auto squeeze = make_shared<ngraph::opset1::Squeeze>(input, indices);
         auto baseline_f = make_shared<Function>(squeeze, ParameterVector{input});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
-
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
         ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(optimized_f), 1);
     };
@@ -733,7 +748,9 @@ TEST(nop_elimination, topk_convert_elimination) {
         auto C = make_shared<op::Convert>(B->output(0), B->output(0).get_element_type());
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::Convert>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::Convert>(optimized_f), 0);

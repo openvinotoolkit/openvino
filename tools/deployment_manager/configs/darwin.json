@@ -20,12 +20,13 @@
         "runtime/lib/intel64/libinference_engine_transformations.dylib",
         "runtime/lib/intel64/libinference_engine_preproc.so",
         "runtime/lib/intel64/libinference_engine_c_api.dylib",
-        "runtime/lib/intel64/libHeteroPlugin.so",
-        "runtime/lib/intel64/libMultiDevicePlugin.so",
+        "runtime/lib/intel64/libov_hetero_plugin.so",
+        "runtime/lib/intel64/libov_auto_plugin.so",
         "runtime/lib/intel64/libngraph.dylib",
-        "runtime/lib/intel64/libfrontend_manager.dylib",
-        "runtime/lib/intel64/libir_ngraph_frontend.dylib",
-        "runtime/lib/intel64/libonnx_ngraph_frontend.dylib",
+        "runtime/lib/intel64/libfrontend_common.dylib",
+        "runtime/lib/intel64/libir_ov_frontend.dylib",
+        "runtime/lib/intel64/libonnx_ov_frontend.dylib",
+        "runtime/lib/intel64/libpaddlepaddle_ov_frontend.dylib",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]

@@ -17,7 +17,6 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
             inference_engine_lp_transformations
-            frontend_manager
             ${OpenCV_LIBRARIES}
         ADD_CPPLINT
         DEPENDENCIES

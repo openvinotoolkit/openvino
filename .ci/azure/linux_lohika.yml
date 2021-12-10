@@ -60,8 +60,6 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
     displayName: 'Make dir'
 
   - checkout: self
@@ -88,12 +86,12 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # For running PaddlePaddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddlepaddle/requirements_dev.txt
       # For running ONNX frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
       # For MO unit tests
-      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
-      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
@@ -120,7 +118,7 @@ jobs:
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
-        -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
+        -DENABLE_OV_ONNX_FRONTEND=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
@@ -128,7 +126,7 @@ jobs:
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ls -alR $(REPO_DIR)/inference-engine/temp/
+  - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
   - script: ninja
@@ -149,7 +147,7 @@ jobs:
       set -e
       mkdir $(INSTALL_DIR)/opencv/
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
-      cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
+      cp -R $(REPO_DIR)/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
@@ -160,9 +158,9 @@ jobs:
     displayName: 'Clean build dir'
     continueOnError: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'nGraph UT'
+    displayName: 'OV Core UT'
     continueOnError: false
 
   - task: PublishTestResults@2

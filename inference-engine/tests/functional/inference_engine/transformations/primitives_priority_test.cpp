@@ -50,7 +50,7 @@ TEST(TransformationTests, ConvBiasFusion) {
     for (auto & op : nGraph->get_ops()) {
         if (auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(op)) {
             auto & rtInfo = conv->get_rt_info();
-            rtInfo["PrimitivesPriority"] = std::make_shared<ngraph::VariantWrapper<std::string>>("test");
+            rtInfo[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("test");
             pp[op->get_friendly_name()] = "test";
         }
     }
