@@ -61,17 +61,17 @@ def _check_output(self, param):
     stdout = self._test(param)
     if not stdout:
         return 0
+
     stdout = stdout.split('\n')
-    is_ok = 0
+
+    is_ok = True
     for line in range(len(stdout)):
-        if re.match("\\d+ +\\d+.\\d+$", stdout[line].replace('[ INFO ]', '').strip()) is not None:
-            if is_ok == 0:
-                is_ok = True
+        if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
             top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
-            top1 = re.sub("\D", "", top1)
+            top1 = re.sub('\\D', '', top1)
             if '215' not in top1:
                 is_ok = False
-                log.info("Detected class {}".format(top1))
+                log.error("Expected class 215, Detected class {}".format(top1))
             break
-    assert is_ok, "Wrong top1 class"
+    assert is_ok, 'Wrong top1 class'
     log.info('Accuracy passed')
