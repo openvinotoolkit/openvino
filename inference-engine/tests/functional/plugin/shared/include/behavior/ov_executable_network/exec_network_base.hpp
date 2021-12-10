@@ -73,7 +73,7 @@ protected:
     std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
 };
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
@@ -92,7 +92,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreat
 
 TEST_P(OVExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    auto execGraph = execNet.get_runtime_function();
+    auto execGraph = execNet.get_runtime_model();
     EXPECT_NE(execGraph, nullptr);
 }
 
@@ -157,8 +157,8 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
     std::vector<ov::runtime::ExecutableNetwork> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
-        EXPECT_NE(nullptr, vec[i].get_runtime_function());
-        EXPECT_NE(vec.begin()->get_runtime_function(), vec[i].get_runtime_function());
+        EXPECT_NE(nullptr, vec[i].get_runtime_model());
+        EXPECT_NE(vec.begin()->get_runtime_model(), vec[i].get_runtime_model());
     }
 }
 
@@ -201,10 +201,10 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
-    std::shared_ptr<const ov::Function> execGraph;
+    std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    EXPECT_NO_THROW(execGraph = execNet.get_runtime_function());
+    EXPECT_NO_THROW(execGraph = execNet.get_runtime_model());
     std::map<std::string, int> originalLayersMap;
     for (const auto& layer : function->get_ops()) {
         originalLayersMap[layer->get_friendly_name()] = 0;
@@ -220,10 +220,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-
-            return value->get();
+            return it->second.as<std::string>();
         };
 
         // Each layer from the execGraphInfo network must have PM data option set
@@ -254,10 +251,10 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
-    std::shared_ptr<const ov::Function> execGraph;
+    std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    EXPECT_NO_THROW(execGraph = execNet.get_runtime_function());
+    EXPECT_NO_THROW(execGraph = execNet.get_runtime_model());
     std::map<std::string, int> originalLayersMap;
     for (const auto& layer : function->get_ops()) {
         originalLayersMap[layer->get_friendly_name()] = 0;
@@ -274,10 +271,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-
-            return value->get();
+            return it->second.as<std::string>();
         };
 
         // At least one layer in the topology should be executed and have valid perf counter value

@@ -631,26 +631,26 @@ public:
         return false;
     }
 
-    std::shared_ptr<ov::Function> convert(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override {
         m_stat.m_convert_model++;
-        return std::make_shared<ov::Function>(ov::NodeVector{}, ov::ParameterVector{});
+        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    void convert(std::shared_ptr<ov::Function> func) const override {
+    void convert(std::shared_ptr<ov::Model> func) const override {
         m_stat.m_convert++;
     }
 
-    std::shared_ptr<ov::Function> convert_partially(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> convert_partially(InputModel::Ptr model) const override {
         m_stat.m_convert_partially++;
-        return std::make_shared<ov::Function>(ov::NodeVector{}, ov::ParameterVector{});
+        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    std::shared_ptr<ov::Function> decode(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> decode(InputModel::Ptr model) const override {
         m_stat.m_decode++;
-        return std::make_shared<ov::Function>(ov::NodeVector{}, ov::ParameterVector{});
+        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    void normalize(std::shared_ptr<ov::Function> function) const override {
+    void normalize(std::shared_ptr<ov::Model> function) const override {
         m_stat.m_normalize++;
     }
 

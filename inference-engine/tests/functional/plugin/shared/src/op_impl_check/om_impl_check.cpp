@@ -35,13 +35,13 @@ void OpImplCheckTest::run() {
 }
 
 void OpImplCheckTest::SetUp() {
-    std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>> funcInfo;
+    std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
     std::tie(funcInfo, targetDevice, configuration) = this->GetParam();
     function = funcInfo.second;
 }
 
 std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj) {
-    std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>> funcInfo;
+    std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
     std::string targetDevice;
     std::map<std::string, std::string> config;
     std::tie(funcInfo, targetDevice, config) = obj.param;

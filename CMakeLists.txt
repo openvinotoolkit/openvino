@@ -49,6 +49,7 @@ foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
     unset(${component} CACHE)
 endforeach()
+unset(openvino_export_components CACHE)
 
 #
 # Build

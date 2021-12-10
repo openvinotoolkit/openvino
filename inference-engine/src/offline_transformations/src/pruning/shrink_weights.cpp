@@ -15,7 +15,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ShrinkWeights, "ShrinkWeights", 0);
 
-bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     int64_t reduced_weights_count{0};
     int64_t total_weights_count{0};
     for (const auto & node : f->get_ordered_ops()) {

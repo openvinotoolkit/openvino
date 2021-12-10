@@ -15,7 +15,7 @@ template <typename VT>
 void regclass_graph_Output(py::module m, std::string typestring)
 {
     auto pyclass_name = py::detail::c_str((typestring + std::string("Output")));
-    auto docs = py::detail::c_str((std::string("openvino.impl.") + typestring + std::string("Output wraps ov::Output<") + typestring + std::string(" ov::Node >")));
+    auto docs = py::detail::c_str((std::string("openvino.runtime.") + typestring + std::string("Output wraps ov::Output<") + typestring + std::string(" ov::Node >")));
     py::class_<ov::Output<VT>, std::shared_ptr<ov::Output<VT>>> output(m,
                                                                        pyclass_name,
                                                                        py::dynamic_attr());

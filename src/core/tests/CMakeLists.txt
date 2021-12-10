@@ -318,6 +318,7 @@ set(SRC
     visitors/op/exp.cpp
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
@@ -483,23 +484,9 @@ endif()
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/aliased_output.in.cpp
-    backend/api.in.cpp
-    backend/auto_broadcast.in.cpp
-    backend/builder_reduce_ops_opset1.in.cpp
-    backend/dyn_reshape.in.cpp
-    backend/dynamic.in.cpp
-    backend/experimental_detectron_prior_grid.in.cpp
-    backend/function_name.in.cpp
     backend/interpolate.in.cpp
-    backend/multiple_backends.in.cpp
-    backend/multiple_result.in.cpp
-    backend/node_name.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
-    backend/unhandled_op.in.cpp
-    backend/validate_call.in.cpp
-    backend/zero_sized.in.cpp
 )
 
 if (ENABLE_OV_ONNX_FRONTEND)
