@@ -78,12 +78,6 @@ LIB_INSTALL_CFG = {
         'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
-    'ngraph_libs': {
-        'name': 'ngraph',
-        'prefix': 'libs.core',
-        'install_dir': OV_RUNTIME_LIBS_DIR,
-        'rpath': LIBS_RPATH,
-    },
     'tbb_libs': {
         'name': 'tbb',
         'prefix': 'libs.tbb',
