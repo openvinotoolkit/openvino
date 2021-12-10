@@ -596,6 +596,9 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
+
+    errorPrefix = "CPU deformable convolution with name '" + getName() + "'";
+
     auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(op);
     if (defConvNodeBase == nullptr)
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
@@ -627,7 +630,6 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
 }
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
-    std::string errorPrefix = "DeformableConvolution layer with name '" + getName() + "' ";
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
         IE_THROW() << errorPrefix << "has incorrect number of input edges";
     if (getChildEdges().empty())
@@ -932,9 +934,29 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
 }
 
 void MKLDNNDeformableConvolutionNode::prepareParams() {
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
+    auto& weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
+
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " did not allocate destination memory";
+    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " did not allocate input memory";
+    if (!offMemPtr || !offMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " did not allocate offsets shape memory";
+    if (!weiMemPtr || !weiMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " did not allocate weights memory";
+
+    if (getOriginalInputsNumber() > 3) {
+        auto& modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
+        if (!modMemPtr || !modMemPtr->GetPrimitivePtr())
+            IE_THROW() << errorPrefix << " did not allocate modulations memory";
+    }
+
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << errorPrefix << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();
