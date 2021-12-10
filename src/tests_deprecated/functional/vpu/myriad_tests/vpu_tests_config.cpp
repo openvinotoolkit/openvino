@@ -10,7 +10,7 @@
 namespace vpu {
 namespace tests {
 
-const char* pluginName      () { return "myriadPlugin"; }
+const char* pluginName      () { return "ov_intel_vpu_plugin"; }
 const char* pluginNameShort () { return "myriad"; }
 const char* deviceName      () { return "MYRIAD"; }
 bool        deviceForceReset() { return true; }
