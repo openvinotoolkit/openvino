@@ -71,6 +71,8 @@ from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import ProfilingInfo
 from openvino.pyopenvino import get_version
+from openvino.pyopenvino import get_batch
+from openvino.pyopenvino import set_batch
 
 # Import opsets
 from openvino.runtime import opset1
