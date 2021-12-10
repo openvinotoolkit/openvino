@@ -570,14 +570,14 @@ def test_strides_iteration_methods():
     strides = Strides(data)
 
     assert len(strides) == data.size
-    assert np.equal([x for x in strides], data).all()
+    assert np.equal(strides, data).all()
     assert np.equal([strides[i] for i in range(data.size)], data).all()
 
     data2 = np.array([5, 6, 7])
     for i in range(data2.size):
         strides[i] = data2[i]
 
-    assert np.equal([x for x in strides], data2).all()
+    assert np.equal(strides, data2).all()
 
 
 def test_axis_vector_iteration_methods():
@@ -585,14 +585,14 @@ def test_axis_vector_iteration_methods():
     axisVector = AxisVector(data)
 
     assert len(axisVector) == data.size
-    assert np.equal([x for x in axisVector], data).all()
+    assert np.equal(axisVector, data).all()
     assert np.equal([axisVector[i] for i in range(data.size)], data).all()
 
     data2 = np.array([5, 6, 7])
     for i in range(data2.size):
         axisVector[i] = data2[i]
 
-    assert np.equal([x for x in axisVector], data2).all()
+    assert np.equal(axisVector, data2).all()
 
 
 def test_coordinate_iteration_methods():
@@ -600,14 +600,14 @@ def test_coordinate_iteration_methods():
     coordinate = Coordinate(data)
 
     assert len(coordinate) == data.size
-    assert np.equal([x for x in coordinate], data).all()
+    assert np.equal(coordinate, data).all()
     assert np.equal([coordinate[i] for i in range(data.size)], data).all()
 
     data2 = np.array([5, 6, 7])
     for i in range(data2.size):
         coordinate[i] = data2[i]
 
-    assert np.equal([x for x in coordinate], data2).all()
+    assert np.equal(coordinate, data2).all()
 
 
 def test_coordinate_diff_iteration_methods():
@@ -615,14 +615,14 @@ def test_coordinate_diff_iteration_methods():
     coordinateDiff = CoordinateDiff(data)
 
     assert len(coordinateDiff) == data.size
-    assert np.equal([x for x in coordinateDiff], data).all()
+    assert np.equal(coordinateDiff, data).all()
     assert np.equal([coordinateDiff[i] for i in range(data.size)], data).all()
 
     data2 = np.array([5, 6, 7])
     for i in range(data2.size):
         coordinateDiff[i] = data2[i]
 
-    assert np.equal([x for x in coordinateDiff], data2).all()
+    assert np.equal(coordinateDiff, data2).all()
 
 def test_layout():
     layout = ov.Layout("NCWH")
