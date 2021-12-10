@@ -392,7 +392,7 @@ void CNNLayerCreator::on_adapter(const std::string& name,
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::PartialShape>>(&adapter)) {
         std::string dims;
         auto shape = a->get();
-        if (!shape.rank().is_dynamic()) {
+        if (shape.rank().is_dynamic()) {
             IE_THROW() << "Error converting ngraph to CNN network. Dynamic rank is not supported.";
         }
         for (int64_t i = 0; i < shape.rank().get_length(); i++) {
