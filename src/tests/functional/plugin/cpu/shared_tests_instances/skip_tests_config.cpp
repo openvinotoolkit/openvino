@@ -166,19 +166,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Failure happened on win and macos for current seeds.
         R"(.*CTCLossLayerTest.*CMR=1.*)",
         R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
-<<<<<<< HEAD
-        // Issue:
-        R"(.*smoke_GroupDeconv_2D_DW_BF16.*_PB=\(0\.0\)_PE=\(0\.0\)_D=\(1\.1\)_OP=\(\)_O=32_G=32_.*=Multiply\(PerChannel\).Add\(PerChannel\).*)",
-        R"(.*smoke_Deconv_2D_Blocked_FP32.*PRC=f32_.*_S=\(1.1\)_PB=\(0.0\)_PE=\(0.0\)_D=\(1.1\)_OP=\(\)_O=64_.*\(\(15.15\)\)_\(\(9.10\)\)_\(\(9.9\)\).*=Multiply\(PerChannel\).Add\(PerChannel\).*)",
-        R"(.*smoke_Deconv_3D_Blocked_FP32.*PRC=f32_.*_S=\(1.1.1\)_PB=\(0.0.0\)_PE=\(0.0.0\)_D=\(1.1.1\)_OP=\(\)_O=32_.*\(\(7.7.7\)\)_\(\(7.9.7\)\).*=Multiply\(PerChannel\).Add\(PerChannel\).*)",
-        R"(.*smoke_GroupDeconv_2D_Blocked_FP32.*PRC=f32_.*_S=\(1.1\)_PB=\(0.0\)_PE=\(0.0\)_D=\(1.1\)_OP=\(\)_O=64_G=2_.*\(\(15.15\)\)_\(\(9.10\)\)_\(\(9.9\)\).*=Multiply\(PerChannel\).Add\(PerChannel\).*)",
-=======
-        // Issue: 72151
-        R"(.*smoke_ROIAlignLayoutTest.*)",
         // Issue: 71756
         R"(.*Deconv_.*D_(Blocked|DW|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw16c|nCdhw16c)_outFmts=(nChw16c|nCdhw16c)_primitive=jit_avx512_.*Fused=Multiply\(PerChannel\)\.Add\(PerChannel\).*)",
         R"(.*smoke_GroupDeconv_(2|3)D_Blocked_BF16.*S=(\(2\.2\)|\(2\.2\.2\))_PB=(\(0\.0\)|\(0\.0\.0\))_PE=(\(0\.0\)|\(0\.0\.0\))_D=(\(1\.1\)|\(1\.1\.1\))_.*_O=64_G=4.*)"
->>>>>>> 1. Switched to new shape infer
     };
 
 #define FIX_62820 0

@@ -237,9 +237,9 @@ void MKLDNNDeconvolutionNode::initPadding(std::shared_ptr<ngraph::Node> op, cons
     }
 }
 
-VectorDims MKLDNNDeconvolutionNode::computeOptInDummyShape(const std::vector<int32_t>& outSpDims,
-                                                           const ov::CoordinateDiff& pb,
-                                                           const ov::CoordinateDiff& pe) const {
+VectorDims MKLDNNDeconvolutionNode::computeOptimalInDummyShape(const std::vector<int32_t>& outSpDims,
+                                                               const ov::CoordinateDiff& pb,
+                                                               const ov::CoordinateDiff& pe) const {
     auto inputDims = inShape.getStaticDims();
     const auto& weightDims = getWeightDims();
     const size_t wghOffset = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
@@ -299,7 +299,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
             }
             ov::CoordinateDiff pb = autoPad ? ov::CoordinateDiff(paddingL.size(), 0) : paddingL;
             ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
-            inShape = Shape(computeOptInDummyShape(currentOutSpatialDims, pb, pe));
+            inShape = Shape(computeOptimalInDummyShape(currentOutSpatialDims, pb, pe));
         }
         initPadding(opToShapeInfer, inShape, currentOutSpatialDims);
         outShape = Shape(shapeInferInternal(inShape.getStaticDims(), currentOutSpatialDims));

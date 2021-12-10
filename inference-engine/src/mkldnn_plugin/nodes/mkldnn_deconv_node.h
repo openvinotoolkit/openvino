@@ -130,9 +130,9 @@ private:
     void initPadding(std::shared_ptr<ngraph::Node> op, const Shape &inShape, const std::vector<int32_t>& outSpDims);
     void initPaddingR(const Shape &inShape, const Shape &outShape);
     std::vector<int32_t> get3rdInputData() const;
-    VectorDims computeOptInDummyShape(const std::vector<int32_t>& outSpDims,
-                                      const ov::CoordinateDiff& pb,
-                                      const ov::CoordinateDiff& pe) const;
+    VectorDims computeOptimalInDummyShape(const std::vector<int32_t>& outSpDims,
+                                          const ov::CoordinateDiff& pb,
+                                          const ov::CoordinateDiff& pe) const;
 
     DefaultDeconvDescs createDescriptorInternalDefault(const mkldnn::memory::desc& in_candidate,
                                                        const mkldnn::memory::desc& wgh_candidate,
