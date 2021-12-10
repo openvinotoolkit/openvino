@@ -29,6 +29,9 @@ private:
         }
     }
 
+protected:
+    std::string _pluginInternalName = "GNA";
+
 public:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
                                                 const InferenceEngine::CNNNetwork &network,
@@ -67,7 +70,12 @@ public:
     }
 
     std::string GetName() const noexcept override {
-        return GetCurrentPlugin()->GetName();
+        auto ptr = plgPtr.lock();
+        if (ptr == nullptr) {
+            return _pluginInternalName;
+        } else {
+            return ptr->GetName();
+        }
     }
 
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
