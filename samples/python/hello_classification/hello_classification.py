@@ -8,8 +8,7 @@ import sys
 
 import cv2
 import numpy as np
-from openvino.runtime import Core, Tensor, Layout
-from openvino.runtime.impl import Type
+from openvino.runtime import Core, Tensor, Layout, Type
 from openvino.preprocess import PrePostProcessor, ResizeAlgorithm
 
 
@@ -74,7 +73,7 @@ def main():
     preproc.input().tensor() \
            .set_element_type(image_tensor.element_type) \
            .set_layout(tensor_layout) \
-           .set_spatial_static_shape(h, w)
+           .set_spatial_static_shape(h, w) # noqa: ECE001, N400
     # 2) Adding explicit preprocessing steps:
     # - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
     # - apply linear resize from tensor spatial dims to model spatial dims
