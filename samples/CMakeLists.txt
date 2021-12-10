@@ -70,21 +70,3 @@ install(DIRECTORY python/
         DESTINATION samples/python
         USE_SOURCE_PERMISSIONS
         COMPONENT python_samples)
-
-# install scripts to run samples fast
-
-ie_cpack_add_component(demo_scripts DEPENDS core)
-
-if(UNIX)
-    install(DIRECTORY scripts/
-            DESTINATION samples/scripts
-            COMPONENT demo_scripts
-            USE_SOURCE_PERMISSIONS
-            PATTERN *.bat EXCLUDE)
-elseif(WIN32)
-    install(DIRECTORY scripts/
-            DESTINATION samples/scripts
-            COMPONENT demo_scripts
-            USE_SOURCE_PERMISSIONS
-            PATTERN *.sh EXCLUDE)
-endif()
