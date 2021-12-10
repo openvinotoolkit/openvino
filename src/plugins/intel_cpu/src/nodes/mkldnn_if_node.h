@@ -48,9 +48,12 @@ private:
         virtual void execute(mkldnn::stream& strm);
 
     private:
-        mkldnn::reorder reorder;
+        static void* get_ptr(mkldnn::memory& prim);
+
         mkldnn::memory mem_holder_src;
         mkldnn::memory mem_holder_dst;
+
+        ptrdiff_t size;
     };
 
     MKLDNNExtensionManager::Ptr ext_mng;
@@ -74,7 +77,7 @@ private:
     // after subgraph inference we should redefine out memory of 'If'
     bool new_state = false;
 
-    bool condition;
+    uint8_t condition;
     const std::shared_ptr<ov::Node> ovOp;
 };
 

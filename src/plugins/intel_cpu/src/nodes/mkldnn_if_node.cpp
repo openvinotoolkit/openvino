@@ -4,15 +4,17 @@
 
 #include "mkldnn_if_node.h"
 
-#include <mkldnn_extension_utils.h>
-#include <ie_ngraph_utils.hpp>
-#include <transformations/utils/utils.hpp>
+#include "mkldnn_extension_utils.h"
+#include "ie_ngraph_utils.hpp"
+#include "transformations/utils/utils.hpp"
+#include "common/memory_desc_wrapper.hpp"
 
 #include <map>
 #include <string>
 #include <vector>
 
 using namespace MKLDNNPlugin;
+
 
 MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
     // we should redefine 'to' memory for dynamism
@@ -23,11 +25,24 @@ MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MK
 
     mem_holder_src = from->GetPrimitive();
     mem_holder_dst = to->GetPrimitive();
-    reorder = {mem_holder_src, mem_holder_dst};
+
+    if (mem_holder_src.get_desc().get_size() != mem_holder_dst.get_desc().get_size())
+        IE_THROW() << "PortMapHelper of 'If' has incorrect input and output memories for copying!";
+    if (mem_holder_src.get_desc().data_type() != mem_holder_dst.get_desc().data_type())
+        IE_THROW() << "PortMapHelper of 'If' has different data types of input and output memories for copying!";
+
+    size = mem_holder_src.get_desc().get_size();
 }
 
 void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
-    reorder.execute(strm, mem_holder_src, mem_holder_dst);
+    std::memcpy(get_ptr(mem_holder_dst), get_ptr(mem_holder_src), size);
+}
+
+void* MKLDNNIfNode::PortMapHelper::get_ptr(mkldnn::memory& prim) {
+    auto ptr = static_cast<uint8_t*>(prim.get_data_handle());
+    auto md = prim.get_desc().data;
+    mkldnn::impl::memory_desc_wrapper wrapper(md);
+    return ptr + wrapper.offset0() * wrapper.data_type_size();
 }
 
 bool MKLDNNIfNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -171,7 +186,7 @@ void MKLDNNIfNode::createPrimitive() {
 }
 
 bool MKLDNNIfNode::needPrepareParams() const {
-    return MKLDNNNode::needPrepareParams() || condition != (reinterpret_cast<const bool*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+    return MKLDNNNode::inputShapesDefined() || condition != (reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
 }
 
 void MKLDNNIfNode::prepareParams() {
@@ -179,7 +194,7 @@ void MKLDNNIfNode::prepareParams() {
 
     if (isDynamic) {
         new_state = true;
-        condition = (reinterpret_cast<const bool*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+        condition = (reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
         prepareBeforeMappers(condition, eng);
     } else {
         prepareBeforeMappers(true, eng);
@@ -217,7 +232,7 @@ void MKLDNNIfNode::prepareAfterMappers(const bool isThen, const dnnl::engine& en
 
 void MKLDNNIfNode::execute(mkldnn::stream strm) {
     if (!isDynamic)
-        condition = (reinterpret_cast<const bool*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+        condition = (reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
