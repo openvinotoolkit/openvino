@@ -171,7 +171,7 @@ void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
     auto thenOp_0 = std::make_shared<ov::op::v3::NonZero>(p1, ov::element::i32);
     auto thenOp_1 = std::make_shared<ov::op::v0::Convert>(thenOp_0, inType);
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp_1);
-    auto thenBody = std::make_shared<ov::Function>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
+    auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
 
     // else body
     auto add_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, std::vector<float>{ 2 });
@@ -179,7 +179,7 @@ void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
     auto elseOp_1 = std::make_shared<ov::op::v3::NonZero>(p2, ov::element::i32);
     auto elseOp_2 = std::make_shared<ov::op::v0::Convert>(elseOp_1, inType);
     auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp_2);
-    auto elseBody = std::make_shared<ov::Function>(ov::OutputVector{elseRes}, ov::ParameterVector{p2});
+    auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{elseRes}, ov::ParameterVector{p2});
 
     auto ifOp = std::make_shared<ov::op::v8::If>(params[1]);
     ifOp->set_then_body(thenBody);
@@ -187,8 +187,8 @@ void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
     ifOp->set_input(params[0], p1, p2);
     auto ifRes = ifOp->set_output(thenRes, elseRes);
 
-    function = std::make_shared<ov::Function>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(ifOp)},
-                                              params, "SimpleIfNotConstConditionAndInternalDynamismTest");
+    function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(ifOp)},
+                                           params, "SimpleIfNotConstConditionAndInternalDynamismTest");
 }
 
 } // namespace SubgraphTestsDefinitions
