@@ -26,9 +26,6 @@ endif()
 
 ie_faster_build(interpreter_backend UNITY)
 
-ie_add_vs_version_file(NAME interpreter_backend
-                       FILEDESCRIPTION "OpenVINO interpreter backend")
-
 ie_add_api_validator_post_build_step(TARGET interpreter_backend)
 
 target_compile_definitions(interpreter_backend
@@ -44,18 +41,19 @@ target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_
 file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 add_clang_format_target(interpreter_backend_clang FOR_SOURCES ${all_backends_src})
 
-# ie_add_api_validator_post_build_step(TARGET interpreter_backend)
-# 
-# target_compile_definitions(interpreter_backend PRIVATE INTERPRETER_BACKEND_EXPORTS)
-# target_link_libraries(interpreter_backend PUBLIC ngraph_backend
-#                                           PRIVATE pugixml::static ov_shape_inference ngraph_s
-#                                                   openvino::util ngraph_reference)
-# 
-# install(TARGETS interpreter_backend
-#         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-#         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
-# if(NOT BUILD_SHARED_LIBS)
-#     install(TARGETS interpreter_backend
-#             RUNTIME DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-#             LIBRARY DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
-# endif()
+ov_install_static_lib(interpreter_backend tests)
+
+install(TARGETS interpreter_backend
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
+        ARCHIVE DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
+if(NOT BUILD_SHARED_LIBS)
+    install(TARGETS interpreter_backend
+            RUNTIME DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
+            ARCHIVE DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
+endif()
+
+
+# developer package
+openvino_developer_export_targets(COMPONENT core TARGETS interpreter_backend)
