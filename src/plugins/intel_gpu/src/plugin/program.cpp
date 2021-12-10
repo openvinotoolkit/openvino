@@ -199,7 +199,12 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         return {};
     } else {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
-        auto program = cldnn::program::build_program(*m_engine, *m_topology, options);
+        cldnn::program::ptr program;
+        try {
+            program = cldnn::program::build_program(*m_engine, *m_topology, options);
+        } catch (std::exception& e) {
+            IE_THROW() << "cldnn program build failed!" << e.what();
+        }
         CleanupBuild();
 
         return program;

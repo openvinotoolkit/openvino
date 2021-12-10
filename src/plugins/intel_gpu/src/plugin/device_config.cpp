@@ -252,7 +252,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             }
         } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0) {
             if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0) {
-                throughput_streams = 2;
+                throughput_streams = GetDefaultNStreamsForThroughputMode();
             } else {
                 int val_i;
                 try {
