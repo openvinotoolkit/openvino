@@ -274,8 +274,7 @@ Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& 
     return res;
 }
 
-std::vector<int64_t> find_permutation(const Layout& src_layout, const PartialShape& src_shape, const Layout& dst) {
-    auto rank = src_shape.rank();
+std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank, const Layout& dst) {
     auto check_trivial = [](std::vector<int64_t>& res) -> std::vector<int64_t>& {
         size_t i = 0;
         while (i < res.size() && res[i] == i) {
@@ -327,21 +326,10 @@ std::vector<int64_t> find_permutation(const Layout& src_layout, const PartialSha
     auto dst_static = to_static(dst, rank);
     OPENVINO_ASSERT(src_static.m_left_size == dst_static.m_left_size,
                     "Conversion is not supported for layouts with different sizes");
-    OPENVINO_ASSERT(rank.is_dynamic() || src_static.m_left_size == rank.get_length(),
-                    "Conversion layout ",
-                    src_layout.to_string(),
-                    " <-> ",
-                    dst.to_string(),
-                    " failure. Layout is not consistent with input shape ",
-                    src_shape,
-                    ". Layout length ",
-                    src_static.m_left_size,
-                    " shall match with input shape rank ",
-                    rank.get_length());
     std::vector<int64_t> res(src_static.m_left_size, -1);
     if (src_static.m_names.size() > dst_static.m_names.size()) {
         // find inverted permutation from least specified layout to most one
-        auto inverted = find_permutation(dst_static, src_shape, src_static);
+        auto inverted = find_permutation(dst_static, rank, src_static);
         if (inverted.empty()) {
             return {};
         }

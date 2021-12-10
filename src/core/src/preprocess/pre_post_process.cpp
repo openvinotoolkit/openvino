@@ -399,7 +399,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
             param->get_layout() != input->get_tensor_data()->get_layout()) {
             // Find transpose between model and tensor layouts and update tensor shape
             auto net_to_tensor =
-                layout::find_permutation(param->get_layout(), net_shape, input->get_tensor_data()->get_layout());
+                layout::find_permutation(param->get_layout(), net_shape.rank(), input->get_tensor_data()->get_layout());
             if (!net_to_tensor.empty()) {
                 std::vector<ov::Dimension> dims(new_param_shape.size());
                 std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
