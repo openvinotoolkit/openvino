@@ -71,8 +71,9 @@ void shape_inference(ov::Node* op,
             ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset4::Mish>(op) ||
             ov::is_type<ov::opset2::MVN>(op) || ov::is_type<ov::opset6::MVN>(op) ||
             ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset1::Relu>(op) ||
-            ov::is_type<ov::opset4::Swish>(op) || ov::is_type<ov::opset1::Softmax>(op) ||
-            ov::is_type<ov::opset1::Elu>(op) || ov::is_type<ov::opset5::Round>(op)) {
+            ov::is_type<ov::opset4::Swish>(op) || ov::is_type<ov::opset1::Elu>(op) ||
+            ov::is_type<ov::opset1::Softmax>(op) || ov::is_type<ov::opset8::Softmax>(op) ||
+            ov::is_type<ov::opset5::Round>(op)) {
         copy_shape_infer(node, input_shapes, output_shapes);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
             ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) || ov::is_type<ov::op::util::BinaryElementwiseLogical>(op)) {

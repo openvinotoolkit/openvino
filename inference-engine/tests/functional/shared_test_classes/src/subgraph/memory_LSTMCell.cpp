@@ -254,6 +254,16 @@ namespace SubgraphTestsDefinitions {
         function = std::make_shared<Function>(final_reshape, input_parameter, "PureTI");
     }
 
+    void MemoryLSTMCellTest::LoadNetwork() {
+        LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+        inferRequest = executableNetwork.CreateInferRequest();
+    }
+
+    void MemoryLSTMCellTest::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
+    }
+
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         if (transformation != ngraph::helpers::MemoryTransformation::NONE) {

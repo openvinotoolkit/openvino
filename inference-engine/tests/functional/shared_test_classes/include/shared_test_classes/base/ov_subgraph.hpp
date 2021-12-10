@@ -39,7 +39,7 @@ protected:
     virtual void configure_model();
     virtual void compile_model();
     virtual void init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);
-    virtual void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
+    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void infer();
     virtual void validate();
 
@@ -61,7 +61,7 @@ protected:
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
 
-    LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();;
+    LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
 
 private:
     std::vector<ov::runtime::Tensor> calculate_refs();
