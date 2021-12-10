@@ -43,7 +43,7 @@ private:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MKLDNNMemoryPtr& from, const MKLDNNMemoryPtr& to, const bool memcpy, const mkldnn::engine& eng);
+        PortMapHelper(const MKLDNNMemoryPtr& from, const MKLDNNMemoryPtr& to, const mkldnn::engine& eng);
         virtual ~PortMapHelper() = default;
         virtual void execute(mkldnn::stream& strm);
 

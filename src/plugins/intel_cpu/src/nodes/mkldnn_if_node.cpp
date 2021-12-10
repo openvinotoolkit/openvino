@@ -13,7 +13,7 @@
 
 using namespace MKLDNNPlugin;
 
-MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const bool memcpy, const mkldnn::engine& eng) {
+MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
     // we should redefine 'to' memory for dynamism
     const auto &currDesc = to->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != from->getStaticDims()) {
