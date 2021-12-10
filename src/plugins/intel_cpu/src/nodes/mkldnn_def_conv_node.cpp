@@ -632,17 +632,17 @@ void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << "has incorrect number of input edges";
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges";
-    if (getInputShapeAtPort(0).getRank() != 4) {
+    if (getInputShapeAtPort(DATA_ID).getRank() != 4) {
         IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
     }
-    if (getInputShapeAtPort(1).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+    if (getInputShapeAtPort(OFF_ID).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(OFF_ID).getRank();
     }
-    if (getInputShapeAtPort(2).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(2).getRank();
+    if (getInputShapeAtPort(WEI_ID).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(WEI_ID).getRank();
     }
-    if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+    if (getOutputShapeAtPort(DATA_ID).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(DATA_ID).getRank();
     }
 }
 
@@ -672,9 +672,14 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     impl_desc_type impl_type;
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
 
-    if (group != 1 || (((getInputShapeAtPort(0).getDims()[1] / group) % simd_w != 0)
-    || ((getOutputShapeAtPort(0).getDims()[1] / group) % simd_w != 0))) {
+    if (getInputShapeAtPort(WEI_ID).getDims()[1] == Shape::UNDEFINED_DIM ||
+            getInputShapeAtPort(WEI_ID).getDims()[0] == Shape::UNDEFINED_DIM ||
+            group != 1 ||
+            (getInputShapeAtPort(WEI_ID).getDims()[1] % simd_w != 0)                    // in_channels_per_gr !% simd_w
+            || ((getInputShapeAtPort(WEI_ID).getDims()[0] / group) % simd_w != 0)) {    // out_channels_per_gr !% simd_w
         enforceRef = true;
+    } else {
+        enforceRef = false;
     }
 
     if (enforceRef) {
@@ -694,43 +699,43 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
         auto weiFormat = mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
-        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0),
+        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
                                                                               memory::data_type::f32, dataFormat);
-        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1),
+        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID),
                                                                               memory::data_type::f32, offFormat);
-        auto& wDims = getInputShapeAtPort(2).getStaticDims();
+        auto& wDims = getInputShapeAtPort(WEI_ID).getStaticDims();
         if (group > 1 && wDims.size() != 5) {
             auto new_dims = InferenceEngine::SizeVector({group, div_up(wDims[0], group)});
             for (int i = 1; i < wDims.size(); i++) {
                 new_dims.push_back(wDims[i]);
             }
-            config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2),
+            config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID),
                                                                                  memory::data_type::f32, weiFormat);
         } else {
-            config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2),
+            config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID),
                                                                                  memory::data_type::f32, weiFormat);
         }
 
         if (inputsNumber > 3) {
-            config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(3),
+            config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID),
                                                                                  memory::data_type::f32, memory::format_tag::nchw);
         }
-        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0),
+        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID),
                                                                               memory::data_type::f32, dataFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     } else {
         // reference implementation
-        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), memory::data_type::f32,
+        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID), memory::data_type::f32,
                                                                memory::format_tag::nchw);
-        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1), memory::data_type::f32,
+        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID), memory::data_type::f32,
                                                                memory::format_tag::nchw);
-        config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2), memory::data_type::f32,
+        config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID), memory::data_type::f32,
                                                                memory::format_tag::oihw);
         if (inputsNumber > 3) {
-            config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(3), memory::data_type::f32,
+            config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID), memory::data_type::f32,
                                                                                  memory::format_tag::nchw);
         }
-        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), memory::data_type::f32,
+        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID), memory::data_type::f32,
                                                                 memory::format_tag::nchw);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     }

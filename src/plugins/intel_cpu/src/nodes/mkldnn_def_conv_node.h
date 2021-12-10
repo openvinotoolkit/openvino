@@ -110,6 +110,10 @@ private:
                           const std::vector<size_t>& src_strides, const std::vector<size_t>& dst_strides);
     void prepareParams() override;
     void executeDynamicImpl(mkldnn::stream strm) override;
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t OFF_ID = 1;
+    static constexpr size_t WEI_ID = 2;
+    static constexpr size_t MOD_ID = 3;
 };
 
 }  // namespace MKLDNNPlugin
