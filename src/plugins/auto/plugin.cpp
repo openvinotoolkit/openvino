@@ -137,11 +137,31 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         std::string defaultDeviceID = "";
         DeviceIDParser parsed{deviceName};
-        if (parsed.getDeviceID().empty())
+        std::string deviceid = parsed.getDeviceID();
+        if (deviceid.empty()) {
             defaultDeviceID = getDefaultDeviceID(deviceName);
+            deviceid = defaultDeviceID;
+        }
 
+        std::string fullDeviceName = "";
+        std::string uniqueName = "";
+        if (parsed.getDeviceName() == "GPU") {
+            std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
+                fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+            }
+        }
+
+        if (fullDeviceName.empty()) {
+            uniqueName = parsed.getDeviceName() + "_" + deviceid;
+        } else {
+            uniqueName = fullDeviceName + "_" + deviceid;
+        }
+
+        LOG_DEBUG("deviceName:%s, defaultDeviceID:%s, uniqueName:%s",
+                deviceName.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
         // create meta device
-        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID });
+        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
     }
 
     return metaDevices;
@@ -382,15 +402,12 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to select in " << GetName() <<  " plugin";
     }
-    if (metaDevices.size() == 1) {
-        return metaDevices.at(0);
-    }
 
-    std::vector<DeviceInformation> CPU;
-    std::vector<DeviceInformation> dGPU;
-    std::vector<DeviceInformation> iGPU;
-    std::vector<DeviceInformation> MYRIAD;
-    std::vector<DeviceInformation> VPUX;
+    std::list<DeviceInformation> CPU;
+    std::list<DeviceInformation> dGPU;
+    std::list<DeviceInformation> iGPU;
+    std::list<DeviceInformation> MYRIAD;
+    std::list<DeviceInformation> VPUX;
 
     for (auto& item : metaDevices) {
         if (item.deviceName.find("CPU") == 0) {
@@ -406,96 +423,50 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
             continue;
         }
         if (item.deviceName.find("GPU") == 0) {
-            auto gpuFullDeviceName = GetCore()->GetMetric(item.deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
-            if (gpuFullDeviceName.find("iGPU") != std::string::npos) {
+            auto& gpuUniqueName = item.uniqueName;
+            if (gpuUniqueName.find("iGPU") != std::string::npos) {
                 iGPU.push_back(item);
-            } else if (gpuFullDeviceName.find("dGPU") != std::string::npos) {
+            } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
                 dGPU.push_back(item);
             }
             continue;
         }
     }
 
-    if (CPU.empty() && dGPU.empty() && iGPU.empty() && MYRIAD.empty() && VPUX.empty()) {
-        IE_THROW(NotFound) << "No available device found";
-    }
-
     // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
-    if (!dGPU.empty()) {
-        for (auto&& item : dGPU) {
-            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
-            if (supportNetwork != capability.end()) {
-                return item;
-            }
-        }
-    } else if (!VPUX.empty()) {
-        for (auto&& item : VPUX) {
-            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
-            if (supportNetwork != capability.end()) {
-                return item;
-            }
-        }
-    } else if (!iGPU.empty()) {
-        for (auto&& item : iGPU) {
-            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
-            if (supportNetwork != capability.end()) {
-                return item;
-            }
-        }
-    } else if (!MYRIAD.empty()) {
-        for (auto&& item : MYRIAD) {
-            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
-            if (supportNetwork != capability.end()) {
-                return item;
-            }
-        }
-    }
+    std::list<DeviceInformation>  devices;
+    devices.splice(devices.end(), dGPU);
+    devices.splice(devices.end(), VPUX);
+    devices.splice(devices.end(), iGPU);
+    devices.splice(devices.end(), MYRIAD);
 
-    // If network is FP32 but there is no device support FP32, offload FP32 network to device support FP16.
+    std::list<DeviceInformation> validDevices;
+
+    auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
+        for (auto iter = devices.begin(); iter != devices.end();) {
+            std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
+            if (supportNetwork != capability.end()) {
+                validDevices.push_back(std::move(*iter));
+                devices.erase(iter++);
+                continue;
+            }
+            iter++;
+        }
+    };
+    selectSupportDev(networkPrecision);
+    // If network is FP32, continue to collect the device support FP16 but not support FP32.
     if (networkPrecision == "FP32") {
-        if (!dGPU.empty()) {
-            for (auto&& item : dGPU) {
-                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
-                if (supportNetwork != capability.end()) {
-                    return item;
-                }
-            }
-        } else if (!VPUX.empty()) {
-            for (auto&& item : VPUX) {
-                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
-                if (supportNetwork != capability.end()) {
-                    return item;
-                }
-            }
-        } else if (!iGPU.empty()) {
-            for (auto&& item : iGPU) {
-                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
-                if (supportNetwork != capability.end()) {
-                    return item;
-                }
-            }
-        } else if (!MYRIAD.empty()) {
-            for (auto&& item : MYRIAD) {
-                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
-                if (supportNetwork != capability.end()) {
-                    return item;
-                }
-            }
-        }
+        const std::string f16 = "FP16";
+        selectSupportDev(f16);
     }
+    // add cpu devices if exist.
+    validDevices.splice(validDevices.end(), CPU);
 
-    if (CPU.empty()) {
+    if (validDevices.empty()) {
         IE_THROW() << "Cannot select any device";
     }
-    return CPU[0];
+    return validDevices.front();
 }
 
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
