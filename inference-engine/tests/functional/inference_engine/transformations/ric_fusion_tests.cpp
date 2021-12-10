@@ -9,13 +9,12 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
-#include <transformations/serialize.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <transformations/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -30,21 +29,36 @@ std::shared_ptr<Convolution> create_conv(Output<Node> input, Output<Node> weight
                                          ov::Strides{1, 1});
 }
 
+std::shared_ptr<Constant> create_weights(const Shape & weigts_shape) {
+    std::vector<float> values(ov::shape_size(weigts_shape));
+    float cur_value = 0.01;
+    for (auto & value : values) {
+        value = cur_value;
+        cur_value += 0.01;
+    }
+    return Constant::create(element::f32, weigts_shape, values);
+}
+
 std::shared_ptr<Convolution> create_conv(Output<Node> input, const Shape & weigts_shape) {
-    auto weights = Constant::create(element::f32, weigts_shape, {0.1});
-    return create_conv(input, weights);
+    return create_conv(input, create_weights(weigts_shape));
 }
 
 std::shared_ptr<GroupConvolution> create_group_conv(Output<Node> input, const Shape & weigts_shape) {
-    auto weights = Constant::create(element::f32, weigts_shape, {0.1});
-    return std::make_shared<GroupConvolution>(input, weights, ov::Strides{1, 1},
+    return std::make_shared<GroupConvolution>(input, create_weights(weigts_shape), ov::Strides{1, 1},
+                                              ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
+                                              ov::Strides{1, 1});
+}
+
+std::shared_ptr<GroupConvolution> create_group_conv_with_gather(Output<Node> input, const Shape & weigts_shape, const std::vector<int64_t> & order) {
+    auto gather = std::make_shared<Gather>(create_weights(weigts_shape), Constant::create(element::i64, Shape{order.size()}, order),
+                                           Constant::create(element::i64, Shape{1}, {0}));
+    return std::make_shared<GroupConvolution>(input, gather, ov::Strides{1, 1},
                                               ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
                                               ov::Strides{1, 1});
 }
 
 std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input, const Shape & weigts_shape, const std::vector<int64_t> & order) {
-    auto weights = Constant::create(element::f32, weigts_shape, {0.1});
-    auto gather = std::make_shared<Gather>(weights, Constant::create(element::i64, Shape{order.size()}, order),
+    auto gather = std::make_shared<Gather>(create_weights(weigts_shape), Constant::create(element::i64, Shape{order.size()}, order),
                                                    Constant::create(element::i64, Shape{1}, {1}));
     return std::make_shared<Convolution>(input, gather, ov::Strides{1, 1},
                                                          ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
@@ -63,9 +77,9 @@ std::shared_ptr<Gather> create_gather(Output<Node> input, std::vector<int64_t> o
 
 std::shared_ptr<FakeQuantize> create_fq(Output<Node> input) {
     return std::make_shared<FakeQuantize>(input, Constant::create(element::f32, Shape{1}, {1}),
-                                                 Constant::create(element::f32, Shape{1}, {1}),
-                                                 Constant::create(element::f32, Shape{1}, {1}),
-                                                 Constant::create(element::f32, Shape{1}, {1}), 255);
+                                                 Constant::create(element::f32, Shape{1}, {2}),
+                                                 Constant::create(element::f32, Shape{1}, {3}),
+                                                 Constant::create(element::f32, Shape{1}, {4}), 255);
 }
 
 void apply_reverse_input_channels(std::shared_ptr<Function> f, std::vector<std::pair<int64_t, std::string>> data) {
@@ -100,6 +114,7 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionHard) {
@@ -127,9 +142,7 @@ TEST_F(TransformationTestsF, RICFusionHard) {
         apply_reverse_input_channels(function, {{0, "NCHW"}, {1, "NCHW"}});
 
         manager.register_pass<pass::ConstantFolding>();
-        manager.register_pass<ov::pass::Serialize>("/tmp/before.xml", "/tmp/before.bin");
         manager.register_pass<pass::ReverseInputChannelsFusion>();
-        manager.register_pass<ov::pass::Serialize>("/tmp/after.xml", "/tmp/after.bin");
     }
     {
         auto input = create_param({ -1, 3, -1, -1 });
@@ -140,13 +153,13 @@ TEST_F(TransformationTestsF, RICFusionHard) {
         auto prelu = std::make_shared<PRelu>(eltwise, Constant::create(element::f32, Shape{}, {6.0f}));
         //       0            1            2                 2              1            0
         // [0, 1, 2, 3]-[4, 5, 6, 7]-[8, 9, 10, 11] -> [8, 9, 10, 11]-[4, 5, 6, 7]-[0, 1, 2, 3]
-        auto gconv = create_group_conv(prelu, {3, 4, 1, 3, 3});
+        auto gconv = create_group_conv_with_gather(prelu, {3, 4, 1, 3, 3}, {2, 1, 0});
 
         auto pow = std::make_shared<Power>(gconv, Constant::create(element::f32, Shape{}, {-1.0f}));
         auto convert1 = std::make_shared<Convert>(pow, element::f16);
         auto convert2 = std::make_shared<Convert>(convert1, element::f32);
 
-        auto gconv2 = create_group_conv(convert2, {12, 1, 1, 3, 3});
+        auto gconv2 = create_group_conv_with_gather(convert2, {12, 1, 1, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
 
         auto conv = create_conv_with_gather(gconv2, {6, 12, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
         auto conv2 = create_conv_with_gather(input2, {6, 3, 3, 3}, {2, 1, 0});
@@ -156,12 +169,13 @@ TEST_F(TransformationTestsF, RICFusionHard) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise1) {
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{3, 1, 1}, {0.2}));
+        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{3, 1, 1}, {0.1, 0.2, 0.3}));
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
@@ -172,7 +186,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
 
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto gather = create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {0.2}), {2, 1, 0}, 0);
+        auto gather = create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {0.1, 0.2, 0.3}), {2, 1, 0}, 0);
         auto add = std::make_shared<Add>(input, gather);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
@@ -180,12 +194,13 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise2) {
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{1, 1, 1}, {0.2}));
+        auto add = std::make_shared<Add>(input, create_weights({1, 1, 1}));
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
@@ -196,13 +211,14 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
 
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{1, 1, 1}, {0.2}));
+        auto add = std::make_shared<Add>(input, create_weights({1, 1, 1}));
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise3) {
@@ -226,12 +242,13 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise4) {
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto add = std::make_shared<Add>(Constant::create(element::f32, Shape{3, 1, 1}, {0.2}), input);
+        auto add = std::make_shared<Add>(create_weights({3, 1, 1}), input);
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
@@ -242,7 +259,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
 
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto gather = create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {0.2}), {2, 1, 0}, 0);
+        auto gather = create_gather(create_weights({3, 1, 1}), {2, 1, 0}, 0);
         auto add = std::make_shared<Add>(gather, input);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
@@ -250,12 +267,13 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise5) {
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto add = std::make_shared<Add>(Constant::create(element::f32, Shape{1, 3, 1, 1}, {0.2}), input);
+        auto add = std::make_shared<Add>(create_weights({1, 3, 1, 1}), input);
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
@@ -266,7 +284,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
 
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto gather = create_gather(Constant::create(element::f32, Shape{1, 3, 1, 1}, {0.2}), {2, 1, 0}, 1);
+        auto gather = create_gather(create_weights({1, 3, 1, 1}), {2, 1, 0}, 1);
         auto add = std::make_shared<Add>(gather, input);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
@@ -274,6 +292,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionGroupConv) {
@@ -290,7 +309,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
     }
     {
         auto input = create_param({ 1, 3, 64, 64 });
-        auto gconv = create_group_conv(input, {3, 2, 1, 3, 3});
+        auto gconv = create_group_conv_with_gather(input, {3, 2, 1, 3, 3}, {2, 1, 0});
         //    0     1      2          2     1      0
         // [0, 1]-[2, 3]-[4, 5] -> [4, 5]-[2, 3]-[0, 1]
         auto relu = std::make_shared<Relu>(gconv);
@@ -300,6 +319,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
@@ -319,7 +339,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
 TEST_F(TransformationTestsF, RICFusionTranspose) {
     {
         auto input = create_param({ 1, 64, 64, 3 });
-        auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{3}, {0.2}));
+        auto add = std::make_shared<Add>(input, create_weights({3}));
         auto transpose = std::make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
@@ -331,7 +351,7 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
 
     {
         auto input = create_param({ 1, 64, 64, 3 });
-        auto gather = create_gather(Constant::create(element::f32, Shape{3}, {0.2}), {2, 1, 0}, 0);
+        auto gather = create_gather(create_weights({3}), {2, 1, 0}, 0);
         auto add = std::make_shared<Add>(input, gather);
         auto transpose = std::make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
         auto conv = create_conv_with_gather(transpose, {6, 3, 3, 3}, {2, 1, 0});
@@ -340,13 +360,14 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
     {
         auto input = create_param({1, 3, 64, 64});
         auto fq = create_fq(input);
-        auto conv = create_conv(fq, create_fq(Constant::create(element::f32, {6, 3, 3, 3}, {0.2})));
+        auto conv = create_conv(fq, create_fq(create_weights({6, 3, 3, 3})));
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
@@ -357,25 +378,26 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
     {
         auto input = create_param({1, 3, 64, 64});
         auto fq = create_fq(input);
-        auto conv = create_conv(fq, create_fq(create_gather(Constant::create(element::f32, {6, 3, 3, 3}, {0.2}), {2, 1, 0}, 1)));
+        auto conv = create_conv(fq, create_fq(create_gather(create_weights({6, 3, 3, 3}), {2, 1, 0}, 1)));
 
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
     {
         auto input = create_param({1, 3, 64, 64});
         auto fq = create_fq(input);
-        auto weights_const = Constant::create(element::f32, {6, 3, 3, 3}, {0.2});
+        auto weights_const = create_weights({6, 3, 3, 3});
         auto fq_weights = std::make_shared<FakeQuantize>(weights_const,
-                                                         Constant::create(element::f32, Shape{1, 3, 1, 1}, {1}),
-                                                         Constant::create(element::f32, Shape{1, 1, 1}, {1}),
-                                                         Constant::create(element::f32, Shape{1}, {1}),
-                                                         Constant::create(element::f32, Shape{3, 1, 1}, {1}), 255);
+                                                         create_weights({1, 3, 1, 1}),
+                                                         create_weights({1, 1, 1}),
+                                                         create_weights({1}),
+                                                         create_weights({3, 1, 1}), 255);
         auto conv = create_conv(fq, fq_weights);
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
@@ -387,12 +409,12 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
     {
         auto input = create_param({1, 3, 64, 64});
         auto fq = create_fq(input);
-        auto weights_const = Constant::create(element::f32, {6, 3, 3, 3}, {0.2});
+        auto weights_const = create_weights({6, 3, 3, 3});
         auto fq_weights = std::make_shared<FakeQuantize>(create_gather(weights_const, {2, 1, 0}, 1),
-                                                         create_gather(Constant::create(element::f32, Shape{1, 3, 1, 1}, {1}), {2, 1, 0}, 1),
-                                                         Constant::create(element::f32, Shape{1, 1, 1}, {1}),
-                                                         Constant::create(element::f32, Shape{1}, {1}),
-                                                         create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {1}), {2, 1, 0}, 0),
+                                                         create_gather(create_weights({1, 3, 1, 1}), {2, 1, 0}, 1),
+                                                         create_weights({1, 1, 1}),
+                                                         create_weights({1}),
+                                                         create_gather(create_weights({3, 1, 1}), {2, 1, 0}, 0),
                                                          255);
         auto conv = create_conv(fq, fq_weights);
 
@@ -401,4 +423,5 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     disable_rt_info_check();
+    enable_accuracy_check();
 }

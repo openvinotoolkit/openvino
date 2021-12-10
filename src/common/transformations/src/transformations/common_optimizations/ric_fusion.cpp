@@ -200,6 +200,12 @@ public:
                 }
             }
 
+            // Check that all order values are unique, otherwise it is not RIC
+            std::set<int64_t> unique_values(order.cbegin(), order.cend());
+            if (unique_values.size() != order.size()) {
+                return false;
+            }
+
             // Mark-up RIC output
             ric_attr::init(concat, order, concat->get_axis());
             return true;
@@ -214,9 +220,10 @@ class Gather : public ngraph::pass::MatcherPass {
 public:
     Gather() {
         MATCHER_SCOPE(Gather);
+        auto input_p = pattern::any_input(pattern::has_static_rank());
         auto indices_p = pattern::any_input();
         auto axis_p = pattern::wrap_type<opset8::Constant>();
-        auto pattern_root = pattern::wrap_type<opset8::Gather>({pattern::any_input(), indices_p, axis_p});
+        auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, indices_p, axis_p});
 
         auto callback = [=](pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_map();
@@ -228,7 +235,20 @@ public:
                 return false;
             }
 
-            ric_attr::init(output, order->cast_vector<int64_t>(), axis->cast_vector<int64_t>().at(0));
+            // This constraint helps to avoid detection of other Gathers that do not perform RIC
+            if (order->get_shape().size() != 1 &&
+                order->get_shape().size() != static_cast<size_t>(m.get_match_root()->input(0).get_partial_shape().rank().get_length())) {
+                return false;
+            }
+
+            // Check that all order values are unique, otherwise it is not RIC
+            const auto & order_values = order->cast_vector<int64_t>();
+            std::set<int64_t> unique_values(order_values.cbegin(), order_values.cend());
+            if (unique_values.size() != order_values.size()) {
+                return false;
+            }
+
+            ric_attr::init(output, order_values, axis->cast_vector<int64_t>().at(0));
             return true;
         };
 
@@ -383,7 +403,8 @@ public:
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
+        auto pattern_root = pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::wrap_type<opset8::Constant,
+                                                                                                      opset8::FakeQuantize>(pattern::has_static_shape())});
 
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
@@ -392,11 +413,35 @@ public:
             const int64_t & channels = static_cast<int64_t>(weights_shape.at(1));
 
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
-            if (ric.get_order().size() != static_cast<size_t>(group)) {
+            if (ric.get_order().size() != static_cast<size_t>(group) || ric.get_axis() != 1) {
                 // TODO: insert RIC when group == 1
                 return false;
             }
 
+            // Update weights with RIC attribute
+            auto ric_weights = ric;
+            ric_weights.set_is_final(true);
+            ric_weights.set_callback([](Input<Node> input, const ric_attr::Attribute & attr) {
+                auto weights = input.get_source_output();
+                auto gather = std::make_shared<opset8::Gather>(weights, create_const(attr.get_order()),
+                                                               create_const({0} /* output channel */));
+                input.replace_source_output(gather);
+                // TODO: copy runtime info from RIC sub-graph
+            });
+
+            if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
+                // Set final RIC attr to the first FQ input
+                ric_attr::set(fq->input(0), ric_weights);
+
+                // Apply Binary transformation for FQ to handle 1..5 inputs
+                ric_weights.set_is_final(false);
+                ric_attr::set(fq->input_value(0), ric_weights); // set ric attr to simulate propagation flow
+                Binary().apply(fq);
+            } else {
+                ric_attr::set(conv->input(1), ric_weights);
+            }
+
+            // Calculate new order for RIC propagation
             const int64_t output_channels = group * channels;
             std::vector<int64_t> new_order;
             new_order.reserve(output_channels);
