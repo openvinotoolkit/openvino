@@ -114,7 +114,7 @@ def pre_post_processing(function: Function, app_inputs_info, input_precision: st
 
     # set layout for model input
     for port, info in enumerate(app_inputs_info):
-        pre_post_processor.input(port).network().set_layout(info.layout)
+        pre_post_processor.input(port).model().set_layout(info.layout)
 
     function = pre_post_processor.build()
 

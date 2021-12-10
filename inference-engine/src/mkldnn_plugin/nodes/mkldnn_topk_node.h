@@ -92,7 +92,8 @@ private:
     bool sort_value = false;
     bool mode_max = true;
 
-    int dim, before_num;
+    int dim = 0;
+    int before_num = 0;
 
     std::string errorPrefix;
 

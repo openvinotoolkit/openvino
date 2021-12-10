@@ -9,8 +9,8 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/node.hpp"
 
-#include "cldnn/primitives/custom_gpu_primitive.hpp"
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/custom_gpu_primitive.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 

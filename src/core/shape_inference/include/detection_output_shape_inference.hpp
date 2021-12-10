@@ -8,11 +8,120 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace util {
 
 template <class T>
-void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void compute_num_classes(const DetectionOutputBase* op,
+                         const DetectionOutputBase::AttributesBase& attrs,
+                         const std::vector<T>& input_shapes,
+                         int64_t& num_classes,
+                         int64_t& num_prior_boxes) {
+    const T& box_logits_pshape = input_shapes[0];
+    const T& class_preds_pshape = input_shapes[1];
+    const T& proposals_pshape = input_shapes[2];
+    T ad_class_preds_shape{};
+    T ad_box_preds_shape{};
+
+    NODE_VALIDATION_CHECK(op,
+                          box_logits_pshape.rank().compatible(2),
+                          "Box logits rank must be 2. Got " + std::to_string(box_logits_pshape.rank().get_length()));
+
+    NODE_VALIDATION_CHECK(
+        op,
+        class_preds_pshape.rank().compatible(2),
+        "Class predictions rank must be 2. Got " + std::to_string(class_preds_pshape.rank().get_length()));
+    NODE_VALIDATION_CHECK(op,
+                          proposals_pshape.rank().compatible(3),
+                          "Proposals rank must be 3. Got " + std::to_string(proposals_pshape.rank().get_length()));
+    if (input_shapes.size() == 5) {
+        ad_class_preds_shape = input_shapes[3];
+        NODE_VALIDATION_CHECK(op,
+                              ad_class_preds_shape.rank().compatible(2),
+                              "Additional class predictions rank must be 2. Got " +
+                                  std::to_string(ad_class_preds_shape.rank().get_length()));
+        ad_box_preds_shape = input_shapes[4];
+        NODE_VALIDATION_CHECK(
+            op,
+            ad_box_preds_shape.rank().compatible(2),
+            "Additional box predictions rank must be 2. Got " + std::to_string(ad_box_preds_shape.rank().get_length()));
+    }
+
+    int64_t prior_box_size = attrs.normalized ? 4 : 5;
+
+    // try to deduce a number of prior boxes
+    if (num_prior_boxes == -1 && proposals_pshape.rank().is_static() && proposals_pshape[2].is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              static_cast<int64_t>(proposals_pshape[2].get_length()) % prior_box_size == 0,
+                              "Proposals' third dimension must be a multiply of prior_box_size (" +
+                                  std::to_string(prior_box_size) + "). Current value is: ",
+                              proposals_pshape[2].get_length(),
+                              ".");
+        num_prior_boxes = static_cast<int64_t>(proposals_pshape[2].get_length()) / prior_box_size;
+        NODE_VALIDATION_CHECK(op,
+                              num_prior_boxes > 0,
+                              "A number of prior boxes must be greater zero. Got: ",
+                              num_prior_boxes);
+    }
+    if (num_prior_boxes == -1 && input_shapes.size() == 5 && ad_class_preds_shape.rank().is_static() &&
+        ad_class_preds_shape[1].is_static()) {
+        NODE_VALIDATION_CHECK(
+            op,
+            static_cast<int64_t>(ad_class_preds_shape[1].get_length()) % 2 == 0,
+            "Additional class predictions second dimension must be a multiply of 2. Current value is: ",
+            ad_class_preds_shape[1].get_length(),
+            ".");
+        num_prior_boxes = static_cast<int64_t>(ad_class_preds_shape[1].get_length()) / 2;
+        NODE_VALIDATION_CHECK(op,
+                              num_prior_boxes > 0,
+                              "A number of prior boxes must be greater zero. Got: ",
+                              num_prior_boxes);
+    }
+
+    // try to deduce a number of classes
+    if (num_classes == -1 && num_prior_boxes > 0 && class_preds_pshape.rank().is_static() &&
+        class_preds_pshape[1].is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              static_cast<int64_t>(class_preds_pshape[1].get_length()) % num_prior_boxes == 0,
+                              "Class predictions second dimension must be a multiply of num_prior_boxes (",
+                              num_prior_boxes,
+                              "). Current value is: ",
+                              class_preds_pshape[1].get_length(),
+                              ".");
+        num_classes = static_cast<int64_t>(class_preds_pshape[1].get_length()) / num_prior_boxes;
+    }
+    if (num_classes == -1 && num_prior_boxes > 0 && box_logits_pshape.rank().is_static() &&
+        box_logits_pshape[1].is_static() && !attrs.share_location) {
+        NODE_VALIDATION_CHECK(op,
+                              static_cast<int64_t>(box_logits_pshape[1].get_length()) % (num_prior_boxes * 4) == 0,
+                              "Box logits second dimension must be a multiply of num_prior_boxes * 4 (",
+                              num_prior_boxes * 4,
+                              "). Current value is: ",
+                              box_logits_pshape[1].get_length(),
+                              ".");
+        num_classes = static_cast<int64_t>(box_logits_pshape[1].get_length()) / (num_prior_boxes * 4);
+    }
+    if (num_classes == -1 && num_prior_boxes > 0 && input_shapes.size() == 5 && ad_box_preds_shape.is_static() &&
+        ad_box_preds_shape[1].is_static() && !attrs.share_location) {
+        NODE_VALIDATION_CHECK(op,
+                              static_cast<int64_t>(ad_box_preds_shape[1].get_length()) % (num_prior_boxes * 4) == 0,
+                              "Additional box predictions second dimension must be a multiply of num_prior_boxes * 4 (",
+                              num_prior_boxes * 4,
+                              "). Current value is: ",
+                              ad_box_preds_shape[1].get_length(),
+                              ".");
+        num_classes = static_cast<int64_t>(ad_box_preds_shape[1].get_length()) / (num_prior_boxes * 4);
+    }
+}
+
+template <class T>
+void shape_infer_base(const DetectionOutputBase* op,
+                      const DetectionOutputBase::AttributesBase& attrs,
+                      const std::vector<T>& input_shapes,
+                      std::vector<T>& output_shapes,
+                      int64_t attribute_num_classes) {
     using dim_t = typename std::iterator_traits<typename T::iterator>::value_type;
+    using val_type = typename dim_t::value_type;
+
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 5) && output_shapes.size() == 1);
 
     auto& ret_output_shape = output_shapes[0];
@@ -21,13 +130,19 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
     const auto& box_logits_pshape = input_shapes[0];
     const auto& class_preds_pshape = input_shapes[1];
     const auto& proposals_pshape = input_shapes[2];
-    const auto& attrs = op->get_attrs();
-
-    const int num_loc_classes = attrs.share_location ? 1 : attrs.num_classes;
-    const int prior_box_size = attrs.normalized ? 4 : 5;
-
-    dim_t num_images{};
+    int64_t num_classes = -1;
+    int64_t num_prior_boxes_calculated = -1;
+    dim_t num_images{}; 
     dim_t num_prior_boxes{};
+    if (dynamic_cast<const ov::op::v8::DetectionOutput*>(op)) {
+        ov::op::util::compute_num_classes(op, attrs, input_shapes, num_classes, num_prior_boxes_calculated);
+        num_prior_boxes = dim_t(num_prior_boxes_calculated);
+    } else {
+        num_classes = attribute_num_classes;
+    }
+
+    const int num_loc_classes = attrs.share_location ? 1 : num_classes;
+    const int prior_box_size = attrs.normalized ? 4 : 5;
 
     if (box_logits_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
@@ -68,20 +183,20 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
             auto class_preds_pshape_2nd_dim = class_preds_pshape[1].get_length();
             if (num_prior_boxes.is_dynamic()) {
                 NODE_VALIDATION_CHECK(op,
-                                      class_preds_pshape_2nd_dim % attrs.num_classes == 0,
+                                      class_preds_pshape_2nd_dim % num_classes == 0,
                                       "Class predictions' second dimension must be a multiply of num_classes (",
-                                      attrs.num_classes,
+                                      num_classes,
                                       "). Current value is: ",
                                       class_preds_pshape_2nd_dim,
                                       ".");
-                num_prior_boxes = class_preds_pshape_2nd_dim / attrs.num_classes;
+                num_prior_boxes = class_preds_pshape_2nd_dim / num_classes;
             } else {
                 int num_prior_boxes_val = num_prior_boxes.get_length();
                 NODE_VALIDATION_CHECK(op,
-                                      class_preds_pshape_2nd_dim == num_prior_boxes_val * attrs.num_classes,
+                                      class_preds_pshape_2nd_dim == num_prior_boxes_val * num_classes,
                                       "Class predictions' second dimension must be equal to num_prior_boxes * "
                                       "num_classes (",
-                                      num_prior_boxes_val * attrs.num_classes,
+                                      num_prior_boxes_val * num_classes,
                                       "). Current value is: ",
                                       class_preds_pshape_2nd_dim,
                                       ".");
@@ -140,9 +255,9 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
         const auto& aux_box_preds_pshape = input_shapes[4];
         if (aux_class_preds_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
-                        aux_class_preds_pshape.size() == 2,
-                        "additional class predictions rank must be 2. Got ",
-                        aux_class_preds_pshape.size());
+                                  aux_class_preds_pshape.size() == 2,
+                                  "additional class predictions rank must be 2. Got ",
+                                  aux_class_preds_pshape.size());
             NODE_VALIDATION_CHECK(op,
                                   aux_class_preds_pshape[0].compatible(num_images),
                                   "Additional class predictions' first dimension must be "
@@ -180,12 +295,38 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
     if (attrs.keep_top_k[0] > 0) {
         ret_output_shape[2] = num_images * attrs.keep_top_k[0];
     } else if (attrs.keep_top_k[0] == -1 && attrs.top_k > 0) {
-        ret_output_shape[2] = num_images * attrs.top_k * attrs.num_classes;
+        ret_output_shape[2] = num_images * attrs.top_k * num_classes;
     } else {
-        ret_output_shape[2] = num_images * num_prior_boxes * attrs.num_classes;
+        ret_output_shape[2] = num_images * num_prior_boxes * num_classes;
     }
 }
 
+}  // namespace util
+}  // namespace op
+}  // namespace ov
+
+namespace ov {
+namespace op {
+namespace v0 {
+template <class T>
+void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+    const auto& attrs = op->get_attrs();
+    ov::op::util::shape_infer_base(op, attrs, input_shapes, output_shapes, attrs.num_classes);
+}
+
 }  // namespace v0
+}  // namespace op
+}  // namespace ov
+
+namespace ov {
+namespace op {
+namespace v8 {
+
+template <class T>
+void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+    ov::op::util::shape_infer_base(op, op->get_attrs(), input_shapes, output_shapes, -1);
+}
+
+}  // namespace v8
 }  // namespace op
 }  // namespace ov
