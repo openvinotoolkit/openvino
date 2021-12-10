@@ -13,7 +13,7 @@ namespace py = pybind11;
 
 void regclass_graph_Variant(py::module m) {
     py::class_<PyAny, std::shared_ptr<PyAny>> variant(m, "Variant", py::module_local());
-    variant.doc() = "openvino.impl.Variant wraps ov::Any";
+    variant.doc() = "openvino.runtime.Variant wraps ov::Any";
     variant.def(py::init<py::object>());
 
     variant.def("__repr__", [](const PyAny& self) {

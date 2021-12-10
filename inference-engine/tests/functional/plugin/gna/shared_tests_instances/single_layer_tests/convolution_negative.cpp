@@ -22,21 +22,39 @@ const std::vector<std::vector<size_t >> kernels2D = {
         {1, 3},
         {7, 1},
         {3, 3},
+        {7, 2},
+        {2, 7}
 };
 
 const std::vector<std::vector<size_t >> kernels2DInvalid = {
-        {1, 4},
-        {2, 3},
-        {3, 2},
+        {9, 3},
+        {1, 9},
+        {1, 8},
         {8, 1},
-        {4, 4},
+        {8, 8},
+};
+
+const std::vector<std::vector<size_t >> kernels2DInvalidFor56InC = {
+        {1, 6},
+        {2, 6},
+        {7, 7},
+        {1, 7},
+        {4, 7},
+};
+
+const std::vector<std::vector<size_t >> kernels2DInvalidFor120InC = {
+        {1, 4},
+        {8, 3},
+        {7, 5},
+        {1, 6},
+        {4, 7},
 };
 
 const std::vector<std::vector<size_t >> strides2D = {
         {1, 1},
 };
 const std::vector<std::vector<size_t >> strides2DInvalid = {
-        {4, 4}, {1, 4}
+        {8, 8}, {1, 8}
 };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {0, 0},
 };
@@ -51,9 +69,12 @@ const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 const std::vector<std::vector<size_t >> dilations2DInvalid = { {2, 2},
 };
 const std::vector<size_t> numOutChannels2D = { 32 };
-const std::vector<size_t> numOutChannels2DInvalid = { 1, 7, 9, 400 };
+const std::vector<size_t> numOutChannels2DInvalid = { 1, 7, 9, 1032 };
 
 const std::vector<std::vector<size_t>> input2DNCHWFine = { { 1, 8, 20, 16 } };
+
+const std::vector<std::vector<size_t>> input2DNCHWWithInC56 = { { 1, 56, 20, 16 } };
+const std::vector<std::vector<size_t>> input2DNCHWWithInC120 = { { 1, 120, 20, 16 } };
 
 const std::vector<std::vector<size_t>> input2DNCHWInvalidInputC = {
         { 1, 7, 20, 16 },
@@ -80,6 +101,27 @@ const auto conv2DParametersInvalidKernel = ::testing::Combine(
         ::testing::ValuesIn(numOutChannels2D),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
+
+const auto conv2DParametersInvalidKernelFor56InC = ::testing::Combine(
+    ::testing::ValuesIn(kernels2DInvalidFor56InC),
+    ::testing::ValuesIn(strides2D),
+    ::testing::ValuesIn(padBegins2D),
+    ::testing::ValuesIn(padEnds2D),
+    ::testing::ValuesIn(dilations2D),
+    ::testing::ValuesIn(numOutChannels2D),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+const auto conv2DParametersInvalidKernelFor120InC = ::testing::Combine(
+    ::testing::ValuesIn(kernels2DInvalidFor120InC),
+    ::testing::ValuesIn(strides2D),
+    ::testing::ValuesIn(padBegins2D),
+    ::testing::ValuesIn(padEnds2D),
+    ::testing::ValuesIn(dilations2D),
+    ::testing::ValuesIn(numOutChannels2D),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
 const auto conv2DParametersInvalidFilterNumber = ::testing::Combine(
         ::testing::ValuesIn(kernels2D),
         ::testing::ValuesIn(strides2D),
@@ -165,6 +207,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaCon
 
 GNA_NEG_INSTANTIATE(FilterNumber, InvalidFilterNumber, Fine, "Unsupported number of kernels")
 GNA_NEG_INSTANTIATE(Kernel, InvalidKernel, Fine, "Unsupported kernel shape")
+GNA_NEG_INSTANTIATE(BigKernelFor56InC, InvalidKernelFor56InC, WithInC56, "Unsupported kernel shape")
+GNA_NEG_INSTANTIATE(BigKernelFor120InC, InvalidKernelFor120InC, WithInC120, "Unsupported kernel shape")
 GNA_NEG_INSTANTIATE(InputH, Fine, InvalidInputH, "Unsupported input height")
 GNA_NEG_INSTANTIATE(InputW, Fine, InvalidInputW, "Unsupported input width")
 GNA_NEG_INSTANTIATE(InputC, Fine, InvalidInputC, "Unsupported number of input channels")
