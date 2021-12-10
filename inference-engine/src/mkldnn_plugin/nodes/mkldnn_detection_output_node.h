@@ -12,7 +12,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNDetectionOutputNode : public MKLDNNNode {
 public:
-    MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNDetectionOutputNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -20,7 +20,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     void prepareParams() override;

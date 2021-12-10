@@ -31,11 +31,11 @@ bool SortScorePairDescend<std::pair<int, int>>(const std::pair<float, std::pair<
 
 } // namespace
 
-bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto doOp = ngraph::as_type_ptr<const ngraph::op::v0::DetectionOutput>(op);
+        const auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
         if (!doOp) {
-            errorMessage = "Node is not an instance of the DetectionOutput from the operations set v0.";
+            errorMessage = "Node is not an instance of the DetectionOutput from the operations set v8.";
             return false;
         }
         if (!details::CaselessEq<std::string>()(doOp->get_attrs().code_type, "caffe.PriorBoxParameter.CENTER_SIZE") &&
@@ -57,7 +57,7 @@ void MKLDNNDetectionOutputNode::createPrimitive() {
     }
 }
 
-MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
         MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -72,10 +72,9 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
     if (getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of output edges.";
 
-    auto doOp = ngraph::as_type_ptr<const ngraph::op::v0::DetectionOutput>(op);
+    auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
 
-    classesNum = attributes.num_classes;
     backgroundClassId = attributes.background_label_id;
     topK = attributes.top_k;
     varianceEncodedInTarget = attributes.variance_encoded_in_target;
@@ -91,7 +90,6 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
     imgWidth = attributes.input_width;
     priorSize = normalized ? 4 : 5;
     coordOffset = normalized ? 0 : 1;
-    locNumForClasses = isShareLoc ? 1 : classesNum;
 
     withAddBoxPred = getOriginalInputsNumber() == 5;
     objScore = attributes.objectness_score;
@@ -102,8 +100,11 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
 
 void MKLDNNDetectionOutputNode::prepareParams() {
     const auto& idPriorDims = getParentEdgeAt(ID_PRIOR)->getMemory().GetShape().getStaticDims();
+    const auto &idConfDims = getParentEdgeAt(ID_CONF)->getMemory().GetShape().getStaticDims();
     priorsNum = static_cast<int>(idPriorDims.back() / priorSize);
     isPriorsPerImg = idPriorDims.front() != 1;
+    classesNum = static_cast<int>(idConfDims.back() / priorsNum);
+    locNumForClasses = isShareLoc ? 1 : classesNum;
 
     const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().GetShape().getStaticDims();
     if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1]))
@@ -111,7 +112,6 @@ void MKLDNNDetectionOutputNode::prepareParams() {
         << priorsNum * locNumForClasses * 4 << " vs "
         << idLocDims[1] << ")";
 
-    const auto& idConfDims = getParentEdgeAt(ID_CONF)->getMemory().GetShape().getStaticDims();
     if (priorsNum * classesNum != static_cast<int>(idConfDims.back()))
         IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of confidence predictions.";
 

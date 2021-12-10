@@ -105,8 +105,9 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
             f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{detection_output_v8},
                                                        ngraph::ParameterVector{box_logits, class_preds, proposals});
         }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
+        const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+        auto res = fc(f, f_ref);
+        ASSERT_TRUE(res.valid) << res.message;
     }
 }
 
@@ -183,7 +184,8 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
                 ngraph::NodeVector{detection_output_v8},
                 ngraph::ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
         }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
+        const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+        auto res = fc(f, f_ref);
+        ASSERT_TRUE(res.valid) << res.message;
     }
 }
