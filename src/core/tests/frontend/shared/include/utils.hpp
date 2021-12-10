@@ -12,42 +12,10 @@
 #include "ngraph/util.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
-#ifdef _WIN32
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#    endif
-#    include <windows.h>
-#    if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
-#        error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
-#    endif
-#elif defined(__linux) || defined(__APPLE__)
-#    include <dlfcn.h>
-#endif
-
-namespace {
-inline std::string find_my_pathname() {
-#ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ov_runtime" SHARED_LIB_SUFFIX);
-    WCHAR wpath[MAX_PATH];
-    GetModuleFileNameW(hModule, wpath, MAX_PATH);
-    std::wstring ws(wpath);
-    std::string path(ws.begin(), ws.end());
-    std::replace(path.begin(), path.end(), '\\', '/');
-    path = ov::util::get_directory(path);
-    path += "/";
-    return path;
-#elif defined(__linux) || defined(__APPLE__)
-    Dl_info dl_info;
-    dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
-    return ov::util::get_absolute_file_path(dl_info.dli_fname);
-#else
-#    error "Unsupported OS"
-#endif
-}
-}  // namespace
 
 // Helper functions
 namespace FrontEndTestUtils {
+std::string find_ov_path();
 int run_tests(int argc, char** argv);
 
 std::string get_current_executable_path();
@@ -84,7 +52,7 @@ inline int set_test_env(const char* name, const char* value) {
 
 inline void setupTestEnv() {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    std::string fePath = ov::util::get_directory(find_my_pathname());
+    std::string fePath = ov::util::get_directory(find_ov_path());
     set_test_env("OV_FRONTEND_PATH", fePath.c_str());
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
