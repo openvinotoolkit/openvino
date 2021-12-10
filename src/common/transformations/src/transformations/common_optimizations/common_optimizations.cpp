@@ -63,12 +63,15 @@
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_softmax_downgrade.hpp"
+#include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
+#include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/op_conversions/einsum_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
@@ -97,7 +100,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
-bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
@@ -177,8 +180,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
+    manager.register_pass<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
+    manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8, false>();
     manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
     manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
+    manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8, false>();
     manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();

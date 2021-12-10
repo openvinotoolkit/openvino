@@ -7,7 +7,7 @@
 #include "color_utils.hpp"
 #include "function_guard.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "preprocess_steps_impl.hpp"
 
 namespace ov {
@@ -273,7 +273,7 @@ OutputTensorInfo& OutputInfo::tensor() {
 struct PrePostProcessor::PrePostProcessorImpl {
 public:
     PrePostProcessorImpl() = default;
-    explicit PrePostProcessorImpl(const std::shared_ptr<ov::Function>& f) : m_function(f) {
+    explicit PrePostProcessorImpl(const std::shared_ptr<ov::Model>& f) : m_function(f) {
         OPENVINO_ASSERT(f, "Function can't be nullptr for PrePostProcessor");
         for (size_t i = 0; i < m_function->inputs().size(); ++i) {
             auto info = InputInfo();
@@ -309,10 +309,10 @@ public:
 
     std::vector<InputInfo> m_inputs;
     std::vector<OutputInfo> m_outputs;
-    std::shared_ptr<Function> m_function = nullptr;
+    std::shared_ptr<Model> m_function = nullptr;
 };
 
-PrePostProcessor::PrePostProcessor(const std::shared_ptr<Function>& function)
+PrePostProcessor::PrePostProcessor(const std::shared_ptr<Model>& function)
     : m_impl(std::unique_ptr<PrePostProcessorImpl>(new PrePostProcessorImpl(function))) {}
 PrePostProcessor::PrePostProcessor(PrePostProcessor&&) noexcept = default;
 PrePostProcessor& PrePostProcessor::operator=(PrePostProcessor&&) noexcept = default;
@@ -358,7 +358,7 @@ OutputInfo& PrePostProcessor::output(const std::string& tensor_name) {
     return m_impl->find_output(tensor_name);
 }
 
-std::shared_ptr<Function> PrePostProcessor::build() {
+std::shared_ptr<Model> PrePostProcessor::build() {
     auto function = m_impl->m_function;
     FunctionGuard guard(function);
     std::tuple<std::unordered_set<std::string>, bool> existing_names{std::unordered_set<std::string>{}, false};
@@ -742,7 +742,7 @@ PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorForma
 PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back([preprocess_cb](const std::vector<Output<Node>>& nodes,
-                                                   const std::shared_ptr<ov::Function>&,
+                                                   const std::shared_ptr<ov::Model>&,
                                                    PreprocessingContext&) {
         OPENVINO_ASSERT(nodes.size() == 1,
                         "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "

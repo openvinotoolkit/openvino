@@ -41,7 +41,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ov::Function> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
+            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
             py::arg("model"),
             R"(
                 Completely convert and normalize entire function, throws if it is not possible.
@@ -53,24 +53,24 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                convert : Function
+                convert : Model
                     Fully converted nGraph function.
              )");
 
     fem.def("convert",
-            static_cast<void (FrontEnd::*)(std::shared_ptr<ov::Function>) const>(&FrontEnd::convert),
+            static_cast<void (FrontEnd::*)(std::shared_ptr<ov::Model>) const>(&FrontEnd::convert),
             py::arg("function"),
             R"(
                 Completely convert the remaining, not converted part of a function.
 
                 Parameters
                 ----------
-                function : Function
+                function : Model
                     Partially converted nGraph function.
 
                 Returns
                 ----------
-                convert : Function
+                convert : Model
                     Fully converted nGraph function.
              )");
 
@@ -89,7 +89,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                convert_partially : Function
+                convert_partially : Model
                     Partially converted nGraph function.
              )");
 
@@ -108,7 +108,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                decode : Function
+                decode : Model
                     nGraph function after decoding.
              )");
 
@@ -120,7 +120,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Parameters
                 ----------
-                function : Function
+                function : Model
                     Partially converted nGraph function.
              )");
 

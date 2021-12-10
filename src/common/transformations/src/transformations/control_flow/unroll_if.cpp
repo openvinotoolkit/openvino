@@ -16,7 +16,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollIf, "UnrollIf", 0);
 
-bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     bool is_applicable = false;
     for (const auto& op : f->get_ordered_ops()) {
