@@ -498,31 +498,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.run_passes(nGraphFunc);
 
     if (!useLpt && _enableSnippets && with_cpu_x86_avx2()) {
-//        auto formatNodeName = [](const std::string& original_name) {
-//            std::string name(original_name);
-//            std::replace(name.begin(), name.end(), '\\', '_');
-//            std::replace(name.begin(), name.end(), '/', '_');
-//            std::replace(name.begin(), name.end(), ' ', '_');
-//            std::replace(name.begin(), name.end(), ':', '-');
-//            return name;
-//        };
-
-//        std::string base_name = "before";
-//        ngraph::pass::Serialize(base_name + ".xml", base_name + ".bin").run_on_function(nGraphFunc);
-        std::cerr << "Tokenization passes start" << std::endl;
         ngraph::pass::Manager tokenization_manager;
         tokenization_manager.register_pass<ngraph::snippets::pass::FilterFused>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         tokenization_manager.run_passes(nGraphFunc);
-        std::cerr << "Tokenization passes finished" << std::endl;
-//        base_name = "after";
-//        ngraph::pass::Serialize(base_name + ".xml", base_name + ".bin").run_on_function(nGraphFunc);
-//        for (auto op : nGraphFunc->get_ordered_ops()) {
-//            if (auto subgraph = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(op)) {
-//                base_name =  std::string("subgraph_") + formatNodeName(op->get_friendly_name());
-//                ngraph::pass::Serialize(base_name + ".xml", base_name + ".bin").run_on_function(subgraph->get_body());
-//            }
-//        }
     }
 }
 
