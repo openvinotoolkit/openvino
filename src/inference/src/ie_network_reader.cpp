@@ -310,7 +310,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             }
 
             // in order to support the following scenarios for IR v10 cases:
-            // ov::Function f = ie.read_model(..);
+            // ov::Model f = ie.read_model(..);
             // f.input("input_operation_name");
             // f.output("output_operation_name");
             // f.add_output("operation_name[].port_index]");

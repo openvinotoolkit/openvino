@@ -414,10 +414,10 @@ class MOCK_API FrontEndMockPy : public FrontEnd
 public:
     FrontEndMockPy() {}
 
-    std::shared_ptr<ov::Function> convert(InputModel::Ptr model) const override
+    std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override
     {
         m_stat.m_convert_model++;
-        return std::make_shared<ov::Function>(ov::NodeVector{}, ov::ParameterVector{});
+        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
     static FeStat get_stat() { return m_stat; }
