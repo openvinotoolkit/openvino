@@ -20,6 +20,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 using namespace ngraph;
 
@@ -139,20 +140,14 @@ public:
         for (const auto& rt_info_name : list_of_names) {
             const auto& found_rt_info = rt_info.find(rt_info_name);
             if (found_rt_info != rt_info.end()) {
-                xml_node_append_attribute<std::string>(rt_info_name, found_rt_info->second);
+                std::stringstream strm;
+                found_rt_info->second.print(strm);
+                m_xml_node.append_attribute(rt_info_name.c_str()).set_value(strm.str().c_str());
             }
         }
     }
 
 private:
-    template <typename VariantType>
-    void xml_node_append_attribute(const std::string& name, const std::shared_ptr<ngraph::Variant>& variant) {
-        if (auto v = std::dynamic_pointer_cast<ngraph::VariantImpl<VariantType>>(variant)) {
-            const auto& value = v->get();
-            m_xml_node.append_attribute(name.c_str()).set_value(value.c_str());
-        }
-    }
-
     pugi::xml_node& m_xml_node;
 };
 
@@ -563,8 +558,8 @@ std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ng
     // Try to find opset name from RT info
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
-        if (auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(opset_it->second)) {
-            const std::string& opset_name = variant->get();
+        if (opset_it->second.is<std::string>()) {
+            const std::string& opset_name = opset_it->second.as<std::string>();
             if (custom_opsets.find(opset_name) != custom_opsets.end()) {
                 return opset_name;
             }
@@ -667,9 +662,9 @@ std::string get_node_unique_name(std::unordered_set<std::string>& unique_names, 
 void visit_exec_graph_node(pugi::xml_node& layer, const ngraph::Node* n) {
     auto data = layer.child("data");
     for (const auto& param : n->get_rt_info()) {
-        if (auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(param.second)) {
+        if (param.second.is<std::string>()) {
             const std::string& name = param.first;
-            const std::string& value = variant->get();
+            const std::string& value = param.second.as<std::string>();
 
             if (name == "layerType") {
                 layer.attribute("type").set_value(value.c_str());
@@ -880,22 +875,23 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        auto append_runtime_info = [](pugi::xml_node& node, const RTMap& attributes) {
+        auto append_runtime_info = [](pugi::xml_node& node, RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
-            for (const auto& item : attributes) {
-                auto attribute_node = rt_node.append_child("attribute");
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                attribute_node.append_attribute("name").set_value(item.second->get_type_info().name);
-                attribute_node.append_attribute("version").set_value(
-                    item.second->get_type_info().get_version().c_str());
-                rt_info::RTInfoSerializer serializer(attribute_node);
-                if (!item.second->visit_attributes(serializer)) {
-                    rt_node.remove_child(attribute_node);
-                } else {
-                    has_attrs = true;
+            for (auto& item : attributes) {
+                if (item.second.is<ov::RuntimeAttribute>()) {
+                    auto attribute_node = rt_node.append_child("attribute");
+                    auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
+                    const auto& type_info = rt_attribute.get_type_info();
+                    attribute_node.append_attribute("name").set_value(type_info.name);
+                    attribute_node.append_attribute("version").set_value(type_info.get_version().c_str());
+                    rt_info::RTInfoSerializer serializer(attribute_node);
+                    if (!rt_attribute.visit_attributes(serializer)) {
+                        rt_node.remove_child(attribute_node);
+                    } else {
+                        has_attrs = true;
+                    }
                 }
-                OPENVINO_SUPPRESS_DEPRECATED_END
             }
             if (!has_attrs) {
                 node.remove_child(rt_node);
@@ -910,7 +906,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/input>
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
-            for (const auto& i : node->inputs()) {
+            for (auto& i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
                 if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell*>(node)) {
                     port_id++;
@@ -940,7 +936,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/output>
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
-            for (const auto& o : node->outputs()) {
+            for (auto& o : node->outputs()) {
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision").set_value(get_precision_name(o.get_element_type()).c_str());
@@ -1039,7 +1035,7 @@ std::string provide_bin_path(const std::string& xmlPath, const std::string& binP
 
 void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
-                   std::shared_ptr<ov::Function> f,
+                   std::shared_ptr<ov::Model> f,
                    ov::pass::Serialize::Version ver,
                    const std::map<std::string, ngraph::OpSet>& custom_opsets,
                    bool deterministic = false) {
@@ -1047,8 +1043,7 @@ void serializeFunc(std::ostream& xml_file,
 
     auto& rt_info = f->get_rt_info();
     if (rt_info.count("version")) {
-        auto version_var = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        version = version_var->get();
+        version = rt_info.at("version").as<int64_t>();
     }
 
     if (version != static_cast<int64_t>(ver) && ver != ov::pass::Serialize::Version::UNSPECIFIED)
@@ -1076,7 +1071,7 @@ void serializeFunc(std::ostream& xml_file,
 }  // namespace
 
 namespace ov {
-bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
@@ -1155,7 +1150,7 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
     : StreamSerialize(stream, {}, custom_data_serializer, version) {}
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     /*
         Format:
         [ DataHeader  ]
@@ -1171,8 +1166,7 @@ bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f)
     auto version = static_cast<int64_t>(m_version);
     auto& rt_info = f->get_rt_info();
     if (rt_info.count("version")) {
-        auto version_var = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        version = version_var->get();
+        version = rt_info.at("version").as<int64_t>();
     }
 
     if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
@@ -1199,7 +1193,8 @@ bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f)
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);
     XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler, version);
-    visitor.on_attribute(name, f);
+    std::shared_ptr<ov::Model> fun = f;
+    visitor.on_attribute(name, fun);
 
     // IR
     hdr.model_offset = m_stream.tellp();
@@ -1256,7 +1251,7 @@ public:
 };
 }  // namespace
 
-bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
+bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);

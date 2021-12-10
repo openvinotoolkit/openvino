@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "cldnn/primitives/experimental_detectron_roi_feature_extractor.hpp"
+#include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "primitive_inst.h"
 
 namespace cldnn {

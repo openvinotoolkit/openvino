@@ -11,11 +11,11 @@
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
 
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_runner.h"
 
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
 #include <memory>
 
 namespace cldnn {
@@ -52,8 +52,11 @@ public:
         if (primitive->input_size != 3)
             fc_params.output = fc_params.output.FlattenFeatureAndSpatials();
 
-        if (arg.get_output_layout().data_type == data_types::i8 ||
-            arg.get_output_layout().data_type == data_types::u8) {
+        bool is_quantized = true;
+        for (auto& input : arg.get_dependencies())
+            is_quantized &= data_type_traits::is_quantized(input->get_output_layout().data_type);
+
+        if (is_quantized) {
             fc_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
         } else {
             fc_params.quantization = kernel_selector::QuantizationType::NONE;

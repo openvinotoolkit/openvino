@@ -43,8 +43,6 @@ protected:
 
     static std::string toString(const ngraph::pass::low_precision::LayerTransformation::Params& params);
 
-    static InferenceEngine::Precision getDeviceInternalPrecision(const InferenceEngine::Precision precision);
-
     static std::string getTestCaseNameByParams(
         const InferenceEngine::Precision precision,
         const InferenceEngine::SizeVector& inputShapes,

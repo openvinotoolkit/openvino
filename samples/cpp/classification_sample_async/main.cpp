@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
-        std::shared_ptr<ov::Function> model = core.read_model(FLAGS_m);
+        std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
 
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
         OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
         // - layout of data is 'NHWC'
         input_info.tensor().set_element_type(ov::element::u8).set_layout(tensor_layout);
         // 3) Here we suppose model has 'NCHW' layout for input
-        input_info.network().set_layout("NCHW");
+        input_info.model().set_layout("NCHW");
         // 4) output() with no args assumes a model has a single result
         // - output() with no args assumes a model has a single result
         // - precision of tensor is supposed to be 'f32'
