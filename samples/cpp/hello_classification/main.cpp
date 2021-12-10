@@ -41,7 +41,7 @@ int tmain(int argc, tchar* argv[]) {
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
-        std::shared_ptr<ov::Function> model = core.read_model(model_path);
+        std::shared_ptr<ov::Model> model = core.read_model(model_path);
         printInputAndOutputsInfo(*model);
 
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
