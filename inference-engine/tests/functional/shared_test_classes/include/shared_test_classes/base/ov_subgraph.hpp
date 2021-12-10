@@ -39,7 +39,7 @@ protected:
     virtual void configure_model();
     virtual void compile_model();
     virtual void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);
-    virtual void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
+    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void infer();
     virtual void validate();
 
