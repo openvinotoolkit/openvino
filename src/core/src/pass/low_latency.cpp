@@ -44,7 +44,7 @@ ngraph::pass::LowLatency::LowLatency() {
         }
         // Mark the TI layer to be unrolled. Enable unconditional ti unrolling for all plugins.
         auto& rt_info = sub_graph_op->get_rt_info();
-        rt_info["UNROLL_TI"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(1);
+        rt_info["UNROLL_TI"] = int64_t(1);
 
         int64_t variable_id = 0;
         std::vector<std::shared_ptr<ngraph::op::Sink>> assigns;
@@ -92,7 +92,7 @@ NGRAPH_SUPPRESS_DEPRECATED_END
 namespace {
 
 void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_graph_op,
-                           const shared_ptr<ov::Function>& outer_f) {
+                           const shared_ptr<ov::Model>& outer_f) {
     using namespace ngraph::opset7;
 
     const auto& params = sub_graph_op->get_function()->get_parameters();
@@ -148,7 +148,7 @@ ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::u
 
 }  // namespace
 
-bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
+bool ov::pass::LowLatency2::run_on_model(const shared_ptr<Model>& f) {
     using namespace ngraph::opset7;
 
     ngraph::SinkVector assigns;

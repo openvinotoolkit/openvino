@@ -728,7 +728,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::cout << "SELECTED BATCH: " << batch << std::endl;
         std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
         options_for_max_batch["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network->getFunction());
-        options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = static_cast<uint32_t>(default_num_streams_for_tput);
+        options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
         auto max_batch_size = GetMetric(GPU_METRIC_KEY(MAX_BATCH_SIZE), options_for_max_batch).as<unsigned int>();
         std::cout << "MAX_BATCH: " << max_batch_size << std::endl;
         unsigned int closest = pow(2, floor(log(max_batch_size)/log(2)));
@@ -803,13 +803,21 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
                 GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
             }
-            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(1));
+            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
         }
         if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
             try {
                 n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint32_t>();
             } catch (...) {
-                IE_THROW() << "[GPU] bad casting: GPU_THROUGHPUT_STREAMS should be uint32_t type";
+                try {
+                    std::string n_streams_str = options.find("GPU_THROUGHPUT_STREAMS")->second.as<std::string>();
+                    if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO)) {
+                        IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+                    }
+                    n_streams = config.GetDefaultNStreamsForThroughputMode();
+                } catch (...) {
+                    IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+                }
             }
         }
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -823,10 +831,10 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                     GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
                 }
             } catch (...) {
-                IE_THROW() << "[GPU] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
+                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
             }
             if (available_device_mem < 0) {
-                IE_THROW() << "[GPU] AVAILABLE_DEVICE_MEM_SIZE value should be greater than 0 for max batch size calculation";
+                IE_THROW() << "[GPU_MAX_BATCH_SIZE] AVAILABLE_DEVICE_MEM_SIZE value should be greater than 0 for max batch size calculation";
             }
         }
 
@@ -835,7 +843,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         try {
             model = model_param.as<std::shared_ptr<ngraph::Function>>();
         } catch (...) {
-            IE_THROW() << "[GPU] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+            IE_THROW() << "[GPU_MAX_BATCH_SIZE] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
         }
 
         InferenceEngine::CNNNetwork network(model);
@@ -857,40 +865,40 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto cloned_network = InferenceEngine::details::cloneNetwork(network);
         auto inputs_info = cloned_network.getInputsInfo();
         ICNNNetwork::InputShapes new_shapes;
-        try {
-            //std::map<std::string, SizeVector>;
-            bool batch_detected = false;
-            for (auto &info : inputs_info) {
-                if (!info.second)
-                    continue;
-                InferenceEngine::Layout layout = info.second->getLayout();
-                auto data = info.second->getInputData();
-                if (!data)
-                    continue;
-                std::string name = info.second->getInputData()->getName();
-                auto shape = data->getTensorDesc().getDims();
-                if (layout == InferenceEngine::Layout::NCHW ||
-                    layout == InferenceEngine::Layout::NHWC ||
-                    layout == InferenceEngine::Layout::NCDHW ||
-                    layout == InferenceEngine::Layout::NDHWC ||
-                    layout == InferenceEngine::Layout::NC) {
-                    shape[0] = base_batch_size;
-                    batch_detected = true;
-                } else if (layout == InferenceEngine::Layout::CN) {
-                    shape[1] = base_batch_size;
-                    batch_detected = true;
-                }
-                new_shapes[name] = shape;
+        //std::map<std::string, SizeVector>;
+        bool batch_detected = false;
+        for (auto& info : inputs_info) {
+            if (!info.second)
+                continue;
+            InferenceEngine::Layout layout = info.second->getLayout();
+            auto data = info.second->getInputData();
+            if (!data)
+                continue;
+            std::string name = info.second->getInputData()->getName();
+            auto shape = data->getTensorDesc().getDims();
+            if (layout == InferenceEngine::Layout::NCHW ||
+                layout == InferenceEngine::Layout::NHWC ||
+                layout == InferenceEngine::Layout::NCDHW ||
+                layout == InferenceEngine::Layout::NDHWC ||
+                layout == InferenceEngine::Layout::NC)  {
+                shape[0] = base_batch_size;
+                batch_detected = true;
+            } else if (layout == InferenceEngine::Layout::CN) {
+                shape[1] = base_batch_size;
+                batch_detected = true;
             }
+            new_shapes[name] = shape;
+        }
+        try {
             if (batch_detected) { // reshape only for batched layout
                 cloned_network.reshape(new_shapes);
                 GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                    GPU_DEBUG_COUT << "Reshaped base batch size to " << base_batch_size << std::endl;
+                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Reshaped base batch size to " << base_batch_size << std::endl;
                 }
             } else {
                 base_batch_size = 1;
                 GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                    GPU_DEBUG_COUT << "Batch dimension is not used in inputs." << std::endl;
+                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Batch dimension is not used in inputs." << std::endl;
                 }
             }
 
@@ -898,20 +906,20 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             TransformationsPipeline transformations(config, device_info);
             transformations.apply(nGraphFunc);
             program = std::make_shared<Program>(cloned_network, engine, config, false, true);
-            std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(
-                    0)->get_estimated_device_mem_usage();
+            std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
             int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
-                                               static_cast<int64_t>(static_cast<int64_t>(available_device_mem) -
-                                                                    device_memory_usage.first));
-            int64_t mem_per_batch = std::max(static_cast<int64_t>(1L),
-                                             (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
+                    static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
+            int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
             max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Base batch size: " << base_batch_size << std::endl;
-                GPU_DEBUG_COUT << "Const mem usage: " << device_memory_usage.first << std::endl;
-                GPU_DEBUG_COUT << "General mem usage: " << device_memory_usage.second << std::endl;
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Base batch size: " << base_batch_size  << std::endl;
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Const mem usage: " << device_memory_usage.first  << std::endl;
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] General mem usage: " << device_memory_usage.second  << std::endl;
             }
-        } catch (...) {
+        } catch (std::exception& e) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
+            }
         }
         IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
     } else {

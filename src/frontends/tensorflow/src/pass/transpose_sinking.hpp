@@ -12,13 +12,13 @@ namespace frontend {
 namespace tf {
 namespace pass {
 
-class TF_API TransposeSinkingOVTF : public ov::pass::FunctionPass {
+class TF_API TransposeSinkingOVTF : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ov::frontend::tf::pass::TransposeSinkingOVTF");
     TransposeSinkingOVTF() {
         set_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
-    bool run_on_function(std::shared_ptr<ov::Function> function) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& function) override;
 };
 
 }  // namespace pass

@@ -78,7 +78,7 @@
 //        const auto transpose = std::make_shared<ov::op::v1::Transpose>(paramOuts.at(0), inputOrderOp);
 //        transpose->get_rt_info() = getCPUInfo();
 //        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
-//        function = std::make_shared<ov::Function>(results, params, "Transpose");
+//        function = std::make_shared<ov::Model>(results, params, "Transpose");
 //    }
 //};
 //

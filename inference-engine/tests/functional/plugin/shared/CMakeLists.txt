@@ -41,7 +41,7 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
         DEVELOPER_PACKAGE
-            inference_engine_tests
+            tests
         EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
         DEFINES ${DEFINES}
         INCLUDES
