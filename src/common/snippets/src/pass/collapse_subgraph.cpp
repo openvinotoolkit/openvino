@@ -22,7 +22,7 @@
 #include <climits>
 
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::TokenizeSnippets, "Snippets::TokenizeSnippets", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::EnumerateNodes, "Snippets::EnumerateNodes", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::MarkNodesForTokenization, "Snippets::MarkNodesForTokenization", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::StartSubgraph, "Snippets::StartSubgraph", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::AttachToSubgraph, "Snippets::AttachToSubgraph", 0);
 
@@ -57,16 +57,6 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
     };
 
     return std::find_if_not(std::begin(outputs), std::end(outputs), check_shapes_broadcastable) != std::end(outputs);
-}
-
-auto has_subgraph_as_input(const std::shared_ptr<const Node> &node) -> bool {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::has_subgraph_as_input")
-    for (const auto& parent : ngraph::as_node_vector(node->input_values())) {
-        if (ov::is_type<snippets::op::Subgraph>(parent)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 auto is_lo(const std::shared_ptr<const Node> &n) -> bool {
@@ -233,22 +223,36 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
     return rinfo->second.as<int64_t>();
 }
 
-bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::EnumerateNodes")
+bool MarkNodesForTokenization::run_on_model(const std::shared_ptr<ov::Model> &m) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::MarkNodesForTokenization")
+    auto has_input_marked_as_subgraph = [](const std::shared_ptr<const Node> &node) -> bool {
+        const auto& input_nodes = ngraph::as_node_vector(node->input_values());
+        return std::any_of(input_nodes.begin(), input_nodes.end(),
+                    [](const std::shared_ptr<const Node> &n) -> bool{
+                                const auto & snt = GetSnippetsNodeType(n);
+                                return snt == SnippetsNodeType::SubgraphStart ||
+                                       snt == SnippetsNodeType::SubgraphBody;
+                            });
+    };
     int64_t order = 0;
     // Todo: We don't really have to set order for every node, just for subgraph parents and children would be enough
     for (auto &node : m->get_ordered_ops()) {
         SetTopologicalOrder(node, order++);
+        if (GetSnippetsNodeType(node) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(node)) {
+            if (has_input_marked_as_subgraph(node))
+                SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
+            else
+                SetSnippetsNodeType(node, SnippetsNodeType::SubgraphStart);
+        }
     }
     return true;
 }
-
+// Todo: It is probably better to join StartSubgraph and AttachToSubgraph, since their matchers are essentially the same
 StartSubgraph::StartSubgraph() : MatcherPass() {
     MATCHER_SCOPE(StartSubgraph);
     auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
-        [](std::shared_ptr<Node> n) {
-            return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin &&
-                   AppropriateForSubgraph(n);
+        [](const std::shared_ptr<const Node> &n) {
+            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphStart;
         });
     auto callback = [](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::StartSubgraph_callback")
@@ -284,10 +288,8 @@ AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
 
     continuation_strategy strategy = continuation_strategy::reset;
     auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
-        [](std::shared_ptr<Node> n) {
-            return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin &&
-                   has_subgraph_as_input(n) &&
-                   AppropriateForSubgraph(n);
+        [](const std::shared_ptr<const Node> &n) {
+            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphBody;
         });
     ngraph::graph_rewrite_callback callback = [strategy](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AttachToSubgraph_callback")

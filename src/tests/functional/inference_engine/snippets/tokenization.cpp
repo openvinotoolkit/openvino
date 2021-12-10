@@ -19,39 +19,32 @@
 using namespace testing;
 using namespace ngraph;
 
-// todo: reuse SetSnippetsNodeType from filter fused. Need to modify Cmake file appropriately
-namespace {
-void SetStartSubgraph(std::shared_ptr<Node> node) {
-    auto &rt = node->get_rt_info();
-    rt["MayBeFusedInPlugin"] = ngraph::snippets::pass::SnippetsNodeType::SubgraphStart;;
-}
-}
 // Todo: Move this test to CPU-specific
-//TEST(TransformationTests, DoNotStartSubgraphAfterInputs) {
-//    // Do not start Subgraph after input parameters to avoid U8->FP32 and FP32->U8 conversion pairs
-//    // Todo: Remove this test when U8 support is enabled in SnippetS and StartSubgraph logics is updated
-//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-//    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-//    {
-//        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-//        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-//        const std::vector<float> const_values{3, 2, 10};
-//        auto const_data = std::make_shared<opset1::Constant>(element::f32, Shape{1, 3}, const_values);
-//        auto add = std::make_shared<opset1::Add>(data0, data1);
-//        auto sub = std::make_shared<opset1::Subtract>(add, const_data);
-//        auto mul = std::make_shared<opset1::Multiply>(add, sub);
-//        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
-//
-//        pass::Manager m;
-//        m.register_pass<pass::InitNodeInfo>();
+TEST(TransformationTests, DoNotStartSubgraphAfterInputs) {
+    // Do not start Subgraph after input parameters to avoid U8->FP32 and FP32->U8 conversion pairs
+    // Todo: Remove this test when U8 support is enabled in SnippetS and StartSubgraph logics is updated
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
+        const std::vector<float> const_values{3, 2, 10};
+        auto const_data = std::make_shared<opset1::Constant>(element::f32, Shape{1, 3}, const_values);
+        auto add = std::make_shared<opset1::Add>(data0, data1);
+        auto sub = std::make_shared<opset1::Subtract>(add, const_data);
+        auto mul = std::make_shared<opset1::Multiply>(add, sub);
+        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
+
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
 //        m.register_pass<MKLDNNPlugin::SnippetsMarkFused>();
-//        m.register_pass<snippets::pass::EnumerateNodes>();
-//        m.register_pass<snippets::pass::StartSubgraph>();
-//        m.run_passes(f);
-//        ASSERT_NO_THROW(check_rt_info(f));
-//    }
-//    ASSERT_EQ(count_ops_of_type<snippets::op::Subgraph>(f), 0);
-//}
+        m.register_pass<snippets::pass::MarkNodesForTokenization>();
+        m.register_pass<snippets::pass::StartSubgraph>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    ASSERT_EQ(count_ops_of_type<snippets::op::Subgraph>(f), 0);
+}
 
 TEST(TransformationTests, StartSubgraphMultipleOutputs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -70,7 +63,7 @@ TEST(TransformationTests, StartSubgraphMultipleOutputs) {
 
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::EnumerateNodes>();
+        m.register_pass<snippets::pass::MarkNodesForTokenization>();
         m.register_pass<snippets::pass::StartSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -123,7 +116,7 @@ TEST(TransformationTests, TokenizeMulAddSubgraph) {
 
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<ngraph::snippets::pass::EnumerateNodes>();
+        m.register_pass<ngraph::snippets::pass::MarkNodesForTokenization>();
         m.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -183,7 +176,7 @@ TEST(TransformationTests, DontStartSubgraphSingleOutput) {
 
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::EnumerateNodes>();
+        m.register_pass<snippets::pass::MarkNodesForTokenization>();
         m.register_pass<snippets::pass::StartSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -217,10 +210,10 @@ TEST(TransformationTests, AttachToSubgraph) {
         f = std::make_shared<Function>(NodeVector{concat}, ParameterVector{data0, data1});
         // It's important to set appropriate SnippetsNodeType to the existing subgraph.
         // The FilterFused pass won't work correctly otherwise.
-        SetStartSubgraph(add);
+        snippets::pass::SetSnippetsNodeType(add, snippets::pass::SnippetsNodeType::SubgraphStart);
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::EnumerateNodes>();
+        m.register_pass<snippets::pass::MarkNodesForTokenization>();
         m.register_pass<snippets::pass::AttachToSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -255,11 +248,10 @@ TEST(TransformationTests, DontAttachToSubgraphIfLoop) {
         auto log = std::make_shared<opset1::Log>(add);
         auto mul = std::make_shared<opset1::Multiply>(add, log);
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
-
-        SetStartSubgraph(add);
+        snippets::pass::SetSnippetsNodeType(add, snippets::pass::SnippetsNodeType::SubgraphStart);
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::EnumerateNodes>();
+        m.register_pass<snippets::pass::MarkNodesForTokenization>();
         m.register_pass<snippets::pass::AttachToSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

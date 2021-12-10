@@ -16,6 +16,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue 74365: azure is failing after #7351
         ".*DetectionOutput8ToDetectionOutput1",
         // TODO: Snpippets rewrite this test
-        ".*TransformationTests\\.DontStartSubgraphSingleOutput.*"
+        ".*TransformationTests\\.DontStartSubgraphSingleOutput.*",
+        // TODO: Move this test to CPU-specific
+        ".*TransformationTests\\.DoNotStartSubgraphAfterInputs.*"
     };
 }

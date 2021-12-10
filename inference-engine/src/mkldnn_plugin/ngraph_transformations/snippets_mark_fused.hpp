@@ -15,7 +15,7 @@ class SnippetsMarkFused : public ov::pass::ModelPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SnippetsMarkFused() : ModelPass() {}
-    bool run_on_model(std::shared_ptr<ov::Model> model) override;
+    bool run_on_model(const std::shared_ptr<ov::Model> &) override;
 };
 
 /*

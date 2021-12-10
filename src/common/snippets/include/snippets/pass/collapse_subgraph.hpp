@@ -32,14 +32,17 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node>&);
 bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
 
 /**
- * @interface EnumerateNodes
- * @brief  Snippets rely on topological order to avoid creating cyclic dependencies, so this transformation enumerates nodes in topological order.
+ * @interface MarkNodesForTokenization
+ * @brief  Snippets rely on certain node attributes to perform tokenization successfully, the transformation sets these attributes.
+ * The attributes are:
+ *      * topological order (used to avoid creating cyclic dependencies)
+ *      * SnippetsNodeType - flag that describes whether a node should be skipped, used to start or to continue a subgraph
  * @ingroup snippets
  */
-class EnumerateNodes : public ov::pass::ModelPass {
+class MarkNodesForTokenization : public ov::pass::ModelPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    EnumerateNodes() : ModelPass() {}
+    MarkNodesForTokenization() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 

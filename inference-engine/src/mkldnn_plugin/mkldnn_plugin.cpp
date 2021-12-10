@@ -499,7 +499,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     if (!useLpt && _enableSnippets && with_cpu_x86_avx2()) {
         ngraph::pass::Manager tokenization_manager;
         tokenization_manager.register_pass<SnippetsMarkFused>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
+        tokenization_manager.register_pass<ngraph::snippets::pass::MarkNodesForTokenization>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         tokenization_manager.run_passes(nGraphFunc);
     }

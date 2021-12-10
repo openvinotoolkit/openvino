@@ -280,7 +280,7 @@ void PropagateIfHasOnlyChild(const std::shared_ptr<Node> &node, NodeFusingType n
 }
 } // namespace
 
-bool SnippetsMarkFused::run_on_model(std::shared_ptr<ov::Model> m) {
+bool SnippetsMarkFused::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (ngraph::op::is_constant(node))
             continue;
