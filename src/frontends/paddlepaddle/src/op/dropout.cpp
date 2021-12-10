@@ -8,12 +8,12 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs dropout(const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto dropout_implementation = node.get_attribute<std::string>("dropout_implementation");
-    PDPD_OP_VALIDATION_CHECK(
+    PADDLEPADDLE_OP_CHECK(
         node,
         (dropout_implementation == "downgrade_in_infer" || dropout_implementation == "upscale_in_train"),
         "Unsupported dropout mode!");
@@ -28,6 +28,6 @@ NamedOutputs dropout(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

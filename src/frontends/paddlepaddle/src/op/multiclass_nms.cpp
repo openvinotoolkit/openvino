@@ -4,11 +4,11 @@
 #include <node_context.hpp>
 
 #include "openvino/opsets/opset8.hpp"
-#include "paddlepaddle_frontend/utility.hpp"
+
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs multiclass_nms(const NodeContext& node) {
     using namespace opset8;
@@ -25,11 +25,11 @@ NamedOutputs multiclass_nms(const NodeContext& node) {
     auto nms_eta = node.get_attribute<float>("nms_eta");
 
     auto out_names = node.get_output_names();
-    PDPD_ASSERT(out_names.size() == 3, "Unexpected number of outputs of MulticlassNMS");
+    PADDLEPADDLE_OP_CHECK(node, out_names.size() == 3, "Unexpected number of outputs of MulticlassNMS");
 
     auto type_index = node.get_out_port_type("Index");
     auto type_num = node.get_out_port_type("NmsRoisNum");
-    PDPD_ASSERT((type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
+    PADDLEPADDLE_OP_CHECK(node, (type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
                 "Unexpected data type of outputs of MulticlassNMS: " + std::to_string(out_names.size()));
 
     auto normalized = node.get_attribute<bool>("normalized");
@@ -64,6 +64,6 @@ NamedOutputs multiclass_nms(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

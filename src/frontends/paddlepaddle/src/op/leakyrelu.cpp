@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs leaky_relu(const NodeContext& node) {
     auto data = node.get_ng_input("X");
@@ -16,6 +16,6 @@ NamedOutputs leaky_relu(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<ov::opset6::PRelu>(data, alpha)}, {"Out"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -7,28 +7,28 @@
 #include <common/telemetry_extension.hpp>
 #include <manager.hpp>
 
-#include "paddlepaddle_frontend/utility.hpp"
-
 namespace ov {
 namespace frontend {
-class OpPlacePDPD;
-class TensorPlacePDPD;
-class PDPD_API InputModelPDPD : public InputModel {
-    friend class FrontEndPDPD;
+namespace paddlepaddle {
+
+class OpPlace;
+class TensorPlace;
+class FRONTEND_API InputModel : public ov::frontend::InputModel {
+    friend class FrontEnd;
     class InputModelPDPDImpl;
     std::shared_ptr<InputModelPDPDImpl> _impl;
 
-    std::vector<std::shared_ptr<OpPlacePDPD>> get_op_places() const;
-    std::map<std::string, std::shared_ptr<TensorPlacePDPD>> get_var_places() const;
+    std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
+    std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
 public:
-    explicit InputModelPDPD(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
+    explicit InputModel(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    explicit InputModelPDPD(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
+    explicit InputModel(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
 #endif
-    explicit InputModelPDPD(const std::vector<std::istream*>& streams,
-                            const std::shared_ptr<TelemetryExtension>& telemetry = {});
+    explicit InputModel(const std::vector<std::istream*>& streams,
+                        const std::shared_ptr<TelemetryExtension>& telemetry = {});
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
@@ -41,5 +41,6 @@ public:
     void set_tensor_value(Place::Ptr place, const void* value) override;
 };
 
+}
 }  // namespace frontend
 }  // namespace ov

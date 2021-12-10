@@ -5,12 +5,13 @@
 #pragma once
 #include "ngraph/compatibility.hpp"
 #include "openvino/core/any.hpp"
-#include "paddlepaddle_frontend/exceptions.hpp"
-#include "paddlepaddle_frontend/utility.hpp"
+#include "openvino/frontends/paddlepaddle/exceptions.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
+
 using InPortName = std::string;
 using OutPortName = std::string;
 using TensorName = std::string;
@@ -137,6 +138,6 @@ inline NamedOutputs NodeContext::default_single_output_mapping(
     return named_outputs;
 }
 
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

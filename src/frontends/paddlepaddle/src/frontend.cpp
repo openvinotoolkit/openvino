@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "paddlepaddle_frontend/frontend.hpp"
+#include "openvino/frontends/paddlepaddle/frontend.hpp"
 
 #include <fstream>
 #include <map>
@@ -14,11 +14,11 @@
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/opsets/opset7.hpp"
-#include "paddlepaddle_frontend/exceptions.hpp"
-#include "paddlepaddle_frontend/model.hpp"
-#include "paddlepaddle_frontend/place.hpp"
-#include "pdpd_fw_node.hpp"
-#include "pdpd_utils.hpp"
+#include "openvino/frontends/paddlepaddle/exceptions.hpp"
+#include "openvino/frontends/paddlepaddle/model.hpp"
+#include "openvino/frontends/paddlepaddle/place.hpp"
+#include "paddlepaddle_fw_node.hpp"
+#include "paddlepaddle_utils.hpp"
 
 using namespace ov::opset7;
 using namespace ov;
@@ -26,10 +26,11 @@ using namespace ov::frontend;
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace {
-NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
-                          const std::shared_ptr<OpPlacePDPD>& op_place,
+
+NamedOutputs make_ng_node(const std::map<paddlepaddle::TensorName, Output<Node>>& nodes,
+                          const std::shared_ptr<OpPlace>& op_place,
                           const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
     const auto& op_desc = op_place->get_desc();
 
@@ -52,7 +53,7 @@ NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
     NamedOutputs outputs;
     // In case the conversion function throws exception
     try {
-        outputs = creator_it->second(NodeContext(DecoderPDPDProto(op_place), named_inputs));
+        outputs = creator_it->second(NodeContext(DecoderProto(op_place), named_inputs));
     } catch (std::exception& ex) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_desc.type() + " Exception " + ex.what());
     }
@@ -60,8 +61,8 @@ NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
     return outputs;
 }
 
-NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
-                                 const std::shared_ptr<OpPlacePDPD>& op_place) {
+NamedOutputs make_framework_node(const std::map<paddlepaddle::TensorName, Output<Node>>& nodes,
+                                 const std::shared_ptr<OpPlace>& op_place) {
     const auto& op_desc = op_place->get_desc();
 
     OutputVector inputs_vector;
@@ -83,12 +84,12 @@ NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>&
     }
 
     auto node =
-        std::make_shared<ov::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
+        std::make_shared<FrameworkNode>(DecoderProto(op_place), inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
 
-bool normalize_framework_node(const std::shared_ptr<PDPDFrameworkNode>& node,
+bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
                               const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
     auto type = node->get_op_type();
     auto creator_it = CREATORS_MAP.find(type);
@@ -132,18 +133,17 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
     return &ext_stream;
 }
 }  // namespace
-}  // namespace pdpd
 
-std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_each_node(
-    const std::shared_ptr<InputModelPDPD>& model,
+std::shared_ptr<ngraph::Function> FrontEnd::convert_each_node(
+    const std::shared_ptr<InputModel>& model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
-                                                      const std::shared_ptr<OpPlacePDPD>&)> func) {
+                                                      const std::shared_ptr<OpPlace>&)> func) {
     auto nodes_dict(model->get_tensor_values());
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
 
     for (const auto& _inp_place : model->get_inputs()) {
-        const auto& inp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_inp_place);
+        const auto& inp_place = std::dynamic_pointer_cast<TensorPlace>(_inp_place);
         const auto& var = inp_place->get_desc();
         const auto& shape = inp_place->get_partial_shape();
         const auto& type = inp_place->get_element_type();
@@ -161,7 +161,7 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_each_node(
             // inputs and outputs are stored in the model already
             continue;
         } else {
-            pdpd::NamedOutputs named_outputs = func(nodes_dict, op_place);
+            paddlepaddle::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
                 if (op_desc.outputs().begin()->arguments().size() > 0) {
@@ -193,7 +193,7 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_each_node(
     }
 
     for (const auto& _outp_place : model->get_outputs()) {
-        const auto& outp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_outp_place);
+        const auto& outp_place = std::dynamic_pointer_cast<TensorPlace>(_outp_place);
         auto var = outp_place->get_desc();
         auto input_var_name = var.name();
         auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
@@ -204,8 +204,8 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_each_node(
     return std::make_shared<ov::Model>(result_nodes, parameter_nodes);
 }
 
-bool FrontEndPDPD::supported_impl(const std::vector<ov::Any>& variants) const {
-    // FrontEndPDPD can only load model specified by one path, one file or two files.
+bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    // FrontEnd can only load model specified by one path, one file or two files.
     if (variants.empty() || variants.size() > 2)
         return false;
 
@@ -213,8 +213,8 @@ bool FrontEndPDPD::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::string>()) {
         std::string suffix = ".pdmodel";
         std::string model_path = variants[0].as<std::string>();
-        if (!pdpd::endsWith(model_path, suffix)) {
-            model_path += pdpd::get_path_sep<char>() + "__model__";
+        if (!paddlepaddle::endsWith(model_path, suffix)) {
+            model_path += paddlepaddle::get_path_sep<char>() + "__model__";
         }
         std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
@@ -225,8 +225,8 @@ bool FrontEndPDPD::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".pdmodel";
         std::wstring model_path = variants[0].as<std::wstring>();
-        if (!pdpd::endsWith(model_path, suffix)) {
-            model_path += pdpd::get_path_sep<wchar_t>() + L"__model__";
+        if (!paddlepaddle::endsWith(model_path, suffix)) {
+            model_path += paddlepaddle::get_path_sep<wchar_t>() + L"__model__";
         }
         std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
@@ -243,55 +243,55 @@ bool FrontEndPDPD::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<ov::Any>& variants) const {
+InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() == 1) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (variants[0].is<std::string>()) {
             std::string m_path = variants[0].as<std::string>();
-            return std::make_shared<InputModelPDPD>(m_path, m_telemetry);
+            return std::make_shared<InputModel>(m_path, m_telemetry);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else if (variants[0].is<std::wstring>()) {
             std::wstring m_path = variants[0].as<std::wstring>();
-            return std::make_shared<InputModelPDPD>(m_path, m_telemetry);
+            return std::make_shared<InputModel>(m_path, m_telemetry);
         }
 #endif
         // The case with only model stream provided and no weights. This means model has
         // no learnable weights
         else if (variants[0].is<std::istream*>()) {
             auto p_model_stream = variants[0].as<std::istream*>();
-            return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
+            return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
         }
     } else if (variants.size() == 2) {
         // The case when .pdmodel and .pdparams files are provided
         std::ifstream model_stream;
         std::ifstream weights_stream;
-        std::istream* p_model_stream = pdpd::variant_to_stream_ptr(variants[0], model_stream);
-        std::istream* p_weights_stream = pdpd::variant_to_stream_ptr(variants[1], weights_stream);
+        std::istream* p_model_stream = paddlepaddle::variant_to_stream_ptr(variants[0], model_stream);
+        std::istream* p_weights_stream = paddlepaddle::variant_to_stream_ptr(variants[1], weights_stream);
         if (p_model_stream && p_weights_stream) {
-            return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
+            return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
                                                     m_telemetry);
         }
     }
-    PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");
+    FRONT_END_THROW("Model can be loaded either from 1 or 2 files/streams");
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::convert(InputModel::Ptr model) const {
-    auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
-    std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
+std::shared_ptr<ov::Model> FrontEnd::convert(InputModel::Ptr model) const {
+    auto pdpd_model = std::dynamic_pointer_cast<InputModel>(model);
+    std::map<std::string, paddlepaddle::CreatorFunction> CREATORS_MAP = paddlepaddle::get_supported_ops();
     auto f = convert_each_node(
         pdpd_model,
-        [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlacePDPD>& op_place) {
-            return pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+        [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlace>& op_place) {
+            return paddlepaddle::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
         });
     return f;
 }
 
-void FrontEndPDPD::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
+void FrontEnd::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
-        if (ov::is_type<PDPDFrameworkNode>(node)) {
-            pdpd::normalize_framework_node(std::dynamic_pointer_cast<PDPDFrameworkNode>(node),
-                                           pdpd::get_supported_ops());
+        if (ov::is_type<FrameworkNode>(node)) {
+            paddlepaddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node),
+                                           paddlepaddle::get_supported_ops());
         }
     }
     for (auto result : partiallyConverted->get_results()) {
@@ -299,52 +299,53 @@ void FrontEndPDPD::convert(std::shared_ptr<ov::Model> partiallyConverted) const 
     }
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {
-    auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
-    std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
+std::shared_ptr<ov::Model> FrontEnd::convert_partially(InputModel::Ptr model) const {
+    auto pdpd_model = std::dynamic_pointer_cast<InputModel>(model);
+    std::map<std::string, paddlepaddle::CreatorFunction> CREATORS_MAP = paddlepaddle::get_supported_ops();
     auto f = convert_each_node(
         pdpd_model,
-        [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlacePDPD>& op_place) {
-            pdpd::NamedOutputs named_outputs;
+        [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlace>& op_place) {
+            paddlepaddle::NamedOutputs named_outputs;
             try {
-                named_outputs = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+                named_outputs = paddlepaddle::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
             } catch (const OpConversionFailure&) {
-                named_outputs = pdpd::make_framework_node(nodes_dict, op_place);
+                named_outputs = paddlepaddle::make_framework_node(nodes_dict, op_place);
             }
             return named_outputs;
         });
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::decode(InputModel::Ptr model) const {
-    auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
-    std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
-    auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
+std::shared_ptr<ov::Model> FrontEnd::decode(InputModel::Ptr model) const {
+    auto pdpd_model = std::dynamic_pointer_cast<InputModel>(model);
+    std::map<std::string, paddlepaddle::CreatorFunction> CREATORS_MAP = paddlepaddle::get_supported_ops();
+    auto f = convert_each_node(pdpd_model, paddlepaddle::make_framework_node);
     return f;
 }
 
-std::string FrontEndPDPD::get_name() const {
+std::string FrontEnd::get_name() const {
     return "paddle";
 }
 
-void FrontEndPDPD::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
     }
 }
 
+}
 }  // namespace frontend
 }  // namespace ov
 
-PDPD_C_API FrontEndVersion GetAPIVersion() {
+FRONTEND_C_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PDPD_C_API void* GetFrontEndData() {
+FRONTEND_C_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {
-        return std::make_shared<FrontEndPDPD>();
+        return std::make_shared<FrontEnd>();
     };
     return res;
 }

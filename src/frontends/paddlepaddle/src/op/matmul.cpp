@@ -7,7 +7,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs matmul(const NodeContext& node) {
     auto x = node.get_ng_input("X");
@@ -25,6 +25,6 @@ NamedOutputs matmul(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs concat(const NodeContext& node) {
     auto data = node.get_ng_inputs("X");
@@ -17,6 +17,6 @@ NamedOutputs concat(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

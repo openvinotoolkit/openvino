@@ -7,11 +7,11 @@
 #include <node_context.hpp>
 
 #include "openvino/opsets/opset6.hpp"
-#include "paddlepaddle_frontend/utility.hpp"
+
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 static std::shared_ptr<Node> get_val(int32_t idx, const Output<Node>& data) {
     auto startsNode = ov::opset6::Constant::create(element::i32, {1}, {idx});
@@ -120,6 +120,6 @@ NamedOutputs fill_constant_batch_size_like(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 using namespace default_opset;
 
@@ -173,6 +173,6 @@ NamedOutputs bicubic_interp_v2(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

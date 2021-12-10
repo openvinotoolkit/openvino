@@ -8,13 +8,13 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs exp(const NodeContext& node) {
     auto data = node.get_ng_input("X");
     return node.default_single_output_mapping({std::make_shared<default_opset::Exp>(data)}, {"Out"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

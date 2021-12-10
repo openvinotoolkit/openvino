@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pdpd_utils.hpp"
+#include "paddlepaddle_utils.hpp"
 
-std::shared_ptr<ov::Node> ov::frontend::pdpd::reorder_axes(const ov::Output<ov::Node>& value,
+std::shared_ptr<ov::Node> ov::frontend::paddlepaddle::reorder_axes(const ov::Output<ov::Node>& value,
                                                            std::vector<size_t> axes_order) {
     const auto axes_order_const =
         std::make_shared<opset6::Constant>(element::i64,

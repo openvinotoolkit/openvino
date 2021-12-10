@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs cumsum(const NodeContext& node) {
     const auto x = node.get_ng_input("X");
@@ -32,6 +32,6 @@ NamedOutputs cumsum(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

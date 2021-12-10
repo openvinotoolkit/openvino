@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs batch_norm(const NodeContext& node) {
     auto data = node.get_ng_input("X");
@@ -18,7 +18,7 @@ NamedOutputs batch_norm(const NodeContext& node) {
     auto variance = node.get_ng_input("Variance");
     auto data_layout = node.get_attribute<std::string>("data_layout");
 
-    PDPD_ASSERT((data_layout == "NCHW" || data_layout == "NHWC"), "Not supported input data layout!");
+    PADDLEPADDLE_OP_CHECK(node, (data_layout == "NCHW" || data_layout == "NHWC"), "Not supported input data layout!");
     if (data_layout == "NCHW") {
         return node.default_single_output_mapping(
             {std::make_shared<ov::opset6::BatchNormInference>(data,
@@ -45,6 +45,6 @@ NamedOutputs batch_norm(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -4,11 +4,11 @@
 #include <node_context.hpp>
 
 #include "openvino/opsets/opset8.hpp"
-#include "paddlepaddle_frontend/utility.hpp"
+
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs matrix_nms(const NodeContext& node) {
     using namespace opset8;
@@ -31,7 +31,7 @@ NamedOutputs matrix_nms(const NodeContext& node) {
     }
 
     auto out_names = node.get_output_names();
-    PDPD_ASSERT(out_names.size() == 3 || out_names.size() == 2,
+    PADDLEPADDLE_OP_CHECK(node, out_names.size() == 3 || out_names.size() == 2,
                 "Unexpected number of outputs of MatrixNMS: " + std::to_string(out_names.size()));
 
     element::Type type_num = i32;
@@ -44,7 +44,7 @@ NamedOutputs matrix_nms(const NodeContext& node) {
     }
 
     auto type_index = node.get_out_port_type("Index");
-    PDPD_ASSERT((type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
+    PADDLEPADDLE_OP_CHECK(node, (type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
                 "Unexpected data type of outputs of MatrixNMS");
 
     auto normalized = node.get_attribute<bool>("normalized");
@@ -82,6 +82,6 @@ NamedOutputs matrix_nms(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

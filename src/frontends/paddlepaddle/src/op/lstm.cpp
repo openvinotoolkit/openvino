@@ -5,12 +5,12 @@
 #include <node_context.hpp>
 
 #include "openvino/opsets/opset6.hpp"
-#include "paddlepaddle_frontend/utility.hpp"
-#include "pdpd_utils.hpp"
+
+#include "paddlepaddle_utils.hpp"
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 namespace {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -154,7 +154,7 @@ struct LSTMAttributes {
 }  // namespace
 NamedOutputs lstm(const NodeContext& node) {
     auto mode = node.get_attribute<std::string>("mode");
-    PDPD_ASSERT(mode == "LSTM", "RNN only support LSTM now");
+    PADDLEPADDLE_OP_CHECK(node, mode == "LSTM", "RNN only support LSTM now");
     auto prev_inputs = node.get_ng_inputs("Input");
     Output<Node> prev_output = prev_inputs[0];
     LSTMAttributes attrs(node);
@@ -188,6 +188,6 @@ NamedOutputs lstm(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 using namespace opset8;
 using namespace element;
@@ -51,6 +51,6 @@ NamedOutputs embedding(const NodeContext& node) {
     return node.default_single_output_mapping({node_embedding}, {"Out"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs deformable_conv(const NodeContext& node) {
     auto input = node.get_ng_input("Input");
@@ -62,6 +62,6 @@ NamedOutputs deformable_conv(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

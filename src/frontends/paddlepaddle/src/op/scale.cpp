@@ -8,12 +8,12 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs scale(const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto dtype = data.get_element_type();
-    // Note: PDPD Scale output data_type is the same with input
+    // Note: PaddlePaddle Scale output data_type is the same with input
     Output<Node> scale;
     Output<Node> bias;
 
@@ -45,6 +45,6 @@ NamedOutputs scale(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

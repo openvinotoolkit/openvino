@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs flatten_contiguous_range(const NodeContext& node) {
     auto x_node = node.get_ng_input("X");
@@ -42,6 +42,6 @@ NamedOutputs flatten_contiguous_range(const NodeContext& node) {
                                               {"Out"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

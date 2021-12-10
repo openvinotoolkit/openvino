@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 ov::op::PadType get_auto_pad(const NodeContext& node) {
     // Default value means use explicitly provided padding values.
@@ -59,7 +59,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node, cons
 
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node) {
     const auto data_rank = node.get_ng_input("Input").get_partial_shape().rank();
-    PDPD_ASSERT(data_rank.get_length() > 2, "the rank of conv input must > 2");
+    PADDLEPADDLE_OP_CHECK(node, data_rank.get_length() > 2, "the rank of conv input must > 2");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
     return get_pads(node, data_spatial_dims);
@@ -84,6 +84,6 @@ std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, const int
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

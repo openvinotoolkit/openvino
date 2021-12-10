@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 using namespace default_opset;
 NamedOutputs slice(const NodeContext& node) {
@@ -80,7 +80,7 @@ NamedOutputs slice(const NodeContext& node) {
         // according to paddle slice_op, when all axes are decreased, output shape is [1], instead of scalar.
         // Ref: paddle/fluid/operators/slice_op.h
         PartialShape input_shape = data.get_partial_shape();
-        PDPD_OP_VALIDATION_CHECK(node,
+        PADDLEPADDLE_OP_CHECK(node,
                                  input_shape.rank().is_static(),
                                  "input rank of slice must be static when decrease_axis is set.");
 
@@ -101,6 +101,6 @@ NamedOutputs slice(const NodeContext& node) {
     return node.default_single_output_mapping({stride_slice_node}, {"Out"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

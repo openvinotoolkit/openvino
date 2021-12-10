@@ -5,11 +5,11 @@
 #include <node_context.hpp>
 
 #include "openvino/opsets/opset7.hpp"
-#include "paddlepaddle_frontend/utility.hpp"
+
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs split(const NodeContext& node) {
     using namespace opset7;
@@ -35,7 +35,7 @@ NamedOutputs split(const NodeContext& node) {
             auto inputs = node.get_ng_inputs("SectionsTensorList");
             sections_node = std::make_shared<ov::opset7::Concat>(inputs, 0);
         } else {
-            PDPD_ASSERT(node.has_attribute<std::vector<int32_t>>("sections"),
+            PADDLEPADDLE_OP_CHECK(node, node.has_attribute<std::vector<int32_t>>("sections"),
                         "split: num==0 && no sections is invalid.");
             auto sections = node.get_attribute<std::vector<int32_t>>("sections");
             sections_node = Constant::create(element::i32, {sections.size()}, sections);
@@ -46,16 +46,16 @@ NamedOutputs split(const NodeContext& node) {
     }
 
     auto out_names = node.get_output_names();
-    PDPD_ASSERT(out_names.size() == 1, "Unexpected number of outputs");
+    PADDLEPADDLE_OP_CHECK(node, out_names.size() == 1, "Unexpected number of outputs");
 
     auto it = std::find(out_names.begin(), out_names.end(), "Out");
-    PDPD_ASSERT(it != out_names.end(), "Expected output not found");
+    PADDLEPADDLE_OP_CHECK(node, it != out_names.end(), "Expected output not found");
     for (const auto& split_output : split_outputs) {
         named_outputs[*it].push_back(split_output);
     }
     return named_outputs;
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

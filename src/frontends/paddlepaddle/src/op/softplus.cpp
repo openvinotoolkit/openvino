@@ -7,7 +7,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs softplus(const NodeContext& node) {
     auto data = node.get_ng_input("X");
@@ -18,11 +18,11 @@ NamedOutputs softplus(const NodeContext& node) {
     const float EPSINON = 1e-6;
 
     if (!(abs(beta - supported_beta) <= EPSINON) || !(abs(threshold - supported_threshold) <= EPSINON)) {
-        PDPD_OP_VALIDATION_CHECK(node, false, "only support beta==1.0 && threshold==20.0");
+        PADDLEPADDLE_OP_CHECK(node, false, "only support beta==1.0 && threshold==20.0");
     }
     return node.default_single_output_mapping({std::make_shared<default_opset::SoftPlus>(data)}, {"Out"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

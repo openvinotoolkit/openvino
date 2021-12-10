@@ -8,13 +8,13 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs logical_not(const NodeContext& node) {
     auto data = node.get_ng_input("X");
     return node.default_single_output_mapping({std::make_shared<ov::opset6::LogicalNot>(data)}, {"Out"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

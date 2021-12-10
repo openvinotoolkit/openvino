@@ -7,7 +7,7 @@
 #include "openvino/opsets/opset6.hpp"
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs assign_value(const NodeContext& node) {
     std::vector<int32_t> shape = node.get_attribute<std::vector<int32_t>>("shape");
@@ -36,7 +36,7 @@ NamedOutputs assign_value(const NodeContext& node) {
         break;
     }
     default: {
-        PDPD_OP_VALIDATION_CHECK(node, false, "assign_value only supports int32, int64, float32, bool");
+        PADDLEPADDLE_OP_CHECK(node, false, "assign_value only supports int32, int64, float32, bool");
         break;
     }
     }
@@ -45,6 +45,6 @@ NamedOutputs assign_value(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

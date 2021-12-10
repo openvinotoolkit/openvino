@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "paddlepaddle_frontend/exceptions.hpp"
+#include "openvino/frontends/paddlepaddle/exceptions.hpp"
 
 #include "node_context.hpp"
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
-std::string OpValidationFailurePDPD::get_error_msg_prefix_pdpd(const pdpd::NodeContext& node) {
+namespace paddlepaddle {
+std::string OpValidationFailurePDPD::get_error_msg_prefix_pdpd(const paddlepaddle::NodeContext& node) {
     std::stringstream ss;
     ss << "While validating node '" << node.get_op_type() << '\'';
     return ss.str();
 }
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

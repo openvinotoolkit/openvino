@@ -16,20 +16,21 @@
 
 #include "framework.pb.h"
 #include "node_context.hpp"
-#include "paddlepaddle_frontend/frontend.hpp"
-#include "paddlepaddle_frontend/place.hpp"
+#include "openvino/frontends/paddlepaddle/frontend.hpp"
+#include "openvino/frontends/paddlepaddle/place.hpp"
 
 namespace ov {
 namespace frontend {
+namespace paddlepaddle {
 extern std::map<paddle::framework::proto::VarType_Type, ov::element::Type> TYPE_MAP;
 
-class DecoderPDPDProto : public pdpd::DecoderBase {
+class DecoderProto : public paddlepaddle::DecoderBase {
 public:
-    explicit DecoderPDPDProto(const std::shared_ptr<OpPlacePDPD>& op) : op_place(op) {}
+    explicit DecoderProto(const std::shared_ptr<OpPlace>& op) : op_place(op) {}
 
     ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const override;
 
-    std::vector<pdpd::OutPortName> get_output_names() const override;
+    std::vector<paddlepaddle::OutPortName> get_output_names() const override;
 
     size_t get_output_size() const override;
 
@@ -47,8 +48,9 @@ public:
 
 private:
     std::vector<paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;
-    std::shared_ptr<OpPlacePDPD> op_place;
+    std::shared_ptr<OpPlace> op_place;
 };
 
+}
 }  // namespace frontend
 }  // namespace ov

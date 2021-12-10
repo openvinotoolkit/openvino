@@ -12,11 +12,13 @@
 
 namespace ov {
 namespace frontend {
-class OpPlacePDPD;
+namespace paddlepaddle {
 
-class PDPD_API FrontEndPDPD : public FrontEnd {
+class OpPlace;
+
+class FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    FrontEndPDPD() = default;
+    FrontEnd() = default;
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted OV Model
@@ -51,7 +53,7 @@ public:
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
-    /// \brief Check if FrontEndPDPD can recognize model from given parts
+    /// \brief Check if FrontEnd can recognize model from given parts
     /// \param params Can be path to folder which contains __model__ file or path to
     /// .pdmodel file
     /// \return InputModel::Ptr
@@ -66,11 +68,12 @@ protected:
 
 private:
     static std::shared_ptr<Model> convert_each_node(
-        const std::shared_ptr<InputModelPDPD>& model,
+        const std::shared_ptr<InputModel>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
-                                                          const std::shared_ptr<OpPlacePDPD>&)> func);
+                                                          const std::shared_ptr<OpPlace>&)> func);
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
+}
 }  // namespace frontend
 }  // namespace ov

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs squeeze(const NodeContext& node) {
     auto data = node.get_ng_input("X");
@@ -27,6 +27,6 @@ NamedOutputs squeeze(const NodeContext& node) {
     return node.default_single_output_mapping(out, {"Out"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 using namespace default_opset;
 using namespace element;
@@ -65,6 +65,6 @@ NamedOutputs prior_box(const NodeContext& node) {
     return outputs;
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

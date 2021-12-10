@@ -5,7 +5,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 #define OP_CONVERTER(op) NamedOutputs op(const NodeContext& node)
 OP_CONVERTER(argmax);
@@ -150,6 +150,6 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"yolo_box", op::yolo_box}};
 };
 
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs layer_norm(const NodeContext& node) {
     using namespace default_opset;
@@ -17,7 +17,7 @@ NamedOutputs layer_norm(const NodeContext& node) {
     const auto begin_norm_axis = node.get_attribute<int32_t>("begin_norm_axis", 1);
     // The limitation from:
     // https://github.com/PaddlePaddle/Paddle/blob/cec36ea6ff16fda90c1a004c6e043cd9b2096a2a/paddle/fluid/operators/layer_norm_op.cc#L176
-    PDPD_ASSERT(begin_norm_axis > 0, "begin_norm_axis should be greater than 0");
+    PADDLEPADDLE_OP_CHECK(node, begin_norm_axis > 0, "begin_norm_axis should be greater than 0");
 
     // shape of input
     const auto shape_of_node = std::make_shared<ShapeOf>(data);
@@ -54,6 +54,6 @@ NamedOutputs layer_norm(const NodeContext& node) {
     return node.default_single_output_mapping({result}, {"Y"});
 }
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

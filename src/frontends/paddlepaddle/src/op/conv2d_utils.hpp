@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 ov::op::PadType get_auto_pad(const NodeContext& node);
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node);
@@ -28,7 +28,7 @@ NamedOutputs conv2d_base(const NodeContext& node) {
     const auto groups = node.get_attribute<int32_t>("groups");
     const auto data_format = node.get_attribute<std::string>("data_format");
     // TODO Support Other data layout #55423
-    PDPD_ASSERT(data_format == "NCHW", "conv2d only supports NCHW now");
+    PADDLEPADDLE_OP_CHECK(node, data_format == "NCHW", "conv2d only supports NCHW now");
 
     if (groups > 1) {
         const auto reshaped_filters = get_reshaped_filter(filters, groups);
@@ -54,6 +54,6 @@ NamedOutputs conv2d_base(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

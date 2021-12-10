@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs fill_constant(const NodeContext& node) {
     auto shape = node.get_attribute<std::vector<int64_t>>("shape");
@@ -27,10 +27,10 @@ NamedOutputs fill_constant(const NodeContext& node) {
         int64_t value = static_cast<int64_t>(node.get_attribute<float>("value"));
         value_node = opset6::Constant::create(dtype, {1}, {value});
     } else {
-        PDPD_ASSERT(false, "fill_constant only supports i32, f32, i64");
+        PADDLEPADDLE_OP_CHECK(node, false, "fill_constant only supports i32, f32, i64");
     }
 
-    PDPD_ASSERT(shape.size() > 0 || node.has_ng_input("ShapeTensor") || node.has_ng_input("ShapeTensorList"),
+    PADDLEPADDLE_OP_CHECK(node, shape.size() > 0 || node.has_ng_input("ShapeTensor") || node.has_ng_input("ShapeTensorList"),
                 "fill_constant shape not set");
 
     if (node.has_ng_input("ShapeTensor")) {
@@ -47,6 +47,6 @@ NamedOutputs fill_constant(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

@@ -5,11 +5,11 @@
 #include <node_context.hpp>
 
 #include "openvino/opsets/opset6.hpp"
-#include "paddlepaddle_frontend/utility.hpp"
+
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs relu6(const NodeContext& node) {
     auto data = node.get_ng_input("X");
@@ -18,6 +18,6 @@ NamedOutputs relu6(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

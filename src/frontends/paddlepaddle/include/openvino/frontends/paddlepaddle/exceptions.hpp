@@ -8,20 +8,21 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
+
 class NodeContext;
 
 class OpValidationFailurePDPD : public OpValidationFailure {
 public:
     OpValidationFailurePDPD(const CheckLocInfo& check_loc_info,
-                            const pdpd::NodeContext& node,
+                            const paddlepaddle::NodeContext& node,
                             const std::string& explanation)
         : OpValidationFailure(check_loc_info, get_error_msg_prefix_pdpd(node), explanation) {}
 
 private:
-    static std::string get_error_msg_prefix_pdpd(const pdpd::NodeContext& node);
+    static std::string get_error_msg_prefix_pdpd(const paddlepaddle::NodeContext& node);
 };
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 
 /// \brief Macro to check whether a boolean condition holds.
@@ -31,6 +32,6 @@ private:
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::OpValidationFailurePDPD if `cond` is false.
-#define PDPD_OP_VALIDATION_CHECK(node_context, ...) \
-    OPENVINO_ASSERT_HELPER(::ov::frontend::pdpd::OpValidationFailurePDPD, (node_context), __VA_ARGS__)
+#define PADDLEPADDLE_OP_CHECK(node_context, ...) \
+    OPENVINO_ASSERT_HELPER(::ov::frontend::paddlepaddle::OpValidationFailurePDPD, (node_context), __VA_ARGS__)
 }  // namespace ov

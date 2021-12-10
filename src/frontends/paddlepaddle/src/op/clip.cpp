@@ -8,18 +8,18 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs clip(const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto min = node.get_attribute<float>("min");
     auto max = node.get_attribute<float>("max");
-    PDPD_OP_VALIDATION_CHECK(node, max >= min, "clip: max value must greater than min value!");
+    PADDLEPADDLE_OP_CHECK(node, max >= min, "clip: max value must greater than min value!");
 
     return node.default_single_output_mapping({std::make_shared<ov::opset6::Clamp>(data, min, max)}, {"Out"});
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

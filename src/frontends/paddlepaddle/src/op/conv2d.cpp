@@ -7,13 +7,13 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs conv2d(const NodeContext& node) {
     return conv2d_base<opset6::GroupConvolution, opset6::Convolution>(node);
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

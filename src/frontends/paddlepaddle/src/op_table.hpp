@@ -12,11 +12,11 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
 
 std::map<std::string, CreatorFunction> get_supported_ops();
 
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

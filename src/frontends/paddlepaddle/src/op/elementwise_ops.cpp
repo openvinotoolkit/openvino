@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 template <typename T>
 NamedOutputs elementwise_ops(const NodeContext& node) {
@@ -18,8 +18,8 @@ NamedOutputs elementwise_ops(const NodeContext& node) {
 
     auto axis = node.get_attribute<int>("axis");
 
-    PDPD_OP_VALIDATION_CHECK(node, x.get_partial_shape().rank().is_static(), "elementwise_ops: X rank must be static!");
-    PDPD_OP_VALIDATION_CHECK(node, y.get_partial_shape().rank().is_static(), "elementwise_ops: Y rank must be static!");
+    PADDLEPADDLE_OP_CHECK(node, x.get_partial_shape().rank().is_static(), "elementwise_ops: X rank must be static!");
+    PADDLEPADDLE_OP_CHECK(node, y.get_partial_shape().rank().is_static(), "elementwise_ops: Y rank must be static!");
     int64_t x_rank = x.get_partial_shape().rank().get_length();
     int64_t y_rank = y.get_partial_shape().rank().get_length();
 
@@ -77,6 +77,6 @@ NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

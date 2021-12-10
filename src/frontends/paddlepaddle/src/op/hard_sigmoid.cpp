@@ -5,11 +5,11 @@
 #include <node_context.hpp>
 
 #include "openvino/opsets/opset6.hpp"
-#include "paddlepaddle_frontend/utility.hpp"
+
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 namespace op {
 NamedOutputs hard_sigmoid(const NodeContext& node) {
     auto data = node.get_ng_input("X");
@@ -22,6 +22,6 @@ NamedOutputs hard_sigmoid(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov

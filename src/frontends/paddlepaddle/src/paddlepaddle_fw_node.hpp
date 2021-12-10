@@ -10,14 +10,15 @@
 
 namespace ov {
 namespace frontend {
-class PDPDFrameworkNode : public ov::op::util::FrameworkNode {
+namespace paddlepaddle {
+class FrameworkNode : public ov::op::util::FrameworkNode {
 public:
-    OPENVINO_OP("PDPDFrameworkNode", "util", ov::op::util::FrameworkNode);
+    OPENVINO_OP("FrameworkNode", "util", ov::op::util::FrameworkNode);
 
-    PDPDFrameworkNode(const DecoderPDPDProto& decoder,
-                      const OutputVector& inputs,
-                      const std::vector<std::string>& inputs_names)
-        : FrameworkNode(inputs, decoder.get_output_size()),
+    FrameworkNode(const DecoderProto& decoder,
+                  const OutputVector& inputs,
+                  const std::vector<std::string>& inputs_names)
+        : ov::op::util::FrameworkNode(inputs, decoder.get_output_size()),
           m_decoder{decoder},
           m_inputs_names{inputs_names} {
         ov::op::util::FrameworkNodeAttrs attrs;
@@ -30,14 +31,14 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<PDPDFrameworkNode>(m_decoder, inputs, m_inputs_names);
+        return std::make_shared<FrameworkNode>(m_decoder, inputs, m_inputs_names);
     }
 
     std::string get_op_type() const {
         return m_decoder.get_op_type();
     }
 
-    const DecoderPDPDProto& get_decoder() const {
+    const DecoderProto& get_decoder() const {
         return m_decoder;
     }
 
@@ -46,8 +47,9 @@ public:
     std::map<std::string, OutputVector> return_named_outputs();
 
 private:
-    const DecoderPDPDProto m_decoder;
+    const DecoderProto m_decoder;
     std::vector<std::string> m_inputs_names;
 };
+}
 }  // namespace frontend
 }  // namespace ov

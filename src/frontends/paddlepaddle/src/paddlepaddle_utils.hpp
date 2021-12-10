@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {
+namespace paddlepaddle {
 #ifdef _WIN32
 const char PATH_SEPARATOR = '\\';
 #    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
@@ -40,6 +40,6 @@ bool endsWith(const std::basic_string<T>& str, const std::basic_string<T>& suffi
 }
 
 std::shared_ptr<Node> reorder_axes(const Output<Node>& value, std::vector<size_t> axes_order);
-}  // namespace pdpd
+}  // namespace paddlepaddle
 }  // namespace frontend
 }  // namespace ov
