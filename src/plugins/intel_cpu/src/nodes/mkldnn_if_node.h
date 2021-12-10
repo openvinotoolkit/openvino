@@ -43,13 +43,13 @@ private:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MKLDNNMemoryPtr& from, const MKLDNNMemoryPtr& to, const mkldnn::engine& eng);
+        PortMapHelper(const MKLDNNMemoryPtr& from, const MKLDNNMemoryPtr& to, const bool memcpy, const mkldnn::engine& eng);
         virtual ~PortMapHelper() = default;
         virtual void execute(mkldnn::stream& strm);
 
     private:
-        static void* get_ptr(mkldnn::memory& prim);
 
+        mkldnn::reorder reorder;
         mkldnn::memory mem_holder_src;
         mkldnn::memory mem_holder_dst;
 

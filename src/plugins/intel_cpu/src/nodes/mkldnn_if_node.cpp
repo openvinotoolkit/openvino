@@ -7,16 +7,13 @@
 #include "mkldnn_extension_utils.h"
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
-#include "common/memory_desc_wrapper.hpp"
 
-#include <map>
 #include <string>
 #include <vector>
 
 using namespace MKLDNNPlugin;
 
-
-MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
+MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const bool memcpy, const mkldnn::engine& eng) {
     // we should redefine 'to' memory for dynamism
     const auto &currDesc = to->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != from->getStaticDims()) {
@@ -26,23 +23,11 @@ MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MK
     mem_holder_src = from->GetPrimitive();
     mem_holder_dst = to->GetPrimitive();
 
-    if (mem_holder_src.get_desc().get_size() != mem_holder_dst.get_desc().get_size())
-        IE_THROW() << "PortMapHelper of 'If' has incorrect input and output memories for copying!";
-    if (mem_holder_src.get_desc().data_type() != mem_holder_dst.get_desc().data_type())
-        IE_THROW() << "PortMapHelper of 'If' has different data types of input and output memories for copying!";
-
-    size = mem_holder_src.get_desc().get_size();
+    reorder = {mem_holder_src, mem_holder_dst};
 }
 
 void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
-    std::memcpy(get_ptr(mem_holder_dst), get_ptr(mem_holder_src), size);
-}
-
-void* MKLDNNIfNode::PortMapHelper::get_ptr(mkldnn::memory& prim) {
-    auto ptr = static_cast<uint8_t*>(prim.get_data_handle());
-    auto md = prim.get_desc().data;
-    mkldnn::impl::memory_desc_wrapper wrapper(md);
-    return ptr + wrapper.offset0() * wrapper.data_type_size();
+    reorder.execute(strm, mem_holder_src, mem_holder_dst);
 }
 
 bool MKLDNNIfNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
