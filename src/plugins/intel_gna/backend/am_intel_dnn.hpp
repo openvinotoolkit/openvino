@@ -190,7 +190,7 @@ public:
 
     template<class A, class B>
     static void InitPiecewiseLinearComponent(intel_dnn_component_t &cmp,
-                                             DnnActivation function_id,
+                                             const DnnActivation& function_id,
                                              intel_dnn_orientation_t orientation,
                                              uint32_t num_rows,
                                              uint32_t num_columns,
@@ -392,7 +392,7 @@ private:
                                             bool postInitMem);
 
     static void InitPiecewiseLinearComponentPrivate(intel_dnn_component_t &cmp,
-                                                    DnnActivation function_id,
+                                                    const DnnActivation& function_id,
                                                     intel_dnn_orientation_t orientation,
                                                     uint32_t num_rows,
                                                     uint32_t num_columns,
