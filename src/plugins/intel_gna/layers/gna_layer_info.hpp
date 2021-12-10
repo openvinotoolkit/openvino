@@ -88,9 +88,9 @@ class LayerInfo {
         }
         return false;
     }
-    static bool isBatchSizeConstrained(const std::string name) {
+    bool isBatchSizeConstrained() {
         static InferenceEngine::details::caseless_set<std::string> layersWithConstrains = {"memory", "convolution"};
-        return layersWithConstrains.find(name) != layersWithConstrains.end();
+        return layersWithConstrains.find(layer->name) != layersWithConstrains.end();
     }
     size_t getOutputBatchSize() const {
         if (!layer) {
@@ -339,12 +339,14 @@ class LayerInfo {
     bool isCopy() const noexcept {
         return isOfType(CopyLayerName) || isOfType(DelayedCopyLayerName);
     }
-
     bool isCopyDelayed() const noexcept {
         return isOfType(DelayedCopyLayerName);
     }
     bool isWeightableIdentity() const noexcept {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
+    }
+    bool isFusableWithConv() const noexcept {
+        return isActivation() || isMaxPooling();
     }
 
     bool isSynthetic() const noexcept {
