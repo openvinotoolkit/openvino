@@ -10,7 +10,8 @@
 #include "utils.hpp"
 namespace ov {
 namespace op {
-namespace v4 {
+
+namespace ShapeInferRange {
 
 template <class T>
 inline bool get_data_as_double(
@@ -45,10 +46,12 @@ inline bool get_data_as_double<ov::PartialShape>(
 }
 
 template <class T>
-void shape_infer(const Range* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+void range_shape_infer(const Node* op,
+                       const std::vector<T>& input_shapes,
+                       std::vector<T>& output_shapes,
+                       bool output_is_integral,
+                       bool step_allows_zero,
+                       const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3) && output_shapes.size() == 1);
 
     NODE_VALIDATION_CHECK(op, input_shapes[0].rank().compatible(0), "'start' input is not a scalar");
@@ -78,14 +81,18 @@ void shape_infer(const Range* op,
     if (get_data_as_double<T>(2, op, step_val, constant_data)) {
         NODE_VALIDATION_CHECK(op, step_val.size() == 1);
         step = step_val[0];
-        NODE_VALIDATION_CHECK(op, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
+        if (step_allows_zero)
+            NODE_VALIDATION_CHECK(op, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
+        else
+            NODE_VALIDATION_CHECK(op,
+                                  std::isfinite(step) && !std::isnan(step) && step != 0,
+                                  "'step' cannot be zero, nan, or infinite.");
     }
 
-    const auto& output_type = op->m_output_type;
     if (start_val.size() == 1 && stop_val.size() == 1 && step_val.size() == 1) {
         // all inputs must be casted to output_type before
         // the rounding for casting values are done towards zero
-        if (output_type.is_integral_number()) {
+        if (output_is_integral) {
             start = std::trunc(start);
             stop = std::trunc(stop);
             step = std::trunc(step);
@@ -106,6 +113,40 @@ void shape_infer(const Range* op,
         output_shapes[0] = ov::PartialShape::dynamic(1);
     }
 }
+}  // namespace ShapeInferRange
+
+namespace v0 {
+
+template <class T>
+void shape_infer(const Range* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    ShapeInferRange::range_shape_infer(op,
+                                       input_shapes,
+                                       output_shapes,
+                                       op->get_input_element_type(0).is_integral_number(),
+                                       false,
+                                       constant_data);
+}
+
+}  // namespace v0
+
+namespace v4 {
+
+template <class T>
+void shape_infer(const Range* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    ShapeInferRange::range_shape_infer(op,
+                                       input_shapes,
+                                       output_shapes,
+                                       op->get_output_type().is_integral_number(),
+                                       true,
+                                       constant_data);
+}
+
 }  // namespace v4
 }  // namespace op
 }  // namespace ov

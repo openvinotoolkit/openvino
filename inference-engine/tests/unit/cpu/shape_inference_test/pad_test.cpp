@@ -22,6 +22,6 @@ TEST(StaticShapeInferenceTest, Padv1) {
                        {ov::StaticShape{3, 6, 5, 5},
                         ov::StaticShape{4},
                         ov::StaticShape{4},
-                        ov::StaticShape(std::initializer_list<ov::StaticDimension>{})},
+                        ov::StaticShape()},
                        {ov::StaticShape({6, 9, 8, 8})});
 }

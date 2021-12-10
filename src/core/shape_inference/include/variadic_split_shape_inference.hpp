@@ -17,7 +17,7 @@ template <typename T>
 void shape_infer(const VariadicSplit* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
 
@@ -124,7 +124,7 @@ void shape_infer(const VariadicSplit* op,
         // we don't even known the number of outputs in this case.
         // just leave output_shapes as empty.
     }
-}  // namespace v1
+}
 
 }  // namespace v1
 }  // namespace op

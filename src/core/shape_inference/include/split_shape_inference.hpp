@@ -32,7 +32,7 @@ void shape_infer(const Split* op,
     const auto data_rank = data_ps.rank();
 
     std::vector<int64_t> axes_values;
-    auto num_splits = op->get_num_splits();
+    const auto & num_splits = op->get_num_splits();
     if (get_data_as_int64<T>(1, op, axes_values, constant_data) && data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               axes_values.size() == 1,

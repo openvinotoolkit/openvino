@@ -90,7 +90,7 @@ void op::v4::Range::validate_and_infer_types() {
     for (int i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
 
-    shape_infer(this, input_shapes, result_shapes, {});
+    op::v4::shape_infer(this, input_shapes, result_shapes);
 
     set_output_type(0, m_output_type, result_shapes[0]);
 }
@@ -352,66 +352,15 @@ void op::v0::Range::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
 
-    ov::PartialShape result_shape;
 
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic error "-Wswitch"
-#    pragma GCC diagnostic error "-Wswitch-enum"
-#endif
-    switch (result_et) {
-    case element::Type_t::bf16:
-        result_shape = infer_output_shape<bfloat16>(this, result_et);
-        break;
-    case element::Type_t::f16:
-        result_shape = infer_output_shape<float16>(this, result_et);
-        break;
-    case element::Type_t::f32:
-        result_shape = infer_output_shape<float>(this, result_et);
-        break;
-    case element::Type_t::f64:
-        result_shape = infer_output_shape<double>(this, result_et);
-        break;
-    case element::Type_t::i8:
-        result_shape = infer_output_shape<int8_t>(this, result_et);
-        break;
-    case element::Type_t::i16:
-        result_shape = infer_output_shape<int16_t>(this, result_et);
-        break;
-    case element::Type_t::i32:
-        result_shape = infer_output_shape<int32_t>(this, result_et);
-        break;
-    case element::Type_t::i64:
-        result_shape = infer_output_shape<int64_t>(this, result_et);
-        break;
-    case element::Type_t::u8:
-        result_shape = infer_output_shape<uint8_t>(this, result_et);
-        break;
-    case element::Type_t::u16:
-        result_shape = infer_output_shape<uint16_t>(this, result_et);
-        break;
-    case element::Type_t::u32:
-        result_shape = infer_output_shape<uint32_t>(this, result_et);
-        break;
-    case element::Type_t::u64:
-        result_shape = infer_output_shape<uint64_t>(this, result_et);
-        break;
-    case element::Type_t::dynamic:
-        result_shape = ov::PartialShape::dynamic(1);
-        break;
-    case element::Type_t::u1:
-    case element::Type_t::i4:
-    case element::Type_t::u4:
-    case element::Type_t::undefined:
-    case element::Type_t::boolean:
-        NODE_VALIDATION_CHECK(this, false, "Internal nGraph error: unsupported element type: ", result_et);
-        break;
-    }
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#    pragma GCC diagnostic pop
-#endif
+    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
+    std::vector<PartialShape> input_shapes;
+    for (int i = 0; i < get_input_size(); i++)
+        input_shapes.push_back(get_input_partial_shape(i));
 
-    set_output_type(0, result_et, result_shape);
+    op::v0::shape_infer(this, input_shapes, result_shapes);
+
+    set_output_type(0, result_et, result_shapes[0]);
 }
 
 shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const {

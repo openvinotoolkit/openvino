@@ -17,7 +17,7 @@ void shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes, std::v
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 1) && output_shapes.size() == 1);
     const auto& input_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
-    auto strides = op->get_strides();
+    const auto & strides = op->get_strides();
     if (input_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, input_shape.size() == 4, "[N, C, H, W] input shape is required.");
 

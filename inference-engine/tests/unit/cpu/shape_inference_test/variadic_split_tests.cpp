@@ -32,15 +32,15 @@ TEST(StaticShapeInferenceTest, VariadicSplitV1) {
     const auto split = build_variadic_split(ov::PartialShape::dynamic(), {}, {});
 
     check_static_shape(split.get(),
-                       {StaticShape{12, 6}, {-2}, TestTensor(StaticShape{3}, {7, -1, 2})},
+                       {StaticShape{12, 6}, {-2}, {7, -1, 2}},
                        {{7, 6}, {3, 6}, {2, 6}});
     check_static_shape(split.get(),
-                       {StaticShape{12, 6}, {-2}, TestTensor(StaticShape{3}, {-1, 7, 2})},
+                       {StaticShape{12, 6}, {-2}, {-1, 7, 2}},
                        {{3, 6}, {7, 6}, {2, 6}});
     check_static_shape(split.get(),
-                       {StaticShape{12, 1, 6}, {2}, TestTensor(StaticShape{3}, {3, 1, 2})},
+                       {StaticShape{12, 1, 6}, {2}, {3, 1, 2}},
                        {{12, 1, 3}, {12, 1, 1}, {12, 1, 2}});
-    check_static_shape(split.get(), {StaticShape{12, 6}, {1}, TestTensor(StaticShape{2}, {6, 0})}, {{12, 6}, {12, 0}});
+    check_static_shape(split.get(), {StaticShape{12, 6}, {1}, {6, 0}}, {{12, 6}, {12, 0}});
 }
 
 TEST(StaticShapeInferenceTest, VariadicSplitV1_StaticWithConstMap) {

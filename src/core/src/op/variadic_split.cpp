@@ -38,7 +38,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
                                                   get_input_partial_shape(1),
                                                   get_input_partial_shape(2)};
     std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes, {});
+    shape_infer(this, input_shapes, output_shapes);
 
     const auto& data_type = get_input_element_type(0);
     for (size_t i = 0; i < output_shapes.size(); ++i) {
@@ -88,7 +88,7 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
                                                   axis_tensor->get_partial_shape(),
                                                   split_lengths_tensor->get_partial_shape()};
     std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes, {{0, data_tensor}, {1, axis_tensor}, {2, split_lengths_tensor}});
+    shape_infer(this, input_shapes, output_shapes, {{1, axis_tensor}, {2, split_lengths_tensor}});
 
     const auto data_shape = data_tensor->get_shape();
     std::vector<size_t> lower_bounds(data_shape.size(), 0);
