@@ -48,7 +48,6 @@ private:
         virtual void execute(mkldnn::stream& strm);
 
     private:
-
         mkldnn::reorder reorder;
         mkldnn::memory mem_holder_src;
         mkldnn::memory mem_holder_dst;
