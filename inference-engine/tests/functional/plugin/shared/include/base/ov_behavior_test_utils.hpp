@@ -105,7 +105,7 @@ public:
             auto it = deviceMapping.find(op->get_friendly_name());
             if (it != deviceMapping.end()) {
                 std::string affinity = it->second;
-                op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+                op->get_rt_info()["affinity"] = affinity;
             }
         }
     }

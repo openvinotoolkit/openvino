@@ -89,7 +89,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getOriginalWithN
     concat1->set_friendly_name("concat1");
 
     auto& rtInfo1 = concat1->get_rt_info();
-    rtInfo1["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat1");
+    rtInfo1["Variant::std::string"] = "concat1";
 
     const auto concat2 = std::make_shared<ngraph::opset1::Concat>(
         ngraph::OutputVector { parent2->output(0), parent3->output(0) },
@@ -97,7 +97,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getOriginalWithN
     concat2->set_friendly_name("concat2");
 
     auto& rtInfo2 = concat2->get_rt_info();
-    rtInfo2["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat2");
+    rtInfo2["Variant::std::string"] = "concat2";
 
     std::shared_ptr<ngraph::Node> result1 = concat1;
     std::shared_ptr<ngraph::Node> result2 = concat2;
@@ -198,7 +198,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
     concat1->set_friendly_name("concat1");
 
     auto& rtInfo1 = concat1->get_rt_info();
-    rtInfo1["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat1");
+    rtInfo1["Variant::std::string"] = "concat1";
 
     const auto concat2 = std::make_shared<ngraph::opset1::Concat>(
         ngraph::OutputVector { deqBefore2, deqBefore3 },
@@ -206,7 +206,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
     concat2->set_friendly_name("concat2");
 
     auto& rtInfo2 = concat2->get_rt_info();
-    rtInfo2["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat2");
+    rtInfo2["Variant::std::string"] = "concat2";
 
     std::shared_ptr<ngraph::Node> result1 = concat1;
     std::shared_ptr<ngraph::Node> result2 = concat2;
