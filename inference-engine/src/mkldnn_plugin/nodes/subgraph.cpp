@@ -216,8 +216,7 @@ void MKLDNNSnippetNode::createPrimitive() {
 
 void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     if (schedule.ptr == nullptr || !canUseOptimizedImpl) {
-        interpret();
-        return;
+        IE_THROW() << "MKLDNNSnippetNode can't use Optimized implementation and can't fallback to reference";
     }
     jit_snippets_call_args call_args;
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
@@ -543,29 +542,6 @@ void MKLDNNSnippetNode::schedule_nt(const jit_snippets_call_args& call_args) con
             schedule.get_callable<kernel>()(indexes.data(), &call_args);
         }
     });
-}
-
-void MKLDNNSnippetNode::interpret() const {
-    ngraph::HostTensorVector inputs;
-    auto params = snippet->get_body()->get_parameters();
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        auto & parents = getParentEdgesAtPort(i);
-        auto &mem = parents[0]->getMemory();
-        auto type = snippet->get_input_element_type(i);
-        auto &shape = params[i]->get_shape();
-        inputs.push_back(std::make_shared<ngraph::HostTensor>(type, shape, mem.GetPtr()));
-    }
-
-    ngraph::HostTensorVector outputs;
-    auto results = snippet->get_body()->get_results();
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        auto & child = getChildEdgesAtPort(i);
-        auto &mem = child[0]->getMemory();
-        auto type = snippet->get_output_element_type(i);
-        auto &shape = results[i]->get_shape();
-        outputs.push_back(std::make_shared<ngraph::HostTensor>(type, shape, mem.GetPtr()));
-    }
-    snippet->evaluate(outputs, inputs);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNSnippetNode, Subgraph);

@@ -42,9 +42,6 @@ private:
 
     typedef void (*kernel)(const void *, const void *);
 
-    // Interpret snippet with nGraph reference
-    void interpret() const;
-
     void define_schedule();
 
     void generate();
