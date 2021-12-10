@@ -107,7 +107,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
         std::vector<element::Type>{ netPrecision });
     convolution->set_friendly_name("output");
     auto& rtInfo = convolution->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("convolution");
+    rtInfo["Variant::std::string"] = "convolution";
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionTransformation");
@@ -305,7 +305,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
                                                                                       precisionAfterOperation);
     }
     auto& rtInfo = convolution->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("convolution");
+    rtInfo["Variant::std::string"] = "convolution";
 
     auto dequantizationStructure = dequantizationAfter;
     dequantizationStructure.multiply.outPrecision = netPrecision;

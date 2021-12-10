@@ -124,7 +124,7 @@ protected:
         return function;
     }
 
-    void init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
+    void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
         if (function->get_parameters().size() == 2) {
             generatePooledVector();
             funcRef = createFunction(true);
