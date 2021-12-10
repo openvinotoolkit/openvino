@@ -16,8 +16,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/node.hpp"
-#include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 

@@ -10,11 +10,11 @@
 #include <string>
 
 #include "Python.h"
-#include "openvino/core/any.hpp" // ov::RuntimeAttribute
+#include "openvino/core/any.hpp"  // ov::RuntimeAttribute
 
 namespace py = pybind11;
 
-void regclass_graph_Variant(py::module m);
+void regclass_graph_Any(py::module m);
 
 class PyAny : public ov::Any {
 public:
