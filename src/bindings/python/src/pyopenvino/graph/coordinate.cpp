@@ -18,6 +18,10 @@ void regclass_graph_Coordinate(py::module m) {
     coordinate.def(py::init<const ov::Shape&>());
     coordinate.def(py::init<const std::vector<size_t>&>());
     coordinate.def(py::init<const ov::Coordinate&>());
+    coordinate.def("__setitem__", [](ov::Coordinate& self, size_t key, size_t value) {
+        self[key] = value;
+    });
+
     coordinate.def("__getitem__", [](const ov::Coordinate& self, size_t key) {
         return self[key];
     });

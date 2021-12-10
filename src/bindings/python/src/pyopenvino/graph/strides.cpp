@@ -35,6 +35,10 @@ void regclass_graph_Strides(py::module m) {
         return "<" + class_name + ": (" + shape_str + ")>";
     });
 
+    strides.def("__setitem__", [](ov::Strides& self, size_t key, size_t value) {
+        self[key] = value;
+    });
+
     strides.def("__getitem__", [](const ov::Strides& self, size_t key) {
         return self[key];
     });

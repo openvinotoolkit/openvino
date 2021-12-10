@@ -35,6 +35,10 @@ void regclass_graph_CoordinateDiff(py::module m) {
         return "<" + class_name + ": (" + shape_str + ")>";
     });
 
+    coordinate_diff.def("__setitem__", [](ov::CoordinateDiff& self, size_t key, std::ptrdiff_t& value) {
+        self[key] = value;
+    });
+
     coordinate_diff.def("__getitem__", [](const ov::CoordinateDiff& self, size_t key) {
         return self[key];
     });

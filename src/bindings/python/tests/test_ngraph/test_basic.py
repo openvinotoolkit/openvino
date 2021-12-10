@@ -12,8 +12,8 @@ import openvino.runtime as ov
 from openvino.pyopenvino import VariantInt, VariantString
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers, \
-    Strides, AxisVector, Coordinate, CoordinateDiff
+from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime.impl import Strides, AxisVector, Coordinate, CoordinateDiff
 from openvino.runtime import Tensor
 from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.impl.op import Parameter
@@ -573,6 +573,12 @@ def test_strides_iteration_methods():
     assert np.equal([x for x in strides], data).all()
     assert np.equal([strides[i] for i in range(data.size)], data).all()
 
+    data2 = np.array([5, 6, 7])
+    for i in range(data2.size):
+        strides[i] = data2[i]
+
+    assert np.equal([x for x in strides], data2).all()
+
 
 def test_axis_vector_iteration_methods():
     data = np.array([1, 2, 3])
@@ -581,6 +587,12 @@ def test_axis_vector_iteration_methods():
     assert len(axisVector) == data.size
     assert np.equal([x for x in axisVector], data).all()
     assert np.equal([axisVector[i] for i in range(data.size)], data).all()
+
+    data2 = np.array([5, 6, 7])
+    for i in range(data2.size):
+        axisVector[i] = data2[i]
+
+    assert np.equal([x for x in axisVector], data2).all()
 
 
 def test_coordinate_iteration_methods():
@@ -591,6 +603,12 @@ def test_coordinate_iteration_methods():
     assert np.equal([x for x in coordinate], data).all()
     assert np.equal([coordinate[i] for i in range(data.size)], data).all()
 
+    data2 = np.array([5, 6, 7])
+    for i in range(data2.size):
+        coordinate[i] = data2[i]
+
+    assert np.equal([x for x in coordinate], data2).all()
+
 
 def test_coordinate_diff_iteration_methods():
     data = np.array([1, 2, 3])
@@ -599,6 +617,12 @@ def test_coordinate_diff_iteration_methods():
     assert len(coordinateDiff) == data.size
     assert np.equal([x for x in coordinateDiff], data).all()
     assert np.equal([coordinateDiff[i] for i in range(data.size)], data).all()
+
+    data2 = np.array([5, 6, 7])
+    for i in range(data2.size):
+        coordinateDiff[i] = data2[i]
+
+    assert np.equal([x for x in coordinateDiff], data2).all()
 
 def test_layout():
     layout = ov.Layout("NCWH")

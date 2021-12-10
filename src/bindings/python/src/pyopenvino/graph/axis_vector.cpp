@@ -17,6 +17,10 @@ void regclass_graph_AxisVector(py::module m) {
     axis_vector.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axes"));
     axis_vector.def(py::init<const std::vector<size_t>&>(), py::arg("axes"));
     axis_vector.def(py::init<const ov::AxisVector&>(), py::arg("axes"));
+    axis_vector.def("__setitem__", [](ov::AxisVector& self, size_t key, size_t value) {
+        self[key] = value;
+    });
+
     axis_vector.def("__getitem__", [](const ov::AxisVector& self, size_t key) {
         return self[key];
     });
