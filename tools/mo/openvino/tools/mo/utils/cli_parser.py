@@ -43,38 +43,72 @@ class IgnoredAction(argparse.Action):
         setattr(namespace, self.dest, True)
 
 
+def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
+                                 try_mo_root=False, check_existance=True) -> List[str]:
+    if values is not None:
+        list_of_values = list()
+        if isinstance(values, str):
+            if values != "":
+                list_of_values = values.split(',')
+        elif isinstance(values, list):
+            list_of_values = values
+        else:
+            raise Error('Unsupported type of command line parameter "{}" value'.format(param_name))
+
+        if not check_existance:
+            return [get_absolute_path(path) for path in list_of_values]
+
+        for idx, val in enumerate(list_of_values):
+            list_of_values[idx] = val
+
+            error_msg = 'The value for command line parameter "{}" must be existing file/directory, ' \
+                        'but "{}" does not exist.'.format(param_name, val)
+            if os.path.exists(val):
+                continue
+            elif not try_mo_root or val == '':
+                raise Error(error_msg)
+            elif try_mo_root:
+                path_from_mo_root = get_mo_root_dir() + '/mo/' + val
+                list_of_values[idx] = path_from_mo_root
+                if not os.path.exists(path_from_mo_root):
+                    raise Error(error_msg)
+
+        return [get_absolute_path(path) for path in list_of_values]
+
+
 class CanonicalizePathAction(argparse.Action):
     """
     Expand user home directory paths and convert relative-paths to absolute.
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
-        if values is not None:
-            list_of_values = list()
-            if isinstance(values, str):
-                if values != "":
-                    list_of_values = values.split(',')
-            elif isinstance(values, list):
-                list_of_values = values
-            else:
-                raise Error('Unsupported type of command line parameter "{}" value'.format(self.dest))
-            list_of_values = [get_absolute_path(path) for path in list_of_values]
-            setattr(namespace, self.dest, ','.join(list_of_values))
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=False, check_existance=False)
+        setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
-class CanonicalizePathCheckExistenceAction(CanonicalizePathAction):
+class CanonicalizeTransformationPathCheckExistenceAction(argparse.Action):
+    """
+    Convert relative to the current and relative to mo root paths to absolute
+    and check specified file or directory existence.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=True, check_existance=True)
+        setattr(namespace, self.dest, ','.join(list_of_paths))
+
+
+class CanonicalizePathCheckExistenceAction(argparse.Action):
     """
     Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
     existence.
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
-        super().__call__(parser, namespace, values, option_string)
-        names = getattr(namespace, self.dest)
-        for name in names.split(','):
-            if name != "" and not os.path.exists(name):
-                raise Error('The value for command line parameter "{}" must be existing file/directory, '
-                            ' but "{}" does not exist.'.format(self.dest, name))
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=False, check_existance=True)
+        setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
 class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
@@ -90,12 +124,14 @@ class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenc
 
 class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
     def __call__(self, parser, namespace, values, option_string=None):
-        super().__call__(parser, namespace, values, option_string)
         dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
             option_string)
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
+        if 'mean_file' in option_string or 'mean_offset' in option_string:
+            dep_msg += 'Please use --mean_values cli option instead.'
         log.error(dep_msg, extra={'is_warning': True})
+        super().__call__(parser, namespace, values, option_string)
 
 
 def readable_file(path: str):
@@ -343,7 +379,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
     common_group.add_argument('--keep_shape_ops',
-                              help='The option is ignored. Expected behavior is enabled by default.',
+                              help=argparse.SUPPRESS,
                               action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
                               help='Disable compression and store weights with original precision.',
@@ -355,8 +391,11 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Switch model conversion progress display to a multiline mode.',
                               action='store_true', default=False)
     common_group.add_argument('--transformations_config',
-                              help='Use the configuration file with transformations description.',
-                              action=CanonicalizePathCheckExistenceAction)
+                              help='Use the configuration file with transformations '
+                                   'description. File can be specified as relative path '
+                                   'from the current directory, as absolute path or as a'
+                                   'relative path from the mo root directory',
+                              action=CanonicalizeTransformationPathCheckExistenceAction)
     common_group.add_argument('--legacy_ir_generation',
                               help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     common_group.add_argument("--use_new_frontend",
@@ -387,6 +426,7 @@ def get_common_cli_options(model_name):
     d['move_to_preprocess'] = '- Move mean values to preprocess section'
     d['reverse_input_channels'] = '- Reverse input channels'
     d['use_legacy_frontend'] = '- Use legacy API for model processing'
+    d['transformations_config'] = '- Use the transformations config file'
     return d
 
 
@@ -424,7 +464,6 @@ def get_mxnet_cli_options():
         'pretrained_model_name': '- Pretrained model to be merged with the .nd files',
         'save_params_from_nd': '- Enable saving built parameters file from .nd files',
         'legacy_mxnet_model': '- Enable MXNet loader for models trained with MXNet version lower than 1.0.0',
-        'transformations_config': '- Use the config file',
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
@@ -487,11 +526,13 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
-                             help='Mean image to be used for the input. Should be a binaryproto file',
+                             help='[DEPRECATED] ' +
+                                  'Mean image to be used for the input. Should be a binaryproto file',
                              default=None,
-                             action=CanonicalizePathCheckExistenceAction)
+                             action=DeprecatedCanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file_offsets', '-mo',
-                             help='Mean image offsets to be used for the input binaryproto file. ' +
+                             help='[DEPRECATED] ' +
+                                  'Mean image offsets to be used for the input binaryproto file. ' +
                                   'When the mean image is bigger than the expected input, it is cropped. By default, centers ' +
                                   'of the input image and the mean image are the same and the mean image is cropped by ' +
                                   'dimensions of the input image. The format to pass this option is the following: "-mo (x,y)". In this ' +
@@ -1286,7 +1327,7 @@ def check_available_transforms(transforms: list):
     :param transforms: list of user specified transformations
     :return: raises an Error if transformation is not available
     """
-    from mo.back.offline_transformations import get_available_transformations
+    from openvino.tools.mo.back.offline_transformations import get_available_transformations
     available_transforms = get_available_transformations()
 
     missing_transformations = []

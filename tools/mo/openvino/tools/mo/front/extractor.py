@@ -160,7 +160,7 @@ def node_defs_to_str(node: Node):
     return result
 
 
-def update_ie_fields(attrs: dict, ir_version=None):
+def update_ie_fields(attrs: dict, ir_version = None):
     ir_v10_attrs = {
         'IE': [(
             'layer',
@@ -279,21 +279,13 @@ def update_ie_fields(attrs: dict, ir_version=None):
                         if node.has('real_input_dims') else None),
                         ('protobuf', lambda node: node_defs_to_str(node) if node.has('pbs') else None),
                         {'custom_attributes': None},
-                        ('strides',
-                         lambda node: ','.join(map(str, node['stride'][node.spatial_dims])) if node.has_valid(
-                             'stride') else None),
+                        ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims])) if node.has_valid('stride') else None),
                         ('kernel', lambda node: ','.join(map(str, node['kernel_spatial'])) if node.has_valid(
                             'kernel_spatial') else None),
-                        ('dilations',
-                         lambda node: ','.join(map(str, node['dilation'][node.spatial_dims])) if node.has_valid(
-                             'dilation') else None),
+                        ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims])) if node.has_valid('dilation') else None),
 
-                        ('pads_begin', lambda node: ','.join(
-                            map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid(
-                            'pad') else None),
-                        ('pads_end', lambda node: ','.join(
-                            map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid(
-                            'pad') else None),
+                        ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid('pad') else None),
+                        ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid('pad') else None),
 
                         ('scale', lambda node: attr_getter(node, 'scale')),
                         'crop_width',
@@ -534,7 +526,7 @@ def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int 
 
 
 def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.ndarray],
-                           freeze_placeholder: dict, input_user_data_types=dict()):
+                           freeze_placeholder: dict, input_user_data_types = dict()):
     """
     Restructures user input cutting request. Splits ports out of node names. Transforms node names to node ids.
     :param graph: graph to operate on
@@ -640,7 +632,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
         if node_id not in _input_shapes:
             raise Error('Shape is not specified for the placeholder with name {} through --input_shape option.'
                         ''.format(new_phs[0]['name']))
-        _ins = _input_shapes[node_id]  # list
+        _ins = _input_shapes[node_id] # list
         for new_ph in new_phs:
             name = new_ph['name']
             direction = new_ph['direction']
@@ -722,8 +714,7 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
         for node_name in list(graph.nodes()):
             if len(list(graph.out_edges(node_name))) == 0:
                 if node_name in input_reachable:
-                    out_ports_count = Node(graph, node_name).out_ports_count if Node(graph, node_name).has_valid(
-                        'out_ports_count') else 1
+                    out_ports_count = Node(graph, node_name).out_ports_count if Node(graph, node_name).has_valid('out_ports_count') else 1
                     for i in range(out_ports_count):
                         sinks.append(add_opoutput(graph, node_name, i, False))
                     undead_outputs.append(node_name)
@@ -733,7 +724,7 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
             log.info('Possible outputs: \'{!s}\' are not input reachable. True outputs are {!s}'
                      ''.format(', '.join([str(d_o) for d_o in dead_outputs]),
                                ', '.join([str(u_o) for u_o in undead_outputs])))
-    else:  # cutting the net by outputs
+    else:   # cutting the net by outputs
         for node, values in user_defined_outputs.items():
             if node not in graph.nodes():
                 raise Error('Node "{}" does not exist in the graph. ' +
@@ -804,7 +795,7 @@ def split_node_in_port(node_id: str):
                     return node_name, port
                 except ValueError as err:
                     log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
-                        node_id))
+                    node_id))
             else:
                 node_name = separator.join(parts[:-1])
                 try:
@@ -812,7 +803,7 @@ def split_node_in_port(node_id: str):
                     return node_name, port
                 except ValueError as err:
                     log.warning('Didn\'t recognize node:port format for "{}" because port is not an integer.'.format(
-                        node_id))
+                    node_id))
 
     return node_id, None
 
@@ -884,7 +875,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     :return: id of new Input operation
     """
     # We import it here because Op imports add_attrs_props and update_ie_fields from this file
-    from extensions.ops.parameter import Parameter
+    from openvino.tools.mo.ops.parameter import Parameter
     if data_type is None:
         data_type = np.float32
     input_op = Parameter(graph, dict(shape=shape, user_shape=user_shape, data_type=data_type, initial_node_name=node_id,
@@ -926,7 +917,7 @@ def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node,
                                shape=shape, user_shape=user_shape, data_type=data_type))
 
 
-def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port: int, node_id: str,
+def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port:int, node_id: str,
                                                 inputs: list, edges_to_remove: list):
     n_inputs = len(smart_node.in_nodes())
     if n_inputs > 1 and port is not None and port != 0:
@@ -955,7 +946,7 @@ def add_input_ops_helper_before_infer_output_port(graph: Graph, port: int, node_
                                shape=shape, user_shape=user_shape, data_type=data_type, is_out_port=True))
 
 
-def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node, port: int, node_id: str,
+def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node, port:int, node_id: str,
                                                  inputs: list, edges_to_remove: list):
     out_node = smart_node.out_node(port)
     shape = out_node['shape'] if 'shape' in out_node else None
@@ -1103,13 +1094,13 @@ class MXNetCustomFrontExtractorOp(object):
     In contrast to FrontReplacement* classes, this class doesn't modify graph topology and
     doesn't completely override node attributes. So it is safe to preserve the original
     MO inference function (which can use FW fallback mechanism).
-
+    
     It is needed to keep the list of extractors for particularly custom layers.
 
     When actual extraction happens, Model Optimizer first finds the match by type, which is CustomFrontExtractorOp.
     It in turns looks up the MXNetCustomFrontExtractorOp for the needed layer extractor not by type, but by op_type.
 
-
+    
     A sub-class should implement one of extract methods:
         def extract(self, node):
             return (<supported or not: Boolean>, { <additional node attributes> })
