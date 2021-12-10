@@ -70,10 +70,10 @@ PYBIND11_MODULE(pyopenvino, m) {
     m.def("set_batch", &ov::set_batch);
     m.def(
         "set_batch",
-        [](const std::shared_ptr<ov::Function>& f, int64_t value) {
-            return ov::set_batch(f, ov::Dimension(value));
+        [](const std::shared_ptr<ov::Model>& model, int64_t value) {
+            return ov::set_batch(model, ov::Dimension(value));
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("batch_size") = -1);
 
     regclass_graph_PyRTMap(m);
