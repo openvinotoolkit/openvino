@@ -43,10 +43,14 @@ std::shared_ptr<Convolution> create_conv(Output<Node> input, const Shape & weigt
     return create_conv(input, create_weights(weigts_shape));
 }
 
-std::shared_ptr<GroupConvolution> create_group_conv(Output<Node> input, const Shape & weigts_shape) {
-    return std::make_shared<GroupConvolution>(input, create_weights(weigts_shape), ov::Strides{1, 1},
+std::shared_ptr<GroupConvolution> create_group_conv(Output<Node> input, Output<Node> weights) {
+    return std::make_shared<GroupConvolution>(input, weights, ov::Strides{1, 1},
                                               ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
                                               ov::Strides{1, 1});
+}
+
+std::shared_ptr<GroupConvolution> create_group_conv(Output<Node> input, const Shape & weigts_shape) {
+    return create_group_conv(input, create_weights(weigts_shape));
 }
 
 std::shared_ptr<GroupConvolution> create_group_conv_with_gather(Output<Node> input, const Shape & weigts_shape, const std::vector<int64_t> & order) {
@@ -113,6 +117,7 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -170,6 +175,7 @@ TEST_F(TransformationTestsF, RICFusionHard) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -195,6 +201,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -219,6 +226,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -243,6 +251,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -268,6 +277,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -293,8 +303,50 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwiseNegative) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto input2 = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(input, input2);
+        auto conv = create_conv(add, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input, input2 });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwiseNegative2) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto input2 = create_param({ 1, 1, 64, 64 });
+        auto add = std::make_shared<Add>(input, input2);
+        auto conv = create_conv(add, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input, input2 });
+        apply_reverse_input_channels(function, {{0, "NCHW"}, {1, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwiseNegative3) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add = std::make_shared<Add>(input, Constant::create(element::f32, {1, 1, 1, 1, 1}, {1.4}));
+        auto shapeof = std::make_shared<ShapeOf>(add);
+
+        function = std::make_shared<Function>(NodeVector{ shapeof }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
 }
 
 TEST_F(TransformationTestsF, RICFusionGroupConv) {
@@ -320,6 +372,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -361,6 +414,7 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -386,6 +440,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -424,6 +479,47 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto fq = create_fq(input);
+        auto weights_const = create_weights({3, 1, 1, 3, 3});
+        auto fq_weights = std::make_shared<FakeQuantize>(weights_const,
+                                                         create_weights({3, 1, 1, 1, 1}),
+                                                         create_weights({1, 1, 1}),
+                                                         create_weights({1}),
+                                                         create_weights({1}), 255);
+        auto gconv = create_group_conv(fq, fq_weights);
+        auto conv = create_conv(gconv, {6, 3, 1, 1});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto fq = create_fq(input);
+        auto weights_const = create_weights({3, 1, 1, 3, 3});
+        auto fq_weights = std::make_shared<FakeQuantize>(create_gather(weights_const, {2, 1, 0}, 0),
+                                                         create_gather(create_weights({3, 1, 1, 1, 1}), {2, 1, 0}, 0),
+                                                         create_weights({1, 1, 1}),
+                                                         create_weights({1}),
+                                                         create_weights({1}), 255);
+        auto gconv = create_group_conv(fq, fq_weights);
+        auto conv = create_conv_with_gather(gconv, {6, 3, 1, 1}, {2, 1, 0});
+
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
 }
@@ -449,5 +545,95 @@ TEST_F(TransformationTestsF, RICFusionShapeOf) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gather = create_gather(input, {2, 1, 1}, 1);
+        auto relu = std::make_shared<Relu>(gather);
+        auto conv = create_conv(relu, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative2) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto input2 = std::make_shared<Parameter>(element::i64, Shape{3});
+        auto gather = std::make_shared<Gather>(input, input2, Constant::create(element::i64, {}, {1}));
+        auto relu = std::make_shared<Relu>(gather);
+        auto conv = create_conv(relu, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input, input2 });
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative3) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gather = create_gather(input, {1}, 1);
+        auto relu = std::make_shared<Relu>(gather);
+        auto conv = create_conv(relu, {6, 1, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative4) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto gather = create_gather(input, {2, 0}, 1);
+        auto relu = std::make_shared<Relu>(gather);
+        auto conv = create_conv(relu, {6, 2, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto split = std::make_shared<Split>(input, Constant::create(element::i64, {}, {1}), 3);
+        auto concat = std::make_shared<Concat>(OutputVector{split->output(2), split->output(1), split->output(1)}, 1);
+        auto relu = std::make_shared<Relu>(concat);
+        auto conv = create_conv(relu, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative2) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto split = std::make_shared<Split>(input, Constant::create(element::i64, {}, {1}), 3);
+        auto split2 = std::make_shared<Split>(input, Constant::create(element::i64, {}, {1}), 3);
+        auto concat = std::make_shared<Concat>(OutputVector{split->output(2), split->output(1), split2->output(0)}, 1);
+        auto relu = std::make_shared<Relu>(concat);
+        auto conv = create_conv(relu, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative3) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto split = std::make_shared<Split>(input, Constant::create(element::i64, {}, {1}), 3);
+        auto concat = std::make_shared<Concat>(OutputVector{split->output(2), split->output(1), split->output(0)}, 1);
+        auto relu = std::make_shared<Relu>(concat);
+        auto conv = create_conv(relu, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(OutputVector{ conv, split->output(0) }, ParameterVector{ input });
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
 }

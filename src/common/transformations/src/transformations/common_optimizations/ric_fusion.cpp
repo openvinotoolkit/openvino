@@ -16,6 +16,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/log.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <openvino/core/validation_util.hpp>
 #include "itt.hpp"
 
 
@@ -44,14 +46,6 @@ public:
         Attribute attr(m_order, m_axis);
         attr.m_can_be_fused = m_can_be_fused;
         return attr;
-    }
-
-    bool operator==(const Attribute & other) const {
-        return m_can_be_fused == other.m_can_be_fused &&
-               m_is_final == other.m_is_final &&
-               m_is_initial == other.m_is_initial &&
-               m_order == other.m_order &&
-               m_axis == other.m_axis;
     }
 
     void set_is_final(bool is_final) { m_is_final = is_final; }
@@ -234,9 +228,11 @@ public:
                 return false;
             }
 
+            const auto axis_value = axis->cast_vector<int64_t>().at(0);
+
             // This constraint helps to avoid detection of other Gathers that do not perform RIC
-            if (order->get_shape().size() != 1 &&
-                order->get_shape().size() != static_cast<size_t>(m.get_match_root()->input(0).get_partial_shape().rank().get_length())) {
+            if (shape_size(order->get_shape()) == 1 ||
+                shape_size(order->get_shape()) != static_cast<size_t>(m.get_match_root()->input(0).get_partial_shape()[axis_value].get_length())) {
                 return false;
             }
 
@@ -247,7 +243,7 @@ public:
                 return false;
             }
 
-            ric_attr::init(output, order_values, axis->cast_vector<int64_t>().at(0));
+            ric_attr::init(output, order_values, axis_value);
             return true;
         };
 
@@ -420,6 +416,7 @@ public:
             // Update weights with RIC attribute
             auto ric_weights = ric;
             ric_weights.set_is_final(true);
+            ric_weights.set_axis(0);
             ric_weights.set_callback([](Input<Node> input, const ric_attr::Attribute & attr) {
                 auto weights = input.get_source_output();
                 auto gather = std::make_shared<opset8::Gather>(weights, create_const(attr.get_order()),
