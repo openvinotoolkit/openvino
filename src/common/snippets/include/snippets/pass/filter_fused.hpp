@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/pass.hpp>
 #include <snippets/itt.hpp>
 
@@ -17,7 +16,7 @@ namespace pass {
  * @brief Mark operations that will be fused on plugin side (but not yet in snippets) so they'll be ignored by snippets.
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API FilterFused : public ngraph::pass::FunctionPass {
+class FilterFused : public ngraph::pass::FunctionPass {
 public:
     FilterFused() : FunctionPass() {}
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
