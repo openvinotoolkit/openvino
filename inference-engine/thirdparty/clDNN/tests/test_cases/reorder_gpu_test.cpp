@@ -10,6 +10,8 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/resample.hpp"
 #include <intel_gpu/primitives/data.hpp>
 
 #include <cmath>
@@ -2396,6 +2398,217 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_REORDER,
                         tests::generic_test::custom_param_name_functor());
 
 
+
+
+struct reorder_test_param {
+    tensor in_shape;
+    tensor out_shape;
+    tensor kernel;
+    tensor stride;
+    tensor pad;
+    data_types data_type;
+    format input_format;
+    data_types weights_type;
+    format weights_format;
+    data_types default_type;
+    format default_format;
+};
+
+template<typename T>
+class ReorderTest : public ::testing::TestWithParam<T> {
+public:
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    cldnn::engine& engine = get_onednn_test_engine();
+#else
+    cldnn::engine& engine = get_test_engine();
+#endif
+    cldnn::topology topology_test;
+    cldnn::build_options bo_test;
+    static const int min_random = -200;
+    static const int max_random = 200;
+    std::vector<primitive_id> executed_prims;
+
+    void execute(T& p) {
+        auto input_prim = this->get_mem(get_input_layout(p));
+        network network_test(this->engine, this->topology_test, this->bo_test);
+        network_test.set_input_data("input", input_prim);
+
+        executed_prims = network_test.get_executed_primitive_ids();
+    }
+
+    bool check_optimized_out(T& p, primitive_id target_id) {
+        for (auto& prim : executed_prims)
+            if (prim == target_id)
+                return false;
+
+        return true;
+    }
+
+    bool check_supports_immad() {
+        return this->engine.get_device_info().supports_immad;
+    }
+
+    void SetUp() override {
+        bo_test.set_option(build_option::optimize_data(true));
+    }
+
+    void setup_with_build_ops(cldnn::build_options& build_ops) {
+        bo_test = build_ops;
+    }
+
+    cldnn::memory::ptr get_mem(cldnn::layout l) {
+        auto prim = engine.allocate_memory(l);
+        tensor s = l.size;
+        if (l.data_type == data_types::bin) {
+            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
+            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), min_random, max_random);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::f16) {
+            VF<uint16_t> rnd_vec = generate_random_1d<uint16_t>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
+        } else {
+            VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
+        }
+
+        return prim;
+    }
+
+    layout get_input_layout(T& p) {
+        auto pad = p.pad;
+        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
+    }
+
+    layout get_weights_layout(T& p, const int32_t /* split */ = 1) {
+        cldnn::tensor weights_tensor;
+        weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]), spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
+        return layout{p.weights_type, p.weights_format, weights_tensor};
+    }
+
+    layout get_bias_layout(T& p) {
+        return layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
+
+    template <class... Args>
+    void create_topologies(Args const&... args) {
+        topology_test.add(args...);
+    }
+};
+
+class testing_removal_reorder : public ReorderTest<reorder_test_param> {};
+TEST_P(testing_removal_reorder, removal_reorder_1d_along_f) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                reorder("reorder_input", "input", format::b_fs_yx_fsv16, data_types::f16),
+                data("weights", get_mem(get_weights_layout(p))),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", "bias1", format::b_fs_yx_fsv16, data_types::f16),
+                convolution("conv_prim", "reorder_input", {"weights"}, std::vector<primitive_id>{}, 1, p.stride, p.pad),
+                reorder("reorder_conv", "conv_prim", format::b_fs_yx_fsv16, data_types::f16),
+                eltwise("add_bias1", {"reorder_conv", "reorder_bias1"}, eltwise_mode::sum),
+                reorder("reorder_bfyx", "add_bias1", p.default_format, data_types::f16)
+    );
+
+    execute(p);
+
+    EXPECT_EQ(check_optimized_out(p, "reorder_bias1"), true);
+}
+
+// Testing bugfix not to remove reorder in front of conv has deep depth input
+TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input) {
+    auto p = GetParam();
+    layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, p.in_shape, padding({0, }, 0));
+
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("weights_sec", get_mem(get_weights_layout(p))),
+        reorder("reorder_fp32", "input", format::bfyx, data_types::f32),
+        convolution("conv_prim", "reorder_fp32", { "weights" }, { "bias" }, 1, p.stride, p.pad, tensor{1}, p.in_shape, data_types::u8, false),
+        reorder("reorder_conv", "conv_prim", reorder_layout),
+        convolution("conv_output", "reorder_conv", { "weights_sec" }, 1, p.stride, p.pad),
+        reorder("reorder_bfyx", "conv_output", format::b_fs_yx_fsv32, data_types::f32),
+        resample("resample", "reorder_bfyx", p.out_shape, 1),
+        reorder("reorder_output", "resample", p.default_format, data_types::f32)
+    );
+
+    execute(p);
+
+    EXPECT_EQ(check_optimized_out(p, "reorder_conv"), false);
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// Check to remove reorder between onednn and cldnn conv if the reorder has no padded output
+TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
+    auto p = GetParam();
+    layout reorder_layout(data_types::f16, format::b_fs_yx_fsv16, p.in_shape, padding({0, }, 0));
+
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        reorder("reorder_fp32", "input", format::bfyx, data_types::f16),
+        convolution("conv_prim", "reorder_fp32", { "weights" }, 1, p.stride, p.pad),
+        reorder("reorder_conv", "conv_prim", reorder_layout),
+        convolution("conv_output", "reorder_conv", { "weights" }, 1, p.stride, p.pad),
+        reorder("reorder_output", "conv_output", p.default_format, data_types::f32)
+    );
+
+    auto build_opts = build_options();
+    build_opts.set_option(build_option::optimize_data(true));
+    implementation_desc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
+    build_opts.set_option(build_option::force_implementations({ {"conv_output", impl} }));
+
+    setup_with_build_ops(build_opts);
+
+    execute(p);
+
+    if (!check_supports_immad())
+        return;
+
+    EXPECT_EQ(check_optimized_out(p, "reorder_conv"), true);
+}
+
+// Check not to remove reorder between onednn and cldnn conv if the reorder has padded output
+TEST_P(testing_removal_reorder, removal_padded_reorder) {
+    auto p = GetParam();
+    layout reorder_layout(data_types::f16, format::b_fs_yx_fsv16, p.in_shape, padding({0, 0, 1, 1}, 0));
+
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        reorder("reorder_fp32", "input", format::bfyx, data_types::f16),
+        convolution("conv_prim", "reorder_fp32", { "weights" }, 1, p.stride, p.pad),
+        reorder("reorder_conv", "conv_prim", reorder_layout),
+        convolution("conv_output", "reorder_conv", { "weights" }, 1, p.stride, p.pad),
+        reorder("reorder_output", "conv_output", p.default_format, data_types::f32)
+    );
+
+    auto build_opts = build_options();
+    build_opts.set_option(build_option::optimize_data(true));
+    implementation_desc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
+    build_opts.set_option(build_option::force_implementations({ {"conv_output", impl} }));
+
+    setup_with_build_ops(build_opts);
+
+    execute(p);
+
+    if (!check_supports_immad())
+        return;
+
+    EXPECT_EQ(check_optimized_out(p, "reorder_conv"), false);
+}
+#endif // ENABLE_ONEDNN_FOR_GPU
+
+INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing, testing_removal_reorder,
+                        ::testing::ValuesIn(std::vector<reorder_test_param>{
+                                            reorder_test_param{{1, 32, 4, 4}, {1, 32, 8, 8}, {1, 1, 1, 1}, tensor{1}, tensor{0},
+                                                                data_types::f16, format::bfyx, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16},
+                                            }));
+
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
     auto& engine = get_onednn_test_engine();
@@ -2446,4 +2659,4 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
         EXPECT_EQ(exp, interm_ptr[cntr++]);
     }
 }
-#endif
+#endif // ENABLE_ONEDNN_FOR_GPU

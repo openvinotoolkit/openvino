@@ -327,7 +327,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             !data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt)) {
             auto& node = prev.get_users().front();
             // Avoid to fuse padding reorder to previous onednn convolution
-            if (prev.is_type<convolution>() && prev.as<convolution>().get_preferred_impl_type() == impl_types::onednn &&
+            if (prev.get_preferred_impl_type() == impl_types::onednn &&
                 (node->get_output_layout().data_padding != prev.get_output_layout().data_padding))
                 return false;
             else
