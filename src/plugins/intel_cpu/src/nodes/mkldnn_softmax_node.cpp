@@ -59,9 +59,6 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     for (auto format : getAvailableFormatsForDims(inShape)) {
         auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, format);
 
-        if (in_candidate->blocksExtended())
-            continue;
-
         createDescriptor({in_candidate}, {});
     }
 }
@@ -98,8 +95,11 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
 void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                          const std::vector<MemoryDescPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
-    DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
-    auto in_candidate = definedInpMemDesc->getDnnlDesc();
+    auto definedInpMemDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*inpDesc);
+    auto in_candidate = definedInpMemDesc.getDnnlDesc();
+
+    if (definedInpMemDesc.blocksExtended())
+        return;
 
     MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
