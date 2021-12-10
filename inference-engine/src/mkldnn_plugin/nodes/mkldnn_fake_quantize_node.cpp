@@ -157,9 +157,9 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
                     uni_vpxor(xmm_wei(0), xmm_wei(0), xmm_wei(0));
                     uni_vpxor(xmm_mask(0), xmm_mask(0), xmm_mask(0));
 
-                    movss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
-                    movss(xmm_wei(0), ptr[reg_thresholds + c * sizeof(float)]);
-                    movss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
+                    uni_vmovss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
+                    uni_vmovss(xmm_wei(0), ptr[reg_thresholds + c * sizeof(float)]);
+                    uni_vmovss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
                     uni_vcmpgtps(xmm_src(0), xmm_src(0), xmm_wei(0));
                     uni_vpcmpeqd(xmm_src(0), xmm_src(0), xmm_mask(0));
                     uni_vmovmskps(reg_src_32, xmm_src(0));
@@ -598,13 +598,13 @@ private:
             jle(exit_label, T_NEAR);
 
             for (int i = 0; i < jqp_.c % tail4_simd_w; i++) {
-                movss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
-                movss(xmm_crop_high(0), ptr[reg_crop_high + i * wei_type_size]);
-                movss(xmm_input_scale(0), ptr[reg_input_scale + i * wei_type_size]);
-                movss(xmm_input_shift(0), ptr[reg_input_shift + i * wei_type_size]);
+                uni_vmovss(xmm_crop_low(0), ptr[reg_crop_low + i * wei_type_size]);
+                uni_vmovss(xmm_crop_high(0), ptr[reg_crop_high + i * wei_type_size]);
+                uni_vmovss(xmm_input_scale(0), ptr[reg_input_scale + i * wei_type_size]);
+                uni_vmovss(xmm_input_shift(0), ptr[reg_input_shift + i * wei_type_size]);
                 if (do_dequantization) {
-                    movss(xmm_output_scale(0), ptr[reg_output_scale + i * wei_type_size]);
-                    movss(xmm_output_shift(0), ptr[reg_output_shift + i * wei_type_size]);
+                    uni_vmovss(xmm_output_scale(0), ptr[reg_output_scale + i * wei_type_size]);
+                    uni_vmovss(xmm_output_shift(0), ptr[reg_output_shift + i * wei_type_size]);
                 }
 
                 load_scalar(xmm_val(0), ptr[aux_reg_from + i * src_type_size], jqp_.src_prc);
@@ -695,15 +695,15 @@ private:
         switch (src_prc) {
             case Precision::FP32:
             case Precision::I32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case Precision::I8:
                 movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case Precision::U8:
                 movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
                 assert(!"unknown src_prc");
@@ -784,12 +784,12 @@ private:
             case Precision::I8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movd(op, xmm_dst);
+                uni_vmovd(op, xmm_dst);
                 break;
             case Precision::U8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movd(op, xmm_dst);
+                uni_vmovd(op, xmm_dst);
                 break;
             default:
                 assert(!"unknown dst_prc");
@@ -804,18 +804,18 @@ private:
         switch (dst_prc) {
             case Precision::FP32:
             case Precision::I32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case Precision::I8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
+                uni_vmovq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
             case Precision::U8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
+                uni_vmovq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
             default:
