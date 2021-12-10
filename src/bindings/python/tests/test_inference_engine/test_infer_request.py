@@ -429,6 +429,5 @@ def test_infer_float16(device):
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
     request = exec_net.create_infer_request()
     outputs = request.infer({0: input_data, 1: input_data})
-    print(outputs)
-    # assert np.allclose(list(outputs.values()), list(request.results.values()))
-    # assert np.allclose(list(outputs.values()), input_data + input_data)
+    assert np.allclose(list(outputs.values()), list(request.results.values()))
+    assert np.allclose(list(outputs.values()), input_data + input_data)
