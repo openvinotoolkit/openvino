@@ -12,25 +12,19 @@ Depending on a YOLO model version, the Model Optimizer converts it differently:
 
 ## <a name="yolov4-to-ir"></a>Convert YOLOv4 Model to IR
 
-This section explains how to convert the YOLOv4 Keras\* model from the [https://github.com/Ma-Dan/keras-yolo4](https://github.com/Ma-Dan/keras-yolo4]) repository to an IR. To convert the YOLOv4 model, follow the instructions below:
+This section explains how to convert the YOLOv4 Keras\* model from the [https://github.com/david8862/keras-YOLOv3-model-set](https://github.com/david8862/keras-YOLOv3-model-set) repository to an IR. To convert the YOLOv4 model, follow the instructions below:
 
-1. Download YOLOv4 weights from [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT).
+1. Download YOLOv4 weights and cfg file (for example [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT), [yolov4.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4.cfg) ).
 
 2. Clone the repository with the YOLOv4 model.
 ```sh
-git clone https://github.com/Ma-Dan/keras-yolo4.git
+git clone https://github.com/david8862/keras-YOLOv3-model-set
 ```
 
-3. Convert the model to the TensorFlow 2\* format. Save the code below to the `converter.py` file in the same folder as you downloaded `yolov4.weights` and run it.
-```python
-from keras-yolo4.model import Mish
-
-model = tf.keras.models.load_model('yolo4_weight.h5', custom_objects={'Mish': Mish})
-tf.saved_model.save(model, 'yolov4')
-```
+3. Convert the model to the TensorFlow 2\* format. 
 
 ```sh
-python converter.py 
+python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4.cfg <path_to_weights>/yolov4.weights <saved_model_dir>
 ```
 
 4. Run Model Optimizer to converter the model from the TensorFlow 2 format to an IR:
