@@ -58,10 +58,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape, const element::Type_t& input_type) {
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape, const element::Type_t& input_type) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         auto result = std::make_shared<op::v0::Result>(in);
-        return std::make_shared<ov::Function>(result, ParameterVector{in});
+        return std::make_shared<ov::Model>(result, ParameterVector{in});
     }
 };
 

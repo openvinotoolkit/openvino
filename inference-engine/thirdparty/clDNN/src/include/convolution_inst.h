@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/convolution.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -44,7 +44,12 @@ public:
     void set_deformable_groups(uint32_t node_deformable_groups) { deformable_groups = node_deformable_groups; }
     uint32_t get_deformable_groups() const { return deformable_groups; }
 
-    int32_t get_trans_dep_offset() const { return deformable_mode ? 1 : 0; }
+    int32_t get_deform_conv_dep_offset() const {
+        auto offset = deformable_mode ? 1 : 0;
+        if (get_primitive()->input.size() == 3)
+            offset++;
+        return offset;
+    }
 
     program_node& input() const { return get_dependency(0); }
 
@@ -52,21 +57,21 @@ public:
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("weights offset too big");
 
-        return get_dependency(1 + idx + get_trans_dep_offset());
+        return get_dependency(1 + idx + get_deform_conv_dep_offset());
     }
 
     program_node& bias(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("bias offset too big");
 
-        return get_dependency(1 + this->get_split() + idx + get_trans_dep_offset());
+        return get_dependency(1 + this->get_split() + idx + get_deform_conv_dep_offset());
     }
 
     program_node& weights_zero_points(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("weights zero points offset too big");
 
-        return get_dependency(1 + (1 + 1 * bias_term()) * this->get_split() + idx + get_trans_dep_offset());
+        return get_dependency(1 + (1 + 1 * bias_term()) * this->get_split() + idx + get_deform_conv_dep_offset());
     }
 
     program_node& activations_zero_points(size_t idx = 0) const {
@@ -74,7 +79,7 @@ public:
             throw std::range_error("activations zero points offset too big");
 
         return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term()) * this->get_split() + idx +
-                              get_trans_dep_offset());
+                              get_deform_conv_dep_offset());
     }
 
     program_node& compensation(size_t idx = 0) const {
@@ -82,7 +87,7 @@ public:
             throw std::range_error("activations zero points offset too big");
 
         return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term()) * this->get_split()
-                              + idx + get_trans_dep_offset());
+                              + idx + get_deform_conv_dep_offset());
     }
 
     program_node& trans() const {
@@ -90,6 +95,23 @@ public:
             throw std::range_error("trans input exists only in deformable mode");
 
         return get_dependency(1);
+    }
+
+    program_node& mask() const {
+        if (!deformable_mode)
+            throw std::range_error("Mask input exists only in deformable mode");
+
+        return get_dependency(2);
+    }
+
+    bool bilinear_interpolation_pad() const {
+        if (!deformable_mode)
+            throw std::range_error("bilinear_interpolation_pad exists only in deformable mode");
+        return get_primitive()->bilinear_interpolation_pad;
+    }
+
+    bool get_deformable_mode() const {
+        return deformable_mode;
     }
 
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
@@ -124,9 +146,9 @@ public:
         if (node.get_groups() == 1) {
             if (static_cast<int32_t>(index) >= node.get_split())
                 throw std::range_error("weights offset too big");
-            return dep_memory_ptr(1 + index + node.get_trans_dep_offset());
+            return dep_memory_ptr(1 + index + node.get_deform_conv_dep_offset());
         } else {  // all weights are in one buffer
-            return dep_memory_ptr(1 + node.get_trans_dep_offset());
+            return dep_memory_ptr(1 + node.get_deform_conv_dep_offset());
         }
     }
 
@@ -134,20 +156,20 @@ public:
         if (node.get_groups() == 1) {
             if (static_cast<int32_t>(index) >= node.get_split())
                 throw std::range_error("bias offset too big");
-            return dep_memory_ptr(1 + node.get_split() + index + node.get_trans_dep_offset());
+            return dep_memory_ptr(1 + node.get_split() + index + node.get_deform_conv_dep_offset());
         } else {  // all bias are in one buffer
-            return dep_memory_ptr(2 + node.get_trans_dep_offset());
+            return dep_memory_ptr(2 + node.get_deform_conv_dep_offset());
         }
     }
 
     memory::ptr weights_zero_points_memory(size_t) const {
         if (node.get_split() > 1)
             throw std::range_error("Split is unsupported for quantized convolutions");
-        return dep_memory_ptr(2 + 1 * bias_term() + node.get_trans_dep_offset());
+        return dep_memory_ptr(2 + 1 * bias_term() + node.get_deform_conv_dep_offset());
     }
 
     memory::ptr trans_memory() const {
-        if (!node.get_trans_dep_offset())
+        if (!node.get_deform_conv_dep_offset())
             throw std::range_error("trans input exists only in deformable mode");
         return dep_memory_ptr(1);
     }
@@ -155,13 +177,13 @@ public:
     memory::ptr activations_zero_points_memory(size_t) const {
         if (node.get_split() > 1)
             throw std::range_error("Split is unsupported for quantized convolutions");
-        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term() + node.get_trans_dep_offset());
+        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term() + node.get_deform_conv_dep_offset());
     }
 
     memory::ptr compensation_memory(size_t) const {
         if (node.get_split() > 1)
             throw std::range_error("Split is unsupported for quantized convolutions");
-        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term() + node.get_trans_dep_offset());
+        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term() + node.get_deform_conv_dep_offset());
     }
 
     bool bias_term() const { return node.bias_term(); }

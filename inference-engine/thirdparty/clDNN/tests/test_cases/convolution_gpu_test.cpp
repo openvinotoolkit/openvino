@@ -6,12 +6,12 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/eltwise.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/crop.hpp>
-#include <cldnn/primitives/reorder.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 
 #include <algorithm>
 #include <array>
@@ -344,8 +344,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1_
             data("biases", biases),
             convolution(
                     "conv",
-                    "input",
-                    "trans",
+                    {"input", "trans"},
                     { "weights" },
                     { "biases" },
                     1,
@@ -476,8 +475,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1)
             data("biases", biases),
             convolution(
                     "conv",
-                    "input",
-                    "trans",
+                    {"input", "trans"},
                     { "weights" },
                     { "biases" },
                     1,
@@ -640,8 +638,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution) {
             data("biases", biases),
             convolution(
                     "conv",
-                    "input",
-                    "trans",
+                    {"input", "trans"},
                     { "weights" },
                     { "biases" },
                     1,

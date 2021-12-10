@@ -614,16 +614,16 @@ class MOCK_API FrontEndMockPy : public FrontEnd {
 public:
     FrontEndMockPy() {}
 
-    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override {
-        if (params.size() > 0 && ov::is_type<VariantWrapper<std::string>>(params[0]))
-            m_stat.m_load_paths.push_back(ov::as_type_ptr<VariantWrapper<std::string>>(params[0])->get());
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override {
+        if (params.size() > 0 && params[0].is<std::string>())
+            m_stat.m_load_paths.push_back(params[0].as<std::string>());
         return std::make_shared<InputModelMockPy>();
     }
 
-    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& params) const override {
+    bool supported_impl(const std::vector<ov::Any>& params) const override {
         m_stat.m_supported++;
-        if (params.size() > 0 && ov::is_type<VariantWrapper<std::string>>(params[0])) {
-            auto path = ov::as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+        if (params.size() > 0 && params[0].is<std::string>()) {
+            auto path = params[0].as<std::string>();
             if (path.find(".test_mock_py_mdl") != std::string::npos) {
                 return true;
             }
@@ -631,26 +631,26 @@ public:
         return false;
     }
 
-    std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override {
         m_stat.m_convert_model++;
-        return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
+        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    void convert(std::shared_ptr<ngraph::Function> func) const override {
+    void convert(std::shared_ptr<ov::Model> func) const override {
         m_stat.m_convert++;
     }
 
-    std::shared_ptr<ngraph::Function> convert_partially(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> convert_partially(InputModel::Ptr model) const override {
         m_stat.m_convert_partially++;
-        return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
+        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> decode(InputModel::Ptr model) const override {
         m_stat.m_decode++;
-        return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
+        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    void normalize(std::shared_ptr<ngraph::Function> function) const override {
+    void normalize(std::shared_ptr<ov::Model> function) const override {
         m_stat.m_normalize++;
     }
 
