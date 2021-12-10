@@ -113,7 +113,7 @@ def test_compression(_params, tmp_path, models):
 
 
 TEST_SAMPLE_MODELS = [
-    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.712})]
+    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.71})]
 
 
 @pytest.fixture(scope='module', params=TEST_SAMPLE_MODELS,
