@@ -25,11 +25,11 @@ namespace pass {
 //  one transformation might continue skipping chains created by the other one. An alternative solution is to
 //  fix the order of transformations (e.g. snippets skip must always be the first), but this is hardly better.
 enum class SnippetsNodeType : int64_t {SubgraphStart, SubgraphBody, NotSet, SkippedByPlugin};
-void SetSnippetsNodeType(std::shared_ptr<Node>, SnippetsNodeType);
-SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node>);
-void SetTopologicalOrder(std::shared_ptr<Node>, int64_t);
-int64_t GetTopologicalOrder(std::shared_ptr<Node>);
-bool AppropriateForSubgraph(std::shared_ptr<Node>);
+void SetSnippetsNodeType(const std::shared_ptr<Node>&, SnippetsNodeType);
+SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>&);
+void SetTopologicalOrder(const std::shared_ptr<Node>&, int64_t);
+int64_t GetTopologicalOrder(const std::shared_ptr<const Node>&);
+bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
 
 /**
  * @interface EnumerateNodes
@@ -40,7 +40,7 @@ class EnumerateNodes : public ov::pass::ModelPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     EnumerateNodes() : ModelPass() {}
-    bool run_on_model(std::shared_ptr<ov::Model> m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 
 /**

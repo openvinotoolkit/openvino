@@ -33,17 +33,17 @@ namespace pass {
 
 namespace {
 
-auto outputs_are_not_broadcastable(const std::shared_ptr<ngraph::Node>& node) -> bool {
+auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> bool {
     auto outputs = node->outputs();
-    auto find_smallest_output_shape = [](const std::vector<ngraph::Output<ngraph::Node>>& outputs) -> ngraph::Shape {
+    auto find_smallest_output_shape = [](const std::vector<Output<const Node>>& outputs) -> Shape {
         return std::accumulate(std::begin(outputs), std::end(outputs), ngraph::Shape(outputs.begin()->get_shape()),
-            [](ngraph::Shape other_shape, ngraph::Output<ngraph::Node> output){
-                return ngraph::shape_size(output.get_shape()) < ngraph::shape_size(other_shape) ? output.get_shape() : other_shape;
+            [](Shape& other_shape, const Output<const Node>& output){
+                return shape_size(output.get_shape()) < shape_size(other_shape) ? output.get_shape() : other_shape;
             });
     };
     auto ref_shape = find_smallest_output_shape(outputs);
 
-    auto check_shapes_broadcastable = [ref_shape](const ngraph::Output<ngraph::Node>& output) -> bool {
+    auto check_shapes_broadcastable = [ref_shape](const Output<const Node>& output) -> bool {
         auto other_shape = output.get_shape();
 
         if (other_shape.size() != ref_shape.size()) {
@@ -51,15 +51,15 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<ngraph::Node>& node) ->
         }
 
         return std::inner_product(std::begin(other_shape), std::end(other_shape), std::begin(ref_shape), true,
-                            std::logical_and<bool>(), [](ngraph::Shape::value_type lsh, ngraph::Shape::value_type rsh){
+                            std::logical_and<bool>(), [](Shape::value_type lsh, Shape::value_type rsh){
                                 return rsh == 1 || lsh == rsh;
                             });
     };
 
     return std::find_if_not(std::begin(outputs), std::end(outputs), check_shapes_broadcastable) != std::end(outputs);
-};
+}
 
-auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
+auto has_subgraph_as_input(const std::shared_ptr<const Node> &node) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::has_subgraph_as_input")
     for (const auto& parent : ngraph::as_node_vector(node->input_values())) {
         if (ov::is_type<snippets::op::Subgraph>(parent)) {
@@ -69,9 +69,9 @@ auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
     return false;
 }
 
-auto is_lo(std::shared_ptr<Node> &n) -> bool {
+auto is_lo(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_lo")
-    auto is_lob = [](std::shared_ptr<Node> &n) -> bool {
+    auto is_lob = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Add>(n)
             || ov::is_type<opset1::Divide>(n)
             || ov::is_type<opset1::Equal>(n)
@@ -95,7 +95,7 @@ auto is_lo(std::shared_ptr<Node> &n) -> bool {
             || ov::is_type<opset1::Xor>(n);
     };
 
-    auto is_lou = [](std::shared_ptr<Node> &n) -> bool {
+    auto is_lou = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Abs>(n)
             || ov::is_type<opset1::Clamp>(n)
             || ov::is_type<opset1::Elu>(n)
@@ -114,9 +114,9 @@ auto is_lo(std::shared_ptr<Node> &n) -> bool {
     return is_lou(n) || is_lob(n);
 }
 
-auto has_supported_in_out(std::shared_ptr<Node> &n) -> bool {
+auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     bool has_only_const_inputs{true};
-    for (auto in : n->inputs()) {
+    for (const auto& in : n->inputs()) {
         if (in.get_tensor().get_element_type() != ngraph::element::f32) {
             return false;
         }
@@ -135,7 +135,7 @@ auto has_supported_in_out(std::shared_ptr<Node> &n) -> bool {
     if (has_only_const_inputs)
         return false;
 
-    for (auto out : n->outputs()) {
+    for (const auto& out : n->outputs()) {
         if (out.get_tensor().get_element_type() != ngraph::element::f32) {
             return false;
         }
@@ -148,7 +148,7 @@ auto has_supported_in_out(std::shared_ptr<Node> &n) -> bool {
             return false;
         }
 
-        for (auto in_out : out.get_target_inputs()) {
+        for (const auto& in_out : out.get_target_inputs()) {
             if (ov::is_type<ngraph::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
                 return false;
             }
@@ -158,7 +158,7 @@ auto has_supported_in_out(std::shared_ptr<Node> &n) -> bool {
     return true;
 }
 
-auto has_result_child(std::shared_ptr<Node> node) -> bool {
+auto has_result_child(const std::shared_ptr<const Node> &node) -> bool {
     for (const auto &child : node->get_users()) {
         if (ov::is_type<ngraph::opset1::Result>(child)) {
             return true;
@@ -167,7 +167,7 @@ auto has_result_child(std::shared_ptr<Node> node) -> bool {
     return false;
 }
 
-auto get_num_result_children(std::shared_ptr<Node> &node) -> size_t {
+auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t {
     size_t result = 0;
     for (const auto &child : node->get_users()) {
         if (ov::is_type<ngraph::opset1::Result>(child)) {
@@ -178,8 +178,8 @@ auto get_num_result_children(std::shared_ptr<Node> &node) -> size_t {
 }
 // Need to update tensor name manually, since MKLDNNGraph::Replicate() looks at input.get_tensor().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
-// todo: remove this model when MKLDNNGraph::Replicate() will rely only on node->get_friendly_name()
-auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph) -> void {
+// todo: remove this function when MKLDNNGraph::Replicate() will rely only on node->get_friendly_name()
+auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
     bool not_set = true;
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
         for (const auto &in : subgraph->get_output_target_inputs(i)) {
@@ -201,16 +201,16 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> subg
 }
 } // namespace
 
-bool AppropriateForSubgraph(std::shared_ptr<Node> node) {
+bool AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
     return is_lo(node) && has_supported_in_out(node);
 }
 
-void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
+void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nodeType) {
     auto &rt = node->get_rt_info();
     rt["SnippetsNodeType"] = nodeType;
 }
 
-SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
+SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
     auto &rt = node->get_rt_info();
     const auto rinfo = rt.find("SnippetsNodeType");
@@ -219,13 +219,13 @@ SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
     return rinfo->second.as<SnippetsNodeType>();
 }
 
-void SetTopologicalOrder(std::shared_ptr<Node> node, int64_t order) {
+void SetTopologicalOrder(const std::shared_ptr<Node> &node, int64_t order) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
     auto &rt = node->get_rt_info();
     rt["TopologicalOrder"] = order;
 }
 
-int64_t GetTopologicalOrder(std::shared_ptr<Node> node) {
+int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
     auto &rt = node->get_rt_info();
     const auto rinfo = rt.find("TopologicalOrder");
     if (rinfo == rt.end())
@@ -233,7 +233,7 @@ int64_t GetTopologicalOrder(std::shared_ptr<Node> node) {
     return rinfo->second.as<int64_t>();
 }
 
-bool EnumerateNodes::run_on_model(std::shared_ptr<ov::Model> m) {
+bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::EnumerateNodes")
     int64_t order = 0;
     // Todo: We don't really have to set order for every node, just for subgraph parents and children would be enough

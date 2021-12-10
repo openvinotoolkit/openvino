@@ -10,18 +10,18 @@ NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SnippetsMarkFused, "SnippetsMarkFused", 0);
 using namespace ngraph;
 namespace MKLDNNPlugin {
 namespace {
-NodeFusingType GetNodeFusingType(std::shared_ptr<Node> node) {
+NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node> &node) {
     auto &rt = node->get_rt_info();
     const auto rinfo = rt.find("MayBeFusedInPlugin");
     if (rinfo == rt.end())
         return NodeFusingType::NotSet;
     return rinfo->second.as<NodeFusingType>();
 }
-void SetNodeFusingType(std::shared_ptr<Node> node, NodeFusingType nodeType) {
+void SetNodeFusingType(const std::shared_ptr<Node> &node, NodeFusingType nodeType) {
     auto &rt = node->get_rt_info();
     rt["MayBeFusedInPlugin"] = nodeType;
 }
-std::vector<NodeFusingType> getContinuableChains(std::shared_ptr<Node> node) {
+std::vector<NodeFusingType> getContinuableChains(const std::shared_ptr<const Node> &node) {
     std::vector<NodeFusingType> result;
     for (const auto& input : node->inputs()) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
@@ -32,7 +32,7 @@ std::vector<NodeFusingType> getContinuableChains(std::shared_ptr<Node> node) {
     }
     return result;
 }
-int getNumNonConstInputs(std::shared_ptr<Node> node) {
+int getNumNonConstInputs(const std::shared_ptr<const Node> &node) {
     int num_non_const_inputs = 0;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
@@ -48,7 +48,7 @@ int getNumNonConstInputs(std::shared_ptr<Node> node) {
     }
     return num_non_const_inputs;
 }
-bool SupportsFusingWithConvolution_SumActivation(std::shared_ptr<Node> node) {
+bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Node> &node) {
     // todo: Do all PReLUs are fused? Not sure about round and softRelu
     // EltwiseRoundHalfToEven, EltwiseRoundHalfAwayFromZero, EltwiseSoftRelu
     return  ov::is_type<ngraph::op::Relu>(node) ||
@@ -63,7 +63,7 @@ bool SupportsFusingWithConvolution_SumActivation(std::shared_ptr<Node> node) {
             ov::is_type<ngraph::op::v5::Round>(node);
 }
 
-bool canBePerformedAsScaleShift(std::shared_ptr<Node> node) {
+bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node) {
     size_t fusingPort = 0;
     size_t numNonConstInputs = 0;
     ov::PartialShape dataShape;
@@ -124,7 +124,7 @@ bool canBePerformedAsScaleShift(std::shared_ptr<Node> node) {
            isBroadcastableToDataInput();
 }
 
-bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
+bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node) {
     return SupportsFusingWithConvolution_SumActivation(node) ||
            ov::is_type<ngraph::op::Tanh>(node) ||
            ov::is_type<ngraph::op::v0::Gelu>(node) ||
@@ -134,7 +134,7 @@ bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
            canBePerformedAsScaleShift(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
-bool isSuitableConvolutionParent(std::shared_ptr<Node> node) {
+bool isSuitableConvolutionParent(const std::shared_ptr<const Node> &node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v1::Convolution>(node) ||
                                   ov::is_type<ngraph::op::v1::GroupConvolution>(node);
     // has a single output, connected to a single child
@@ -142,14 +142,14 @@ bool isSuitableConvolutionParent(std::shared_ptr<Node> node) {
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-bool isSuitableBinaryConvolutionParent(std::shared_ptr<Node> node) {
+bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node> &node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v1::BinaryConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-bool isSuitableMiscParent(std::shared_ptr<Node> node) {
+bool isSuitableMiscParent(const std::shared_ptr<const Node> &node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v0::MVN>(node) ||
                                   ov::is_type<ngraph::op::v6::MVN>(node) ||
                                   ov::is_type<ngraph::op::v0::NormalizeL2>(node) ||
@@ -167,25 +167,25 @@ bool isSuitableMiscParent(std::shared_ptr<Node> node) {
     return is_suitable_node && has_only_child;
 }
 // Matmul is a special case, since it supports simple + bias fusings
-bool isSuitableMatMulParent(std::shared_ptr<Node> node) {
+bool isSuitableMatMulParent(const std::shared_ptr<const Node> &node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::MatMul>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-bool isSuitablePoolChild(std::shared_ptr<Node> node) {
+bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v1::MaxPool>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-bool isSuitableChildForFusingSimple(std::shared_ptr<Node> node) {
+bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node) {
     // Note: Fusing child is allowed to have several users, but that must be the end of the chain
     return SupportsFusingWithConvolution_Simple(node) && getNumNonConstInputs(node) == 1;
 }
-bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node, NodeFusingType &updatedChainType) {
+bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, NodeFusingType &updatedChainType) {
     if (!ov::is_type<ngraph::opset1::Add>(node))
         return false;
     int num_non_const_inputs = 0;
@@ -228,7 +228,7 @@ bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node, NodeFusingType &
         updatedChainType = NodeFusingType::FusedTerminator;
     return true;
 }
-bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
+bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &node) {
     if (!ov::is_type<ngraph::op::v1::Add>(node))
         return false;
     auto isFusedBiasNode = [](std::shared_ptr<Node> n){
@@ -268,12 +268,12 @@ bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
     }
     return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
 }
-bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
+bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &node) {
     return SupportsFusingWithConvolution_SumActivation(node);
 }
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
-void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, NodeFusingType nodeType) {
+void PropagateIfHasOnlyChild(const std::shared_ptr<Node> &node, NodeFusingType nodeType) {
     const auto out = node->outputs();
     const bool has_only_child = out.size() == 1 && out[0].get_target_inputs().size() == 1;
     SetNodeFusingType(node, has_only_child ? nodeType : NodeFusingType::FusedTerminator);
