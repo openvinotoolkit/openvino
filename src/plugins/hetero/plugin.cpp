@@ -189,7 +189,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         }
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, DeviceArchitecture(targetFallback));
     } else {
-        IE_THROW() << "Unsupported Plugin metric: " << name;
+        IE_THROW() << "Unsupported metric key: " << name;
     }
 }
 std::string Engine::DeviceArchitecture(const std::string& targetFallback) const {

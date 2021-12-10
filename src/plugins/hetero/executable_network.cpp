@@ -937,6 +937,6 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
             }
         }
 
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }
 }

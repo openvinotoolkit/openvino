@@ -193,7 +193,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
     } else {
-        IE_THROW() << "Unsupported Plugin metric: " << name;
+        IE_THROW() << "Unsupported metric key: " << name;
     }
 }
 
