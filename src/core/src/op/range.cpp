@@ -352,7 +352,6 @@ void op::v0::Range::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
 
-
     std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
     std::vector<PartialShape> input_shapes;
     for (int i = 0; i < get_input_size(); i++)
