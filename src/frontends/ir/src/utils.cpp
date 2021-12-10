@@ -34,7 +34,7 @@ bool check_all_digits(const std::string& value) {
 
 Dimension str_to_dimension(const std::string& value) {
     auto val = ov::util::trim(value);
-    if (val == "?") {
+    if (val == "?" || val == "-1") {
         return {-1};
     }
     if (val.find("..") == std::string::npos) {
