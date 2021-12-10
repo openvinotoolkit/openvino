@@ -102,11 +102,11 @@ public:
      *        them simultaneously (up to the limitation of the hardware resources)
      *
      * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
-                                  const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Creates an executable network from a network object.
@@ -132,11 +132,12 @@ public:
      *        especially for cases when caching is enabled and cached model is available
      *
      * @param modelPath path to model
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation/
      *
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(const std::string& modelPath,
-                                  const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file

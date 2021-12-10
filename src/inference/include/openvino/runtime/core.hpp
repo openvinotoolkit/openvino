@@ -112,8 +112,7 @@ public:
      * operation
      * @return An executable network reference
      */
-    ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& model,
-                                    const ConfigMap& config = {});
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const ConfigMap& config = {});
 
     /**
      * @brief Creates an executable network from a model object.
@@ -143,10 +142,9 @@ public:
      *
      * @return An executable network reference
      */
-    ExecutableNetwork compile_model(const std::string& model_path,
-                                    const ConfigMap& config = {});
+    CompiledModel compile_model(const std::string& model_path, const ConfigMap& config = {});
 
-     /**
+    /**
      * @brief Reads model and creates an executable network from IR or ONNX file
      *
      * This can be more efficient than using read_model + compile_model(Model) flow

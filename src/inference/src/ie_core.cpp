@@ -45,13 +45,14 @@
 #    include "ie_plugins.hpp"
 #endif
 
-// Specify the default device when no device name is provided.
-const char* DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
-
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
 
 namespace ov {
+
+// Specify the default device when no device name is provided.
+static const char* DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
+
 namespace runtime {
 
 namespace {
@@ -735,13 +736,12 @@ public:
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
         auto deviceName = pluginName;
-        if (deviceName == DEFAULT_DEVICE_NAME)
+        if (deviceName == ov::DEFAULT_DEVICE_NAME)
             deviceName = "AUTO";
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
-            if (pluginName == DEFAULT_DEVICE_NAME)
-                IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading. Should "
-                              "you rebuild OpenVINO with the AUTO enabled or re-install accordingly?";
+            if (pluginName == ov::DEFAULT_DEVICE_NAME)
+                IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading.";
             else
                 IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
@@ -1171,9 +1171,8 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
     return _impl->ReadNetwork(model, weights);
 }
 
-ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
-                                    const std::map<std::string, std::string>& config) {
-    return LoadNetwork(network, DEFAULT_DEVICE_NAME, config);
+ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
+    return LoadNetwork(network, ov::DEFAULT_DEVICE_NAME, config);
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
@@ -1197,9 +1196,8 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
     return {exec._so, exec._ptr};
 }
 
-ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
-                                    const std::map<std::string, std::string>& config) {
-    return LoadNetwork(modelPath, DEFAULT_DEVICE_NAME,config);
+ExecutableNetwork Core::LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
+    return LoadNetwork(modelPath, ov::DEFAULT_DEVICE_NAME, config);
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
@@ -1460,28 +1458,26 @@ ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
 
 }  // namespace
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
-                                      const ConfigMap& config) {
-    return compile_model(model, DEFAULT_DEVICE_NAME, config);
+CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const ConfigMap& config) {
+    return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
 }
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
-                                      const std::string& deviceName,
-                                      const ConfigMap& config) {
+CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                  const std::string& deviceName,
+                                  const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
         return {exec._so, exec._ptr};
     });
 }
 
-ExecutableNetwork Core::compile_model(const std::string& modelPath,
-                                      const ConfigMap& config) {
-    return compile_model(modelPath, DEFAULT_DEVICE_NAME, config);
+CompiledModel Core::compile_model(const std::string& modelPath, const ConfigMap& config) {
+    return compile_model(modelPath, ov::DEFAULT_DEVICE_NAME, config);
 }
 
-ExecutableNetwork Core::compile_model(const std::string& modelPath,
-                                      const std::string& deviceName,
-                                      const ConfigMap& config) {
+CompiledModel Core::compile_model(const std::string& modelPath,
+                                  const std::string& deviceName,
+                                  const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
         return {exec._so, exec._ptr};
