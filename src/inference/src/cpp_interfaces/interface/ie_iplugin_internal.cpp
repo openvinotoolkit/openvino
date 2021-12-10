@@ -311,8 +311,12 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     for (const auto& param : function->get_parameters()) {
         auto new_param = param->copy_with_new_inputs({});
         new_param->set_friendly_name(param->get_friendly_name());
-        if (add_operation_names)
+        if (add_operation_names) {
             new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
+        }
+        auto p = std::dynamic_pointer_cast<ov::op::v0::Parameter>(new_param);
+        OPENVINO_ASSERT(p, "Internal error. SetNetworkInfo failure casting input copy to Parameter");
+        p->set_layout(param->get_layout());
         // WA: use CNNNetwork's precisions since plugins sometimes override their precisions
         // after transformation pipeline is run
         new_param->set_output_type(
@@ -335,6 +339,9 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         if (add_operation_names) {
             new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
         }
+        auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
+        OPENVINO_ASSERT(r, "Internal error. SetNetworkInfo failure casting output copy to Result");
+        r->set_layout(result->get_layout());
         const_results.emplace_back(new_result);
     }
 
