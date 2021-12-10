@@ -6,7 +6,7 @@
 import numpy as np
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import AxisSet, Function, Shape, Type
+from openvino.runtime import AxisSet, Model, Shape, Type
 from openvino.runtime.op import Constant, Parameter
 from tests.runtime import get_runtime
 
@@ -88,7 +88,7 @@ def binary_op_exec(op_str):
     A = Parameter(element_type, shape)
     B = Parameter(element_type, shape)
     parameter_list = [A, B]
-    function = Function([binary_op(op_str, A, B)], parameter_list, "test")
+    function = Model([binary_op(op_str, A, B)], parameter_list, "test")
 
     a_arr = np.array([[1, 6], [7, 4]], dtype=np.float32)
     b_arr = np.array([[5, 2], [3, 8]], dtype=np.float32)
@@ -108,7 +108,7 @@ def binary_op_comparison(op_str):
     A = Parameter(element_type, shape)
     B = Parameter(element_type, shape)
     parameter_list = [A, B]
-    function = Function([binary_op(op_str, A, B)], parameter_list, "test")
+    function = Model([binary_op(op_str, A, B)], parameter_list, "test")
     a_arr = np.array([[1, 5], [3, 2]], dtype=np.float32)
     b_arr = np.array([[2, 4], [3, 1]], dtype=np.float32)
 
@@ -192,7 +192,7 @@ def test_add_with_mul():
     B = Parameter(element_type, shape)
     C = Parameter(element_type, shape)
     parameter_list = [A, B, C]
-    function = Function([ov.multiply(ov.add(A, B), C)], parameter_list, "test")
+    function = Model([ov.multiply(ov.add(A, B), C)], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, A, B, C)
@@ -306,7 +306,7 @@ def unary_op_exec(op_str, input_list):
     shape = Shape(np.array(input_list).shape)
     A = Parameter(element_type, shape)
     parameter_list = [A]
-    function = Function([unary_op(op_str, A)], parameter_list, "test")
+    function = Model([unary_op(op_str, A)], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -442,7 +442,7 @@ def test_reshape():
     shape = Shape([2, 3])
     A = Parameter(element_type, shape)
     parameter_list = [A]
-    function = Function([ov.reshape(A, Shape([3, 2]), special_zero=False)], parameter_list, "test")
+    function = Model([ov.reshape(A, Shape([3, 2]), special_zero=False)], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -457,7 +457,7 @@ def test_broadcast():
     element_type = Type.f32
     A = Parameter(element_type, Shape([3]))
     parameter_list = [A]
-    function = Function([ov.broadcast(A, [3, 3])], parameter_list, "test")
+    function = Model([ov.broadcast(A, [3, 3])], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -472,7 +472,7 @@ def test_broadcast():
 def test_constant():
     element_type = Type.f32
     parameter_list = []
-    function = Function([Constant(element_type, Shape([3, 3]), list(range(9)))], parameter_list, "test")
+    function = Model([Constant(element_type, Shape([3, 3]), list(range(9)))], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -490,7 +490,7 @@ def test_concat():
     C = Parameter(element_type, Shape([1, 2]))
     parameter_list = [A, B, C]
     axis = 0
-    function = Function([ov.concat([A, B, C], axis)], parameter_list, "test")
+    function = Model([ov.concat([A, B, C], axis)], parameter_list, "test")
 
     a_arr = np.array([[1, 2]], dtype=np.float32)
     b_arr = np.array([[5, 6]], dtype=np.float32)
@@ -527,7 +527,7 @@ def test_select():
     C = Parameter(element_type, Shape([1, 2]))
     parameter_list = [A, B, C]
 
-    function = Function([ov.select(A, B, C)], parameter_list, "test")
+    function = Model([ov.select(A, B, C)], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -569,7 +569,7 @@ def test_max_pool():
         auto_pad,
         idx_elem_type,
     )
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -594,7 +594,7 @@ def test_max_pool():
         auto_pad,
         idx_elem_type,
     )
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
 
     size = 4
     computation = runtime.computation(function, *parameter_list)
@@ -628,7 +628,7 @@ def test_max_pool():
         auto_pad,
         idx_elem_type,
     )
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
 
     computation = runtime.computation(function, *parameter_list)
     result = computation(input_arr)[0]
@@ -653,7 +653,7 @@ def test_max_pool():
         auto_pad,
         idx_elem_type,
     )
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
     computation = runtime.computation(function, *parameter_list)
     result = computation(input_arr)[0]
 
@@ -731,7 +731,7 @@ def test_convolution_simple():
     dilations = [1, 1]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -759,7 +759,7 @@ def test_convolution_with_strides():
     dilations = [1, 1]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -786,7 +786,7 @@ def test_convolution_with_filter_dilation():
     dilations = [2, 2]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -814,7 +814,7 @@ def test_convolution_with_padding():
     pads_end = [0, 0]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -843,7 +843,7 @@ def test_convolution_with_non_zero_padding():
     pads_end = [1, 2]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Function([model], parameter_list, "test")
+    function = Model([model], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)

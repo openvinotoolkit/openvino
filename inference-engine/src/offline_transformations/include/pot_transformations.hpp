@@ -29,5 +29,5 @@ public:
     NGRAPH_RTTI_DECLARATION;
     explicit POTTransformations(std::string device) : m_device(std::move(device)) {}
 
-    bool run_on_function(std::shared_ptr<ngraph::Function>) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>&) override;
 };

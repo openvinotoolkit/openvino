@@ -469,7 +469,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
         }
         for (const auto & op : net.getFunction()->get_ops()) {
             std::string affinity = rl_map[op->get_friendly_name()];
-            op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            op->get_rt_info()["affinity"] = affinity;
         }
         InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork, deviceName);
     } catch (const InferenceEngine::NotImplemented & ex) {
@@ -492,7 +492,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
         }
         for (const auto & op : ksoCnnNetwork.getFunction()->get_ops()) {
             std::string affinity = rl_map[op->get_friendly_name()];
-            op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            op->get_rt_info()["affinity"] = affinity;
         }
         InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork, deviceName);
     } catch (const InferenceEngine::Exception& ex) {
