@@ -389,8 +389,9 @@ def test_infer_new_request_return_type(device):
     exec_net = ie.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
     arr = res[list(res)[0]][0]
+
     assert isinstance(arr, np.ndarray)
-    assert hasattr(arr, "itemsize")
-    assert hasattr(arr, "shape")
-    assert hasattr(arr, "dtype")
-    assert hasattr(arr, "nbytes")
+    assert arr.itemsize == 4
+    assert arr.shape == (10,)
+    assert arr.dtype == "float32"
+    assert arr.nbytes == 40
