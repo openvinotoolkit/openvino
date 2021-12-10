@@ -168,7 +168,7 @@ public:
     std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
                                                            const Layout& model_layout) const {
         if (model_shape.rank().is_dynamic()) {
-            return {model_shape, model_layout};
+            return std::tuple<PartialShape, Layout>{model_shape, model_layout};
         }
         Layout res_layout = model_layout;
         std::vector<Dimension> old_dims(model_shape.rank().get_length());
@@ -187,7 +187,7 @@ public:
             }
             res_layout = layout::apply_permutation(res_layout, back_convert);
         }
-        return {dims, res_layout};
+        return std::tuple<PartialShape, Layout>{dims, res_layout};
     }
 
 private:
