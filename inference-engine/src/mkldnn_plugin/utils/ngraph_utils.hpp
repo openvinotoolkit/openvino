@@ -13,10 +13,9 @@ namespace MKLDNNPlugin {
 inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, std::string paramName) {
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
-        auto value = std::dynamic_pointer_cast<ov::RuntimeAttributeImpl<std::string>>(it->second);
-        return value->get();
+        return it->second.as<std::string>();
     } else {
-        return "";
+        return {};
     }
 }
 

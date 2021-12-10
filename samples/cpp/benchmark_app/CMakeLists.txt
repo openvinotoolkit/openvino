@@ -50,6 +50,7 @@ if(OpenCL_FOUND AND OpenCL_HEADERS)
 endif()
 
 # Optional OpenCV dependnency
+
 find_package(OpenCV COMPONENTS core QUIET)
 if(NOT OpenCV_FOUND)
     message(WARNING "OpenCV is disabled or not found, ${TARGET_NAME} will be built without OpenCV support. Set OpenCV_DIR")

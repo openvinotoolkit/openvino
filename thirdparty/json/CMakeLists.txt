@@ -6,11 +6,14 @@
 set(JSON_SystemInclude ON)
 set(JSON_Install ON)
 add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
-set_target_properties(nlohmann_json PROPERTIES FOLDER thirdparty)
 
 set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(nlohmann_json_schema_validator EXCLUDE_FROM_ALL)
 set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdparty)
+
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+    target_compile_options(nlohmann_json_schema_validator PRIVATE -Wno-missing-field-initializers -Wno-shadow)
+endif()
 
 # WA for nlohmann_json_schema_validator:
 # nlohmann_json must be in the same export set of nlohmann_json_schema_validator targets
