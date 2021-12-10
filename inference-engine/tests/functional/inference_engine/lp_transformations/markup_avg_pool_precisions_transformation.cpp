@@ -31,6 +31,8 @@
 using namespace testing;
 using namespace ngraph::pass;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 class MarkupAvgPoolPrecisionsTransformationTestValues {
 public:
 public:
