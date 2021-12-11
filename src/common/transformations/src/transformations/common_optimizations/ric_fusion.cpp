@@ -243,6 +243,7 @@ public:
             // This constraint helps to avoid detection of other Gathers that do not perform RIC
             const auto & data_shape = m.get_match_root()->input(0).get_partial_shape();
             if (shape_size(order->get_shape()) == 1 ||
+                axis_value < 0 ||
                 axis_value >= data_shape.rank().get_length() ||
                 data_shape[axis_value].is_dynamic() ||
                 shape_size(order->get_shape()) != static_cast<size_t>(data_shape[axis_value].get_length())) {
