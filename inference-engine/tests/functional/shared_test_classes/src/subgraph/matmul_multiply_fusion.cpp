@@ -119,9 +119,7 @@ void QuantizedMatMulMultiplyFusion::TearDown() {
         const auto& rt_info = node->get_rt_info();
         auto it = rt_info.find(ExecGraphInfoSerialization::LAYER_TYPE);
         IE_ASSERT(it != rt_info.end());
-        auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-        IE_ASSERT(value != nullptr);
-        return value->get();
+        return it->second.as<std::string>();
     };
 
     auto runtime_function = executableNetwork.GetExecGraphInfo().getFunction();
