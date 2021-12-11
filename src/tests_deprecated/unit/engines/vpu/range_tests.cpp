@@ -376,9 +376,7 @@ TEST_F(VPU_FilterRangeTests, IterationOverEmptyIntrusiveListWhereAllElementsFilt
             return (innerPtr->val < 0);
         });
 
-    for (const auto& ptr : filterRange) {
-        ASSERT_TRUE(false) << "Must not see any item in filtered list";
-    }
+    ASSERT_TRUE(filterRange.empty()) << "Must not see any item in filtered list";
 
     for (auto cit = list.cbegin(); cit != list.cend(); ++cit) {
         if (evenFunc((*cit)->val)) {
@@ -386,9 +384,7 @@ TEST_F(VPU_FilterRangeTests, IterationOverEmptyIntrusiveListWhereAllElementsFilt
         }
     }
 
-    for (const auto& ptr : filterRange) {
-        ASSERT_TRUE(false) << "Must not see any item in filtered list";
-    }
+    ASSERT_TRUE(filterRange.empty()) << "Must not see any item in filtered list";
 
     for (auto cit = nodesExternalList.cbegin(); cit != nodesExternalList.end(); ++cit) {
         ASSERT_EQ(1, cit->use_count()) << "intrusive list keeps weak pointer only";
