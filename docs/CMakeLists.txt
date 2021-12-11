@@ -384,8 +384,3 @@ endfunction()
 if(ENABLE_DOCS)
     build_docs()
 endif()
-
-# Enable interpreter backend
-if (ENABLE_TESTS AND NOT ENABLE_TEMPLATE)
-    add_subdirectory(template_plugin/backend)
-endif()

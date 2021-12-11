@@ -15,7 +15,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wall)
 endif()
 
-add_subdirectory(backend)
 add_subdirectory(src)
 
 if(ENABLE_TESTS)
