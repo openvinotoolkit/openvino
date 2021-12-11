@@ -41,7 +41,7 @@ void processLayout(InferenceEngine::CNNNetwork& network,
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network);
 void printInputAndOutputsInfo(const ov::Model& network);
 
-void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
+void configurePrePostProcessing(std::shared_ptr<ov::Model>& function,
                                 const std::string& ip,
                                 const std::string& op,
                                 const std::string& iop,
