@@ -86,7 +86,7 @@ int tmain(int argc, tchar* argv[]) {
         // - apply linear resize from tensor spatial dims to model spatial dims
         preproc.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
         // 4) Here we suppose model has 'NCHW' layout for input
-        preproc.input().network().set_layout("NCHW");
+        preproc.input().model().set_layout("NCHW");
         // 5) Set output tensor information:
         // - precision of tensor is supposed to be 'f32'
         preproc.output().tensor().set_element_type(ov::element::f32);
@@ -94,10 +94,10 @@ int tmain(int argc, tchar* argv[]) {
         model = preproc.build();
 
         // -------- Step 5. Loading a model to the device --------
-        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
+        ov::runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 6. Create an infer request --------
-        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
+        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
         // -----------------------------------------------------------------------------------------------------
 
         // -------- Step 7. Prepare input --------

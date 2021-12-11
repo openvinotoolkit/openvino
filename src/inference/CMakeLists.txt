@@ -246,12 +246,11 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
 
 # Export for developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME}_plugin_api)
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_plugin_api)
 
 # install TBB
 
-list(APPEND core_components ngraph)
-list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
+list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
                       "IE_PARALLEL_CMAKE")
 
 # define variables for InferenceEngineConfig.cmake
@@ -268,11 +267,10 @@ endif()
 # install only downloaded TBB, system one is not installed
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
+    ie_cpack_add_component(tbb_dev REQUIRED)
     list(APPEND core_components tbb)
+    list(APPEND core_dev_components tbb_dev)
 
-    install(DIRECTORY "${TBB}/include"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
     install(DIRECTORY "${TBB}/lib"
             DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
@@ -290,7 +288,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
             DESTINATION runtime/${IE_TBB_DIR_INSTALL}
-            COMPONENT tbb)
+            COMPONENT tbb_dev)
+    install(DIRECTORY "${TBB}/include"
+            DESTINATION runtime/3rdparty/tbb
+            COMPONENT tbb_dev)
 endif()
 
 if(install_tbbbind)
@@ -304,13 +305,13 @@ if(install_tbbbind)
     set(IE_TBBBIND_DIR_INSTALL "3rdparty/tbb_bind_2_5/cmake")
     install(FILES "${TBBBIND_2_5}/cmake/TBBBIND_2_5Config.cmake"
             DESTINATION runtime/${IE_TBBBIND_DIR_INSTALL}
-            COMPONENT tbb)
+            COMPONENT tbb_dev)
 endif()
 
 # Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
+ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
@@ -351,7 +352,7 @@ install(EXPORT OpenVINOTargets
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
-set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/src/core")
+set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
 set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
@@ -366,7 +367,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
                               PATH_VARS ${PATH_VARS})
 
 set(IE_INCLUDE_DIR "include/ie")
-set(IE_NGRAPH_DIR ".")
+set(OV_CORE_DIR ".")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")

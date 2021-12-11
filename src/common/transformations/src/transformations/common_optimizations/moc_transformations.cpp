@@ -60,7 +60,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
-bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
     // transformations we restore original shapes to the nGraph Function back
     std::unordered_map<ngraph::op::Parameter*, PartialShape> input_shapes;

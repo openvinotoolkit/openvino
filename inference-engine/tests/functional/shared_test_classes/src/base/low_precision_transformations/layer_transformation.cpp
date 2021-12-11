@@ -29,6 +29,10 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationPara
     return ngraph::pass::low_precision::LayerTransformation::Params();
 }
 
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParams() {
+    return ngraph::pass::low_precision::LayerTransformation::Params();
+}
+
 LayerTransformation::LayerTransformation() {
     threshold = 0.05;
     auto& configuration = GetConfiguration();
