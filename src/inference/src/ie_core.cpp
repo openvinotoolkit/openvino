@@ -1442,8 +1442,8 @@ ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
 }  // namespace
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                      const std::string& deviceName,
-                                      const ConfigMap& config) {
+                                  const std::string& deviceName,
+                                  const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
         return {exec._so, exec._ptr};
@@ -1460,8 +1460,8 @@ CompiledModel Core::compile_model(const std::string& modelPath,
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                      const RemoteContext& context,
-                                      const ConfigMap& config) {
+                                  const RemoteContext& context,
+                                  const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), context._impl, config);
         return {exec._so, exec._ptr};

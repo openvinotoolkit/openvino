@@ -114,8 +114,8 @@ public:
      * @return An executable network reference
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
-                                    const std::string& device_name,
-                                    const ConfigMap& config = {});
+                                const std::string& device_name,
+                                const ConfigMap& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -143,8 +143,8 @@ public:
      * @return An executable network object
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
-                                    const RemoteContext& context,
-                                    const ConfigMap& config = {});
+                                const RemoteContext& context,
+                                const ConfigMap& config = {});
 
     /**
      * @brief Registers extension

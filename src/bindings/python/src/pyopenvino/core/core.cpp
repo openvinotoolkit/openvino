@@ -32,14 +32,13 @@ void regclass_Core(py::module m) {
             py::arg("config"),
             py::arg("device_name") = "");
 
-    cls.def(
-        "compile_model",
-        (ov::runtime::CompiledModel(
-            ov::runtime::Core::*)(const std::shared_ptr<const ov::Model>&, const std::string&, const ConfigMap&)) &
-            ov::runtime::Core::compile_model,
-        py::arg("model"),
-        py::arg("device_name"),
-        py::arg("config") = py::dict());
+    cls.def("compile_model",
+            (ov::runtime::CompiledModel(
+                ov::runtime::Core::*)(const std::shared_ptr<const ov::Model>&, const std::string&, const ConfigMap&)) &
+                ov::runtime::Core::compile_model,
+            py::arg("model"),
+            py::arg("device_name"),
+            py::arg("config") = py::dict());
 
     cls.def(
         "compile_model",
