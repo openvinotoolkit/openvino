@@ -6,6 +6,12 @@ set(IE_TESTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 enable_testing()
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-sign-compare)
+    ie_add_compiler_flags(-Wno-all)
+endif()
+
 add_subdirectory(ngraph_helpers)
 add_subdirectory(unit)
 add_subdirectory(ie_test_utils)

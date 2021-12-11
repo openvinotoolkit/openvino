@@ -25,6 +25,10 @@ add_subdirectory(plugins)
 add_subdirectory(inference)
 add_subdirectory(common)
 
+if(ENABLE_TESTS)
+    add_subdirectory(tests_deprecated)
+    add_subdirectory(tests)
+endif()
 
 if(ENABLE_OV_IR_FRONTEND)
     if(BUILD_SHARED_LIBS)
