@@ -56,6 +56,7 @@
 #include <transformations/common_optimizations/subtract_fusion.hpp>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
+#include <transformations/common_optimizations/ric_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -173,6 +174,8 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
     conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     conv_fusions->set_name("ngraph::pass::ConvFusions");
+
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 

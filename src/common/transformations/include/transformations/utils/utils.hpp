@@ -92,9 +92,14 @@ inline std::string get_ie_output_name(const ngraph::Output<ngraph::Node>& output
 }
 
 template <typename T>
-bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant,
+bool has_constant_value(const std::shared_ptr<Node>& node,
                         const T value,
                         T epsilon = std::numeric_limits<T>::epsilon()) {
+    if (!node) {
+        return false;
+    }
+
+    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
     if (!constant) {
         return false;
     }
@@ -121,6 +126,32 @@ bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constan
     }
 
     return true;
+}
+
+template <typename T>
+bool has_constant_value(const std::shared_ptr<Node>& node,
+                        const std::vector<T> values,
+                        T epsilon = std::numeric_limits<T>::epsilon()) {
+    if (!node) {
+        return false;
+    }
+
+    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
+    if (!constant) {
+        return false;
+    }
+
+    const auto const_values = constant->cast_vector<T>();
+
+    if (constant->get_element_type() == ngraph::element::f16 ||
+        constant->get_element_type() == ngraph::element::f32 ||
+        constant->get_element_type() == ngraph::element::f64 ||
+        constant->get_element_type() == ngraph::element::bf16) {
+        return std::equal(const_values.cbegin(), const_values.cend(), values.cbegin(),
+                          [&] (T lhs, T rhs) { return std::fabs(lhs - rhs) < epsilon; });
+    }
+
+    return const_values == values;
 }
 
 TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
