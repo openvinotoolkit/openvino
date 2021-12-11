@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
         model = ppp.build();
 
         // -------- Step 4. Loading a model to the device --------
-        ov::runtime::ExecutableNetwork compiled_model = core.compile_model(model, device_name);
+        ov::runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 5. Create an infer request --------
         ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
