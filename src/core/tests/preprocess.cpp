@@ -577,6 +577,31 @@ TEST(pre_post_process, reuse_model_layout_no_tensor_info) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
 }
 
+TEST(pre_post_process, set_layout_out_of_bounds) {
+    auto shape = PartialShape{1, 2};
+    std::stringstream shape_str;
+    shape_str << shape;
+    auto f = create_simple_function(element::f32, shape);
+    Layout from{"NHWC"};
+    Layout to{"NCHW"};
+    // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
+    try {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout(from);
+        p.input().model().set_layout(to);
+        f = p.build();
+        FAIL() << "Layout conversion shall throw";
+    } catch (const ov::Exception& err) {
+        // Verify that error message contains tensor and network  layout
+        EXPECT_TRUE(std::string(err.what()).find(from.to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(to.to_string()) != std::string::npos) << err.what();
+        // Verify that error message contains 'shape' word
+        EXPECT_TRUE(std::string(err.what()).find(shape_str.str()) != std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
 TEST(pre_post_process, reuse_model_layout_tensor_info) {
     auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(), 3, 2, 1});
     f->get_parameters().front()->set_layout("NC??");
