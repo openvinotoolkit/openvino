@@ -21,9 +21,9 @@
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyopenvino/core/async_infer_queue.hpp"
+#include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
-#include "pyopenvino/core/executable_network.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
@@ -117,7 +117,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     Containers::regclass_TensorIndexMap(m);
     Containers::regclass_TensorNameMap(m);
 
-    regclass_ExecutableNetwork(m);
+    regclass_CompiledModel(m);
     regclass_InferRequest(m);
     regclass_VariableState(m);
     regclass_Version(m);
