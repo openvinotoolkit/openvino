@@ -9,7 +9,7 @@ enable_testing()
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-missing-declarations)
     ie_add_compiler_flags(-Wno-sign-compare)
-    ie_add_compiler_flags(-Wno-all)
+    ie_add_compiler_flags(-Wno-odr)
 endif()
 
 add_subdirectory(ngraph_helpers)
