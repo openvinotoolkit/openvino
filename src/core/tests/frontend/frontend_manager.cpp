@@ -31,8 +31,9 @@ static int set_test_env(const char* name, const char* value) {
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     FrontEndManager fem;
+    class MockFrontEnd : public FrontEnd {};
     ASSERT_NO_THROW(fem.register_front_end("mock", []() {
-        return std::make_shared<FrontEnd>();
+        return std::make_shared<MockFrontEnd>();
     }));
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
@@ -71,8 +72,9 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     ASSERT_NO_THROW(fe = fem.load_by_model(""));
     ASSERT_FALSE(fe);
 
-    std::unique_ptr<FrontEnd> fePtr(new FrontEnd());  // to verify base destructor
-    fe = std::make_shared<FrontEnd>();
+    class MockFrontEnd : public FrontEnd {};
+    std::unique_ptr<FrontEnd> fePtr(new MockFrontEnd());  // to verify base destructor
+    fe = std::make_shared<MockFrontEnd>();
     ASSERT_ANY_THROW(fe->load(""));
     ASSERT_ANY_THROW(fe->convert(std::shared_ptr<Function>(nullptr)));
     ASSERT_ANY_THROW(fe->convert(InputModel::Ptr(nullptr)));
@@ -83,8 +85,9 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
 }
 
 TEST(FrontEndManagerTest, testDefaultInputModel) {
-    std::unique_ptr<InputModel> imPtr(new InputModel());  // to verify base destructor
-    InputModel::Ptr im = std::make_shared<InputModel>();
+    class MockInputModel : public InputModel {};
+    std::unique_ptr<InputModel> imPtr(new MockInputModel());  // to verify base destructor
+    InputModel::Ptr im = std::make_shared<MockInputModel>();
     ASSERT_EQ(im->get_inputs(), std::vector<Place::Ptr>{});
     ASSERT_EQ(im->get_outputs(), std::vector<Place::Ptr>{});
     ASSERT_ANY_THROW(im->override_all_inputs({nullptr}));
@@ -112,8 +115,9 @@ TEST(FrontEndManagerTest, testDefaultInputModel) {
 }
 
 TEST(FrontEndManagerTest, testDefaultPlace) {
-    std::unique_ptr<Place> placePtr(new Place());  // to verify base destructor
-    Place::Ptr place = std::make_shared<Place>();
+    class MockPlace : public Place {};
+    std::unique_ptr<Place> placePtr(new MockPlace());  // to verify base destructor
+    Place::Ptr place = std::make_shared<MockPlace>();
     ASSERT_ANY_THROW(place->get_names());
     ASSERT_EQ(place->get_consuming_operations(), std::vector<Place::Ptr>{});
     ASSERT_EQ(place->get_consuming_operations(0), std::vector<Place::Ptr>{});
