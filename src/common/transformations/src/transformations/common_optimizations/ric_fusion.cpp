@@ -176,6 +176,11 @@ public:
             auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p).get_node_shared_ptr());
             if (!concat || !split) return false;
 
+            // Avoid cases with two consecutive Split->Concat
+            if (ric_attr::has(split->input_value(0))) {
+                return false;
+            }
+
             std::vector<int64_t> order;
             order.reserve(split->get_num_splits());
 
@@ -228,11 +233,19 @@ public:
                 return false;
             }
 
+            // Avoid cases with two consecutive Gathers
+            if (ric_attr::has(pattern_map.at(input_p))) {
+                return false;
+            }
+
             const auto axis_value = axis->cast_vector<int64_t>().at(0);
 
             // This constraint helps to avoid detection of other Gathers that do not perform RIC
+            const auto & data_shape = m.get_match_root()->input(0).get_partial_shape();
             if (shape_size(order->get_shape()) == 1 ||
-                shape_size(order->get_shape()) != static_cast<size_t>(m.get_match_root()->input(0).get_partial_shape()[axis_value].get_length())) {
+                axis_value >= data_shape.rank().get_length() ||
+                data_shape[axis_value].is_dynamic() ||
+                shape_size(order->get_shape()) != static_cast<size_t>(data_shape[axis_value].get_length())) {
                 return false;
             }
 
@@ -242,7 +255,6 @@ public:
             if (unique_values.size() != order_values.size()) {
                 return false;
             }
-
             ric_attr::init(output, order_values, axis_value);
             return true;
         };
