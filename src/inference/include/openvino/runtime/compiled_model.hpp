@@ -3,9 +3,9 @@
 //
 
 /**
- * @brief A header file that provides ExecutableNetwork class
+ * @brief A header file that provides CompiledModel class
  *
- * @file openvino/runtime/executable_network.hpp
+ * @file openvino/runtime/compiled_model.hpp
  */
 
 #pragma once
@@ -32,25 +32,25 @@ class Core;
 /**
  * @brief This is an interface of an executable network
  */
-class OPENVINO_RUNTIME_API ExecutableNetwork {
+class OPENVINO_RUNTIME_API CompiledModel {
     std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
 
     /**
-     * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
-     * @param so Plugin to use. This is required to ensure that ExecutableNetwork can work properly even if plugin
+     * @brief Constructs CompiledModel from the initialized std::shared_ptr
+     * @param so Plugin to use. This is required to ensure that CompiledModel can work properly even if plugin
      * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const std::shared_ptr<void>& so,
-                      const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl);
+    CompiledModel(const std::shared_ptr<void>& so,
+                  const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl);
     friend class ov::runtime::Core;
 
 public:
     /**
      * @brief A default constructor.
      */
-    ExecutableNetwork() = default;
+    CompiledModel() = default;
 
     /**
      * @brief Get executable graph information from a device
@@ -148,7 +148,7 @@ public:
      *
      * The method is responsible to extract information
      * which affects executable network execution. The list of supported configuration values can be extracted via
-     * ExecutableNetwork::get_metric with the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed
+     * CompiledModel::get_metric with the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed
      * dynamically, e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular
      * device.
      *
@@ -170,20 +170,20 @@ public:
 
     /**
      * @brief Returns pointer to plugin-specific shared context
-     * on remote accelerator device that was used to create this ExecutableNetwork
+     * on remote accelerator device that was used to create this CompiledModel
      * @return A context
      */
     RemoteContext get_context() const;
 
     /**
-     * @brief Checks if current ExecutableNetwork object is not initialized
-     * @return true if current ExecutableNetwork object is not initialized, false - otherwise
+     * @brief Checks if current CompiledModel object is not initialized
+     * @return true if current CompiledModel object is not initialized, false - otherwise
      */
     bool operator!() const noexcept;
 
     /**
-     * @brief Checks if current ExecutableNetwork object is initialized
-     * @return true if current ExecutableNetwork object is initialized, false - otherwise
+     * @brief Checks if current CompiledModel object is initialized
+     * @return true if current CompiledModel object is initialized, false - otherwise
      */
     explicit operator bool() const noexcept;
 };

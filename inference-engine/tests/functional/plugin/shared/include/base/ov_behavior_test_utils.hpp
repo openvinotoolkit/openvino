@@ -59,7 +59,7 @@ public:
     }
 
 protected:
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
     std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

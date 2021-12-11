@@ -123,7 +123,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
     CheckPluginRelatedResultsImpl(function, std::move(nodeType));
 }
 
-void CPUTestsBase::CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &execNet, std::string nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResults(ov::runtime::CompiledModel &execNet, std::string nodeType) const {
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";

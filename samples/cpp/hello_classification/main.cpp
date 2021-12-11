@@ -94,10 +94,10 @@ int tmain(int argc, tchar* argv[]) {
         model = preproc.build();
 
         // -------- Step 5. Loading a model to the device --------
-        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
+        ov::runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 6. Create an infer request --------
-        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
+        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
         // -----------------------------------------------------------------------------------------------------
 
         // -------- Step 7. Prepare input --------

@@ -119,7 +119,7 @@ public:
 void regclass_AsyncInferQueue(py::module m) {
     py::class_<AsyncInferQueue, std::shared_ptr<AsyncInferQueue>> cls(m, "AsyncInferQueue");
 
-    cls.def(py::init([](ov::runtime::ExecutableNetwork& net, size_t jobs) {
+    cls.def(py::init([](ov::runtime::CompiledModel& net, size_t jobs) {
                 if (jobs == 0) {
                     jobs = (size_t)Common::get_optimal_number_of_requests(net);
                 }

@@ -27,7 +27,7 @@ namespace ov {
 namespace runtime {
 
 class Core;
-class ExecutableNetwork;
+class CompiledModel;
 
 /**
  * @brief This class represents an abstraction
@@ -48,7 +48,7 @@ protected:
      */
     RemoteContext(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::RemoteContext>& impl);
     friend class ov::runtime::Core;
-    friend class ov::runtime::ExecutableNetwork;
+    friend class ov::runtime::CompiledModel;
 
 public:
     /**

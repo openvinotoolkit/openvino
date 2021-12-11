@@ -332,7 +332,7 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 4. Compiling model for the device --------
         slog::info << "Compiling a model for the " << FLAGS_d << " device" << slog::endl;
-        runtime::ExecutableNetwork exeNetwork = core.compile_model(model, FLAGS_d);
+        runtime::CompiledModel exeNetwork = core.compile_model(model, FLAGS_d);
 
         // -------- Step 5. Create infer request --------
         slog::info << "Create infer request" << slog::endl;

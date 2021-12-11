@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
         // -------------------------------------------------------------------
 
         // Step 7. Loading a model to the device
-        ov::runtime::ExecutableNetwork compiled_model = core.compile_model(model, device_name);
+        ov::runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
         // -------------------------------------------------------------------
 
         // Step 8. Create an infer request

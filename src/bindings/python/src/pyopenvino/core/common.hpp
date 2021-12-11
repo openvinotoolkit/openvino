@@ -15,7 +15,7 @@
 
 #include "Python.h"
 #include "ie_common.h"
-#include "openvino/runtime/executable_network.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "pyopenvino/core/containers.hpp"
@@ -42,7 +42,7 @@ void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inp
 
 PyAny from_ov_any(const ov::Any& any);
 
-uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual);
+uint32_t get_optimal_number_of_requests(const ov::runtime::CompiledModel& actual);
 
 py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::runtime::InferRequest& request);
 
