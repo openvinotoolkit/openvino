@@ -8,7 +8,7 @@
 #include <manager.hpp>
 
 #include "exceptions.hpp"
-#include "model.hpp"
+#include "input_model.hpp"
 
 namespace ov {
 namespace frontend {

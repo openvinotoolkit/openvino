@@ -390,6 +390,8 @@ void InputModel::set_tensor_partial_value(Place::Ptr place, const void* min_valu
     FRONT_END_NOT_IMPLEMENTED(set_tensor_partial_value);
 }
 
+InputModel::~InputModel() = default;
+
 //----------- Place ---------------------------
 std::vector<std::string> Place::get_names() const {
     FRONT_END_NOT_IMPLEMENTED(get_names);
@@ -514,3 +516,5 @@ Place::Ptr Place::get_producing_operation(const std::string& inputName, int inpu
 std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName) const {
     return {};
 }
+
+Place::~Place() = default;

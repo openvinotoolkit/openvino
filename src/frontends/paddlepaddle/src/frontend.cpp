@@ -14,7 +14,7 @@
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/frontends/paddlepaddle/exceptions.hpp"
-#include "openvino/frontends/paddlepaddle/model.hpp"
+#include "openvino/frontends/paddlepaddle/input_model.hpp"
 #include "openvino/frontends/paddlepaddle/place.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "paddlepaddle_fw_node.hpp"
@@ -163,7 +163,7 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert_each_node(
             paddlepaddle::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
-                if (op_desc.outputs().begin()->arguments().size() > 0) {
+                if (!op_desc.outputs().begin()->arguments().empty()) {
                     const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
                     auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
                     node->set_friendly_name(tensor_name);
@@ -344,7 +344,7 @@ FRONTEND_C_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {
-        return std::make_shared<FrontEnd>();
+        return std::make_shared<paddlepaddle::FrontEnd>();
     };
     return res;
 }

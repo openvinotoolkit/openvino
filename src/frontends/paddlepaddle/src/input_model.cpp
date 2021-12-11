@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontends/paddlepaddle/model.hpp"
+#include "openvino/frontends/paddlepaddle/input_model.hpp"
 
 #include <fstream>
 #include <queue>
