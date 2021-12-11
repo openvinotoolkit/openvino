@@ -230,8 +230,8 @@ def test_register_plugins():
     exec_net = ie.compile_model(func, "CUSTOM")
     assert isinstance(exec_net,
                       CompiledModel), "Cannot load the network to " \
-                                          "the registered plugin with name 'CUSTOM' " \
-                                          "registered in the XML file"
+                                      "the registered plugin with name 'CUSTOM' " \
+                                      "registered in the XML file"
 
 
 @pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
