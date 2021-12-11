@@ -95,7 +95,7 @@ TEST(pre_post_process, convert_element_type_implicit_several_time) {
     EXPECT_EQ(f->get_results().front()->get_element_type(), element::i32);
     PrePostProcessor preprocessor(f);
     preprocessor.input().tensor().set_layout(ov::Layout("NHWC"));
-    preprocessor.input().network().set_layout(ov::Layout("NCHW"));
+    preprocessor.input().model().set_layout(ov::Layout("NCHW"));
     preprocessor.input().tensor().set_element_type(element::f16);
     preprocessor.input().tensor().set_element_type(element::i32);
     preprocessor.input().tensor().set_element_type(element::u32);
