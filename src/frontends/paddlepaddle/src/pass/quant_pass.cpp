@@ -53,7 +53,7 @@ static std::shared_ptr<FakeQuantize> get_fakequant_for_data(
     const auto input = fake_internal->input_value(1).get_node_shared_ptr();
     const auto& const_input = std::dynamic_pointer_cast<Constant>(input);
     // mark the scale is input scale and the dequant can ignore it
-    const_input->get_rt_info()["in_scale"] = std::make_shared<::ov::RuntimeAttributeWrapper<std::string>>("true");
+    const_input->get_rt_info()["in_scale"] = {};
     std::vector<float> scales = const_input->cast_vector<float>();
     return get_quant_common(range, scales[0], fake_internal->input_value(0));
 }

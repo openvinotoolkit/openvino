@@ -123,16 +123,13 @@ static const std::vector<std::string> models{
     std::string("fake_conv2d_range_abs_max+abs_max/fake_conv2d_range_abs_max+abs_max.pdmodel"),
     std::string("fake_conv2d_moving_average_abs_max+channel_wise_abs_max/"
                 "fake_conv2d_moving_average_abs_max+channel_wise_abs_max.pdmodel"),
-    std::string("fake_conv2d_transpose_range_abs_max+channel_wise_abs_max/"
-                "fake_conv2d_transpose_range_abs_max+channel_wise_abs_max.pdmodel"),
     std::string("fake_depthwise_conv2d_moving_average_abs_max+channel_wise_abs_max/"
                 "fake_depthwise_conv2d_moving_average_abs_max+channel_wise_abs_max.pdmodel"),
-    std::string("fake_matmul_channel_wise_quantize_dequantize_abs_max/"
-                "fake_matmul_channel_wise_quantize_dequantize_abs_max.pdmodel"),
-    std::string("fake_matmul_quantize_dequantize_abs_max/fake_matmul_quantize_dequantize_abs_max.pdmodel"),
-    std::string(
-        "fake_matmul_range_abs_max+channel_wise_abs_max/fake_matmul_range_abs_max+channel_wise_abs_max.pdmodel"),
+    std::string("fake_conv2d_transpose_range_abs_max+abs_max/"
+                "fake_conv2d_transpose_range_abs_max+abs_max.pdmodel"),
     std::string("fake_matmul_moving_average_abs_max+abs_max/fake_matmul_moving_average_abs_max+abs_max.pdmodel"),
+    std::string("fake_matmul_range_abs_max+abs_max/fake_matmul_range_abs_max+abs_max.pdmodel"),
+    std::string("fake_matmul_quantize_dequantize_abs_max/fake_matmul_quantize_dequantize_abs_max.pdmodel"),
     std::string("fake_mul_moving_average_abs_max+abs_max/fake_mul_moving_average_abs_max+abs_max.pdmodel"),
     std::string("fake_pool2d_moving_average_abs_max/fake_pool2d_moving_average_abs_max.pdmodel"),
     std::string("fill_any_like"),

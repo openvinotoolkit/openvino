@@ -25,7 +25,7 @@ def quant_post_static(
         algo='hist',
         hist_percent=0.9999,
         bias_correction=False,
-        quantizable_op_type=["conv2d", "conv2d_transpose", "depthwise_conv2d", "matmul_v2", "pool2d", "mul"],
+        quantizable_op_type=["conv2d", "conv2d_transpose", "depthwise_conv2d", "matmul", "pool2d", "mul"],
         is_full_quantize=False,
         weight_bits=8,
         activation_bits=8,

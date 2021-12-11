@@ -3,9 +3,18 @@ import sys
 import paddle as pdpd
 from quant.util import quantize, fake_data
 import paddle.fluid as fluid
-import paddle.nn.quant.quant_layers as quant_layers
 import os
 import save_model
+try:
+    # paddle version=2.2.1
+    from paddle.nn.quant.quant_layers import FakeQuantMovingAverageAbsMax
+    from paddle.nn.quant.quant_layers import FakeQuantAbsMax
+    from paddle.nn.quant.quant_layers import FakeQuantChannelWiseAbsMax
+except:
+    # paddle version=2.1.0
+    from paddle.fluid.contrib.slim.quantization.imperative.quant_nn import FakeQuantMovingAverage as FakeQuantMovingAverageAbsMax
+    from paddle.fluid.contrib.slim.quantization.imperative.quant_nn import FakeQuantAbsMax
+    from paddle.fluid.contrib.slim.quantization.imperative.quant_nn import FakeChannelWiseQuantDequantAbsMax as FakeQuantChannelWiseAbsMax
 
 def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
     model_dir = os.path.join(target_dir, name)
@@ -95,7 +104,7 @@ def test_matmul(name, x, w, data_alg, weight_alg, op_type='matmul'):
         node_x2 = pdpd.fluid.layers.create_parameter(w.shape, w.dtype, 'weight', 
             default_initializer=pdpd.nn.initializer.Assign(w))
         if op_type == 'matmul':
-            mat = pdpd.matmul(node_x1, node_x2, False, False)
+            mat = pdpd.fluid.layers.matmul(node_x1, node_x2, False, False)
         else:
             mat = pdpd.fluid.layers.mul(node_x1, node_x2)
         result = pdpd.fluid.layers.cast(mat, np.float32)
@@ -201,7 +210,7 @@ def test_matmul_quant_dequant(name, weight_alg, x, w):
         node_x1 = pdpd.static.data(name='x', shape=x.shape, dtype=x.dtype)
         node_x2 = pdpd.fluid.layers.create_parameter(w.shape, w.dtype, 'weight', 
             default_initializer=pdpd.nn.initializer.Assign(w))
-        act_scale = quant_layers.FakeQuantMovingAverageAbsMax(name=node_x1.name)
+        act_scale = FakeQuantMovingAverageAbsMax(name=node_x1.name)
         # set the scale
         scale_attr = pdpd.ParamAttr(
             name='act_data',
@@ -211,11 +220,11 @@ def test_matmul_quant_dequant(name, weight_alg, x, w):
             shape=[1], attr=scale_attr, dtype='float32')
         fake_op_act = act_scale(node_x1)
         if weight_alg == 'abs_max':
-            weight_scale = quant_layers.FakeQuantAbsMax(name=node_x2.name, quant_bits=8, dtype=node_x2.dtype, quant_on_weight=True)
+            weight_scale = FakeQuantAbsMax(name=node_x2.name, quant_bits=8, dtype=node_x2.dtype, quant_on_weight=True)
         else:
-            weight_scale = quant_layers.FakeQuantChannelWiseAbsMax(name=node_x2.name, channel_num=1, quant_axis=1, quant_bits=8, dtype=node_x2.dtype, quant_on_weight=True)
+            weight_scale = FakeQuantChannelWiseAbsMax(name=node_x2.name, channel_num=1, quant_axis=1, quant_bits=8, dtype=node_x2.dtype, quant_on_weight=True)
         fake_op_weight = weight_scale(node_x2)
-        mat = pdpd.matmul(fake_op_act, fake_op_weight, False, False)
+        mat = pdpd.fluid.layers.matmul(fake_op_act, fake_op_weight, False, False)
         result = pdpd.fluid.layers.cast(mat, np.float32)
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
@@ -242,27 +251,36 @@ def get_x(shape):
 
 if __name__ == "__main__":
     x = get_x((1, 8, 4, 4))
+    # fake_quantize_range_abs_max->conv2d->fake_dequantize_max_abs
     test_conv('fake_conv2d_range_abs_max+abs_max', 'conv2d', x, 'range_abs_max', 'abs_max', 1)
+    # fake_quantize_moving_average_abs_max->conv2d->fake_channel_wise_dequantize_max_abs
     test_conv('fake_conv2d_moving_average_abs_max+channel_wise_abs_max', 'conv2d', x, 'moving_average_abs_max', 'channel_wise_abs_max', 1)
+    # fake_quantize_moving_average_abs_max->(group)conv2d->fake_channel_wise_dequantize_max_abs
     test_conv('fake_depthwise_conv2d_moving_average_abs_max+channel_wise_abs_max', 'depthwise_conv2d', x, 'moving_average_abs_max', 'channel_wise_abs_max', 2)
-    test_conv('fake_conv2d_transpose_range_abs_max+channel_wise_abs_max', 'conv2d_transpose', x, 'range_abs_max', 'channel_wise_abs_max', 1)
+    # fake_quantize_range_abs_max->conv2d_transpose->fake_dequantize_max_abs
+    test_conv('fake_conv2d_transpose_range_abs_max+abs_max', 'conv2d_transpose', x, 'range_abs_max', 'abs_max', 1)
     #x = get_x((1, 4, 4, 4)) # quantized model cannot be executed
+    # fake_quantize_range_abs_max->(group)conv2d_transpose->fake_dequantize_max_abs
     #test_conv('fake_conv2d_transpose_range_abs_max+channel_wise_abs_max_group', 'conv2d_transpose', x, 'range_abs_max', 'channel_wise_abs_max', 2)
-    x = np.round(get_x((1, 1, 8, 4, 4)) / 10).astype(np.float32)
+    x = np.round(get_x((1, 1, 4, 4)) / 10).astype(np.float32)
     w = np.array([[[[2, -17, -3, 21],
                    [4, -38, 3, -20],
                    [-4, 11, -2, 15],
                    [-2, 45, 2, -14]]]]).astype(np.float32)
+    # fake_quantize_moving_average_abs_max->matmul->fake_dequantize_max_abs
     test_matmul('fake_matmul_moving_average_abs_max+abs_max', x, w, 'moving_average_abs_max', 'abs_max')
-    # TODO: fix error on python3.8
-    #test_matmul('fake_matmul_range_abs_max+channel_wise_abs_max', x, w, 'range_abs_max', 'channel_wise_abs_max')
-    test_matmul_quant_dequant('fake_matmul_channel_wise_quantize_dequantize_abs_max', 'channel_wise_abs_max', x, w)
+    # fake_quantize_range_abs_max->matmul->fake_dequantize_max_abs
+    test_matmul('fake_matmul_range_abs_max+abs_max', x, w, 'range_abs_max', 'abs_max')
+    # data->fake_quantize_dequantize_moving_average_abs_max->matmul
+    # weight->fake_quantize_dequantize_abs_max             ->
     test_matmul_quant_dequant('fake_matmul_quantize_dequantize_abs_max', 'abs_max', x, w)
     x = np.round(get_x((4, 4)) / 10).astype(np.float32)
     w = np.array([[2, -17, -3, 21],
                    [4, -38, 3, -20],
                    [-4, 11, -2, 15],
                    [-2, 45, 2, -14]]).astype(np.float32)
+    # fake_quantize_moving_average_abs_max->mul->fake_dequantize_max_abs
     test_matmul('fake_mul_moving_average_abs_max+abs_max', x, w, 'moving_average_abs_max', 'abs_max', 'mul')
     x = get_x((1, 8, 4, 4))
+    # fake_quantize_dequantize_moving_average_abs_max->pool2d
     test_pool2d('fake_pool2d_moving_average_abs_max', x, 'moving_average_abs_max')

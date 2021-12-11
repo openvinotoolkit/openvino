@@ -44,7 +44,7 @@ public:
 
     /// \brief Runs normalization passes on function that was loaded with partial conversion
     /// \param function partially converted ov function
-    void normalize(std::shared_ptr<ov::Function> function) const override;
+    void normalize(std::shared_ptr<ov::Model> function) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model

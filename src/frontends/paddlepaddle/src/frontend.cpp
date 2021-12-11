@@ -373,7 +373,7 @@ bool FrontEndPDPD::is_function_quantized(const std::shared_ptr<ngraph::Function>
     return false;
 }
 
-void FrontEndPDPD::normalize(std::shared_ptr<ov::Function> function) const {
+void FrontEndPDPD::normalize(std::shared_ptr<ov::Model> function) const {
     if (is_function_quantized(function)) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
