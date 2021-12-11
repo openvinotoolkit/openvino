@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief a header that defines wrappers for internal GPU plugin-specific
+ * @brief A header that defines wrappers for internal GPU plugin-specific
  * shared Video Acceleration device contexts
  * and shared memory tensors which contain Video Acceleration surfaces
  *
@@ -65,10 +65,10 @@ public:
 };
 
 /**
- * @brief This class represents an abstraction for GPU plugin remote context
+ * @brief This class represents an abstraction for GPU device remote context
  * which is shared with VA display object.
- * The plugin object derived from this class can be obtained either with
- * ExecutableNetwork::get_context() or Core::create_context() calls.
+ * The GPU plugin object derived from this class can be obtained either with
+ * CompiledModel::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
  */
 class VAContext : public ClContext {
@@ -109,7 +109,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain a NV12 tensor from NV12 VA decoder output.
+     * @brief This method is used to obtain a NV12 tensor from NV12 VA decoder output.
      * The resulting tensor contains two remote tensors for Y and UV planes of the surface.
      * @param height A height of Y plane
      * @param width A width of Y plane
@@ -129,7 +129,7 @@ public:
     }
 
     /**
-     * @brief This function is used to create remote tensor from VA surface handle
+     * @brief This method is used to create remote tensor from VA surface handle
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param surface A `VASurfaceID` to create remote tensor from

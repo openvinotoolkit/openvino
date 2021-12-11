@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief a header that defines wrappers for internal GPU plugin-specific
+ * @brief A header that defines wrappers for internal GPU plugin-specific
  * OpenCL context and OpenCL shared memory tensors
  *
  * @file ocl_wrapper.hpp

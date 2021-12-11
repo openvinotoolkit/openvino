@@ -45,19 +45,19 @@ class OPENVINO_RUNTIME_API Core {
 
 public:
     /** @brief Constructs OpenVINO Core instance using XML configuration file with
-     * plugins description.
+     * devices and their plugins description.
      *
      * See register_plugins for more details.
      *
      * @param xml_config_file A path to .xml file with plugins to load from. If XML configuration file is not specified,
-     * then default OpenVINO Runtime plugins are loaded from the default plugin.xml file.
+     * then default OpenVINO Runtime plugins are loaded from the default `plugin.xml` file.
      */
     explicit Core(const std::string& xml_config_file = {});
 
     /**
-     * @brief Returns plugins version information
+     * @brief Returns device plugins version information
      *
-     * @param device_name Device name to identify plugin
+     * @param device_name Device name to identify a plugin
      * @return A vector of versions
      */
     std::map<std::string, Version> get_versions(const std::string& device_name) const;
@@ -102,86 +102,86 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::string& model, const Tensor& weights) const;
 
     /**
-     * @brief Creates an executable network from a model object.
+     * @brief Creates a compiled model from a source model object.
      *
-     * Users can create as many executable networks as they need and use
+     * Users can create as many compiled models as they need and use
      * them simultaneously (up to the limitation of the hardware resources)
      *
      * @param model Model object acquired from Core::read_model
      * @param device_name Name of device to load model to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An executable network reference
+     * @return A compiled model
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
                                 const std::string& device_name,
                                 const ConfigMap& config = {});
 
     /**
-     * @brief Reads model and creates an executable network from IR or ONNX file
+     * @brief Reads model and creates a compiled model from IR or ONNX file
      *
      * This can be more efficient than using read_model + compile_model(Model) flow
      * especially for cases when caching is enabled and cached model is available
      *
-     * @param model_path path to model
-     * @param device_name Name of device to load model to
+     * @param model_path Path to a model
+     * @param device_name Name of device to load a model to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation/
      *
-     * @return An executable network reference
+     * @return A compiled model
      */
     CompiledModel compile_model(const std::string& model_path,
                                 const std::string& device_name,
                                 const ConfigMap& config = {});
 
     /**
-     * @brief Creates an executable network from a network object within a specified remote context.
+     * @brief Creates a compiled model from a source model within a specified remote context.
      * @param model Model object acquired from Core::read_model
-     * @param context Pointer to RemoteContext object
+     * @param context A reference to a RemoteContext object
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An executable network object
+     * @return A compiled model object
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
                                 const RemoteContext& context,
                                 const ConfigMap& config = {});
 
     /**
-     * @brief Registers extension
      * @deprecated This method is deprecated. Please use other add_extension methods
+     * @brief Registers OpenVINO 1.0 extension to a Core object
      * @param extension Pointer to already loaded extension
      */
     OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
     void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
 
     /**
-     * @brief Registers extension
-     * @param library_path path to library with ov::Extension
+     * @brief Registers an extension to a Core object
+     * @param library_path Path to library with ov::Extension
      */
     void add_extension(const std::string& library_path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
-     * @brief Registers extension
-     * @param library_path path to library with ov::Extension
+     * @brief Registers an extension to a Core object
+     * @param library_path Unicode path to library with ov::Extension
      */
     void add_extension(const std::wstring& library_path);
 #endif
 
     /**
-     * @brief Registers extension
-     * @param extension Pointer to base extension
+     * @brief Registers an extension to a Core object
+     * @param extension Pointer to extension
      */
     void add_extension(const std::shared_ptr<ov::Extension>& extension);
 
     /**
-     * @brief Registers extensions
-     * @param extensions Vector of loaded base extensions
+     * @brief Registers extensions to a Core object
+     * @param extensions Vector of loaded extensions
      */
     void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
 
     /**
-     * @brief Registers extension
+     * @brief Registers an extension to a Core object
      * @param extension Extension class which is inherited from ov::Extension class
      */
     template <class T, typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
@@ -191,9 +191,9 @@ public:
     }
 
     /**
-     * @brief Registers extensions
+     * @brief Registers extensions to a Core object
      * @param extension Extension class which is inherited from ov::Extension class
-     * @param args list of extensions
+     * @param args A list of extensions
      */
     template <class T,
               class... Targs,
@@ -205,7 +205,7 @@ public:
     }
 
     /**
-     * @brief Registers custom operation
+     * @brief Registers a custom operation inherited from ov::op::Op
      */
     template <class T, typename std::enable_if<std::is_base_of<ov::op::Op, T>::value, bool>::type = true>
     void add_extension() {
@@ -214,7 +214,7 @@ public:
     }
 
     /**
-     * @brief Registers custom operations
+     * @brief Registers custom operations inherited from ov::op::Op
      */
     template <class T,
               class... Targs,
@@ -227,26 +227,28 @@ public:
     }
 
     /**
-     * @brief Creates an executable network from a previously exported one
-     * @param model_stream Model stream
-     * @param device_name Name of device load executable network on
+     * @brief Creates a compiled model from a previously exported one
+     * @param model_stream std::istream input stream containing a model previously exported from
+     * ov::runtime::CompiledModel::export_model
+     * @param device_name Name of device to import compiled model for. Note, if @p device_name device was not used to
+     * compile the original mode, an exception is thrown
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
-     * @return An executable network reference
+     * @return A compiled model
      */
     CompiledModel import_model(std::istream& model_stream,
                                const std::string& device_name,
                                const ConfigMap& config = {});
 
     /**
-     * @brief Creates an executable network from a previously exported one within a specified
-     * remote context.
-     *
-     * @param model_stream Model stream
-     * @param context Pointer to RemoteContext object
+     * @brief Creates a compiled model from a previously exported one with a specified remote context.
+     * @param model_stream std::istream input stream containing a model previously exported from
+     * ov::runtime::CompiledModel::export_model
+     * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
+     * the original mode, an exception is thrown
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An executable network reference
+     * @return A compiled model
      */
     CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const ConfigMap& config = {});
 
@@ -315,7 +317,7 @@ public:
     void register_plugin(const std::string& plugin_name, const std::string& device_name);
 
     /**
-     * @brief Unloads previously loaded plugin with a specified name from OpenVINO Runtime
+     * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime
      * The method is needed to remove plugin instance and free its resources. If plugin for a
      * specified device has not been created before, the method throws an exception.
      *
@@ -323,7 +325,7 @@ public:
      */
     void unload_plugin(const std::string& device_name);
 
-    /** @brief Registers plugin to OpenVINO Runtime Core instance using XML configuration file with
+    /** @brief Registers a device plugin to OpenVINO Runtime Core instance using XML configuration file with
      * plugins description.
      *
      *  XML file has the following structure:
@@ -343,29 +345,29 @@ public:
      * </ie>
      * ```
      *
-     * - `name` identifies name of device enabled by plugin
-     * - `location` specifies absolute path to dynamic library with plugin. A path can also be relative to inference
+     * - `name` identifies name of device enabled by a plugin
+     * - `location` specifies absolute path to dynamic library with a plugin. A path can also be relative to inference
      * engine shared library. It allows to have common config for different systems with different configurations.
-     * - Properties are set to plugin via the `set_config` method.
-     * - Extensions are set to plugin via the `add_extension` method.
+     * - `properties` are set to a plugin via the ov::runtime::Core::set_config method.
+     * - `extensions` are set to a plugin via the ov::runtime::Core::add_extension method.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
     void register_plugins(const std::string& xml_config_file);
 
     /**
-     * @brief Create a new shared context object on specified accelerator device
+     * @brief Create a new remote shared context object on specified accelerator device
      * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
      * @param device_name Name of a device to create new shared context on.
      * @param params Map of device-specific shared context parameters.
-     * @return A shared pointer to a created remote context.
+     * @return A reference to a created remote context.
      */
     RemoteContext create_context(const std::string& device_name, const ParamMap& params);
 
     /**
-     * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
+     * @brief Get a pointer to default (plugin-supplied) shared context object for specified accelerator device.
      * @param device_name  - A name of a device to get create shared context from.
-     * @return A shared pointer to a default remote context.
+     * @return A reference to a default remote context.
      */
     RemoteContext get_default_context(const std::string& device_name);
 };

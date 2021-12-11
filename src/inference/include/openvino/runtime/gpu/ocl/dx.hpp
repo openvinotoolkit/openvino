@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief a header that defines wrappers for internal GPU plugin-specific
+ * @brief A header that defines wrappers for internal GPU plugin-specific
  * shared Video Acceleration device contexts
  * and shared memory tensors which contain Video Acceleration surfaces
  *
@@ -98,7 +98,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with Direct3D 11 device.
  * The plugin object derived from this class can be obtained either with
- * ExecutableNetwork::get_context() or Core::create_context() calls.
+ * CompiledModel::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
  */
 class D3DContext : public ClContext {
@@ -142,7 +142,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain a NV12 tensor from NV12 DXGI video decoder output.
+     * @brief This method is used to obtain a NV12 tensor from NV12 DXGI video decoder output.
      * The resulting tensor contains two remote tensors for Y and UV planes of the surface.
      * @param height Height of Y plane
      * @param width Width of Y plane
@@ -161,7 +161,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from ID3D11Buffer
+     * @brief This method is used to obtain remote tensor object from ID3D11Buffer
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param buffer A pointer to ID3D11Buffer instance to create remote tensor based on
@@ -174,7 +174,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from ID3D11Texture2D
+     * @brief This method is used to obtain remote tensor object from ID3D11Texture2D
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param surface Pointer to ID3D11Texture2D interface of the objects that owns NV12 texture

@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header file that provides wrapper classes for infer requests and callbacks.
+ * @brief A header file that provides InferRequest.
  *
  * @file openvino/runtime/infer_request.hpp
  */
@@ -53,49 +53,65 @@ public:
     InferRequest() = default;
 
     /**
-     * @brief Sets input/output data to infer
+     * @brief Sets input/output tensor to infer on
      *
      * @param name Name of input or output tensor.
-     * @param tensor Reference to input or output tensor. The type of a tensor must match the model input/output
-     * precision and size.
+     * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
+     * the model's input/output element_type and size.
      */
-
     void set_tensor(const std::string& name, const Tensor& tensor);
-    /**
-     * @brief Sets input/output data to infer
-     *
-     * @param port Port of input or output tensor.
-     * @param tensor Reference to input or output tensor. The type of a tensor must match the model input/output
-     * precision and size.
-     */
 
-    void set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor);
     /**
-     * @brief Sets input/output data to infer
-     *
-     * @param port Port of input or output tensor.
-     * @param tensor Reference to input or output tensor. The type of a tensor must match the model input/output
-     * precision and size.
+     * @brief Sets input/output tensor to infer
+     * @param port Port of input or output tensor. Note, that the ports get from the following methods can be used:
+     * - ov::Model::input()
+     * - ov::Model::inputs()
+     * - ov::Model::outputs()
+     * - ov::Model::outputs()
+     * - ov::runtime::CompiledModel::input()
+     * - ov::runtime::CompiledModel::inputs()
+     * - ov::runtime::CompiledModel::outputs()
+     * - ov::runtime::CompiledModel::outputs()
+     * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
+     * the model's input/output element_type and size.
+     */
+    void set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor);
+
+    /**
+     * @brief Sets input/output tensor to infer
+     * @param port Port of input or output tensor. Note, that the ports get from the following methods can be used:
+     * - ov::Model::input()
+     * - ov::Model::inputs()
+     * - ov::Model::outputs()
+     * - ov::Model::outputs()
+     * - ov::runtime::CompiledModel::input()
+     * - ov::runtime::CompiledModel::inputs()
+     * - ov::runtime::CompiledModel::outputs()
+     * - ov::runtime::CompiledModel::outputs()
+     * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
+     * the model's input/output element_type and size.
      */
     void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
 
     /**
-     * @brief Sets input tensor to infer
-     *
+     * @brief Sets input tensor to infer identified by @p idx index
+     * @note An index of input preserved accross ov::Model, ov::runtime::CompiledModel and ov::runtime::InferRequest
      * @param idx Index of input tensor.
-     * @param tensor Reference to input tensor. The type of a tensor must match the model input precision and size.
+     * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
+     * the model's input/output element_type and size.
      */
     void set_input_tensor(size_t idx, const Tensor& tensor);
+
     /**
      * @brief Sets input tensor to infer models with single input
      *
      * @param tensor Reference to input tensor. If model has several inputs, an exception is thrown.
      */
-
     void set_input_tensor(const Tensor& tensor);
+
     /**
      * @brief Sets output tensor to infer
-     *
+     * @note An index of input preserved accross ov::Model, ov::runtime::CompiledModel and ov::runtime::InferRequest
      * @param idx Index of output tensor.
      * @param tensor Reference to output tensor. The type of a tensor must match the model output precision and size.
      */
@@ -208,7 +224,7 @@ public:
     bool wait_for(const std::chrono::milliseconds timeout);
 
     /**
-     * @brief Sets a callback function that will be called on success or failure of asynchronous request
+     * @brief Sets a callback std::function that will be called on success or failure of asynchronous request
      *
      * @param callback callback object which will be called on when inference finish.
      */

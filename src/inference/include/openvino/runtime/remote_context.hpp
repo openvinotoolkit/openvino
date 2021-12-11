@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the OpenVINO Runtime RemoteContext class
- *
+ * @brief A header file for the OpenVINO Runtime RemoteContext class
  * @file openvino/runtime/remote_context.hpp
  */
 #pragma once
@@ -31,9 +30,9 @@ class CompiledModel;
 
 /**
  * @brief This class represents an abstraction
- * for remote (non-CPU) accelerator device-specific execution context.
- * Such context represents a scope on the device within which executable
- * networks and remote memory blobs can exist, function and exchange data.
+ * for remote (non-CPU) accelerator device-specific inference context.
+ * Such context represents a scope on the device within which compiled
+ * models and remote memory tensors can exist, function and exchange data.
  */
 class OPENVINO_RUNTIME_API RemoteContext {
 protected:
@@ -138,7 +137,7 @@ public:
     ParamMap get_params() const;
 
     /**
-     * @brief This function is used to create host tensor object friendly for the device in current context
+     * @brief This method is used to create host tensor object friendly for the device in current context
      * For example, GPU context may allocate USM host memory (if corresponding extension is available)
      * which could be more efficient than regular host memory.
      * @param type Tensor element type

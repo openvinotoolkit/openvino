@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief A header file that provides VariableState
- *
+ * @brief A header file that provides ov::runtime::VariableState
  * @file openvino/runtime/variable_state.hpp
  */
 

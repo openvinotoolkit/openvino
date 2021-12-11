@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief a header that defines wrappers for internal GPU plugin-specific
+ * @brief A header that defines wrappers for internal GPU plugin-specific
  * OpenCL context and OpenCL shared memory tensors
  *
  * @file openvino/runtime/gpu/ocl/ocl.hpp
@@ -151,7 +151,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with OpenCL context object.
  * The plugin object derived from this class can be obtained either with
- * ExecutableNetwork::get_context() or Core::create_context() calls.
+ * CompiledModel::get_context() or Core::create_context() calls.
  */
 class ClContext : public RemoteContext {
 protected:
@@ -228,7 +228,7 @@ public:
     }
 
     /**
-     * @brief This function is used to construct a NV12 compound tensor object from two cl::Image2D wrapper objects.
+     * @brief This method is used to construct a NV12 compound tensor object from two cl::Image2D wrapper objects.
      * The resulting compound contains two remote tensors for Y and UV planes of the surface.
      * @param nv12_image_plane_y cl::Image2D object containing Y plane data.
      * @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
@@ -247,7 +247,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied cl_mem object
+     * @brief This method is used to obtain remote tensor object from user-supplied cl_mem object
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param buffer A cl_mem object that should be wrapped by a remote tensor
@@ -260,7 +260,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied cl::Buffer object
+     * @brief This method is used to obtain remote tensor object from user-supplied cl::Buffer object
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param buffer A cl::Buffer object that should be wrapped by a remote tensor
@@ -271,7 +271,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied cl::Image2D object
+     * @brief This method is used to obtain remote tensor object from user-supplied cl::Image2D object
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param image A cl::Image2D object that should be wrapped by a remote tensor
@@ -284,7 +284,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied USM pointer
+     * @brief This method is used to obtain remote tensor object from user-supplied USM pointer
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param usm_ptr A USM pointer that should be wrapped by a remote tensor
@@ -297,7 +297,7 @@ public:
     }
 
     /**
-     * @brief This function is used to allocate USM tensor with host allocation type
+     * @brief This method is used to allocate USM tensor with host allocation type
      * @param type Tensor element type
      * @param shape Tensor shape
      * @return A remote tensor instance
@@ -308,7 +308,7 @@ public:
     }
 
     /**
-     * @brief This function is used to allocate USM tensor with device allocation type
+     * @brief This method is used to allocate USM tensor with device allocation type
      * @param type Tensor element type
      * @param shape Tensor shape
      * @return A remote tensor instance
