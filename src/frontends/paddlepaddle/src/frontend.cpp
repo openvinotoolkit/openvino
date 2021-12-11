@@ -293,7 +293,7 @@ void FrontEnd::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
                                                    paddlepaddle::get_supported_ops());
         }
     }
-    for (auto result : partiallyConverted->get_results()) {
+    for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
 }

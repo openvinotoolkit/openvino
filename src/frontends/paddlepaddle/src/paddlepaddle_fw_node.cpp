@@ -8,7 +8,7 @@ namespace ov {
 namespace frontend {
 namespace paddlepaddle {
 void FrameworkNode::validate_and_infer_types() {
-    FrameworkNode::validate_and_infer_types();
+    ov::op::util::FrameworkNode::validate_and_infer_types();
     size_t idx = 0;
     for (const auto& port_pair : m_decoder.get_output_type_map()) {
         for (const auto& p_type : port_pair.second) {
