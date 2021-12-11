@@ -165,11 +165,12 @@ public:
         return m_actions;
     }
 
-    PartialShape calculate_param_shape(const PartialShape& model_shape) const {
+    std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
+                                                           const Layout& model_layout) const {
         if (model_shape.rank().is_dynamic()) {
-            return model_shape;
+            return std::tuple<PartialShape, Layout>{model_shape, model_layout};
         }
-
+        Layout res_layout = model_layout;
         std::vector<Dimension> old_dims(model_shape.rank().get_length());
         std::vector<Dimension> dims(model_shape.rank().get_length());
         for (size_t i = 0; i < model_shape.rank().get_length(); i++) {
@@ -178,12 +179,15 @@ public:
         for (const auto& convert : m_layout_converts) {
             old_dims = dims;
             dims = std::vector<Dimension>(model_shape.rank().get_length());
+            auto back_convert = convert;
             for (size_t i = 0; i < convert.size(); i++) {
                 OPENVINO_ASSERT(convert[i] < dims.size(), "Convert dimension ", convert[i], " is out of bounds.");
                 dims[convert[i]] = old_dims[i];
+                back_convert[convert[i]] = i;
             }
+            res_layout = layout::apply_permutation(res_layout, back_convert);
         }
-        return {dims};
+        return std::tuple<PartialShape, Layout>{dims, res_layout};
     }
 
 private:
