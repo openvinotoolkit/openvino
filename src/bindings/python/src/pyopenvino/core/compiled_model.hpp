@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_ExecutableNetwork(py::module m);
+void regclass_CompiledModel(py::module m);
