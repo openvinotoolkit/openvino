@@ -180,16 +180,16 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Outp
     if (!constant_ptr) {
         return false;
     }
-    float value;
-    if (!op::util::get_single_value(constant_ptr, value)) {
+    if (!constant_ptr->get_all_data_elements_bitwise_identical()) {
         return false;
     }
+    float actual_const = constant_ptr->cast_vector<float>()[0];
     float expected_const = 0;
     if (is_type<opset8::Multiply>(eltwise) ||
         is_type<opset8::Divide>(eltwise)) {
         expected_const = 1;
     }
-    if (value != expected_const) {
+    if (actual_const != expected_const) {
         return false;
     }
 

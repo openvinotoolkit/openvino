@@ -19,6 +19,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ngraph_functions/builders.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -830,9 +831,30 @@ struct ShapeParams {
     bool can_fuse;
 };
 
+enum class ConstantKind {
+    ZERO,
+    ONE,
+    RANDOM,
+};
+
+static std::ostream& operator<<(std::ostream& os, ConstantKind kind) {
+    switch (kind) {
+        case ConstantKind::ZERO:
+            os << "zero";
+            break;
+        case ConstantKind::ONE:
+            os << "one";
+            break;
+        case ConstantKind::RANDOM:
+            os << "random";
+            break;
+    }
+    return os;
+}
+
 struct TypeParams {
     EltwiseTypes op_type;
-    float constant_val;
+    ConstantKind constant_kind;
     bool can_fuse;
 };
 
@@ -848,7 +870,7 @@ class EliminateEltwiseTests: public testing::WithParamInterface<EliminateEltwise
                    << "_input1=" << shape_params.shape1
                    << "_input2=" << shape_params.shape2
                    << "_swap_inputs=" << std::boolalpha << shape_params.swap_inputs
-                   << "_constant=" << type_params.constant_val;
+                   << "_constant=" << type_params.constant_kind;
             return result.str();
         }
 };
@@ -864,7 +886,19 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
 
     auto type = element::f32;
     auto parameter = make_shared<op::Parameter>(type, shape1);
-    auto constant = op::Constant::create(type, shape2, {type_params.constant_val});
+    std::shared_ptr<Node> constant;
+    switch (type_params.constant_kind) {
+        case ConstantKind::ZERO:
+            constant = op::Constant::create(type, shape2, {0});
+            break;
+        case ConstantKind::ONE:
+            constant = op::Constant::create(type, shape2, {1});
+            break;
+        case ConstantKind::RANDOM:
+            constant = builder::makeConstant(type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
+            break;
+    }
+
     shared_ptr<Node> A = parameter;
     shared_ptr<Node> B = constant;
     if (swap_inputs) {
@@ -903,6 +937,7 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    enable_accuracy_check();
 }
 
 std::vector<ShapeParams> shape_params = {
@@ -946,14 +981,14 @@ std::vector<ShapeParams> shape_params = {
 
 std::vector<TypeParams> type_params = {
     // op type, constant value, can fuse
-    { EltwiseTypes::ADD, 0, true },
-    { EltwiseTypes::ADD, 1, false },
-    { EltwiseTypes::SUBTRACT, 0, true },
-    { EltwiseTypes::SUBTRACT, 1, false },
-    { EltwiseTypes::MULTIPLY, 1, true },
-    { EltwiseTypes::MULTIPLY, 2, false },
-    { EltwiseTypes::DIVIDE, 1, true },
-    { EltwiseTypes::DIVIDE, 2, false },
+    { EltwiseTypes::ADD, ConstantKind::ZERO, true },
+    { EltwiseTypes::ADD, ConstantKind::RANDOM, false },
+    { EltwiseTypes::SUBTRACT, ConstantKind::ZERO, true },
+    { EltwiseTypes::SUBTRACT, ConstantKind::RANDOM, false },
+    { EltwiseTypes::MULTIPLY, ConstantKind::ONE, true },
+    { EltwiseTypes::MULTIPLY, ConstantKind::RANDOM, false },
+    { EltwiseTypes::DIVIDE, ConstantKind::ONE, true },
+    { EltwiseTypes::DIVIDE, ConstantKind::RANDOM, false },
 };
 
 INSTANTIATE_TEST_SUITE_P(EliminateEltwise, EliminateEltwiseTests,
