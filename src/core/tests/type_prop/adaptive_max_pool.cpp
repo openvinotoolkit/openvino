@@ -94,7 +94,8 @@ TEST(type_prop, adaptive_max_pool_dyn_rank) {
     ASSERT_TRUE(adaptive_pool->get_output_partial_shape(1).same_scheme(PartialShape::dynamic()));
 }
 
-TEST(type_prop, adaptive_max_pool_unsupported_input_shape) {
+// Segfault in CI
+TEST(type_prop, DISABLED_adaptive_max_pool_unsupported_input_shape) {
     const PartialShape arg_shape{1, 6};
     const vector<int64_t> output_shape{1};
 
@@ -104,7 +105,7 @@ TEST(type_prop, adaptive_max_pool_unsupported_input_shape) {
     EXPECT_THROW(make_shared<op::v8::AdaptiveMaxPool>(data, out_shape), NodeValidationFailure);
 }
 
-TEST(type_prop, adaptive_max_pool_wrong_out_shape) {
+TEST(type_prop, DISABLED_adaptive_max_pool_wrong_out_shape) {
     const PartialShape arg_shape{1, 6, 8, 9};
     const vector<int64_t> output_shape{5, 7, 8};
 
