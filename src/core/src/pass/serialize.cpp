@@ -934,7 +934,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         edge.append_attribute("to-layer").set_value(e.to_layer);
         edge.append_attribute("to-port").set_value(e.to_port);
     }
-
 }
 
 std::string valid_xml_path(const std::string& path) {
