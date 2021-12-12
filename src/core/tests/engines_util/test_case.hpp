@@ -22,7 +22,11 @@ std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const st
 class TestCase {
 public:
     TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE") : m_function{function} {
-        m_core.register_plugin("templatePlugin", "TEMPLATE");
+        try {
+            // Register template plugin
+            m_core.register_plugin("templatePlugin", "TEMPLATE");
+        } catch (...) {
+        }
         m_request = m_core.compile_model(function, dev).create_infer_request();
     }
 
