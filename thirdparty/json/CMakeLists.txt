@@ -13,7 +13,7 @@ add_subdirectory(nlohmann_json_schema_validator EXCLUDE_FROM_ALL)
 
 set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdparty)
 
-# WA for CentOS with gcc < 4.9: override defitions to remove boost usage
+# WA for CentOS with gcc < 4.9: override definitions to remove boost usage
 set_property(TARGET nlohmann_json_schema_validator PROPERTY COMPILE_DEFINITIONS "")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
     target_compile_definitions(nlohmann_json_schema_validator PRIVATE JSON_SCHEMA_NO_REGEX)

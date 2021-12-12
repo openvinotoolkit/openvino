@@ -6,6 +6,7 @@
 
 #include <list>
 
+#include "layout_utils.hpp"
 #include "ngraph/rt_info.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"
@@ -185,7 +186,7 @@ public:
                 dims[convert[i]] = old_dims[i];
                 back_convert[convert[i]] = i;
             }
-            res_layout = layout::apply_permutation(res_layout, back_convert);
+            res_layout = ov::layout::utils::apply_permutation(res_layout, back_convert);
         }
         return std::tuple<PartialShape, Layout>{dims, res_layout};
     }
