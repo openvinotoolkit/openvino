@@ -10,12 +10,12 @@
 #include <string>
 #include <vector>
 
-#include "common/telemetry_extension.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/frontends/common/telemetry_extension.hpp"
 
 namespace ngraph {
 namespace onnx_import {

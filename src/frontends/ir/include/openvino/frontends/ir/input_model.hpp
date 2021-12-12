@@ -1,0 +1,33 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <istream>
+#include <memory>
+
+#include "ngraph/runtime/aligned_buffer.hpp"
+#include "openvino/frontends/common/frontend_defs.hpp"
+#include "openvino/frontends/common/frontend_manager.hpp"
+
+namespace ov {
+namespace frontend {
+namespace ir {
+
+class FRONTEND_API InputModel : public ov::frontend::InputModel {
+    friend class FrontEnd;
+    class InputModelIRImpl;
+    std::shared_ptr<InputModelIRImpl> _impl;
+
+public:
+    InputModel(std::istream& stream,
+               const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
+
+    std::shared_ptr<Model> convert();
+};
+
+}  // namespace ir
+}  // namespace frontend
+}  // namespace ov

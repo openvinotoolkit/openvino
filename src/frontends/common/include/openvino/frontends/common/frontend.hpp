@@ -25,7 +25,7 @@ public:
 
     FrontEnd();
 
-    virtual ~FrontEnd();
+    virtual ~FrontEnd() = 0;
 
     /// \brief Validates if FrontEnd can recognize model with parameters specified.
     /// Same parameters should be used to load model.
@@ -58,11 +58,11 @@ public:
     /// \brief Completely convert and normalize entire function, throws if it is not
     /// possible
     /// \param model Input model
-    /// \return fully converted nGraph function
+    /// \return fully converted OV Model
     virtual std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const;
 
     /// \brief Completely convert the remaining, not converted part of a function.
-    /// \param partiallyConverted partially converted nGraph function
+    /// \param partiallyConverted partially converted OV Model
     virtual void convert(std::shared_ptr<ov::Model> partially_converted) const;
 
     /// \brief Convert only those parts of the model that can be converted leaving others

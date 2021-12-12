@@ -8,9 +8,9 @@
 #include <sstream>
 #include <string>
 
-#include "common/frontend.hpp"
-#include "common/frontend_defs.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/frontends/common/frontend.hpp"
+#include "openvino/frontends/common/frontend_defs.hpp"
 
 namespace ov {
 namespace frontend {

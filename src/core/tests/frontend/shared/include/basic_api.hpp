@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <manager.hpp>
+#include <openvino/frontends/common/frontend_manager.hpp>
 
 using BasicTestParam = std::tuple<std::string,   // FrontEnd name
                                   std::string,   // Base path to models

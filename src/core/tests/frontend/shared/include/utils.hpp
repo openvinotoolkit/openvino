@@ -5,7 +5,7 @@
 #pragma once
 
 #include <fstream>
-#include <manager.hpp>
+#include <openvino/frontends/common/frontend_manager.hpp>
 #include <string>
 
 #include "backend.hpp"

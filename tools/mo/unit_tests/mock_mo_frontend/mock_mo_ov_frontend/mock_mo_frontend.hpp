@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common/frontend_defs.hpp"
-#include "manager.hpp"
+#include "frontend_manager.hpp"
 #include "ngraph/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)

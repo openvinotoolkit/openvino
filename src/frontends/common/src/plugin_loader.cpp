@@ -16,7 +16,7 @@
 
 #include <sys/stat.h>
 
-#include <ngraph/log.hpp>
+#include <openvino/util/log.hpp>
 #include <string>
 #include <vector>
 
@@ -99,7 +99,7 @@ void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginI
             }) == res.end()) {
             res.emplace_back(std::move(plugin_info));
         } else {
-            NGRAPH_DEBUG << "Static frontend for '" << plugin_info.m_file_name << "' is already loaded\n";
+            OPENVINO_DEBUG << "Static frontend for '" << plugin_info.m_file_name << "' is already loaded\n";
         }
     }
 }
@@ -139,27 +139,27 @@ bool PluginInfo::load_internal() {
     try {
         so = ov::util::load_shared_object(m_file_path.c_str());
     } catch (const std::exception& ex) {
-        NGRAPH_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
+        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
         return false;
     }
 
     auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetAPIVersion"));
     if (!info_addr) {
-        NGRAPH_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have API version" << std::endl;
+        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have API version" << std::endl;
         return false;
     }
     FrontEndVersion plug_info{reinterpret_cast<FrontEndVersion>(info_addr())};
 
     if (plug_info != OV_FRONTEND_API_VERSION) {
         // Plugin has incompatible API version, do not load it
-        NGRAPH_DEBUG << "Loaded FrontEnd [" << m_file_path << "] has incompatible API version" << plug_info
-                     << std::endl;
+        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] has incompatible API version" << plug_info
+                       << std::endl;
         return false;
     }
 
     auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetFrontEndData"));
     if (!creator_addr) {
-        NGRAPH_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have Frontend Data" << std::endl;
+        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have Frontend Data" << std::endl;
         return false;
     }
 

@@ -4,16 +4,19 @@
 
 #pragma once
 
-#include "common/frontend.hpp"
-#include "common/telemetry_extension.hpp"
-#include "utility.hpp"
+#include "openvino/frontends/common/frontend.hpp"
+#include "openvino/frontends/common/frontend_defs.hpp"
+#include "openvino/frontends/common/frontend_exceptions.hpp"
+#include "openvino/frontends/common/telemetry_extension.hpp"
+#include "openvino/openvino.hpp"
 
 namespace ov {
 namespace frontend {
+namespace ir {
 
-class IR_API FrontEndIR : public FrontEnd {
+class FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    FrontEndIR() = default;
+    FrontEnd() = default;
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted nGraph function
@@ -47,5 +50,6 @@ private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
+}  // namespace ir
 }  // namespace frontend
 }  // namespace ov

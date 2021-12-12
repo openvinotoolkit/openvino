@@ -22,7 +22,7 @@ namespace frontend {
 /// \note Class methods are divided into several groups: searching for places, naming and
 /// annotation, topology editing, setting tensor properties.
 ///
-/// Editing requests may affect ability to convert the original model to nGraph function.
+/// Editing requests may affect ability to convert the original model to OV Model.
 /// Aim to provide these editing capabilities is to unlock conversion for models that
 /// are not natively supported "as-is" because of undefined shapes, types or operations.
 ///
@@ -39,7 +39,7 @@ class FRONTEND_API InputModel {
 public:
     typedef std::shared_ptr<InputModel> Ptr;
 
-    virtual ~InputModel() = default;
+    virtual ~InputModel() = 0;
 
     /////  Searching for places  /////
 
@@ -169,8 +169,8 @@ public:
 
     /// \brief Defines all possible shape that may be used for this place; place should be
     /// uniquely refer to some data. This partial shape will be converted to corresponding
-    /// shape of results ngraph nodes and will define shape inference when the model is
-    /// converted to ngraph.
+    /// shape of results OV nodes and will define shape inference when the model is
+    /// converted to OV.
     /// \param place Model place
     /// \param shape Partial shape for this place
     virtual void set_partial_shape(Place::Ptr place, const ov::PartialShape& shape);

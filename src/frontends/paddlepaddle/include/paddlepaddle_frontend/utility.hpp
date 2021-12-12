@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <manager.hpp>
+#include <openvino/frontends/common/frontend_manager.hpp>
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define PDPD_API
