@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include "ngraph/compatibility.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/frontends/paddlepaddle/exceptions.hpp"

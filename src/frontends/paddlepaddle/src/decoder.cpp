@@ -53,7 +53,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name, const std::type_inf
         return attrs[0].f();
     } else if (type_info == typeid(std::vector<float>)) {
         return std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
-    } else if (type_info == typeid(ngraph::element::Type)) {
+    } else if (type_info == typeid(ov::element::Type)) {
         return TYPE_MAP[static_cast<paddle::framework::proto::VarType_Type>(attrs[0].i())];
     } else if (type_info == typeid(bool)) {
         return attrs[0].b();

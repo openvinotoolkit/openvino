@@ -33,7 +33,7 @@ NamedOutputs elementwise_ops(const NodeContext& node) {
             indices.push_back(i);
 
         auto indices_node =
-            default_opset::Constant::create(ngraph::element::i64, ngraph::Shape{indices.size()}, indices);
+            default_opset::Constant::create(ov::element::i64, ov::Shape{indices.size()}, indices);
         auto y_node = std::make_shared<default_opset::Unsqueeze>(y, indices_node);
         return node.default_single_output_mapping({std::make_shared<T>(x, y_node)}, {"Out"});
     }

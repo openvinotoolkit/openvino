@@ -133,7 +133,7 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
 }
 }  // namespace
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert_each_node(
+std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
     const std::shared_ptr<InputModel>& model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                       const std::shared_ptr<OpPlace>&)> func) {
