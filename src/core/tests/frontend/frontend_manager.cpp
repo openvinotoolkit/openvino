@@ -83,7 +83,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     ASSERT_EQ(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
 }
 
-TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
+TEST(FrontEndManagerTest, DISABLED_testMockPluginFrontEnd) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     std::string fePath = ngraph::file_util::get_directory(find_my_pathname());
     fePath = fePath + FrontEndPathSeparator + "someInvalidPath";
