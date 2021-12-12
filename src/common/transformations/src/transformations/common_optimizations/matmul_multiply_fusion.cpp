@@ -79,19 +79,23 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         // In general, x * y elementwise multiples of size {n, k} should be cheaper than x * y matrix multiplies
         // of size {n, m} x {m, k}, so the fusion should be disallowed in that case.
         if (const_rank > 2) {
-            const auto& input_shape = matmul->get_input_partial_shape(0);
-            if (input_shape.rank().is_dynamic()) {
-                return nullptr;
-            }
-            const auto& input_rank = input_shape.rank().get_length();
-            bool const_broadcasts_input = input_rank < const_rank;
             bool const_broadcasts_weights = weights_rank < const_rank;
             for (int64_t i = 3; i <= const_rank; i++) {
                 if (const_shape[const_rank - i] != 1) {
-                    const_broadcasts_input = const_broadcasts_input ||
-                                             ((input_rank - i >= 0) && (input_shape[input_rank - i] != const_shape[const_rank - i]));
                     const_broadcasts_weights = const_broadcasts_weights ||
                                                ((weights_rank - i >= 0) && (weights_shape[weights_rank - i] != const_shape[const_rank - i]));
+                }
+            }
+            bool const_broadcasts_input = true;
+            const auto& input_shape = matmul->get_input_partial_shape(0);
+            if (input_shape.rank().is_static()) {
+                const auto& input_rank = input_shape.rank().get_length();
+                const_broadcasts_input = input_rank < const_rank;
+                for (int64_t i = 3; i <= const_rank; i++) {
+                    if (const_shape[const_rank - i] != 1) {
+                        const_broadcasts_input = const_broadcasts_input ||
+                                                 ((input_rank - i >= 0) && (input_shape[input_rank - i] != const_shape[const_rank - i]));
+                    }
                 }
             }
             if (const_broadcasts_input && const_broadcasts_weights) {
