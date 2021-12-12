@@ -157,37 +157,14 @@ public:
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);
     void add_convert_color_impl(const ColorFormat& dst_format);
     void add_reverse_channels();
+    std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
+                                                           const Layout& model_layout) const;
 
     const std::list<InternalPreprocessOp>& actions() const {
         return m_actions;
     }
     std::list<InternalPreprocessOp>& actions() {
         return m_actions;
-    }
-
-    std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
-                                                           const Layout& model_layout) const {
-        if (model_shape.rank().is_dynamic()) {
-            return std::tuple<PartialShape, Layout>{model_shape, model_layout};
-        }
-        Layout res_layout = model_layout;
-        std::vector<Dimension> old_dims(model_shape.rank().get_length());
-        std::vector<Dimension> dims(model_shape.rank().get_length());
-        for (size_t i = 0; i < model_shape.rank().get_length(); i++) {
-            dims[i] = model_shape[i];
-        }
-        for (const auto& convert : m_layout_converts) {
-            old_dims = dims;
-            dims = std::vector<Dimension>(model_shape.rank().get_length());
-            auto back_convert = convert;
-            for (size_t i = 0; i < convert.size(); i++) {
-                OPENVINO_ASSERT(convert[i] < dims.size(), "Convert dimension ", convert[i], " is out of bounds.");
-                dims[convert[i]] = old_dims[i];
-                back_convert[convert[i]] = i;
-            }
-            res_layout = layout::apply_permutation(res_layout, back_convert);
-        }
-        return std::tuple<PartialShape, Layout>{dims, res_layout};
     }
 
 private:
