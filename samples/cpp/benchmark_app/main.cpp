@@ -808,8 +808,9 @@ int main(int argc, char* argv[]) {
          * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
         while ((niter != 0LL && iteration < niter) ||
-               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds)) {
-            auto inferRequest = inferRequestsQueue.getIdleRequest();
+               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
+               (FLAGS_api == "async" && iteration % nireq != 0)) {
+            inferRequest = inferRequestsQueue.getIdleRequest();
             if (!inferRequest) {
                 IE_THROW() << "No idle Infer Requests!";
             }
@@ -851,6 +852,10 @@ int main(int argc, char* argv[]) {
                 inferRequest->wait();
                 inferRequest->startAsync();
             }
+            ++iteration;
+
+            execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
+            processedFramesN += batchSize;
 
             if (niter > 0) {
                 progressBar.addProgress(1);
@@ -864,10 +869,6 @@ int main(int argc, char* argv[]) {
                 progressBar.addProgress(newProgress);
                 progressCnt += newProgress;
             }
-            processedFramesN += batchSize;
-            ++iteration;
-
-            execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
         }
 
         // wait the latest inference executions
