@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "backend_visibility.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
@@ -19,7 +18,7 @@ class Executable;
 }
 }  // namespace ngraph
 
-class BACKEND_API ngraph::runtime::Executable {
+class ngraph::runtime::Executable {
 public:
     Executable();
     virtual ~Executable();

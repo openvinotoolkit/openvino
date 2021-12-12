@@ -11,6 +11,7 @@
 
 using namespace std;
 using namespace ngraph;
+BWDCMP_RTTI_DEFINITION(ov::op::v8::AdaptiveMaxPool);
 
 op::v8::AdaptiveMaxPool::AdaptiveMaxPool(const Output<Node>& data,
                                          const Output<Node>& output_shape,

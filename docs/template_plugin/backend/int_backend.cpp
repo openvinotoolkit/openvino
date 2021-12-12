@@ -4,8 +4,6 @@
 
 #include "int_backend.hpp"
 
-#include "backend_manager.hpp"
-#include "int_backend_visibility.hpp"
 #include "int_executable.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -13,12 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-extern "C" INTERPRETER_BACKEND_API void ngraph_register_interpreter_backend() {
-    runtime::BackendManager::register_backend("INTERPRETER", [](const std::string& /* config */) {
-        return std::make_shared<runtime::interpreter::INTBackend>();
-    });
-}
 
 runtime::interpreter::INTBackend::INTBackend() {}
 

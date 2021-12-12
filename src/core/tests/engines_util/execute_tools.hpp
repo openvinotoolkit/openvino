@@ -13,7 +13,6 @@
 #include <random>
 #include <vector>
 
-#include "backend.hpp"
 #include "graph_comparator.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -115,75 +114,6 @@ void init_real_tv(ngraph::runtime::Tensor* tv, std::default_random_engine& engin
 }
 
 void random_init(ngraph::runtime::Tensor* tv, std::default_random_engine& engine);
-
-template <typename T1, typename T2>
-std::vector<std::shared_ptr<ngraph::runtime::Tensor>> prepare_and_run(const std::shared_ptr<ngraph::Function>& function,
-                                                                      std::vector<std::vector<T1>> t1args,
-                                                                      std::vector<std::vector<T2>> t2args,
-                                                                      const std::string& backend_id) {
-    auto backend = ngraph::runtime::Backend::create(backend_id);
-
-    auto parms = function->get_parameters();
-
-    if (parms.size() != t1args.size() + t2args.size()) {
-        throw ngraph::ngraph_error("number of parameters and arguments don't match");
-    }
-
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> arg_tensors(t1args.size() + t2args.size());
-
-    size_t total_arg_count = 0;
-    for (size_t i = 0; i < t1args.size(); i++) {
-        auto t = backend->create_tensor(parms.at(total_arg_count)->get_element_type(),
-                                        parms.at(total_arg_count)->get_shape());
-        auto x = t1args.at(i);
-        copy_data(t, x);
-        arg_tensors.at(total_arg_count) = t;
-        total_arg_count++;
-    }
-
-    for (size_t i = 0; i < t2args.size(); i++) {
-        auto t = backend->create_tensor(parms.at(total_arg_count)->get_element_type(),
-                                        parms.at(total_arg_count)->get_shape());
-        copy_data(t, t2args.at(i));
-        arg_tensors.at(total_arg_count) = t;
-        total_arg_count++;
-    }
-
-    auto results = function->get_results();
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> result_tensors(results.size());
-
-    for (size_t i = 0; i < results.size(); i++) {
-        result_tensors.at(i) = backend->create_tensor(results.at(i)->get_element_type(), results.at(i)->get_shape());
-    }
-
-    auto handle = backend->compile(function);
-    handle->call_with_validate(result_tensors, arg_tensors);
-
-    return result_tensors;
-}
-
-template <typename TIN1, typename TIN2, typename TOUT>
-std::vector<std::vector<TOUT>> execute(const std::shared_ptr<ngraph::Function>& function,
-                                       std::vector<std::vector<TIN1>> t1args,
-                                       std::vector<std::vector<TIN2>> t2args,
-                                       const std::string& backend_id) {
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> result_tensors =
-        prepare_and_run(function, t1args, t2args, backend_id);
-
-    std::vector<std::vector<TOUT>> result_vectors;
-    for (auto rt : result_tensors) {
-        result_vectors.push_back(read_vector<TOUT>(rt));
-    }
-    return result_vectors;
-}
-
-template <typename TIN, typename TOUT = TIN>
-std::vector<std::vector<TOUT>> execute(const std::shared_ptr<ngraph::Function>& function,
-                                       std::vector<std::vector<TIN>> args,
-                                       const std::string& backend_id) {
-    std::vector<std::vector<TIN>> emptyargs;
-    return execute<TIN, TIN, TOUT>(function, args, emptyargs, backend_id);
-}
 
 template <typename T>
 std::string get_results_str(const std::vector<T>& ref_data,

@@ -2133,8 +2133,7 @@ runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr
     for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
     }
-    runtime::Backend::set_backend_shared_library_search_directory("");
-    auto backend = runtime::Backend::create("INTERPRETER");
+    auto backend = runtime::Backend::create();
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
 
