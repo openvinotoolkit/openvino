@@ -177,12 +177,6 @@ TEST_F(VPU_MapRangeTests, CountSharedPointers) {
         ASSERT_EQ(2, innerStructSPtr.use_count()) << "intrusive list keeps weak pointer only";
     }
 
-    auto mapRange = vpu::mapRange(
-            vpu::containerRange(list),
-            [](const vpu::Handle<InnerStruct>& innerPtr) {
-                return incFunc(innerPtr->val);
-            });
-
     for (int i = 0; i < count; ++i) {
         ASSERT_EQ(1, nodesExternalVector[i].use_count()) << "intrusive list keeps weak pointer only";
     }
@@ -296,8 +290,6 @@ TEST_F(VPU_FilterRangeTests, CountSharedPointers) {
     for (auto cit = nodesExternalList.cbegin(); cit != nodesExternalList.end(); ++cit) {
         ASSERT_EQ(1, cit->use_count()) << "intrusive list keeps weak pointer only";
     }
-
-    auto filterRange = vpu::filterRange<vpu::NonNull>(vpu::containerRange(list));
 
     for (auto cit = nodesExternalList.cbegin(); cit != nodesExternalList.end(); ++cit) {
         ASSERT_EQ(1, cit->use_count()) << "intrusive list keeps weak pointer only";
