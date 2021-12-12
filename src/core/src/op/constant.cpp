@@ -48,8 +48,8 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
         constructor_validate_and_infer_types();
         allocate_buffer();
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
-        m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
+    m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     constructor_validate_and_infer_types();
 }
 
