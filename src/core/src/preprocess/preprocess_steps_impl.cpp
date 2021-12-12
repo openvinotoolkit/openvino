@@ -214,6 +214,31 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
     });
 }
 
+std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const PartialShape& model_shape,
+                                                                     const Layout& model_layout) const {
+    if (model_shape.rank().is_dynamic()) {
+        return std::tuple<PartialShape, Layout>{model_shape, model_layout};
+    }
+    Layout res_layout = model_layout;
+    std::vector<Dimension> old_dims(model_shape.rank().get_length());
+    std::vector<Dimension> dims(model_shape.rank().get_length());
+    for (size_t i = 0; i < model_shape.rank().get_length(); i++) {
+        dims[i] = model_shape[i];
+    }
+    for (const auto& convert : m_layout_converts) {
+        old_dims = dims;
+        dims = std::vector<Dimension>(model_shape.rank().get_length());
+        auto back_convert = convert;
+        for (size_t i = 0; i < convert.size(); i++) {
+            OPENVINO_ASSERT(convert[i] < dims.size(), "Convert dimension ", convert[i], " is out of bounds.");
+            dims[convert[i]] = old_dims[i];
+            back_convert[convert[i]] = i;
+        }
+        res_layout = layout::utils::apply_permutation(res_layout, back_convert);
+    }
+    return std::tuple<PartialShape, Layout>{dims, res_layout};
+}
+
 void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
     m_actions.emplace_back([dst_format](const std::vector<Output<Node>>& nodes,
                                         const std::shared_ptr<Model>& function,
@@ -459,6 +484,5 @@ void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         return res;
     });
 }
-
 }  // namespace preprocess
 }  // namespace ov
