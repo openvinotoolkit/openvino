@@ -74,7 +74,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # ngraph is linked against ngraph_builders, ngraph_reference, ov_shape_inference static libraries
     # which include ngraph headers with dllimport attribute. Linker complains about it
     # but no way to fix this: linking with no attribute defaults to dllexport and we have
-    # multiple definitions for ngraph symbols.
+    # multiple defitions for ngraph symbols.
     #
     # The possible way is to use object libraries for ngraph_builders, ngraph_reference
     # but it's not convinient since these libraries are exported from build tree
