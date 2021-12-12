@@ -26,15 +26,12 @@ endif()
 
 ie_faster_build(interpreter_backend UNITY)
 
-ie_add_api_validator_post_build_step(TARGET interpreter_backend)
-
 target_compile_definitions(interpreter_backend
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
-target_link_libraries(interpreter_backend PRIVATE ngraph::builder ngraph::reference
-                                     pugixml::static ov_shape_inference openvino::util openvino::itt)
+target_link_libraries(interpreter_backend PRIVATE ngraph::builder ngraph::reference openvino::util)
 
 target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 

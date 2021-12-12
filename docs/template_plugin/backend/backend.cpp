@@ -14,9 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-std::mutex runtime::Backend::m_mtx;
-std::string runtime::Backend::s_backend_shared_library_search_directory;
-
 runtime::Backend::~Backend() {}
 
 std::shared_ptr<runtime::Backend> runtime::Backend::create() {

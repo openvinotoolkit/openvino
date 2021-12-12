@@ -115,9 +115,4 @@ public:
     virtual std::string get_version() const {
         return "0.0.0";
     }
-
-private:
-    // mutex to modify s_backend_shared_library_search_directory thread safe
-    static std::mutex m_mtx;
-    static std::string s_backend_shared_library_search_directory;
 };

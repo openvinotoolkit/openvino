@@ -25,9 +25,9 @@ NGRAPH_TEST(op_eval, bucketize_empty_buckets) {
     vector<float> buckets_vect;
     vector<int> expected_vect = {0, 0, 0};
 
-    // auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
-    // test_case.add_input<float>(data_shape, data_vect);
-    // test_case.add_input<float>(bucket_shape, buckets_vect);
-    // test_case.add_expected_output<int>(data_shape, expected_vect);
-    // test_case.run();
+    auto test_case = test::TestCase(f);
+    test_case.add_input<float>(data_shape, data_vect);
+    test_case.add_input<float>(bucket_shape, buckets_vect);
+    test_case.add_expected_output<int>(data_shape, expected_vect);
+    test_case.run();
 }

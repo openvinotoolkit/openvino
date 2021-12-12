@@ -1,4 +1,4 @@
-// copyright (c) 2018-2021 intel corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
     auto modelFolder = getModelFolder(modelFile);
 
     // run test
-    auto testCase = test::TestCase(function);
+    auto testCase = test::TestCase(function, "CPU");
 
     const auto parameters = function->get_parameters();
     for (size_t i = 0; i < parameters.size(); i++) {
