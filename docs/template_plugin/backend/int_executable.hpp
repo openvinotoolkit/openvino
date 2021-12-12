@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "backend.hpp"
-#include "int_backend_visibility.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/reference/hard_sigmoid.hpp"
@@ -31,7 +30,7 @@ class INTExecutable;
 }  // namespace runtime
 }  // namespace ngraph
 
-class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTExecutable : public Executable {
+class ngraph::runtime::interpreter::INTExecutable : public Executable {
     friend class INTBackend;
 
 public:
