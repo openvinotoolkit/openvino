@@ -15,6 +15,7 @@ set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdpart
 
 # WA for CentOS with gcc < 4.9: override defitions to remove boost usage
 set_property(TARGET nlohmann_json_schema_validator PROPERTY COMPILE_DEFINITIONS "")
+set_property(TARGET nlohmann_json_schema_validator PROPERTY INTERFACE_LINK_LIBRARIES nlohmann_json)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
     target_compile_definitions(nlohmann_json_schema_validator PRIVATE JSON_SCHEMA_NO_REGEX)
     target_compile_options(nlohmann_json_schema_validator PRIVATE -Wno-missing-field-initializers -Wno-shadow)
