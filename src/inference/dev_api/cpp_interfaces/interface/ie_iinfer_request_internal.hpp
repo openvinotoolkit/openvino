@@ -93,7 +93,7 @@ public:
      * thus memory allocation may occur.
      * Plugin-specific implementations may override this behavior to handle remote tensors case
      * @param name - a name of input or output blob.
-     * @param blobs - input blobs <TBD>. The type of Blob must correspond to the network input
+     * @param blobs - input blobs. The type of Blob must correspond to the network input
      * precision and size.
      */
     virtual void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs);
@@ -213,6 +213,14 @@ public:
     const std::vector<std::shared_ptr<const ov::Node>>& GetInputs() const;
     const std::vector<std::shared_ptr<const ov::Node>>& GetOutputs() const;
 
+    /**
+     * @brief Concatenates _batchedBlobs into single blob before inference
+     * User's tensor array is stored in _batched_blobs map
+     * Destination tensor descriptors are calculated on 'SetBlobs' stage and are stored in _batched_descs map
+     * @throws Exception if error occurs
+     */
+    void applyBatchedBlobs();
+
 protected:
     /**
      * @brief Destroys the object.
@@ -250,6 +258,14 @@ protected:
 
     void addInputPreProcessingFor(const std::string& name, const Blob::Ptr& from, const Blob::Ptr& to);
 
+    /**
+     * @brief Performs actual concatenation of  blobs into single tensor
+     * Default implementation may allocate memory for new blob containing user's input data
+     * Plugin is allowed to override this behavior
+     * @throws Exception if error occurs
+     */
+    virtual void applyBatchedBlob(const std::string& name, const std::vector<Blob::Ptr>& blob, const TensorDesc& desc);
+
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
     InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
@@ -258,6 +274,8 @@ protected:
     std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
+    std::map<std::string, std::vector<Blob::Ptr>> _batched_blobs; //!< A map of associated batched blobs per input
+    std::map<std::string, TensorDesc>             _batched_descs; //!< A map of associated batched descriptors per input
     int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
 
     /**

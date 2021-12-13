@@ -119,14 +119,6 @@ public:
     void set_input_tensor(const Tensor& tensor);
 
     /**
-     * @brief Sets output tensor to infer
-     *
-     * @param idx Index of output tensor.
-     * @param tensor Reference to output tensor. The type of a tensor must match the model output precision and size.
-     */
-    void set_output_tensor(size_t idx, const Tensor& tensor);
-
-    /**
      * @brief Sets batch of tensors for single input data
      * Model input shall have batch dimension and number of 'tensors' shall match with batch size
      *
@@ -139,16 +131,6 @@ public:
      * @brief Sets batch of tensors for input data to infer by input name
      * Model input shall have batch dimension and number of 'tensors' shall match with batch size
      *
-     * @param name Name of input tensor.
-     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
-     * input precision and size (except batch dimension). Total size of tensors shall match with input's size
-     */
-    void set_input_tensors(const std::string& name, const std::vector<Tensor>& tensors);
-
-    /**
-     * @brief Sets batch of tensors for input data to infer by input name
-     * Model input shall have batch dimension and number of 'tensors' shall match with batch size
-     *
      * @param idx Name of input tensor.
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
      * input precision and size (except batch dimension). Total size of tensors shall match with input's size
@@ -156,14 +138,12 @@ public:
     void set_input_tensors(size_t idx, const std::vector<Tensor>& tensors);
 
     /**
-     * @brief Sets batch of tensors for input data to infer by input name
-     * Model input shall have batch dimension and number of 'tensors' shall match with batch size
+     * @brief Sets output tensor to infer
      *
-     * @param port Port of input tensor.
-     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
-     * input precision and size (except batch dimension). Total size of tensors shall match with input's size
+     * @param idx Index of output tensor.
+     * @param tensor Reference to output tensor. The type of a tensor must match the model output precision and size.
      */
-    void set_input_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors);
+    void set_output_tensor(size_t idx, const Tensor& tensor);
 
     /**
      * @brief Sets output tensor to infer models with single output

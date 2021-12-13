@@ -282,47 +282,6 @@ void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlobs(get_legacy_name_from_port(port), impls); })
 }
 
-void InferRequest::set_input_tensors(const std::string& name, const std::vector<Tensor>& tensors) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        ov::Output<const ov::Node> port;
-        OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs()}),
-                        "set_input_tensors error. Input port for tensor name ",
-                        name,
-                        " was not found.");
-        set_input_tensors(port, tensors);
-    })
-}
-
-void InferRequest::set_input_tensors(size_t idx, const std::vector<Tensor>& tensors) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        OPENVINO_ASSERT(idx < _impl->GetInputs().size(),
-                        "set_input_tensors error. Input port for index ",
-                        idx,
-                        " is out of bounds. Model has only ",
-                        _impl->GetInputs().size(),
-                        " inputs");
-        set_input_tensors(_impl->GetInputs().at(idx)->output(0), tensors);
-    })
-}
-
-void InferRequest::set_input_tensors(const std::vector<Tensor>& tensors) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        OPENVINO_ASSERT(_impl->GetInputs().size() == 1,
-                        "set_input_tensors(tensors) must be used for single-input models only. Model has ",
-                        _impl->GetInputs().size(),
-                        " inputs");
-        set_input_tensors(_impl->GetInputs().at(0)->output(0), tensors);
-    })
-}
-
-void InferRequest::set_input_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
-    auto impls = std::vector<InferenceEngine::Blob::Ptr>();
-    std::transform(tensors.begin(), tensors.end(), std::back_inserter(impls), [](const Tensor& item) {
-        return item._impl;
-    });
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlobs(get_legacy_name_from_port(port), impls); })
-}
-
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& inputs = _impl->GetInputs();
@@ -343,6 +302,28 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
                         "set_input_tensor() must be called on a function with exactly one parameter.");
         set_tensor(inputs.at(0)->output(0), tensor);
     });
+}
+
+void InferRequest::set_input_tensors(size_t idx, const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+                                    OPENVINO_ASSERT(idx < _impl->GetInputs().size(),
+                                                    "set_input_tensors error. Input port for index ",
+                                                    idx,
+                                                    " is out of bounds. Model has only ",
+                                                    _impl->GetInputs().size(),
+                                                    " inputs");
+                                    set_tensors(_impl->GetInputs().at(idx)->output(0), tensors);
+                                })
+}
+
+void InferRequest::set_input_tensors(const std::vector<Tensor>& tensors) {
+    OV_INFER_REQ_CALL_STATEMENT({
+                                    OPENVINO_ASSERT(_impl->GetInputs().size() == 1,
+                                                    "set_input_tensors(tensors) must be used for single-input models only. Model has ",
+                                                    _impl->GetInputs().size(),
+                                                    " inputs");
+                                    set_tensors(_impl->GetInputs().at(0)->output(0), tensors);
+                                })
 }
 
 void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
@@ -417,7 +398,10 @@ Tensor InferRequest::get_output_tensor() {
 }
 
 void InferRequest::infer() {
-    OV_INFER_REQ_CALL_STATEMENT(_impl->Infer();)
+    OV_INFER_REQ_CALL_STATEMENT({
+                                    _impl->applyBatchedBlobs();
+                                    _impl->Infer();
+                                })
 }
 
 void InferRequest::cancel() {
