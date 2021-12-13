@@ -198,7 +198,7 @@ protected:
         auto node = std::make_shared<ngraph::opset5::Add>(body_params[1], node_const);
 
         // reference ngraph function is resized by input static shapes in tests but
-        // loop with pad in body has difference input shape in each infer request so tests don't support it.
+        // loop with pad in body has different input shape in each infer request so tests don't support it.
         // Alternative - eltwise instead of pad
         // const std::vector<int64_t> begin(inputDynamicShapes[0].rank().get_length(), 1);
         // const std::vector<int64_t> end(inputDynamicShapes[0].rank().get_length(), 0);
@@ -246,16 +246,65 @@ std::vector<InputLayerType> trip_count_type { InputLayerType::CONSTANT, InputLay
 std::vector<int64_t> trip_count { 1, 5 }; // works only if trip_count_type is constant
 
 std::vector<std::vector<InputShape>> inputs = {
-        {
-                {{-1, 1, -1}, {{10, 1, 10}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}},
-                {{-1, 1, -1}, {{1, 1, 1}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}},
-                {{-1, 1, -1}, {{10, 1, 10}, {5, 1, 2}, {5, 1, 2}, {5, 1, 3}}}
+    {  //first test suit
+        {   //dynamic shape for first input
+            {-1, 1, -1},
+            { // target static shapes
+                {10, 1, 10},
+                {1, 1, 1},
+                {1, 1, 1},
+                {5, 1, 3}
+            }
         },
-        {
-                {{{1, 10}, 1, {1, 10}}, {{8, 1, 8}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}}},
-                {{{1, 8}, 1, {1, 8}}, {{8, 1, 8}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}},
-                {{{1, 10}, 1, {1, 10}}, {{8, 1, 8}, {1, 1, 1}, {1, 1, 1}, {5, 1, 3}}}
+        {   //dynamic shape for second input
+            {-1, 1, -1},
+            { // target static shapes
+                {1, 1, 1},
+                {5, 1, 2},
+                {5, 1, 2},
+                {5, 1, 3}
+            }
         },
+        {   //dynamic shape for third input
+            {-1, 1, -1},
+            { // target static shapes
+                {10, 1, 10},
+                {5, 1, 2},
+                {5, 1, 2},
+                {5, 1, 3}
+            }
+        }
+    },
+
+    {  //second test suit
+        {   //dynamic shape for first input
+            {{1, 10}, 1, {1, 10}},
+            { // target static shapes
+                {8, 1, 8},
+                {1, 1, 1},
+                {1, 1, 1},
+                {1, 1, 1}
+            }
+        },
+        {   //dynamic shape for second input
+            {{1, 8}, 1, {1, 8}},
+            { // target static shapes
+                {8, 1, 8},
+                {1, 1, 1},
+                {1, 1, 1},
+                {5, 1, 3}
+            }
+        },
+        {   //dynamic shape for third input
+            {{1, 10}, 1, {1, 10}},
+            { // target static shapes
+                {8, 1, 8},
+                {1, 1, 1},
+                {1, 1, 1},
+                {5, 1, 3}
+            }
+        }
+    },
 };
 std::vector<LOOP_IN_TYPE> types = {
         LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::MERGED
@@ -271,12 +320,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopForCommon, LoopLayerCPUTest,
                          LoopLayerCPUTest::getTestCaseName);
 
 std::vector<std::vector<InputShape>> inputs_2 = {
-        {
-                {{-1, -1}, {{10, 10}, {1, 1}, {1, 1}, {5, 3}}},
+    {  //first test suit
+        {   //dynamic shape
+            {-1, -1},
+            { // target static shapes
+                {10, 10},
+                {1, 1},
+                {1, 1},
+                {5, 3}
+            }
         },
-        {
-                {{{1, 10}, {1, 10}}, {{5, 2}, {2, 5}, {5, 5}, {5, 5}}},
-        }
+    },
+
+    {  //second test suit
+        {   //dynamic shape
+            {{1, 10}, {1, 10}},
+            { // target static shapes
+                {5, 2},
+                {2, 5},
+                {5, 5},
+                {5, 5}
+            }
+        },
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LoopWhileCommon, LoopWhileLayerCPUTest,

@@ -102,16 +102,48 @@ const std::vector<ElementType> inputPrecisions = {
 std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
                                                                  ngraph::op::RecurrentSequenceDirection::REVERSE};
 std::vector<std::vector<InputShape>> inputs = {
-        {
-                {{-1, 12, -1}, {{10, 12, 10}, {10, 12, 10}, {1, 12, 2}, {5, 12, 3}}},
-                {{-1, 12, -1}, {{1, 12, 1}, {1, 12, 1}, {5, 12, 2}, {5, 12, 3}}},
+    {  //first test suit
+        {   //dynamic shape for first input
+            {-1, 12, -1},
+            {  // target static shapes
+                {10, 12, 10},
+                {10, 12, 10},
+                {1, 12, 2},
+                {5, 12, 3}
+            }
         },
-        {
-                {{{1, 12}, 5, {1, 12}}, {{1, 5, 1}, {5, 5, 5}, {1, 5, 1}, {5, 5, 5}}},
-                {{{1, 12}, 5, {1, 12}}, {{1, 5, 1}, {1, 5, 1}, {5, 5, 1}, {5, 5, 5}}},
-        }
-};
+        {   //dynamic shape for second input
+            {-1, 12, -1},
+            {  // target static shapes
+                {1, 12, 1},
+                {1, 12, 1},
+                {5, 12, 2},
+                {5, 12, 3}
+            }
+        },
+    },
 
+    {  //second test suit
+        {   //dynamic shape for first input
+            {{1, 12}, 5, {1, 12}},
+            {  // target static shapes
+                {1, 5, 1},
+                {5, 5, 5},
+                {1, 5, 1},
+                {5, 5, 5}
+             }
+        },
+        {   //dynamic shape for second input
+            {{1, 12}, 5, {1, 12}},
+            {  // target static shapes
+                {1, 5, 1},
+                {1, 5, 1},
+                {5, 5, 1},
+                {5, 5, 5}
+            }
+        },
+    }
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_TensorIteratorSimple, TensorIteratorCPUTest,
                          ::testing::Combine(

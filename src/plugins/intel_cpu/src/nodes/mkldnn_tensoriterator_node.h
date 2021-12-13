@@ -162,7 +162,7 @@ private:
     int lastUsedTripCount = -1;
     bool lastUsedCond = false;
 
-    const std::shared_ptr<ngraph::Node> ngraphOp;
+    const std::shared_ptr<ov::Node> ngraphOp;
 };
 
 }  // namespace MKLDNNPlugin

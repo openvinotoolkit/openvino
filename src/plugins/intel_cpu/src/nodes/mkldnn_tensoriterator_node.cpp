@@ -12,6 +12,7 @@
 #include "common/blocked_desc_creator.h"
 #include "utils/ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -276,7 +277,7 @@ void DynamicBuffer::transfer(MKLDNNNode* node) {
 
 void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len) {
     parallel_for(count, [&](const size_t i) {
-        std::memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
+        cpu_memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
     });
 }
 
@@ -405,7 +406,7 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
         algorithm = TensorIteratorCommon;
         n_iter = ti->get_num_iterations();
     } else {
-        THROW_ERROR << "doesn't supported!";
+        THROW_ERROR << "isn't supported!";
     }
 }
 
@@ -422,7 +423,7 @@ void MKLDNNTensorIteratorNode::createPrimitive() {
     if (loopExecutionConditionIdx == -1)
         initial_cond_check.reset(new staticValueCheck(true));
 
-    if (isDynamic)
+    if (isDynamicNode())
         prepareDynamicBuffers();
 
     if (inputShapesDefined()) {
@@ -457,7 +458,7 @@ void MKLDNNTensorIteratorNode::prepareParams() {
     // special purpose ports
     prepareLoopBodyCurrentIteration();
 
-    if (!isDynamic) {
+    if (!isDynamicNode()) {
         prepareOutputPorts();
         prepareBackEdges();
     }
