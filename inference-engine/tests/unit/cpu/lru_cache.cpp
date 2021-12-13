@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "cpu_lru_cache.h"
+#include "cache/lru_cache.h"
 
 namespace {
 struct Key {
