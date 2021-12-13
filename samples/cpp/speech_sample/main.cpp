@@ -121,12 +121,13 @@ int main(int argc, char* argv[]) {
         if (useGna) {
             std::string gnaDevice =
                 useHetero ? FLAGS_d.substr(FLAGS_d.find("GNA"), FLAGS_d.find(",") - FLAGS_d.find("GNA")) : FLAGS_d;
-            // gnaPluginConfig[GNAConfigParams::KEY_GNA_DEVICE_MODE] =
-            //    gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
+            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE] = "GNA_SW";
+            // gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
         }
 
         if (FLAGS_pc) {
-            // genericPluginConfig[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::YES;
+            genericPluginConfig[InferenceEngine::PluginConfigParams::KEY_PERF_COUNT] =
+                InferenceEngine::PluginConfigParams::YES;
         }
 
         if (FLAGS_q.compare("user") == 0) {
@@ -172,21 +173,20 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     std::string scaleFactorConfigKey =
                         GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
-                    // gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
+                    gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
                 }
             }
         }
 
         if (FLAGS_qb == 8) {
-            // gnaPluginConfig[GNAConfigParams::KEY_GNA_PRECISION] = "I8";
+            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION] = "I8";
         } else {
-            // gnaPluginConfig[GNAConfigParams::KEY_GNA_PRECISION] = "I16";
+            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION] = "I16";
         }
 
-        gnaPluginConfig[GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
-        gnaPluginConfig[GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
-        gnaPluginConfig[PluginConfigParams::KEY_LOG_LEVEL] = FLAGS_log;
-        gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
+        gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
+        gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
+        gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
             std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
@@ -195,8 +195,8 @@ int main(int argc, char* argv[]) {
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
-            // gnaPluginConfig[GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
-            // gnaPluginConfig[GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE_GENERATION] = FLAGS_we_gen;
+            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
+            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE_GENERATION] = FLAGS_we_gen;
         }
         // -----------------------------------------------------------------------------------------------------
 
@@ -228,7 +228,7 @@ int main(int argc, char* argv[]) {
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::ExecutableNetwork executableNet = core.compile_model(model, FLAGS_d);
+        ov::runtime::ExecutableNetwork executableNet = core.compile_model(model, deviceStr);
 
         // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
