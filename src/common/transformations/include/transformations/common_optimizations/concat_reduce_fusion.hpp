@@ -5,7 +5,6 @@
 #pragma once
 
 #include <transformations_visibility.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
@@ -71,5 +70,5 @@ public:
 class ngraph::pass::ConcatReduceFusion: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };

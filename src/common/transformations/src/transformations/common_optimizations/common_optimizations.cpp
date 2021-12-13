@@ -52,8 +52,8 @@
 #include "transformations/common_optimizations/interpolate_sequence_fusion.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
-#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"

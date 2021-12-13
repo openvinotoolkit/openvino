@@ -4,7 +4,6 @@
 
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
-
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
@@ -28,13 +27,13 @@ namespace {
 enum class ReduceType {NONE, MAX, MIN};
 
 ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
-    if (std::dynamic_pointer_cast<ngraph::opset8::ReduceMax>(reduce_node) != nullptr) {
+    if (ov::is_type<ngraph::opset8::ReduceMax>(reduce_node)) {
         return ReduceType::MAX;
-    }
-    if (std::dynamic_pointer_cast<ngraph::opset8::ReduceMin>(reduce_node) != nullptr) {
+    } else if (ov::is_type<ngraph::opset8::ReduceMin>(reduce_node)) {
         return ReduceType::MIN;
+    } else {
+        return ReduceType::NONE;
     }
-    return ReduceType::NONE;
 }
 
 } // namespace
@@ -57,9 +56,8 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
         size_t eltwise_inputs_size = eltwise->get_input_size();
         for (size_t input_index = 0; input_index < eltwise_inputs_size; ++input_index) {
             auto input_node = eltwise->get_input_node_shared_ptr(input_index);
-            if (std::dynamic_pointer_cast<opset8::Constant>(input_node) == nullptr &&
-                std::dynamic_pointer_cast<opset8::Unsqueeze>(input_node) == nullptr) {
-                    return false;
+            if (!is_type<opset8::Constant>(input_node) && !is_type<opset8::Unsqueeze>(input_node)) {
+                return false;
             }
         }
 
@@ -97,14 +95,14 @@ ngraph::pass::ConcatReduceFusionWithoutFolding::ConcatReduceFusionWithoutFolding
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto concat = std::dynamic_pointer_cast<opset8::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
+        auto concat = as_type_ptr<opset8::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
 
         ReduceType reduce_type = get_reduce_type(pattern_map.at(reduce_pattern).get_node_shared_ptr());
         if (reduce_type == ReduceType::NONE) {
             return false;
         }
 
-        auto reduce = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
+        auto reduce = as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
 
         if (!reduce || !concat) {
              return false;
@@ -145,7 +143,7 @@ ngraph::pass::ConcatReduceFusionWithoutFolding::ConcatReduceFusionWithoutFolding
     register_matcher(m, callback);
 }
 
-bool ngraph::pass::ConcatReduceFusion::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::ConcatReduceFusion::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(ConcatReduceFusion);
     ngraph::pass::Manager manager;
     manager.register_pass<ConcatReduceFusionWithoutFolding>();
