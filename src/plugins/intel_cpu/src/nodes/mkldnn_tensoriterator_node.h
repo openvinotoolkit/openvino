@@ -15,15 +15,15 @@ namespace MKLDNNPlugin {
 
 struct PortMap {
     // Data map rule
-    int m_from; /**< Index of external data from ins/outs fields of node */
-    int m_to;   /**< Index of internal data in iterator body */
+    int from; /**< Index of external data from ins/outs fields of node */
+    int to;   /**< Index of internal data in iterator body */
 
     // Iteration rule
-    int m_axis;      /**< Axis to iterate throught */
-    int m_stride;    /**< Stride to iterate throught */
-    int m_start;     /**< Start index of iteration range */
-    int m_end;       /**< Last index of iteration range  */
-    int m_part_size; /**< Part size which will be transfered to body subnetwork */
+    int axis;      /**< Axis to iterate throught */
+    int stride;    /**< Stride to iterate throught */
+    int start;     /**< Start index of iteration range */
+    int end;       /**< Last index of iteration range  */
+    int part_size; /**< Part size which will be transfered to body subnetwork */
 };
 
 /**
@@ -36,9 +36,9 @@ public:
     virtual ~PortMapHelper() = default;
     virtual void execute(mkldnn::stream strm, int n_iter = -1) = 0;
 protected:
-    mkldnn::reorder m_reorder;
-    mkldnn::memory m_mem_holder_src;
-    mkldnn::memory m_mem_holder_dst;
+    mkldnn::reorder reorder;
+    mkldnn::memory mem_holder_src;
+    mkldnn::memory mem_holder_dst;
 };
 
 
@@ -52,7 +52,7 @@ public:
     virtual ~PortChecker() = default;
     virtual int getStatus() = 0;
 protected:
-    mkldnn::memory m_mem_holder;
+    mkldnn::memory mem_holder;
 };
 
 
@@ -79,18 +79,18 @@ private:
     static inline void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
     static uint8_t* get_ptr(mkldnn::memory& prim);
 
-    size_t m_elem_size = 0lu;
-    ptrdiff_t m_chunk_offset_in_byte = 0;
-    ptrdiff_t m_buffer_offset_in_byte = 0;
+    size_t elem_size = 0lu;
+    ptrdiff_t chunk_offset_in_byte = 0;
+    ptrdiff_t buffer_offset_in_byte = 0;
 
-    MKLDNNMemoryPtr m_from;
-    MKLDNNMemoryPtr m_to;
-    PortMap m_map_rule;
+    MKLDNNMemoryPtr from;
+    MKLDNNMemoryPtr to;
+    PortMap map_rule;
 
-    size_t m_len = 1;
-    size_t m_count = 1;
+    size_t len = 1;
+    size_t count = 1;
 
-    std::shared_ptr<mkldnn::memory> m_mem_holder_buffer;
+    std::shared_ptr<mkldnn::memory> mem_holder_buffer;
 };
 
 class MKLDNNTensorIteratorNode : public MKLDNNNode {
@@ -104,7 +104,7 @@ public:
     bool created() const override;
     void execute(mkldnn::stream strm) override;
 
-    void setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { m_ext_mng = extMgr; }
+    void setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
 protected:
     //  needShapeInfer() should return false
@@ -130,39 +130,39 @@ private:
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(mkldnn::stream strm);
 
-    int m_n_iter = 0;
+    int n_iter = 0;
 
-    MKLDNNExtensionManager::Ptr m_ext_mng;
-    MKLDNNGraph m_sub_graph;
-    std::vector<MKLDNNMemoryPtr> m_input_mem, m_output_mem;
+    MKLDNNExtensionManager::Ptr ext_mng;
+    MKLDNNGraph sub_graph;
+    std::vector<MKLDNNMemoryPtr> input_mem, output_mem;
 
     std::vector<std::shared_ptr<PortMapHelper>>
-        m_first_mappers,   /// < Applied once before loop
-        m_last_mappers,    /// < Applied once after loop
-        m_before_mappers,  /// < Applied before each iteration
-        m_after_mappers,   /// < Applied after each iteration
-        m_back_mappers;    /// < Applied before each iteration for dynamic shapes
+        first_mappers,   /// < Applied once before loop
+        last_mappers,    /// < Applied once after loop
+        before_mappers,  /// < Applied before each iteration
+        after_mappers,   /// < Applied after each iteration
+        back_mappers;    /// < Applied before each iteration for dynamic shapes
 
     std::shared_ptr<PortChecker>
-        m_trip_count_check,      /// < Perform check of trip count value. value >= -1
-        m_initial_cond_check,    /// < Perform check of initial continue condition value. value [0, 1]
-        m_continue_cond_check;   /// < Perform check of continue condition value of body. value [0, 1]
+        trip_count_check,      /// < Perform check of trip count value. value >= -1
+        initial_cond_check,    /// < Perform check of initial continue condition value. value [0, 1]
+        continue_cond_check;   /// < Perform check of continue condition value of body. value [0, 1]
 
-    std::vector<std::shared_ptr<DynamicBuffer>> m_buffers;
+    std::vector<std::shared_ptr<DynamicBuffer>> buffers;
 
-    std::vector<PortMap> m_inputPortMap;  //!< Input ports map
-    std::vector<PortMap> m_outputPortMap;  //!< Output ports map
-    std::vector<PortMap> m_backEdges;  //!< Back edges map
+    std::vector<PortMap> inputPortMap;  //!< Input ports map
+    std::vector<PortMap> outputPortMap;  //!< Output ports map
+    std::vector<PortMap> backEdges;  //!< Back edges map
 
-    std::vector<int> m_loopBodyCurrentIterationIdx;
-    int m_loopBodyConditionOutputIdx = -1;
-    int m_loopTripCountIdx = -1;
-    int m_loopExecutionConditionIdx = -1;
+    std::vector<int> loopBodyCurrentIterationIdx;
+    int loopBodyConditionOutputIdx = -1;
+    int loopTripCountIdx = -1;
+    int loopExecutionConditionIdx = -1;
 
-    int m_lastUsedTripCount = -1;
-    bool m_lastUsedCond = false;
+    int lastUsedTripCount = -1;
+    bool lastUsedCond = false;
 
-    const std::shared_ptr<ngraph::Node> m_ngraphOp;
+    const std::shared_ptr<ngraph::Node> ngraphOp;
 };
 
 }  // namespace MKLDNNPlugin
