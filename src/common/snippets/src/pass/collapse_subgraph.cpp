@@ -22,9 +22,8 @@
 #include <climits>
 
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::TokenizeSnippets, "Snippets::TokenizeSnippets", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::MarkNodesForTokenization, "Snippets::MarkNodesForTokenization", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::StartSubgraph, "Snippets::StartSubgraph", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::AttachToSubgraph, "Snippets::AttachToSubgraph", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::EnumerateNodes, "Snippets::EnumerateNodes", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::CreateSubgraph, "Snippets::CreateSubgraph", 0);
 
 namespace ngraph {
 namespace snippets {
@@ -223,64 +222,17 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
     return rinfo->second.as<int64_t>();
 }
 
-bool MarkNodesForTokenization::run_on_model(const std::shared_ptr<ov::Model> &m) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::MarkNodesForTokenization")
-    auto has_input_marked_as_subgraph = [](const std::shared_ptr<const Node> &node) -> bool {
-        const auto& input_nodes = ngraph::as_node_vector(node->input_values());
-        return std::any_of(input_nodes.begin(), input_nodes.end(),
-                    [](const std::shared_ptr<const Node> &n) -> bool{
-                                const auto & snt = GetSnippetsNodeType(n);
-                                return snt == SnippetsNodeType::SubgraphStart ||
-                                       snt == SnippetsNodeType::SubgraphBody;
-                            });
-    };
+bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::EnumerateNodes")
     int64_t order = 0;
     // Todo: We don't really have to set order for every node, just for subgraph parents and children would be enough
     for (auto &node : m->get_ordered_ops()) {
         SetTopologicalOrder(node, order++);
-        if (GetSnippetsNodeType(node) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(node)) {
-            if (has_input_marked_as_subgraph(node))
-                SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
-            else
-                SetSnippetsNodeType(node, SnippetsNodeType::SubgraphStart);
-        }
     }
     return true;
 }
-// Todo: It is probably better to join StartSubgraph and AttachToSubgraph, since their matchers are essentially the same
-StartSubgraph::StartSubgraph() : MatcherPass() {
-    MATCHER_SCOPE(StartSubgraph);
-    auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
-        [](const std::shared_ptr<const Node> &n) {
-            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphStart;
-        });
-    auto callback = [](ngraph::pattern::Matcher &m) -> bool {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::StartSubgraph_callback")
-        auto node = m.get_match_root();
-        remark(1) << "Match root (Start): "
-                  << node->get_friendly_name()
-                  << " " << node
-                  << " Creating new snippet - no input subgraphs found" << std::endl;
-
-        auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
-        subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
-        ngraph::replace_node(node, subgraph);
-        update_out_tensor_name(subgraph);
-
-        remark(1) << "Replacement (new) done for: "
-                  << subgraph->get_friendly_name()
-                  << " with " << subgraph->inputs().size()
-                  << " inputs and " << subgraph->outputs().size()
-                  << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
-        return true;
-    };
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);
-    register_matcher(matcher, callback);
-}
-
-
-AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
-    MATCHER_SCOPE(AttachToSubgraph);
+CreateSubgraph::CreateSubgraph() {
+    MATCHER_SCOPE(CreateSubgraph);
     enum continuation_strategy {
         reset,
         abort
@@ -289,22 +241,34 @@ AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     continuation_strategy strategy = continuation_strategy::reset;
     auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](const std::shared_ptr<const Node> &n) {
-            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphBody;
+            return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(n);
         });
     ngraph::graph_rewrite_callback callback = [strategy](ngraph::pattern::Matcher &m) -> bool {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AttachToSubgraph_callback")
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
         auto node = m.get_match_root();
 
-        remark(1) << "Match root (Attach): " << node->get_friendly_name() << " " << node << std::endl;
+        remark(1) << "Match root: " << node->get_friendly_name() << " " << node << std::endl;
 
-        auto abort_with_strategy = [&node, strategy](const std::string message_reset,
-                                                     const std::string message_abort = "", int priority = 3) {
+        const auto getFusedNames = [](const std::shared_ptr<Node>& n) -> std::string {
+            auto rt_info = n->get_rt_info();
+            auto it = rt_info.find("originalLayersNames");
+            if (it != rt_info.end()) {
+                return it->second.as<std::string>() + ",";
+            }
+            return "";
+        };
+
+        auto create_single_node_subgraph = [&](const std::shared_ptr<Node> &node) {
+            auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
+            subgraph->get_rt_info()["originalLayersNames"] = getFusedNames(node) + node->get_friendly_name();
+            ngraph::replace_node(node, subgraph);
+            update_out_tensor_name(subgraph);
+        };
+
+        auto abort_with_strategy = [&](const std::string& message_reset,
+                                                     const std::string& message_abort = "", int priority = 3) {
             if (strategy == continuation_strategy::reset) {
-                remark(priority) << message_reset << std::endl;
-                auto single_node_subgraph = op::Subgraph::wrap_node_as_subgraph(node);
-                single_node_subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
-                single_node_subgraph->validate_and_infer_types();
-                ngraph::replace_node(node, single_node_subgraph);
+                create_single_node_subgraph(node);
                 return true;
             } else if (strategy == continuation_strategy::abort) {
                 if (!message_abort.empty()) {
@@ -334,19 +298,8 @@ AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         *  sungraph--node
         */
         auto is_recurrent = [&input_values](const ngraph::Output<ngraph::Node>& to_find) -> bool {
-            for (const auto& in : input_values) {
-                if (in == to_find)
-                    return true;
-            }
-            return false;
-        };
-        const auto getFusedNames = [](const std::shared_ptr<Node> n) -> std::string {
-            auto rt_info = n->get_rt_info();
-            auto it = rt_info.find("originalLayersNames");
-            if (it != rt_info.end()) {
-                return it->second.as<std::string>() + ",";
-            }
-                return "";
+            return std::any_of(input_values.begin(), input_values.end(),
+                        [&](const ov::Output<ov::Node> &in) {return in == to_find;});
         };
         /*
          * Checks if the passed node introduces loop dependency for given topological bounds (pair of maxParentOrder, minChildOrder).
@@ -384,6 +337,14 @@ AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                     clones[input_node] = f;
                 }
             }
+        }
+        //  If there are no input subgraphs no need to go further, just create a new one.
+        if (clones.empty()) {
+            create_single_node_subgraph(node);
+            remark(1) << "Starting subgraph at: "  << node->get_friendly_name()
+                      << " with " << node->inputs().size() << " inputs and " << node->outputs().size()
+                      << " outputs" << std::endl;
+            return true;
         }
         std::string newSubgraphName{};
         std::string fusedNames{};

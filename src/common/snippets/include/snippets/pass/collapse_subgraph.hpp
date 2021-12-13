@@ -24,7 +24,7 @@ namespace pass {
 //  This is done so the snippets and the plugin skipping transformation won't interfere, otherwise
 //  one transformation might continue skipping chains created by the other one. An alternative solution is to
 //  fix the order of transformations (e.g. snippets skip must always be the first), but this is hardly better.
-enum class SnippetsNodeType : int64_t {SubgraphStart, SubgraphBody, NotSet, SkippedByPlugin};
+enum class SnippetsNodeType : int64_t {NotSet, SkippedByPlugin};
 void SetSnippetsNodeType(const std::shared_ptr<Node>&, SnippetsNodeType);
 SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>&);
 void SetTopologicalOrder(const std::shared_ptr<Node>&, int64_t);
@@ -32,39 +32,26 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node>&);
 bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
 
 /**
- * @interface MarkNodesForTokenization
- * @brief  Snippets rely on certain node attributes to perform tokenization successfully, the transformation sets these attributes.
- * The attributes are:
- *      * topological order (used to avoid creating cyclic dependencies)
- *      * SnippetsNodeType - flag that describes whether a node should be skipped, used to start or to continue a subgraph
+ * @interface EnumerateNodes
+ * @brief  Snippets rely on topological order to avoid creating cyclic dependencies. This transformation sets the order.
  * @ingroup snippets
  */
-class MarkNodesForTokenization : public ov::pass::ModelPass {
+class EnumerateNodes : public ov::pass::ModelPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    MarkNodesForTokenization() : ModelPass() {}
+    EnumerateNodes() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 
-/**
- * @interface StartSubgraph
- * @brief Matches multiple output loyout-oblivious operations to start a new subgraph
- * @ingroup snippets
- */
-class StartSubgraph: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    explicit StartSubgraph();
-};
 /**
  * @interface AttachToSubgraph
  * @brief Matches loyout-oblivious operations with subgraph operation as an input to attech this node into it
  * @ingroup snippets
  */
-class AttachToSubgraph: public ngraph::pass::MatcherPass {
+class CreateSubgraph: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    explicit AttachToSubgraph();
+    explicit CreateSubgraph();
 };
 
 /**
@@ -94,8 +81,7 @@ class TokenizeSnippets: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     TokenizeSnippets() {
-        add_matcher<ngraph::snippets::pass::StartSubgraph>();
-        add_matcher<ngraph::snippets::pass::AttachToSubgraph>();
+        add_matcher<ngraph::snippets::pass::CreateSubgraph>();
     }
 };
 
