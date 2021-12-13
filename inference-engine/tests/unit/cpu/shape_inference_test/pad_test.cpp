@@ -16,7 +16,6 @@ TEST(StaticShapeInferenceTest, Padv1) {
     const auto pad_val = ov::op::v0::Constant::create(element::f32, ov::Shape{}, {2112});
 
     const auto pad = std::make_shared<ov::op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT);
-    auto f = std::make_shared<Function>(pad, ParameterVector{data});
 
     check_static_shape(pad.get(),
                        {ov::StaticShape{3, 6, 5, 5},
