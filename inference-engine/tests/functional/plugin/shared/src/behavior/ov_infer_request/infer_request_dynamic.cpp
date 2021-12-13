@@ -370,7 +370,7 @@ TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     const std::string outputName = function->outputs().back().get_any_name();
     // Load ov::Function to target plugins
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
     ASSERT_THROW((execNet = ie->compile_model(function, targetDevice, configuration)), ov::Exception);
 }
 }  // namespace behavior
