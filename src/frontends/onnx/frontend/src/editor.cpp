@@ -414,7 +414,7 @@ std::string onnx_editor::ONNXModelEditor::model_string() const {
     return m_pimpl->m_model_proto->SerializeAsString();
 }
 
-std::shared_ptr<Function> onnx_editor::ONNXModelEditor::get_function() const {
+std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
     return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto, m_model_path, m_telemetry);
 }
 
@@ -593,6 +593,6 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
     return m_pimpl->m_edge_mapper.get_output_ports(node);
 }
 
-std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode() {
+std::shared_ptr<Model> onnx_editor::ONNXModelEditor::decode() {
     return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path, m_telemetry);
 }

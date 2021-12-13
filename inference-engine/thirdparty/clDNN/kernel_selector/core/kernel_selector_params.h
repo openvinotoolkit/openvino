@@ -490,6 +490,26 @@ struct FusedOpsConfiguration {
     bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
 };
 
+// Dependency(Input) type of fusing operation in fused node.
+// There are different ways to generate input var name and type by the dependency(input) type in MakeOpJitConstants in jitter
+// - ORIGINAL: The input of the operation is the fused node such as Conv
+// - EXTERNAL: The input of the operation is the external node outside the fused node
+// - INTERNAL: The input of the operation is the another fused operation in the fused node
+enum class DepType {
+    UNDEFINED  = -1,
+    ORIGINAL   = 0,
+    EXTERNAL   = 1,
+    INTERNAL   = 2
+};
+
+// Dependency(Input) information of fusing operation which is used to generate input var name and type
+// in MakeOpJitConstants in jitter
+struct dep_info {
+    DepType     dep_type = DepType::UNDEFINED;
+    size_t      op_id;
+    Datatype    data_type;
+};
+
 // Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program::fuse_nodes
 // method. In order to process fused ops following modifications should be done in a kernel:
 // option 1 - using common generator:
@@ -542,7 +562,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
-    std::vector<std::pair<size_t, Datatype>> fused_op_ids;
+    std::vector<dep_info> dep_data = {};
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }

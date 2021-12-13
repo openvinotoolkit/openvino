@@ -11,11 +11,11 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-using OpGenerator = std::map<ov::DiscreteTypeInfo, std::function<std::shared_ptr<ov::Function>()>>;
+using OpGenerator = std::map<ov::DiscreteTypeInfo, std::function<std::shared_ptr<ov::Model>()>>;
 OpGenerator getOpGeneratorMap();
 
-static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>>> createFunctions() {
-    std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Function>>> res;
+static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> createFunctions() {
+    std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> res;
     auto opsets = LayerTestsUtils::Summary::getInstance().getOpSets();
     auto opGenerator = getOpGeneratorMap();
     std::set<ngraph::NodeTypeInfo> opsInfo;

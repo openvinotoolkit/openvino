@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
-        std::shared_ptr<ov::Function> model = core.read_model(FLAGS_m);
+        std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
 
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
         OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
@@ -153,11 +153,11 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 6. Loading model to the device --------
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, FLAGS_d);
+        ov::runtime::CompiledModel compiled_model = core.compile_model(model, FLAGS_d);
 
         // -------- Step 6. Create infer request --------
         slog::info << "Create infer request" << slog::endl;
-        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
+        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
 
         // -------- Step 7. Combine multiple input images as batch --------
         ov::runtime::Tensor input_tensor = infer_request.get_input_tensor();

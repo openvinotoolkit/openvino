@@ -925,7 +925,6 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
         HeaderLatest::RuntimeEndPoint output = ReadEndPoint(is);
         OutputDesc description;
         description.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + output.descriptor_offset));
-        description.orientation = kDnnInterleavedOrientation;
         description.orientation = output.orientation;
         description.num_bytes_per_element = output.element_size;
         description.scale_factor = output.scaleFactor;
