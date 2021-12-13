@@ -173,7 +173,9 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                 {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "-1"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "should be int"}}
+                {InferenceEngine::MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY, "should be int"}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+                {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}}
     };
 
     const std::vector<std::map<std::string, std::string>> multiconf = {
