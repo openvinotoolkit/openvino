@@ -27,7 +27,7 @@ public:
     DecoderTransformationExtension() = default;
 
     /// \brief Create a custom functional pass where code of the pass is implemented as a function.
-    explicit DecoderTransformationExtension(const std::function<bool(std::shared_ptr<ov::Function>)>& function_pass);
+    explicit DecoderTransformationExtension(const std::function<bool(std::shared_ptr<ov::Model>)>& function_pass);
 
     /// \brief Create a custom matcher pass where the code of matcher pass initialization is a given function.
     explicit DecoderTransformationExtension(

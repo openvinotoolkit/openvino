@@ -10,7 +10,8 @@
 
 namespace ov {
 namespace frontend {
-namespace pdpd {using InPortName = std::string;
+namespace pdpd {
+using InPortName = std::string;
 using OutPortName = std::string;
 using TensorName = std::string;
 using NamedOutputs = std::map<OutPortName, OutputVector>;

@@ -130,7 +130,7 @@ TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
         ref_val.second["library"] = get_lib_path(ref_val.second["library"]);
     }
 
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     {
         ov::frontend::FrontEnd::Ptr m_frontEnd;
         ov::frontend::InputModel::Ptr m_inputModel;
@@ -162,7 +162,7 @@ TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
 TEST_P(FrontEndJsonConfigTest, compareFunctions) {
     auto path_to_json = generate_json_config();
 
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     {
         ov::frontend::FrontEnd::Ptr m_frontEnd;
         ov::frontend::InputModel::Ptr m_inputModel;
@@ -178,7 +178,7 @@ TEST_P(FrontEndJsonConfigTest, compareFunctions) {
         ASSERT_NE(function, nullptr);
     }
 
-    std::shared_ptr<ov::Function> function_ref;
+    std::shared_ptr<ov::Model> function_ref;
     {
         ov::frontend::FrontEnd::Ptr m_frontEnd;
         ov::frontend::InputModel::Ptr m_inputModel;

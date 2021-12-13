@@ -13,7 +13,7 @@ using namespace ov;
 using namespace ov::frontend;
 
 JsonConfigExtension::JsonConfigExtension(const std::string& config_path)
-    : DecoderTransformationExtension([this](std::shared_ptr<ov::Function> f) {
+    : DecoderTransformationExtension([this](std::shared_ptr<ov::Model> f) {
           bool res = true;
           for (const auto& target_extension : m_target_extensions) {
               if (auto extension = std::dynamic_pointer_cast<JsonTransformationExtension>(target_extension.first)) {

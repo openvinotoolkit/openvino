@@ -6,14 +6,14 @@
 
 #include <openvino/core/core.hpp>
 
-bool TestExtension1::transform(std::shared_ptr<ov::Function>& function, const nlohmann::json& config) const {
+bool TestExtension1::transform(std::shared_ptr<ov::Model>& function, const nlohmann::json& config) const {
     function->set_friendly_name("TestFunction");
     return true;
 }
 
 TestExtension1::TestExtension1() : ov::frontend::JsonTransformationExtension("buildin_extensions_2::TestExtension1") {}
 
-bool TestExtension2::transform(std::shared_ptr<ov::Function>& function, const nlohmann::json& config) const {
+bool TestExtension2::transform(std::shared_ptr<ov::Model>& function, const nlohmann::json& config) const {
     function->set_friendly_name("TestFunction");
     return true;
 }

@@ -41,7 +41,7 @@ void regclass_frontend_TelemetryExtension(py::module m) {
     }
 }
 
-void regclass_frontend_DecoderTransformationNExtension(py::module m) {
+void regclass_frontend_DecoderTransformationExtension(py::module m) {
     {
         py::class_<ov::frontend::DecoderTransformationExtension,
                    std::shared_ptr<ov::frontend::DecoderTransformationExtension>,
