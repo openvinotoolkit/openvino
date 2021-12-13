@@ -6,11 +6,11 @@
 # Install licensing
 #
 
-ie_cpack_add_component(licensing)
+ie_cpack_add_component(${OV_COMP_LICENSING})
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         DESTINATION share/doc/openvino/licensing
-        COMPONENT licensing
+        COMPONENT ${OV_COMP_LICENSING}
         PATTERN CMakeLists.txt EXCLUDE
         PATTERN dev-third-party-programs.txt EXCLUDE
         PATTERN documentation-third-party-programs.txt EXCLUDE

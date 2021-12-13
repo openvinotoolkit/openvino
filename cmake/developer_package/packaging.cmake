@@ -17,10 +17,10 @@ function(ie_cpack_set_library_dir)
         set(IE_CPACK_ARCHIVE_PATH lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
     else()
         if(CPACK_GENERATOR STREQUAL "DEB")
-            # TODO
-            set(IE_CPACK_LIBRARY_PATH lib PARENT_SCOPE)
-            set(IE_CPACK_RUNTIME_PATH lib PARENT_SCOPE)
-            set(IE_CPACK_ARCHIVE_PATH lib PARENT_SCOPE)
+            # TODO: support other architectures
+            set(IE_CPACK_LIBRARY_PATH lib/x86_64-linux-gnu PARENT_SCOPE)
+            set(IE_CPACK_RUNTIME_PATH lib/x86_64-linux-gnu PARENT_SCOPE)
+            set(IE_CPACK_ARCHIVE_PATH lib/x86_64-linux-gnu PARENT_SCOPE)
         else()
             set(IE_CPACK_LIBRARY_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
             set(IE_CPACK_RUNTIME_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
@@ -82,6 +82,10 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     set(OV_COMP_DEV_REQ_FILES "${OV_COMP_CORE_DEV}")
     # move core_tools to core-dev
     set(OV_COMP_CORE_TOOLS "${OV_COMP_CORE_DEV}")
+    # move licensing to core
+    set(OV_COMP_LICENSING "${OV_COMP_CORE}")
+    # move install_dependencies to core as well
+    set(OV_COMP_INSTALL_DEPENDENCIES "${OV_COMP_CORE}")
 endif()
 
 macro(ie_cpack)
@@ -253,10 +257,7 @@ macro(ie_cpack)
         set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "OpenVINO C / C++ Runtime development files")
         set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core")
         set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev")
-        # Looks like it's arch dependent
-        # set(CPACK_DEBIAN_CORE_DEV_PACKAGE_ARCHITECTURE "all")
-        # set(CPACK_DEBIAN_CORE_PACKAGE_DEPENDS "libtbb-dev")
-        # set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "!!!")
+        # set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "")
         ov_add_lintian_suppression(core_dev)
 
         #
@@ -362,11 +363,6 @@ macro(ie_cpack)
         set(CPACK_DEBIAN_INSTALL_DEPENDENCIES_PACKAGE_NAME "libopenvino-install-dependencies")
         set(CPACK_DEBIAN_INSTALL_DEPENDENCIES_PACKAGE_DEPENDS "python3, TODO")
         set(CPACK_DEBIAN_INSTALL_DEPENDENCIES_PACKAGE_ARCHITECTURE "all")
-
-        # install dependencies
-        set(CPACK_COMPONENT_CORE_TOOLS_DESCRIPTION "OpenVINO Tools")
-        set(CPACK_COMPONENT_CORE_TOOLS_DEPENDS "core")
-        set(CPACK_DEBIAN_CORE_TOOLS_PACKAGE_NAME "libopenvino-tools")
 
         # licensing
         set(CPACK_COMPONENT_LICENSING_DESCRIPTION "OpenVINO lincences")
