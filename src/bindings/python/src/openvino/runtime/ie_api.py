@@ -7,12 +7,12 @@ from typing import Any, List, Union
 
 from openvino.pyopenvino import Model
 from openvino.pyopenvino import Core as CoreBase
-from openvino.pyopenvino import ExecutableNetwork as ExecutableNetworkBase
+from openvino.pyopenvino import CompiledModel as CompiledModelBase
 from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import Output
 from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import Variant as VariantBase
+from openvino.pyopenvino import OVAny as OVAnyBase
 
 from openvino.runtime.utils.types import get_dtype
 
@@ -39,7 +39,7 @@ def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
     return py_dict
 
 
-def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
+def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
     """Map all tensor names of all inputs to the data types of those tensors."""
 
     def map_tensor_names_to_types(input: Output) -> dict:
@@ -57,7 +57,9 @@ class InferRequest(InferRequestBase):
 
     def infer(self, inputs: dict = None) -> dict:
         """Infer wrapper for InferRequest."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        inputs = (
+            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        )
         return super().infer(inputs)
 
     def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
@@ -68,16 +70,18 @@ class InferRequest(InferRequestBase):
         super().start_async(inputs, userdata)
 
 
-class ExecutableNetwork(ExecutableNetworkBase):
-    """ExecutableNetwork wrapper."""
+class CompiledModel(CompiledModelBase):
+    """CompiledModel wrapper."""
 
     def create_infer_request(self) -> InferRequest:
         """Create new InferRequest object."""
         return InferRequest(super().create_infer_request())
 
     def infer_new_request(self, inputs: dict = None) -> dict:
-        """Infer wrapper for ExecutableNetwork."""
-        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        """Infer wrapper for CompiledModel."""
+        inputs = (
+            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        )
         return super().infer_new_request(inputs)
 
 
@@ -105,52 +109,52 @@ class Core(CoreBase):
 
     def compile_model(
         self, model: Union[Model, str], device_name: str, config: dict = None
-    ) -> ExecutableNetwork:
+    ) -> CompiledModel:
         """Compile a model from given Model."""
-        return ExecutableNetwork(
+        return CompiledModel(
             super().compile_model(model, device_name, {} if config is None else config)
         )
 
     def import_model(
         self, model_file: str, device_name: str, config: dict = None
-    ) -> ExecutableNetwork:
+    ) -> CompiledModel:
         """Compile a model from given model file path."""
-        return ExecutableNetwork(
+        return CompiledModel(
             super().import_model(
                 model_file, device_name, {} if config is None else config
             )
         )
 
 
-class ExtendedNetwork(ExecutableNetwork):
-    """ExecutableNetwork that additionally holds Core object."""
+class ExtendedNetwork(CompiledModel):
+    """CompiledModel that additionally holds Core object."""
 
-    def __init__(self, core: Core, net: ExecutableNetwork):
+    def __init__(self, core: Core, net: CompiledModel):
         super().__init__(net)
         self.core = core  # needs to store Core object for CPU plugin
 
 
-def compile_model(model_path: str) -> ExecutableNetwork:
+def compile_model(model_path: str) -> CompiledModel:
     """Compact method to compile model with AUTO plugin."""
     core = Core()
     return ExtendedNetwork(core, core.compile_model(model_path, "AUTO"))
 
 
-class Variant(VariantBase):
-    """Variant wrapper.
+class OVAny(OVAnyBase):
+    """OVAny wrapper.
 
     Wrapper provides some useful overloads for simple built-in Python types.
 
-    Access to the Variant value is direct if it is a built-in Python data type.
+    Access to the OVAny value is direct if it is a built-in Python data type.
     Example:
     @code{.py}
-        variant = Variant([1, 2])
-        print(variant[0])
+        any = OVAny([1, 2])
+        print(any[0])
 
         Output: 2
     @endcode
 
-    Otherwise if Variant value is a custom data type (for example user class),
+    Otherwise if OVAny value is a custom data type (for example user class),
     access to the value is possible by 'get()' method or property 'value'.
     Example:
     @code{.py}
@@ -158,8 +162,8 @@ class Variant(VariantBase):
             def __init__(self):
                 self.data = "test"
 
-        v = Variant(Test())
-        print(v.value.data)
+        any = OVAny(Test())
+        print(any.value.data)
     @endcode
     """
 

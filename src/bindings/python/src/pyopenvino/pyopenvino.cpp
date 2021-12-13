@@ -3,7 +3,7 @@
 
 #include <pybind11/pybind11.h>
 
-#include <openvino/core/function.hpp>
+#include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
 #include <string>
@@ -21,9 +21,9 @@
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyopenvino/core/async_infer_queue.hpp"
+#include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
-#include "pyopenvino/core/executable_network.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
@@ -35,6 +35,7 @@
 #include "pyopenvino/frontend/frontend_manager.hpp"
 #include "pyopenvino/frontend/inputmodel.hpp"
 #include "pyopenvino/frontend/place.hpp"
+#include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/layout.hpp"
@@ -51,7 +52,6 @@
 #include "pyopenvino/graph/strides.hpp"
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
-#include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 
@@ -70,10 +70,10 @@ PYBIND11_MODULE(pyopenvino, m) {
     m.def("set_batch", &ov::set_batch);
     m.def(
         "set_batch",
-        [](const std::shared_ptr<ov::Function>& f, int64_t value) {
-            return ov::set_batch(f, ov::Dimension(value));
+        [](const std::shared_ptr<ov::Model>& model, int64_t value) {
+            return ov::set_batch(model, ov::Dimension(value));
         },
-        py::arg("function"),
+        py::arg("model"),
         py::arg("batch_size") = -1);
 
     regclass_graph_PyRTMap(m);
@@ -107,7 +107,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regmodule_graph_passes(m);
     regmodule_graph_util(m);
     regmodule_graph_layout_helpers(m);
-    regclass_graph_Variant(m);
+    regclass_graph_Any(m);
     regclass_graph_Output<ov::Node>(m, std::string(""));
     regclass_graph_Output<const ov::Node>(m, std::string("Const"));
 
@@ -117,7 +117,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     Containers::regclass_TensorIndexMap(m);
     Containers::regclass_TensorNameMap(m);
 
-    regclass_ExecutableNetwork(m);
+    regclass_CompiledModel(m);
     regclass_InferRequest(m);
     regclass_VariableState(m);
     regclass_Version(m);
