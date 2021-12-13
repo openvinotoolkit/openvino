@@ -101,17 +101,23 @@ namespace {
     };
     IE_SUPPRESS_DEPRECATED_END
 
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                     ::testing::ValuesIn(inconfigs)),
+                             IncorrectConfigTests::getTestCaseName);
+
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
-            ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(multiinconfigs)),
-            IncorrectConfigTests::getTestCaseName);
+                            ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                ::testing::ValuesIn(multiinconfigs)),
+                            IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
-            ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(autoinconfigs)),
-            IncorrectConfigTests::getTestCaseName);
+                            ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(autoinconfigs)),
+                            IncorrectConfigTests::getTestCaseName);
 
 
     const std::vector<std::map<std::string, std::string>> conf = {
