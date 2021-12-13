@@ -8,7 +8,6 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/ie/ie_tensor.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ngraph;
@@ -1717,17 +1716,4 @@ TEST(constant, hold_host_tensor) {
     }
     const void* constDataPtr = constOp->get_data_ptr();
     ASSERT_EQ(constDataPtr, hostDataPtr);
-}
-
-TEST(constant, copy_unknown_tensor) {
-    Shape shape{4};
-    void* hostDataPtr = nullptr;
-    std::shared_ptr<op::Constant> constOp;
-    {
-        auto tensor = std::make_shared<runtime::ie::IETensor>(element::f32, Shape{1, 2, 3, 3});
-        hostDataPtr = const_cast<void*>(tensor->get_data_ptr());
-        constOp = std::make_shared<op::Constant>(tensor);
-    }
-    const void* constDataPtr = constOp->get_data_ptr();
-    ASSERT_NE(constDataPtr, hostDataPtr);
 }
