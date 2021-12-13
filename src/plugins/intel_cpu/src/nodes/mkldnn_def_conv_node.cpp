@@ -596,55 +596,54 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-
-    errorPrefix = "CPU deformable convolution with name '" + getName() + "'";
-
+    errorPrefix = "CPU deformable convolution with name '" + op->get_friendly_name() + "'";
     auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(op);
     if (defConvNodeBase == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of DeformableConvolutionBase.";
+        IE_THROW() << errorPrefix << " is not an instance of DeformableConvolutionBase.";
 
-    group = defConvNodeBase->get_group();
-    deformable_group = defConvNodeBase->get_deformable_group();
+    defConvAttr.group = defConvNodeBase->get_group();
+    defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
     auto& strides = defConvNodeBase->get_strides();
     for (int i = 0; i < strides.size(); i++) {
-        stride.push_back(strides[i]);
+        defConvAttr.stride.push_back(strides[i]);
     }
 
     auto& dilations = defConvNodeBase->get_dilations();
     for (int i = 1; i <= dilations.size(); i++) {
-        dilation.push_back(dilations[dilations.size() - i] - 1);
+        defConvAttr.dilation.push_back(dilations[dilations.size() - i] - 1);
     }
 
-    paddingL = defConvNodeBase->get_pads_begin();
+    defConvAttr.paddingL = defConvNodeBase->get_pads_begin();
+    defConvAttr.paddingR = defConvNodeBase->get_pads_end();
+
+    autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
     if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::get_type_info_static()) {
         auto defConvNode = std::dynamic_pointer_cast<ngraph::op::v8::DeformableConvolution>(op);
         if (defConvNode == nullptr)
-            IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-                "' is not an instance of DeformableConvolution from opset8.";
-        with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
+            IE_THROW() << errorPrefix << " is not an instance of DeformableConvolution from opset8.";
+        defConvAttr.with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
     } else {
-        with_bilinear_pad = false;
+        defConvAttr.with_bilinear_pad = false;
     }
 }
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+        IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges";
+        IE_THROW() << errorPrefix << " has incorrect number of output edges";
     if (getInputShapeAtPort(DATA_ID).getRank() != 4) {
-        IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
+        IE_THROW() << errorPrefix << " has unsupported mode. Only 4D blobs are supported as input.";
     }
     if (getInputShapeAtPort(OFF_ID).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(OFF_ID).getRank();
+        IE_THROW() << errorPrefix << " doesn't support 1st input with rank: " << getInputShapeAtPort(OFF_ID).getRank();
     }
     if (getInputShapeAtPort(WEI_ID).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(WEI_ID).getRank();
+        IE_THROW() << errorPrefix << " doesn't support 2nd input with rank: " << getInputShapeAtPort(WEI_ID).getRank();
     }
     if (getOutputShapeAtPort(DATA_ID).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(DATA_ID).getRank();
+        IE_THROW() << errorPrefix << " doesn't support output with rank: " << getOutputShapeAtPort(DATA_ID).getRank();
     }
 }
 
@@ -676,9 +675,9 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 
     if (getInputShapeAtPort(WEI_ID).getDims()[1] == Shape::UNDEFINED_DIM ||
             getInputShapeAtPort(WEI_ID).getDims()[0] == Shape::UNDEFINED_DIM ||
-            group != 1 ||
-            (getInputShapeAtPort(WEI_ID).getDims()[1] % simd_w != 0)                    // in_channels_per_gr !% simd_w
-            || ((getInputShapeAtPort(WEI_ID).getDims()[0] / group) % simd_w != 0)) {    // out_channels_per_gr !% simd_w
+            defConvAttr.group != 1 ||
+            (getInputShapeAtPort(WEI_ID).getDims()[1] % simd_w != 0)  // in_channels_per_gr !% simd_w
+            || ((getInputShapeAtPort(WEI_ID).getDims()[0] / defConvAttr.group) % simd_w != 0)) {  // out_channels_per_gr !% simd_w
         enforceRef = true;
     } else {
         enforceRef = false;
@@ -706,8 +705,8 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID),
                                                                               memory::data_type::f32, offFormat);
         auto& wDims = getInputShapeAtPort(WEI_ID).getStaticDims();
-        if (group > 1 && wDims.size() != 5) {
-            auto new_dims = InferenceEngine::SizeVector({group, div_up(wDims[0], group)});
+        if (defConvAttr.group > 1 && wDims.size() != 5) {
+            auto new_dims = InferenceEngine::SizeVector({defConvAttr.group, div_up(wDims[0], defConvAttr.group)});
             for (int i = 1; i < wDims.size(); i++) {
                 new_dims.push_back(wDims[i]);
             }
@@ -743,9 +742,9 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
+void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
         const std::vector<size_t>& src_strides, const float* offsets, const std::vector<size_t>& off_strides,
-        const float* modulation, const std::vector<size_t>& modulation_strides) {
+        const float* modulation, const std::vector<size_t>& modulation_strides, bool enforceRef) {
     const int MB = jcp.mb;
     const int OH = jcp.oh;
     const int OW = jcp.ow;
@@ -796,7 +795,7 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
                 float map_h = h_in + kh * (KDH + 1) + offset_h;
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
                 bool skip_compute;
-                if (with_bilinear_pad) {
+                if (with_bi_pad) {
                     skip_compute = !(static_cast<int>(map_w) > -1 &&
                                      static_cast<int>(map_w) < IW &&
                                      static_cast<int>(map_h) > -1 &&
@@ -878,8 +877,86 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
-                                                       const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) {
+MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
+                                                                const VectorDims &srcDims,
+                                                                const VectorDims &weiDims,
+                                                                const VectorDims &dstDims,
+                                                                const bool withModulation) :
+    gr(defConvAttr.group), dg(defConvAttr.deformable_group),
+    with_bilinear_pad(defConvAttr.with_bilinear_pad), stride(defConvAttr.stride), dilation(defConvAttr.dilation),
+    paddingL(defConvAttr.paddingL), paddingR(defConvAttr.paddingR) {
+    jcp.dg = defConvAttr.deformable_group;
+    jcp.ngroups = defConvAttr.group;
+
+    jcp.mb = srcDims[0];
+
+    jcp.oc = dstDims[1] / jcp.ngroups;
+    jcp.ic = srcDims[1] / jcp.ngroups;
+
+    jcp.ih = srcDims[2];
+    jcp.iw = srcDims[3];
+    jcp.oh = dstDims[2];
+    jcp.ow = dstDims[3];
+
+    jcp.kh = weiDims[2];
+    jcp.kw = weiDims[3];
+
+    jcp.t_pad = defConvAttr.paddingL[0];
+    jcp.l_pad = defConvAttr.paddingL[1];
+
+    jcp.stride_h = defConvAttr.stride[0];
+    jcp.stride_w = defConvAttr.stride[1];
+
+    jcp.dilate_h = defConvAttr.dilation[0];
+    jcp.dilate_w = defConvAttr.dilation[1];
+
+    jcp.with_bias = false;
+    jcp.with_bi_pad = defConvAttr.with_bilinear_pad;
+    jcp.with_modulation = withModulation;
+    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    jcp.ic_block = simd_w;
+    jcp.nb_ic = div_up(jcp.ic, jcp.ic_block);
+
+    jcp.oc_block = simd_w;
+    jcp.oc_padded = rnd_up(jcp.oc, jcp.oc_block);
+    jcp.nb_oc = div_up(jcp.oc, jcp.oc_block);
+
+    jcp.typesize_in = sizeof(float);
+    jcp.typesize_off = sizeof(float);
+    jcp.typesize_sampled_wei = sizeof(float);
+    jcp.typesize_sampled_offsets = sizeof(int);
+    jcp.typesize_out = sizeof(float);
+
+    jcp.ur_w = mayiuse(cpu::x64::avx512_common) ? 6 : 3;
+    jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
+
+    jcp.nthr = dnnl_get_max_threads();
+}
+
+MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
+                            const VectorDims &srcDims,
+                            const VectorDims &weiDims,
+                            const VectorDims &dstDims,
+                            const bool with_modulation) :
+                DefConvExecutor(defConvAttr, srcDims, weiDims, dstDims, with_modulation) {
+    if (mayiuse(cpu::x64::avx512_common)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
+    } else {
+        IE_THROW() << "Can't create DefConvJitExecutor";
+    }
+    if (def_conv_kernel) {
+        def_conv_kernel->create_ker();
+    } else {
+        IE_THROW() << "Can't compile DefConvJitExecutor";
+    }
+}
+
+void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
+        const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) {
     const int G = jcp.ngroups;
     const int MB = jcp.mb;
     const int OH = jcp.oh;
@@ -963,76 +1040,23 @@ void MKLDNNDeformableConvolutionNode::prepareParams() {
     auto weiDims = getParentEdgeAt(2)->getMemory().getStaticDims();
     auto dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
-    jcp.dg = deformable_group;
+    bool withModulation = getParentEdges().size() > 3;
 
-    jcp.ngroups = group;
-
-    jcp.mb = srcDims[0];
-
-    jcp.oc = dstDims[1] / jcp.ngroups;
-    jcp.ic = srcDims[1] / jcp.ngroups;
-
-    jcp.ih = srcDims[2];
-    jcp.iw = srcDims[3];
-    jcp.oh = dstDims[2];
-    jcp.ow = dstDims[3];
-
-    jcp.kh = weiDims[2];
-    jcp.kw = weiDims[3];
-
-    jcp.t_pad = paddingL[0];
-    jcp.l_pad = paddingL[1];
-
-    jcp.stride_h = stride[0];
-    jcp.stride_w = stride[1];
-
-    jcp.dilate_h = dilation[0];
-    jcp.dilate_w = dilation[1];
-
-    jcp.with_bias = false;
-    jcp.with_bi_pad = with_bilinear_pad;
-    jcp.with_modulation = getParentEdges().size() > 3;
-
-    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
-    jcp.ic_block = simd_w;
-    jcp.nb_ic = div_up(jcp.ic, jcp.ic_block);
-
-    jcp.oc_block = simd_w;
-    jcp.oc_padded = rnd_up(jcp.oc, jcp.oc_block);
-    jcp.nb_oc = div_up(jcp.oc, jcp.oc_block);
-
-    jcp.typesize_in = sizeof(float);
-    jcp.typesize_off = sizeof(float);
-    jcp.typesize_sampled_wei = sizeof(float);
-    jcp.typesize_sampled_offsets = sizeof(int);
-    jcp.typesize_out = sizeof(float);
-
-    jcp.ur_w = mayiuse(cpu::x64::avx512_common) ? 6 : 3;
-    jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
-
-    jcp.nthr = dnnl_get_max_threads();
+    updatePadding();
 
     if (enforceRef) {
-        return;
-    } else if (mayiuse(cpu::x64::avx512_common)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
-    } else if (mayiuse(cpu::x64::avx2)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
-    } else if (mayiuse(cpu::x64::sse41)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
+        execPtr = std::make_shared<DefConvRefExecutor>(defConvAttr, srcDims, weiDims, dstDims, withModulation);
+    } else {
+        execPtr = std::make_shared<DefConvJitExecutor>(defConvAttr, srcDims, weiDims, dstDims, withModulation);
     }
-
-    if (def_conv_kernel)
-        def_conv_kernel->create_ker();
 }
 
 void MKLDNNDeformableConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const float* weights, float* dst,
-                                                       const std::vector<size_t>& src_strides,
-                                                       const std::vector<size_t>& dst_strides) {
+void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
+        const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) {
     size_t buffer_size = (size_t)jcp.nthr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = input_buffer.data();
@@ -1047,8 +1071,8 @@ void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const f
 
         par_conv.src = &src[n * src_strides[0] + _ic*jcp.ic_block * src_strides[1] +
                             (oh * jcp.stride_h - jcp.t_pad) * src_strides[2] - jcp.l_pad * src_strides[3]];
-        par_conv.sampledWei = &interpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel];
-        par_conv.sampledCoords = &sampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel];
+        par_conv.sampledWei = &(interpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+        par_conv.sampledCoords = &(sampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
         par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
         par_conv.dst = &dst[n * dst_strides[0] + _oc * jcp.oc_block * dst_strides[1] + oh * dst_strides[2]];
         par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;
@@ -1101,12 +1125,17 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
         modulation_strides = getParentEdgeAt(3)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     }
 
-    prepareSamplingWeights(src_strides, offsets, off_strides, modulation, modulation_strides);
+    execPtr->prepareSamplingWeights(src_strides, offsets, off_strides, modulation, modulation_strides, enforceRef);
 
-    if (def_conv_kernel) {
-        executeOptimized(src, weights, dst, src_strides, dst_strides);
-    } else {
-        executeReference(src, weights, dst, src_strides, wei_strides, dst_strides);
+    execPtr->exec(src, weights, dst, src_strides, wei_strides, dst_strides);
+}
+
+void MKLDNNDeformableConvolutionNode::updatePadding() {
+    //update padding. TODO [DS] : rewrite when the final shape inference interface is available
+    if (isDynamicNode() && autoPadding) {
+        auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(opToShapeInfer);
+        defConvAttr.paddingL = defConvNodeBase->get_pads_begin();
+        defConvAttr.paddingR = defConvNodeBase->get_pads_end();
     }
 }
 

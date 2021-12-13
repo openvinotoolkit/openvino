@@ -86,36 +86,84 @@ public:
     InferenceEngine::Precision getRuntimePrecision() const override;
 
 private:
-    size_t group = 1;
-    bool with_bilinear_pad = false;
-    std::vector<ptrdiff_t> stride = {};
-    std::vector<ptrdiff_t> dilation = {};
-    std::vector<ptrdiff_t> paddingL = {};
+    struct DefConvAttr {
+        size_t group = 1;
+        int deformable_group = 1;
+        bool with_bilinear_pad = false;
+        std::vector<ptrdiff_t> stride = {};
+        std::vector<ptrdiff_t> dilation = {};
+        std::vector<ptrdiff_t> paddingL = {};
+        std::vector<ptrdiff_t> paddingR = {};
+    } defConvAttr;
 
-    int deformable_group = 1;
-
-    jit_def_conv_params jcp = {};
-
-    std::vector<int> sampledCoordsVector;
-    std::vector<float> interpWeightsVector;
-
-    std::shared_ptr<jit_uni_def_conv_kernel> def_conv_kernel = nullptr;
-
-    void prepareSamplingWeights(const std::vector<size_t>& src_strides, const float* offsets, const std::vector<size_t>& off_strides,
-                                const float* modulation = nullptr, const std::vector<size_t>& modulation_strides = {});
-
-    void executeReference(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
-                          const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides);
-    void executeOptimized(const float* src, const float* weights, float* dst,
-                          const std::vector<size_t>& src_strides, const std::vector<size_t>& dst_strides);
     void prepareParams() override;
+    void updatePadding();
     void executeDynamicImpl(mkldnn::stream strm) override;
     static constexpr size_t DATA_ID = 0;
     static constexpr size_t OFF_ID = 1;
     static constexpr size_t WEI_ID = 2;
     static constexpr size_t MOD_ID = 3;
     std::string errorPrefix;
-};
+    class DefConvExecutor {
+    public:
+        DefConvExecutor(const DefConvAttr &defConvAttr,
+                            const VectorDims &srcDims,
+                            const VectorDims &weiDims,
+                            const VectorDims &dstDims,
+                            const bool with_modulation);
 
+        jit_def_conv_params jcp = {};
+
+        virtual void exec(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
+            const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) = 0;
+        virtual ~DefConvExecutor() = default;
+        std::shared_ptr<jit_uni_def_conv_kernel> def_conv_kernel = nullptr;
+
+    protected:
+        size_t gr = 1;
+        int dg = 1;
+        bool with_bilinear_pad = false;
+        std::vector<ptrdiff_t> stride = {};
+        std::vector<ptrdiff_t> dilation = {};
+        std::vector<ptrdiff_t> paddingL = {};
+        std::vector<ptrdiff_t> paddingR = {};
+
+    public:
+        std::vector<int> sampledCoordsVector;
+        std::vector<float> interpWeightsVector;
+
+        void prepareSamplingWeights(const std::vector<size_t>& src_strides, const float* offsets,
+            const std::vector<size_t>& off_strides, const float* modulation = nullptr,
+            const std::vector<size_t>& modulation_strides = {}, bool enforceRef = false);
+    };
+
+    class DefConvRefExecutor : public DefConvExecutor {
+        public:
+            DefConvRefExecutor(const DefConvAttr &defConvAttr,
+                            const VectorDims &srcDims,
+                            const VectorDims &weiDims,
+                            const VectorDims &dstDims,
+                            const bool with_modulation) :
+                DefConvExecutor(defConvAttr, srcDims, weiDims, dstDims, with_modulation) {}
+
+            void exec(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
+                const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) override;
+    };
+
+    class DefConvJitExecutor : public DefConvExecutor {
+        public:
+            DefConvJitExecutor(const DefConvAttr &defConvAttr,
+                            const VectorDims &srcDims,
+                            const VectorDims &weiDims,
+                            const VectorDims &dstDims,
+                            const bool with_modulation);
+
+            void exec(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
+                const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) override;
+    };
+
+    std::shared_ptr<DefConvExecutor> execPtr = nullptr;
+    bool autoPadding = false;
+};
 }  // namespace MKLDNNPlugin
 
