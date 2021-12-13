@@ -353,7 +353,9 @@ def test_results_async_infer(device):
     for i in range(num_request):
         np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"], reason="Device independent test")
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
+                    reason="Device independent test")
 def test_infer_float16(device):
     model = bytes(b"""<net name="add_model" version="10">
     <layers>
