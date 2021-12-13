@@ -80,6 +80,14 @@ def run(args):
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
+        if not args.perf_hint:
+            for device in devices:
+                supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                if 'PERFORMANCE_HINT' in supported_config_keys:
+                    logger.warning(f"-hint default value is determined as 'THROUGHPUT' automatically for {device} device" +
+                                    "For more detailed information look at README.")
+                    args.perf_hint = "throughput"
+
         version = benchmark.get_version_info()
 
         logger.info(version)
@@ -128,7 +136,7 @@ def run(args):
             perf_counts = True if config[device]['PERF_COUNT'] == 'YES' else perf_counts
 
             ## high-level performance hints
-            if is_flag_set_in_command_line('hint'):
+            if is_flag_set_in_command_line('hint') or args.perf_hint:
                 config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
                 if is_flag_set_in_command_line('nireq'):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
@@ -308,13 +316,16 @@ def run(args):
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
-        if is_flag_set_in_command_line('hint'):
-            ## actual device-deduced settings for the hint
-            for device in devices:
-                keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
-                logger.info(f'DEVICE: {device}')
-                for k in keys:
-                    logger.info(f'  {k}  , {exe_network.get_config(k)}')
+        ## actual device-deduced settings
+        for device in devices:
+            keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+            logger.info(f'DEVICE: {device}')
+            for k in keys:
+                try:
+                    logger.info(f'  {k}  , {benchmark.core.get_config(device, k)}')
+                except:
+                    pass
+
 
         # Update number of streams
         for device in device_number_streams.keys():
