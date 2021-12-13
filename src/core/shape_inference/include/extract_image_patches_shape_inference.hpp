@@ -40,22 +40,18 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
         op,
         op->m_padding == PadType::VALID || op->m_padding == PadType::SAME_LOWER || op->m_padding == PadType::SAME_UPPER,
         "Attribute padding should be in either valid or same_lower or same_upper.");
-    // Determine Batch, depth
+    // Determine Batch
     output_shape[0] = input_shape[0];
-    auto out_depth = input_shape[1] * op->m_patch_sizes[0] * op->m_patch_sizes[1];
-    output_shape[1] = out_depth;
     // Determine spatial shape
-    if (input_shape[2].is_dynamic() || input_shape[3].is_dynamic()) {
+    if (input_shape[1].is_dynamic() || input_shape[2].is_dynamic() || input_shape[3].is_dynamic()) {
         return;
     } else {
         int32_t input_rows = input_shape[2].get_length();
         int32_t input_cols = input_shape[3].get_length();
         int32_t out_rows(0);
         int32_t out_cols(0);
-
         if (input_rows == 0 || input_cols == 0) {
-            output_shape[2] = DimType(0);
-            output_shape[3] = DimType(0);
+            output_shape = input_shape;
             return;
         } else if (op->m_padding == PadType::VALID) {
             out_rows = (((input_rows) -
@@ -82,7 +78,9 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
 
         auto out_rows_cast = static_cast<typename DimType::value_type>(out_rows);
         auto out_cols_cast = static_cast<typename DimType::value_type>(out_cols);
-
+        // Determine depth
+        auto out_depth = input_shape[1] * op->m_patch_sizes[0] * op->m_patch_sizes[1];
+        output_shape[1] = out_depth;
         output_shape[2] = out_rows_cast;
         output_shape[3] = out_cols_cast;
     }

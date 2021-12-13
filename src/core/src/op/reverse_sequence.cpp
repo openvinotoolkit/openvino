@@ -63,10 +63,6 @@ void op::ReverseSequence::set_batch_axis(int64_t batch_axis) {
     m_batch_axis = batch_axis;
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& data_rank = data_pshape.rank();
-    NODE_VALIDATION_CHECK(this,
-                          data_rank.is_dynamic() || data_rank.get_length() >= 2,
-                          "Data input rank should be equal or greater than 2. Got: ",
-                          data_pshape);
     m_normalized_batch_axis = ov::normalize_axis(this, m_batch_axis, data_rank);
 }
 
@@ -74,10 +70,6 @@ void op::ReverseSequence::set_sequence_axis(int64_t sequence_axis) {
     m_seq_axis = sequence_axis;
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& data_rank = data_pshape.rank();
-    NODE_VALIDATION_CHECK(this,
-                          data_rank.is_dynamic() || data_rank.get_length() >= 2,
-                          "Data input rank should be equal or greater than 2. Got: ",
-                          data_pshape);
     m_normalized_seq_axis = ov::normalize_axis(this, m_seq_axis, data_rank);
 }
 
