@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "ocl_memory.hpp"
@@ -308,12 +309,19 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     }
 }
 
-void* gpu_usm::lock(const stream& stream, mem_lock_type /*type*/) {
+void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         auto& cl_stream = downcast<const ocl_stream>(stream);
         cl_stream.finish();  // Synchronization needed for OOOQ.
         if (get_allocation_type() == allocation_type::usm_device) {
+            if (type != mem_lock_type::read) {
+                throw std::runtime_error("Unable to lock allocation_type::usm_device with write lock_type.");
+            }
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                GPU_DEBUG_COUT << "Copy usm_device buffer to host buffer." << std::endl;
+            }
             _host_buffer.allocateHost(_bytes_count);
             cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
             _mapped_ptr = _host_buffer.get();
