@@ -4,19 +4,6 @@
 
 set (TARGET_NAME "inference_engine")
 
-if(ENABLE_TBBBIND_2_5)
-    # try to find prebuilt version of tbbbind_2_5
-    find_package(TBBBIND_2_5 QUIET)
-    if(TBBBIND_2_5_FOUND)
-        message(STATUS "Static tbbbind_2_5 package is found")
-        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
-            INTERFACE_COMPILE_DEFINITIONS TBBBIND_2_5_AVAILABLE)
-        if(NOT BUILD_SHARED_LIBS)
-            set(install_tbbbind ON)
-        endif()
-    endif()
-endif()
-
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
@@ -248,65 +235,8 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
 
 openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_plugin_api)
 
-# install TBB
-
 list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
                       "IE_PARALLEL_CMAKE")
-
-# define variables for InferenceEngineConfig.cmake
-if(THREADING MATCHES "^(TBB|TBB_AUTO)$")
-    set(IE_TBB_DIR "${TBB_DIR}")
-    list(APPEND PATH_VARS "IE_TBB_DIR")
-endif()
-
-if(install_tbbbind)
-    set(IE_TBBBIND_DIR "${TBBBIND_2_5}")
-    list(APPEND PATH_VARS "IE_TBBBIND_DIR")
-endif()
-
-# install only downloaded TBB, system one is not installed
-if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
-    ie_cpack_add_component(tbb REQUIRED)
-    ie_cpack_add_component(tbb_dev REQUIRED)
-    list(APPEND core_components tbb)
-    list(APPEND core_dev_components tbb_dev)
-
-    install(DIRECTORY "${TBB}/lib"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
-    # Windows only
-    if(EXISTS "${TBB}/bin")
-        install(DIRECTORY "${TBB}/bin"
-                DESTINATION runtime/3rdparty/tbb
-                COMPONENT tbb)
-    endif()
-    install(FILES "${TBB}/LICENSE"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
-
-    set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
-    install(FILES "${TBB}/cmake/TBBConfig.cmake"
-                  "${TBB}/cmake/TBBConfigVersion.cmake"
-            DESTINATION runtime/${IE_TBB_DIR_INSTALL}
-            COMPONENT tbb_dev)
-    install(DIRECTORY "${TBB}/include"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb_dev)
-endif()
-
-if(install_tbbbind)
-    install(DIRECTORY "${TBBBIND_2_5}/lib"
-            DESTINATION runtime/3rdparty/tbb_bind_2_5
-            COMPONENT tbb)
-    install(FILES "${TBBBIND_2_5}/LICENSE"
-            DESTINATION runtime/3rdparty/tbb_bind_2_5
-            COMPONENT tbb)
-
-    set(IE_TBBBIND_DIR_INSTALL "3rdparty/tbb_bind_2_5/cmake")
-    install(FILES "${TBBBIND_2_5}/cmake/TBBBIND_2_5Config.cmake"
-            DESTINATION runtime/${IE_TBBBIND_DIR_INSTALL}
-            COMPONENT tbb_dev)
-endif()
 
 # Install Inference Engine
 
@@ -354,7 +284,7 @@ install(EXPORT OpenVINOTargets
 
 set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake")
+set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -389,7 +319,7 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-              "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake"
+              "${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake"
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
