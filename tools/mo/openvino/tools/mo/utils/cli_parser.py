@@ -257,10 +257,12 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'models. Model Optimizer performs necessary transformations to convert the shape to '
                                    'the layout required by Inference Engine (N,C,H,W). The shape could contain '
                                    'undefined dimensions (-1) and should fit the dimensions defined in the input '
-                                   'operation of the graph. If there are multiple inputs in the model, --input_shape '
-                                   'should contain definition of shape for each input separated by a comma, for '
-                                   'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
-                                   'Alternatively, specify shapes with the --input option.')
+                                   'operation of the graph. Boundaries of undefined dimension can be specified with '
+                                   'ellipsis, for example [1,1..10,128,128]. One boundary can be undefined, for '
+                                   'example [1,..100] or [1,3,1..,1..]. If there are multiple inputs in the model, '
+                                   '--input_shape should contain definition of shape for each input separated by a '
+                                   'comma, for example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D '
+                                   'shapes. Alternatively, specify shapes with the --input option.')
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
