@@ -96,6 +96,7 @@ void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
 
 void LayerTestsCommon::QueryNetwork() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
     cnnNetwork = InferenceEngine::CNNNetwork(function);
 
     auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, targetDevice);
@@ -344,7 +345,6 @@ void LayerTestsCommon::LoadNetwork() {
     CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
-    inferRequest = executableNetwork.CreateInferRequest();
 }
 
 void LayerTestsCommon::GenerateInputs() {
@@ -361,7 +361,7 @@ void LayerTestsCommon::GenerateInputs() {
     }
 }
 
-void LayerTestsCommon::Infer() {
+void LayerTestsCommon::ConfigureInferRequest() {
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     const auto& functionParams = function->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
@@ -378,6 +378,13 @@ void LayerTestsCommon::Infer() {
         auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
         inferRequest.SetBatch(batchSize);
     }
+}
+
+void LayerTestsCommon::Infer() {
+    inferRequest = executableNetwork.CreateInferRequest();
+
+    ConfigureInferRequest();
+
     inferRequest.Infer();
 }
 
@@ -474,11 +481,8 @@ std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) 
         if (name == layerName) {
             const auto& rtInfo = op->get_rt_info();
             const auto& it = rtInfo.find("runtimePrecision");
-
             IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
-
-            const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-            return rtPrecisionPtr->get();
+            return it->second.as<std::string>();
         }
     }
 
@@ -495,14 +499,11 @@ std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layer
 
         IE_ASSERT(typeIt != rtInfo.end()) << "Layer is not found for type: " << layerType;
 
-        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+        auto type = typeIt->second.as<std::string>();
         if (type == layerType) {
             const auto& it = rtInfo.find("runtimePrecision");
-
             IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << type;
-
-            const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-            return rtPrecisionPtr->get();
+            return it->second.as<std::string>();
         }
     }
 
@@ -518,11 +519,11 @@ void LayerTestsCommon::showRuntimePrecisions() {
         const auto& rtInfo = op->get_rt_info();
         const auto& typeIt = rtInfo.find("layerType");
 
-        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+        const auto type = typeIt->second.as<std::string>();
         const auto& it = rtInfo.find("runtimePrecision");
 
-        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-        std::cout << type << ": " << rtPrecisionPtr->get() << std::endl;
+        const auto rtPrecisionPtr = it->second.as<std::string>();
+        std::cout << type << ": " << rtPrecisionPtr << std::endl;
     }
 }
 #endif

@@ -112,6 +112,16 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     function = std::make_shared<ngraph::Function>(concat, input_parameter, "memory_multiply_reshape_concat");
 }
 
+void MemoryEltwiseReshapeConcatTest::LoadNetwork() {
+    LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+    inferRequest = executableNetwork.CreateInferRequest();
+}
+
+void MemoryEltwiseReshapeConcatTest::Infer() {
+    ConfigureInferRequest();
+    inferRequest.Infer();
+}
+
 void MemoryEltwiseReshapeConcatTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     initTestModel();

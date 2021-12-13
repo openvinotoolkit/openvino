@@ -4,8 +4,8 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/gather_nd.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/gather_nd.hpp>
 
 
 using namespace cldnn;
@@ -21,7 +21,19 @@ inline void DoTestBase(engine& engine,
     const tensor ts,
     const bool batch_merged_output) {
     topology topology;
-    auto gather_nd_inst = gather_nd("gather_nd", "InputData", "InputIndices", indices_rank, batch_dims, batch_merged_output);
+
+    int input_rank = 0;
+    if (input0->get_layout().format == format::bfyx) {
+        input_rank = 4;
+    } else if (input0->get_layout().format == format::bfzyx) {
+        input_rank = 5;
+    } else if (input0->get_layout().format == format::bfwzyx) {
+        input_rank = 6;
+    } else {
+        FAIL();
+    }
+
+    auto gather_nd_inst = gather_nd("gather_nd", "InputData", "InputIndices", input_rank, indices_rank, batch_dims, batch_merged_output);
     topology.add(input_layout("InputData", input0->get_layout()));
     topology.add(input_layout("InputIndices", input1->get_layout()));
     topology.add(gather_nd_inst);

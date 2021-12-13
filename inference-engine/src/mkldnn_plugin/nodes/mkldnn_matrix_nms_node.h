@@ -27,11 +27,16 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
+    bool needShapeInfer() const override { return false; }
+    void prepareParams() override;
 
 private:
     // input
@@ -43,10 +48,10 @@ private:
     static const size_t NMS_SELECTED_INDICES = 1;
     static const size_t NMS_VALID_OUTPUTS = 2;
 
-    size_t m_numBatches;
-    size_t m_numBoxes;
-    size_t m_numClasses;
-    size_t m_maxBoxesPerBatch;
+    size_t m_numBatches = 0;
+    size_t m_numBoxes = 0;
+    size_t m_numClasses = 0;
+    size_t m_maxBoxesPerBatch = 0;
 
     MatrixNmsSortResultType m_sortResultType;
     bool m_sortResultAcrossBatch;
@@ -82,8 +87,8 @@ private:
         int64_t classIndex = -1;
         float score = 0.0f;
     };
-    std::string errorPrefix;
-    const std::string inType = "input", outType = "output";
+    std::string m_errorPrefix;
+    const std::string m_inType = "input", m_outType = "output";
     std::vector<int64_t> m_numPerBatch;
     std::vector<std::vector<int64_t>> m_numPerBatchClass;
     std::vector<BoxInfo> m_filteredBoxes;

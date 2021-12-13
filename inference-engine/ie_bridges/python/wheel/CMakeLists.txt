@@ -47,14 +47,18 @@ endif()
 # create target for openvino.wheel
 
 set(openvino_wheel_deps ie_api offline_transformations_api)
-foreach(_target ie_libraries ie_plugins _pyngraph pyopenvino)
+foreach(_target ov_runtime_libraries ie_plugins _pyngraph pyopenvino)
     if(TARGET ${_target})
         list(APPEND openvino_wheel_deps ${_target})
     endif()
 endforeach()
 
-set(cp_python "cp${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
-set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${cp_python}-${cp_python}-${WHEEL_PLATFORM}.whl")
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')" OUTPUT_VARIABLE PYTHON_ABI)
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')" OUTPUT_VARIABLE INTERPRETER)
+string(STRIP ${PYTHON_ABI} PYTHON_ABI)
+string(STRIP ${INTERPRETER} INTERPRETER)
+
+set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${INTERPRETER}-${PYTHON_ABI}-${WHEEL_PLATFORM}.whl")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
@@ -71,3 +75,11 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     VERBATIM)
 
 add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path})
+
+# install
+
+ie_cpack_add_component(python_wheels)
+
+install(FILES ${openvino_wheel_path}
+        DESTINATION tools
+        COMPONENT python_wheels)

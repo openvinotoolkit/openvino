@@ -4,11 +4,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
 #include "device_cache_reader.h"
@@ -192,7 +192,7 @@ program_node& program::get_node(primitive_id const& id) {
     try {
         return *nodes_map.at(id);
     } catch (...) {
-        throw std::runtime_error("Program doesn't contain primtive node: " + id);
+        throw std::runtime_error("Program doesn't contain primitive node: " + id);
     }
 }
 
@@ -200,7 +200,7 @@ program_node const& program::get_node(primitive_id const& id) const {
     try {
         return *nodes_map.at(id);
     } catch (...) {
-        throw std::runtime_error("Program doesn't contain primtive node: " + id);
+        throw std::runtime_error("Program doesn't contain primitive node: " + id);
     }
 }
 
@@ -455,11 +455,6 @@ void program::build_program(bool is_internal) {
 void program::init_graph() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
-
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layout();
-    }
 
     apply_opt_pass<calculate_prior_boxes>();
 
@@ -998,11 +993,15 @@ bool program::extract_and_remove(program_node& node) {
     return true;
 }
 
-void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std::map<primitive_id, std::vector<primitive_id>>* fusing_history) {
+
+void program::fuse_nodes(program_node &fused_node,
+                         program_node &peer_node,
+                         std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc;
     local_desc.node = get_node_ptr(peer_node.id());
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
+    local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1019,15 +1018,18 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
         for (auto& id : history_iter->second) {
-            local_desc.fused_deps.push_back(id);
+            local_desc.fused_deps.emplace(id.first, id.second);
         }
     }
 
     // Add new dependencies to the fused_node
+    size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
         auto& dep = peer_node.get_dependency(i);
-        if (dep.id() == fused_node.id())
+        if (dep.id() == fused_node.id()) {
+            deps_idx++;
             continue;
+        }
 
         if (peer_node.is_type<quantize>()) {
             quantize_node& q_node = peer_node.as<quantize>();
@@ -1053,9 +1055,11 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
             }
         }
         fused_node.dependencies.push_back(&dep);
-        local_desc.deps.push_back(dep.id());
+        local_desc.deps.emplace(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
+    local_desc.total_num_deps = std::min(local_desc.total_num_deps, deps_idx);
+
     fused_node.add_fused_primitive(local_desc);
     // This shouldn't happen, but who knows...
     if (peer_node.has_fused_primitives()) {
@@ -1064,7 +1068,13 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
     add_optimized_primitive_info(peer_node.id(), { fused_node.id() });
 
     for (auto& user : peer_node.users) {
-        (*fusing_history)[user->id()].push_back(peer_node.id());
+        size_t dep_idx = 0;
+        for (auto& dep : user->dependencies) {
+            if (dep->id() == peer_node.id())
+                break;
+            dep_idx++;
+        }
+        (*fusing_history)[user->id()].push_back(std::make_pair(peer_node.id(), dep_idx));
     }
 
     // Remove all edges connected with peer node
@@ -1122,46 +1132,57 @@ void program::dump_program(const char* stage,
     dump_graph_optimized(graph, *this);
 }
 
+data_types program::get_inference_precision(const program_node& node) const {
+    if (node.is_input()) {
+        return node.get_output_layout().data_type;
+    }
+    std::vector<data_types> input_dts;
+    for (auto& dep : node.get_dependencies()) {
+        input_dts.push_back(dep->get_output_layout().data_type);
+    }
+    data_types output_dt = node.get_output_layout().data_type;
+
+    assert(!input_dts.empty());
+    if (node.is_type<reorder>()) {
+        // If reorder has different input/output types - pick the max one as runtime precision
+        return data_type_traits::max_type(input_dts[0], output_dt);
+    } else if (node.is_type<quantize>()) {
+        if (data_type_traits::is_quantized(output_dt))
+            return output_dt;
+        return data_type_traits::max_type(input_dts[0], output_dt);
+    } else if (node.is_type<eltwise>()) {
+        auto max_dt = input_dts[0];
+        for (size_t i = 1; i < input_dts.size(); i++) {
+            max_dt = data_type_traits::max_type(max_dt, input_dts[i]);
+        }
+        return max_dt;
+    } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
+        if (input_dts.size() < 2) {
+            throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() + " during stage info collection. Expected >= 2 inputs");
+        }
+        if (data_type_traits::is_quantized(input_dts[0]) && data_type_traits::is_quantized(input_dts[1])) {
+            return input_dts[0];
+        } else {
+            return data_type_traits::max_type(input_dts[0], input_dts[1]);
+        }
+    }
+
+    return input_dts[0];
+}
+
+std::string program::get_implementation_info(const primitive_id& id) const {
+    try {
+        const auto& node = get_node(id);
+        auto impl = node.get_selected_impl();
+        auto kernel_name = impl ? impl->get_kernel_name() : "";
+        return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
+    } catch (...) { }
+
+    return "undef";
+}
+
 program::primitives_info program::get_current_stage_info() const {
     primitives_info info;
-
-    auto get_inference_precision = [](program_node& node) -> data_types {
-        if (node.is_input()) {
-            return node.get_output_layout().data_type;
-        }
-        std::vector<data_types> input_dts;
-        for (auto& dep : node.get_dependencies()) {
-            input_dts.push_back(dep->get_output_layout().data_type);
-        }
-        data_types output_dt = node.get_output_layout().data_type;
-
-        assert(!input_dts.empty());
-        if (node.is_type<reorder>()) {
-            // If reorder has different input/output types - pick the max one as runtime precision
-            return data_type_traits::max_type(input_dts[0], output_dt);
-        } else if (node.is_type<quantize>()) {
-            if (data_type_traits::is_quantized(output_dt))
-                return output_dt;
-            return data_type_traits::max_type(input_dts[0], output_dt);
-        } else if (node.is_type<eltwise>()) {
-            auto max_dt = input_dts[0];
-            for (size_t i = 1; i < input_dts.size(); i++) {
-                max_dt = data_type_traits::max_type(max_dt, input_dts[i]);
-            }
-            return max_dt;
-        } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
-            if (input_dts.size() < 2) {
-                throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() + " during stage info collection. Expected >= 2 inputs");
-            }
-            if (data_type_traits::is_quantized(input_dts[0]) && data_type_traits::is_quantized(input_dts[1])) {
-                return input_dts[0];
-            } else {
-                return data_type_traits::max_type(input_dts[0], input_dts[1]);
-            }
-        }
-
-        return input_dts[0];
-    };
 
     // Get info for actually executed graph nodes
     int exec_id = 0;
@@ -1191,7 +1212,7 @@ program::primitives_info program::get_current_stage_info() const {
                           fused,
                           p->get_output_layout(),
                           fmt_to_str(p->get_output_layout().format),
-                          p->selected_impl ? p->selected_impl->get_kernel_name() : "",
+                          get_implementation_info(p->id()),
                           get_inference_precision(*p),
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);

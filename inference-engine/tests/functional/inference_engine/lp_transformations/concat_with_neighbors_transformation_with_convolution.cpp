@@ -160,16 +160,16 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
     ASSERT_EQ(3ul, actualFakeQuantizes.size()) << "unexpected FakeQuantize operations count " << actualFakeQuantizes.size();
 
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes)) <<
         "PrecisionsAttribute shared values are not the same";
 
     auto actualConcatOperations = LayerTransformation::get<opset1::Concat>(actualFunction);
     ASSERT_EQ(2ul, actualConcatOperations.size()) << "unexpected concat operations";
-    ASSERT_NE(nullptr, ngraph::pass::low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentAttribute>>(actualConcatOperations[0]));
-    ASSERT_NE(nullptr, ngraph::pass::low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentAttribute>>(actualConcatOperations[1]));
+    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<QuantizationAlignmentAttribute>(actualConcatOperations[0]).empty());
+    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<QuantizationAlignmentAttribute>(actualConcatOperations[1]).empty());
 
     actualConcatOperations.insert(actualConcatOperations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-    ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(actualConcatOperations)) <<
+    ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(actualConcatOperations)) <<
         "IntervalsAlignmentAttribute shared values are not the same";
 
     auto convolutions = LayerTransformation::get<opset1::Convolution>(actualFunction);
@@ -177,8 +177,8 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     ASSERT_EQ(2ul, convolutions[0]->input(0).get_rt_info().size()) <<
         "unexpected input 0 attributes count: LowPrecision::PerTensorQuantization & LowPrecision::Precisions";
     ASSERT_EQ(1ul, convolutions[0]->input(1).get_rt_info().size()) << "unexpected input 1 attributes count";
-    auto a1 = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(convolutions[0]->input(1).get_rt_info().begin()->second);
-    ASSERT_EQ(element::i8, *a1->get().get()->sharedValue->precisions.begin());
+    auto& a1 = convolutions[0]->input(1).get_rt_info().begin()->second.as<PrecisionsAttribute>();
+    ASSERT_EQ(element::i8, a1.value().front());
 }
 
 const std::vector<ngraph::element::Type> precisions = {
@@ -204,15 +204,15 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
         {
             {
                 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f}, element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             {
                 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f}, element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             {
                 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}, element::u8,
-                { make_shared_attribute_ptr<IntervalsAlignmentAttribute>(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             ngraph::element::u8,
             {{}, {}, {}},
