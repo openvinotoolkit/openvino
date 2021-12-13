@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <fstream>
 #include <functional>
-#include <inference_engine.hpp>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -23,8 +22,11 @@
 #include <utility>
 #include <vector>
 
+// clang-format off
+#include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
 #include "slog.hpp"
+// clang-format on
 
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)
@@ -411,6 +413,7 @@ static UNUSED void addRectangles(unsigned char* data,
                                  {180, 130, 70},  {60, 20, 220},  {0, 0, 255},   {142, 0, 0},     {70, 0, 0},
                                  {100, 60, 0},    {90, 0, 0},     {230, 0, 0},   {32, 11, 119},   {0, 74, 111},
                                  {81, 0, 81}};
+
     if (rectangles.size() % 4 != 0 || rectangles.size() / 4 != classes.size()) {
         return;
     }
@@ -433,21 +436,21 @@ static UNUSED void addRectangles(unsigned char* data,
             h = 0;
 
         if (static_cast<std::size_t>(x) >= width) {
-            x = width - 1;
+            x = static_cast<int>(width - 1);
             w = 0;
             thickness = 1;
         }
         if (static_cast<std::size_t>(y) >= height) {
-            y = height - 1;
+            y = static_cast<int>(height - 1);
             h = 0;
             thickness = 1;
         }
 
         if (static_cast<std::size_t>(x + w) >= width) {
-            w = width - x - 1;
+            w = static_cast<int>(width - x - 1);
         }
         if (static_cast<std::size_t>(y + h) >= height) {
-            h = height - y - 1;
+            h = static_cast<int>(height - y - 1);
         }
 
         thickness = std::min(std::min(thickness, w / 2 + 1), h / 2 + 1);
@@ -951,7 +954,7 @@ public:
                 rec.push_back(recall);
             }
 
-            int num = rec.size();
+            int num = static_cast<int>(rec.size());
 
             // 11point from Caffe
             double ap = 0;
@@ -1123,8 +1126,8 @@ inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
 }
 
 inline void showAvailableDevices() {
-    InferenceEngine::Core ie;
-    std::vector<std::string> devices = ie.GetAvailableDevices();
+    ov::runtime::Core core;
+    std::vector<std::string> devices = core.get_available_devices();
 
     std::cout << std::endl;
     std::cout << "Available target devices:";

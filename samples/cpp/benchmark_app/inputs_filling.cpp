@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "inputs_filling.hpp"
-
-#include <format_reader_ptr.h>
-
 #include <algorithm>
 #include <memory>
-#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
+
+// clang-format off
+#include "samples/slog.hpp"
+#include "format_reader_ptr.h"
+
+#include "inputs_filling.hpp"
+// clang-format on
 
 using namespace InferenceEngine;
 

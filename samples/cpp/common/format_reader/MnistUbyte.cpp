@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <MnistUbyte.h>
-
+// clang-format off
 #include <fstream>
 #include <iostream>
 #include <string>
+
+#include "MnistUbyte.h"
+// clang-format on
 
 using namespace FormatReader;
 

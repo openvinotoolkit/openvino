@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <time.h>
-
+#include <ctime>
 #include <fstream>
 #include <iostream>
-#include <samples/slog.hpp>
 #include <sstream>
 #include <string>
+
+#include "samples/slog.hpp"
 
 /**
  * @class CsvDumper

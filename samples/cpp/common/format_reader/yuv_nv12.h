@@ -3,8 +3,8 @@
 //
 
 /**
- * \brief Mnist reader
- * \file MnistUbyte.h
+ * \brief YUV NV12 reader
+ * \file yuv_nv12.h
  */
 #pragma once
 
@@ -18,35 +18,34 @@
 
 namespace FormatReader {
 /**
- * \class MnistUbyte
- * \brief Reader for mnist db files
+ * \class YUV_NV12
+ * \brief Reader for YUV NV12 files
  */
-class MnistUbyte : public Reader {
+class YUV_NV12 : public Reader {
 private:
-    int reverseInt(int i);
-
-    static Register<MnistUbyte> reg;
+    static Register<YUV_NV12> reg;
+    size_t _size = 0;
 
 public:
     /**
-     * \brief Constructor of Mnist reader
+     * \brief Constructor of YUV NV12 reader
      * @param filename - path to input data
-     * @return MnistUbyte reader object
+     * @return YUV_NV12 reader object
      */
-    explicit MnistUbyte(const std::string& filename);
-    virtual ~MnistUbyte() {}
+    explicit YUV_NV12(const std::string& filename);
+    virtual ~YUV_NV12() {}
 
     /**
      * \brief Get size
      * @return size
      */
     size_t size() const override {
-        return _width * _height * 1;
+        return _size;
     }
 
     std::shared_ptr<unsigned char> getData(size_t width, size_t height) override {
-        if ((width * height != 0) && (_width * _height != width * height)) {
-            std::cout << "[ WARNING ] Image won't be resized! Please use OpenCV.\n";
+        if ((width * height * 3 / 2 != size())) {
+            std::cout << "Image dimensions not match with NV12 file size \n";
             return nullptr;
         }
         return _data;
