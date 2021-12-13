@@ -23,8 +23,11 @@ protected:
 
     void TearDown() override;
 
+    static std::string generateCacheDirName(const std::string& test_name);
+
     std::shared_ptr<runtime::Core> ie = utils::PluginCache::get().core();
     std::string targetDevice;
+    std::string m_cache_dir; // internal member
 };
 }  // namespace behavior
 }  // namespace test

@@ -494,11 +494,39 @@ public:
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, context, loadedFromCache);
             if (!loadedFromCache) {
                 res = compile_model_impl(network, plugin, parsed._config, context, hash);
+            } else {
+                updateCNNInfo(res, network);
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, context, {});
         }
         return res;
+    }
+
+    static void updateCNNInfo(ie::SoExecutableNetworkInternal& exe_net, const ie::CNNNetwork& network) {
+        // Temporary workaround until all plugins support caching of original model inputs
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        exe_net->setNetworkInputs(network.getInputsInfo());
+        exe_net->setNetworkOutputs(network.getOutputsInfo());
+        {
+            std::vector<std::shared_ptr<const ov::Node>> params;
+            const auto& orig_params = network.getFunction()->get_parameters();
+            std::transform(orig_params.begin(), orig_params.end(), std::back_inserter(params),
+                           [](const std::shared_ptr<op::v0::Parameter>& p) {
+                               return p;
+                           });
+            exe_net->setInputs(params);
+        }
+        {
+            std::vector<std::shared_ptr<const ov::Node>> results;
+            const auto& orig_results = network.getFunction()->get_results();
+            std::transform(orig_results.begin(), orig_results.end(), std::back_inserter(results),
+                           [](const std::shared_ptr<op::v0::Result>& r) {
+                               return r;
+                           });
+            exe_net->setOutputs(results);
+        }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
@@ -521,6 +549,8 @@ public:
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
                 res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
+            } else {
+                updateCNNInfo(res, network);
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
