@@ -108,6 +108,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceNonMaxSuppressionTest.*esiType=i32.*evoType=i32.*)",
         // CVS-64102
         R"(.*ReferenceExperimentalPGGLayerTest.*iType=bf16.*stride_x=(32|64).*)",
+        // CVS-72215
+        R"(.*ReferenceTileTest.*aType=i4.*)",
+        R"(.*ReferenceTileTest.*aType=u4.*)",
+        // CVS-71891
+        R"(.*ReferenceTileTest.*rType=i4.*)",
+        R"(.*ReferenceTileTest.*rType=u4.*)",
     };
 
 #ifdef _WIN32
