@@ -146,7 +146,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck)
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
-    std::vector<ov::runtime::ExecutableNetwork> vec;
+    std::vector<ov::runtime::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
         EXPECT_NE(nullptr, function);
@@ -154,7 +154,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
-    std::vector<ov::runtime::ExecutableNetwork> vec;
+    std::vector<ov::runtime::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
         EXPECT_NE(nullptr, vec[i].get_runtime_model());
@@ -331,7 +331,7 @@ TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
 TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
@@ -358,7 +358,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(function->outputs().size(), 1);
@@ -384,7 +384,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
 TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     // Create simple function
     {
@@ -455,7 +455,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     // Create simple function
     {
@@ -526,7 +526,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     // Create simple function
     {
@@ -592,7 +592,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
 
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(function, targetDevice, configuration));
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
@@ -616,7 +616,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, targetDevice, configuration));
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());

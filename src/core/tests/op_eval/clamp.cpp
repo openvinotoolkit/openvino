@@ -14,9 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "engines_util/interpreter_engine.hpp"
 #include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/test_control.hpp"
@@ -27,7 +25,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 
 namespace {
-template <typename T, test::TestCaseType tct = test::TestCaseType::STATIC>
+template <typename T>
 void clamp_test(const element::Type& type,
                 const PartialShape& dynamic_shape,
                 const Shape& static_shape,
@@ -39,14 +37,14 @@ void clamp_test(const element::Type& type,
     auto clamp = make_shared<op::Clamp>(data, min, max);
     auto function = make_shared<Function>(clamp, ParameterVector{data});
 
-    auto test_case = test::TestCase<test::INTERPRETER_Engine, tct>(function);
+    auto test_case = test::TestCase(function);
     test_case.template add_input<T>(static_shape, input);
     test_case.template add_expected_output<T>(static_shape, output);
     return test_case.run();
 }
 }  // namespace
 
-TEST(op_eval, clamp_float_dynamic) {
+NGRAPH_TEST(op_eval, clamp_float_dynamic) {
     auto type = element::f32;
     typedef float ctype;
 
@@ -60,43 +58,40 @@ TEST(op_eval, clamp_float_dynamic) {
 
     vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                                                   0.2,
-                                                   0.6,
-                                                   {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+                      0.2,
+                      0.6,
+                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      10.0,
+                      20.0,
+                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      10.0,
+                      pinf,
+                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      ninf,
+                      20.0,
+                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
-TEST(op_eval, clamp_int8_dynamic) {
+NGRAPH_TEST(op_eval, clamp_int8_dynamic) {
     auto type = element::i8;
     typedef int8_t ctype;
 
@@ -110,30 +105,12 @@ TEST(op_eval, clamp_int8_dynamic) {
 
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   20.0,
-                                                   {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   pinf,
-                                                   {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   ninf,
-                                                   20.0,
-                                                   {min, 20, 9, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-TEST(op_eval, clamp_int16_dynamic) {
+NGRAPH_TEST(op_eval, clamp_int16_dynamic) {
     auto type = element::i16;
     typedef int16_t ctype;
 
@@ -147,30 +124,12 @@ TEST(op_eval, clamp_int16_dynamic) {
 
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   20.0,
-                                                   {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   pinf,
-                                                   {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   ninf,
-                                                   20.0,
-                                                   {min, 20, 9, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-TEST(op_eval, clamp_int32_dynamic) {
+NGRAPH_TEST(op_eval, clamp_int32_dynamic) {
     auto type = element::i32;
     typedef int32_t ctype;
 
@@ -184,30 +143,12 @@ TEST(op_eval, clamp_int32_dynamic) {
 
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   20.0,
-                                                   {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   pinf,
-                                                   {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   ninf,
-                                                   20.0,
-                                                   {min, 20, 9, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-TEST(op_eval, clamp_int64_dynamic) {
+NGRAPH_TEST(op_eval, clamp_int64_dynamic) {
     auto type = element::i64;
     typedef int64_t ctype;
 
@@ -221,30 +162,12 @@ TEST(op_eval, clamp_int64_dynamic) {
 
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   20.0,
-                                                   {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   pinf,
-                                                   {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   ninf,
-                                                   20.0,
-                                                   {min, 20, 9, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-TEST(op_eval, clamp_uint8_dynamic) {
+NGRAPH_TEST(op_eval, clamp_uint8_dynamic) {
     auto type = element::u8;
     typedef uint8_t ctype;
 
@@ -261,30 +184,12 @@ TEST(op_eval, clamp_uint8_dynamic) {
 
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   20.0,
-                                                   {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   pinf,
-                                                   {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   ninf,
-                                                   20.0,
-                                                   {min, 20, 9, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-TEST(op_eval, clamp_uint16_dynamic) {
+NGRAPH_TEST(op_eval, clamp_uint16_dynamic) {
     auto type = element::u16;
     typedef uint16_t ctype;
 
@@ -302,30 +207,12 @@ TEST(op_eval, clamp_uint16_dynamic) {
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // dynamic shape
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   20.0,
-                                                   {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   pinf,
-                                                   {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   ninf,
-                                                   20.0,
-                                                   {min, 20, 9, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-TEST(op_eval, clamp_uint32_dynamic) {
+NGRAPH_TEST(op_eval, clamp_uint32_dynamic) {
     auto type = element::u32;
     typedef uint32_t ctype;
 
@@ -342,30 +229,12 @@ TEST(op_eval, clamp_uint32_dynamic) {
 
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   20.0,
-                                                   {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   pinf,
-                                                   {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   ninf,
-                                                   20.0,
-                                                   {min, 20, 9, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-TEST(op_eval, clamp_uint64_dynamic) {
+NGRAPH_TEST(op_eval, clamp_uint64_dynamic) {
     auto type = element::u64;
     typedef uint64_t ctype;
 
@@ -382,30 +251,12 @@ TEST(op_eval, clamp_uint64_dynamic) {
 
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   20.0,
-                                                   {10, 20, 10, 10, 11, 19, 20, 20});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   10.0,
-                                                   pinf,
-                                                   {10, max, 10, 10, 11, 19, 20, 21});
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   input,
-                                                   ninf,
-                                                   20.0,
-                                                   {min, 20, 9, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-TEST(op_eval, clamp_float16_dynamic) {
+NGRAPH_TEST(op_eval, clamp_float16_dynamic) {
     auto type = element::f16;
     typedef float16 ctype;
 
@@ -419,43 +270,40 @@ TEST(op_eval, clamp_float16_dynamic) {
 
     vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                                                   0.2,
-                                                   0.6,
-                                                   {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+                      0.2,
+                      0.6,
+                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      10.0,
+                      20.0,
+                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      10.0,
+                      pinf,
+                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      ninf,
+                      20.0,
+                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
-TEST(op_eval, clamp_bfloat16_dynamic) {
+NGRAPH_TEST(op_eval, clamp_bfloat16_dynamic) {
     auto type = element::bf16;
     typedef bfloat16 ctype;
 
@@ -469,38 +317,35 @@ TEST(op_eval, clamp_bfloat16_dynamic) {
 
     vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(type,
-                                                   dshape,
-                                                   sshape,
-                                                   {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                                                   0.2,
-                                                   0.6,
-                                                   {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+                      0.2,
+                      0.6,
+                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      10.0,
+                      20.0,
+                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      10.0,
+                      pinf,
+                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type,
-        dshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
+    clamp_test<ctype>(type,
+                      dshape,
+                      sshape,
+                      input,
+                      ninf,
+                      20.0,
+                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
