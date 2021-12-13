@@ -159,12 +159,11 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
 }
 
 void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
-    bool all_memory = std::all_of(blobs.begin(), blobs.end(),
-                                  [](const Blob::Ptr& item) {
+    bool all_memory = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& item) {
         return item && item->is<MemoryBlob>() && !item->is<RemoteBlob>();
     });
     OPENVINO_ASSERT(all_memory,
-        "set_input_tensors/set_tensors error. Default implementation support only local memory tensors");
+                    "set_input_tensors/set_tensors error. Default implementation support only local memory tensors");
 
     OPENVINO_ASSERT(!blobs.empty(),
                     "set_input_tensors/set_tensors can't be called with empty blobs for input '",
@@ -230,8 +229,7 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
     tmp_desc.getDims()[batch_idx] = input_size;
     auto blockingDims = tmp_desc.getBlockingDesc().getBlockDims();
     blockingDims[batch_idx] = input_size;
-    auto blockingDesc = BlockingDesc(blockingDims,
-                                     tmp_desc.getBlockingDesc().getOrder());
+    auto blockingDesc = BlockingDesc(blockingDims, tmp_desc.getBlockingDesc().getOrder());
     auto batched_desc = InferenceEngine::TensorDesc(tmp_desc.getPrecision(), tmp_desc.getDims(), blockingDesc);
     auto desc_to_string = [](const TensorDesc& desc) {
         std::stringstream s;
@@ -246,10 +244,10 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
     std::for_each(blobs.begin(), blobs.end(), [&batched_desc, &batch_idx, &desc_to_string](const Blob::Ptr& item) {
         auto item_desc = item->getTensorDesc();
         item_desc.getDims()[batch_idx] = batched_desc.getDims()[batch_idx];
-        OPENVINO_ASSERT(item_desc.getDims() == batched_desc.getDims()
-                        && item_desc.getLayout() == batched_desc.getLayout()
-                        && item_desc.getPrecision() == batched_desc.getPrecision()
-                        && item_desc.getBlockingDesc().getOrder() == batched_desc.getBlockingDesc().getOrder(),
+        OPENVINO_ASSERT(item_desc.getDims() == batched_desc.getDims() &&
+                            item_desc.getLayout() == batched_desc.getLayout() &&
+                            item_desc.getPrecision() == batched_desc.getPrecision() &&
+                            item_desc.getBlockingDesc().getOrder() == batched_desc.getBlockingDesc().getOrder(),
                         "set_input_tensors/set_tensors error. Blob ",
                         desc_to_string(item_desc),
                         " is not compatible with batched blob ",
@@ -284,7 +282,7 @@ void IInferRequestInternal::applyBatchedBlob(const std::string& name,
 }
 
 void IInferRequestInternal::applyBatchedBlobs() {
-    for (const auto& item: _batched_blobs) {
+    for (const auto& item : _batched_blobs) {
         const auto& name = item.first;
         const auto& blobs = item.second;
         if (blobs.size() > 1) {

@@ -511,7 +511,9 @@ public:
         {
             std::vector<std::shared_ptr<const ov::Node>> params;
             const auto& orig_params = network.getFunction()->get_parameters();
-            std::transform(orig_params.begin(), orig_params.end(), std::back_inserter(params),
+            std::transform(orig_params.begin(),
+                           orig_params.end(),
+                           std::back_inserter(params),
                            [](const std::shared_ptr<op::v0::Parameter>& p) {
                                return p;
                            });
@@ -520,7 +522,9 @@ public:
         {
             std::vector<std::shared_ptr<const ov::Node>> results;
             const auto& orig_results = network.getFunction()->get_results();
-            std::transform(orig_results.begin(), orig_results.end(), std::back_inserter(results),
+            std::transform(orig_results.begin(),
+                           orig_results.end(),
+                           std::back_inserter(results),
                            [](const std::shared_ptr<op::v0::Result>& r) {
                                return r;
                            });

@@ -271,12 +271,12 @@ protected:
     InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
     InferenceEngine::BlobMap _deviceInputs;           //!< A map of actual network inputs, in plugin specific format
     InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
-    std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
-    std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
-    std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
-    std::map<std::string, std::vector<Blob::Ptr>> _batched_blobs; //!< A map of associated batched blobs per input
-    std::map<std::string, TensorDesc>             _batched_descs; //!< A map of associated batched descriptors per input
-    int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;      //!< A vector of function inputs
+    std::vector<std::shared_ptr<const ov::Node>> _results;         //!< A vector of function outputs
+    std::map<std::string, PreProcessDataPtr> _preProcData;         //!< A map of pre-process data per input
+    std::map<std::string, std::vector<Blob::Ptr>> _batched_blobs;  //!< A map of associated batched blobs per input
+    std::map<std::string, TensorDesc> _batched_descs;  //!< A map of associated batched descriptors per input
+    int m_curBatch = -1;                               //!< Current batch value used in dynamic batching
 
     /**
      * @brief A shared pointer to IInferRequestInternal

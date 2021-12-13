@@ -306,24 +306,24 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
 
 void InferRequest::set_input_tensors(size_t idx, const std::vector<Tensor>& tensors) {
     OV_INFER_REQ_CALL_STATEMENT({
-                                    OPENVINO_ASSERT(idx < _impl->GetInputs().size(),
-                                                    "set_input_tensors error. Input port for index ",
-                                                    idx,
-                                                    " is out of bounds. Model has only ",
-                                                    _impl->GetInputs().size(),
-                                                    " inputs");
-                                    set_tensors(_impl->GetInputs().at(idx)->output(0), tensors);
-                                })
+        OPENVINO_ASSERT(idx < _impl->GetInputs().size(),
+                        "set_input_tensors error. Input port for index ",
+                        idx,
+                        " is out of bounds. Model has only ",
+                        _impl->GetInputs().size(),
+                        " inputs");
+        set_tensors(_impl->GetInputs().at(idx)->output(0), tensors);
+    })
 }
 
 void InferRequest::set_input_tensors(const std::vector<Tensor>& tensors) {
     OV_INFER_REQ_CALL_STATEMENT({
-                                    OPENVINO_ASSERT(_impl->GetInputs().size() == 1,
-                                                    "set_input_tensors(tensors) must be used for single-input models only. Model has ",
-                                                    _impl->GetInputs().size(),
-                                                    " inputs");
-                                    set_tensors(_impl->GetInputs().at(0)->output(0), tensors);
-                                })
+        OPENVINO_ASSERT(_impl->GetInputs().size() == 1,
+                        "set_input_tensors(tensors) must be used for single-input models only. Model has ",
+                        _impl->GetInputs().size(),
+                        " inputs");
+        set_tensors(_impl->GetInputs().at(0)->output(0), tensors);
+    })
 }
 
 void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
@@ -399,9 +399,9 @@ Tensor InferRequest::get_output_tensor() {
 
 void InferRequest::infer() {
     OV_INFER_REQ_CALL_STATEMENT({
-                                    _impl->applyBatchedBlobs();
-                                    _impl->Infer();
-                                })
+        _impl->applyBatchedBlobs();
+        _impl->Infer();
+    })
 }
 
 void InferRequest::cancel() {
