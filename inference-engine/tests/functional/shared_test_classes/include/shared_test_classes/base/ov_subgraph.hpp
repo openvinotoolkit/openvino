@@ -63,9 +63,8 @@ protected:
 
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
 
-private:
-    std::vector<ov::runtime::Tensor> calculate_refs();
-    std::vector<ov::runtime::Tensor> get_plugin_outputs();
+    virtual std::vector<ov::runtime::Tensor> calculate_refs();
+    virtual std::vector<ov::runtime::Tensor> get_plugin_outputs();
 };
 
 inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& shapes) {
