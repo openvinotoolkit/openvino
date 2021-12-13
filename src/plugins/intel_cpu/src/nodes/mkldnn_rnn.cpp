@@ -313,7 +313,7 @@ void MKLDNNRNN::fillCellDesc() {
     copyWeightsData();
 
     // Expected shapes
-    Shape shapeD{N, DC}, shapeS{N, SC}, WShape(VectorDims{SC * G, DC}), RShape(VectorDims{SC * G, SC}), BShape(VectorDims{SC * Gb});
+    Shape shapeD{N, DC}, shapeS{N, SC}, WShape{SC * G, DC}, RShape{SC * G, SC}, BShape{SC * Gb};
     std::vector<MemoryDescPtr> inCandidate, outCandidate;
     inCandidate.reserve(6);
 
@@ -596,7 +596,7 @@ void MKLDNNRNN::copyWeightsData() {
         fillWeights<uint16_t>(gate_map, wIdx, rIdx);
     } else if (runtimePrecision == Precision::FP32) {
         // WA To avoid different weights layer and iter formats in FP32 case
-        if ((T.isStatic() && T.getMaxValue() != 1) || (N.isStatic() && N.getMaxValue() < 16))
+        if ((T.isStatic() && T.getMaxValue() != 1) || (N.isStatic() && N.getMaxValue() < optimalBatchSize))
             wFormat = mkldnn::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
     } else {// TODO FP16 and INT8 support
@@ -713,12 +713,6 @@ void MKLDNNRNN::createPrimitive() {
     } else {
         THROW_ERROR << "has unknown cell type.";
     }
-
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
 }
 
 void MKLDNNRNN::prepareParams() {
@@ -746,7 +740,7 @@ void MKLDNNRNN::prepareParams() {
     bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
     if (runtimePrecision == Precision::FP32) {
-        if (SL != 1 || B < 16) {
+        if (SL != 1 || B < optimalBatchSize) {
             if (wFormat != mkldnn::memory::format_tag::ldigo) {
                 wFormat = mkldnn::memory::format_tag::ldigo;
                 wFormatWasChanged = true;
@@ -794,40 +788,36 @@ void MKLDNNRNN::prepareParams() {
         itpd = mkldnn::primitive_desc_iterator(&desc->data, &attr, getEngine(), nullptr, true);
     } else if (cell_type == mkldnn::algorithm::lbr_gru) {
         auto desc = std::make_shared<lbr_gru_forward::desc>(
-                                                prop_kind::forward_scoring,
-                                                direction,
-                            /* In Data       */ inDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* In State      */ inDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Weights data  */ wDescs[0],
-                            /* Weights state */ wDescs[1],
-                            /* Bias          */ wDescs[2],
-                            /* Out Data      */ outDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* Out State     */ outDataD[RNNInOutKind::HiddenState].getDnnlDesc());
+                                            prop_kind::forward_scoring,
+                                            direction,
+                        /* In Data       */ inDataD[RNNInOutKind::Layer].getDnnlDesc(),
+                        /* In State      */ inDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
+                        /* Weights data  */ wDescs[0],
+                        /* Weights state */ wDescs[1],
+                        /* Bias          */ wDescs[2],
+                        /* Out Data      */ outDataD[RNNInOutKind::Layer].getDnnlDesc(),
+                        /* Out State     */ outDataD[RNNInOutKind::HiddenState].getDnnlDesc());
         prim.reset(new lbr_gru_forward(lbr_gru_forward::primitive_desc(*desc, getEngine())));
         itpd = mkldnn::primitive_desc_iterator(&desc->data, &attr, getEngine(), nullptr, true);
     } else if (cell_type == mkldnn::algorithm::vanilla_lstm) {
         auto desc = std::make_shared<lstm_forward::desc>(
-                                                prop_kind::forward_scoring,
-                                                direction,
-                            /* In Data       */ inDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* In State      */ inDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* In State C    */ inDataD[RNNInOutKind::CellState].getDnnlDesc(),
-                            /* Weights data  */ wDescs[0],
-                            /* Weights state */ wDescs[1],
-                            /* Bias          */ wDescs[2],
-                            /* Out Data      */ outDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* Out State     */ outDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Out State C   */ outDataD[RNNInOutKind::CellState].getDnnlDesc());
+                                            prop_kind::forward_scoring,
+                                            direction,
+                        /* In Data       */ inDataD[RNNInOutKind::Layer].getDnnlDesc(),
+                        /* In State      */ inDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
+                        /* In State C    */ inDataD[RNNInOutKind::CellState].getDnnlDesc(),
+                        /* Weights data  */ wDescs[0],
+                        /* Weights state */ wDescs[1],
+                        /* Bias          */ wDescs[2],
+                        /* Out Data      */ outDataD[RNNInOutKind::Layer].getDnnlDesc(),
+                        /* Out State     */ outDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
+                        /* Out State C   */ outDataD[RNNInOutKind::CellState].getDnnlDesc());
         prim.reset(new lstm_forward(lstm_forward::primitive_desc(*desc, getEngine())));
         itpd = mkldnn::primitive_desc_iterator(&desc->data, &attr, getEngine(), nullptr, true);
     }
 
     if (wFormatWasChanged) {
-        const NodeDesc* selectedPd = getSelectedPrimitiveDescriptor();
-        if (selectedPd == nullptr)
-            THROW_ERROR << "does not have preferable primitive descriptor.";
-
-        prepareMemory(selectedPd, itpd);
+        prepareMemory(itpd);
     }
 }
 
@@ -893,6 +883,20 @@ std::vector<VectorDims> MKLDNNRNN::shapeInfer() const {
         originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
     }
     return originOutputShapes;
+}
+
+void MKLDNNRNN::cleanup() {
+    if (!isDynamicNode()) {
+        internalBlobs.clear();
+    }
+
+    for (auto it : fusedWith) {
+        it->cleanup();
+    }
+
+    for (auto it : mergedWith) {
+        it->cleanup();
+    }
 }
 }  // namespace MKLDNNPlugin
 

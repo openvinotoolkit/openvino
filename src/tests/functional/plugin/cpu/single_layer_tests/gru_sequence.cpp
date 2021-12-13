@@ -92,9 +92,9 @@ protected:
 
         // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
-//        if (inFmts.size() == 2 && ov::shape_size(inputShapes[1]) == 1) {
-//            inFmts[1] = tnc;
-//        }
+        if (inFmts.size() == 2 && inputDynamicShapes[1].is_static() && ov::shape_size(inputDynamicShapes[1].to_shape()) == 1) {
+            inFmts[1] = tnc;
+        }
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -102,9 +102,11 @@ protected:
         const size_t inputSize = inputDynamicShapes.front()[2].get_length();
         const size_t numDirections = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            netPrecision = ElementType::bf16;
-        }
+//        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+//            inType = outType = ElementType::bf16;
+//        } else {
+//            inType = outType = netPrecision;
+//        }
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
@@ -175,9 +177,6 @@ protected:
 
 TEST_P(GRUSequenceCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-//        if (inFmts.size() == 2 && ov::shape_size(inputShapes[1]) == 1) {
-//            inFmts[1] = tnc;
-//        }
 
     run();
     CheckPluginRelatedResults(executableNetwork, "RNNSeq");

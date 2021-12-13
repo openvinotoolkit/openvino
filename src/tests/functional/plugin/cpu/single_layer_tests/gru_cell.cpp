@@ -92,7 +92,7 @@ protected:
         } else {
             inType = outType = netPrecision;
         }
-        selectedType = makeSelectedTypeStr(selectedType, outType);
+        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         std::vector<ngraph::Shape> WRB = {{3 * hiddenSize, inputSize}, {3 * hiddenSize, hiddenSize}, {(linearBeforeReset ? 4 : 3) * hiddenSize}};
@@ -135,6 +135,8 @@ const std::vector<std::vector<ov::test::InputShape>> staticShapes = {
       { {}, { {1, 10} } } },
     { { {}, { {1, 30} } }, // Static shapes
       { {}, { {1, 1} } } },
+    { { {}, { {3, 1} } }, // Static shapes
+      { {}, { {3, 1} } } },
     { { {}, { {5, 1} } }, // Static shapes
       { {}, { {5, 1} } } },
     { { {}, { {5, 30} } }, // Static shapes

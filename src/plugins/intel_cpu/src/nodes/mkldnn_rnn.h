@@ -31,6 +31,8 @@ public:
         return nativeOrder;
     }
 
+    void cleanup() override;
+
 protected:
     std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
@@ -71,8 +73,8 @@ private:
     mkldnn::memory::format_tag wFormat = mkldnn::memory::format_tag::any;
 
     // Internal attributes
-    Interval N = Interval{0};   /**< Batch value */
-    Interval T = Interval{0};   /**< Sequence value */
+    Interval N = 1;   /**< Batch value */
+    Interval T = 1;   /**< Sequence value */
     size_t DC = 0;  /**< Input data channel size */
     size_t SC = 0;  /**< State channel size value */
     size_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
@@ -96,6 +98,8 @@ private:
     size_t bIdx = 0;
 
     static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
+
+    static constexpr size_t optimalBatchSize = 16lu;
 };
 
 }  // namespace MKLDNNPlugin

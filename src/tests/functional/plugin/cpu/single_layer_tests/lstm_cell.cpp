@@ -73,6 +73,7 @@ protected:
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
+        abs_threshold = 0.05;
 
         std::tie(inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -85,9 +86,11 @@ protected:
         size_t hiddenSize = inputDynamicShapes[1][1].get_length();
         size_t inputSize = inputDynamicShapes.front()[1].get_length();
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            netPrecision = ElementType::bf16;
-        }
+//        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+//            inType = outType = ElementType::bf16;
+//        } else {
+//            inType = outType = netPrecision;
+//        }
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
@@ -147,17 +150,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, LSTMCellLayerCPUTest,
                 LSTMCellLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
-    { { { -1, 1 }, // Dynamic shape
-        { {1, 1}, {3, 1}, {5, 1} } }, // Target shapes
-      { { -1, 1 }, // Dynamic shape
-        { {1, 1}, {3, 1}, {5, 1} } }, // Target shapes
-      { { -1, 1 }, // Dynamic shape
-        { {1, 1}, {3, 1}, {5, 1} } } }, // Target shapes
-    { { { {1, 10}, 30 }, // Dynamic shape
-        { {2, 30}, {5, 30}, {8, 30} } }, // Target shapes
-      { { {1, 10}, 10 }, // Dynamic shape
-        { {2, 10}, {5, 10}, {8, 10} } }, // Target shapes
-      { { {1, 10}, 10 }, // Dynamic shape
+    { { { -1, 1 },                                  // Dynamic shape 0
+        { {1, 1}, {3, 1}, {5, 1} } },               // Target shapes
+      { { -1, 1 },                                  // Dynamic shape 1
+        { {1, 1}, {3, 1}, {5, 1} } },               // Target shapes
+      { { -1, 1 },                                  // Dynamic shape 2
+        { {1, 1}, {3, 1}, {5, 1} } } },             // Target shapes
+    { { { {1, 20}, 30 },                            // Dynamic shape 0
+        { {2, 30}, {5, 30}, {8, 30} } },  // Target shapes
+      { { {1, 20}, 10 },                            // Dynamic shape 1
+        { {2, 10}, {5, 10}, {8, 10} } },  // Target shapes
+      { { {1, 20}, 10 },                            // Dynamic shape 2
         { {2, 10}, {5, 10}, {8, 10} } } } // Target shapes
 };
 

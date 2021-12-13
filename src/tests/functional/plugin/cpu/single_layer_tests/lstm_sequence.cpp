@@ -102,9 +102,11 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            netPrecision = ElementType::bf16;
-        }
+//        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+//            inType = outType = ElementType::bf16;
+//        } else {
+//            inType = outType = netPrecision;
+//        }
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
