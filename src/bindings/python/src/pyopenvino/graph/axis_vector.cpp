@@ -17,4 +17,22 @@ void regclass_graph_AxisVector(py::module m) {
     axis_vector.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axes"));
     axis_vector.def(py::init<const std::vector<size_t>&>(), py::arg("axes"));
     axis_vector.def(py::init<const ov::AxisVector&>(), py::arg("axes"));
+    axis_vector.def("__setitem__", [](ov::AxisVector& self, size_t key, size_t value) {
+        self[key] = value;
+    });
+
+    axis_vector.def("__getitem__", [](const ov::AxisVector& self, size_t key) {
+        return self[key];
+    });
+
+    axis_vector.def("__len__", [](const ov::AxisVector& self) {
+        return self.size();
+    });
+
+    axis_vector.def(
+        "__iter__",
+        [](const ov::AxisVector& self) {
+            return py::make_iterator(self.begin(), self.end());
+        },
+        py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
 }

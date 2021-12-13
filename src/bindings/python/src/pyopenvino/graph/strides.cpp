@@ -34,4 +34,23 @@ void regclass_graph_Strides(py::module m) {
         std::string shape_str = py::cast(self).attr("__str__")().cast<std::string>();
         return "<" + class_name + ": (" + shape_str + ")>";
     });
+
+    strides.def("__setitem__", [](ov::Strides& self, size_t key, size_t value) {
+        self[key] = value;
+    });
+
+    strides.def("__getitem__", [](const ov::Strides& self, size_t key) {
+        return self[key];
+    });
+
+    strides.def("__len__", [](const ov::Strides& self) {
+        return self.size();
+    });
+
+    strides.def(
+        "__iter__",
+        [](const ov::Strides& self) {
+            return py::make_iterator(self.begin(), self.end());
+        },
+        py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
 }
