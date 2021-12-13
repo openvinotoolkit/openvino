@@ -21,6 +21,10 @@
 namespace custom {
 namespace detail {
 
+#    if TBB_NUMA_SUPPORT_PRESENT
+static tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c);
+#    endif
+
 #    if USE_TBBBIND_2_5
 extern "C" {
 void __TBB_internal_initialize_system_topology(std::size_t groups_num,
