@@ -54,10 +54,10 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         if (fakeQuantize != nullptr) {
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 
-            const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fakeQuantize);
-            const auto precisions = precisionsAttribute == nullptr ?
-                PrecisionsAttribute::defaultPrecisions :
-                precisionsAttribute->get()->sharedValue->precisions;
+            const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fakeQuantize);
+            const auto precisions = precisionsAttribute.empty() ?
+                getDefaultPrecisions() :
+                precisionsAttribute.as<PrecisionsAttribute>().value();
             const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
 
             auto tuple = NetworkHelper::decomposeFakeQuantize(
@@ -259,10 +259,10 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
         const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 
-        const auto precisionsAttribute = getAttribute<PrecisionsAttributePtr>(matMul->input(1));
-        const auto precisions = precisionsAttribute == nullptr ?
-            PrecisionsAttribute::defaultPrecisions :
-            precisionsAttribute->get()->sharedValue->precisions;
+        const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(matMul->input(1));
+        const auto precisions = precisionsAttribute.empty() ?
+            getDefaultPrecisions() :
+            precisionsAttribute.as<PrecisionsAttribute>().value();
 
         const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
         if (dataPrecision.hasZeroPoint) {

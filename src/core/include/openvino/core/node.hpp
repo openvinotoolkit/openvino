@@ -31,9 +31,9 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/variant.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_value.hpp"
@@ -71,12 +71,12 @@ class Output;
 
 class Node;
 
-class Function;
+class Model;
 
 class SharedRTInfo;
 
 /// EvaluationContext stores and manages a context (additional parameters, values and
-/// environment) for evaluating ov::Function.
+/// environment) for evaluating ov::Model.
 using EvaluationContext = ov::RTMap;
 
 OPENVINO_API
@@ -121,7 +121,7 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     template <typename NodeType>
     friend class Output;
 
-    friend class Function;
+    friend class Model;
 
 protected:
     descriptor::Input& get_input_descriptor(size_t position);

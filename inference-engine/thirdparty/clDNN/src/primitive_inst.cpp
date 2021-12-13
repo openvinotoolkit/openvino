@@ -9,12 +9,12 @@
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
 
-#include "cldnn/graph/network.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/memory.hpp"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "json_object.h"
 #include <string>
 #include <stack>

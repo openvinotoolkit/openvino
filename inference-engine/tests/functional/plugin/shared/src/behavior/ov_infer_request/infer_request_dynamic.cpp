@@ -33,7 +33,7 @@ namespace test {
 namespace behavior {
 
 std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<OVInferRequestDynamicParams> obj) {
-    std::shared_ptr<Function> func;
+    std::shared_ptr<Model> func;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -71,7 +71,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -85,7 +85,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension(0, 5), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -102,7 +102,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -131,7 +131,7 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension(0, 19), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -158,7 +158,7 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = ov::PartialShape::dynamic();
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -186,7 +186,7 @@ TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension(2, 3), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -205,7 +205,7 @@ TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension(1, 2), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -226,7 +226,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -259,7 +259,7 @@ TEST_P(OVInferRequestDynamicTests, GetSameTensor2times) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -279,7 +279,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -302,7 +302,7 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = ov::PartialShape::dynamic();
     OV_ASSERT_NO_THROW(function->reshape(shapes));
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;
@@ -334,7 +334,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     const std::string outputName = function->outputs().back().get_any_name();
-    // Load ov::Function to target plugins
+    // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
     ov::runtime::InferRequest req;

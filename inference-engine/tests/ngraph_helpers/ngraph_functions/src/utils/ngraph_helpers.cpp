@@ -15,6 +15,7 @@
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <ngraph/opsets/opset.hpp>
+#include <backend.hpp>
 
 namespace ngraph {
 namespace helpers {
@@ -83,8 +84,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         interpreterFunction(const std::shared_ptr<Function> &function,
                             const std::vector<std::vector<std::uint8_t>> &inputs,
                             const std::vector<ngraph::element::Type> &inputTypes) {
-    runtime::Backend::set_backend_shared_library_search_directory("");
-    auto backend = runtime::Backend::create("INTERPRETER");
+    auto backend = runtime::Backend::create();
 
     const auto &parameters = function->get_parameters();
     const auto &parametersNumber = parameters.size();
@@ -146,8 +146,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
 
 std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
                                                    const std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>& inputs) {
-    runtime::Backend::set_backend_shared_library_search_directory("");
-    auto backend = runtime::Backend::create("INTERPRETER");
+    auto backend = runtime::Backend::create();
 
     const auto &funcInputs = function->inputs();
     const auto &funcInputsNumber = funcInputs.size();
@@ -246,7 +245,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
     NGRAPH_SUPPRESS_DEPRECATED_START;
     const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
     NGRAPH_SUPPRESS_DEPRECATED_END;
-    ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
+    ngraph::pass::ConstantFolding().run_on_model(foldedFunc);
     for (const auto &op : foldedFunc->get_ops()) {
         NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
                      "Function was not fully folded to constant state!\n",
@@ -934,7 +933,7 @@ std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::DecayFunction typ
     return os;
 }
 
-void resize_function(std::shared_ptr<ov::Function> function,
+void resize_function(std::shared_ptr<ov::Model> function,
                      const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputs = function->inputs();
     std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
