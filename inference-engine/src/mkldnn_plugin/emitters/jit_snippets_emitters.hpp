@@ -513,7 +513,6 @@ private:
 class LoadEmitter : public MemoryEmitter {
 public:
     LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
-    // result of canonizing broadcast by C. Fixe it=)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
     }
 

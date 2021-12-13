@@ -40,7 +40,8 @@ if(SELECTIVE_BUILD STREQUAL "ON")
     endif()
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine
+target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
+                                             inference_engine
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
                                              ov_shape_inference
