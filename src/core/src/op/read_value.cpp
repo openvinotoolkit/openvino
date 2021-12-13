@@ -136,7 +136,6 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     auto zero_tensor = make_shared<HostTensor>(zero_const);
 
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
-    //const auto& input_tensor = var_value->second->get_value();
     outputs[0]->set_unary(input_tensor);
 
     void* input = input_tensor->get_data_ptr();
