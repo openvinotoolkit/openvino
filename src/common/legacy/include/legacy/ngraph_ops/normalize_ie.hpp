@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(NormalizeIE) : public Op {
+class NormalizeIE : public Op {
 public:
     OPENVINO_OP("NormalizeIE", "legacy");
     BWDCMP_RTTI_DECLARATION;
