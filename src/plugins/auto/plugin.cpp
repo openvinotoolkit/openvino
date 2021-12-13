@@ -598,32 +598,22 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDevice(const st
 }
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
                                                 InferenceEngine::CNNNetwork network) {
-        std::vector<DeviceInformation> filterDevice;
-        IE_SUPPRESS_DEPRECATED_START
-        for (auto&item : network.getInputsInfo()) {
-            if (item.second->getPartialShape().is_dynamic()) {
-                for (auto& iter : metaDevices) {
-                    if (iter.deviceName.find("CPU") != std::string::npos) {
-                        filterDevice.push_back(iter);
-                        return filterDevice;
-                    } else {
-                         IE_THROW(NotFound) << "No available device for dynamic shape network !";
-                    }
+    std::vector<DeviceInformation> filterDevice;
+    IE_SUPPRESS_DEPRECATED_START
+    for (auto&item : network.getInputsInfo()) {
+        if (item.second->getPartialShape().is_dynamic()) {
+            for (auto& iter : metaDevices) {
+                if (iter.deviceName.find("CPU") != std::string::npos) {
+                    filterDevice.push_back(iter);
+                    break;
                 }
             }
+            if (filterDevice.size() == 0)
+                IE_THROW(NotFound) << "No available device for dynamic shape network !";
+            return filterDevice;
         }
-        for (auto&item : network.getOutputsInfo()) {
-            if (item.second->getPartialShape().is_dynamic()) {
-                for (auto& iter : metaDevices) {
-                    if (iter.deviceName.find("CPU") != std::string::npos) {
-                        filterDevice.push_back(iter);
-                        return filterDevice;
-                    } else {
-                         IE_THROW(NotFound) << "No available device for dynamic shape network !";
-                    }
-                }
-            }
-        }
-        IE_SUPPRESS_DEPRECATED_END
-        return metaDevices;                                              }
+    }
+    IE_SUPPRESS_DEPRECATED_END
+    return metaDevices;
+}
 }  // namespace MultiDevicePlugin
