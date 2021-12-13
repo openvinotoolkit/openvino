@@ -4,8 +4,8 @@
 
 #include "mock_py_frontend.hpp"
 
-#include "openvino/frontends/common/frontend_defs.hpp"
-#include "openvino/frontends/common/frontend_manager.hpp"
+#include "openvino/frontend/common/frontend_defs.hpp"
+#include "openvino/frontend/common/frontend_manager.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

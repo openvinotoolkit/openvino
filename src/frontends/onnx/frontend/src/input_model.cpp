@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontends/onnx/input_model.hpp"
+#include "openvino/frontend/onnx/input_model.hpp"
 
-#include <openvino/frontends/common/frontend_exceptions.hpp>
+#include <openvino/frontend/common/frontend_exceptions.hpp>
 #include <openvino/util/file_util.hpp>
 
-#include "openvino/frontends/onnx/place.hpp"
+#include "openvino/frontend/onnx/place.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;

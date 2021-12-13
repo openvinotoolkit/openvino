@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontends/ir/input_model.hpp"
+#include "openvino/frontend/ir/input_model.hpp"
 
 #include <xml_parse_utils.h>
 

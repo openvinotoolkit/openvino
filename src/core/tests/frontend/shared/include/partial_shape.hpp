@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontends/common/frontend_manager.hpp>
+#include <openvino/frontend/common/frontend_manager.hpp>
 
 struct BaseFEParam {
     BaseFEParam() {}

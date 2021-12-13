@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontends/common/frontend_manager.hpp>
+#include <openvino/frontend/common/frontend_manager.hpp>
 
 using ConvertParam = std::tuple<std::string,   // FrontEnd name
                                 std::string,   // Base path to models

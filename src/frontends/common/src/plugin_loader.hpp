@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/frontends/common/frontend_manager.hpp>
+#include <openvino/frontend/common/frontend_manager.hpp>
 
 #ifdef _WIN32
 static const char PathSeparator[] = ";";

@@ -12,7 +12,7 @@
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/op_extension.hpp"
-#include "openvino/frontends/ir/input_model.hpp"
+#include "openvino/frontend/ir/input_model.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "utils.hpp"

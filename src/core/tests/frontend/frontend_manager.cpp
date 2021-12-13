@@ -3,8 +3,8 @@
 //
 
 #include <memory>
-#include <openvino/frontends/common/frontend_exceptions.hpp>
-#include <openvino/frontends/common/frontend_manager.hpp>
+#include <openvino/frontend/common/frontend_exceptions.hpp>
+#include <openvino/frontend/common/frontend_manager.hpp>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

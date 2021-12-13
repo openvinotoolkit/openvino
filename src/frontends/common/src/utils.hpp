@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "openvino/frontends/common/frontend_defs.hpp"
+#include "openvino/frontend/common/frontend_defs.hpp"
 
 namespace ov {
 namespace frontend {
