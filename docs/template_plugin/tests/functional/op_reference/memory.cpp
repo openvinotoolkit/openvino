@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/op/read_value.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/util/variable.hpp"
 
 using namespace ov;
@@ -71,16 +71,18 @@ private:
 };
 
 class ReferenceReadValueAssignV6LayerTest : public ReferenceReadValueAssignV3LayerTest {
-
 private:
     static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
                                                     const element::Type& input_type,
                                                     const std::string variable_id) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        auto variable = std::make_shared<op::util::Variable>(op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_id});
+        auto variable = std::make_shared<op::util::Variable>(
+            op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_id});
         auto read_value = std::make_shared<op::v6::ReadValue>(in, variable);
         auto assign = std::make_shared<op::v6::Assign>(read_value, variable);
-        return std::make_shared<Function>(OutputVector{assign}, ParameterVector{in}, op::util::VariableVector{variable});
+        return std::make_shared<Function>(OutputVector{assign},
+                                          ParameterVector{in},
+                                          op::util::VariableVector{variable});
     }
 };
 
@@ -97,28 +99,21 @@ std::vector<ReadValueAssignParams> generateParamsForReadValueAssign() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ReadValueAssignParams> params{
-        ReadValueAssignParams(ov::Shape{1},
-                      ov::Shape{1},
-                      IN_ET,
-                      IN_ET,
-                      std::vector<T>{0},
-                      std::vector<T>{0},
-                      "v0"),
+        ReadValueAssignParams(ov::Shape{1}, ov::Shape{1}, IN_ET, IN_ET, std::vector<T>{0}, std::vector<T>{0}, "v0"),
         ReadValueAssignParams(ov::Shape{2, 2},
-                      ov::Shape{2, 2},
-                      IN_ET,
-                      IN_ET,
-                      std::vector<T>{1, 2, 3, 4},
-                      std::vector<T>{1, 2, 3, 4},
-                      "v0"),
+                              ov::Shape{2, 2},
+                              IN_ET,
+                              IN_ET,
+                              std::vector<T>{1, 2, 3, 4},
+                              std::vector<T>{1, 2, 3, 4},
+                              "v0"),
         ReadValueAssignParams(ov::Shape{2, 2, 3},
-                      ov::Shape{2, 2, 3},
-                      IN_ET,
-                      IN_ET,
-                      std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
-                      std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
-                      "v0")
-    };
+                              ov::Shape{2, 2, 3},
+                              IN_ET,
+                              IN_ET,
+                              std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+                              std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+                              "v0")};
     return params;
 }
 
@@ -146,16 +141,14 @@ std::vector<ReadValueAssignParams> generateCombinedParamsForReadValueAssign() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_ReadValue_Assign_With_Hardcoded_Refs,
-    ReferenceReadValueAssignV3LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
-    ReferenceReadValueAssignV3LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
+                         ReferenceReadValueAssignV3LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
+                         ReferenceReadValueAssignV3LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_ReadValue_Assign_With_Hardcoded_Refs,
-    ReferenceReadValueAssignV6LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
-    ReferenceReadValueAssignV6LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReadValue_Assign_With_Hardcoded_Refs,
+                         ReferenceReadValueAssignV6LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForReadValueAssign()),
+                         ReferenceReadValueAssignV6LayerTest::getTestCaseName);
 
 }  // namespace
