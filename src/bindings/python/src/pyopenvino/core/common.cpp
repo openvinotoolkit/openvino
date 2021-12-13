@@ -319,7 +319,6 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
     py::dict res;
     for (const auto& out : outputs) {
         ov::runtime::Tensor t{request.get_tensor(out)};
-        std::cout << t.get_element_type() << " !\n";
         switch (t.get_element_type()) {
         case ov::element::Type_t::i8: {
             py::array arr(t.get_shape(), t.data<int8_t>());
