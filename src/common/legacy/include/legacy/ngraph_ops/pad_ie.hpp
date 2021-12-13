@@ -16,7 +16,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(PadIE) : public Op {
+class PadIE : public Op {
 public:
     OPENVINO_OP("PadIE", "legacy");
     BWDCMP_RTTI_DECLARATION;

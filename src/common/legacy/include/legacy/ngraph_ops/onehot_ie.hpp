@@ -16,7 +16,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(OneHotIE);
+class OneHotIE;
 
 }  // namespace op
 }  // namespace ngraph

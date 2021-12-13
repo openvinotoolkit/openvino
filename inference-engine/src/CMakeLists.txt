@@ -14,4 +14,3 @@ endif()
 if(ENABLE_VPU)
     add_subdirectory(vpu)
 endif()
-

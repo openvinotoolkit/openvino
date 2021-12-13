@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(ReLUIE) : public Op {
+class ReLUIE : public Op {
 public:
     OPENVINO_OP("ReLUIE", "legacy");
     BWDCMP_RTTI_DECLARATION;

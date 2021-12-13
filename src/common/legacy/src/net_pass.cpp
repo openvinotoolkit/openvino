@@ -1285,7 +1285,11 @@ std::vector<CNNLayerPtr> TopolSort(const details::CNNSubnet& net) {
 static void restore_net_consistency(CNNNetwork& net) {
     IE_SUPPRESS_DEPRECATED_START
     auto & icnnnet = static_cast<ICNNNetwork&>(net);
-    auto inet = dynamic_cast<details::CNNNetworkImpl*>(&icnnnet);
+    // ilavreno:
+    // issues with RTTI on OSX once we compiled inference_engine_legacy as STATIC library
+    // So, we use static_cast instead of dynamic_cast since we are sure that
+    // icnnnet is always a details::CNNNetworkImpl
+    auto inet = static_cast<details::CNNNetworkImpl*>(&icnnnet);
     IE_ASSERT(inet != nullptr);
     // At first all layers should be available via findByName() api.
     // In other words all layers should be present in internal map<name, layer>

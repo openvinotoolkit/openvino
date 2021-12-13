@@ -13,7 +13,7 @@
 #include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
-namespace details {
+namespace details_legacy {
 
 /**
  * @brief Contains methods to validate layer of specific type
@@ -403,5 +403,5 @@ public:
     void parseParams(CNNLayer* layer) override;
 };
 
-}  // namespace details
+}  // namespace details_legacy
 }  // namespace InferenceEngine

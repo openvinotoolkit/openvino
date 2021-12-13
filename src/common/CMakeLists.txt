@@ -13,7 +13,6 @@ add_subdirectory(transformations)
 add_subdirectory(offline_transformations)
 add_subdirectory(low_precision_transformations)
 
-add_dependencies(ov_runtime_libraries inference_engine_legacy
-                                      inference_engine_transformations
+add_dependencies(ov_runtime_libraries inference_engine_transformations
                                       inference_engine_lp_transformations
                                       inference_engine_preproc)

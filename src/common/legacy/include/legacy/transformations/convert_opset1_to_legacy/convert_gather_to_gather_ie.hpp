@@ -22,7 +22,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertGatherToGatherIEMatcher);
+class ConvertGatherToGatherIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(LSTMCellIE) : public Op {
+class LSTMCellIE : public Op {
 public:
     OPENVINO_OP("LSTMCellIE", "legacy");
     BWDCMP_RTTI_DECLARATION;
