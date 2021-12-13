@@ -536,7 +536,14 @@ MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inpu
 
 void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                              const std::vector<MemoryDescPtr>& outputDesc) {
-    auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
+    MemoryDescPtr inpDesc;
+    if (inputDesc[0]->isDefined()) {
+        inpDesc = inputDesc[0];
+    } else {
+        auto dummyInDims = MemoryDescUtils::makeDummyShape(inputDesc[0]->getShape()).getStaticDims();
+        dummyInDims[1] = IC;
+        inpDesc = inputDesc[0]->cloneWithNewDims(dummyInDims);
+    }
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     DnnlMemoryDescPtr definedOutMemDesc;
 
