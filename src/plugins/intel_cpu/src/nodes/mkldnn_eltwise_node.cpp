@@ -1937,7 +1937,7 @@ void MKLDNNEltwiseNode::prepareParams() {
         memset(data, 0, sizeof(data));
     }
     // end of the dirty hack
-    auto cache = getExecutorCache();
+    auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 }

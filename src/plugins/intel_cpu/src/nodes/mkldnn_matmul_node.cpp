@@ -471,7 +471,7 @@ void MKLDNNMatMulNode::prepareParams() {
         return std::make_shared<matmul>(prim_desc);
     };
 
-    auto cache = getExecutorCache();
+    auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {

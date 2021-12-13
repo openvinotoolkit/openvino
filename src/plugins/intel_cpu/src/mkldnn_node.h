@@ -590,9 +590,8 @@ public:
      */
     virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
 
-    // TODO [mkutakov]: Temporal!!!!
-    void setExecutorCache(MultiCachePtr cache) {
-        executorCache = cache;
+    void setRuntimeCache(MultiCachePtr cache) {
+        rtParamsCache = cache;
     }
 
 protected:
@@ -762,8 +761,8 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MultiCachePtr getExecutorCache() const {
-        return executorCache;
+    MultiCachePtr getRuntimeCache() const {
+        return rtParamsCache;
     }
 
     std::vector<VectorDims> lastInputDims = {};
@@ -791,7 +790,7 @@ private:
     PerfCount perfCounter;
     PerfCounters profiling;
 
-    MultiCachePtr executorCache;
+    MultiCachePtr rtParamsCache;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
