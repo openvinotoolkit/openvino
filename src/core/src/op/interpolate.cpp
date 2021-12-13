@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <interpolate_shape_inference.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
@@ -45,22 +46,13 @@ void op::v0::Interpolate::validate_and_infer_types() {
                           "output shape must be an integral number.");
     set_input_is_relevant_to_shape(1);
 
-    ov::PartialShape output_shape = ov::PartialShape(get_input_partial_shape(0));
-    if (output_shape.rank().is_static()) {
-        for (auto axis : m_attrs.axes) {
-            NGRAPH_CHECK(static_cast<int64_t>(axis) < output_shape.rank().get_length());
-            output_shape[axis] = Dimension::dynamic();
-        }
-    }
+    const auto& input_shape = get_input_partial_shape(0);
+    const auto& target_spatial_shape = get_input_partial_shape(1);
+    std::vector<ov::PartialShape> input_shapes = {input_shape, target_spatial_shape};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
-    if (const auto& const_shape = get_constant_from_source(input_value(1))) {
-        auto out_shape = const_shape->cast_vector<int64_t>();
-        size_t i = 0;
-        for (auto axis : m_attrs.axes) {
-            output_shape[axis] = Dimension(out_shape[i++]);
-        }
-    }
-    set_output_type(0, get_input_element_type(0), output_shape);
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -229,49 +221,21 @@ void op::v4::Interpolate::validate_and_infer_types() {
             "Axes element type must be i32, i64, u32 or u64");
     }
 
-    ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
-
-    if (!input_shape.rank().is_static()) {
-        set_output_type(0, get_input_element_type(0), input_shape);
-        return;
-    }
-
-    const auto input_rank = input_shape.rank().get_length();
-
-    // If the input 'axes' is given and this input is not Constant, we cannot infer any elements
-    // of the output shape. Hence, all components of the output shape should be dynamic.
-    if (input_values().size() == 4 && !has_and_set_equal_bounds(input_value(3))) {
-        ov::PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
-        set_output_type(0, get_input_element_type(0), output_shape);
-        return;
-    }
-
-    auto axes = get_axes();
-    correct_pads();
-
-    ov::PartialShape padded_input_shape = get_padded_input_shape(input_shape);
-    ov::PartialShape output_shape = padded_input_shape;
-
-    if (output_shape.rank().is_static()) {
-        for (auto axis : axes) {
-            NGRAPH_CHECK(axis < input_rank);
-            output_shape[axis] = Dimension::dynamic();
-        }
-    }
-
-    if (m_attrs.shape_calculation_mode == ShapeCalcMode::SCALES) {
-        if (const auto& const_scales = get_constant_from_source(input_value(2))) {
-            auto scales = const_scales->cast_vector<float>();
-            infer_using_scales(output_shape, axes, scales, padded_input_shape);
-        }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
+    std::vector<ov::PartialShape> input_shapes;
+    const auto& input_shape = get_input_partial_shape(0);
+    const auto& target_spatial_shape = get_input_partial_shape(1);
+    const auto& scales = get_input_partial_shape(2);
+    if (input_values().size() == 3) {
+        input_shapes = {input_shape, target_spatial_shape, scales};
     } else {
-        if (const auto& const_shape = get_constant_from_source(input_value(1))) {
-            auto sizes = const_shape->cast_vector<int64_t>();
-            infer_using_shapes(output_shape, axes, sizes);
-        }
+        const auto& axes = get_input_partial_shape(3);
+        input_shapes = {input_shape, target_spatial_shape, scales, axes};
     }
 
-    set_output_type(0, get_input_element_type(0), output_shape);
+    correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
+    shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes, {});
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
