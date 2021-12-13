@@ -123,16 +123,16 @@ class ACEngine(Engine):
         callback_layout, stat_names_aliases = {}, {}
         # add outputs for activation statistics collection
         if stats_layout is not None:
-            model_with_stat_op, nodes_name, output_to_node_names = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_names_map, output_to_node_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
-            add_outputs(self._model, nodes_name)
+            add_outputs(self._model, list(nodes_names_map.values()))
             self._model_evaluator.load_network(self._model)
 
             model_output_names = [out for m_dict in self._model for out in m_dict['model'].outputs.keys()]
             align_stat_names_with_results(model_output_names,
-                                          nodes_name,
+                                          nodes_names_map,
                                           output_to_node_names,
                                           stats_layout,
                                           stat_aliases)

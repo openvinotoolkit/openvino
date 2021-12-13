@@ -21,6 +21,7 @@ from ....statistics.functions import aggregation as agf
 from ....statistics.statistics import TensorStatisticAxis
 from ....utils.launcher import IELauncher
 from ....utils.logger import get_logger
+from ....engines.ie_engine import IEEngine
 
 logger = get_logger(__name__)
 
@@ -283,8 +284,11 @@ class BiasCorrection(Algorithm):
         outputs_data = []
         for output_node in output_nodes:
             output_name = nu.create_node_name(output_node, str)
-            result_name = output_name + '/result'
+            result_name = output_name + '/sink_port_0'
             result_node = ge.create_node(output_node.graph, result_name, 'Result', {})
+            for out_node in output_node.out_nodes().values():
+                if 'fw_tensor_debug_info' in out_node:
+                    del out_node['fw_tensor_debug_info']
             result_node.in_port(0).connect(output_node.out_port(0))
             if output_name in self._fp32_statistics:
                 self._fp32_statistics[output_name]['batch_mean_in'] = []
@@ -318,12 +322,12 @@ class BiasCorrection(Algorithm):
         return feed_dicts
 
     def _reshape_model_by_feed_dict(self, feed_dict, model_copy):
-        current_inputs = self._launcher.model.input_info
-        current_shapes = {input_name: tuple(current_inputs[input_name].input_data.shape) for input_name in
+        current_inputs = self._launcher.model.inputs
+        current_shapes = {input_const.get_node().friendly_name: tuple(input_const.shape) for input_const in
                           current_inputs}
         feed_shapes = {input_name: tuple(feed_dict[input_name].shape) for input_name in feed_dict}
         if feed_shapes != current_shapes:
-            self._launcher.set_model(model_copy, md_shapes=feed_shapes)
+            self._launcher.set_model(model_copy, md_shapes=feed_shapes, input_names=list(current_shapes.keys()))
 
     def _compute_bias_shift(self, model_copy, **params):
         add_name = params['node_bias_add'].fullname
@@ -336,11 +340,12 @@ class BiasCorrection(Algorithm):
             _, q_outputs = self._engine.predict(ref_stats_layout, self._sampler)
             q_output = agf.mean(q_outputs[add_name]['mean_per_channel'])
         else:
-            self._launcher.set_model(model_copy)
+            self._launcher.set_model(model_copy, input_names=[param['param_name'] for param in params['parameters_data_dict']])
             q_outputs = []
             for feed_dict in params['feed_dicts']:
                 self._reshape_model_by_feed_dict(feed_dict, model_copy)
                 q_output = self._launcher.infer(feed_dict)
+                q_output = IEEngine._process_raw_output(q_output)
                 q_outputs.append(asf.mean_per_channel_axis(q_output[add_name], add_name, channel=self._channel_axis))
             q_output = agf.mean(q_outputs)
 
@@ -358,10 +363,11 @@ class BiasCorrection(Algorithm):
             if not bias_is_updated:
                 fq_nodes = mu.get_nodes_by_type(model_copy, ['FakeQuantize'])
                 self._graph_transformer.remove_fq_nodes(model_copy, fq_nodes)
-            self._launcher.set_model(model_copy)
+            self._launcher.set_model(model_copy, input_names=[param['param_name'] for param in params['parameters_data_dict']])
             for feed_dict in params['feed_dicts']:
                 self._reshape_model_by_feed_dict(feed_dict, model_copy)
                 q_output = self._launcher.infer(feed_dict)
+                q_output = IEEngine._process_raw_output(q_output)
                 for result_data_dict in params['results_data_dict']:
                     q_stat_updated = q_output[result_data_dict['output_name']]
                     self._fp32_statistics[result_data_dict['output_name']]['batch_mean_in'].append(q_stat_updated)

@@ -25,7 +25,9 @@ class StatisticGraphBuilder:
     def insert_statistic(self, model, stats_layout, stat_aliases=None):
         output_to_node_names = {}
         if stat_aliases is None or model is None:
-            return model, list(stats_layout.keys()), output_to_node_names
+            nodes_names_map = {layer_name: convert_to_outputs_name(layer_name)
+                               for layer_name in stats_layout.keys()}
+            return model, nodes_names_map, output_to_node_names
         nodes_names_map = {}
         copy_stat_aliases = deepcopy(stat_aliases)
         for algo_name, node_stats in copy_stat_aliases.items():
