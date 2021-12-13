@@ -13,6 +13,7 @@
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "transformations/utils/utils.hpp"
@@ -444,6 +445,10 @@ std::vector<VariableState> InferRequest::query_state() {
         }
     })
     return variable_states;
+}
+
+CompiledModel InferRequest::get_compiled_model() {
+    OV_INFER_REQ_CALL_STATEMENT(return {_so, _impl->getPointerToExecutableNetworkInternal()});
 }
 
 bool InferRequest::operator!() const noexcept {

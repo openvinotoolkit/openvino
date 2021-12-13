@@ -28,6 +28,7 @@ namespace ov {
 namespace runtime {
 
 class Core;
+class InferRequest;
 
 /**
  * @brief This is an interface of an executable network
@@ -45,6 +46,7 @@ class OPENVINO_RUNTIME_API CompiledModel {
     CompiledModel(const std::shared_ptr<void>& so,
                   const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl);
     friend class ov::runtime::Core;
+    friend class ov::runtime::InferRequest;
 
 public:
     /**

@@ -633,6 +633,23 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     EXPECT_EQ(ref_result->get_shape(), actual_result->get_shape());
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());
 }
+
+TEST_P(OVExecutableNetworkBaseTest, getCompiledModelFromInferRequest) {
+    ov::runtime::InferRequest req;
+    {
+        ov::runtime::CompiledModel compiled_model;
+        ASSERT_NO_THROW(compiled_model = core->compile_model(function, targetDevice, configuration));
+        ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+        ASSERT_NO_THROW(req.infer());
+    }
+    {
+        ov::runtime::CompiledModel restored_compiled_model;
+        ov::runtime::InferRequest another_req;
+        ASSERT_NO_THROW(restored_compiled_model = req.get_compiled_model());
+        ASSERT_NO_THROW(another_req = restored_compiled_model.create_infer_request());
+        ASSERT_NO_THROW(another_req.infer());
+    }
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
