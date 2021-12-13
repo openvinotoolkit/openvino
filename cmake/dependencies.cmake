@@ -265,7 +265,7 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake)
+include(${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake)
 
 if(ENABLE_INTEL_GNA)
     reset_deps_cache(
