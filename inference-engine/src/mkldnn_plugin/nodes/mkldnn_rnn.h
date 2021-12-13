@@ -96,6 +96,8 @@ private:
     size_t bIdx = 0;
 
     static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
+
+    static constexpr size_t optimalBatchSize = 16lu;
 };
 
 }  // namespace MKLDNNPlugin

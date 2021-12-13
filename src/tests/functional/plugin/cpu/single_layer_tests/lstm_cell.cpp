@@ -73,6 +73,7 @@ protected:
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
+        abs_threshold = 0.05;
 
         std::tie(inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -85,9 +86,11 @@ protected:
         size_t hiddenSize = inputDynamicShapes[1][1].get_length();
         size_t inputSize = inputDynamicShapes.front()[1].get_length();
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            netPrecision = ElementType::bf16;
-        }
+//        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+//            inType = outType = ElementType::bf16;
+//        } else {
+//            inType = outType = netPrecision;
+//        }
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
