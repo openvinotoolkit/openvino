@@ -115,7 +115,7 @@ public:
                      " for output ",
                      m_output_index);
 
-        ov::runtime::Tensor tensor(results[m_output_index]->get_output_element_type(0), output_pshape.to_shape());
+        ov::runtime::Tensor tensor(results[m_output_index]->get_output_element_type(0), expected_shape);
         std::copy(values.begin(), values.end(), tensor.data<T>());
 
         ++m_output_index;
