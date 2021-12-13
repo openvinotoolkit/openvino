@@ -124,12 +124,14 @@ class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenc
 
 class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
     def __call__(self, parser, namespace, values, option_string=None):
-        super().__call__(parser, namespace, values, option_string)
         dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
             option_string)
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
+        if 'mean_file' in option_string or 'mean_offset' in option_string:
+            dep_msg += 'Please use --mean_values cli option instead.'
         log.error(dep_msg, extra={'is_warning': True})
+        super().__call__(parser, namespace, values, option_string)
 
 
 def readable_file(path: str):
@@ -307,6 +309,28 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'The exact meaning and order ' +
                                    'of channels depend on how the original model was trained.',
                               default=())
+    common_group.add_argument('--source_layout',
+                              help='Layout of the input or output of the model in the framework. Layout can'
+                                   ' be specified in the short form, e.g. nhwc, or in complex form, e.g. [n,h,w,c].'
+                                   ' Example for many names: '
+                                   'in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc). Layout can be '
+                                   'partially defined, "?" can be used to specify undefined layout for one dimension, '
+                                   '"..." can be used to specify undefined layout for multiple dimensions, for example '
+                                   '?c??, nc..., n...c, etc.',
+                              default=())
+    common_group.add_argument('--target_layout',
+                              help='Same as --source_layout, but specifies target layout that will be in the model '
+                                   'after processing by ModelOptimizer.',
+                              default=())
+    common_group.add_argument('--layout',
+                              help='Combination of --source_layout and --target_layout. Can\'t be used with either of '
+                                   'them. If model has one input it is sufficient to specify layout of this input, for'
+                                   ' example --layout nhwc. To specify layouts of many tensors, names must be provided,'
+                                   ' for example: --layout name1(nchw),name2(nc). It is possible to instruct '
+                                   'ModelOptimizer to change layout, for example: '
+                                   '--layout name1(nhwc->nchw),name2(cn->nc). Also "*" in long layout form can be used'
+                                   ' to fuse dimensions, for example [n,c,...]->[n*c,…].',
+                              default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
                               help='Data type for all intermediate tensors and weights. ' +
@@ -377,7 +401,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
     common_group.add_argument('--keep_shape_ops',
-                              help='The option is ignored. Expected behavior is enabled by default.',
+                              help=argparse.SUPPRESS,
                               action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
                               help='Disable compression and store weights with original precision.',
@@ -415,6 +439,9 @@ def get_common_cli_options(model_name):
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['input_shape'] = ['- Input shapes', lambda x: x if x else 'Not specified, inherited from the model']
+    d['source_layout'] = ['- Source layout', lambda x: x if x else 'Not specified']
+    d['target_layout'] = ['- Target layout', lambda x: x if x else 'Not specified']
+    d['layout'] = ['- Layout', lambda x: x if x else 'Not specified']
     d['mean_values'] = ['- Mean values', lambda x: x if x else 'Not specified']
     d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
@@ -524,11 +551,13 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
-                             help='Mean image to be used for the input. Should be a binaryproto file',
+                             help='[DEPRECATED] ' +
+                                  'Mean image to be used for the input. Should be a binaryproto file',
                              default=None,
-                             action=CanonicalizePathCheckExistenceAction)
+                             action=DeprecatedCanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file_offsets', '-mo',
-                             help='Mean image offsets to be used for the input binaryproto file. ' +
+                             help='[DEPRECATED] ' +
+                                  'Mean image offsets to be used for the input binaryproto file. ' +
                                   'When the mean image is bigger than the expected input, it is cropped. By default, centers ' +
                                   'of the input image and the mean image are the same and the mean image is cropped by ' +
                                   'dimensions of the input image. The format to pass this option is the following: "-mo (x,y)". In this ' +
@@ -829,6 +858,137 @@ def parse_input_value(input_value: str):
         raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
                     "value: {}".format(shape, node_name, value_size, value))
     return node_name, shape, value, data_type
+
+
+def split_str_avoiding_square_brackets(s: str) -> list:
+    """
+    Splits a string by comma, but skips commas inside square brackets.
+    :param s: string to split
+    :return: list of strings split by comma
+    """
+    res = list()
+    skipping = 0
+    last_idx = 0
+    for i, c in enumerate(s):
+        if c == '[':
+            skipping += 1
+        elif c == ']':
+            skipping -= 1
+        elif c == ',' and skipping == 0:
+            res.append(s[last_idx:i])
+            last_idx = i + 1
+    res.append(s[last_idx:])
+    return res
+
+
+def split_layouts_by_arrow(s: str) -> tuple:
+    """
+    Splits a layout string by first arrow (->).
+    :param s: string to split
+    :return: tuple containing source and target layouts
+    """
+    arrow = s.find('->')
+    if arrow != -1:
+        source_layout = s[:arrow]
+        target_layout = s[arrow + 2:]
+        if source_layout == '':
+            source_layout = None
+        if target_layout == '':
+            target_layout = None
+        return source_layout, target_layout
+    else:
+        return s, None
+
+
+def validate_layout(layout: str):
+    """
+    Checks if layout is of valid format.
+    :param layout: string containing layout
+    :raises: if layout is incorrect
+    """
+    valid_layout_re = re.compile(r'\[?[^\[\]\(\)\s]*\]?')
+    if layout and not valid_layout_re.fullmatch(layout):
+        raise Error('Invalid layout parsed: {}'.format(layout))
+
+
+def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = None):
+    """
+    Writes found layout data to the 'parsed' dict.
+    :param name: name of the node to add layout
+    :param found_layout: string containing layout for the node
+    :param parsed: dict where result will be stored
+    :param dest: type of the command line:
+      * 'source' is --source_layout
+      * 'target' is --target_layout
+      * None is --layout
+    """
+    s_layout = None
+    t_layout = None
+    if name in parsed:
+        s_layout = parsed[name]['source_layout']
+        t_layout = parsed[name]['target_layout']
+    if dest == 'source':
+        s_layout = found_layout
+    elif dest == 'target':
+        t_layout = found_layout
+    else:
+        s_layout, t_layout = split_layouts_by_arrow(found_layout)
+    validate_layout(s_layout)
+    validate_layout(t_layout)
+    parsed[name] = {'source_layout': s_layout, 'target_layout': t_layout}
+
+
+def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None:
+    """
+    Parses layout command line to get all names and layouts from it. Adds all found data in the 'parsed' dict.
+    :param s: string to parse
+    :param parsed: dict where result will be stored
+    :param dest: type of the command line:
+      * 'source' is --source_layout
+      * 'target' is --target_layout
+      * None is --layout
+    """
+    list_s = split_str_avoiding_square_brackets(s)
+    if len(list_s) == 1 and (list_s[0][-1] not in ')]' or (list_s[0][0] == '[' and list_s[0][-1] == ']')):
+        # single layout case
+        write_found_layout('', list_s[0], parsed, dest)
+    else:
+        for layout_str in list_s:
+            # case for: "name1(nhwc->[n,c,h,w])"
+            p1 = re.compile(r'(\S+)\((\S+)\)')
+            m1 = p1.match(layout_str)
+            # case for: "name1[n,h,w,c]->[n,c,h,w]"
+            p2 = re.compile(r'(\S+)(\[\S*\])')
+            m2 = p2.match(layout_str)
+            if m1:
+                found_g = m1.groups()
+            elif m2:
+                found_g = m2.groups()
+            else:
+                raise Error("More then one layout provided for --{}layout without providing name.".format(
+                    dest + '_' if dest else ''))
+            write_found_layout(found_g[0], found_g[1], parsed, dest)
+
+
+def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_target_layout: str = ''):
+    """
+    Parses layout string.
+    :param argv_layout: string with a list of layouts passed as a --layout.
+    :param argv_source_layout: string with a list of layouts passed as a --source_layout.
+    :param argv_target_layout: string with a list of layouts passed as a --target_layout.
+    :return: dict with names and layouts associated
+    """
+    if argv_layout and (argv_source_layout or argv_target_layout):
+        raise Error("--layout is used as well as --source_layout and/or --target_layout which is not allowed, please "
+                    "use one of them.")
+    res = {}
+    if argv_layout:
+        parse_layouts_by_destination(argv_layout, res)
+    if argv_source_layout:
+        parse_layouts_by_destination(argv_source_layout, res, 'source')
+    if argv_target_layout:
+        parse_layouts_by_destination(argv_target_layout, res, 'target')
+    return res
 
 
 def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):

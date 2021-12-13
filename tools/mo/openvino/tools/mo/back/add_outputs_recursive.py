@@ -1,5 +1,6 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+from math import ceil
 import numpy as np
 
 from openvino.tools.mo.ops.If import If
@@ -38,11 +39,12 @@ def get_iterations_count_from_output_record(output_rec):
         return None
 
     # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
-    if check_field(output_rec, 'end') and output_rec['end'] != -1 and \
-            check_field(output_rec, 'start') and output_rec['start'] != -1:
+    if check_field(output_rec, 'end') and check_field(output_rec, 'start') and \
+            ((output_rec['start'] >= 0 and output_rec['end'] >= 0) or
+             (output_rec['start'] < 0 and output_rec['end'] < 0)):
         stride = output_rec['stride'] if check_field(output_rec, 'stride') else 1
         # get iterations count from output record
-        iterations_count = (output_rec['end'] - output_rec['start']) / stride
+        iterations_count = ceil((output_rec['end'] - output_rec['start']) / stride)
         return iterations_count
 
     return dynamic_dimension_value

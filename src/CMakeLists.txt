@@ -7,7 +7,7 @@ if(ENABLE_LTO)
 endif()
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_custom_target(ov_runtime_libraries ALL)
+add_custom_target(ov_runtime_libraries)
 
 # TODO: Fix Wall for core, frontends, tests and  c binding
 add_subdirectory(core)

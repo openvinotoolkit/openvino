@@ -38,7 +38,10 @@ set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "USE_STATIC_IE")
+    COMPILE_DEFINITIONS "USE_STATIC_IE"
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/cnn_network_ngraph_impl.cpp" PROPERTIES
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
@@ -190,8 +193,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openv
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
-    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -206,8 +208,14 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # Static library used for unit tests which are always built
 
+file(GLOB_RECURSE legacy_src "${LEGACY_SRC_ROOT}/*.cpp"
+                             "${LEGACY_SRC_ROOT}/*.hpp")
+
+set_source_files_properties(${legacy_src} PROPERTIES
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
+            ${legacy_src}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
             ${IE_STATIC_DEPENDENT_FILES})
 
@@ -246,11 +254,10 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
 
 # Export for developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME}_plugin_api)
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_plugin_api)
 
 # install TBB
 
-list(APPEND core_components ngraph)
 list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
                       "IE_PARALLEL_CMAKE")
 
@@ -268,11 +275,10 @@ endif()
 # install only downloaded TBB, system one is not installed
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
+    ie_cpack_add_component(tbb_dev REQUIRED)
     list(APPEND core_components tbb)
+    list(APPEND core_dev_components tbb_dev)
 
-    install(DIRECTORY "${TBB}/include"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
     install(DIRECTORY "${TBB}/lib"
             DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
@@ -290,7 +296,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
             DESTINATION runtime/${IE_TBB_DIR_INSTALL}
-            COMPONENT tbb)
+            COMPONENT tbb_dev)
+    install(DIRECTORY "${TBB}/include"
+            DESTINATION runtime/3rdparty/tbb
+            COMPONENT tbb_dev)
 endif()
 
 if(install_tbbbind)
@@ -304,13 +313,13 @@ if(install_tbbbind)
     set(IE_TBBBIND_DIR_INSTALL "3rdparty/tbb_bind_2_5/cmake")
     install(FILES "${TBBBIND_2_5}/cmake/TBBBIND_2_5Config.cmake"
             DESTINATION runtime/${IE_TBBBIND_DIR_INSTALL}
-            COMPONENT tbb)
+            COMPONENT tbb_dev)
 endif()
 
 # Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
+ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)

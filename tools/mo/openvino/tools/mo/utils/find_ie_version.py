@@ -92,21 +92,13 @@ def find_ie_version(silent=False):
 
     # Windows
     bindings_paths_windows = [
-        # Package
-        {
-            "module": os.path.join(script_path, '../../../../../../../python/', python_version),
-            "libs": [
-                os.path.join(script_path, '../../../../../../../runtime/bin/intel64/Release'),
-                os.path.join(script_path, '../../../../../../../runtime/3rdparty/tbb/bin'),
-            ],
-        },
         # Local builds
         {
             "module": os.path.join(script_path, '../../../../../../bin/intel64/Release/python_api/', python_version),
             "libs": [
                 os.path.join(script_path, '../../../../../../bin/intel64'),
                 os.path.join(script_path, '../../../../../../bin/intel64/Release'),
-                os.path.join(script_path, '../../../../../../inference-engine/temp/tbb/bin'),
+                os.path.join(script_path, '../../../../../../temp/tbb/bin'),
             ]
         },
         {
@@ -114,21 +106,13 @@ def find_ie_version(silent=False):
             "libs": [
                 os.path.join(script_path, '../../../../../../bin/intel64'),
                 os.path.join(script_path, '../../../../../../bin/intel64/Debug'),
-                os.path.join(script_path, '../../../../../../inference-engine/temp/tbb/bin'),
+                os.path.join(script_path, '../../../../../../temp/tbb/bin'),
             ]
         },
     ]
 
     # Linux / Darwin
     bindings_paths_linux = [
-        # Package
-        {
-            "module": os.path.join(script_path, '../../../../../../../python/', python_version),
-            "libs": [
-                os.path.join(script_path, '../../../../../../../runtime/lib/intel64'),
-                os.path.join(script_path, '../../../../../../../runtime/3rdparty/tbb/lib'),
-            ],
-        },
         # Local builds
         {
             "module": os.path.join(script_path, '../../../../../../bin/intel64/Release/lib/python_api/', python_version),

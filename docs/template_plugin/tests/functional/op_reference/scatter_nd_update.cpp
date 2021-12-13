@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ScatterNDUpdateParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ScatterNDUpdateParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto indices = std::make_shared<op::v0::Constant>(params.indexTensor.type,
                                                                 params.indexTensor.shape,
@@ -63,7 +63,7 @@ private:
                                                                 params.updateTensor.shape,
                                                                 params.updateTensor.data.data());
         const auto scatter = std::make_shared<op::v3::ScatterNDUpdate>(data, indices, updates);
-        return std::make_shared<ov::Function>(NodeVector{scatter}, ParameterVector{data});
+        return std::make_shared<ov::Model>(NodeVector{scatter}, ParameterVector{data});
     }
 };
 

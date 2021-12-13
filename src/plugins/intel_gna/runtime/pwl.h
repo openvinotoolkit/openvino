@@ -85,25 +85,19 @@ double calculate_error_pct(const DnnActivation& activation_type,
                            const double offset,
                            const int samples);
 
-void PwlApply16(intel_dnn_component_t *component, const uint32_t num_subset_size);
-void PwlApply16(intel_dnn_component_t *component,
-                const uint32_t num_row_start,
-                const uint32_t num_row_end,
-                const uint32_t num_col_start,
-                const uint32_t num_col_end);
 void PwlApply32(intel_dnn_component_t *component, const uint32_t num_subset_size);
 void PwlApply32(intel_dnn_component_t *component,
                 const uint32_t num_row_start,
                 const uint32_t num_row_end,
                 const uint32_t num_col_start,
                 const uint32_t num_col_end);
-void PwlDesign(const DnnActivation activation_type,
+void PwlDesign(const DnnActivation& activation_type,
                  gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
                  const float scale_out,
                  const bool low_precision);
-void PwlDesignOpt(const DnnActivation activation_type,
+void PwlDesignOpt(const DnnActivation& activation_type,
                 std::vector<gna_pwl_segment_t> &ptr_segment,
                 const float scale_in,
                 const float scale_out,

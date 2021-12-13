@@ -21,6 +21,10 @@
 #include "lstm_cell_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
+#include "experimental_detectron_topkrois_shape_inference.hpp"
+#include "interpolate_shape_inference.hpp"
+#include "scatter_elements_update_shape_inference.hpp"
+#include "scatter_nd_base_shape_inference.hpp"
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "static_shape.hpp"
@@ -69,14 +73,15 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::op::util::LogicalReductionKeepDims>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
-    } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op) || ov::is_type<ov::opset1::Convert>(op) ||
-               ov::is_type<ov::opset1::Clamp>(op) || ov::is_type<ov::opset1::GRN>(op) ||
-               ov::is_type<ov::opset1::LRN>(op) || ov::is_type<ov::opset1::LogicalNot>(op) ||
-               ov::is_type<ov::opset4::Mish>(op) || ov::is_type<ov::opset2::MVN>(op) ||
-               ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::PRelu>(op) ||
-               ov::is_type<ov::opset1::Relu>(op) || ov::is_type<ov::opset4::Swish>(op) ||
-               ov::is_type<ov::opset1::Softmax>(op) || ov::is_type<ov::opset1::Elu>(op) ||
-               ov::is_type<ov::opset5::Round>(op)) {
+    } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op) ||
+            ov::is_type<ov::opset1::Convert>(op) || ov::is_type<ov::opset1::Clamp>(op) ||
+            ov::is_type<ov::opset1::GRN>(op) || ov::is_type<ov::opset1::LRN>(op) ||
+            ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset4::Mish>(op) ||
+            ov::is_type<ov::opset2::MVN>(op) || ov::is_type<ov::opset6::MVN>(op) ||
+            ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset1::Relu>(op) ||
+            ov::is_type<ov::opset4::Swish>(op) || ov::is_type<ov::opset1::Elu>(op) ||
+            ov::is_type<ov::opset1::Softmax>(op) || ov::is_type<ov::opset8::Softmax>(op) ||
+            ov::is_type<ov::opset5::Round>(op)) {
         copy_shape_infer(node, input_shapes, output_shapes);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
@@ -112,6 +117,18 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::Tile>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronTopKROIs>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset4::Interpolate>(op)) {
+        std::vector<size_t> pads_begin, pads_end;
+        correct_pads_attr(node, pads_begin, pads_end, input_shapes);
+        shape_infer(node, pads_begin, pads_end, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Interpolate>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset3::ScatterElementsUpdate>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset4::ScatterNDUpdate>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
