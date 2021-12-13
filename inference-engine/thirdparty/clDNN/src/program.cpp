@@ -993,11 +993,15 @@ bool program::extract_and_remove(program_node& node) {
     return true;
 }
 
-void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std::map<primitive_id, std::vector<primitive_id>>* fusing_history) {
+
+void program::fuse_nodes(program_node &fused_node,
+                         program_node &peer_node,
+                         std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc;
     local_desc.node = get_node_ptr(peer_node.id());
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
+    local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1014,15 +1018,18 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
         for (auto& id : history_iter->second) {
-            local_desc.fused_deps.push_back(id);
+            local_desc.fused_deps.emplace(id.first, id.second);
         }
     }
 
     // Add new dependencies to the fused_node
+    size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
         auto& dep = peer_node.get_dependency(i);
-        if (dep.id() == fused_node.id())
+        if (dep.id() == fused_node.id()) {
+            deps_idx++;
             continue;
+        }
 
         if (peer_node.is_type<quantize>()) {
             quantize_node& q_node = peer_node.as<quantize>();
@@ -1048,9 +1055,11 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
             }
         }
         fused_node.dependencies.push_back(&dep);
-        local_desc.deps.push_back(dep.id());
+        local_desc.deps.emplace(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
+    local_desc.total_num_deps = std::min(local_desc.total_num_deps, deps_idx);
+
     fused_node.add_fused_primitive(local_desc);
     // This shouldn't happen, but who knows...
     if (peer_node.has_fused_primitives()) {
@@ -1059,7 +1068,13 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
     add_optimized_primitive_info(peer_node.id(), { fused_node.id() });
 
     for (auto& user : peer_node.users) {
-        (*fusing_history)[user->id()].push_back(peer_node.id());
+        size_t dep_idx = 0;
+        for (auto& dep : user->dependencies) {
+            if (dep->id() == peer_node.id())
+                break;
+            dep_idx++;
+        }
+        (*fusing_history)[user->id()].push_back(std::make_pair(peer_node.id(), dep_idx));
     }
 
     // Remove all edges connected with peer node

@@ -107,7 +107,11 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     for (auto& fused_desc : get_fused_primitives()) {
         json_composite fused_node_info;
         fused_node_info.add("id", fused_desc.node->id());
-        fused_node_info.add("dependencies", fused_desc.deps);
+        std::vector<primitive_id> dep_ids;
+        for (auto dep : fused_desc.deps) {
+            dep_ids.push_back(dep.first);
+        }
+        fused_node_info.add("dependencies", dep_ids);
         fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));

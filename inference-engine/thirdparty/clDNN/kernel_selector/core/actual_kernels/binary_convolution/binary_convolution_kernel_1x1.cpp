@@ -225,10 +225,12 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
                     eltwise_fused_ops += "\\\n\t" + data_type + " " + e_add + " = (oc < 16) ? " +
                                          get_shuffle(var_name + ".s0", "oc") + " : " + get_shuffle(var_name + ".s1", "oc") + ";";
                     eltwise_fused_ops += "\\\n\tres = res+" + e_add + ";";
-                } else {
+                } else if (eltwise_p->mode == EltwiseMode::MUL) {
                     eltwise_fused_ops += "\\\n\t" + data_type + " " + e_mul + " = (oc < 16) ? " +
                                          get_shuffle(var_name + ".s0", "oc") + " : " + get_shuffle(var_name + ".s1", "oc") + ";";
                     eltwise_fused_ops += "\\\n\tres = res*" + e_mul + ";";
+                } else {
+                    throw std::invalid_argument("Not supported eltwise fusing op in binary_convolution_1x1 kernel: " + params.layerID);
                 }
 
                 break;
