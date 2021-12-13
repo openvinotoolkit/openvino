@@ -171,7 +171,8 @@ void MKLDNNIfNode::createPrimitive() {
 }
 
 bool MKLDNNIfNode::needPrepareParams() const {
-    return MKLDNNNode::inputShapesDefined() || condition != (reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+    return MKLDNNNode::inputShapesModified() ||
+           condition != static_cast<bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
 }
 
 void MKLDNNIfNode::prepareParams() {
@@ -179,7 +180,7 @@ void MKLDNNIfNode::prepareParams() {
 
     if (isDynamic) {
         new_state = true;
-        condition = (reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+        condition = static_cast<bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
         prepareBeforeMappers(condition, eng);
     } else {
         prepareBeforeMappers(true, eng);
@@ -217,7 +218,7 @@ void MKLDNNIfNode::prepareAfterMappers(const bool isThen, const dnnl::engine& en
 
 void MKLDNNIfNode::execute(mkldnn::stream strm) {
     if (!isDynamic)
-        condition = (reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0];
+        condition = static_cast<bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
