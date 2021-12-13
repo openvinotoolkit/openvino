@@ -15,8 +15,6 @@ namespace MKLDNNPlugin {
 
 class Interval {
 public:
-    Interval() = default;
-
     Interval(Dim val) {
         minValue = val;
         maxValue = val;
@@ -25,17 +23,6 @@ public:
     Interval(Dim minVal, Dim maxVal) {
         minValue = minVal;
         maxValue = maxVal;
-    }
-
-    Interval(const std::initializer_list<Dim>& shape) {
-        auto it = shape.begin();
-        if (shape.size() == 1) {
-            minValue = *it;
-            maxValue = minValue;
-        } else if (shape.size() > 1) {
-            minValue = *it;
-            maxValue = *(++it);
-        }
     }
 
     bool isStatic() const {
@@ -71,14 +58,6 @@ public:
 
     explicit Shape(const InferenceEngine::SizeVector& shape) {
         minDims = shape;
-        maxDims = shape;
-        type = ShapeType::Static;
-
-        initDims();
-    }
-
-    explicit Shape(const std::initializer_list<Dim>& shape) {
-        minDims.assign(shape.begin(), shape.end());
         maxDims = shape;
         type = ShapeType::Static;
 
@@ -178,7 +157,7 @@ public:
 
     const Interval getInterval(size_t i) const {
         if (i >= minDims.size()) {
-            IE_THROW() << "Shpae index " << i << " is out of bound " << minDims.size();
+            IE_THROW() << "Shape index " << i << " is out of bound " << minDims.size();
         }
         return Interval(minDims[i], maxDims[i]);
     }

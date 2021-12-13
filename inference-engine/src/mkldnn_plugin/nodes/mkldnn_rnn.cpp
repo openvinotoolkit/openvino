@@ -596,7 +596,7 @@ void MKLDNNRNN::copyWeightsData() {
         fillWeights<uint16_t>(gate_map, wIdx, rIdx);
     } else if (runtimePrecision == Precision::FP32) {
         // WA To avoid different weights layer and iter formats in FP32 case
-        if ((T.isStatic() && T.getMaxValue() != 1) || (N.isStatic() && N.getMaxValue() < 16))
+        if ((T.isStatic() && T.getMaxValue() != 1) || (N.isStatic() && N.getMaxValue() < optimalBatchSize))
             wFormat = mkldnn::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
     } else {// TODO FP16 and INT8 support
@@ -698,20 +698,22 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 }
 
 void MKLDNNRNN::createPrimitive() {
-    if (cell_type == mkldnn::algorithm::vanilla_rnn) {
-        auto prim_desc = createPrimitiveDescriptor<vanilla_rnn_forward::primitive_desc, vanilla_rnn_forward::desc>();
-        prim.reset(new vanilla_rnn_forward(prim_desc));
-    } else if (cell_type == mkldnn::algorithm::vanilla_gru) {
-        auto prim_desc = createPrimitiveDescriptor<gru_forward::primitive_desc, gru_forward::desc>();
-        prim.reset(new gru_forward(prim_desc));
-    } else if (cell_type == mkldnn::algorithm::lbr_gru) {
-        auto prim_desc = createPrimitiveDescriptor<lbr_gru_forward::primitive_desc, lbr_gru_forward::desc>();
-        prim.reset(new lbr_gru_forward(prim_desc));
-    } else if (cell_type == mkldnn::algorithm::vanilla_lstm) {
-        auto prim_desc = createPrimitiveDescriptor<lstm_forward::primitive_desc, lstm_forward::desc>();
-        prim.reset(new lstm_forward(prim_desc));
-    } else {
-        THROW_ERROR << "has unknown cell type.";
+    if (!isDynamicNode()) {
+        if (cell_type == mkldnn::algorithm::vanilla_rnn) {
+            auto prim_desc = createPrimitiveDescriptor<vanilla_rnn_forward::primitive_desc, vanilla_rnn_forward::desc>();
+            prim.reset(new vanilla_rnn_forward(prim_desc));
+        } else if (cell_type == mkldnn::algorithm::vanilla_gru) {
+            auto prim_desc = createPrimitiveDescriptor<gru_forward::primitive_desc, gru_forward::desc>();
+            prim.reset(new gru_forward(prim_desc));
+        } else if (cell_type == mkldnn::algorithm::lbr_gru) {
+            auto prim_desc = createPrimitiveDescriptor<lbr_gru_forward::primitive_desc, lbr_gru_forward::desc>();
+            prim.reset(new lbr_gru_forward(prim_desc));
+        } else if (cell_type == mkldnn::algorithm::vanilla_lstm) {
+            auto prim_desc = createPrimitiveDescriptor<lstm_forward::primitive_desc, lstm_forward::desc>();
+            prim.reset(new lstm_forward(prim_desc));
+        } else {
+            THROW_ERROR << "has unknown cell type.";
+        }
     }
 
     if (inputShapesDefined()) {
@@ -746,7 +748,7 @@ void MKLDNNRNN::prepareParams() {
     bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
     if (runtimePrecision == Precision::FP32) {
-        if (SL != 1 || B < 16) {
+        if (SL != 1 || B < optimalBatchSize) {
             if (wFormat != mkldnn::memory::format_tag::ldigo) {
                 wFormat = mkldnn::memory::format_tag::ldigo;
                 wFormatWasChanged = true;
