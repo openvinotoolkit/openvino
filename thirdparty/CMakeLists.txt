@@ -192,9 +192,13 @@ endif()
 # nlohmann json
 #
 
-if(ENABLE_SAMPLES OR ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
-    add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
-endif()
+add_subdirectory(json)
+
+openvino_developer_export_targets(COMPONENT openvino_common
+                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
+
+ov_install_static_lib(nlohmann_json openvino_common)
+ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 
 #
 # Install
@@ -202,25 +206,20 @@ endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
         DESTINATION share/openvino/samples/cpp/thirdparty
-        USE_SOURCE_PERMISSIONS
         COMPONENT ${OV_COMP_CPP_SAMPLES}
-        PATTERN gflags/gflags/test EXCLUDE
-        PATTERN gflags/gflags/.gitattributes EXCLUDE
-        PATTERN gflags/gflags/.git EXCLUDE
-        PATTERN gflags/gflags/.gitmodules EXCLUDE
-        PATTERN gflags/gflags/.gitignore EXCLUDE)
+        USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
         DESTINATION share/openvino/samples/cpp/thirdparty
-        USE_SOURCE_PERMISSIONS
         COMPONENT ${OV_COMP_CPP_SAMPLES}
-        PATTERN zlib/zlib/.gitignore EXCLUDE
-        PATTERN zlib/zlib/zlib2ansi EXCLUDE
-        PATTERN zlib/zlib/configure EXCLUDE
-        PATTERN zlib/zlib/contrib/dotzlib EXCLUDE
-        PATTERN zlib/zlib/contrib/vstudio EXCLUDE)
+        USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
         DESTINATION share/openvino/samples/cpp/thirdparty
-        USE_SOURCE_PERMISSIONS
-        COMPONENT ${OV_COMP_CPP_SAMPLES})
+        COMPONENT ${OV_COMP_CPP_SAMPLES}
+        USE_SOURCE_PERMISSIONS)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
+        DESTINATION share/openvino/samples/cpp/thirdparty
+        COMPONENT ${OV_COMP_CPP_SAMPLES}
+        USE_SOURCE_PERMISSIONS)

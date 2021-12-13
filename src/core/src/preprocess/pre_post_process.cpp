@@ -6,6 +6,7 @@
 
 #include "color_utils.hpp"
 #include "function_guard.hpp"
+#include "layout_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/model.hpp"
 #include "preprocess_steps_impl.hpp"
@@ -385,8 +386,6 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         if (!input->get_tensor_data()->is_layout_set()) {
             if (!color_info->default_layout().empty()) {
                 input->get_tensor_data()->set_layout(color_info->default_layout());
-            } else if (!param->get_layout().empty()) {
-                input->get_tensor_data()->set_layout(param->get_layout());
             }
         }
 
@@ -399,7 +398,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
             param->get_layout() != input->get_tensor_data()->get_layout()) {
             // Find transpose between model and tensor layouts and update tensor shape
             auto net_to_tensor =
-                layout::find_permutation(param->get_layout(), net_shape.rank(), input->get_tensor_data()->get_layout());
+                layout::utils::find_permutation(param->get_layout(), net_shape, input->get_tensor_data()->get_layout());
             if (!net_to_tensor.empty()) {
                 std::vector<ov::Dimension> dims(new_param_shape.size());
                 std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
@@ -408,8 +407,15 @@ std::shared_ptr<Model> PrePostProcessor::build() {
                 new_param_shape = PartialShape(dims);
             }
         } else {
-            new_param_shape = input->get_preprocess()->calculate_param_shape(new_param_shape);
+            Layout new_layout;
+            std::tie(new_param_shape, new_layout) =
+                input->get_preprocess()->calculate_param_shape(new_param_shape, param->get_layout());
+            if (!input->get_tensor_data()->is_layout_set()) {
+                // Reusing param's layout according to converted calculated layout
+                input->get_tensor_data()->set_layout(new_layout);
+            }
         }
+
         if (input->get_tensor_data()->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->get_tensor_data()->get_layout(), new_param_shape);
             auto width_idx = get_and_check_width_idx(input->get_tensor_data()->get_layout(), new_param_shape);

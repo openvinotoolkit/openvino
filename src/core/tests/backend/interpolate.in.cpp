@@ -8,7 +8,6 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
@@ -19,9 +18,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
-
-NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear) {
+NGRAPH_TEST(TEMPLATE, interpolate_down_scales_const_linear) {
     Shape input_shape{1, 1, 2, 4};
     Shape output_shape{1, 1, 1, 2};
     op::v0::InterpolateAttrs attrs;
@@ -31,18 +28,13 @@ NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear) {
     const auto input = make_shared<op::Parameter>(element::f32, input_shape);
     const auto output_shape_input = op::v0::Constant::create(element::i64, {4}, {1, 1, 1, 2});
     std::vector<float> intput_data{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+    vector<float> expected_output{1.0f, 2.66666651f};
 
     auto interpolate = make_shared<op::v0::Interpolate>(input, output_shape_input, attrs);
     auto f = make_shared<Function>(interpolate, ParameterVector{input});
 
-    auto backend = runtime::Backend::create("IE_CPU");
-    auto input_tensor = backend->create_tensor(element::f32, input_shape);
-    auto result_tensor = backend->create_tensor(element::f32, output_shape);
-    auto handle = backend->compile(f);
-    copy_data(input_tensor, intput_data);
-
-    handle->call_with_validate({result_tensor}, {input_tensor});
-
-    vector<float> expected_output{1.0f, 2.66666651f};
-    EXPECT_TRUE(test::all_close_f(expected_output, read_vector<float>(result_tensor)));
+    auto test_case = test::TestCase(f);
+    test_case.add_input(intput_data);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
 }

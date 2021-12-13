@@ -14,8 +14,6 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/runtime/tensor.hpp>
-#include <backend_manager.hpp>
-#include <backend.hpp>
 
 namespace ngraph {
 namespace helpers {

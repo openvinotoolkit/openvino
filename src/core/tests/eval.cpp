@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "engines_util/execute_tools.hpp"
+#include "engines_util/test_case.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/node.hpp"
@@ -174,23 +175,14 @@ TEST(eval, interpret_dynamic_range_sum) {
     auto range = make_shared<op::v0::Range>(p_start, p_stop, p_step);
     auto add = make_shared<op::v1::Add>(range, p1);
     auto fun = make_shared<Function>(OutputVector{add}, ParameterVector{p_start, p_stop, p_step, p1});
-    auto backend = runtime::Backend::create("INTERPRETER");
-    auto p_start_val = backend->create_tensor(element::f32, Shape{});
-    copy_data(p_start_val, vector<float>{1.0f});
-    auto p_stop_val = backend->create_tensor(element::f32, Shape{});
-    copy_data(p_stop_val, vector<float>{10.0f});
-    auto p_step_val = backend->create_tensor(element::f32, Shape{});
-    copy_data(p_step_val, vector<float>{3.0f});
-    auto p1_val = backend->create_tensor(element::f32, Shape{});
-    copy_data(p1_val, vector<float>{7.0f});
-    auto result = backend->create_tensor();
-    auto cfun = backend->compile(fun);
-    cfun->call({result}, {p_start_val, p_stop_val, p_step_val, p1_val});
-    EXPECT_EQ(result->get_element_type(), element::f32);
-    EXPECT_EQ(result->get_partial_shape(), (PartialShape{3}));
-    auto result_val = read_vector<float>(result);
+    auto test_case = test::TestCase(fun);
+    test_case.add_input(std::vector<float>{1.0f});
+    test_case.add_input(std::vector<float>{10.0f});
+    test_case.add_input(std::vector<float>{3.0f});
+    test_case.add_input(std::vector<float>{7.0f});
     vector<float> seq{8.0f, 11.0f, 14.0f};
-    ASSERT_EQ(result_val, seq);
+    test_case.add_expected_output({3}, seq);
+    test_case.run();
 }
 
 TEST(eval, evaluate_broadcast_v3_bidirectional) {

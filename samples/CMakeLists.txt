@@ -20,7 +20,7 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reade
 
 # install C++ samples
 
-ie_cpack_add_component(${OV_COMP_CPP_SAMPLES} DEPENDS ${OV_COMP_CORE})
+ie_cpack_add_component(${OV_COMP_CPP_SAMPLES} DEPENDS ${OV_COMP_CORE_DEV})
 
 if(UNIX)
     install(DIRECTORY cpp/
