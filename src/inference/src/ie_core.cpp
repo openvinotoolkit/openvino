@@ -526,11 +526,14 @@ public:
         }
 
         const auto& batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-        if (batch_mode == config_with_batch.end() || batch_mode->second != CONFIG_VALUE(YES))
+        if (batch_mode == config_with_batch.end())
+            return;
+        const auto enabled = batch_mode->second == CONFIG_VALUE(YES);
+        // no need for this config key in the rest of loading
+        config_with_batch.erase(batch_mode);
+        if (!enabled)
             return;
         try {
-            // no need for this config key in the rest of loading
-            config_with_batch.erase(batch_mode);
             // do not reshape/re-batch originally batched networks!
             const InputsDataMap inputInfo = network.getInputsInfo();
             ICNNNetwork::InputShapes shapes = network.getInputShapes();
@@ -595,8 +598,7 @@ public:
                     if (bDetectionOutput) {
                         deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
                         std::cout << "HETERO code path!!!!" << std::endl;
-                        // config_with_batch[CONFIG_KEY(AUTO_BATCH)] = batchConfig;
-                        SetConfigForPlugins({{CONFIG_KEY(AUTO_BATCH), batchConfig}}, "BATCH");
+                        config_with_batch[CONFIG_KEY(AUTO_BATCH)] = batchConfig;
                     } else {
                         deviceName = "BATCH:" + batchConfig;
                     }
