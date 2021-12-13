@@ -15,7 +15,7 @@ public:
     NGRAPH_RTTI_DECLARATION;
 
     explicit ExtractBatch(std::unordered_set<ngraph::Node::type_info_t> targets);
-    bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:
     std::unordered_set<ngraph::Node::type_info_t> targets;
