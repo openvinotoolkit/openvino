@@ -3,14 +3,14 @@
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
-from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.ops.elementwise import Add
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.range import Range
 from openvino.tools.mo.ops.reshape import Reshape
 from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.squeeze import Squeeze
 from openvino.tools.mo.utils.error import Error
-from utils.e2e.postprocessors.common import Squeeze
 
 
 class ArangeLikeReplacer(FrontReplacementOp):
@@ -26,10 +26,10 @@ class ArangeLikeReplacer(FrontReplacementOp):
         axis = node.axis
         shape_node = Shape(graph, {'name': name + '/shape'}).create_node()
         range_node = create_op_with_const_inputs(graph, Range, {0: int64_array(node.start),
-                                                                2: int64_array(1)}, {'name': name + '/Range'})
+                                                                2: int64_array(node.step)}, {'name': name + '/Range'})
         node.in_port(0).get_connection().set_destination(shape_node.in_port(0))
 
-        if axis:
+        if axis is not None:
             '''
             Replace arange_like op to subgraph:
             Shape - Gather - Range
@@ -75,3 +75,5 @@ class ArangeLikeReplacer(FrontReplacementOp):
         squeeze_node = create_op_with_const_inputs(graph, Squeeze, port_value_dict={1: int64_array(0)},
                                                    op_attrs={"name": range_node.name + '/Stop/Squeeze'})
         range_node.in_port(1).get_connection().insert_node(squeeze_node)
+
+        rename_nodes([(node, name + '/ShouldBeDeleted'), (range_node, name)])

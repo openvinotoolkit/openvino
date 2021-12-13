@@ -18,7 +18,7 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 5, 5])),
                 **regular_op_with_empty_data('arange_like', {'op': 'arange_like', 'type': None, 'axis': 3, 'repeat': 1,
-                                                             'start': 0}),
+                                                             'start': 0, 'step': 1}),
                 **result('result')
             },
             edges=[
@@ -70,7 +70,7 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 5, 5])),
                 **regular_op_with_empty_data('arange_like', {'op': 'arange_like', 'type': None, 'axis': 3, 'repeat': 1,
-                                                             'start': 1}),
+                                                             'start': 1, 'step': 2}),
                 **result('result')
             },
             edges=[
@@ -113,7 +113,7 @@ class ArangeLikeReplacerTest(unittest.TestCase):
                 'gather_axis': {'value': 3},
                 'gather_indices': {'value': 0},
                 'range_start': {'value': 1},
-                'range_step': {'value': 1},
+                'range_step': {'value': 2},
                 'add_const': {'value': 1}
             }
         )
@@ -127,7 +127,7 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 5, 5])),
                 **regular_op_with_empty_data('arange_like', {'op': 'arange_like', 'type': None, 'axis': None,
-                                                             'repeat': 1, 'start': 0}),
+                                                             'repeat': 1, 'start': 0, 'step': 2}),
                 **result('result')
             },
             edges=[
@@ -165,7 +165,7 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             ],
             update_attributes={
                 'range_start': {'value': 0},
-                'range_step': {'value': 1}
+                'range_step': {'value': 2}
             }
         )
 
@@ -178,7 +178,7 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 5, 5])),
                 **regular_op_with_empty_data('arange_like', {'op': 'arange_like', 'type': None, 'axis': None,
-                                                             'repeat': 1, 'start': 1}),
+                                                             'repeat': 1, 'start': 1, 'step': 1}),
                 **result('result')
             },
             edges=[
@@ -234,7 +234,7 @@ class ArangeLikeReplacerTest(unittest.TestCase):
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 5, 5])),
                 **regular_op_with_empty_data('arange_like', {'op': 'arange_like', 'type': None, 'axis': None,
-                                                             'repeat': 2, 'start': 1}),
+                                                             'repeat': 2, 'start': 1, 'step': 1}),
                 **result('result')
             },
             edges=[
