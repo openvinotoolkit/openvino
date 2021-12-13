@@ -19,10 +19,10 @@
 #include "engines_util/test_engines.hpp"
 
 using namespace ngraph;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
-
-using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 // ############################################################################ CORE TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
@@ -35,7 +35,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     test_case.add_expected_output<float>(Shape{2, 2}, {3., 4., 5., 6.});
     test_case.run();
@@ -51,7 +51,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     test_case.add_expected_output<float>(Shape{3, 1}, {2., 4., 6.});
     test_case.run();
@@ -67,7 +67,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     test_case.add_expected_output<float>(Shape{2}, {2., 5.});
     test_case.run();
@@ -83,7 +83,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_negative_axis) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     test_case.add_expected_output<float>(Shape{3, 1}, {2., 4., 6.});
     test_case.run();
