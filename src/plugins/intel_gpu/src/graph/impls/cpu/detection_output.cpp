@@ -818,7 +818,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
             prepare_data<data_type_to_type<data_types::f16>::type>(stream, instance, bboxes, confidences, scoreIndexPairs);
             generate_detections<data_type_to_type<data_types::f16>::type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
         }
-        std::cout << "ev->set();" << std::endl; 
+        //std::cout << "ev->set();" << std::endl; 
         ev->set();
         return ev;
     }

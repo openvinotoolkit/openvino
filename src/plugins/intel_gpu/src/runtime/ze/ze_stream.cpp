@@ -252,8 +252,8 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     //auto ev = create_base_event();
     auto global = to_group_count(args_desc.workGroups.global);
     auto local = to_group_count(args_desc.workGroups.local);
-    std::cout << "enqueue_kernel" << std::dynamic_pointer_cast<ze_base_event>(ev)->get() << std::endl;
-    std::cout << local.groupCountX << "," << local.groupCountY << "," << local.groupCountZ << std::endl;
+    //std::cout << "enqueue_kernel" << std::dynamic_pointer_cast<ze_base_event>(ev)->get() << std::endl;
+    //std::cout << local.groupCountX << "," << local.groupCountY << "," << local.groupCountZ << std::endl;
     //std::cout << global.groupCountX << "," << global.groupCountY << "," << global.groupCountZ << std::endl;
     ze_group_count_t launchArgs = { global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountY, global.groupCountZ/local.groupCountZ };
     //ZE_CHECK(zeKernelSetGroupSize(kern, global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountY, global.groupCountZ/local.groupCountZ));
@@ -322,13 +322,13 @@ ze_event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, 
         // ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_event_pool));
         // ZE_CHECK(zeEventCreate(_event_pool, &eventDesc, &ret_ev));
         // ZE_CHECK(zeCommandListAppendBarrier(_command_list, ret_ev, dep_events.size(), &dep_events.at(0)));
-        std::cout << "zeCommandListAppendBarrier" << std::endl;
+        //std::cout << "zeCommandListAppendBarrier" << std::endl;
         ZE_CHECK(zeCommandListAppendBarrier(_command_list, std::dynamic_pointer_cast<ze_base_event>(ev)->get(), dep_events.size(), &dep_events.at(0)));
 
         return ev;
     } else if (sync_method == sync_methods::barriers) {
         sync_events(deps, is_output);
-        std::cout << "_last_barrier" << std::endl;
+        //std::cout << "_last_barrier" << std::endl;
         ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_last_barrier_pool));
         ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
         return std::make_shared<ze_event>(_last_barrier_pool, _last_barrier_ev, _last_barrier);
@@ -365,7 +365,7 @@ ze_event::ptr ze_stream::create_user_event(bool set) {
     };
     ZE_CHECK(zeEventCreate(_event_pool, &tsEventDesc, &hEvent));
     auto result = std::make_shared<ze_event>(_event_pool, hEvent, set);
-    std::cout << "create_user_event " << hEvent << " " << set << std::endl;
+    //std::cout << "create_user_event " << hEvent << " " << set << std::endl;
     // if (!set) {
     //     ZE_CHECK(zeCommandListAppendSignalEvent(_command_list, hEvent));
     // }
@@ -393,7 +393,7 @@ ze_event::ptr ze_stream::create_base_event() {
 
     ZE_CHECK(zeEventCreate(_event_pool, &tsEventDesc, &hEvent));
     auto result =  std::make_shared<ze_event>(_event_pool, hEvent, ++_queue_counter);
-    std::cout << "create_base_event " << hEvent << " " << _queue_counter << std::endl;
+    //std::cout << "create_base_event " << hEvent << " " << _queue_counter << std::endl;
     return result;
 }
 
@@ -470,14 +470,14 @@ void ze_stream::finish() const {
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
-    std::cout << "wait_for_events " << std::endl;
+    //std::cout << "wait_for_events " << std::endl;
     if (events.empty())
         return;
     std::vector<ze_event_handle_t> _ze_events;
     for (auto& ev : events) {
         if (auto ze_base_ev = dynamic_cast<ze_base_event*>(ev.get())) {
             _ze_events.push_back(ze_base_ev->get());
-            std::cout << "wait_for_events: " << ze_base_ev->get() << std::endl;
+            //std::cout << "wait_for_events: " << ze_base_ev->get() << std::endl;
             //ZE_CHECK(zeEventHostSynchronize(ze_base_ev->get(), UINT32_MAX));
         }
     }
@@ -528,7 +528,7 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
                 };
                 ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_last_barrier_pool));
                 ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
-                std::cout << "_last_barrier_ev " << _last_barrier_ev<< std::endl;
+                //std::cout << "_last_barrier_ev " << _last_barrier_ev<< std::endl;
                 ZE_CHECK(zeCommandListAppendBarrier(_command_list, _last_barrier_ev, 0, nullptr));//_last_barrier_ev
             } else {
                 //std::cout << "_last_barrier_ev nullptr" << std::endl;
