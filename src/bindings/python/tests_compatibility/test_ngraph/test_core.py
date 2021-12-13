@@ -129,7 +129,7 @@ def test_partial_shape():
     assert ps.rank == Dimension.dynamic()
     assert list(ps.get_min_shape()) == []
     assert list(ps.get_max_shape()) == []
-    assert repr(ps) == "<PartialShape: ?>"
+    assert repr(ps) == "<PartialShape: ...>"
 
     ps = PartialShape.dynamic(r=Dimension(2))
     assert not ps.is_static
