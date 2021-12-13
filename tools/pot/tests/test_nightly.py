@@ -14,7 +14,7 @@ from .utils.config import get_engine_config, merge_configs
 init_logger(level='INFO')
 
 TEST_MODELS_DEFAULT = [
-    ('ssd512', 'caffe', 'FP32', {
+    ('ssd512', 'caffe', 'FP16', {
         'performance': {'map': 0.9088},
         'mixed': {'map': 0.904}}),
     ('googlenet-v3', 'tf', 'FP32', {
