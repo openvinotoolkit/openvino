@@ -16,8 +16,8 @@
 
 #include "framework.pb.h"
 #include "node_context.hpp"
-#include "openvino/frontends/paddlepaddle/frontend.hpp"
-#include "openvino/frontends/paddlepaddle/place.hpp"
+#include "openvino/frontend/paddlepaddle/frontend.hpp"
+#include "place.hpp"
 
 namespace ov {
 namespace frontend {

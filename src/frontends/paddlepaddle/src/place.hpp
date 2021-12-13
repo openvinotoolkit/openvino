@@ -6,7 +6,7 @@
 
 #include <manager.hpp>
 
-#include "openvino/frontends/paddlepaddle/exceptions.hpp"
+#include "input_model.hpp"
 
 namespace paddle {
 namespace framework {

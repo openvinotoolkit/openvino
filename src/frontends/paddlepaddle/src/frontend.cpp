@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontends/paddlepaddle/frontend.hpp"
+#include "openvino/frontend/paddlepaddle/frontend.hpp"
 
 #include <fstream>
 #include <map>
@@ -13,9 +13,9 @@
 #include "framework.pb.h"
 #include "node_context.hpp"
 #include "op_table.hpp"
-#include "openvino/frontends/paddlepaddle/exceptions.hpp"
-#include "openvino/frontends/paddlepaddle/input_model.hpp"
-#include "openvino/frontends/paddlepaddle/place.hpp"
+#include "input_model.hpp"
+#include "input_model.hpp"
+#include "place.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "paddlepaddle_fw_node.hpp"
 #include "paddlepaddle_utils.hpp"
