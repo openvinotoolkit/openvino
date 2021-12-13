@@ -78,7 +78,7 @@ void parseInputFilesArguments(std::vector<std::string>& files) {
     while (args_it != args.end()) {
         const auto img_start = std::find_if(args_it, end(args), is_image_arg);
         if (img_start == end(args)) {
-            return;
+            break;
         }
         const auto img_begin = std::next(img_start);
         const auto img_end = std::find_if(img_begin, end(args), is_arg);
@@ -88,6 +88,9 @@ void parseInputFilesArguments(std::vector<std::string>& files) {
         args_it = img_end;
     }
 
+    if (files.empty()) {
+        return;
+    }
     size_t max_files = 20;
     if (files.size() < max_files) {
         slog::info << "Files were added: " << files.size() << slog::endl;
