@@ -26,7 +26,7 @@ class IInferRequestInternal;
 namespace ov {
 namespace runtime {
 
-class ExecutableNetwork;
+class CompiledModel;
 
 /**
  * @brief This is an interface of asynchronous infer request
@@ -44,7 +44,7 @@ class OPENVINO_RUNTIME_API InferRequest {
      * @param impl Initialized shared pointer
      */
     InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl);
-    friend class ov::runtime::ExecutableNetwork;
+    friend class ov::runtime::CompiledModel;
 
 public:
     /**
