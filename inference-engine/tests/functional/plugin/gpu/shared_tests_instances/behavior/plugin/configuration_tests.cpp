@@ -16,11 +16,6 @@ namespace {
                     ::testing::Values(DefaultParameter{})),
             DefaultConfigurationTest::getTestCaseName);
 
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16
-    };
-
     IE_SUPPRESS_DEPRECATED_START
     const std::vector<std::map<std::string, std::string>> inconfigs = {
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
