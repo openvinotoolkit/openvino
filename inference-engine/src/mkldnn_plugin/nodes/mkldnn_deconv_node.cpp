@@ -114,7 +114,7 @@ MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::N
 
         externOutShape = inputShapes.size() == 3;
         if (isDynamicNode() && externOutShape && ngraph::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
-            currentOutSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+            lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -237,17 +237,42 @@ void MKLDNNDeconvolutionNode::initPadding(std::shared_ptr<ngraph::Node> op, cons
     }
 }
 
-VectorDims MKLDNNDeconvolutionNode::computeOptimalInDummyShape(const std::vector<int32_t>& outSpDims,
-                                                               const ov::CoordinateDiff& pb,
-                                                               const ov::CoordinateDiff& pe) const {
-    auto inputDims = inShape.getStaticDims();
-    const auto& weightDims = getWeightDims();
-    const size_t wghOffset = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
-    for (size_t i = 0; i < inputDims.size() - 2; i++) {
-        inputDims[2 + i] = ((outSpDims[i] - (dilation[i] + 1) * (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
-                            stride[i] + 1;
+std::pair<VectorDims, VectorDims> MKLDNNDeconvolutionNode::makeDummyInOutShape() {
+    auto inShape = MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0));
+    auto outShape = getOutputShapeAtPort(0);
+
+    if (isDynamicNode()) {
+        if (externOutShape) {
+            if (lastOutputSpatialDims.empty()) {
+                const auto& shape = getOutputShapeAtPort(0);
+                lastOutputSpatialDims.resize(shape.getRank() - 2);
+
+                const auto& minDims = shape.getMinDims();
+                const auto& maxDims = shape.getMaxDims();
+                const auto& dims = shape.getDims();
+                for (size_t i = 0; i < dims.size() - 2; ++i) {
+                    lastOutputSpatialDims[i] = dims[i + 2] == Shape::UNDEFINED_DIM ? std::min(maxDims[i + 2],
+                                                                                              std::max(minDims[i + 2], static_cast<Dim>(64))) : dims[i + 2];
+                }
+            }
+            ov::CoordinateDiff pb = autoPad ? ov::CoordinateDiff(paddingL.size(), 0) : paddingL;
+            ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
+
+            auto inputDims = inShape.getStaticDims();
+            const auto& weightDims = getWeightDims();
+            const size_t wghOffset = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
+            for (size_t i = 0; i < inputDims.size() - 2; i++) {
+                inputDims[2 + i] = ((lastOutputSpatialDims[i] - (dilation[i] + 1) *
+                                    (weightDims[wghOffset + 2 + i] - 1) - 1 + pb[i] + pe[i] - outputPadding[i])) /
+                                    stride[i] + 1;
+            }
+
+            inShape = Shape(inputDims);
+        }
+        initPadding(opToShapeInfer, inShape, lastOutputSpatialDims);
+        outShape = Shape(shapeInferInternal(inShape.getStaticDims(), lastOutputSpatialDims));
     }
-    return inputDims;
+    return {inShape.getStaticDims(), outShape.getStaticDims()};
 }
 
 void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
@@ -280,30 +305,10 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
 
-    inShape = MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0));
-    auto outShape = getOutputShapeAtPort(0);
-
-    if (isDynamicNode()) {
-        if (externOutShape) {
-            if (currentOutSpatialDims.empty()) {
-                const auto& shape = getOutputShapeAtPort(0);
-                currentOutSpatialDims.resize(shape.getRank() - 2);
-
-                const auto& minDims = shape.getMinDims();
-                const auto& maxDims = shape.getMaxDims();
-                const auto& dims = shape.getDims();
-                for (size_t i = 0; i < dims.size() - 2; ++i) {
-                    currentOutSpatialDims[i] = dims[i + 2] == Shape::UNDEFINED_DIM ? std::min(maxDims[i + 2],
-                                                                                              std::max(minDims[i + 2], static_cast<Dim>(64))) : dims[i + 2];
-                }
-            }
-            ov::CoordinateDiff pb = autoPad ? ov::CoordinateDiff(paddingL.size(), 0) : paddingL;
-            ov::CoordinateDiff pe = autoPad ? ov::CoordinateDiff(paddingR.size(), 0) : paddingR;
-            inShape = Shape(computeOptimalInDummyShape(currentOutSpatialDims, pb, pe));
-        }
-        initPadding(opToShapeInfer, inShape, currentOutSpatialDims);
-        outShape = Shape(shapeInferInternal(inShape.getStaticDims(), currentOutSpatialDims));
-    }
+    VectorDims inDims, outDims;
+    std::tie(inDims, outDims) = makeDummyInOutShape();
+    inShape = Shape(inDims);
+    Shape outShape(outDims);
     initPaddingR(inShape, outShape);
 
     if (isInt8) {
@@ -418,7 +423,7 @@ bool MKLDNNDeconvolutionNode::needShapeInfer() const {
         return true;
     }
     if (externOutShape) {
-        if (currentOutSpatialDims != get3rdInputData()) {
+        if (lastOutputSpatialDims != readOutputSpatialDims()) {
             return true;
         }
     }
@@ -430,7 +435,7 @@ std::vector<VectorDims> MKLDNNDeconvolutionNode::shapeInfer() const {
     const auto &dataMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     std::vector<int32_t> outSpDims;
     if (externOutShape) {
-        outSpDims = get3rdInputData();
+        outSpDims = readOutputSpatialDims();
     }
     return {shapeInferInternal(dataMemPtr->getStaticDims(), outSpDims)};
 }
@@ -443,7 +448,7 @@ VectorDims MKLDNNDeconvolutionNode::shapeInferInternal(const VectorDims &inDims,
 
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> inputValues;
 
-    if (getParentEdges().size() > 2) {
+    if (externOutShape) {
         if (outSpDims.size() != getInputShapeAtPort(2).getStaticDims()[0]) {
             IE_THROW() << "Can't compute output shape for node with name: " << getName()
                        << ", because the node has 'output_shape' input, but provided output spatial dims number is incorrect";
@@ -467,7 +472,7 @@ void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     execPtr->exec(strm);
 
     if (externOutShape) {
-        currentOutSpatialDims = get3rdInputData();
+        lastOutputSpatialDims = readOutputSpatialDims();
     }
 }
 
@@ -567,7 +572,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
         }
         pAttrLocal = pAttr;
         if (autoPad || externOutShape) {
-            initPadding(opToShapeInfer, inMemoryDesc->getShape(), externOutShape ? get3rdInputData() : std::vector<int32_t>{});
+            initPadding(opToShapeInfer, inMemoryDesc->getShape(), externOutShape ? readOutputSpatialDims() : std::vector<int32_t>{});
         }
         initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
     } else {
@@ -659,7 +664,7 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<MemoryDescPtr> 
 
     auto outDesc = outputDesc[0];
     if (!outDesc->isDefined()) {
-        const auto outShape = shapeInferInternal(inDesc->getShape().getStaticDims(), currentOutSpatialDims);
+        const auto outShape = shapeInferInternal(inDesc->getShape().getStaticDims(), lastOutputSpatialDims);
         outDesc = outDesc->cloneWithNewDims(outShape);
     }
     auto dnnlOutDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*outDesc);
@@ -814,13 +819,13 @@ MKLDNNDeconvolutionNode::DeconvExecutorInt8::DeconvExecutorInt8(const mkldnn::de
     }
 }
 
-std::vector<int32_t> MKLDNNDeconvolutionNode::get3rdInputData() const {
+std::vector<int32_t> MKLDNNDeconvolutionNode::readOutputSpatialDims() const {
     if (getParentEdges().size() < 3) {
         IE_THROW() << "Can't get output spatial dims. Inputs number = " << getParentEdges().size();
     }
     const auto &shapeMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
     if (!shapeMemPtr || !shapeMemPtr->GetPrimitivePtr()) {
-        IE_THROW() << "'output_shape' input memory didn't allocate.";
+        IE_THROW() << "'output_shape' input memory is not allocated.";
     }
     const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->GetPtr());
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);

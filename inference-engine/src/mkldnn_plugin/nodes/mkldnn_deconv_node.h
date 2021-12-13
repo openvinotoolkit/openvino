@@ -116,7 +116,7 @@ private:
     ov::CoordinateDiff paddingL;
     ov::CoordinateDiff paddingR;
     ov::CoordinateDiff outputPadding;
-    std::vector<int32_t> currentOutSpatialDims;
+    std::vector<int32_t> lastOutputSpatialDims;
     VectorDims int8WeightDims;
 
     Shape inShape;
@@ -129,10 +129,8 @@ private:
     VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;
     void initPadding(std::shared_ptr<ngraph::Node> op, const Shape &inShape, const std::vector<int32_t>& outSpDims);
     void initPaddingR(const Shape &inShape, const Shape &outShape);
-    std::vector<int32_t> get3rdInputData() const;
-    VectorDims computeOptimalInDummyShape(const std::vector<int32_t>& outSpDims,
-                                          const ov::CoordinateDiff& pb,
-                                          const ov::CoordinateDiff& pe) const;
+    std::vector<int32_t> readOutputSpatialDims() const;
+    std::pair<VectorDims, VectorDims> makeDummyInOutShape();
 
     DefaultDeconvDescs createDescriptorInternalDefault(const mkldnn::memory::desc& in_candidate,
                                                        const mkldnn::memory::desc& wgh_candidate,
