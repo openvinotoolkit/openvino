@@ -14,7 +14,7 @@ using namespace ov::opset8;
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/mirror-pad
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_pad_op(const NodeContext& node) {
@@ -68,6 +68,6 @@ OutputVector translate_pad_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -25,7 +25,7 @@ public:
 
     FrontEnd();
 
-    virtual ~FrontEnd();
+    virtual ~FrontEnd() = 0;
 
     /// \brief Validates if FrontEnd can recognize model with parameters specified.
     /// Same parameters should be used to load model.

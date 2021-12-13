@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <openvino/core/any.hpp>
-
-#include "tensorflow_frontend/utility.hpp"
+#include "common/frontend_defs.hpp"
+#include "openvino/core/any.hpp"
 
 namespace ov {
 namespace frontend {
+namespace tensorflow {
 
-class TF_API DecoderBase {
+class FRONTEND_API DecoderBase {
 public:
     /// \brief Get attribute value by name and requested type
     ///
@@ -41,5 +41,7 @@ public:
     /// \brief Destructor
     virtual ~DecoderBase() = default;
 };
+
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

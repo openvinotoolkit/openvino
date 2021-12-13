@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 OutputVector translate_select_op(const NodeContext& node) {
     TF_OP_VALIDATION_CHECK(node, node.get_all_inputs().size() == 3, "Select op cannot be converted");
@@ -34,6 +34,6 @@ OutputVector translate_select_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

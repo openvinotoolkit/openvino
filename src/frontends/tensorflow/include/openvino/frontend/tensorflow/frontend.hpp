@@ -12,28 +12,23 @@
 #include "common/telemetry_extension.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
+
 class NodeContext;
-}
-}  // namespace frontend
-}  // namespace ov
 
-namespace ov {
-namespace frontend {
-class TF_API FrontEndTF : public ov::frontend::FrontEnd {
+class FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
+    using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tensorflow::NodeContext&)>;
     using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
 
 private:
     TranslatorDictionaryType m_op_translators;
 
 public:
-    FrontEndTF();
+    FrontEnd();
 
     /// \brief Completely convert the model
     /// \return fully converted ov Model
@@ -84,5 +79,7 @@ private:
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
+
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

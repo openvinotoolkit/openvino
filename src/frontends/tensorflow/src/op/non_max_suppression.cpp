@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_non_max_suppression_op(const NodeContext& node) {
@@ -80,6 +80,6 @@ OutputVector translate_non_max_suppression_op(const NodeContext& node) {
     TF_OP_VALIDATION_CHECK(node, false, "No translator found.");
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

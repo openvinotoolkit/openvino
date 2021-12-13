@@ -9,11 +9,11 @@ using namespace std;
 using namespace ov;
 using namespace opset8;
 using namespace ov::frontend;
-using namespace frontend::tf::detail;
+using namespace frontend::tensorflow::detail;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_concat_op(const NodeContext& node) {
@@ -45,6 +45,6 @@ OutputVector translate_concat_op(const NodeContext& node) {
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

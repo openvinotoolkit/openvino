@@ -11,7 +11,7 @@ using namespace ov::opset8;
 // Translate Conv3D Op
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_3d_op(const NodeContext& node) {
@@ -72,6 +72,6 @@ OutputVector translate_conv_3d_op(const NodeContext& node) {
     return {res};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

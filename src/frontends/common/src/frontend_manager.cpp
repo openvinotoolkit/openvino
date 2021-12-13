@@ -291,6 +291,9 @@ std::string FrontEnd::get_name() const {
 }
 
 //----------- InputModel ---------------------------
+
+InputModel::~InputModel() = default;
+
 std::vector<Place::Ptr> InputModel::get_inputs() const {
     return {};
 }
@@ -391,6 +394,9 @@ void InputModel::set_tensor_partial_value(Place::Ptr place, const void* min_valu
 }
 
 //----------- Place ---------------------------
+
+Place::~Place() = default;
+
 std::vector<std::string> Place::get_names() const {
     FRONT_END_NOT_IMPLEMENTED(get_names);
 }

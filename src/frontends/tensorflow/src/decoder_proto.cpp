@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 
 namespace {
 const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
@@ -123,6 +123,6 @@ std::vector<::tensorflow::AttrValue> DecoderTFProto::decode_attribute_helper(con
     auto value = m_node_def->attr().at(name);
     return {value};
 }
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

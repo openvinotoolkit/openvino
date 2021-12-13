@@ -6,12 +6,12 @@
 
 #include <algorithm>
 
+#include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "tensorflow_frontend/decoder.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 
 class TFFrameworkNode : public ::ov::op::util::FrameworkNode {
 public:
@@ -44,6 +44,6 @@ public:
 private:
     std::shared_ptr<DecoderBase> m_decoder;
 };
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

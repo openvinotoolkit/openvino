@@ -6,15 +6,17 @@
 
 #include <fstream>
 
+#include "common/frontend_exceptions.hpp"
 #include "decoder_proto.hpp"
 #include "graph.pb.h"
 #include "node_def.pb.h"
-#include "tensorflow_frontend/decoder.hpp"
-#include "tensorflow_frontend/graph_iterator.hpp"
+#include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
+
 class GraphIteratorProto : public GraphIterator {
     std::vector<const ::tensorflow::NodeDef*> m_nodes;
     size_t node_index = 0;
@@ -56,6 +58,7 @@ public:
         return std::make_shared<DecoderTFProto>(m_nodes[node_index]);
     }
 };
-}  // namespace tf
+
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

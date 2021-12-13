@@ -11,7 +11,7 @@ using namespace ov::opset8;
 // Translate DepthToSpace op
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_depth_to_space_op(const NodeContext& node) {
@@ -35,6 +35,6 @@ OutputVector translate_depth_to_space_op(const NodeContext& node) {
     return {res};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

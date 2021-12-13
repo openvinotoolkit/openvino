@@ -29,7 +29,7 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 using OpMap = std::unordered_map<std::string, std::vector<ov::Output<ov::Node>>>;
 
 void extract_operation_name_and_port(const std::string& port_name,
@@ -93,7 +93,7 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
     TF_OP_VALIDATION_CHECK(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
     auto dt = node.get_attribute<::tensorflow::DataType>("dtype");
     auto tensor_proto = node.get_attribute<::tensorflow::TensorProto>("value");
-    const tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
+    const ::tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     tf_shape_to_ov_shape(shape, &pshape);
     *const_tensor_shape = pshape.get_shape();
@@ -136,27 +136,27 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
             switch (dt) {
             // TODO: there are more element types to support
             // here
-            case tensorflow::DT_INT32:
+            case ::tensorflow::DT_INT32:
                 val_size = tensor_proto.int_val_size();
                 if (val_size > 0)
                     val_i = tensor_proto.int_val()[i];
                 break;
-            case tensorflow::DT_INT64:
+            case ::tensorflow::DT_INT64:
                 val_size = tensor_proto.int64_val_size();
                 if (val_size > 0)
                     val_i = tensor_proto.int64_val()[i];
                 break;
-            case tensorflow::DT_FLOAT:
+            case ::tensorflow::DT_FLOAT:
                 val_size = tensor_proto.float_val_size();
                 if (val_size > 0)
                     val_i = tensor_proto.float_val()[i];
                 break;
-            case tensorflow::DT_BOOL:
+            case ::tensorflow::DT_BOOL:
                 val_size = tensor_proto.bool_val_size();
                 if (val_size > 0)
                     val_i = tensor_proto.bool_val()[i];
                 break;
-            case tensorflow::DT_DOUBLE:
+            case ::tensorflow::DT_DOUBLE:
                 val_size = tensor_proto.double_val_size();
                 if (val_size > 0)
                     val_i = tensor_proto.double_val()[i];
@@ -188,6 +188,6 @@ void make_const_op(const NodeContext& node, element::Type et, ov::Output<ov::Nod
     values_from_const_node<T, VecT>(node, &ng_shape, &const_values);
     ng_node = std::make_shared<ov::opset8::Constant>(et, ng_shape, const_values);
 };
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

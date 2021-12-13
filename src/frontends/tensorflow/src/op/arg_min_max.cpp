@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
@@ -54,6 +54,6 @@ OutputVector translate_arg_min_op(const NodeContext& node) {
     return (translate_arg_min_max(node, "min"));
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

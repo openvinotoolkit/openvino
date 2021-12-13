@@ -11,7 +11,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 OutputVector translate_softmax_op(const NodeContext& node) {
     auto ng_inp = node.get_input(0);
@@ -24,6 +24,6 @@ OutputVector translate_softmax_op(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

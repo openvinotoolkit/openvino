@@ -39,7 +39,7 @@ class FRONTEND_API InputModel {
 public:
     typedef std::shared_ptr<InputModel> Ptr;
 
-    virtual ~InputModel() = default;
+    virtual ~InputModel() = 0;
 
     /////  Searching for places  /////
 

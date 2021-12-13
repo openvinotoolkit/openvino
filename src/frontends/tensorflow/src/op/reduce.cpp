@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector TranslateReduceOp(const NodeContext& node,
@@ -46,6 +46,6 @@ template OutputVector translate_direct_reduce_op<ReduceMin>(const NodeContext& n
 template OutputVector translate_direct_reduce_op<ReduceProd>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<ReduceSum>(const NodeContext& node);
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

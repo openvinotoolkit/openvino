@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 
 class NodeContext;
 
@@ -20,7 +20,7 @@ public:
 private:
     static std::string get_error_msg_prefix_tf(const NodeContext& node);
 };
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 
 /// \brief Macro to check whether a boolean condition holds.
@@ -31,5 +31,5 @@ private:
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::OpValidationFailureTF if `cond` is false.
 #define TF_OP_VALIDATION_CHECK(node_context, ...) \
-    OPENVINO_ASSERT_HELPER(::ov::frontend::tf::OpValidationFailureTF, (node_context), __VA_ARGS__)
+    OPENVINO_ASSERT_HELPER(::ov::frontend::tensorflow::OpValidationFailureTF, (node_context), __VA_ARGS__)
 }  // namespace ov

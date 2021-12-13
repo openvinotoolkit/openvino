@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
@@ -76,6 +76,6 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     return {ng_conv};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
