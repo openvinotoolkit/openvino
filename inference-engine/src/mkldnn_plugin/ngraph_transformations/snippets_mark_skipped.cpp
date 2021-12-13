@@ -1,11 +1,11 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "snippets_mark_fused.hpp"
+#include "snippets_mark_skipped.hpp"
 #include <snippets/pass/collapse_subgraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SnippetsMarkFused, "SnippetsMarkFused", 0);
+NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SnippetsMarkSkipped, "SnippetsMarkSkipped", 0);
 
 using namespace ngraph;
 namespace MKLDNNPlugin {
@@ -280,7 +280,7 @@ void PropagateIfHasOnlyChild(const std::shared_ptr<Node> &node, NodeFusingType n
 }
 } // namespace
 
-bool SnippetsMarkFused::run_on_model(const std::shared_ptr<ov::Model> &m) {
+bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (ngraph::op::is_constant(node))
             continue;

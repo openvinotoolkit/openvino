@@ -82,7 +82,7 @@
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
 #include <snippets/pass/collapse_subgraph.hpp>
-#include "ngraph_transformations/snippets_mark_fused.hpp"
+#include "ngraph_transformations/snippets_mark_skipped.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -498,7 +498,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     if (!useLpt && _enableSnippets && with_cpu_x86_avx2()) {
         ngraph::pass::Manager tokenization_manager;
-        tokenization_manager.register_pass<SnippetsMarkFused>();
+        tokenization_manager.register_pass<SnippetsMarkSkipped>();
         tokenization_manager.register_pass<ngraph::snippets::pass::MarkNodesForTokenization>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         tokenization_manager.run_passes(nGraphFunc);

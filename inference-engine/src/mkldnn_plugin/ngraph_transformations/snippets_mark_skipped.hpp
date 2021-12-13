@@ -8,13 +8,14 @@
 
 namespace MKLDNNPlugin {
 /**
- * @interface SnippetsMarkFused
- * @brief Mark operations that will be fused on plugin side (but not yet in snippets) so they'll be ignored by snippets.
+ * @interface SnippetsMarkSkipped
+ * @brief Mark operations that should be ignored by snippets on tokenization stage. A typical example is eltwise operations
+ * that will be fused into convolutions on plugin side.
  */
-class SnippetsMarkFused : public ov::pass::ModelPass {
+class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    SnippetsMarkFused() : ModelPass() {}
+    SnippetsMarkSkipped() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model> &) override;
 };
 
