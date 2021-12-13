@@ -104,13 +104,6 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
         shape_infer(node, input_shapes, output_shapes);
-    } else if (auto node = ov::as_type<ov::opset6::CTCGreedyDecoderSeqLen>(op)) {
-        shape_infer(node, input_shapes, output_shapes);
-    } else if (auto node = ov::as_type<ov::opset6::CTCGreedyDecoder>(op)) {
-        shape_infer(node, input_shapes, output_shapes);
-    } else if (auto node = ov::as_type<ov::opset3::ExtractImagePatches>(op)) {
-        shape_infer(node, input_shapes, output_shapes);
-    } else if (auto node = ov::as_type<ov::opset1::ReverseSequence>(op)) {
     } else if (auto node = ov::as_type<ov::opset3::Assign>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::Assign>(op)) {
@@ -138,6 +131,14 @@ void shape_inference(ov::Node* op,
     } else if (auto node = ov::as_type<ov::opset3::ScatterElementsUpdate>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::opset4::ScatterNDUpdate>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::CTCGreedyDecoderSeqLen>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::CTCGreedyDecoder>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::ExtractImagePatches>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::ReverseSequence>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else {
         ngraph::OutputVector new_inputs;
