@@ -316,7 +316,7 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     if (!tiOp) {
         THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
     }
-    const std::shared_ptr<const ov::Function> body = tiOp->get_function();
+    const std::shared_ptr<const ov::Model> body = tiOp->get_function();
     sub_graph.CreateGraph(body, ext_mng, weightCache);
 
     const auto &inMap = sub_graph.GetInputNodesMap();

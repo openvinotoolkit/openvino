@@ -123,7 +123,7 @@ protected:
             Zo = std::make_shared<ngraph::op::v1::Add>(body_params[i], Zo);
         }
 
-        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{body_condition_const, Zo},
+        auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, Zo},
                                                        body_params);
 
         auto loop = std::make_shared<ngraph::opset5::Loop>(trip_count_input, exec_condition);
@@ -150,7 +150,7 @@ protected:
         auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
         auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
         auto result2 = std::make_shared<ngraph::opset5::Result>(out2);
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result0, result1, result2}, params, "loop");
+        function = std::make_shared<ov::Model>(ngraph::ResultVector{result0, result1, result2}, params, "loop");
     }
 };
 
@@ -204,7 +204,7 @@ protected:
         // const std::vector<int64_t> end(inputDynamicShapes[0].rank().get_length(), 0);
         // auto node = ngraph::builder::makePad(body_params[1], begin, end, .0f, PadMode::CONSTANT);
 
-        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{less, exec_idx, node}, body_params);
+        auto body = std::make_shared<ov::Model>(ngraph::OutputVector{less, exec_idx, node}, body_params);
 
         auto loop = std::make_shared<ngraph::opset5::Loop>(params[0], exec_condition);
         loop->set_function(body);
@@ -218,7 +218,7 @@ protected:
 
         auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
         auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result0, result1 }, params, "loop");
+        function = std::make_shared<ov::Model>(ngraph::ResultVector{ result0, result1 }, params, "loop");
     }
 };
 

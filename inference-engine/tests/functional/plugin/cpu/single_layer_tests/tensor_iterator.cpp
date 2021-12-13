@@ -67,7 +67,7 @@ protected:
         auto relu = ngraph::builder::makeActivation(body_params[1], inType, ngraph::helpers::Relu);
         auto add = std::make_shared<ngraph::opset1::Add>(hswish, relu);
 
-        auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{add}, body_params, "body");
+        auto body = std::make_shared<ov::Model>(ngraph::OutputVector{add}, body_params, "body");
         tensor_iterator->set_function(body);
 
         if (direction == ngraph::op::RecurrentSequenceDirection::FORWARD) {
@@ -82,7 +82,7 @@ protected:
             NGRAPH_CHECK(false, "Bidirectional case is not supported.");
         }
 
-        function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0)}, params);
+        function = std::make_shared<ov::Model>(ngraph::OutputVector{tensor_iterator->output(0)}, params);
     }
 };
 
