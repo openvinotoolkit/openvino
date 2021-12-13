@@ -14,16 +14,16 @@ namespace pass {
  *        with constant inputs. Such nodes are then replaced with new Constants containing
  *        the result of a folded operation.
  */
-class OPENVINO_API ConstantFolding : public FunctionPass {
+class OPENVINO_API ConstantFolding : public ModelPass {
 public:
     OPENVINO_RTTI("ConstantFolding");
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 
 private:
     void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node, const Output<Node>& replacement);
     /// \brief Folds pre-calculated output tensor values to constants in case lower and
     /// upper estimations are equal. Traverses graph backwards starting from the results.
-    bool pre_calculated_values_folding(const std::shared_ptr<ov::Function>& f);
+    bool pre_calculated_values_folding(const std::shared_ptr<ov::Model>& f);
 };
 
 OPENVINO_API void disable_constant_folding(const std::shared_ptr<Node>& node);

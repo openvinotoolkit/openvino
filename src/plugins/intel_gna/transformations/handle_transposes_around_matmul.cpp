@@ -144,12 +144,15 @@ HandleTransposeAfterMatMul::HandleTransposeAfterMatMul() {
     auto matmul = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({}, [](const ngraph::Output<ngraph::Node>& node) {
         auto out_shape = node.get_node_shared_ptr()->get_output_shape(0);
         return std::count_if(out_shape.begin(), out_shape.end(), [](size_t n) { return n > 1; }) > 1; });
-    auto add_left = ngraph::pattern::wrap_type<ngraph::opset8::Add>({matmul, ngraph::pattern::any_input()});
-    auto add_right = ngraph::pattern::wrap_type<ngraph::opset8::Add>({ngraph::pattern::any_input(), matmul});
-    auto fq_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul, add_left, add_right});
-    auto fq = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({fq_input, ngraph::pattern::any_input(),
+    auto fq1 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({matmul, ngraph::pattern::any_input(),
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()});
-    auto act_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fq_input, fq});
+    auto add_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul, fq1});
+    auto add_left = ngraph::pattern::wrap_type<ngraph::opset8::Add>({add_input, ngraph::pattern::any_input()});
+    auto add_right = ngraph::pattern::wrap_type<ngraph::opset8::Add>({ngraph::pattern::any_input(), add_input});
+    auto fq2_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul, add_left, add_right});
+    auto fq2 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({fq2_input, ngraph::pattern::any_input(),
+        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()});
+    auto act_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fq2_input, fq2});
     auto act = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
             ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
             ngraph::opset8::Sign, ngraph::opset8::Clamp>({act_input});
@@ -169,7 +172,7 @@ HandleTransposeAfterMatMul::HandleTransposeAfterMatMul() {
             if (!GNALimitations::IsTransposeSupported(reshape_node->get_input_shape(0))) return false;
             auto iter = pattern_map.find(act);
             if (iter == pattern_map.end() &&
-                (iter = pattern_map.find(fq)) == pattern_map.end() &&
+                (iter = pattern_map.find(fq2)) == pattern_map.end() &&
                 (iter = pattern_map.find(add_left)) == pattern_map.end() &&
                 (iter = pattern_map.find(add_right)) == pattern_map.end() &&
                 (iter = pattern_map.find(matmul)) == pattern_map.end()) {
