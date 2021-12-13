@@ -92,7 +92,7 @@ public:
 };
 
 TEST_P(TransposeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
+    InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
@@ -326,4 +326,35 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
     TransposeTransformation::getTestCaseName);
 } // namespace testValues4
+namespace testValues5 {
+    const std::vector<ngraph::PartialShape> inputShapes6D = {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(),
+          Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
+    };
+
+    const std::vector<TransposeTransformationTestValues> testValues = {
+        {
+            { 0, 1, 2, 3, 4, 5},
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {128}, {0.1f}}
+            },
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {128}, {0.1f}}
+            }
+        },
+    };
+
+    INSTANTIATE_TEST_SUITE_P(
+        smoke_LPT,
+        TransposeTransformation,
+        ::testing::Combine(
+            ::testing::ValuesIn(inputShapes6D),
+            ::testing::ValuesIn(testValues)),
+        TransposeTransformation::getTestCaseName);
+} // namespace testValues5
 } // namespace

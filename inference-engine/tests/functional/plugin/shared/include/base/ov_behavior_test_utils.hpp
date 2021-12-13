@@ -59,11 +59,11 @@ public:
     }
 
 protected:
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
     std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
 };
 
 inline ov::runtime::Core createCoreWithTemplate() {
@@ -105,7 +105,7 @@ public:
             auto it = deviceMapping.find(op->get_friendly_name());
             if (it != deviceMapping.end()) {
                 std::string affinity = it->second;
-                op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+                op->get_rt_info()["affinity"] = affinity;
             }
         }
     }

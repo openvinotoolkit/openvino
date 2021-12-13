@@ -72,7 +72,7 @@ TEST(type_info, check_hash_value) {
     EXPECT_EQ(hash_val(type_empty_ver.name, type_empty_ver.version_id, type_empty_ver.version), type_empty_ver.hash());
 }
 
-TEST(type_info, find_in_map) {
+TEST(type_info, DISABLED_find_in_map) {
     std::vector<std::string> vector_names;
     ov::DiscreteTypeInfo a("Mod", 1, "opset1");
     ov::DiscreteTypeInfo b("Prelu", 0, "opset1");

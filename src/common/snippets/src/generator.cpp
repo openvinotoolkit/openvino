@@ -3,7 +3,6 @@
 //
 
 #include "snippets/generator.hpp"
-#include "snippets/register_info.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/insert_load_store.hpp"
@@ -17,10 +16,9 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
 
     // ToDo: change to reg_t
     std::vector<size_t> rout;
-    auto rinfo = rt["reginfo"];
-    if (!rinfo.empty()) {
-        auto reginfo = ngraph::as_type_ptr<ngraph::VariantWrapper<std::vector<size_t>>>(rinfo)->get();
-        for (auto reg : reginfo) {
+    auto it_rt = rt.find("reginfo");
+    if (it_rt != rt.end()) {
+        for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
             rout.push_back(reg);
         }
     }
@@ -28,10 +26,9 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
     std::vector<size_t> rin;
     for (auto input : n->inputs()) {
         auto rt = input.get_source_output().get_node_shared_ptr()->get_rt_info();
-        auto rinfo = rt["reginfo"];
-        if (!rinfo.empty()) {
-            auto reginfo = ngraph::as_type_ptr<ngraph::VariantWrapper<std::vector<size_t>>>(rinfo)->get();
-            for (auto reg : reginfo) {
+        auto it_rt = rt.find("reginfo");
+        if (it_rt == rt.end()) {
+            for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
                 rin.push_back(reg);
             }
         }

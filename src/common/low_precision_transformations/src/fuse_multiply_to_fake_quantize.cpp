@@ -80,9 +80,9 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     replace_node(multiply, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
 
-    const auto intervalAlignment = getAttribute<IntervalsAlignmentAttributePtr>(fakeQuantize);
-    if ((intervalAlignment != nullptr) && (intervalAlignment->get()->levels != 0ul)) {
-        newFakeQuantize->set_levels(intervalAlignment->get()->levels);
+    const auto intervalAlignment = getAttribute<IntervalsAlignmentAttribute>(fakeQuantize);
+    if (!intervalAlignment.empty() && (intervalAlignment.as<IntervalsAlignmentAttribute>().levels != 0ul)) {
+        newFakeQuantize->set_levels(intervalAlignment.as<IntervalsAlignmentAttribute>().levels);
     }
 
     updateOutput(context, newFakeQuantize, multiply);

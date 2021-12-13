@@ -16,12 +16,11 @@
 #include "ngraph/specialize_function.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v8::If);
-op::v8::If::If() : MultiSubGraphOp(2) {}
+BWDCMP_RTTI_DEFINITION(ov::op::v8::If);
+ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 
-op::v8::If::If(const Output<Node>& execution_condition) : If() {
+ov::op::v8::If::If(const Output<Node>& execution_condition) : If() {
     set_argument(0, execution_condition);
 }
 
@@ -38,14 +37,14 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
     if (then_rank.is_dynamic() || else_rank.is_dynamic() || then_rank.get_length() != else_rank.get_length()) {
         return ov::PartialShape::dynamic(ngraph::Rank::dynamic());
     }
-    std::vector<Dimension> new_dims;
+    std::vector<ov::Dimension> new_dims;
 
     // If rangs are equal each dimesion of then_body output is union with each dimension of
     // else_body
     for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin(); then_it != then_pshape.cend();
          then_it++, else_it++) {
         if ((*then_it).is_dynamic() || (*else_it).is_dynamic()) {
-            new_dims.push_back(Dimension::dynamic());
+            new_dims.push_back(ov::Dimension::dynamic());
         } else if (*then_it == *else_it) {
             new_dims.emplace_back(*then_it);
         } else {
@@ -58,7 +57,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
     return ov::PartialShape(new_dims);
 }
 
-bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_If_visit_attributes);
     visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
     visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
@@ -69,8 +68,8 @@ bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v8::If::validate_and_infer_type_body(
-    const std::shared_ptr<Function>& body,
+void ov::op::v8::If::validate_and_infer_type_body(
+    const std::shared_ptr<ov::Model>& body,
     const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors) {
     for (const auto& input_description : input_descriptors) {
         auto index = input_description->m_input_index;
@@ -82,7 +81,7 @@ void op::v8::If::validate_and_infer_type_body(
     body->validate_nodes_and_infer_types();
 }
 
-void op::v8::If::validate_and_infer_types() {
+void ov::op::v8::If::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_If_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 2, "If contains incorrect number of bodies:", m_bodies.size());
@@ -171,7 +170,7 @@ void op::v8::If::validate_and_infer_types() {
     }
 }
 
-std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v8_If_clone_with_new_inputs);
 
     check_new_args_count(this, new_args);
@@ -180,8 +179,8 @@ std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_
 
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_then_body(clone_function(*get_then_body()));
-    op->set_else_body(clone_function(*get_else_body()));
+    op->set_then_body(clone_model(*get_then_body()));
+    op->set_else_body(clone_model(*get_else_body()));
 
     for (auto body_index = 0; body_index < 2; ++body_index) {
         for (const auto& m_input_descr : m_input_descriptions[body_index]) {
@@ -196,7 +195,7 @@ std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_
     return op;
 }
 
-op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
+ov::op::v8::If::OutputMap ov::op::v8::If::get_mapping_outputs_on_body_description(
     const ngraph::op::util::MultiSubgraphOutputDescriptionVector& output_descriptors) {
     OutputMap outputs_map = OutputMap();
     std::unordered_set<int64_t> checked_results_in_body;
@@ -220,9 +219,9 @@ op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
     return outputs_map;
 }
 
-void op::v8::If::set_input(const Output<Node>& value,
-                           const std::shared_ptr<v0::Parameter>& then_parameter,
-                           const std::shared_ptr<v0::Parameter>& else_parameter) {
+void ov::op::v8::If::set_input(const Output<Node>& value,
+                               const std::shared_ptr<v0::Parameter>& then_parameter,
+                               const std::shared_ptr<v0::Parameter>& else_parameter) {
     NGRAPH_CHECK(then_parameter != nullptr || else_parameter != nullptr,
                  "Missing parameters! Both parameters are nullptr!");
     auto then_param_index = m_bodies[THEN_BODY_INDEX]->get_parameter_index(then_parameter);
@@ -238,8 +237,8 @@ void op::v8::If::set_input(const Output<Node>& value,
     set_invariant_inputs(value, {then_parameter, else_parameter});
 }
 
-Output<Node> op::v8::If::set_output(const std::shared_ptr<v0::Result>& then_result,
-                                    const std::shared_ptr<v0::Result>& else_result) {
+ov::Output<ov::Node> ov::op::v8::If::set_output(const std::shared_ptr<v0::Result>& then_result,
+                                                const std::shared_ptr<v0::Result>& else_result) {
     NGRAPH_CHECK(then_result != nullptr, "Incorrect result in \"then_body\"! Result cant be \'nullptr\'");
     NGRAPH_CHECK(else_result != nullptr, "Incorrect result in \"else_body\"! Result cant be \'nullptr\'");
     auto then_result_id = m_bodies[THEN_BODY_INDEX]->get_result_index(then_result);

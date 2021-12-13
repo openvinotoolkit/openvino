@@ -247,7 +247,7 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
 
-bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     type_to_fuse_map type_to_fuse{
         {opset4::Parameter::get_type_info_static(), fuse_type_to_parameter},
         {opset4::Convert::get_type_info_static(), fuse_type_to_convert},

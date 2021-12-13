@@ -14,7 +14,7 @@
 
 namespace ov {
 class Node;
-class Function;
+class Model;
 template <typename T>
 class ValueAccessor;
 template <typename T>
@@ -97,7 +97,7 @@ public:
     /// \brief Provides API to handle openvino Function attribute type, accessed as ValueAccessor
     /// \param name attribute name
     /// \param adapter reference to a Function ValueAccessor<VAT>
-    virtual void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter);
+    virtual void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter);
 
     /// The generic visitor. There must be a definition of AttributeAdapter<T> that can convert
     /// to a ValueAccessor<U> for one of the on_adpater methods.

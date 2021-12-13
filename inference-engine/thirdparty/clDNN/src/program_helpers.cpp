@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "program_helpers.h"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include <algorithm>
 #include <utility>
@@ -117,8 +117,16 @@ layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data
 std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, layout const& l2) {
     const auto& l1_pad = l1.data_padding;
     const auto& l2_pad = l2.data_padding;
+    auto offset_last_element_l1 = l1.get_linear_offset(l1.size - tensor{1});
+    auto offset_last_element_l2 = l2.get_linear_offset(l2.size - tensor{1});
     if (l1 == l2)
         return {true, true};
+    // If data is actually 1d along f and dense, the layouts are identical
+    if (l1.data_type == l2.data_type && l1.size == l2.size && !l1_pad && !l2_pad && l1.size.batch[0] == 1 &&
+        ((l1.format.spatial_num() == 2 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1) ||
+        ((l1.format.spatial_num() == 3 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1 && l1.size.spatial[2] == 1))) &&
+        (offset_last_element_l1 + 1 == l1.size.feature[0] && offset_last_element_l2 + 1 == l2.size.feature[0]))
+        return {false, true};
     if (l1.data_type != l2.data_type)
         return {false, false};
     // Reorders between bfyx, bfzyx, bfwzyx can pe reinterpeted as reshape when
@@ -175,4 +183,15 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
 
     return {false, false};
 }
+
+// check if input and output layouts are identical to reuse memory in fused_ops of onednn
+bool program_helpers::are_layouts_identical_for_onednn_sum_post_op(layout input_layout, layout output_layout) {
+    if (input_layout.size == output_layout.size && input_layout.format == output_layout.format &&
+        input_layout.data_padding == output_layout.data_padding &&
+        data_type_traits::size_of(input_layout.data_type) == data_type_traits::size_of(output_layout.data_type))
+        return true;
+
+    return false;
+}
+
 }  // namespace cldnn
