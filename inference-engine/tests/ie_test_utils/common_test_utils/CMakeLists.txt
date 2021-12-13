@@ -20,6 +20,7 @@ function(add_common_utils ADD_TARGET_NAME)
                     gtest_main
                     inference_engine_transformations
                     ngraph_test_util
+                    ngraphFunctions
                 PRIVATE
                     openvino::util
     )
@@ -37,7 +38,7 @@ function(add_common_utils ADD_TARGET_NAME)
     )
 
     # detecting regex support
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
         set(USE_BOOST_RE ON)
     endif()
     if (USE_BOOST_RE)

@@ -1741,6 +1741,9 @@ void RemoveSingleInputConcatPass::run() {
     for (auto &l : *pLayers) {
         if (l->type == "Concat") {
             auto concat = dynamic_cast<ConcatLayer*>(l.get());
+            if (concat == nullptr) {
+                THROW_GNA_EXCEPTION << "Layer has type Concat but faild during casting to ConcatLayer";
+            }
             if (concat->insData.size() == 1 && concat->outData.size() > 0) {
                 auto in = concat->insData[0];
                 auto in_layer = getCreatorLayer(in.lock());
