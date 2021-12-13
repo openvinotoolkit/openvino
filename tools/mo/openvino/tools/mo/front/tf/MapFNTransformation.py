@@ -317,6 +317,24 @@ class MapFN2InputSlicing(FrontReplacementSubgraph):
         # remove TensorListFromTensor and pass a tensor to Loop as is
         unstack_node.out_port(0).get_connection().set_source(unstack_node.in_port(0).get_connection().get_source())
 
+        for in_port in loop_node.in_ports():
+            # if in_port.get
+            op = loop_node.in_port(in_port).get_connection().get_source()
+            if op is not None:
+                opp = op.node
+                if opp.op == "EmptyTensorList":
+                    op.disconnect()
+
+        for op in body_graph.get_op_nodes(op='TensorListPushBack'):
+            assert op.out_port(0).get_destination().node.type == 'Result'
+            port = op.out_port(0).get_connection().get_destination()
+            op.out_port(0).disconnect()
+            op.in_port(0).get_connection().set_destination(port)
+
+        # Loop.update_port_map_value_ext(loop_node.input_port_map, 'internal_layer_id', unstack_placeholder_layer_id,
+        #                                'axis', 0)
+
+
     def find_and_replace_pattern(self, graph: Graph):
         for loop_node in graph.get_op_nodes(op='Loop'):
             loop_name = loop_node.soft_get('name', loop_node.id)
