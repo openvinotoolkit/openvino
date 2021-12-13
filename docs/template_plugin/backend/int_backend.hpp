@@ -11,8 +11,6 @@
 #include <vector>
 
 #include "backend.hpp"
-#include "backend_manager.hpp"
-#include "int_backend_visibility.hpp"
 #include "ngraph/runtime/tensor.hpp"
 
 namespace ngraph {
@@ -24,7 +22,7 @@ class INTExecutable;
 }  // namespace runtime
 }  // namespace ngraph
 
-class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTBackend : public Backend {
+class ngraph::runtime::interpreter::INTBackend : public Backend {
 public:
     INTBackend();
     INTBackend(const std::vector<std::string>& unsupported_op_name_list);
