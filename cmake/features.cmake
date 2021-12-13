@@ -21,10 +21,10 @@ if (NOT ENABLE_CLDNN OR ANDROID OR
     # build GPU plugin without oneDNN
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
 else()
-    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
 endif()
 
-ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "ENABLE_ONEDNN_FOR_GPU_DEFAULT" OFF)
+ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" OFF "ENABLE_ONEDNN_FOR_GPU_DEFAULT" OFF)
 
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
