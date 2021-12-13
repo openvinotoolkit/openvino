@@ -4,6 +4,8 @@
 
 #include "ngraph/op/scatter_elements_update.hpp"
 
+#include <scatter_elements_update_shape_inference.hpp>
+
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -35,11 +37,6 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
     element::Type updates_et = get_input_element_type(2);
     element::Type axis_et = get_input_element_type(3);
 
-    const ov::PartialShape& data_shape = get_input_partial_shape(0);
-    const ov::PartialShape& indices_shape = get_input_partial_shape(1);
-    const ov::PartialShape& updates_shape = get_input_partial_shape(2);
-    const ov::PartialShape& axis_shape = get_input_partial_shape(3);
-
     NODE_VALIDATION_CHECK(this,
                           indices_et.is_integral(),
                           "Indices element type must be integral_number, but is: ",
@@ -55,52 +52,18 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
                           " and: ",
                           updates_et);
 
-    NODE_VALIDATION_CHECK(this,
-                          axis_shape.compatible(ov::PartialShape{}) || axis_shape.compatible(ov::PartialShape{1}),
-                          "Axis input shape are required to be scalar or 1D tensor. ",
-                          "Got: ",
-                          axis_shape);
+    const auto& data = get_input_partial_shape(0);
+    const auto& indices = get_input_partial_shape(1);
+    const auto& updates = get_input_partial_shape(2);
+    const auto& axis = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_shape.rank().compatible(data_shape.rank()),
-                          "Indices rank and data rank are required to be equal. ",
-                          "Got: ",
-                          indices_shape.rank(),
-                          " and: ",
-                          data_shape.rank());
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
+    std::vector<ov::PartialShape> input_shapes = {data, indices, updates, axis};
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_shape.compatible(updates_shape),
-                          "Indices and updates input shapes are required to be equal. ",
-                          "Got: ",
-                          indices_shape,
-                          " and: ",
-                          updates_shape);
-
-    set_output_size(1);
-    set_output_type(0, data_et, data_shape);
-
-    if (data_shape.is_dynamic())
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, data_et, output_shapes[0]);
+    if (output_shapes[0].is_dynamic())
         set_input_is_relevant_to_shape(0);
-    if (data_shape.rank().is_dynamic())
-        return;
-
-    if (const auto& axis_input = get_constant_from_source(input_value(3))) {
-        auto axis = axis_input->cast_vector<int64_t>().at(0);
-
-        int64_t data_rank_length = data_shape.rank().get_length();
-        NODE_VALIDATION_CHECK(this,
-                              (-data_rank_length <= axis) && (axis <= data_rank_length - 1),
-                              "Axis value has to be in range [-r, r-1] where r is rank of data shape. ",
-                              " Data rank: ",
-                              data_rank_length,
-                              ", range:[",
-                              -data_rank_length,
-                              ", ",
-                              data_rank_length - 1,
-                              "]. Got axis value: ",
-                              axis);
-    }
 }
 
 shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
