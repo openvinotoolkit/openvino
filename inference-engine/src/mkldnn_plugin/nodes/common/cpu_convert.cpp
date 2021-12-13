@@ -23,10 +23,6 @@ using namespace Xbyak;
 
 namespace {
 
-inline void parallel_loop(const size_t& D0, const std::function<void(size_t)>& func) {
-    parallel_for(D0, func);
-}
-
 template <typename src_t, typename dst_t>
 void convert_vec(jit_generator & gen,
                  const RegExp & src,
@@ -220,7 +216,7 @@ struct PrecisionInfo {
 
 template <>
 struct PrecisionInfo<Precision::BF16> {
-    using value_type = MKLDNNPlugin::bfloat16_t;
+    using value_type = bfloat16_t;
 };
 
 template <>
@@ -230,14 +226,116 @@ struct PrecisionInfo<Precision::FP16> {
 
 template <>
 struct PrecisionInfo<Precision::BOOL> {
-    using value_type = bool;
+    using value_type = uint8_t;
 };
+
+template<typename T,
+         typename U = typename std::conditional<
+                        std::is_same<ov::float16, T>::value
+                        || std::is_same<bfloat16_t, T>::value,
+                        float, T>::type>
+struct Range {
+    const std::tuple<U, U> & fit(const Precision & prec);
+
+private:
+    std::tuple<U, U> _range {
+        std::numeric_limits<T>::lowest(),
+        std::numeric_limits<T>::max()
+    };
+};
+
+template<typename T, typename U>
+const std::tuple<U, U> & Range<T, U>::fit(const Precision & prec) {
+    if (prec.is_float()) {
+        double lbound, ubound;
+        switch (prec) {
+            case Precision::BF16:
+                lbound = static_cast<double>(std::numeric_limits<bfloat16_t>::lowest());
+                ubound = static_cast<double>(std::numeric_limits<bfloat16_t>::max());
+                break;
+            case Precision::FP16:
+                lbound = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
+                ubound = static_cast<double>(std::numeric_limits<ov::float16>::max());
+                break;
+            case Precision::FP32:
+                lbound = static_cast<double>(std::numeric_limits<float>::lowest());
+                ubound = static_cast<double>(std::numeric_limits<float>::max());
+                break;
+            case Precision::FP64:
+                lbound = std::numeric_limits<double>::lowest();
+                ubound = std::numeric_limits<double>::max();
+                break;
+            default:
+                IE_THROW() << "Unsupported precision";
+        }
+        std::get<0>(_range) = static_cast<U>(std::max(static_cast<double>(std::get<0>(_range)), lbound));
+        std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
+    } else {
+        int64_t lbound;
+        uint64_t ubound;
+        switch (prec) {
+            case Precision::BOOL:
+            case Precision::U8:
+                lbound = static_cast<int64_t>(std::numeric_limits<uint8_t>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<uint8_t>::max());
+                break;
+            case Precision::I8:
+                lbound = static_cast<int64_t>(std::numeric_limits<int8_t>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<int8_t>::max());
+                break;
+            case Precision::U16:
+                lbound = static_cast<int64_t>(std::numeric_limits<uint16_t>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<uint16_t>::max());
+                break;
+            case Precision::I16:
+                lbound = static_cast<int64_t>(std::numeric_limits<int16_t>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<int16_t>::max());
+                break;
+            case Precision::U32:
+                lbound = static_cast<int64_t>(std::numeric_limits<uint32_t>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
+                break;
+            case Precision::I32:
+                lbound = static_cast<int64_t>(std::numeric_limits<int32_t>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
+                break;
+            case Precision::U64:
+                lbound = static_cast<int64_t>(std::numeric_limits<uint64_t>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<uint64_t>::max());
+                break;
+            case Precision::I64:
+                lbound = static_cast<int64_t>(std::numeric_limits<int64_t>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+                break;
+            default:
+                IE_THROW() << "Unsupported precision";
+        }
+        using ltype = typename std::conditional<
+                            std::is_floating_point<U>::value,
+                            double, int64_t>::type;
+        using utype = typename std::conditional<
+                            std::is_floating_point<U>::value,
+                            double, uint64_t>::type;
+        std::get<0>(_range) = static_cast<U>(std::max(static_cast<ltype>(std::get<0>(_range)), static_cast<ltype>(lbound)));
+        std::get<1>(_range) = static_cast<U>(std::min(static_cast<utype>(std::get<1>(_range)), static_cast<utype>(ubound)));
+    }
+    return _range;
+}
 
 struct ConvertContext {
     const void *srcPtr;
     void *dstPtr;
     size_t size;
+    Precision interimPrc;
+    Precision dstPrc;
     bool converted;
+
+    template<typename T>
+    std::tuple<T, T> range() const {
+        Range<T> r;
+        r.fit(interimPrc);
+        return r.fit(dstPrc);
+    }
 };
 
 template<typename T>
@@ -248,9 +346,21 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertContext & ctx) {
         auto src = static_cast<const src_t *>(ctx.srcPtr);
         auto dst = static_cast<dst_t *>(ctx.dstPtr);
-        parallel_loop(ctx.size, [&](size_t i) {
-            dst[i] = static_cast<dst_t>(src[i]);
-        });
+        src_t lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<src_t>();
+
+        if (std::is_integral<src_t>::value
+            || ctx.interimPrc.is_float()
+            || std::is_integral<dst_t>::value) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
+            });
+        } else {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+            });
+        }
+
         ctx.converted = true;
     }
 };
@@ -265,14 +375,29 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
         const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        parallel_loop(iterations, [&](size_t i) {
-            batch_type tmp;
-            const size_t offset = i * batch;
-            const size_t current_batch_size = std::min(ctx.size - offset, batch);
-            for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
-                tmp[j] = static_cast<float>(src[offset + j]);
-            jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
-        });
+        src_t lbound, ubound;
+        std::tie(lbound, ubound) = ctx.range<src_t>();
+
+        if (std::is_integral<src_t>::value
+            || ctx.interimPrc.is_float()) {
+            parallel_for(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
+                    tmp[j] = static_cast<float>(std::max(std::min(src[offset + j], ubound), lbound));
+                jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
+            });
+        } else {
+            parallel_for(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
+                    tmp[j] = static_cast<float>(std::trunc(std::max(std::min(src[offset + j], ubound), lbound)));
+                jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
+            });
+        }
 
         ctx.converted = true;
     }
@@ -288,188 +413,12 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        parallel_loop(iterations, [&](size_t i) {
-            batch_type tmp;
-            const size_t offset = i * batch;
-            const size_t current_batch_size = std::min(ctx.size - offset, batch);
-            jit_convert(src + offset, tmp, current_batch_size);     // fp16 -> fp32
-            for (size_t j = 0; j < current_batch_size; ++j)         // fp32 -> dst_t
-                dst[offset + j] = static_cast<dst_t>(tmp[j]);
-        });
-
-        ctx.converted = true;
-    }
-};
-
-template<>
-struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
-    void operator()(ConvertContext & ctx) {
-        auto src = static_cast<const ov::float16 *>(ctx.srcPtr);
-        auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
-        cpu_memcpy(dst, src, ctx.size * sizeof(ov::float16));
-        ctx.converted = true;
-    }
-};
-
-template<typename T, typename U>
-std::tuple<T, T> commonRange() {
-    if (std::is_integral<T>::value && std::is_integral<U>::value) {
-        int64_t lbound = static_cast<int64_t>(std::numeric_limits<T>::lowest());
-        lbound = std::max(lbound, static_cast<int64_t>(std::numeric_limits<U>::lowest()));
-        uint64_t ubound = static_cast<uint64_t>(std::numeric_limits<T>::max());
-        ubound = std::min(ubound, static_cast<uint64_t>(std::numeric_limits<U>::max()));
-        return std::make_tuple(static_cast<T>(lbound), static_cast<T>(ubound));
-    }
-
-    double lbound = static_cast<double>(std::numeric_limits<T>::lowest());
-    lbound = std::max(lbound, static_cast<double>(std::numeric_limits<U>::lowest()));
-    double ubound = static_cast<double>(std::numeric_limits<T>::max());
-    ubound = std::min(ubound, static_cast<double>(std::numeric_limits<U>::max()));
-    return std::make_tuple(static_cast<T>(lbound), static_cast<T>(ubound));
-}
-
-struct TruncateContext {
-    const void *srcPtr;
-    void *dstPtr;
-    size_t size;
-    Precision interimPrc;
-    bool converted;
-
-    template<typename src_t, typename dst_t>
-    std::tuple<src_t, src_t> range() const {
-        std::tuple<src_t, src_t> range_0;
-        switch (interimPrc) {
-            case Precision::U8:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::U8>::value_type>();
-                break;
-            case Precision::I8:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::I8>::value_type>();
-                break;
-            case Precision::U16:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::U16>::value_type>();
-                break;
-            case Precision::I16:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::I16>::value_type>();
-                break;
-            case Precision::U32:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::U32>::value_type>();
-                break;
-            case Precision::I32:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::I32>::value_type>();
-                break;
-            case Precision::U64:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::U64>::value_type>();
-                break;
-            case Precision::I64:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::I64>::value_type>();
-                break;
-            case Precision::FP32:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::FP32>::value_type>();
-                break;
-            case Precision::FP16:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::FP16>::value_type>();
-                break;
-            case Precision::BF16:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::BF16>::value_type>();
-                break;
-            case Precision::FP64:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::FP64>::value_type>();
-                break;
-            case Precision::BOOL:
-                range_0 = commonRange<src_t, PrecisionInfo<Precision::BOOL>::value_type>();
-                break;
-            default:
-                IE_THROW() << "Unsupported precision";
-        }
-
-        auto range_1 = commonRange<src_t, dst_t>();
-
-        return std::make_pair(std::max(std::get<0>(range_0), std::get<0>(range_1)),
-                              std::min(std::get<1>(range_0), std::get<1>(range_1)));
-    }
-};
-
-template<typename T>
-struct TruncatePrecision;
-
-template<typename src_t, typename dst_t>
-struct TruncatePrecision<std::tuple<src_t, dst_t>> {
-    void operator()(TruncateContext & ctx) {
-        auto src = static_cast<const src_t *>(ctx.srcPtr);
-        auto dst = static_cast<dst_t *>(ctx.dstPtr);
-        src_t lbound, ubound;
-        std::tie(lbound, ubound) = ctx.range<src_t, dst_t>();
-
-        if (std::is_integral<src_t>::value
-            || ctx.interimPrc.is_float()
-            || std::is_integral<dst_t>::value) {
-            parallel_loop(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
-            });
-        } else {
-            parallel_loop(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
-            });
-        }
-
-        ctx.converted = true;
-    }
-};
-
-template<typename src_t>
-struct TruncatePrecision<std::tuple<src_t, ov::float16>> {
-    void operator()(TruncateContext & ctx) {
-        auto src = static_cast<const src_t *>(ctx.srcPtr);
-        auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
-
-        constexpr size_t batch = 64;
-        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
-        typedef float batch_type[batch];
-
-        src_t lbound, ubound;
-        std::tie(lbound, ubound) = ctx.range<src_t, ov::float16>();
-
-        if (std::is_integral<src_t>::value
-            || ctx.interimPrc.is_float()) {
-            parallel_loop(iterations, [&](size_t i) {
-                batch_type tmp;
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
-                    tmp[j] = static_cast<float>(std::max(std::min(src[i], ubound), lbound));
-                jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
-            });
-        } else {
-            parallel_loop(iterations, [&](size_t i) {
-                batch_type tmp;
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
-                    tmp[j] = static_cast<float>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
-                jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
-            });
-        }
-
-        ctx.converted = true;
-    }
-};
-
-template<typename dst_t>
-struct TruncatePrecision<std::tuple<ov::float16, dst_t>> {
-    void operator()(TruncateContext & ctx) {
-        auto src = static_cast<const ov::float16 *>(ctx.srcPtr);
-        auto dst = static_cast<dst_t *>(ctx.dstPtr);
-
-        constexpr size_t batch = 64;
-        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
-        typedef float batch_type[batch];
-
         float lbound, ubound;
-        std::tie(lbound, ubound) = ctx.range<dst_t, ov::float16>();
+        std::tie(lbound, ubound) = ctx.range<ov::float16>();
 
         if (ctx.interimPrc.is_float()
             || std::is_integral<dst_t>::value) {
-            parallel_loop(iterations, [&](size_t i) {
+            parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -478,7 +427,7 @@ struct TruncatePrecision<std::tuple<ov::float16, dst_t>> {
                     dst[offset + j] = static_cast<dst_t>(std::max(std::min(tmp[j], ubound), lbound));
             });
         } else {
-            parallel_loop(iterations, [&](size_t i) {
+            parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -493,8 +442,8 @@ struct TruncatePrecision<std::tuple<ov::float16, dst_t>> {
 };
 
 template<>
-struct TruncatePrecision<std::tuple<ov::float16, ov::float16>> {
-    void operator()(TruncateContext & ctx) {
+struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
+    void operator()(ConvertContext & ctx) {
         auto src = static_cast<const ov::float16 *>(ctx.srcPtr);
         auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
 
@@ -503,12 +452,12 @@ struct TruncatePrecision<std::tuple<ov::float16, ov::float16>> {
         typedef float batch_type[batch];
 
         float lbound, ubound;
-        std::tie(lbound, ubound) = ctx.range<ov::float16, ov::float16>();
+        std::tie(lbound, ubound) = ctx.range<ov::float16>();
 
         if (ctx.interimPrc.is_float()) {
             cpu_memcpy(dst, src, ctx.size * sizeof(ov::float16));
         } else {
-            parallel_loop(iterations, [&](size_t i) {
+            parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -580,17 +529,7 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
     MKLDNN_CVT(BOOL, BOOL)
 
 void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
-    if (srcPtr == nullptr || dstPtr == nullptr)
-        IE_THROW() << "cpu_convert has null data pointer";
-
-    if (srcPrc == dstPrc) {
-        cpu_memcpy(dstPtr, srcPtr, size*dstPrc.size());
-    } else {
-        ConvertContext ctx = { srcPtr, dstPtr, size, false };
-        OV_SWITCH(MKLDNNPlugin, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), MKLDNN_CVT_LIST);
-        if (!ctx.converted)
-            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
-    }
+    cpu_convert(srcPtr, dstPtr, srcPrc, dstPrc, dstPrc, size);
 }
 
 void cpu_convert(const void *srcPtr,
@@ -599,20 +538,21 @@ void cpu_convert(const void *srcPtr,
                  InferenceEngine::Precision interimPrc,
                  InferenceEngine::Precision dstPrc,
                  const size_t size) {
-    if (interimPrc == dstPrc
-        || !isConversionTruncatesRange(srcPrc, interimPrc)) {
-        cpu_convert(srcPtr, dstPtr, srcPrc, dstPrc, size);
+    if (srcPtr == nullptr || dstPtr == nullptr)
+        IE_THROW() << "cpu_convert has null data pointer";
+
+    if (srcPrc == dstPrc && srcPrc == interimPrc) {
+        cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
     } else {
-        if (srcPtr == nullptr || dstPtr == nullptr)
-            IE_THROW() << "cpu_convert has null data pointer";
-        TruncateContext ctx = {
+        ConvertContext ctx = {
             srcPtr,
             dstPtr,
             size,
             interimPrc,
+            dstPrc,
             false
         };
-        OV_SWITCH(MKLDNNPlugin, TruncatePrecision, ctx, std::tie(srcPrc, dstPrc), MKLDNN_CVT_LIST);
+        OV_SWITCH(MKLDNNPlugin, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), MKLDNN_CVT_LIST);
         if (!ctx.converted)
             IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
     }
