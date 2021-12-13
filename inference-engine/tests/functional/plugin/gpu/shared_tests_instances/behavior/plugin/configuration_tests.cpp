@@ -8,6 +8,14 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
+    INSTANTIATE_TEST_SUITE_P(
+            smoke_Basic,
+            DefaultConfigurationTest,
+            ::testing::Combine(
+                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                    ::testing::Values(DefaultParameter{})),
+            DefaultConfigurationTest::getTestCaseName);
+
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16
@@ -92,12 +100,6 @@ namespace {
                     {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}}
     };
     IE_SUPPRESS_DEPRECATED_END
-
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
-            ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                ::testing::ValuesIn(inconfigs)),
-            IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
@@ -227,6 +229,4 @@ namespace {
                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                     ::testing::ValuesIn(autoinconfigs)),
             IncorrectConfigAPITests::getTestCaseName);
-
-
 } // namespace
