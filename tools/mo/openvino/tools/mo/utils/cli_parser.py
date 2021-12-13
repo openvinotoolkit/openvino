@@ -829,6 +829,11 @@ def parse_input_value(input_value: str):
     shape = get_shape_from_input_value(input_value.split('->')[0])
     value_size = np.prod(len(value)) if isinstance(value, list) else 1
 
+    if value is not None and shape is not None:
+        for dim in shape:
+            if isinstance(dim, tuple) or dim == -1:
+                raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
+
     if shape is not None and value is not None and np.prod(shape) != value_size:
         raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
                     "value: {}".format(shape, node_name, value_size, value))
@@ -889,14 +894,24 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
 
 def parse_dimension(dim: str):
     if '..' in dim:
-        numbers_reg = r'[0-9]+'
+        numbers_reg = r'^[0-9]+$'
         dims = dim.split('..')
-        min_val = np.int64(dims[0]) if re.match(numbers_reg, dims[0]) else np.int64(0)
-        max_val = np.int64(dims[1]) if re.match(numbers_reg, dims[1]) else np.iinfo(np.int64).max
+        match_res0 = re.match(numbers_reg, dims[0])
+        match_res1 = re.match(numbers_reg, dims[1])
+        if len(dims[0].strip()) > 0 and match_res0 is None:
+            Error("Incorrect min value of dimension '{}'".format(dims[0]))
+        if len(dims[1].strip()) > 0 and match_res1 is None:
+            Error("Incorrect max value of dimension '{}'".format(dims[1]))
+
+        min_val = np.int64(dims[0]) if match_res0 else np.int64(0)
+        max_val = np.int64(dims[1]) if match_res1 else np.iinfo(np.int64).max
         assert min_val >= 0, "Incorrect min value of the dimension {}".format(dim)
 
         if min_val == np.int64(0) and max_val == np.iinfo(np.int64).max:
             return np.int64(-1)
+
+        assert min_val < max_val, "Min value should be less than max value. Got min value: {}, " \
+                                  "max value: {}".format(min_val, max_val)
 
         return min_val, max_val
     if '?' in dim:
@@ -986,10 +1001,18 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
-        inputs = list(map(lambda x: x.split('->')[0], inputs))
-        placeholder_shapes = dict(zip_longest(inputs,
+        inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
+        placeholder_shapes = dict(zip_longest(inputs_without_value,
                                               map(lambda x: tuple(map(parse_dimension, x.split(','))) if x else None,
                                                   shapes)))
+        for inp in inputs:
+            if '->' not in inp:
+                continue
+            shape = placeholder_shapes[inp.split('->')[0]]
+            for dim in shape:
+                if isinstance(dim, tuple) or dim == -1:
+                    raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
+
     elif argv_input:
         raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
 
