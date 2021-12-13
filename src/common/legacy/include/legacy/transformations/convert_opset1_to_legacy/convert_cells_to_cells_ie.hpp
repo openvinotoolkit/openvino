@@ -15,9 +15,9 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertLSTMCellMatcher);
-class INFERENCE_ENGINE_API_CLASS(ConvertGRUCellMatcher);
-class INFERENCE_ENGINE_API_CLASS(ConvertRNNCellMatcher);
+class ConvertLSTMCellMatcher;
+class ConvertGRUCellMatcher;
+class ConvertRNNCellMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

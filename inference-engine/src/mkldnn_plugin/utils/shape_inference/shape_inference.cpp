@@ -21,6 +21,10 @@
 #include "lstm_cell_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
+#include "experimental_detectron_topkrois_shape_inference.hpp"
+#include "interpolate_shape_inference.hpp"
+#include "scatter_elements_update_shape_inference.hpp"
+#include "scatter_nd_base_shape_inference.hpp"
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "static_shape.hpp"
@@ -113,6 +117,18 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::Tile>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronTopKROIs>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset4::Interpolate>(op)) {
+        std::vector<size_t> pads_begin, pads_end;
+        correct_pads_attr(node, pads_begin, pads_end, input_shapes);
+        shape_infer(node, pads_begin, pads_end, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Interpolate>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset3::ScatterElementsUpdate>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset4::ScatterNDUpdate>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
