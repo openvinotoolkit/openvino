@@ -40,7 +40,7 @@ OutputVector softmax(const Node& node) {
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
         ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
-        result = std::make_shared<default_opset::Softmax>(data, 0);
+        result = std::make_shared<ov::op::v8::Softmax>(data, 0);
         break;
     }
     default: {
@@ -72,14 +72,14 @@ OutputVector softmax(const Node& node) {
     case 1: {
         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
         ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
-        result = std::make_shared<default_opset::Softmax>(data, 0);
+        result = std::make_shared<ov::op::v8::Softmax>(data, 0);
         break;
     }
     default: {
         const auto normalized_axis =
             ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
 
-        result = std::make_shared<default_opset::Softmax>(data, normalized_axis);
+        result = std::make_shared<ov::op::v8::Softmax>(data, normalized_axis);
         break;
     }
     }
@@ -94,7 +94,7 @@ OutputVector softmax(const Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
     const auto normalized_axis = ngraph::normalize_axis(node.get_description(), axis, data.get_partial_shape().rank());
 
-    return {std::make_shared<default_opset::Softmax>(data, normalized_axis)};
+    return {std::make_shared<ov::op::v8::Softmax>(data, normalized_axis)};
 }
 }  // namespace set_13
 }  // namespace op
