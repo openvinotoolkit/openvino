@@ -79,7 +79,7 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
     const auto normalizeL2 = std::make_shared<ngraph::opset1::NormalizeL2>(deq, axesNode, 1e-6, epsMode);
     normalizeL2->set_friendly_name("output");
     auto& rtInfo = normalizeL2->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("normalizeL2");
+    rtInfo["Variant::std::string"] = "normalizeL2";
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(normalizeL2) };
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");
@@ -113,7 +113,7 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
         1e-6,
         epsMode);
     auto& rtInfo = normalizeL2->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("normalizeL2");
+    rtInfo["Variant::std::string"] = "normalizeL2";
 
     auto deqAfterStructure = dequantizationAfter;
     deqAfterStructure.multiply.outPrecision = precision;

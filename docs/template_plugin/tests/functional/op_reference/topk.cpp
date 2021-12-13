@@ -100,7 +100,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const TopKParamsResnet50& params) {
+    static std::shared_ptr<Model> CreateFunction(const TopKParamsResnet50& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
                                                            params.A.shape);
         const auto B = std::make_shared<op::v1::TopK>(A,
@@ -118,7 +118,7 @@ private:
         const auto out5_index = B->output(1);
         const auto out1_value = C->output(0);
         const auto out1_index = C->output(1);
-        const auto f = std::make_shared<Function>(OutputVector{out5_value, out5_index, out1_value, out1_index}, ParameterVector{A});
+        const auto f = std::make_shared<Model>(OutputVector{out5_value, out5_index, out1_value, out1_index}, ParameterVector{A});
         return f;
     }
 };
@@ -219,14 +219,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const TopKParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
                                                            params.A.shape);
         const auto k = op::v0::Constant::create(params.k.type,
                                                 params.k.shape,
                                                 params.k.data.data());
         const auto B = std::make_shared<op::v1::TopK>(A, k, params.axis, params.mode, params.sort);
-        const auto f = std::make_shared<Function>(B->outputs(), ParameterVector{A});
+        const auto f = std::make_shared<Model>(B->outputs(), ParameterVector{A});
         return f;
     }
 };
@@ -546,14 +546,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const TopKParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
                                                            params.A.shape);
         const auto k = op::v0::Constant::create(params.k.type,
                                                 params.k.shape,
                                                 params.k.data.data());
         const auto B = std::make_shared<op::v3::TopK>(A, k, params.axis, params.mode, params.sort);
-        const auto f = std::make_shared<Function>(B->outputs(), ParameterVector{A});
+        const auto f = std::make_shared<Model>(B->outputs(), ParameterVector{A});
         return f;
     }
 };
@@ -672,14 +672,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const TopKParams& params, size_t out_idx) {
+    static std::shared_ptr<Model> CreateFunction(const TopKParams& params, size_t out_idx) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
                                                            params.A.shape);
         const auto k = op::v0::Constant::create(params.k.type,
                                                 params.k.shape,
                                                 params.k.data.data());
         const auto B = std::make_shared<op::v1::TopK>(A, k, params.axis, params.mode, params.sort);
-        const auto f = std::make_shared<Function>(OutputVector{B->output(out_idx)}, ParameterVector{A});
+        const auto f = std::make_shared<Model>(OutputVector{B->output(out_idx)}, ParameterVector{A});
         return f;
     }
 };
@@ -1379,7 +1379,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTest1dMaxM
 
 class ReferenceTopKTestInt64 : public ReferenceTopKTest1dMaxMin {
 private:
-    static std::shared_ptr<Function> CreateFunction(const TopKParams& params, size_t out_idx) {
+    static std::shared_ptr<Model> CreateFunction(const TopKParams& params, size_t out_idx) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
                                                            params.A.shape);
         const auto k = op::v0::Constant::create(params.k.type,
@@ -1391,7 +1391,7 @@ private:
                                                       params.mode,
                                                       params.sort,
                                                       element::i64);
-        const auto f = std::make_shared<Function>(OutputVector{B->output(out_idx)}, ParameterVector{A});
+        const auto f = std::make_shared<Model>(OutputVector{B->output(out_idx)}, ParameterVector{A});
         return f;
     }
 };
@@ -1467,14 +1467,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const TopKParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
                                                            params.A.shape);
         const auto k = op::v0::Constant::create(params.k.type,
                                                 params.k.shape,
                                                 params.k.data.data());
         const auto B = std::make_shared<op::v1::TopK>(A, k, params.axis, params.mode, params.sort);
-        const auto f = std::make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
+        const auto f = std::make_shared<Model>(OutputVector{B->output(1)}, ParameterVector{A});
         return f;
     }
 };

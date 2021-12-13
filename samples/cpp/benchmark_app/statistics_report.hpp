@@ -4,14 +4,17 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
 #include <map>
-#include <samples/common.hpp>
-#include <samples/csv_dumper.hpp>
-#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
+
+// clang-format off
+#include "inference_engine.hpp"
+#include "samples/common.hpp"
+#include "samples/csv_dumper.hpp"
+#include "samples/slog.hpp"
+// clang-format on
 
 // @brief statistics reports types
 static constexpr char noCntReport[] = "no_counters";

@@ -19,6 +19,17 @@ namespace SubgraphTestsDefinitions {
         }
     }
 
+    void DelayedCopyTestBase::LoadNetwork() {
+        LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+        inferRequest = executableNetwork.CreateInferRequest();
+    }
+
+    void DelayedCopyTestBase::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
+    }
+
+
     void DelayedCopyTestBase::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 

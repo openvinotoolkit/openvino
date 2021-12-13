@@ -53,6 +53,9 @@ void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Sta
         auto &passrate = it->second;
         switch (status) {
             case PassRate::PASSED:
+                if (!passrate.isImplemented) {
+                    passrate.isImplemented = true;
+                }
                 passrate.passed++;
                 passrate.crashed--;
                 break;
@@ -82,6 +85,18 @@ void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Sta
                 opsStats[op] = PassRate(0, 0, 0, 1);
                 break;
         }
+    }
+}
+
+void Summary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {
+    auto it = opsStats.find(op);
+    if (it != opsStats.end()) {
+        if (!it->second.isImplemented && implStatus) {
+            it->second.isImplemented = true;
+        }
+    } else {
+        opsStats[op] = PassRate(0, 0, 0, 0);
+        opsStats[op].isImplemented = implStatus;
     }
 }
 
@@ -120,6 +135,9 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
 }
 
 void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
+    if (function->get_parameters().empty()) {
+        return;
+    }
     bool isFunctionalGraph = false;
     for (const auto &op : function->get_ordered_ops()) {
         if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
@@ -147,6 +165,41 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
             updateOPsStats(loop_body, status);
         } else {
             updateOPsStats(op->get_type_info(), status);
+        }
+    }
+}
+
+void Summary::updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus) {
+    if (function->get_parameters().empty()) {
+        return;
+    }
+    bool isFunctionalGraph = false;
+    for (const auto &op : function->get_ordered_ops()) {
+        if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
+            !ngraph::is_type<ngraph::op::Constant>(op) &&
+            !ngraph::is_type<ngraph::op::Result>(op)) {
+            isFunctionalGraph = true;
+            break;
+        }
+    }
+
+    for (const auto &op : function->get_ordered_ops()) {
+        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
+             ngraph::is_type<ngraph::op::Constant>(op) ||
+             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
+            continue;
+        } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
+            updateOPsImplStatus(op->get_type_info(), implStatus);
+            auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+            auto ti_body = ti->get_function();
+            updateOPsImplStatus(ti_body, implStatus);
+        } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
+            updateOPsImplStatus(op->get_type_info(), implStatus);
+            auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
+            auto loop_body = loop->get_function();
+            updateOPsImplStatus(loop_body, implStatus);
+        } else {
+            updateOPsImplStatus(op->get_type_info(), implStatus);
         }
     }
 }
@@ -233,6 +286,7 @@ void Summary::saveReport() {
         std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
+        entry.append_attribute("implemented").set_value(it.second.isImplemented);
         entry.append_attribute("passed").set_value(it.second.passed);
         entry.append_attribute("failed").set_value(it.second.failed);
         entry.append_attribute("skipped").set_value(it.second.skipped);
@@ -246,6 +300,7 @@ void Summary::saveReport() {
             pugi::xml_node entry;
             if (opList.find(item.first) == opList.end()) {
                 entry = currentDeviceNode.append_child(item.first.c_str());
+                entry.append_attribute("implemented").set_value(item.second.isImplemented);
                 entry.append_attribute("passed").set_value(item.second.passed);
                 entry.append_attribute("failed").set_value(item.second.failed);
                 entry.append_attribute("skipped").set_value(item.second.skipped);
@@ -253,12 +308,16 @@ void Summary::saveReport() {
                 entry.append_attribute("passrate").set_value(item.second.getPassrate());
             } else {
                 entry = currentDeviceNode.child(item.first.c_str());
+                auto implStatus = entry.attribute("implemented").value() == std::string("true") ? true : false;
                 auto p = std::stoi(entry.attribute("passed").value()) + item.second.passed;
                 auto f = std::stoi(entry.attribute("failed").value()) + item.second.failed;
                 auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
                 auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
                 PassRate obj(p, f, s, c);
 
+                (implStatus || obj.isImplemented)
+                    ? entry.attribute("implemented").set_value(true)
+                    : entry.attribute("implemented").set_value(false);
                 entry.attribute("passed").set_value(obj.passed);
                 entry.attribute("failed").set_value(obj.failed);
                 entry.attribute("skipped").set_value(obj.skipped);
