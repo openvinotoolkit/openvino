@@ -90,7 +90,7 @@ std::shared_ptr<ngraph::Function> buildRuntimeGraph(GraphMetaInfo& graphMetaInfo
         node->set_friendly_name(stageMeta.stageName);
         const auto metaData = extractMeta(stageMeta);
         for (const auto& meta : metaData) {
-            node->get_rt_info()[meta.first] = std::make_shared<::ngraph::VariantWrapper<std::string>>(meta.second);
+            node->get_rt_info()[meta.first] = meta.second;
         }
 
         stageMetaIndexToNode[index] = node;

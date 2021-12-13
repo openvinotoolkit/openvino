@@ -76,7 +76,7 @@ public:
     PostProcessSteps& convert_layout(const std::vector<uint64_t>& dims);
 
     /// \brief Signature for custom postprocessing operation. Custom postprocessing operation takes one output node and
-    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
+    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Model
     /// directly
     ///
     /// \param node Output node for custom post-processing operation
