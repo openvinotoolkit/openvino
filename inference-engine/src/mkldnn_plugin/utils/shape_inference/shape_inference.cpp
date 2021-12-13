@@ -85,6 +85,8 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::DetectionOutput>(op)) {
         shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset8::DetectionOutput>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::Select>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::ShuffleChannels>(op)) {
