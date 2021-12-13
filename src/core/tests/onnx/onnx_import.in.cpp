@@ -447,7 +447,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_no_keepdims) {
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({2, 1, 3, 10});
-    test_case.add_expected_output<float>(Shape{2}, {1, 0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {1, 0});
     test_case.run();
 }
 
@@ -2170,7 +2170,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_int32) {
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<std::int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    test_case.add_expected_output<std::int32_t>({1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<std::int64_t>({1, 1, 1, 1, 1, 1});
     test_case.run();
 }
 
@@ -2179,7 +2179,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_int32) {
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<std::int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    test_case.add_expected_output<std::int32_t>({0, 0, 0, 0});
+    test_case.add_expected_output<std::int64_t>({0, 0, 0, 0});
     test_case.run();
 }
 
@@ -3199,7 +3199,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_single) {
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
-    test_case.add_expected_output<int>(Shape{}, {6});
+    test_case.add_expected_output<int64_t>(Shape{}, {6});
     test_case.run();
 }
 
@@ -3209,7 +3209,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_graph_end) {
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
-    test_case.add_expected_output<int>(Shape{}, {4});
+    test_case.add_expected_output<int64_t>(Shape{}, {4});
     test_case.run();
 }
 

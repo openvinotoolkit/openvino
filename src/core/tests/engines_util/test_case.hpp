@@ -54,10 +54,31 @@ public:
                      " for input ",
                      m_input_index);
 
-        auto tensor = m_request.get_input_tensor(m_input_index);
+        auto t_shape = m_request.get_input_tensor(m_input_index).get_shape();
+        bool is_dynamic = false;
+        for (const auto& dim : t_shape) {
+            if (!dim) {
+                is_dynamic = true;
+                break;
+            }
+        }
 
-        NGRAPH_CHECK(tensor.get_size() == values.size());
-        std::copy(values.begin(), values.end(), tensor.data<T>());
+        if (is_dynamic) {
+            ov::runtime::Tensor tensor(params.at(m_input_index)->get_element_type(), shape);
+
+            std::copy(values.begin(), values.end(), tensor.data<T>());
+            m_request.set_input_tensor(m_input_index, tensor);
+        } else {
+            auto tensor = m_request.get_input_tensor(m_input_index);
+            NGRAPH_CHECK(tensor.get_size() >= values.size(),
+                         "Tensor and values have different sizes. Tensor (",
+                         tensor.get_shape(),
+                         ") size: ",
+                         tensor.get_size(),
+                         " and values size is ",
+                         values.size());
+            std::copy(values.begin(), values.end(), tensor.data<T>());
+        }
 
         ++m_input_index;
     }

@@ -1201,7 +1201,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_size_dyn_op) {
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
-    test_case.add_expected_output<int>(Shape{}, {6});
+    test_case.add_expected_output<int64_t>(Shape{}, {6});
     test_case.run();
 }
 

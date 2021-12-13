@@ -268,8 +268,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear) {
 
     // don't change style for better readibility
     // clang-format off
-    std::vector<std::vector<std::int8_t>> inputs;
-    test_case.add_input(std::vector<int8_t>{ 1,  2,  3,  4,  5,  6,  7,  8,  9,
+    test_case.add_input(std::vector<uint8_t>{ 1,  2,  3,  4,  5,  6,  7,  8,  9,
                                              10, 11, 12, 13, 14, 15, 16, 17, 18,
                                              19, 20, 21, 22, 23, 24, 25, 26, 27,
                                              28, 29, 30, 31, 32, 33, 34, 35, 36,
@@ -698,12 +697,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
 
     // don't change style for better readibility
     // clang-format off
-    test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3,
+    test_case.add_input(std::vector<int8_t>{0, 1, 2, 3,
                                              4, 5, 6, 7,
 
                                              8,  9, 10, 11,
                                             12, 13, 14, 15});                                   // A
-    test_case.add_input(std::vector<uint8_t>{0,  1,  2,
+    test_case.add_input(std::vector<int8_t>{0,  1,  2,
                                              3,  4,  5,
                                              6,  7,  8,
                                              9, 10, 11,
@@ -712,12 +711,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
                                             15, 16, 17,
                                             18, 19, 20,
                                             21, 22, 23});                                       // B
-    test_case.add_input(std::vector<uint8_t>{1,
+    test_case.add_input(std::vector<int8_t>{1,
                                              2,
 
                                              3,
                                              4});                                               // a_zero_point
-    test_case.add_input(std::vector<uint8_t>{1, 2, 3,
+    test_case.add_input(std::vector<int8_t>{1, 2, 3,
 
                                              4, 5, 6});                                         // b_zero_point
 

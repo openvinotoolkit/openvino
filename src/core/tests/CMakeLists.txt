@@ -464,6 +464,9 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
+)
+
+set(OP_EVAL_TEST_SRC 
     # It should be a part of template plugin
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
@@ -486,8 +489,7 @@ set(MULTI_TEST_SRC
     op_eval/swish.cpp
     op_eval/strided_slice.cpp
     op_eval/transpose.cpp
-    op_eval/variadic_split.cpp
-)
+    op_eval/variadic_split.cpp)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND MULTI_TEST_SRC
@@ -517,7 +519,7 @@ endif()
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-foreach(src IN LISTS SRC MULTI_TEST_SRC)
+foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
         list(APPEND full_src_names ${src})
     else()
@@ -539,6 +541,13 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     endforeach()
 
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
+endforeach()
+
+set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+
+foreach(TEST_SRC ${OP_EVAL_TEST_SRC})
+    configure_file(${TEST_SRC} ${TEST_SRC})
+    set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TEST_SRC} ${SRC})
 endforeach()
 
 add_executable(ov_core_unit_tests ${SRC})
