@@ -36,6 +36,7 @@ template<typename KeyType,
 class CacheEntry : public CacheEntryBase {
 public:
     using ResultType = std::pair<ValType, LookUpStatus>;
+
 public:
     explicit CacheEntry(size_t capacity) : _impl(capacity) {}
 

@@ -25,7 +25,7 @@
 #include <mkldnn_selective_build.h>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
-#include "common/primitive_hashing.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 #include "ngraph/ngraph.hpp"
 #include <ngraph/opsets/opset1.hpp>
@@ -1044,11 +1044,11 @@ struct EltwiseKey {
         std::for_each(eltwise_data.begin(), eltwise_data.end(), [&](const MKLDNNEltwiseNode::EltwiseData& item) {
             seed = hash_combine_eltwiseData(seed, item);
         });
-        seed = get_array_hash(seed, ops_list.data(), ops_list.size());
-        seed = get_array_hash(seed, outBlkDims.data(), outBlkDims.size());
-        seed = get_array_hash(seed, outOrder.data(), outOrder.size());
+        seed = get_vector_hash(seed, ops_list);
+        seed = get_vector_hash(seed, outBlkDims);
+        seed = get_vector_hash(seed, outOrder);
         for (auto&& item : inpDims) {
-            seed = get_array_hash(seed, item.data(), item.size());
+            seed = get_vector_hash(seed, item);
         }
         std::for_each(inpPrc.begin(), inpPrc.end(), [&](const Precision& item) {
             seed = hash_combine(seed, item.getPrecVal());

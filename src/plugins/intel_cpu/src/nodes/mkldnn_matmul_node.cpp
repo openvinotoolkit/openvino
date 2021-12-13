@@ -13,8 +13,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <thread>
-#include <mkldnn_types.h>
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -22,8 +20,7 @@
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "mkldnn_extension_utils.h"
-#include "utils/cpu_utils.hpp"
-#include "common/primitive_hashing.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -39,7 +36,7 @@ struct MatMulKey {
     impl_desc_type implType;
 
     size_t hash() const;
-    bool operator==(const MatMulKey& rhs) const noexcept;
+    bool operator==(const MatMulKey& rhs) const;
 };
 
 size_t MatMulKey::hash() const {
@@ -59,7 +56,7 @@ size_t MatMulKey::hash() const {
     return seed;
 }
 
-bool MatMulKey::operator==(const MatMulKey &rhs) const noexcept {
+bool MatMulKey::operator==(const MatMulKey &rhs) const {
     bool retVal = true;
     if (inp0 != rhs.inp0) {
         retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
