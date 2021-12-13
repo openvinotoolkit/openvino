@@ -11,7 +11,7 @@
 #include "ngraph/compatibility.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 
 namespace ov {

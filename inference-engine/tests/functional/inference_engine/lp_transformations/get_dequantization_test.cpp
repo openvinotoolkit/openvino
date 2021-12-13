@@ -71,7 +71,7 @@ std::vector<size_t> mulDataInput = { 0ul, 1ul };
 
 
 TEST_P(GetDequantizationTestTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
+    InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
     auto res = compare_functions(referenceFunction, actualFunction, true);
