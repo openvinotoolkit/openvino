@@ -1,7 +1,0 @@
-jstyleson~=0.0.2
-addict>=2.4.0
-hyperopt~=0.1.2
-texttable~=1.6.3
-yamlloader>=0.5
-opencv-python==4.5.*
-progress>=1.5
