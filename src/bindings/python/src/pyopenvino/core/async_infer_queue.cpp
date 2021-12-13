@@ -198,7 +198,7 @@ void regclass_AsyncInferQueue(py::module m) {
     cls.def(
         "__iter__",
         [](PyAsyncInferQueue& self) {
-            return py::make_iterator(self.m_pypool.begin(), self.m_pypool.end());
+            return py::make_key_iterator(self.m_pypool.begin(), self.m_pypool.end());
         },
         py::keep_alive<0, 1>()); /* Keep set alive while iterator is used */
 
