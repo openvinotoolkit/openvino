@@ -50,4 +50,16 @@ TEST(attributes, partial_shape) {
     PartialShape g_general;
     loader.on_attribute("general", g_general);
     EXPECT_EQ(general, g_general);
+
+    PartialShape shape_with_boundaries{Dimension(2, 20)};
+    saver.on_attribute("shape_with_boundaries", shape_with_boundaries);
+    PartialShape g_shape_with_boundaries;
+    loader.on_attribute("shape_with_boundaries", g_shape_with_boundaries);
+    EXPECT_EQ(shape_with_boundaries, g_shape_with_boundaries);
+
+    PartialShape shape_with_undefined_boundaries{Dimension(10, -1), Dimension(-1, 100), Dimension::dynamic(), 4};
+    saver.on_attribute("shape_with_undefined_boundaries", shape_with_undefined_boundaries);
+    PartialShape g_shape_with_undefined_boundaries;
+    loader.on_attribute("shape_with_undefined_boundaries", g_shape_with_undefined_boundaries);
+    EXPECT_EQ(shape_with_undefined_boundaries, g_shape_with_undefined_boundaries);
 }
