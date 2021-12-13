@@ -32,7 +32,7 @@ class RuntimeAttribute;
 class ParamMap;
 
 namespace runtime {
-class ExecutableNetwork;
+class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
 class InferencePlugin;
@@ -328,7 +328,7 @@ class OPENVINO_API Any {
     friend class ::ov::ParamMap;
     friend class ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
-    friend class ::ov::runtime::ExecutableNetwork;
+    friend class ::ov::runtime::CompiledModel;
     friend class ::ov::runtime::RemoteContext;
     friend class ::ov::runtime::RemoteTensor;
     friend class ::ov::runtime::InferencePlugin;
