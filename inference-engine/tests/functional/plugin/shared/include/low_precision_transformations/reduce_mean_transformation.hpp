@@ -5,14 +5,24 @@
 #pragma once
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
+
+class ReduceMeanOperation {
+public:
+    std::vector<int64_t> constantValues;
+    bool keepDims;
+};
+
 class ReduceMeanTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    std::vector<int64_t> constantValues;
-    bool keepDims;
+    ngraph::builder::subgraph::DequantizationOperations::Convert convert;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ReduceMeanOperation reduceMean;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     std::string layerName;
     std::string expectedKernelType;
 };

@@ -52,24 +52,43 @@ public:
     }
 
     template <typename ReduceType>
-    static std::shared_ptr<ngraph::Function> getOriginal(
+    static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
+        const ngraph::builder::subgraph::DequantizationOperations::Convert& convert,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const std::vector<int64_t>& constantValues,
-        const bool keepDims) {
+        const bool keepDims,
+        ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
         const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-        const auto fakeQuantize = makeFakeQuantize(input, precision, fqOnData);
+        std::shared_ptr<ngraph::Node> parent = input;
+
+        if (!fqOnData.empty()) {
+            parent = makeFakeQuantize(parent, precision, fqOnData);
+        }
+
+        if (!convert.empty()) {
+            parent = std::make_shared<opset1::Convert>(parent, convert.outPrecision);
+        }
+
+        if (!dequantizationBefore.empty()) {
+            parent = makeDequantization(parent, dequantizationBefore);
+        }
 
         const auto constant = std::make_shared<ngraph::opset1::Constant>(
             ngraph::element::i32,
             ngraph::Shape{ constantValues.size() },
             constantValues);
 
-        const auto reduce = std::make_shared<ReduceType>(fakeQuantize, constant, keepDims);
-        reduce->set_friendly_name("Output");
+        parent = std::make_shared<ReduceType>(parent, constant, keepDims);
+        parent->set_friendly_name("Output");
 
-        const auto result = std::make_shared<ngraph::opset1::Result>(reduce);
+        if (!dequantizationAfter.empty()) {
+            parent = makeDequantization(parent, dequantizationAfter);
+        }
+
+        const auto result = std::make_shared<ngraph::opset1::Result>(parent);
         const auto function = std::make_shared<ngraph::Function>(
             ngraph::ResultVector{ result },
             ngraph::ParameterVector{ input },
