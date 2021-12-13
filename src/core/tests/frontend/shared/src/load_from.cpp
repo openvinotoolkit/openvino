@@ -55,7 +55,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(variants));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
 }

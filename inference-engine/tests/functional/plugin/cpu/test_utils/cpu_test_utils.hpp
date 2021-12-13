@@ -9,7 +9,7 @@
 #include "ie_system_conf.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <exec_graph_info.hpp>
-#include <openvino/runtime/executable_network.hpp>
+#include <openvino/runtime/compiled_model.hpp>
 #include "ie_system_conf.h"
 
 namespace CPUTestUtils {
@@ -137,10 +137,10 @@ public:
                                                          std::string name);
 
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
-    void CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &execNet, std::string nodeType) const;
+    void CheckPluginRelatedResults(ov::runtime::CompiledModel &execNet, std::string nodeType) const;
 
 protected:
-    virtual void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const;
+    virtual void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const;
     /**
      * @brief This function modifies the initial single layer test graph to add any necessary modifications that are specific to the cpu test scope.
      * @param ngPrc Graph precision.

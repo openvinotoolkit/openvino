@@ -16,7 +16,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SmartReshape, "SmartReshape", 0);
 
-bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::SmartReshape::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // TODO: enable conditional compile
     // RUN_ON_FUNCTION_SCOPE(SmartReshape);
     ngraph::pass::Manager static_manager;

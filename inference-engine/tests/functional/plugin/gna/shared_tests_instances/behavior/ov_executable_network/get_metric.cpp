@@ -81,7 +81,7 @@ ov::runtime::Core ie;
 
 std::map<std::string, std::string> initialConfig;
 initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = InferenceEngine::GNAConfigParams::GNA_SW_FP32;
-ov::runtime::ExecutableNetwork exeNetwork = ie.compile_model(simpleNetwork, deviceName, initialConfig);
+ov::runtime::CompiledModel exeNetwork = ie.compile_model(simpleNetwork, deviceName, initialConfig);
 
 ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), ov::Exception);
 }
