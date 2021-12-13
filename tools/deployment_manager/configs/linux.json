@@ -67,7 +67,6 @@
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd",
         "runtime/lib/intel64/libmyriadPlugin.so",
         "runtime/lib/intel64/vpu_custom_kernels",
-        "runtime/lib/intel64/libinference_engine_legacy.so",
         "install_dependencies/install_NCS_udev_rules.sh"
       ]
     },
@@ -79,7 +78,6 @@
         "runtime/lib/intel64/libgna.so",
         "runtime/lib/intel64/libgna.so.2",
         "runtime/lib/intel64/libgna.so.3.0.0.1377",
-        "runtime/lib/intel64/libinference_engine_legacy.so",
         "runtime/lib/intel64/libov_intel_gna_plugin.so"
       ]
     },
@@ -89,7 +87,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/libHDDLPlugin.so",
-        "runtime/lib/intel64/libinference_engine_legacy.so",
         "runtime/3rdparty/hddl"
       ]
     },
