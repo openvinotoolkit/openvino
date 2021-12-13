@@ -104,7 +104,7 @@ ov::runtime::Tensor ReadWeights(const std::string& filepath) {
  * @brief Create ngraph function
  * @return Ptr to ngraph function
  */
-std::shared_ptr<ov::Function> createNgraphFunction() {
+std::shared_ptr<ov::Model> createNgraphFunction() {
     auto weights = ReadWeights(FLAGS_m);
     const std::uint8_t* data = weights.data<std::uint8_t>();
 
@@ -234,14 +234,14 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
     // ------- OpenVINO function--
     auto result_full = std::make_shared<opset8::Result>(softMaxNode->output(0));
 
-    std::shared_ptr<ov::Function> fnPtr =
-        std::make_shared<ov::Function>(result_full, ov::ParameterVector{paramNode}, "lenet");
+    std::shared_ptr<ov::Model> fnPtr =
+        std::make_shared<ov::Model>(result_full, ov::ParameterVector{paramNode}, "lenet");
 
     return fnPtr;
 }
 
 /**
- * @brief The entry point for inference engine automatic ov::Function
+ * @brief The entry point for inference engine automatic ov::Model
  * creation sample
  * @file ngraph_function_creation_sample/main.cpp
  * @example ngraph_function_creation_sample/main.cpp
@@ -268,7 +268,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Device info: " << slog::endl;
         slog::info << core.get_versions(FLAGS_d) << slog::endl;
 
-        // -------- Step 2. Create network using ov::Function --------
+        // -------- Step 2. Create network using ov::Model --------
 
         auto model = createNgraphFunction();
 
@@ -284,7 +284,7 @@ int main(int argc, char* argv[]) {
         // - precision of tensor is supposed to be 'u8'
         input_info.tensor().set_layout(tensor_layout).set_element_type(element::u8);
         // 3) Here we suppose model has 'NCHW' layout for input
-        input_info.network().set_layout("NCHW");
+        input_info.model().set_layout("NCHW");
         // 4) Once the build() method is called, the preprocessing steps
         // for layout and precision conversions are inserted automatically
         model = proc.build();
@@ -320,9 +320,8 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 4. Reshape a model --------
         // Setting batch size using image count
-        const size_t batch_size = imagesData.size();
-        input_shape[layout::batch_idx(tensor_layout)] = batch_size;
-        model->reshape({{input.get_any_name(), input_shape}});
+        const auto batch_size = static_cast<int64_t>(imagesData.size());
+        ov::set_batch(model, batch_size);
         slog::info << "Batch size is " << std::to_string(batch_size) << slog::endl;
 
         const auto outputShape = model->output().get_shape();
@@ -333,7 +332,7 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 4. Compiling model for the device --------
         slog::info << "Compiling a model for the " << FLAGS_d << " device" << slog::endl;
-        runtime::ExecutableNetwork exeNetwork = core.compile_model(model, FLAGS_d);
+        runtime::CompiledModel exeNetwork = core.compile_model(model, FLAGS_d);
 
         // -------- Step 5. Create infer request --------
         slog::info << "Create infer request" << slog::endl;
