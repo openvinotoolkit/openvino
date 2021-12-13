@@ -21,7 +21,7 @@
 using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
-OPENVINO_SUPPRESS_DEPRECATED_START
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 template <typename T>
 class ElemTypesTests : public ::testing::Test {};
@@ -36,7 +36,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission) {
     editor.set_input_types({{"A", ng_type}, {"B", ng_type}, {"C", ng_type}});
 
     const auto function = editor.get_function();
-    auto test_case = test::TestCase(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<DataType>(std::vector<DataType>{1, 2, 3});
     test_case.add_input<DataType>(std::vector<DataType>{4, 5, 6});
     test_case.add_input<DataType>(std::vector<DataType>{7, 8, 9});
@@ -54,7 +54,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission) {
     editor.set_input_types({{"input", ng_type}});
 
     const auto function = editor.get_function();
-    auto test_case = test::TestCase(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<DataType>(std::vector<DataType>{1, 2, 3, 4, 5, 6});
     test_case.add_expected_output<DataType>(Shape{2}, std::vector<DataType>{1, 2});
     test_case.add_expected_output<DataType>(Shape{2}, std::vector<DataType>{3, 4});
@@ -66,13 +66,13 @@ REGISTER_TYPED_TEST_SUITE_P(ElemTypesTests,
                             onnx_test_add_abc_set_precission,
                             onnx_test_split_multioutput_set_precission);
 typedef ::testing::Types<int8_t, int16_t, int32_t, uint8_t, float> ElemTypes;
-INSTANTIATE_TYPED_TEST_SUITE_P(TEMPLATE, ElemTypesTests, ElemTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(${BACKEND_NAME}, ElemTypesTests, ElemTypes);
 
-NGRAPH_TEST(TEMPLATE, add_abc_from_ir) {
+NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
     const auto ir_xml = file_util::path_join(SERIALIZED_ZOO, "ir/add_abc.xml");
     const auto function = test::function_from_ir(ir_xml);
 
-    auto test_case = test::TestCase(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1});
     test_case.add_input<float>({2});
     test_case.add_input<float>({3});
@@ -81,12 +81,12 @@ NGRAPH_TEST(TEMPLATE, add_abc_from_ir) {
     test_case.run();
 }
 
-NGRAPH_TEST(TEMPLATE, add_abc_from_ir_with_bin_path) {
+NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir_with_bin_path) {
     const auto ir_xml = file_util::path_join(SERIALIZED_ZOO, "ir/add_abc.xml");
     const auto ir_bin = file_util::path_join(SERIALIZED_ZOO, "ir/weights/add_abc.bin");
     const auto function = test::function_from_ir(ir_xml, ir_bin);
 
-    auto test_case = test::TestCase(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1});
     test_case.add_input<float>({2});
     test_case.add_input<float>({3});
