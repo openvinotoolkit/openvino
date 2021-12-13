@@ -35,7 +35,7 @@ using namespace ov::frontend;
 
 static std::string find_my_pathname() {
 #ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ov_runtime" SHARED_LIB_SUFFIX);
+    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"frontend_common" SHARED_LIB_SUFFIX);
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
     std::wstring ws(wpath);
@@ -83,7 +83,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     ASSERT_EQ(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
 }
 
-TEST(FrontEndManagerTest, DISABLED_testMockPluginFrontEnd) {
+TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     std::string fePath = ngraph::file_util::get_directory(find_my_pathname());
     fePath = fePath + FrontEndPathSeparator + "someInvalidPath";
