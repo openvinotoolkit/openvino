@@ -310,7 +310,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             }
 
             // in order to support the following scenarios for IR v10 cases:
-            // ov::Function f = ie.read_model(..);
+            // ov::Model f = ie.read_model(..);
             // f.input("input_operation_name");
             // f.output("output_operation_name");
             // f.add_output("operation_name[].port_index]");
@@ -348,6 +348,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
+            bool need_validate_nodes_and_infer_types = false;
             auto& parameters = function->get_parameters();
             for (size_t i = 0; i < parameters.size(); ++i) {
                 const auto& parameter = parameters[i];
@@ -355,10 +356,20 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto it_type = rtInfo.find(old_api_map_key_type);
                 auto& pre_input = prepost.input(i);
                 if (it_type != rtInfo.end()) {
-                    auto type = it_type->second.as<ov::OldApiMapElementType>().value;
-                    pre_input.tensor().set_element_type(type);
+                    const auto old_api_map_type = it_type->second.as<ov::OldApiMapElementType>().value;
+                    const auto param_type = parameter->get_element_type();
 
-                    OPENVINO_ASSERT(!type.is_dynamic(), "Old API map does not support dynamic type");
+                    // In the following code we add Convert node from old_api_map_type to Parameter type
+                    // using PrePostProcessor. As some plugins do not support uint8 type, Convert to uint8 leads
+                    // to error, so for such case type is set directly to Parameter node instead of inserting Convert.
+                    if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
+                        parameter->set_element_type(old_api_map_type);
+                        need_validate_nodes_and_infer_types = true;
+                    } else {
+                        pre_input.tensor().set_element_type(old_api_map_type);
+                    }
+
+                    OPENVINO_ASSERT(!old_api_map_type.is_dynamic(), "Old API map does not support dynamic type");
                     rtInfo.erase(it_type);
                 }
                 const auto it_order = rtInfo.find(old_api_map_key_order);
@@ -384,6 +395,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 // remove old api once we applied it
                 rtInfo.erase(it);
             }
+
+            if (need_validate_nodes_and_infer_types)
+                function->validate_nodes_and_infer_types();
 
             // Set version to 10
             rt_info["version"] = int64_t(10);

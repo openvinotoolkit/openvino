@@ -6,8 +6,9 @@
 
 #include "color_utils.hpp"
 #include "function_guard.hpp"
+#include "layout_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "preprocess_steps_impl.hpp"
 
 namespace ov {
@@ -273,7 +274,7 @@ OutputTensorInfo& OutputInfo::tensor() {
 struct PrePostProcessor::PrePostProcessorImpl {
 public:
     PrePostProcessorImpl() = default;
-    explicit PrePostProcessorImpl(const std::shared_ptr<ov::Function>& f) : m_function(f) {
+    explicit PrePostProcessorImpl(const std::shared_ptr<ov::Model>& f) : m_function(f) {
         OPENVINO_ASSERT(f, "Function can't be nullptr for PrePostProcessor");
         for (size_t i = 0; i < m_function->inputs().size(); ++i) {
             auto info = InputInfo();
@@ -309,10 +310,10 @@ public:
 
     std::vector<InputInfo> m_inputs;
     std::vector<OutputInfo> m_outputs;
-    std::shared_ptr<Function> m_function = nullptr;
+    std::shared_ptr<Model> m_function = nullptr;
 };
 
-PrePostProcessor::PrePostProcessor(const std::shared_ptr<Function>& function)
+PrePostProcessor::PrePostProcessor(const std::shared_ptr<Model>& function)
     : m_impl(std::unique_ptr<PrePostProcessorImpl>(new PrePostProcessorImpl(function))) {}
 PrePostProcessor::PrePostProcessor(PrePostProcessor&&) noexcept = default;
 PrePostProcessor& PrePostProcessor::operator=(PrePostProcessor&&) noexcept = default;
@@ -358,7 +359,7 @@ OutputInfo& PrePostProcessor::output(const std::string& tensor_name) {
     return m_impl->find_output(tensor_name);
 }
 
-std::shared_ptr<Function> PrePostProcessor::build() {
+std::shared_ptr<Model> PrePostProcessor::build() {
     auto function = m_impl->m_function;
     FunctionGuard guard(function);
     std::tuple<std::unordered_set<std::string>, bool> existing_names{std::unordered_set<std::string>{}, false};
@@ -385,8 +386,6 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         if (!input->get_tensor_data()->is_layout_set()) {
             if (!color_info->default_layout().empty()) {
                 input->get_tensor_data()->set_layout(color_info->default_layout());
-            } else if (!param->get_layout().empty()) {
-                input->get_tensor_data()->set_layout(param->get_layout());
             }
         }
 
@@ -399,7 +398,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
             param->get_layout() != input->get_tensor_data()->get_layout()) {
             // Find transpose between model and tensor layouts and update tensor shape
             auto net_to_tensor =
-                layout::find_permutation(param->get_layout(), net_shape.rank(), input->get_tensor_data()->get_layout());
+                layout::utils::find_permutation(param->get_layout(), net_shape, input->get_tensor_data()->get_layout());
             if (!net_to_tensor.empty()) {
                 std::vector<ov::Dimension> dims(new_param_shape.size());
                 std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
@@ -408,8 +407,15 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                 new_param_shape = PartialShape(dims);
             }
         } else {
-            new_param_shape = input->get_preprocess()->calculate_param_shape(new_param_shape);
+            Layout new_layout;
+            std::tie(new_param_shape, new_layout) =
+                input->get_preprocess()->calculate_param_shape(new_param_shape, param->get_layout());
+            if (!input->get_tensor_data()->is_layout_set()) {
+                // Reusing param's layout according to converted calculated layout
+                input->get_tensor_data()->set_layout(new_layout);
+            }
         }
+
         if (input->get_tensor_data()->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->get_tensor_data()->get_layout(), new_param_shape);
             auto width_idx = get_and_check_width_idx(input->get_tensor_data()->get_layout(), new_param_shape);
@@ -742,7 +748,7 @@ PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorForma
 PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back([preprocess_cb](const std::vector<Output<Node>>& nodes,
-                                                   const std::shared_ptr<ov::Function>&,
+                                                   const std::shared_ptr<ov::Model>&,
                                                    PreprocessingContext&) {
         OPENVINO_ASSERT(nodes.size() == 1,
                         "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "

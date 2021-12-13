@@ -38,7 +38,7 @@ void BroadcastLayerTest::SetUp() {
 
     auto broadcast = ngraph::builder::makeBroadcast(params[0], target_shape_const, mode, axesMapping);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(broadcast)};
-    function = std::make_shared<ov::Function>(results, params, "BroadcastInference");
+    function = std::make_shared<ov::Model>(results, params, "BroadcastInference");
 }
 
 }  // namespace LayerTestsDefinitions

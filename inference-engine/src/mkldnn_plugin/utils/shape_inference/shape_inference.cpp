@@ -13,17 +13,25 @@
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 
+#include "assign_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
+#include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
+#include "experimental_detectron_topkrois_shape_inference.hpp"
 #include "extract_image_patches_shape_inference.hpp"
 #include "fake_quantize.hpp"
+#include "interpolate_shape_inference.hpp"
+#include "lstm_cell_shape_inference.hpp"
+#include "read_value_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
-#include "shape_inference.hpp"
+#include "scatter_elements_update_shape_inference.hpp"
+#include "scatter_nd_base_shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "static_shape.hpp"
+#include "tile_shape_inference.hpp"
 #include "utils.hpp"
 
 void shape_inference(ov::Node* op,
@@ -103,6 +111,33 @@ void shape_inference(ov::Node* op,
     } else if (auto node = ov::as_type<ov::opset3::ExtractImagePatches>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::ReverseSequence>(op)) {
+    } else if (auto node = ov::as_type<ov::opset3::Assign>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::Assign>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronPriorGridGenerator>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::LSTMCell>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::LSTMCell>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::ReadValue>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::ReadValue>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::Tile>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronTopKROIs>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset4::Interpolate>(op)) {
+        std::vector<size_t> pads_begin, pads_end;
+        correct_pads_attr(node, pads_begin, pads_end, input_shapes);
+        shape_infer(node, pads_begin, pads_end, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Interpolate>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset3::ScatterElementsUpdate>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset4::ScatterNDUpdate>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else {
         ngraph::OutputVector new_inputs;
