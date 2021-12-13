@@ -714,35 +714,41 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
         IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
     } else if (name == METRIC_KEY(OPTIMAL_BATCH)) {
-        auto network = options.find("MODEL_PTR")->second.as<InferenceEngine::CNNNetwork const*>();
-        Config config = _impl->m_configs.GetConfig(device_id);
-        auto networkCloned = CloneAndTransformNetwork(*network, config);
-        static std::map<cldnn::gfx_version, size_t> gen_kbytes_per_bank = {
-                {{12, 0, 0}, 480},  // TGL
-                {{12, 1, 0}, 2048}, // DG1
-                {{12, 5, 0}, 320},
-                {{12, 7, 0}, 512},
-        };
-        cldnn::gfx_version gen = {device_info.gfx_ver.major, device_info.gfx_ver.minor, 0 /*ignore the revision*/};
-        auto val = gen_kbytes_per_bank.find(gen);
-        size_t kbytes_per_bank = 192; //Gen9 and before
-        if (gen_kbytes_per_bank.end() != val)
-            kbytes_per_bank = val->second;
         auto next_pow_of_2 = [] (float x) {
             return pow(2, ceil(log(x)/log(2)));
         };
         auto closest_pow_of_2 = [] (float x) {
             return pow(2, floor(log(x)/log(2)));
         };
-        auto num_banks_per_slice = device_info.num_sub_slices_per_slice > 4
-                ? next_pow_of_2(device_info.num_sub_slices_per_slice)
-                : 2 * device_info.num_sub_slices_per_slice;
-        auto L3_cache_size = kbytes_per_bank * 1024 * num_banks_per_slice * device_info.num_slices;
+        auto network = options.find("MODEL_PTR")->second.as<InferenceEngine::CNNNetwork const*>();
+        Config config = _impl->m_configs.GetConfig(device_id);
+        auto networkCloned = CloneAndTransformNetwork(*network, config);
+
         std::cout << "DEVICE_INFO:"
-                  << "num_slices " << device_info.num_slices
-                  << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
-                  << ", gen_kbytes_per_bank : " << kbytes_per_bank
-                  << ", L3_cache_size is (MB): " << float(L3_cache_size)/1024/1024 << std::endl;
+                  << "gfx_version.major " << device_info.gfx_ver.major
+                  << ", gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;
+        static std::map<cldnn::gfx_version, size_t> gen_kbytes_per_bank = {
+                {{12, 0, 0}, 480},  // TGL
+                {{12, 1, 0}, 2048}, // DG1
+                {{12, 5, 0}, 320},
+                {{12, 7, 0}, 512},
+        };
+        size_t L3_cache_size = 768 * 1024; //Gen9 and before
+        cldnn::gfx_version gen = {device_info.gfx_ver.major, device_info.gfx_ver.minor, 0 /*ignore the revision*/};
+        auto val = gen_kbytes_per_bank.find(gen);
+        if (gen_kbytes_per_bank.end() != val) {
+            auto kbytes_per_bank = val->second;
+            auto num_banks_per_slice = device_info.num_sub_slices_per_slice > 4
+                                       ? next_pow_of_2(device_info.num_sub_slices_per_slice)
+                                       : 2 * device_info.num_sub_slices_per_slice;
+            L3_cache_size = kbytes_per_bank * 1024 * num_banks_per_slice * device_info.num_slices;
+            std::cout << "DEVICE_INFO:"
+                      << "num_slices " << device_info.num_slices
+                      << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
+                      << ", num_banks_per_slice " << num_banks_per_slice
+                      << ", gen_kbytes_per_bank : " << kbytes_per_bank
+                      << ", L3_cache_size is (MB): " << float(L3_cache_size)/1024/1024 << std::endl;
+        }
         ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(
                 networkCloned.getFunction(), L3_cache_size);
         unsigned int batch = 1;
