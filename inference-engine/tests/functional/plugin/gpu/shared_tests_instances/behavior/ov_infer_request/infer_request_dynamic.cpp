@@ -14,8 +14,10 @@ namespace {
 const std::vector<std::map<std::string, std::string>> AutoConfigs = {
     {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
     CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}},
-    //{{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}},
     {}
+};
+const std::vector<std::map<std::string, std::string>> AutoNotSupportConfigs = {
+    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}
 };
 
 std::shared_ptr<ngraph::Function> getFunction2() {
@@ -56,4 +58,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferenceChaining,
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(AutoConfigs)),
                         OVInferenceChaining::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVNotSupportRequestDynamicTests,
+                        ::testing::Combine(
+                                ::testing::Values(getFunction2()),
+                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                    {{1, 4, 20, 20}, {1, 2, 20, 40}},
+                                    {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(AutoNotSupportConfigs)),
+                        OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace
