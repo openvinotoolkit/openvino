@@ -23,9 +23,9 @@ namespace py = pybind11;
 
 struct PyAsyncInferQueue {
 public:
-    PyAsyncInferQueue(ov::runtime::ExecutableNetwork& net, size_t jobs) {
+    PyAsyncInferQueue(ov::runtime::CompiledModel& model, size_t jobs) {
         if (jobs == 0) {
-            jobs = helpers::num_of_jobs_helper(net);
+            jobs = helpers::num_of_jobs_helper(model);
         }
 
         std::queue<size_t> handles;
@@ -36,7 +36,7 @@ public:
         // AsyncInferQueue internal implementation standards!
         for (size_t handle = 0; handle < jobs; handle++) {
             m_pypool.push_back(std::pair<PyInferRequest, py::object>(
-                PyInferRequest(net.create_infer_request(), net.inputs(), net.outputs()),
+                PyInferRequest(model.create_infer_request(), model.inputs(), model.outputs()),
                 py::none()));
             handles.push(handle);
             userdata.push_back(ov::Any(nullptr));
@@ -139,7 +139,7 @@ public:
 void regclass_AsyncInferQueue(py::module m) {
     py::class_<PyAsyncInferQueue, std::shared_ptr<PyAsyncInferQueue>> cls(m, "AsyncInferQueue");
 
-    cls.def(py::init<ov::runtime::ExecutableNetwork&, size_t>(), py::arg("network"), py::arg("jobs") = 0);
+    cls.def(py::init<ov::runtime::CompiledModel&, size_t>(), py::arg("model"), py::arg("jobs") = 0);
 
     cls.def(
         "start_async",

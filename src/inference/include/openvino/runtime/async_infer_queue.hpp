@@ -18,25 +18,25 @@
 
 #include "ie/ie_plugin_config.hpp"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/executable_network.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace helpers {
 /**
- * @brief Helper function to get number of jobs based on given network's metrics.
+ * @brief Helper function to get number of jobs based on given model's metrics.
  *
- * @param net ExecutableNetwork object.
+ * @param model CompiledModel object.
  *
  * @return Returns number of jobs.
  */
-static size_t num_of_jobs_helper(ov::runtime::ExecutableNetwork& net) {
+static size_t num_of_jobs_helper(ov::runtime::CompiledModel& model) {
     try {
-        auto parameter_value = net.get_metric(METRIC_KEY(SUPPORTED_METRICS));
+        auto parameter_value = model.get_metric(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as<std::vector<std::string>>();
         const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
         if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            parameter_value = net.get_metric(key);
+            parameter_value = model.get_metric(key);
             if (parameter_value.is<unsigned int>())
                 return parameter_value.as<unsigned int>();
             else
@@ -73,13 +73,13 @@ public:
     AsyncInferQueue();
 
     /**
-     * @brief Basic constructor. Creates InferRequests based on given ExecutableNetwork.
+     * @brief Basic constructor. Creates InferRequests based on given CompiledModel.
      *
-     * @param net ExecutableNetwork object which will be base for creating of InferRequests.
+     * @param model CompiledModel object which will be base for creating of InferRequests.
      * @param jobs number of InferRequests to be created. If equals to @p 0 AsyncInferQueue
      * will automatically try to choose number of jobs.
      */
-    AsyncInferQueue(ExecutableNetwork& net, size_t jobs = 0);
+    AsyncInferQueue(CompiledModel& model, size_t jobs = 0);
 
     /**
      * @brief Advanced constructor. Creates AsyncInferQueue based on given vectors.

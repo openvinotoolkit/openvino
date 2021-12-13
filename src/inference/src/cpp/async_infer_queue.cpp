@@ -17,14 +17,14 @@ class AsyncInferQueue::Impl {
 public:
     Impl() = default;
 
-    Impl(ExecutableNetwork& net, size_t jobs) {
+    Impl(CompiledModel& model, size_t jobs) {
         // Automatically set number of jobs
         if (jobs == 0) {
-            jobs = helpers::num_of_jobs_helper(net);
+            jobs = helpers::num_of_jobs_helper(model);
         }
 
         for (size_t handle = 0; handle < jobs; handle++) {
-            m_pool.push_back(net.create_infer_request());
+            m_pool.push_back(model.create_infer_request());
             m_idle_handles.push(handle);
             m_userdata.push_back(nullptr);
         }
@@ -180,8 +180,8 @@ AsyncInferQueue::AsyncInferQueue()
                   delete impl;
               }} {}
 
-AsyncInferQueue::AsyncInferQueue(ExecutableNetwork& net, size_t jobs)
-    : m_pimpl{new Impl{net, jobs}, [](Impl* impl) {
+AsyncInferQueue::AsyncInferQueue(CompiledModel& model, size_t jobs)
+    : m_pimpl{new Impl{model, jobs}, [](Impl* impl) {
                   delete impl;
               }} {}
 

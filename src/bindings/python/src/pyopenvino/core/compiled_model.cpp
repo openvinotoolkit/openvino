@@ -24,7 +24,7 @@ void regclass_CompiledModel(py::module m) {
             py::arg("other"));
 
     cls.def("create_infer_request", [](ov::runtime::CompiledModel& self) {
-        return InferRequestWrapper(self.create_infer_request(), self.inputs(), self.outputs());
+        return PyInferRequest(self.create_infer_request(), self.inputs(), self.outputs());
     });
 
     cls.def(

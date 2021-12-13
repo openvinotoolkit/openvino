@@ -17,7 +17,7 @@
 
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/infer_request.hpp>
-#include <openvino/runtime/executable_network.hpp>
+#include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/tensor.hpp>
 #include <openvino/runtime/async_infer_queue.hpp>
 
@@ -42,10 +42,10 @@ std::shared_ptr<ov::Model> create_mul_model(ov::Shape shape) {
 
 TEST(AsyncInferQueueOVTests, BasicFlowTest) {
     ov::runtime::Core core;
-    ov::runtime::ExecutableNetwork net =
+    ov::runtime::CompiledModel model =
         core.compile_model(create_add_model({8}), "CPU");
 
-    ov::runtime::AsyncInferQueue basic_queue(net);
+    ov::runtime::AsyncInferQueue basic_queue(model);
 
     size_t counter = 0;
     std::vector<ov::Any> callback_data;
@@ -92,10 +92,10 @@ TEST(AsyncInferQueueOVTests, AccessRequestInsideCallbackTest) {
     std::vector<float> expected_results;
 
     ov::runtime::Core core;
-    ov::runtime::ExecutableNetwork net =
+    ov::runtime::CompiledModel model =
         core.compile_model(create_add_model(input_shape), "CPU");
 
-    ov::runtime::AsyncInferQueue basic_queue(net, 3);
+    ov::runtime::AsyncInferQueue basic_queue(model, 3);
 
     std::mutex user_mutex;
 
@@ -143,10 +143,10 @@ TEST(AsyncInferQueueOVTests, AccessRequestOutsideCallbackTest) {
     std::vector<float> expected_results;
 
     ov::runtime::Core core;
-    ov::runtime::ExecutableNetwork net =
+    ov::runtime::CompiledModel model =
         core.compile_model(create_add_model(input_shape), "CPU");
 
-    ov::runtime::AsyncInferQueue basic_queue(net, num_of_runs);
+    ov::runtime::AsyncInferQueue basic_queue(model, num_of_runs);
 
     for (size_t i = 0; i < num_of_runs; i++) {
         std::vector<float> input_data(input_shape[0], i);
@@ -180,10 +180,10 @@ TEST(AsyncInferQueueOVTests, AccessInferRequestInLoopTest) {
     std::vector<float> expected_results;
 
     ov::runtime::Core core;
-    ov::runtime::ExecutableNetwork net =
+    ov::runtime::CompiledModel model =
         core.compile_model(create_mul_model(input_shape), "CPU");
 
-    ov::runtime::AsyncInferQueue basic_queue(net);
+    ov::runtime::AsyncInferQueue basic_queue(model);
 
     std::mutex user_mutex;
 
@@ -234,14 +234,14 @@ TEST(AsyncInferQueueOVTests, ConnectAsyncInferQueuesTest) {
     std::vector<float> expected_results;
 
     ov::runtime::Core core;
-    ov::runtime::ExecutableNetwork add_net =
+    ov::runtime::CompiledModel add_model =
         core.compile_model(create_add_model(input_shape), "CPU");
 
-   ov::runtime::ExecutableNetwork mul_net =
+   ov::runtime::CompiledModel mul_model =
         core.compile_model(create_mul_model(input_shape), "CPU");
 
-    ov::runtime::AsyncInferQueue add_queue(add_net, 4);
-    ov::runtime::AsyncInferQueue mul_queue(mul_net, 2);
+    ov::runtime::AsyncInferQueue add_queue(add_model, 4);
+    ov::runtime::AsyncInferQueue mul_queue(mul_model, 2);
 
     auto f = [input_shape, &mul_queue](std::exception_ptr e,
                                        ov::runtime::InferRequest &request,
