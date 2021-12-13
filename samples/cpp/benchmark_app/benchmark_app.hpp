@@ -8,11 +8,11 @@
 #    define HAVE_DEVICE_MEM_SUPPORT
 #endif
 
-#include <gflags/gflags.h>
-
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include "gflags/gflags.h"
 
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message";

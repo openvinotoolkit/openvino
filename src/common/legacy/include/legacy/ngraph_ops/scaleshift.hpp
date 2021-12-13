@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(ScaleShiftIE) : public Op {
+class ScaleShiftIE : public Op {
 public:
     OPENVINO_OP("ScaleShiftIE", "legacy");
     BWDCMP_RTTI_DECLARATION;
