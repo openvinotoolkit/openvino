@@ -6,6 +6,7 @@ import os
 
 import numpy as np
 
+from openvino.tools.mo.back.MaxPool import MaxPool
 from openvino.tools.mo.back.TopKNormalizer import TopKNormalizer
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.ReduceOps import ReduceOp
@@ -263,6 +264,7 @@ preprocessing_op_nodes = {
 postprocessing_op_nodes = {
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
+    'MaxPool': MaxPool.normalize_outputs,
 }
 
 
