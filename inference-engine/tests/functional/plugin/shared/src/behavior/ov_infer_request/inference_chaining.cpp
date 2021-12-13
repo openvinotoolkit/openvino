@@ -82,7 +82,7 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov:
 }
 
 void OVInferenceChaining::Run() {
-    ov::runtime::ExecutableNetwork execNet0, execNet1, execNet2;
+    ov::runtime::CompiledModel execNet0, execNet1, execNet2;
     OV_ASSERT_NO_THROW(execNet0 = core->compile_model(function0, targetDevice, configuration));
     OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function1, targetDevice, configuration));
     OV_ASSERT_NO_THROW(execNet2 = core->compile_model(function2, targetDevice, configuration));
