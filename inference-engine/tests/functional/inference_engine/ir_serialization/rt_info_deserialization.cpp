@@ -40,7 +40,7 @@ protected:
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
-        ov::RuntimeAttributeVector params{&modelStream};
+        ov::AnyVector params{&modelStream};
 
         FE = manager.load_by_model(params);
         if (FE)
@@ -69,6 +69,9 @@ TEST_F(RTInfoDeserialization, NodeV10) {
             </rt_info>
             <output>
                 <port id="0" precision="FP16" names="input_tensor">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -128,12 +131,11 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         EXPECT_FALSE(info.count(key_old_api_element_type));
     };
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int version_ref) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int version_ref) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), version_ref);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), version_ref);
     };
     check_version(f, 10);
 
@@ -282,12 +284,11 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
         ASSERT_FALSE(info.count(key));
     };
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     check_version(f, 10);
 
@@ -368,10 +369,13 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </rt_info>
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,H,W,C]"/>
+                    </rt_info>
                     <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                     <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
                 </port>
             </output>
         </layer>
@@ -383,17 +387,17 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             <input>
                 <port id="1" precision="FP32">
                     <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                     <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
                 </port>
             </input>
             <output>
                 <port id="2" precision="FP32" names="output_tensor">
                     <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                     <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
                 </port>
             </output>
         </layer>
@@ -403,10 +407,13 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </rt_info>
             <input>
                 <port id="0" precision="FP32">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,H,W,C]"/>
+                    </rt_info>
                     <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                     <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
                 </port>
             </input>
         </layer>
@@ -440,12 +447,11 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_EQ(old_api_map_attr_val, type);
     };
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        EXPECT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     check_version(f, 11);
 
@@ -552,9 +558,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         check_old_api_rt_info(f_10_core->get_result()->get_rt_info());
 
         // check information about layout
-        EXPECT_TRUE(f_10_core->get_parameters()[0]->get_layout().empty())
+        EXPECT_EQ(f_10_core->get_parameters()[0]->get_layout(), ov::Layout("NCHW"))
             << f_10_core->get_parameters()[0]->get_layout().to_string();
-        EXPECT_TRUE(f_10_core->get_results()[0]->get_layout().empty())
+        EXPECT_EQ(f_10_core->get_results()[0]->get_layout(), ov::Layout("NCHW"))
             << f_10_core->get_results()[0]->get_layout().to_string();
     }
 }
@@ -846,12 +852,11 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     check_version(f, 11);
 
@@ -1009,12 +1014,11 @@ TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
     auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     check_version(f, 11);
 
@@ -1102,12 +1106,11 @@ TEST_F(RTInfoDeserialization, V11toV10WithoutRTInfo) {
 </net>
 )V0G0N";
 
-    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), ref_version);
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
     };
     InferenceEngine::Core core;
     auto cnn = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());

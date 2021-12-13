@@ -36,4 +36,4 @@ target_include_directories(${TARGET_NAME} PUBLIC
 ov_install_static_lib(${TARGET_NAME} openvino_common)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::itt)
+openvino_developer_export_targets(COMPONENT core TARGETS openvino::itt)

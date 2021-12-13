@@ -91,7 +91,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
         params[2], // input_scores
         params[3], // input_im_info
         attributes);
-    function = std::make_shared<ov::Function>(
+    function = std::make_shared<ov::Model>(
         ov::OutputVector{experimentalDetectron->output(0), experimentalDetectron->output(1)},
         "ExperimentalDetectronDetectionOutput");
 }

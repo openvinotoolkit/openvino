@@ -26,7 +26,8 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "1.000000"},
     {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
-    {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)}
+    {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
+    {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE}
 };
 
 class GNAPluginConfigTest : public ::testing::Test {
@@ -215,4 +216,15 @@ TEST_F(GNAPluginConfigTest, GnaConfigGnaCompileTargetTest) {
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_1_5");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET");
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigLogLevel) {
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_WARNING);
+    EXPECT_EQ(config.gnaFlags.log_level, PluginConfigParams::LOG_WARNING);
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE);
+    EXPECT_EQ(config.gnaFlags.log_level, PluginConfigParams::LOG_NONE);
+    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_ERROR);
+    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_INFO);
+    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_DEBUG);
+    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_TRACE);
 }
