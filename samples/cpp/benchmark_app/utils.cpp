@@ -6,11 +6,12 @@
 #include <algorithm>
 #include <map>
 #include <regex>
-#include <samples/common.hpp>
-#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "samples/common.hpp"
+#include "samples/slog.hpp"
 
 #include "utils.hpp"
 // clang-format on
