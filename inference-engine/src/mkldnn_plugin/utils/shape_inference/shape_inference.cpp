@@ -9,6 +9,7 @@
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include "static_shape.hpp"
 #include "utils.hpp"
@@ -30,6 +31,8 @@
 #include "split_shape_inference.hpp"
 #include "topk_shape_inference.hpp"
 #include "variadic_split_shape_inference.hpp"
+#include "einsum_shape_inference.hpp"
+#include "strided_slice_shape_inference.hpp"
 
 void shape_inference(ov::Node* op,
                      const std::vector<ov::StaticShape>& input_shapes,
@@ -115,6 +118,10 @@ void shape_inference(ov::Node* op,
     } else if (auto node = ov::as_type<ov::opset1::Split>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::opset1::VariadicSplit>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset7::Einsum>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::StridedSlice>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;
