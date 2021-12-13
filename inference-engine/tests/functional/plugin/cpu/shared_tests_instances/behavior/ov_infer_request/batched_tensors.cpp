@@ -224,6 +224,46 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_remote_tensor_default) {
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
+TEST_P(OVInferRequestBatchedTests, SetInputTensors_Can_Infer_Dynamic) {
+    size_t batch = 4;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto model = create_n_inputs(1, element::f32, PartialShape({-1, 2, 2, 2}), "N...");
+    // Allocate 8 chunks, set 'user tensors' to 0, 2, 4, 6 chunks
+    std::vector<float> buffer(one_shape_size * batch * 2, 0);
+    auto execNet = ie->compile_model(model, targetDevice);
+    // Create InferRequest
+    ov::runtime::InferRequest req;
+    req = execNet.create_infer_request();
+    std::vector<ov::runtime::Tensor> tensors;
+    for (auto i = 0; i < batch; ++i) {
+        // non contiguous memory (i*2)
+        auto tensor = runtime::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
+        tensors.push_back(std::move(tensor));
+    }
+    req.set_tensors("tensor_input0", tensors);
+
+    for (auto testNum = 0; testNum < 2; testNum++) {
+        for (auto i = 0; i < batch; ++i) {
+            auto *f = tensors[i].data<float>();
+            for (auto j = 0; j < one_shape_size; ++j) {
+                f[j] = static_cast<float>(testNum + i);
+            }
+        }
+        req.infer(); // Adds '1' to each element
+        auto actual_tensor = req.get_tensor("tensor_output0");
+        auto* actual = actual_tensor.data<float>();
+        for (auto i = 0; i < batch; ++i) {
+            for (auto j = 0; j < one_shape_size; ++j) {
+                EXPECT_EQ(actual[j + i * one_shape_size], testNum + i + 1)
+                                    << "Infer " << testNum << ": Expected=" << testNum + i + 1
+                                    << ", actual=" << actual[ + i * one_shape_size] << " for index " << j;
+            }
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CPU, OVInferRequestBatchedTests,
                          ::testing::Values(CommonTestUtils::DEVICE_CPU),
                          OVInferRequestBatchedTests::getTestCaseName);
