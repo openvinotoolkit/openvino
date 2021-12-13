@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "backend_visibility.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/util.hpp"
 
@@ -37,7 +36,7 @@ namespace pass {
 ///      <td> \image html dyn_broadcast_post_dyneliminate.svg </td>
 /// </tr>
 /// </table>
-class BACKEND_API DynElimination : public GraphRewrite {
+class DynElimination : public GraphRewrite {
 public:
     DynElimination();
 

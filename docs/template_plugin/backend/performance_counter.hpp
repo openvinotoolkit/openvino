@@ -7,12 +7,11 @@
 #include <cstddef>
 #include <string>
 
-#include "backend_visibility.hpp"
 #include "ngraph/node.hpp"
 
 namespace ngraph {
 namespace runtime {
-class BACKEND_API PerformanceCounter {
+class PerformanceCounter {
 public:
     PerformanceCounter(const std::shared_ptr<const Node>& n, size_t us, size_t calls)
         : m_node(n),
