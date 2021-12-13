@@ -431,6 +431,7 @@ std::vector<fusingSpecificParams> fusingParamsSet3D_smoke {
 
 std::vector<fusingSpecificParams> fusingParamsSet3D_nightly {
         fusingFakeQuantizePerTensorRelu,
+        fusingScaleShiftAndFakeQuantizePerChannel,
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet3DBF16 {
@@ -866,6 +867,7 @@ std::vector<fusingSpecificParams> matmulFusingParams {
          * so Relu cannot be fused in this case. Should be analysed */
         // fusingFakeQuantizePerChannelRelu,
         fusingFakeQuantizePerTensorRelu,
+        fusingScaleShiftAndFakeQuantizePerChannel,
 };
 
 const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),

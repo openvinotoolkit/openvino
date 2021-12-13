@@ -337,25 +337,37 @@ void MKLDNNGraphOptimizer::FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &grap
 void MKLDNNGraphOptimizer::FuseMultiplyAndAdd(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto isSuitableSecondInput = [](MKLDNNNodePtr node, VectorDims dataDims) {
+    auto isSuitableSecondInput = [](const MKLDNNNodePtr& node, VectorDims dataDims) {
         if (node->getType() != Input || !node->isConstant())
             return false;
-        auto secondInputDims = node->getOutputShapeAtPort(0).getStaticDims();
+        const auto secondInputDims = node->getOutputShapeAtPort(0).getStaticDims();
         if (secondInputDims.size() != dataDims.size() || secondInputDims.size() < 2)
             return false;
 
-        if (secondInputDims[0] != 1 || !dimsEqualWeak(secondInputDims[1], dataDims[1]))
+        auto getChannelAxis = [](const VectorDims& dims) {
+            auto channelAxis = -1;
+            for (int i = 0; i < dims.size(); i ++) {
+                if (dims[i] != 1) {
+                    if (channelAxis != -1) // more than one axis is != 1
+                        return -1;
+                    else
+                        channelAxis = i;
+                }
+            }
+            return channelAxis;
+        };
+
+        const auto channelAxis = getChannelAxis(secondInputDims);
+        if (channelAxis == -1)
             return false;
 
-        for (size_t i = 2; i < secondInputDims.size(); i++) {
-            if (secondInputDims[i] != 1)
-                return false;
-        }
+        if (secondInputDims[0] != 1 || !dimsEqualWeak(secondInputDims[channelAxis], dataDims[channelAxis]))
+            return false;
 
         return true;
     };
 
-    auto isSuitableParentNode = [&](MKLDNNNodePtr node) {
+    auto isSuitableParentNode = [&](const MKLDNNNodePtr& node) {
         if (node->getAlgorithm() != EltwiseMultiply || !node->getFusedWith().empty() ||
             node->getParentEdges().size() != 2 || node->getChildEdges().size() != 1)
             return false;
@@ -363,7 +375,7 @@ void MKLDNNGraphOptimizer::FuseMultiplyAndAdd(MKLDNNGraph &graph) {
         return isSuitableSecondInput(node->getParentEdgesAtPort(1)[0]->getParent(), node->getInputShapeAtPort(0).getDims());
     };
 
-    auto isSuitableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+    auto isSuitableChildNode = [&](const MKLDNNNodePtr& parentNode, const MKLDNNNodePtr& childNode) {
         if (childNode->getAlgorithm() != EltwiseAdd || !childNode->getFusedWith().empty() || childNode->getParentEdges().size() != 2)
             return false;
 
@@ -430,7 +442,7 @@ void MKLDNNGraphOptimizer::FuseMultiplyAndAdd(MKLDNNGraph &graph) {
                     graph.RemoveEdge(remEdge);
                 }
 
-                auto parentEltwise = parentNode;
+                auto& parentEltwise = parentNode;
                 MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, parentEltwise, inNum, parentEltwise->getParentEdges().size()));
                 auto &graphEdges = graph.GetEdges();
                 graphEdges.push_back(newEdge);
@@ -1711,16 +1723,25 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
         }
     };
 
-    auto isSuitableScaleShiftNode = [getConstPort](MKLDNNNodePtr node) {
+    auto getNonConstPort = [](const MKLDNNNodePtr node) -> size_t {
+        std::vector<size_t> nonConstPorts;
+        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+            const auto& parent = node->getParentEdgeAt(i)->getParent();
+            if (!(parent->getType() == Input && parent->isConstant()))
+                nonConstPorts.push_back(i);
+        }
+        // there are more than 1 nonconst port or missed
+        if (nonConstPorts.size() != 1)
+            return -1;
+        return nonConstPorts[0];
+    };
+
+    auto isSuitableScaleShiftNode = [getNonConstPort](MKLDNNNodePtr node) {
         if (one_of(node->getAlgorithm(), EltwiseAdd, EltwiseSubtract, EltwiseMultiply, EltwiseDivide, EltwiseMulAdd)) {
-            MKLDNNNode *parent = nullptr;
-            if (node->getAlgorithm() != EltwiseMulAdd) {
-                const auto constPort = getConstPort(node);
-                if (constPort == -1) {
-                    return false;
-                }
-                parent = node->getParentEdgesAtPort(1 - constPort)[0]->getParent().get();
-            }
+            const auto nonConstPort = getNonConstPort(node);
+            if (nonConstPort == -1)
+                return false;
+            const MKLDNNNode* parent = node->getParentEdgesAtPort(nonConstPort)[0]->getParent().get();
             return node->getType() == Eltwise && node->getChildEdges().size() == 1 && node->canBePerformedAsScaleShift(parent);
         }
         return false;
@@ -1746,7 +1767,8 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
 
         const auto &outputShape = child->getOutputShapeAtPort(0);
         VectorDims outputDims = outputShape.getDims();
-        const size_t channelPos = outputDims.size() > 1 ? 1 : 0;
+        const size_t channelPos = parent->getParentEdgeAt(0)->getParent()->getFusingAxis();
+
         if (outputShape.isDynamic()) {
             if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {
                 if (scalesBuffer.size() > 1) {
