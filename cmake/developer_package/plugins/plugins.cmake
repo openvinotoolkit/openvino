@@ -344,7 +344,7 @@ function(ie_generate_plugins_hpp)
     add_dependencies(inference_engine _ie_plugins_hpp)
 
     # add dependency for object files
-    get_target_property(sources ov_runtime SOURCES)
+    get_target_property(sources inference_engine_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library

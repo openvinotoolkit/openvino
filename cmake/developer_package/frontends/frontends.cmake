@@ -59,7 +59,7 @@ function(ov_generate_frontends_hpp)
     add_dependencies(frontend_common _ov_frontends_hpp)
 
     # add dependency for object files
-    get_target_property(sources ov_runtime SOURCES)
+    get_target_property(sources frontend_common_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library

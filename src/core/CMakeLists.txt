@@ -102,7 +102,7 @@ target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE
                                       PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_library(ngraph INTERFACE)
-target_link_libraries(ngraph PRIVATE INTERFACE openvino::runtime)
+target_link_libraries(ngraph INTERFACE openvino::runtime)
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
 add_library(openvino::core ALIAS ngraph)

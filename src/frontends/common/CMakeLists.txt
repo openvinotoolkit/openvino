@@ -58,7 +58,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_library(${TARGET_NAME} INTERFACE)
-target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 

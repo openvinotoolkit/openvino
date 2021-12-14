@@ -27,8 +27,8 @@ ie_faster_build(${TARGET_NAME}_obj
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder)
 
-target_include_directories(${TARGET_NAME}_obj PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                              PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+                                              "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
@@ -48,7 +48,7 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
 # developer package
 
