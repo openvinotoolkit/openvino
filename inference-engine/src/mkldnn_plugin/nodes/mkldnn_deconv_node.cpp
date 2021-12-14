@@ -355,11 +355,10 @@ void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vec
     mkldnn::post_ops ops;
 
     auto getBinPostOpShape = [&](){
-        const auto outShape = getOutputShapeAtPort(0).getStaticDims();
         const auto outShapeRank = getOutputShapeAtPort(0).getRank();
         const auto chIdx = getFusingAxis();
         std::vector<size_t> binaryShape(outShapeRank, 1);
-        binaryShape[chIdx] = outShape[chIdx];
+        binaryShape[chIdx] = dims[chIdx];
         return binaryShape;
     };
 
@@ -368,7 +367,7 @@ void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vec
             // TODO [DS]: change to shape from memory
             constexpr int align = 16;
             // use legacy depthwise since backprop convolution does not support binary post ops
-            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
+            eltwiseNode->appendPostOps(ops, dims, align);
             continue;
         }
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
