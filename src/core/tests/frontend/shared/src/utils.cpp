@@ -18,7 +18,7 @@
 
 std::string FrontEndTestUtils::find_ov_path() {
 #ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ov_runtime" SHARED_LIB_SUFFIX);
+    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"frontend_common" SHARED_LIB_SUFFIX);
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
     std::wstring ws(wpath);
