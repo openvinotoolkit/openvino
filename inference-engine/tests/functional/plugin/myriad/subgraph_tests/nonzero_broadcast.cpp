@@ -136,7 +136,7 @@ std::vector<BroadcastInputParams> broadcastTestParams = {
         { DataShapeWithUpperBound{ {128, 256}, {} }, DataShapeWithUpperBound{ {1, 128, 256}, {3, 128, 256} }, {1, 2} },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBroadcast, NonZero_Broadcast,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBroadcast, NonZero_Broadcast,
         ::testing::Combine(
             ::testing::ValuesIn(broadcastTestParams),
             ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),

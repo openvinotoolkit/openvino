@@ -25,11 +25,12 @@ struct convolution_params : public weight_bias_zero_point_params {
     bool depthwise_separable_opt = false;
     bool transposed = false;
     QuantizationType quantization = QuantizationType::NONE;
-    bool local_convolution = false;
     bool deformable_mode = false;
     uint32_t groups = 1;
     uSize kernelSize;
     uint32_t deformable_groups = 1;
+    bool bilinear_interpolation_pad {false};
+    bool deformable_mask_enabled {false};
 
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;

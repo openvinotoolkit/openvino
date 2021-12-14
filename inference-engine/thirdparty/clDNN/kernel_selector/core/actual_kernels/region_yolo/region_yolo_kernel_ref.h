@@ -21,7 +21,7 @@ struct region_yolo_params : public base_params {
     uint32_t mask_size;
     bool do_softmax;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
         return k;
     }
@@ -50,5 +50,8 @@ public:
 protected:
     virtual JitConstants GetJitConstants(const region_yolo_params& params) const;
     bool Validate(const Params& p, const optional_params& o) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::REORDER };
+    }
 };
 }  // namespace kernel_selector

@@ -9,7 +9,7 @@
 if(NOT DEFINED CMAKE_SYSTEM_VERSION)
     # Sometimes CMAKE_HOST_SYSTEM_VERSION has form 10.x.y while we need
     # form 10.x.y.z Adding .0 at the end fixes the issue
-    if(CMAKE_HOST_SYSTEM_VERSION MATCHES "^10\.0\.[0-9]+$")
+    if(CMAKE_HOST_SYSTEM_VERSION MATCHES "^10\\.0\\.[0-9]+$")
         set(CMAKE_SYSTEM_VERSION "${CMAKE_HOST_SYSTEM_VERSION}.0")
     else()
         set(CMAKE_SYSTEM_VERSION "${CMAKE_HOST_SYSTEM_VERSION}")
@@ -32,7 +32,7 @@ if(CMAKE_GENERATOR_PLATFORM)
 endif()
 
 if(_onecoreuap_arch STREQUAL "x64")
-    # Forcefull make VS search for C++ libreries in these folders prior to other c++ standard libraries localizations.
+    # Forcefull make VS search for C++ libraries in these folders prior to other c++ standard libraries localizations.
     add_link_options("/LIBPATH:\"\$\(VC_LibraryPath_VC_x64_OneCore\)\"")
 
     set(CMAKE_C_STANDARD_LIBRARIES "\$\(UCRTContentRoot\)lib/\$\(TargetUniversalCRTVersion\)/um/\$\(Platform\)/OneCoreUap.lib" CACHE STRING "" FORCE)

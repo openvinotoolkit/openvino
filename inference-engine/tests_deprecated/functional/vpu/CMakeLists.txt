@@ -5,28 +5,31 @@
 set(VPU_DEPENDENCIES
     vpu_copy_firmware)
 
-if (ENABLE_CLDNN)
-    list(APPEND VPU_DEPENDENCIES
-            clDNNPlugin
-            HeteroPlugin)
+if (ENABLE_INTEL_GPU)
+    list(APPEND VPU_DEPENDENCIES ov_intel_gpu_plugin)
+    if(ENABLE_HETERO)
+        list(APPEND VPU_DEPENDENCIES ov_hetero_plugin)
+    endif()
 endif()
 
 addIeTarget(
         NAME myriadTestData
-        DEVELOPER_PACKAGE inference_engine_tests
+        DEVELOPER_PACKAGE
+            tests
         TYPE STATIC
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/test_data
         LINK_LIBRARIES
-        ieTestHelpers
+            ieTestHelpers
         DEFINES
-        PUBLIC
-        DATA_PATH=\"${DATA_PATH}\"
-        MODELS_PATH=\"${MODELS_PATH}\"
+            PUBLIC
+            DATA_PATH=\"${DATA_PATH}\"
+            MODELS_PATH=\"${MODELS_PATH}\"
 )
 
 addIeTarget(
     NAME VPUCommonTests
-    DEVELOPER_PACKAGE inference_engine_tests
+    DEVELOPER_PACKAGE
+        tests
     TYPE STATIC
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}/common
     ADDITIONAL_SOURCE_DIRS
@@ -37,6 +40,9 @@ addIeTarget(
         ${CMAKE_CURRENT_SOURCE_DIR}/common/regression/helpers
     LINK_LIBRARIES
         IESharedTests
+        ieTestHelpers
+        funcTestUtils
+        format_reader
         vpu_graph_transformer
         vpu_custom_kernels
 )
@@ -44,10 +50,11 @@ addIeTarget(
 target_include_directories(VPUCommonTests INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/vpu_base
     ${CMAKE_CURRENT_SOURCE_DIR}/common/regression/helpers
+    $<TARGET_PROPERTY:funcTestUtils,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
-openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS vpu_custom_kernels)
+openvino_developer_export_targets(COMPONENT vpu TARGETS vpu_custom_kernels)
 
 addIeTargetTest(
     NAME MyriadFunctionalTests
@@ -55,8 +62,7 @@ addIeTargetTest(
     ADDITIONAL_SOURCE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/graph_transformer
     INCLUDES
-        ${IE_MAIN_SOURCE_DIR}/include/vpu
-        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
+        $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_BINARY_DIR}
     LINK_LIBRARIES
         IESharedTests
@@ -71,3 +77,7 @@ addIeTargetTest(
         VPU
         MYRIAD
     )
+# because vpu_graph_transformer is compiled with LTO
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+    set_target_properties(VPUCommonTests PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+endif()

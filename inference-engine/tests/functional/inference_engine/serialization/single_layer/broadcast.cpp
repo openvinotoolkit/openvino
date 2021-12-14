@@ -27,7 +27,7 @@ const auto numpyBroadcastParams1 = ::testing::Combine(
     ::testing::Values(inShapesNumpy[0]), ::testing::ValuesIn(inputPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_Broadcast1Serialization, BroadcastLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Broadcast1Serialization, BroadcastLayerTest,
                         numpyBroadcastParams1,
                         BroadcastLayerTest::getTestCaseName);
 } // namespace

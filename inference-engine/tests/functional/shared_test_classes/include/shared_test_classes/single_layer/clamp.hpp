@@ -23,7 +23,7 @@ using clampParamsTuple = std::tuple<
 class ClampLayerTest : public testing::WithParamInterface<clampParamsTuple>,
                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<clampParamsTuple> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<clampParamsTuple>& obj);
 protected:
     void SetUp() override;
 };

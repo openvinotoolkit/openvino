@@ -42,7 +42,7 @@ std::vector<size_t> outputChannels = {
     8
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_SplitConvTest, SplitConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_SplitConvTest, SplitConvTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

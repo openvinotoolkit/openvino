@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
 
 #include "ie_allocator.hpp"
 #include "details/ie_pre_allocator.hpp"
@@ -17,10 +16,7 @@ class PreallocatorTests: public ::testing::Test {
  protected:
     std::vector<float> mybuf;
 
-    virtual void TearDown() {
-    }
-
-    virtual void SetUp() {
+    void SetUp() override {
         mybuf.resize(10);
         allocator = details::make_pre_allocator(&*mybuf.begin(), mybuf.size());
     }

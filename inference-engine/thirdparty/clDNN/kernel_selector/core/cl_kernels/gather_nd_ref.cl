@@ -1,18 +1,8 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/fetch.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 #define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 #define GET_OUTPUT_INDEX(out_order) OUTPUT_GET_INDEX(out_order)
@@ -135,28 +125,47 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
         const uint out_f = idx_f;
         const uint out_b = idx_b;
     #else
-        uint pitch_acc = 1;
-        uint output_batch_size = 0;
-        for (int i = BATCH_DIMS - 1; i >= 0; i--) {
-            output_batch_size += (idx_arr[i] * pitch_acc);
-            pitch_acc *= idx_dim[i];
-        }
+        #if BATCH_MERGED_OUTPUT
+            uint pitch_acc = 1;
+            uint output_batch_size = 0;
+            for (int i = BATCH_DIMS - 1; i >= 0; i--) {
+                output_batch_size += (idx_arr[i] * pitch_acc);
+                pitch_acc *= idx_dim[i];
+            }
 
-        #if OUTPUT_DIMS == 4
-            const uint out_x = idx_arr[BATCH_DIMS+2];
-            const uint out_y = idx_arr[BATCH_DIMS+1];
-        #elif OUTPUT_DIMS == 5
-            const uint out_x = idx_arr[BATCH_DIMS+3];
-            const uint out_y = idx_arr[BATCH_DIMS+2];
-            const uint out_z = idx_arr[BATCH_DIMS+1];
+            #if OUTPUT_DIMS == 4
+                const uint out_x = idx_arr[BATCH_DIMS+2];
+                const uint out_y = idx_arr[BATCH_DIMS+1];
+            #elif OUTPUT_DIMS == 5
+                const uint out_x = idx_arr[BATCH_DIMS+3];
+                const uint out_y = idx_arr[BATCH_DIMS+2];
+                const uint out_z = idx_arr[BATCH_DIMS+1];
+            #else
+                const uint out_x = idx_arr[BATCH_DIMS+4];
+                const uint out_y = idx_arr[BATCH_DIMS+3];
+                const uint out_z = idx_arr[BATCH_DIMS+2];
+                const uint out_w = idx_arr[BATCH_DIMS+1];
+            #endif
+            const uint out_f = idx_arr[BATCH_DIMS+0];
+            const uint out_b = output_batch_size;
         #else
-            const uint out_x = idx_arr[BATCH_DIMS+4];
-            const uint out_y = idx_arr[BATCH_DIMS+3];
-            const uint out_z = idx_arr[BATCH_DIMS+2];
-            const uint out_w = idx_arr[BATCH_DIMS+1];
+            #if OUTPUT_DIMS == 4
+                const uint out_x = idx_arr[3];
+                const uint out_y = idx_arr[2];
+            #elif OUTPUT_DIMS == 5
+                const uint out_x = idx_arr[4];
+                const uint out_y = idx_arr[3];
+                const uint out_z = idx_arr[2];
+            #else
+                const uint out_x = idx_arr[5];
+                const uint out_y = idx_arr[4];
+                const uint out_z = idx_arr[3];
+                const uint out_w = idx_arr[2];
+            #endif
+            const uint out_f = idx_arr[1];
+            const uint out_b = idx_arr[0];
+
         #endif
-        const uint out_f = idx_arr[BATCH_DIMS+0];
-        const uint out_b = output_batch_size;
     #endif
 
     const uint output_idx = GET_OUTPUT_INDEX(OUT_ORDER);

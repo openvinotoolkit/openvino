@@ -88,7 +88,7 @@ TEST_P(StaticShapeNonZeroTests, CanValidateAndInferTypes) {
             ngraph::ParameterVector{m_param}));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeNonZeroTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeNonZeroTests, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testStaticShapes),
         testing::ValuesIn(outputTypes))
@@ -105,7 +105,7 @@ TEST_P(StaticShapeNonZeroTestsNegativeInputDataType, ThrowsOnInvalidInputType) {
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeInputDataType, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeInputDataType, testing::Combine(
         testing::Values(ngraph::element::dynamic),
         testing::ValuesIn(testStaticShapes),
         testing::ValuesIn(outputTypes))
@@ -118,7 +118,7 @@ TEST_P(StaticShapeNonZeroTestsNegativeDataShape, ThrowsOnInvalidDataShape) {
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeDataShape, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeDataShape, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testDynamicShapes),
         testing::ValuesIn(outputTypes))
@@ -131,7 +131,7 @@ TEST_P(StaticShapeNonZeroTestsNegativeOutputDataType, ThrowsOnInvalidOutputType)
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeOutputDataType, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, StaticShapeNonZeroTestsNegativeOutputDataType, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testStaticShapes),
         testing::Values(ngraph::element::boolean))

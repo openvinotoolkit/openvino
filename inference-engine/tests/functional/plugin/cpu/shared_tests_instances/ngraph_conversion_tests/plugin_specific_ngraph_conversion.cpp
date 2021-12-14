@@ -9,6 +9,6 @@ using namespace NGraphConversionTestsDefinitions;
 
 namespace {
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, PluginSpecificConversion, ::testing::Values("CPU"), PluginSpecificConversion::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, PluginSpecificConversion, ::testing::Values("CPU"), PluginSpecificConversion::getTestCaseName);
 
 }  // namespace

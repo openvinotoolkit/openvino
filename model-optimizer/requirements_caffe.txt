@@ -1,5 +1,0 @@
-networkx>=1.11
-numpy>=1.14.0
-protobuf>=3.6.1
-defusedxml>=0.5.0
-requests>=2.20.0

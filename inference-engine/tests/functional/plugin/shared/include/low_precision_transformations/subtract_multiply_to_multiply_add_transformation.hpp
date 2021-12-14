@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 class SubtractMultiplyToMultiplyAddTransformationTestValues {
 public:
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::element::Type precision;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
 };
@@ -27,13 +27,10 @@ class SubtractMultiplyToMultiplyAddTransformation :
     public testing::WithParamInterface<SubtractMultiplyToMultiplyAddTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

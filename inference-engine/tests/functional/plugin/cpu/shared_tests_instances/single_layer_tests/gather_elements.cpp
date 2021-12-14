@@ -4,7 +4,8 @@
 
 #include <vector>
 
-#include "shared_test_classes/single_layer/gather_elements.hpp"
+#include "single_layer_tests/gather_elements.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -16,15 +17,13 @@ const std::vector<InferenceEngine::Precision> dPrecisions = {
         InferenceEngine::Precision::I32,
         InferenceEngine::Precision::I64,
         InferenceEngine::Precision::I16,
-        InferenceEngine::Precision::U8,
-        InferenceEngine::Precision::I8
 };
 const std::vector<InferenceEngine::Precision> iPrecisions = {
         InferenceEngine::Precision::I32,
         InferenceEngine::Precision::I64
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_set1, GatherElementsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsLayerTest,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({2, 2})),     // Data shape
                             ::testing::Values(std::vector<size_t>({2, 2})),     // Indices shape
@@ -34,7 +33,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set1, GatherElementsLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_set2, GatherElementsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set2, GatherElementsLayerTest,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({2, 2, 1})),  // Data shape
                             ::testing::Values(std::vector<size_t>({4, 2, 1})),  // Indices shape
@@ -44,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set2, GatherElementsLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_set3, GatherElementsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set3, GatherElementsLayerTest,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({2, 2, 3, 5})),   // Data shape
                             ::testing::Values(std::vector<size_t>({2, 2, 3, 7})),   // Indices shape
@@ -54,7 +53,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set3, GatherElementsLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_set4, GatherElementsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set4, GatherElementsLayerTest,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({3, 2, 3, 8})),   // Data shape
                             ::testing::Values(std::vector<size_t>({2, 2, 3, 8})),   // Indices shape
@@ -64,7 +63,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set4, GatherElementsLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_set5, GatherElementsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set5, GatherElementsLayerTest,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({3, 2, 3, 4, 8})),   // Data shape
                             ::testing::Values(std::vector<size_t>({3, 2, 3, 5, 8})),   // Indices shape

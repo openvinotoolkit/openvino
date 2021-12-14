@@ -30,9 +30,9 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const int seed = 0;
-        std::mt19937 gen(static_cast<float>(seed));
+        std::mt19937 gen(seed);
         std::uniform_real_distribution<float> dist(-0.2f, 0.2f);
-        for (int i = 0; i < hiddenSize; ++i)
+        for (size_t i = 0; i < hiddenSize; ++i)
             memory_init.emplace_back(static_cast<float>(dist(gen)));
 
         auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
@@ -68,23 +68,31 @@ namespace SubgraphTestsDefinitions {
         function = std::make_shared<ngraph::Function>(sigm, input, "negative_memory_layer_offset_nonmemory");
     }
 
+    void NegativeMemoryOffsetTest::LoadNetwork() {
+        LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+        inferRequest = executableNetwork.CreateInferRequest();
+    }
+
+    void NegativeMemoryOffsetTest::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
+    }
+
     void NegativeMemoryOffsetTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         LoadNetwork();
-        IE_SUPPRESS_DEPRECATED_START
-        auto states = executableNetwork.QueryState();
+        auto states = inferRequest.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_init.data(), memory_init.size());
                 state.SetState(blob);
             } else {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
-        IE_SUPPRESS_DEPRECATED_END
         GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();

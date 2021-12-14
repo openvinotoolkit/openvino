@@ -13,14 +13,19 @@ namespace MKLDNNPlugin {
 
 class MKLDNNDepthToSpaceNode : public MKLDNNNode {
 public:
-    MKLDNNDepthToSpaceNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNDepthToSpaceNode() override = default;
+    MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+    void prepareParams() override;
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
     enum Mode {
@@ -28,11 +33,26 @@ private:
         DEPTH_FIRST = 1
     };
 
-    Mode mode;
-    size_t blockSize;
-    size_t blockStep;
+    struct DepthToSpaceAttrs {
+        LayoutType layoutType;
+        Mode mode;
+        size_t blockSize = 0lu;
+        size_t blockStep = 0lu;
+        size_t dataSize = 1lu;
+        size_t nSpatialDims = 0lu;
+        VectorDims srcBlockedDims;
+    } attrs;
 
-    std::unique_ptr<PermuteKernel> permuteKernel;
+    struct DepthToSpaceExecutor {
+        DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
+        void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB);
+        ~DepthToSpaceExecutor() = default;
+
+    private:
+        std::unique_ptr<PermuteKernel> permuteKernel;
+    };
+    using executorPtr = std::shared_ptr<DepthToSpaceExecutor>;
+    executorPtr execPtr = nullptr;
 };
 
 }  // namespace MKLDNNPlugin

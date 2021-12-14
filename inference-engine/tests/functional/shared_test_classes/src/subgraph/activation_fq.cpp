@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-    std::string ActivationFakeQuantizeSubgraphTest::getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj) {
+    std::string ActivationFakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamInfo<fqSubgraphTestParamsSet>& obj) {
         fqSpecificParams fqParams;
         ngraph::helpers::ActivationTypes activationType;
         InferenceEngine::Precision netPrecision;

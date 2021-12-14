@@ -31,9 +31,9 @@ typedef std::tuple<
 > ScaleShiftConvScaleShiftParams;
 
 class ScaleShiftAfterConvTest : public testing::WithParamInterface<ScaleShiftConvScaleShiftParams>,
-                                public LayerTestsUtils::LayerTestsCommon {
+                                virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ScaleShiftConvScaleShiftParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ScaleShiftConvScaleShiftParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:
@@ -41,9 +41,9 @@ protected:
 };
 
 class ScaleShiftBeforeConvTest : public testing::WithParamInterface<ScaleShiftConvScaleShiftParams>,
-                                 public LayerTestsUtils::LayerTestsCommon {
+                                 virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ScaleShiftConvScaleShiftParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ScaleShiftConvScaleShiftParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:

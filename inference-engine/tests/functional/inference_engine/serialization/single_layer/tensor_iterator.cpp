@@ -10,8 +10,12 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-TEST_P(TensorIteratorTest, Serialize) {
-    Serialize();
+TEST_P(TensorIteratorTest, Serialize_IR10) {
+    Serialize(ov::pass::Serialize::Version::IR_V10);
+}
+
+TEST_P(TensorIteratorTest, Serialize_IR11) {
+    Serialize(ov::pass::Serialize::Version::IR_V11);
 }
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -27,7 +31,7 @@ const std::vector<float> clip = {0.f};
 const std::vector<ngraph::op::RecurrentSequenceDirection> direction = {
     ngraph::op::RecurrentSequenceDirection::FORWARD, ngraph::op::RecurrentSequenceDirection::REVERSE};
 
-INSTANTIATE_TEST_CASE_P(smoke_TensorIterator, TensorIteratorTest,
+INSTANTIATE_TEST_SUITE_P(smoke_TensorIterator, TensorIteratorTest,
     ::testing::Combine(
         ::testing::ValuesIn(decompose),
         ::testing::ValuesIn(sequenceLength),

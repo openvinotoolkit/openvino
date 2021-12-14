@@ -10,8 +10,7 @@
 
 class FakeAbs : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Abs", 100500};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    OPENVINO_OP("Abs", "experimental");
 
     FakeAbs() = default;
     FakeAbs(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
@@ -23,11 +22,10 @@ public:
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         return std::make_shared<FakeAbs>(new_args.at(0));
     }
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+    bool visit_attributes(ngraph::AttributeVisitor&) override {
         return true;
     }
 };
-constexpr ngraph::NodeTypeInfo FakeAbs::type_info;
 
 class AbsFakeExtension: public InferenceEngine::IExtension {
 public:
@@ -38,7 +36,7 @@ public:
         std::map<std::string, ngraph::OpSet> opsets;
         ngraph::OpSet opset;
         opset.insert<FakeAbs>();
-        opsets["experimental"] = opset;
+        opsets[FakeAbs::get_type_info_static().version_id] = opset;
         return opsets;
     }
 };
@@ -103,7 +101,7 @@ TEST_F(NGraphReaderTests, ReadAbsFromCustomOpsetNetwork) {
     bool genericNodeExists = false;
     const std::string type = "Abs";
     for (auto op : nGraph->get_ops()) {
-        if (type == op->get_type_info().name && 100500 == op->get_type_info().version)
+        if (type == op->get_type_info().name)
             genericNodeExists = true;
     }
     ASSERT_TRUE(genericNodeExists);

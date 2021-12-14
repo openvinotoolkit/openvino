@@ -134,7 +134,7 @@ protected:
 TEST_P(DynamicToStaticShapeScatter, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeScatter, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeScatter, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,
@@ -146,8 +146,8 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeScatter, testing::Comb
         ngraph::element::i64,
         ngraph::element::u8),
     testing::Values(
-        ScatterTestCase{ngraph::opset3::ScatterUpdate::type_info, {1000, 256, 10, 15}, {125, 20}, {1000, 125, 20, 10, 15}, 1},
-        ScatterTestCase{ngraph::opset5::ScatterElementsUpdate::type_info, {300}, {300}, {300}, 0}),
+        ScatterTestCase{ngraph::opset3::ScatterUpdate::get_type_info_static(), {1000, 256, 10, 15}, {125, 20}, {1000, 125, 20, 10, 15}, 1},
+        ScatterTestCase{ngraph::opset5::ScatterElementsUpdate::get_type_info_static(), {300}, {300}, {300}, 0}),
     testing::Values(
         ShapeType::DYNAMIC,
         ShapeType::STATIC)

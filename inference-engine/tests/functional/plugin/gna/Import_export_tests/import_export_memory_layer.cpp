@@ -65,14 +65,14 @@ public:
         }
         auto importedNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
         std::vector<std::string> queryToState;
-        for (const auto &query_state : executableNetwork.QueryState()) {
+        InferenceEngine::InferRequest importInfer = importedNetwork.CreateInferRequest();
+        for (const auto &query_state : importInfer.QueryState()) {
             queryToState.push_back(query_state.GetName());
         }
-        for (const auto &next_memory : importedNetwork.QueryState()) {
+        for (const auto &next_memory : importInfer.QueryState()) {
             ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) != queryToState.end())
                                         << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
         }
-        InferenceEngine::InferRequest importInfer = importedNetwork.CreateInferRequest();
         importInfer.Infer();
     }
 
@@ -128,7 +128,7 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkMemoryCase, ImportMemoryTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkMemoryCase, ImportMemoryTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),

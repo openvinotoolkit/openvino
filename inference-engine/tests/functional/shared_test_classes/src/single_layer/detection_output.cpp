@@ -7,7 +7,27 @@
 
 namespace LayerTestsDefinitions {
 
-std::string DetectionOutputLayerTest::getTestCaseName(testing::TestParamInfo<DetectionOutputParams> obj) {
+std::ostream& operator <<(std::ostream& result, const ngraph::op::DetectionOutputAttrs& attrs) {
+    result << "Classes=" << attrs.num_classes << "_";
+    result << "backgrId=" << attrs.background_label_id << "_";
+    result << "topK="  << attrs.top_k << "_";
+    result << "varEnc=" << attrs.variance_encoded_in_target << "_";
+    result << "keepTopK=" << CommonTestUtils::vec2str(attrs.keep_top_k) << "_";
+    result << "codeType=" << attrs.code_type << "_";
+    result << "shareLoc=" << attrs.share_location << "_";
+    result << "nmsThr=" << attrs.nms_threshold << "_";
+    result << "confThr=" << attrs.confidence_threshold << "_";
+    result << "clipAfterNms=" << attrs.clip_after_nms << "_";
+    result << "clipBeforeNms=" << attrs.clip_before_nms << "_";
+    result << "decrId=" << attrs.decrease_label_id << "_";
+    result << "norm=" << attrs.normalized << "_";
+    result << "inH=" << attrs.input_height << "_";
+    result << "inW=" << attrs.input_width << "_";
+    result << "OS=" << attrs.objectness_score << "_";
+    return result;
+}
+
+std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
     ngraph::op::DetectionOutputAttrs attrs;
@@ -44,22 +64,7 @@ std::string DetectionOutputLayerTest::getTestCaseName(testing::TestParamInfo<Det
     result << armConf;
     result << armLoc << " }_";
 
-    result << "Classes=" << attrs.num_classes << "_";
-    result << "backgrId=" << attrs.background_label_id << "_";
-    result << "topK="  << attrs.top_k << "_";
-    result << "varEnc=" << attrs.variance_encoded_in_target << "_";
-    result << "keepTopK=" << CommonTestUtils::vec2str(attrs.keep_top_k) << "_";
-    result << "codeType=" << attrs.code_type << "_";
-    result << "shareLoc=" << attrs.share_location << "_";
-    result << "nmsThr=" << attrs.nms_threshold << "_";
-    result << "confThr=" << attrs.confidence_threshold << "_";
-    result << "clipAfterNms=" << attrs.clip_after_nms << "_";
-    result << "clipBeforeNms=" << attrs.clip_before_nms << "_";
-    result << "decrId=" << attrs.decrease_label_id << "_";
-    result << "norm=" << attrs.normalized << "_";
-    result << "inH=" << attrs.input_height << "_";
-    result << "inW=" << attrs.input_width << "_";
-    result << "OS=" << attrs.objectness_score << "_";
+    result << attrs;
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
@@ -90,32 +95,39 @@ void DetectionOutputLayerTest::GenerateInputs() {
     }
 }
 
-void DetectionOutputLayerTest::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
-    ASSERT_EQ(expected.size(), actual->byteSize());
+void DetectionOutputLayerTest::Compare(
+        const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+        const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex].second;
+        const auto &actual = actualOutputs[outputIndex];
 
-    size_t expSize = 0;
-    size_t actSize = 0;
+        ASSERT_EQ(expected.size(), actual->byteSize());
 
-    const auto &expectedBuffer = expected.data();
-    auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-    IE_ASSERT(memory);
-    const auto lockedMemory = memory->wmap();
-    const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+        size_t expSize = 0;
+        size_t actSize = 0;
 
-    const float *expBuf = reinterpret_cast<const float *>(expectedBuffer);
-    const float *actBuf = reinterpret_cast<const float *>(actualBuffer);
-    for (size_t i = 0; i < actual->size(); i+=7) {
-        if (expBuf[i] == -1)
-            break;
-        expSize += 7;
+        const auto &expectedBuffer = expected.data();
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->wmap();
+        const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+
+        const float *expBuf = reinterpret_cast<const float *>(expectedBuffer);
+        const float *actBuf = reinterpret_cast<const float *>(actualBuffer);
+        for (size_t i = 0; i < actual->size(); i+=7) {
+            if (expBuf[i] == -1)
+                break;
+            expSize += 7;
+        }
+        for (size_t i = 0; i < actual->size(); i+=7) {
+            if (actBuf[i] == -1)
+                break;
+            actSize += 7;
+        }
+        ASSERT_EQ(expSize, actSize);
+        LayerTestsCommon::Compare<float>(expBuf, actBuf, expSize, 1e-2f);
     }
-    for (size_t i = 0; i < actual->size(); i+=7) {
-        if (actBuf[i] == -1)
-            break;
-        actSize += 7;
-    }
-    ASSERT_EQ(expSize, actSize);
-    LayerTestsCommon::Compare<float>(expBuf, actBuf, expSize, 1e-2f);
 }
 
 void DetectionOutputLayerTest::SetUp() {
@@ -146,4 +158,3 @@ void DetectionOutputLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
 }  // namespace LayerTestsDefinitions
-

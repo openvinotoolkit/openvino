@@ -7,7 +7,6 @@ import xml.etree.ElementTree as ET
 
 from jinja2 import Environment, FileSystemLoader
 
-from utils import constants
 from utils import utils
 
 logger = utils.get_logger('Summarize')
@@ -22,11 +21,18 @@ def parse_arguments():
         report is be kept.
     """
     out_help = "Path where to save html report"
+    report_tag = "Report tag"
+    output_filename_help = "Output report filename"
+    conformance_mode_help = "Allow to align test number"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")
+    parser.add_argument("--output_filename", help=output_filename_help, default="report")
+    parser.add_argument("--report_tag", help=report_tag, default="")
+    parser.add_argument("--conformance_mode", help=conformance_mode_help, default=False)
 
     return parser.parse_args()
+
 
 def merge_xmls(xml_paths: list):
     logger.info("Merging XML files is started")
@@ -63,6 +69,9 @@ def merge_xmls(xml_paths: list):
                         for attr_name in device_results.find(op_result.tag).attrib:
                             if attr_name == "passrate":
                                 continue
+                            # TODO
+                            if attr_name == "implemented":
+                                continue
                             total_tests_count_xml += int(op_result.attrib.get(attr_name))
                             total_tests_count_summary += int(current_op_res.attrib.get(attr_name))
                         if total_tests_count_xml > total_tests_count_summary:
@@ -81,7 +90,7 @@ def merge_xmls(xml_paths: list):
     return summary
 
 
-def collect_statistic(root: ET.Element):
+def collect_statistic(root: ET.Element, is_conformance_mode: bool):
     logger.info("Statistic collecting is started")
     trusted_ops = dict()
     pass_rate_avg = dict()
@@ -91,6 +100,7 @@ def collect_statistic(root: ET.Element):
     op_res = dict()
 
     results = dict()
+    covered_ops = dict()
     for device in root.find("results"):
         results[device.tag] = {op.tag: op.attrib for op in device}
 
@@ -98,16 +108,20 @@ def collect_statistic(root: ET.Element):
         general_test_count[device.tag] = 0
         general_passed_tests[device.tag] = 0
         trusted_ops[device.tag] = 0
+        covered_ops[device.tag] = 0
         for op in results[device.tag]:
+            op_test_cnt = int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) + \
+                          int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"])
+            if op_test_cnt == 0:
+                continue
+            covered_ops[device.tag] += 1
             pass_rate = round(float(results[device.tag][op]["passrate"]), 1)
             results[device.tag][op]["passrate"] = pass_rate
 
             pass_rate_avg[device.tag] += pass_rate
             if pass_rate == 100.:
                 trusted_ops[device.tag] += 1
-            device_general_test_count = \
-                int(results[device.tag][op]["passed"]) + int(results[device.tag][op]["failed"]) +\
-                int(results[device.tag][op]["crashed"]) + int(results[device.tag][op]["skipped"])
+            device_general_test_count = op_test_cnt
             general_test_count[device.tag] += device_general_test_count
             general_passed_tests[device.tag] += int(results[device.tag][op]["passed"])
 
@@ -117,29 +131,37 @@ def collect_statistic(root: ET.Element):
                 op_res.update({op: {device.tag: device_general_test_count}})
         pass_rate_avg[device.tag] /= len(results[device.tag])
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
-        general_pass_rate[device.tag] = general_passed_tests[device.tag] * 100 / general_test_count[device.tag]
+        general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
+        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100 / covered_ops[device.tag]), 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
 
     logger.info("Test number comparison between devices is started")
     for op in op_res:
         op_counter = None
         is_not_printed = True
+        max_test_cnt = 0
         for dev in op_res[op]:
             if op_counter is None:
                 op_counter = op_res[op][dev]
-            elif op_counter != op_res[op][dev] and is_not_printed:
-                is_not_printed = False
-                logger.warning(f'{op} : {op_res[op]}')
+            elif op_counter != op_res[op][dev]:
+                max_test_cnt = max(max_test_cnt, op_res[op][dev])
+                if is_not_printed:
+                    is_not_printed = False
+                    logger.warning(f'{op} : {op_res[op]}')
+
     logger.info("Test number comparison between devices is completed")
 
     devices = results.keys()
     logger.info("Statistic collecting is completed")
-    return devices, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops
+    return devices, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops
 
 
-def create_summary(summary_root: ET.Element, output_folder: str):
-    device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops = \
-        collect_statistic(summary_root)
+def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str, is_conformance_mode: bool,
+                   output_filename='report'):
+    if is_conformance_mode:
+        utils.update_conformance_test_counters(summary_root, logger)
+    device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
+        collect_statistic(summary_root, is_conformance_mode)
 
     timestamp = summary_root.attrib["timestamp"]
 
@@ -152,14 +174,12 @@ def create_summary(summary_root: ET.Element, output_folder: str):
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
 
-    verified_operations = constants.VERIFIED_OP_REFERENCES
-
     res_summary = template.render(ordered_ops=op_list, devices=device_list, results=results, timestamp=timestamp,
                                   general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,
-                                  verified_operations=verified_operations, trusted_ops=trusted_ops,
-                                  general_test_count=general_test_count)
+                                  trusted_ops=trusted_ops, covered_ops=covered_ops,
+                                  general_test_count=general_test_count, report_tag=report_tag)
 
-    report_path = os.path.join(output_folder, "report.html")
+    report_path = os.path.join(output_folder, f'{output_filename}.html')
     with open(report_path, "w") as f:
         logger.info(f'Final report is saved to {report_path}')
         f.write(res_summary)
@@ -168,4 +188,4 @@ def create_summary(summary_root: ET.Element, output_folder: str):
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out)
+    create_summary(summary_root, args.out, args.report_tag, args.conformance_mode, args.output_filename)

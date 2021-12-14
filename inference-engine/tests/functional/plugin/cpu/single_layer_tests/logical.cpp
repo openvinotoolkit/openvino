@@ -150,9 +150,9 @@ const auto LogicalTestParamsNot = ::testing::Combine(
         ::testing::Values(emptyCPUSpec));
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Logical_Eltwise_CPU_BF16, LogicalLayerCPUTest, LogicalTestParams, LogicalLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Logical_Eltwise_CPU_BF16, LogicalLayerCPUTest, LogicalTestParams, LogicalLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Logical_Not_Eltwise_CPU_BF16, LogicalLayerCPUTest, LogicalTestParamsNot, LogicalLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Logical_Not_Eltwise_CPU_BF16, LogicalLayerCPUTest, LogicalTestParamsNot, LogicalLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

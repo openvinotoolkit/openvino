@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string BucketizeLayerTest::getTestCaseName(testing::TestParamInfo<bucketizeParamsTuple> obj) {
+    std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
         InferenceEngine::SizeVector dataShape;
         InferenceEngine::SizeVector bucketsShape;
         bool with_right_bound;

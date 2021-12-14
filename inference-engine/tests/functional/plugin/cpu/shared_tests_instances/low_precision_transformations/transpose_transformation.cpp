@@ -18,7 +18,7 @@ const std::vector<ngraph::element::Type> precisions = {
 const std::vector<TransposeTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {
-        ngraph::Shape({ 1, 1000, 1, 1}),
+        { 1, 1000, 1, 1},
         { 0, 2, 3, 1},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
@@ -26,7 +26,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
     },
     // U8: per-channel quantization
     {
-        ngraph::Shape({ 1, 3, 1, 1}),
+        { 1, 3, 1, 1},
         { 0, 2, 3, 1},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
@@ -38,10 +38,18 @@ const std::vector<TransposeTransformationTestValues> testValues = {
             {0.f, 12.5f, 25.5f},
             {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}
         }
-    }
+    },
+    // 6D
+    {
+        { 1, 1000, 1, 1, 3, 4},
+        { 0, 2, 1, 3, 5, 4},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        ngraph::element::f32,
+        {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
+    },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, TransposeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, TransposeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),

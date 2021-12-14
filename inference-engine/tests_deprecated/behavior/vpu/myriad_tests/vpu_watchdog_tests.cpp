@@ -5,17 +5,18 @@
 #include <behavior_test_plugin.h>
 #include <XLink.h>
 #include <mvnc.h>
-#include <mvnc/include/ncPrivateTypes.h>
+#include <ncPrivateTypes.h>
 #include <watchdog.h>
 #include <watchdogPrivate.hpp>
 #include <thread>
 #include <file_utils.h>
 #include "vpu_test_data.hpp"
-#include "functional_test_utils/test_model/test_model.hpp"
+#include "openvino/util/shared_object.hpp"
 
 #include "helpers/myriad_devices.hpp"
 
-#include <ie_plugin_ptr.hpp>
+#include <cpp/ie_plugin.hpp>
+#include <vpu/private_plugin_config.hpp>
 
 using namespace std;
 using namespace ::testing;
@@ -84,7 +85,6 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
         ncDeviceDescr_t deviceDesc = {};
         deviceDesc.protocol = NC_ANY_PROTOCOL;
-        deviceDesc.platform = NC_ANY_PLATFORM;
 
         ncDeviceOpenParams_t deviceOpenParams = {};
         deviceOpenParams.watchdogHndl = m_watchdogHndl;
@@ -127,8 +127,8 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
     ASSERT_GE(startup_devices.unbooted, 1);
 
     auto ctime = Time::now();
-    SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
+    std::shared_ptr<void> myriadPlg = ov::util::load_shared_object(make_plugin_name("myriadPlugin").c_str());
+    void *p = ov::util::get_symbol(myriadPlg, create_plugin_function);
 
     bootOneDevice(0,  p);
 
@@ -160,8 +160,8 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
 
     auto ctime = Time::now();
 
-    SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
+    std::shared_ptr<void> myriadPlg = ov::util::load_shared_object(make_plugin_name("myriadPlugin").c_str());
+    void *p = ov::util::get_symbol(myriadPlg, create_plugin_function);
 
     bootOneDevice(20000, p);
 
@@ -191,7 +191,7 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
 
         ExecutableNetwork ret;
@@ -229,7 +229,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        auto model = convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
 
         ExecutableNetwork ret;
@@ -261,4 +261,4 @@ const BehTestParams vpuValues[] = {
     BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);

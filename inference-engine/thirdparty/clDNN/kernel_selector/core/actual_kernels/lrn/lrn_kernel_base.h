@@ -21,7 +21,7 @@ struct lrn_params : public base_params {
     float k = 0.f;
     uint32_t localSize = 0;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         ParamsKey _k = base_params::GetParamsKey();
 
         _k.EnableLRNMode(normMode);

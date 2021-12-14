@@ -4,7 +4,6 @@
 
 #include "jit_emitter.hpp"
 #include "jit_load_store_emitters.hpp"
-#include "legacy/ie_layers.h"
 #include <cpu/x64/jit_generator.hpp>
 #include "utils/bfloat16.hpp"
 
@@ -106,8 +105,9 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, In
                     h->uni_vcvtdq2ps(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 break;
             case Precision::I32:
-                if ((src_prc == Precision::FP32) || (src_prc == Precision::BF16))
+                if ((src_prc == Precision::FP32) || (src_prc == Precision::BF16)) {
                     h->uni_vcvtps2dq(Vmm(out_vec_idx), Vmm(out_vec_idx));
+                }
                 break;
             default:
                 break;
@@ -190,7 +190,7 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             }
 
             if (bytes_to_load >= 8 && bytes_to_load < 16)
-                h->pinsrq(xmm, addr(start_bytes), 0);
+                h->uni_vpinsrq(xmm, xmm, addr(start_bytes), 0);
             else if (bytes_to_load == 16)
                 h->uni_vmovdqu(xmm, addr(start_bytes));
 
@@ -202,17 +202,17 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes), 0);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 2), 2);
                     break;
-                case 4: h->pinsrd(xmm, addr(start_bytes), 0); break;
+                case 4: h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0); break;
                 case 5:
-                    h->pinsrd(xmm, addr(start_bytes), 0);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 4), 4);
                     break;
                 case 6:
-                    h->pinsrd(xmm, addr(start_bytes), 0);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0);
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 4), 2);
                     break;
                 case 7:
-                    h->pinsrd(xmm, addr(start_bytes), 0);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0);
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 4), 2);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 6), 6);
                     break;
@@ -223,17 +223,17 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 8), 4);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 10), 10);
                     break;
-                case 12: h->pinsrd(xmm, addr(start_bytes + 8), 2); break;
+                case 12: h->uni_vpinsrd(xmm, xmm, addr(start_bytes + 8), 2); break;
                 case 13:
-                    h->pinsrd(xmm, addr(start_bytes + 8), 2);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes + 8), 2);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 12), 12);
                     break;
                 case 14:
-                    h->pinsrd(xmm, addr(start_bytes + 8), 2);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes + 8), 2);
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 12), 6);
                     break;
                 case 15:
-                    h->pinsrd(xmm, addr(start_bytes + 8), 2);
+                    h->uni_vpinsrd(xmm, xmm, addr(start_bytes + 8), 2);
                     h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 12), 6);
                     h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 14), 14);
                     break;
@@ -465,10 +465,7 @@ template <typename Vmm>
         if (is_xmm || is_ymm) {
             uint8 imm = 1;
             imm = ~((imm << load_num) - imm);  // shift load_num bit
-            if (is_xmm)
-                h->blendps(vmm, table_val(fill_value), imm);
-            else
-                h->vblendps(vmm, vmm, table_val(fill_value), imm);
+            h->uni_vblendps(vmm, vmm, table_val(fill_value), imm);
         } else if (is_zmm) {
             uint64_t tail_mask = 1;
             tail_mask = ~((tail_mask << load_num) - tail_mask);
@@ -510,6 +507,11 @@ size_t jit_store_emitter::aux_vecs_count() const {
 
 size_t jit_store_emitter::get_inputs_num() const { return 1; }
 
+void jit_store_emitter::emit_data() const {
+    if (emu_vcvtneps2bf16)
+        emu_vcvtneps2bf16->emit_data();
+}
+
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const {
@@ -550,8 +552,9 @@ template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
         if (src_prc != dst_prc) {
             switch (src_prc) {
                 case Precision::FP32:
-                    if ((dst_prc != Precision::FP32) && (dst_prc != Precision::BF16))
+                    if ((dst_prc != Precision::FP32) && (dst_prc != Precision::BF16)) {
                         h->uni_vcvtps2dq(Vmm(in_vec_idx), Vmm(in_vec_idx));
+                    }
                     break;
                 case Precision::I32:
                     if ((dst_prc == Precision::FP32) || (dst_prc == Precision::BF16))
@@ -637,7 +640,7 @@ template <typename Vmm>
             mask = (mask << store_size) - mask;
             h->mov(Reg64(aux_gpr_idxs[0]), mask);
             h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
-            h->vmovdqu8(addr(0) | k_mask, zmm);
+            h->vmovdqu8(addr(0), zmm | k_mask);
         } else {
             if (store_size == 64) {
                 h->uni_vmovdqu(addr(0), zmm);
@@ -667,7 +670,7 @@ template <typename Vmm>
                 }
 
                 if (bytes_to_store >= 8 && bytes_to_store < 16)
-                    h->pextrq(addr(start_bytes), xmm, 0);
+                    h->uni_vpextrq(addr(start_bytes), xmm, 0);
                 else if (bytes_to_store == 16)
                     h->uni_vmovdqu(addr(start_bytes), xmm);
 
@@ -681,17 +684,17 @@ template <typename Vmm>
                         h->uni_vpextrw(addr(start_bytes), xmm, 0);
                         h->uni_vpextrb(addr(start_bytes + 2), xmm, 2);
                         break;
-                    case 4: h->pextrd(addr(start_bytes), xmm, 0); break;
+                    case 4: h->uni_vpextrd(addr(start_bytes), xmm, 0); break;
                     case 5:
-                        h->pextrd(addr(start_bytes), xmm, 0);
+                        h->uni_vpextrd(addr(start_bytes), xmm, 0);
                         h->uni_vpextrb(addr(start_bytes + 4), xmm, 4);
                         break;
                     case 6:
-                        h->pextrd(addr(start_bytes), xmm, 0);
+                        h->uni_vpextrd(addr(start_bytes), xmm, 0);
                         h->uni_vpextrw(addr(start_bytes + 4), xmm, 2);
                         break;
                     case 7:
-                        h->pextrd(addr(start_bytes), xmm, 0);
+                        h->uni_vpextrd(addr(start_bytes), xmm, 0);
                         h->uni_vpextrw(addr(start_bytes + 4), xmm, 2);
                         h->uni_vpextrb(addr(start_bytes + 6), xmm, 6);
                         break;
@@ -702,17 +705,17 @@ template <typename Vmm>
                         h->uni_vpextrw(addr(start_bytes + 8), xmm, 4);
                         h->uni_vpextrb(addr(start_bytes + 10), xmm, 10);
                         break;
-                    case 12: h->pextrd(addr(start_bytes + 8), xmm, 2); break;
+                    case 12: h->uni_vpextrd(addr(start_bytes + 8), xmm, 2); break;
                     case 13:
-                        h->pextrd(addr(start_bytes + 8), xmm, 2);
+                        h->uni_vpextrd(addr(start_bytes + 8), xmm, 2);
                         h->uni_vpextrb(addr(start_bytes + 12), xmm, 12);
                         break;
                     case 14:
-                        h->pextrd(addr(start_bytes + 8), xmm, 2);
+                        h->uni_vpextrd(addr(start_bytes + 8), xmm, 2);
                         h->uni_vpextrw(addr(start_bytes + 12), xmm, 6);
                         break;
                     case 15:
-                        h->pextrd(addr(start_bytes + 8), xmm, 2);
+                        h->uni_vpextrd(addr(start_bytes + 8), xmm, 2);
                         h->uni_vpextrw(addr(start_bytes + 12), xmm, 6);
                         h->uni_vpextrb(addr(start_bytes + 14), xmm, 14);
                         break;
@@ -769,10 +772,10 @@ template <typename Vmm>
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
                 h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
                 if (is_signed) {
-                    h->vpmovsdb(addr(0) | k_mask, vmm);
+                    h->vpmovsdb(addr(0), vmm | k_mask);
                 } else {
                     h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
-                    h->vpmovusdb(addr(0) | k_mask, vmm);
+                    h->vpmovusdb(addr(0), vmm | k_mask);
                 }
             }
         } else {
@@ -851,10 +854,10 @@ template <typename Vmm>
                     h->mov(Reg32(aux_gpr_idxs[0]), mask);
                     h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
                     if (is_signed) {
-                        h->vpmovsdw(ptr[reg + offset] | k_mask, vmm);
+                        h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
                     } else {
                         h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);
-                        h->vpmovusdw(ptr[reg + offset] | k_mask, vmm);
+                        h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 }
             } else {

@@ -1,6 +1,8 @@
 <attributes>
     <processes>
         <value>1</value>
+        <value>2</value>
+        <value>8</value>
     </processes>
     <threads>
         <value>1</value>

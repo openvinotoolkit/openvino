@@ -16,8 +16,15 @@ Outcome of a build is a `subgrpahsDumper` binary located in building artifacts f
 
 ## Running
 The tool takes two command line parameters:    
-* `--input_folders` - comma separated list for recursive search for models to analyse
-* `--output_folder` - path to the output folder which will be used for extracted subgrpahs serialization in IR format
+* `--input_folders` - Required. Comma separated paths to the input folders with IRs
+* `--local_cache` - Optional. Comma separated paths to the local cache folders with IRs.
+* `--output_folder` - Required. Path to the output folders where to serialize IRs
+* `--path_regex` - Optional. regular expression to be applied in input folders recursive discovery
+* `--constants_size_threshold` - Optional. Maximum size of constant in megabytes to be serialized.
+                                 If constant size exceeds specified number it will be replaced
+                                 with parameter and meta information about original data range will be saved
+* `--eliminate_dynamism` - Optional. If specified dynamic shapes will be eliminated from model 
+                           and replaced by propagated upper bound values (if possible)       
 
 E.g.    
 ```subgraphsDumper --input_folders /folder/with/models,/another/folder/with/models --output_folder /output/folder```

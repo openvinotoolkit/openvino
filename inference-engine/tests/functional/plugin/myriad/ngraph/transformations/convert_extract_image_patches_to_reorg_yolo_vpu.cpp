@@ -85,7 +85,7 @@ TEST_P(ConvertEIPToReorgYoloPositiveTest, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, ConvertEIPToReorgYoloPositiveTest, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, ConvertEIPToReorgYoloPositiveTest, testing::Combine(
         testing::Values(ngraph::Shape{1, 64, 500, 500}),
         testing::Values(ngraph::Shape{5, 5}),
         testing::Values(ngraph::Strides{5, 5}),
@@ -106,7 +106,7 @@ TEST_P(DoNotConvertEIPToReorgYoloOnDiffSizeAndStride, CompareFunctions) {
     ASSERT_FALSE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnDiffSizeAndStride, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnDiffSizeAndStride, testing::Combine(
         testing::Values(ngraph::PartialShape{1, 64, 500, 500}),
         testing::Values(ngraph::Shape{5, 5}),
         testing::Values(ngraph::Strides{4, 4}),
@@ -126,7 +126,7 @@ TEST_P(DoNotConvertEIPToReorgYoloOnNot4DInput, CompareFunctions) {
     EXPECT_ANY_THROW(transform(dataShape, sizes, strides, rates, padMode));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNot4DInput, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNot4DInput, testing::Combine(
         testing::Values(ngraph::PartialShape{1, 1, 64, 500, 500},
                         ngraph::PartialShape{64, 500, 500},
                         ngraph::PartialShape{500, 500},
@@ -154,7 +154,7 @@ TEST_P(DoNotConvertEIPToReorgYoloOnNotStaticInput, CompareFunctions) {
     ASSERT_TRUE(reorgIt == ops.end());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNotStaticInput, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNotStaticInput, testing::Combine(
         testing::Values(ngraph::PartialShape{1, 64, ngraph::Dimension::dynamic(), 500},
                         ngraph::PartialShape{1, 64, 500, ngraph::Dimension::dynamic()}),
         testing::Values(ngraph::Shape{5, 5}),
@@ -169,7 +169,7 @@ TEST_P(DoNotConvertEIPToReorgYoloOnNonSingleRates, CompareFunctions) {
     ASSERT_FALSE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNonSingleRates, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DoNotConvertEIPToReorgYoloOnNonSingleRates, testing::Combine(
         testing::Values(ngraph::Shape{1, 64, 500, 500}),
         testing::Values(ngraph::Shape{5, 5}),
         testing::Values(ngraph::Strides{5, 5}),

@@ -120,8 +120,8 @@ function(_clone_source_to_target TARGET SOURCE ARCH_SET)
                 VERBATIM
                 )
 
-        set_property(SOURCE ${ARCH_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS
-                " ${_FLAGS_${_arch}}")
+        set_property(SOURCE ${ARCH_SOURCE} APPEND_STRING PROPERTY COMPILE_OPTIONS
+                "${_FLAGS_${_arch}}")
 
         set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY COMPILE_DEFINITIONS
                 ${_DEFINE_${_arch}}

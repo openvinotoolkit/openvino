@@ -4,7 +4,7 @@
 
 #include "myriad_layers_reorg_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsReorg_smoke, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsReorg_smoke, ::testing::Combine(
     ::testing::ValuesIn(s_ReorgInputs),
     ::testing::Values<Stride>(2),
     ::testing::Values(vpu::LayoutPreference::ChannelMinor, vpu::LayoutPreference::ChannelMajor),
@@ -14,7 +14,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsReorg_smoke, ::testing::Combi
 
 #ifdef VPU_HAS_CUSTOM_KERNELS
 
-INSTANTIATE_TEST_CASE_P(accuracy_custom, myriadLayersTestsReorg_smoke, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(accuracy_custom, myriadLayersTestsReorg_smoke, ::testing::Combine(
     ::testing::ValuesIn(s_ReorgInputs_CustomLayer),
     ::testing::Values<Stride>(2),
     ::testing::Values(vpu::LayoutPreference::ChannelMinor, vpu::LayoutPreference::ChannelMajor),

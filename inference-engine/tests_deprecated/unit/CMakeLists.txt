@@ -15,19 +15,26 @@ SET (CMAKE_SKIP_RPATH OFF)
 
 file(GLOB
         TEST_SRC
-        graph_tools/*.cpp
         inference_engine_tests/*.cpp
         )
 
-if (ENABLE_GNA)
+# TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
+if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
     file(GLOB
             GNA_TESTS
             engines/gna/*cpp
             engines/gna/layers/*cpp
+            engines/gna/graph_tools/*cpp
             )
     source_group("gna" FILES ${GNA_TESTS})
     list(APPEND TEST_SRC ${GNA_TESTS})
-    list(APPEND TEST_DEPS GNAPlugin_test_static)
+    list(APPEND TEST_DEPS ov_intel_gna_plugin_test_static)
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_source_files_properties(engines/gna/graph_tools/graph_copy_tests.cpp
+                                    engines/gna/graph_tools/graph_tools_test.cpp
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
 
     # TODO: fix GNA tests
     if(OFF)
@@ -52,31 +59,17 @@ if (ENABLE_GNA)
     endif()
 endif()
 
-if (ENABLE_MKL_DNN)
-    if (GEMM STREQUAL "MKL")
-        add_definitions(-DUSE_MKL)
-    endif ()
-    file(GLOB
-            MKLDNN_TESTS
-            engines/mkldnn/*.cpp
-            engines/mkldnn/graph/layers/extensions/*.cpp
-            engines/mkldnn/graph/layers/internal/*.cpp
-            engines/mkldnn/graph/structure/*.cpp
-            engines/mkldnn/graph/*.cpp)
-    file(GLOB
-            MKLDNN_TESTS_INCLUDE engines/mkldnn/graph/*.hpp)
-
-    source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
-
-    include_directories(engines/mkldnn/graph)
-
-    list(APPEND TEST_SRC ${MKLDNN_TESTS})
-    list(APPEND TEST_INCLUDE ${MKLDNN_TESTS_INCLUDE})
-    list(APPEND TEST_DEPS MKLDNNPlugin_obj)
-endif ()
-
 if (ENABLE_MYRIAD)
     include(${XLINK_DIR}/XLink.cmake)
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_source_files_properties(engines/vpu/myriad_tests/helpers/myriad_test_case.cpp
+                                    engines/vpu/mvnc/watchdog_tests.cpp
+                                    engines/vpu/sw_conv_adaptation.cpp
+                                    engines/vpu/myriad_tests/myriad_engine_tests.cpp
+                                    engines/vpu/myriad_tests/myriad_metrics_tests.cpp
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
 
     file(GLOB
             VPU_TESTS
@@ -86,12 +79,11 @@ if (ENABLE_MYRIAD)
             engines/vpu/myriad_tests/helpers/*cpp
             engines/vpu/myriad_tests/helpers/*h
             ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/*.cpp
+            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/configuration/*.cpp
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include/watchdog
+            $<TARGET_PROPERTY:myriadPlugin,SOURCE_DIR>
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
@@ -106,16 +98,14 @@ source_group("include" FILES ${TEST_INCLUDE})
 # create target
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
-set_ie_threading_interface_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${IE_MAIN_SOURCE_DIR}/src/gna_plugin
         ${CMAKE_CURRENT_SOURCE_DIR})
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
 # because IE unit tests use plugin and IE object files compiled with LTO
-if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
 
@@ -138,7 +128,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     # dynamic libraries
     inference_engine_transformations
     inference_engine_lp_transformations
-    inference_engine_snippets
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -148,5 +137,17 @@ endif()
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 set_property(TEST ${TARGET_NAME} PROPERTY LABELS IE)
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
+if(TARGET libGNAStubs)
+    install(TARGETS libGNAStubs
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
 
 add_dependencies(${TARGET_NAME} mock_engine)

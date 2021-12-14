@@ -13,13 +13,14 @@ file(GLOB TEST_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/backward_compatibility/*.cpp)
 
-list(APPEND DEPENDENCIES
-        HeteroPlugin
-        GNAPlugin)
+list(APPEND DEPENDENCIES ov_intel_gna_plugin)
+
+if(ENABLE_HETERO)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
+endif()
 
 if(ENABLE_MKL_DNN)
-    list(APPEND DEPENDENCIES
-        MKLDNNPlugin)
+    list(APPEND DEPENDENCIES MKLDNNPlugin)
 endif()
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
@@ -41,6 +42,7 @@ target_compile_definitions(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
         PRIVATE
             IESharedTests
+            funcTestUtils
         )
 
 target_include_directories(${TARGET_NAME}
@@ -51,6 +53,11 @@ add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 set_property(TEST ${TARGET_NAME} PROPERTY LABELS GNA)
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 if(GNA_LIBRARY_VERSION STREQUAL "GNA1")
     target_compile_definitions(${TARGET_NAME} PRIVATE GNA1_LIB)

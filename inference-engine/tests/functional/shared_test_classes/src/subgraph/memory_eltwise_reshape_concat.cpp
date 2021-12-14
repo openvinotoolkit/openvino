@@ -33,7 +33,7 @@ void MemoryEltwiseReshapeConcatTest::SetUp() {
     ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const int seed = 0;
-    std::mt19937 gen(static_cast<float>(seed));
+    std::mt19937 gen(seed);
 
     auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
         std::vector<float> res;
@@ -112,6 +112,16 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     function = std::make_shared<ngraph::Function>(concat, input_parameter, "memory_multiply_reshape_concat");
 }
 
+void MemoryEltwiseReshapeConcatTest::LoadNetwork() {
+    LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+    inferRequest = executableNetwork.CreateInferRequest();
+}
+
+void MemoryEltwiseReshapeConcatTest::Infer() {
+    ConfigureInferRequest();
+    inferRequest.Infer();
+}
+
 void MemoryEltwiseReshapeConcatTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     initTestModel();
@@ -122,7 +132,7 @@ void MemoryEltwiseReshapeConcatTest::Run() {
                                                   InferenceEngine::Layout::NC);
 
     IE_SUPPRESS_DEPRECATED_START
-    auto states = executableNetwork.QueryState();
+    auto states = inferRequest.QueryState();
     auto state_values_blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
                                                                             memory_init.data(), memory_init.size());
     states[0].SetState(state_values_blob);

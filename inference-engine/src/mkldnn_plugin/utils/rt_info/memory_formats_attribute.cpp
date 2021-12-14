@@ -2,26 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
-#include <ngraph/opsets/opset1.hpp>
-
 #include "memory_formats_attribute.hpp"
 
-namespace ngraph {
+#include <ngraph/node.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/variant.hpp>
 
-template class ngraph::MLKDNNMemoryFormatsHelper<MLKDNNInputMemoryFormats>;
-constexpr VariantTypeInfo VariantWrapper<MLKDNNInputMemoryFormats>::type_info;
+using namespace ngraph;
+using namespace ov;
 
-std::string getMLKDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node> & node) {
-    return MLKDNNMemoryFormatsHelper<MLKDNNInputMemoryFormats>::getMemoryFormats(node);
+MKLDNNInputMemoryFormats::~MKLDNNInputMemoryFormats() = default;
+
+std::string ngraph::getMKLDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+    auto it_info = node->get_rt_info().find(MKLDNNInputMemoryFormats::get_type_info_static());
+    if (it_info != node->get_rt_info().end()) {
+        if (it_info->second.is<MKLDNNInputMemoryFormats>()) {
+            return it_info->second.as<MKLDNNInputMemoryFormats>().getMemoryFormats();
+        }
+    }
+    return {};
 }
 
-template class ngraph::MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats>;
-constexpr VariantTypeInfo VariantWrapper<MLKDNNOutputMemoryFormats>::type_info;
+MKLDNNOutputMemoryFormats::~MKLDNNOutputMemoryFormats() = default;
 
-std::string getMLKDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node> & node) {
-    return MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats>::getMemoryFormats(node);
+std::string ngraph::getMKLDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+    auto it_info = node->get_rt_info().find(MKLDNNOutputMemoryFormats::get_type_info_static());
+    if (it_info != node->get_rt_info().end()) {
+        if (it_info->second.is<MKLDNNOutputMemoryFormats>()) {
+            return it_info->second.as<MKLDNNOutputMemoryFormats>().getMemoryFormats();
+        }
+    }
+    return {};
 }
 
-}  // namespace ngraph
+

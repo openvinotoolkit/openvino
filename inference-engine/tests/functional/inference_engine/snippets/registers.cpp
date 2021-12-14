@@ -9,7 +9,6 @@
 #include <ngraph/variant.hpp>
 
 #include <snippets/snippets_isa.hpp>
-#include <snippets/register_info.hpp>
 #include <snippets/pass/assign_registers.hpp>
 
 #include <transformations/init_node_info.hpp>
@@ -51,8 +50,9 @@ TEST(TransformationTests, AssignRegisters) {
         for (auto& op : f->get_ordered_ops()) {
             auto& rt = op->get_rt_info();
 
-            if (auto rinfo = rt["reginfo"]) {
-                auto reginfo = as_type_ptr<VariantWrapper<std::vector<size_t>>>(rinfo)->get();
+            auto it_rinfo = rt.find("reginfo");
+            if (it_rinfo != rt.end()) {
+                auto reginfo = it_rinfo->second.as<std::vector<size_t>>();
                 auto reg = reginfo[0];
                 ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
                 total_ops++;
@@ -124,9 +124,9 @@ TEST(TransformationTests, AssignRegisters2) {
         auto total_ops = 0;
         for (auto& op : f->get_ordered_ops()) {
             auto& rt = op->get_rt_info();
-
-            if (auto rinfo = rt["reginfo"]) {
-                auto reginfo = as_type_ptr<VariantWrapper<std::vector<size_t>>>(rinfo)->get();
+            auto it_rinfo = rt.find("reginfo");
+            if (it_rinfo != rt.end()) {
+                auto reginfo = it_rinfo->second.as<std::vector<size_t>>();
                 auto reg = reginfo[0];
                 ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
                 total_ops++;

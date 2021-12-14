@@ -8,6 +8,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include <random>
+#include "ie_algorithm.hpp"
 namespace HeteroTests {
 
 static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders = {
@@ -17,7 +18,19 @@ static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders 
     [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut();},
 };
 
-std::vector<FunctionParameter> HeteroSyntheticTest::_singleMajorNodeFunctions{[] {
+std::vector<FunctionParameter> HeteroSyntheticTest::withMajorNodesFunctions(
+    const std::function<std::shared_ptr<ngraph::Function>()>& builder,
+    const std::unordered_set<std::string>& majorNodes,
+    bool dynamic_batch) {
+    auto function = builder();
+    std::vector<FunctionParameter> result;
+    result.push_back(FunctionParameter{majorNodes, function, dynamic_batch, 0});
+    return result;
+}
+
+std::vector<FunctionParameter> HeteroSyntheticTest::singleMajorNodeFunctions(
+    const std::vector<std::function<std::shared_ptr<ngraph::Function>()>>& builders,
+    bool dynamic_batch) {
     std::vector<FunctionParameter> result;
     for (auto&& builder : builders) {
         auto function = builder();
@@ -25,17 +38,23 @@ std::vector<FunctionParameter> HeteroSyntheticTest::_singleMajorNodeFunctions{[]
             if (!ngraph::op::is_constant(node) &&
                     !(ngraph::op::is_parameter(node)) &&
                     !(ngraph::op::is_output(node))) {
-                result.push_back(FunctionParameter{{node->get_friendly_name()}, function});
+                result.push_back(FunctionParameter{{node->get_friendly_name()}, function, dynamic_batch, 0});
             }
         }
     }
     return result;
-} ()};
+}
 
-std::vector<FunctionParameter> HeteroSyntheticTest::_randomMajorNodeFunctions{[] {
+std::vector<FunctionParameter> HeteroSyntheticTest::randomMajorNodeFunctions(
+    const std::vector<std::function<std::shared_ptr<ngraph::Function>()>>& builders,
+    bool dynamic_batch,
+    uint32_t seed) {
     std::vector<FunctionParameter> results;
     for (auto p = 0.2; p < 1.; p+=0.2) {
-        std::mt19937 e{std::random_device {} ()};
+        while (seed == 0) {
+            seed = std::random_device {}();
+        }
+        std::mt19937 e{seed};
         std::bernoulli_distribution d{p};
         for (auto&& builder : builders) {
             auto function = builder();
@@ -54,12 +73,18 @@ std::vector<FunctionParameter> HeteroSyntheticTest::_randomMajorNodeFunctions{[]
                 })) {
                     continue;
                 }
-                results.push_back(FunctionParameter{majorPluginNodeIds, function});
+                results.push_back(FunctionParameter{majorPluginNodeIds, function, dynamic_batch, seed});
             }
         }
     }
     return results;
-} ()};
+}
+
+std::vector<FunctionParameter> HeteroSyntheticTest::_singleMajorNodeFunctions
+    = HeteroSyntheticTest::singleMajorNodeFunctions(builders);
+
+std::vector<FunctionParameter> HeteroSyntheticTest::_randomMajorNodeFunctions
+    = HeteroSyntheticTest::randomMajorNodeFunctions(builders);
 
 std::string HeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInfo<HeteroSyntheticTestParameters>& obj) {
     std::vector<PluginParameter> pluginParameters;
@@ -82,13 +107,15 @@ std::string HeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInfo<
 }
 
 void HeteroSyntheticTest::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto& param = GetParam();
     targetDevice = "HETERO:";
     int num = std::get<Plugin>(param).size() - 1;
     for (auto&& pluginParameter : std::get<Plugin>(param)) {
         bool registred = true;
         try {
-            PluginCache::get().ie()->RegisterPlugin(pluginParameter._location, pluginParameter._name);
+            PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
+                + IE_BUILD_POSTFIX, pluginParameter._name);
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
                                              + "\"  is already registered in the InferenceEngine")
@@ -106,6 +133,12 @@ void HeteroSyntheticTest::SetUp() {
         --num;
     }
     function = std::get<Function>(param)._function;
+    if (std::get<Function>(param)._dynamic_batch) {
+        for (auto&& input : function->inputs()) {
+            auto shape = input.get_partial_shape();
+            shape[0] = ov::Dimension(1, 16);
+        }
+    }
 }
 
 void HeteroSyntheticTest::TearDown() {
@@ -132,11 +165,12 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
             } else {
                 affinity = pluginParameters.at(1)._name;
             }
-            node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
-            affinities += "\t{" + node->get_friendly_name() + ",\t\t" + affinity + "}\n";
+            node->get_rt_info()["affinity"] = affinity;
+            affinities += "\t{\"" + node->get_friendly_name() + "\",\t\t\"" + affinity + "\"}\n";
         }
     }
     affinities += "}";
+    affinities += "\nseed = " + std::to_string(std::get<Function>(param)._seed);
     return affinities;
 }
 

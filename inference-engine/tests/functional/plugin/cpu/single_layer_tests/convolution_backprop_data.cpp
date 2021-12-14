@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -50,6 +51,7 @@ public:
         return result.str();
     }
 protected:
+    InferenceEngine::SizeVector kernel, stride;
     void SetUp() override {
         convBackpropDataLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
@@ -64,8 +66,9 @@ protected:
 
         convBackpropDataSpecificParams convParams;
         std::vector<size_t> inputShape;
+        std::vector<size_t> outputShape;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
+        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, outputShape, targetDevice) = basicParamsSet;
 
         if (inPrc == Precision::UNSPECIFIED) {
             selectedType += std::string("_") + Precision(Precision::FP32).name();
@@ -74,17 +77,23 @@ protected:
         }
 
         ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
+        InferenceEngine::SizeVector dilation;
+        std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
         size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, { inputShape });
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto deconvolutionNode = ngraph::builder::makeConvolutionBackpropData(paramOuts.front(), ngPrc, kernel, stride, padBegin,
-            padEnd, dilation, padType, convOutChannels);
+                padEnd, dilation, padType, convOutChannels, false, outPadding);
+
+        if (!outputShape.empty()) {
+            auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+            deconvolutionNode = ngraph::builder::makeConvolutionBackpropData(paramOuts.front(), outShape, ngPrc, kernel, stride, padBegin,
+                padEnd, dilation, padType, convOutChannels);
+        }
 
         function = makeNgraphFunction(ngPrc, inputParams, deconvolutionNode, "convolutionBackpropData");
     }
@@ -92,6 +101,17 @@ protected:
 
 TEST_P(DeconvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (!fusedOps.empty()) {
+        bool isSupportedParams = stride[stride.size() - 1] <= kernel[kernel.size() - 1];
+        if (stride.size() > 1)
+            isSupportedParams &= stride[stride.size() - 2] <= kernel[kernel.size() - 2];
+        if (stride.size() > 2)
+            isSupportedParams &= stride[stride.size() - 3] <= kernel[kernel.size() - 3];
+        if (!isSupportedParams) {
+            GTEST_SKIP() << "Fusing with strides more than kernel size was disabled, because oneDNN deconvolution doesn't support it" << std::endl;
+        }
+    }
 
     Run();
     CheckPluginRelatedResults(executableNetwork, "Deconvolution");
@@ -107,6 +127,8 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
 
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
+const std::vector<SizeVector> emptyOutputShape = { {} };
+const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = { {} };
 
 /* ============= Deconvolution params (planar layout) ============= */
 const SizeVector numOutChannels_Planar = { 6 };
@@ -138,10 +160,11 @@ const auto convParams_ExplicitPadding_Planar_2D = ::testing::Combine(
     ::testing::ValuesIn(padEnds2d),
     ::testing::ValuesIn(dilations2d),
     ::testing::ValuesIn(numOutChannels_Planar),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Planar_2D,
@@ -151,13 +174,14 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Planar_2D,
@@ -167,6 +191,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -181,10 +206,11 @@ const auto convParams_ExplicitPadding_Planar_3D = ::testing::Combine(
     ::testing::ValuesIn(padEnds3d),
     ::testing::ValuesIn(dilations3d),
     ::testing::ValuesIn(numOutChannels_Planar),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Planar_3D,
@@ -194,13 +220,14 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Planar_3D,
@@ -210,6 +237,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -224,10 +252,11 @@ const auto convParams_ExplicitPadding_Blocked_2D = ::testing::Combine(
     ::testing::ValuesIn(padEnds2d),
     ::testing::ValuesIn(dilations2d),
     ::testing::ValuesIn(numOutChannels_Blocked),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Blocked_2D,
@@ -237,13 +266,14 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Blocked_2D,
@@ -253,6 +283,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -267,10 +298,11 @@ const auto convParams_ExplicitPadding_Blocked_3D = ::testing::Combine(
     ::testing::ValuesIn(padEnds3d),
     ::testing::ValuesIn(dilations3d),
     ::testing::ValuesIn(numOutChannels_Blocked),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Blocked_3D,
@@ -280,13 +312,14 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Blocked_3D,
@@ -296,6 +329,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
         ::testing::ValuesIn(fusingParamsSet),
@@ -311,10 +345,11 @@ const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::Values(SizeVector({1, 1})),
         ::testing::ValuesIn(numOutChannels_Blocked),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_1x1_2D,
@@ -324,13 +359,14 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_1x1_2D,
@@ -340,6 +376,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
             ::testing::Values(std::vector<size_t >({ 2, 67, 7, 7 })),
+            ::testing::ValuesIn(emptyOutputShape),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
         ::testing::ValuesIn(fusingParamsSet),

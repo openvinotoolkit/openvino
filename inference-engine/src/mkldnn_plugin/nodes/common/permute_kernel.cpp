@@ -47,21 +47,21 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
 
     void load(const Xbyak::Xmm &xmm, const Xbyak::Address &addr) {
         switch (jcp.data_size) {
-            case 16: movups(xmm, addr); break;
-            case 8: movsd(xmm, addr); break;
-            case 4: movss(xmm, addr); break;
-            case 2: pinsrw(xmm, addr, 0x0); break;
-            case 1: pinsrb(xmm, addr, 0x0); break;
+            case 16: uni_vmovups(xmm, addr); break;
+            case 8: uni_vmovsd(xmm, addr); break;
+            case 4: uni_vmovss(xmm, addr); break;
+            case 2: uni_vpinsrw(xmm, xmm, addr, 0x0); break;
+            case 1: uni_vpinsrb(xmm, xmm, addr, 0x0); break;
         }
     }
 
     void store(const Xbyak::Address &addr, const Xbyak::Xmm &xmm) {
         switch (jcp.data_size) {
-            case 16: movups(addr, xmm); break;
-            case 8: movsd(addr, xmm); break;
-            case 4: movss(addr, xmm); break;
-            case 2: pextrw(addr, xmm, 0x0); break;
-            case 1: pextrb(addr, xmm, 0x0); break;
+            case 16: uni_vmovups(addr, xmm); break;
+            case 8: uni_vmovsd(addr, xmm); break;
+            case 4: uni_vmovss(addr, xmm); break;
+            case 2: uni_vpextrw(addr, xmm, 0x0); break;
+            case 1: uni_vpextrb(addr, xmm, 0x0); break;
         }
     }
 
@@ -134,8 +134,8 @@ private:
 
     Xbyak::Reg64 reg_params = abi_param1;
 
-    Vmm vmm = Vmm(0);
-    Xbyak::Xmm xmm = Xbyak::Xmm(0);
+    Vmm vmm = Vmm(1);
+    Xbyak::Xmm xmm = Xbyak::Xmm(1);
 };
 
 PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
@@ -273,6 +273,16 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
     }
 
     referenceExecute(src_data, dst_data, mb);
+}
+
+void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
+    SizeVector dst_dims = jcp.dst_block_dims;
+    if (permute_kernel) {
+        optimizedExecute(src_data, dst_data, dst_dims[0]);
+        return;
+    }
+
+    referenceExecute(src_data, dst_data, dst_dims[0]);
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {

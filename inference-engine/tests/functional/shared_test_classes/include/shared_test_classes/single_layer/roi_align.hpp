@@ -21,7 +21,7 @@ using roialignParams = std::tuple<std::vector<size_t>,  // feature map shape
 class ROIAlignLayerTest : public testing::WithParamInterface<roialignParams>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<roialignParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<roialignParams>& obj);
     static void fillCoordTensor(std::vector<float>& coords, int height, int width,
                                 float spatialScale, int pooledRatio, int pooledH, int pooledW);
     static void fillIdxTensor(std::vector<int>& idx, int batchSize);

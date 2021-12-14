@@ -100,15 +100,17 @@ protected:
         // performance counters
 
         expectedPrecisions["Matmul_0"] = "BF16";
-        expectedPrecisions["Mul_1"] = "BF16";
+        expectedPrecisions["Mul_1"] = netPrecision.name(); // tail kept in FP32 precision
     }
 };
 
 TEST_P(Gather_multiply, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Gather_multiply,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, Gather_multiply,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),
@@ -117,7 +119,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Gather_multiply,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Gather_multiply::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Gather_multiply,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, Gather_multiply,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),

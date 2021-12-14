@@ -25,7 +25,7 @@ typedef std::tuple<
 class ConcatFirstInputTest : public testing::WithParamInterface<concatFirstInputParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<concatFirstInputParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<concatFirstInputParams>& obj);
 
 protected:
     void SetUp() override;

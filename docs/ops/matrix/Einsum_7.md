@@ -2,7 +2,7 @@
 
 **Versioned name**: *Einsum-7*
 
-**Category**: Matrix multiplication
+**Category**: *Matrix multiplication*
 
 **Short description**: *Einsum* performs the Einstein summation convention on the operands.
 

@@ -14,10 +14,9 @@ namespace MKLDNNPlugin {
 
 class MKLDNNFullyConnectedNode : public MKLDNNNode {
 public:
-    MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNFullyConnectedNode() override = default;
+    MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
@@ -27,35 +26,45 @@ public:
         return false;
     }
 
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
-
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
-        return static_cast<size_t>(baseInputsNumber);
+    size_t getFusingAxis() const override {
+        return getOutputShapeAtPort(0).getRank() == 3 ? 2 : 1;
     }
 
-    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                          const std::vector<MemoryDescPtr>& outputDesc) override;
 
-    const mkldnn::memory& getWeights() const;
-    const mkldnn::memory& getBias() const;
+    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+        return static_cast<size_t>(getOriginalInputsNumber());
+    }
+
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
-protected:
-    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() override;
 
 private:
+    void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
+                                  const mkldnn::memory::desc &outputDesc);
+
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
 
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
-    bool withBiases;
-    int baseInputsNumber;
+    bool withBiases = false;
+
+    std::string errorPrefix;
+    static const size_t DATA_ID = 0;
+    static const size_t WEIGHTS_ID = 1;
+    static const size_t BIAS_ID = 2;
 };
 
 }  // namespace MKLDNNPlugin
-

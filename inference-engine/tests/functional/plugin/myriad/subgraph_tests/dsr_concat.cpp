@@ -98,7 +98,7 @@ std::vector<ConcatParam> concatParams = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicConcat, DSR_Concat, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicConcat, DSR_Concat, ::testing::Combine(
         ::testing::ValuesIn(dataTypes),
         ::testing::ValuesIn(concatParams),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));

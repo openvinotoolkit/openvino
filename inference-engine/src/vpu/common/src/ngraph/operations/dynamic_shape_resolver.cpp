@@ -8,8 +8,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo DynamicShapeResolver::type_info;
-
 DynamicShapeResolver::DynamicShapeResolver(
         const Output<Node>& tensorWithData,
         const Output<Node>& tensorWithDims,
@@ -61,6 +59,7 @@ bool DynamicShapeResolver::visit_attributes(ngraph::AttributeVisitor&) {
 }
 
 namespace dyn_shape {
+namespace {
 
 template<element::Type_t ET>
 bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
@@ -189,6 +188,7 @@ bool evaluateDynamicShapeResolver(const HostTensorPtr& inputTensor,
     return rc;
 }
 
+}  // namespace
 }  // namespace dyn_shape
 
 bool DynamicShapeResolver::evaluate(const HostTensorVector& outputs,

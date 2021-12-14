@@ -10,13 +10,17 @@ namespace SubgraphTestsDefinitions {
         std::string targetName;
         size_t inputSize;
         size_t hiddenSize;
-        std::tie(netPrecision, targetName, inputSize, hiddenSize, std::ignore) = obj.param;
+        std::map<std::string, std::string> config;
+        std::tie(netPrecision, targetName, inputSize, hiddenSize, config) = obj.param;
         std::ostringstream results;
 
         results << "netPRC=" << netPrecision.name() << "_";
         results << "IS=" << inputSize << "_";
         results << "HS=" << hiddenSize << "_";
         results << "targetDevice=" << targetName;
+        for (auto const& configItem : config) {
+           results << "_configItem=" << configItem.second;
+        }
         return results.str();
     }
 
@@ -95,27 +99,36 @@ namespace SubgraphTestsDefinitions {
         function = std::make_shared<ngraph::Function>(sigm, input, "concat_quant_during_memory_requant_nomemory");
     }
 
+    void ConcatQuantDuringMemoryRequantTest::LoadNetwork() {
+        LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+        inferRequest = executableNetwork.CreateInferRequest();
+    }
+
+    void ConcatQuantDuringMemoryRequantTest::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
+    }
+
     void ConcatQuantDuringMemoryRequantTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         LoadNetwork();
-        IE_SUPPRESS_DEPRECATED_START
-        auto states = executableNetwork.QueryState();
+
+        auto states = inferRequest.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory_1") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_1_init.data(), memory_1_init.size());
                 state.SetState(blob);
             } else if (name == "memory_2") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_2_init.data(), memory_2_init.size());
                 state.SetState(blob);
             } else {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
-        IE_SUPPRESS_DEPRECATED_END
         GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();

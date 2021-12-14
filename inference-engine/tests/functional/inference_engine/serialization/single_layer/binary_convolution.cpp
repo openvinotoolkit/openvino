@@ -37,7 +37,7 @@ const auto binConv2DParams_AutoPadValid = ::testing::Combine(
     ::testing::Values(ngraph::op::PadType::VALID),
     ::testing::ValuesIn(pad_values));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_BinaryConvolution2D_Serialization_ExplicitPadding, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_BinaryConvolution2D__Serialization_AutoPadValid, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),

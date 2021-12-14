@@ -12,6 +12,8 @@
 #include <debug.h>
 #include "../gna_matcher.hpp"
 
+using namespace InferenceEngine::details;
+
 typedef struct {
     std::vector<size_t> input_shape;
     std::vector<size_t> squeeze_indices;
@@ -145,7 +147,7 @@ static const SqueezeCaseParam gna_squeeze_test_params[] = {
         {{1, 1, 1, 1, 1, 3}, {1, 3}}
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     GNALayerTests, GNASqueezeTest,
     ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),
@@ -153,7 +155,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(gna_squeeze_test_params)),
         GNAUnsqueezeTest::getTestName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     GNALayerTests, GNAUnsqueezeTest,
     ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),

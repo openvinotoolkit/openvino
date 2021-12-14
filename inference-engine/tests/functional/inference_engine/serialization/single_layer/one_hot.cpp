@@ -34,6 +34,6 @@ const auto oneHotParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_OneHotConstSerialization, OneHotLayerTest, oneHotParams,
+INSTANTIATE_TEST_SUITE_P(smoke_OneHotConstSerialization, OneHotLayerTest, oneHotParams,
                         OneHotLayerTest::getTestCaseName);
 } // namespace

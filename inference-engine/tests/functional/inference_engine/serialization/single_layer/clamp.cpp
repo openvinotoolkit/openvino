@@ -22,7 +22,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<std::pair<float, float>> intervals = {
     {-20.1, -10.5}, {-10.0, 10.0}, {10.3, 20.4}};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Clamp_Serialization, ClampLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(inShapes),

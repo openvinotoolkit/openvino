@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ClampLayerTest::getTestCaseName(testing::TestParamInfo<clampParamsTuple> obj) {
+std::string ClampLayerTest::getTestCaseName(const testing::TestParamInfo<clampParamsTuple>& obj) {
     InferenceEngine::SizeVector inShape;
     std::pair<float, float> interval;
     InferenceEngine::Precision netPrc;

@@ -32,12 +32,17 @@ ParamsKey ReverseSequenceKernelRef::GetSupportedKey() const {
 CommonDispatchData ReverseSequenceKernelRef::SetDefault(const reverse_sequence_params& params,
                                                         const optional_params&) const {
     CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
 
     dispatchData.gws = { params.output.Batch().v,
                          params.output.Feature().v,
                          params.output.Y().v * params.output.X().v };
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -58,7 +63,7 @@ KernelsData ReverseSequenceKernelRef::GetKernelsData(const Params& params, const
     assert(params.GetType() == KernelType::REVERSE_SEQUENCE);
 
     auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

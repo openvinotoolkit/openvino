@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <random>
 
 #ifdef _WIN32
 #ifndef NOMINMAX

@@ -9,6 +9,7 @@
 #include "ie_system_conf.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <exec_graph_info.hpp>
+#include <openvino/runtime/compiled_model.hpp>
 #include "ie_system_conf.h"
 
 namespace CPUTestUtils {
@@ -16,6 +17,9 @@ namespace CPUTestUtils {
         undef,
         a,
         ab,
+        acb,
+        aBc8b,
+        aBc16b,
         abcd,
         acdb,
         aBcd8b,
@@ -32,14 +36,18 @@ namespace CPUTestUtils {
 
         x = a,
         nc = ab,
+        ncw = abc,
         nchw = abcd,
+        ncdhw = abcde,
+        nwc = acb,
+        nhwc = acdb,
+        ndhwc = acdeb,
+        nCw8c = aBc8b,
+        nCw16c = aBc16b,
         nChw8c = aBcd8b,
         nChw16c = aBcd16b,
-        nhwc = acdb,
-        ncdhw = abcde,
         nCdhw8c = aBcde8b,
         nCdhw16c = aBcde16b,
-        ndhwc = acdeb,
         // RNN layouts
         tnc = abc,
         /// 3D RNN data tensor in the format (batch, seq_length, input channels).
@@ -83,28 +91,56 @@ namespace CPUTestUtils {
         std::string                       // selected primitive type
     >;
 
+    enum class nodeType {
+        convolution,
+        convolutionBackpropData,
+        groupConvolution,
+        groupConvolutionBackpropData
+    };
+
+    inline std::string nodeType2PluginType(nodeType nt) {
+        if (nt == nodeType::convolution) return "Convolution";
+        if (nt == nodeType::convolutionBackpropData) return "Deconvolution";
+        if (nt == nodeType::groupConvolution) return "Convolution";
+        if (nt == nodeType::groupConvolutionBackpropData) return "Deconvolution";
+        throw std::runtime_error("Undefined node type to convert to plug-in type node!");
+    }
+
+    inline std::string nodeType2str(nodeType nt) {
+        if (nt == nodeType::convolution) return "Convolution";
+        if (nt == nodeType::convolutionBackpropData) return "ConvolutionBackpropData";
+        if (nt == nodeType::groupConvolution) return "GroupConvolution";
+        if (nt == nodeType::groupConvolutionBackpropData) return "GroupConvolutionBackpropData";
+        throw std::runtime_error("Undefined node type to convert to string!");
+    }
+
 class CPUTestsBase {
 public:
-    typedef std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUInfo;
+    typedef std::map<std::string, ov::Any> CPUInfo;
 
 public:
     static std::string getTestCaseName(CPUSpecificParams params);
     static const char *cpu_fmt2str(cpu_memory_format_t v);
     static cpu_memory_format_t cpu_str2fmt(const char *str);
-    static std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts);
+    static std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix);
     static std::string impls2str(const std::vector<std::string> &priority);
     static CPUInfo makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
                                std::vector<cpu_memory_format_t> outFmts,
                                std::vector<std::string> priority);
+   //TODO: change to setter method
+    static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,
                                                          ngraph::ParameterVector &params,
                                                          const std::shared_ptr<ngraph::Node> &lastNode,
-                                                         std::string name) const;
+                                                         std::string name);
+
+    void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
+    void CheckPluginRelatedResults(ov::runtime::CompiledModel &execNet, std::string nodeType) const;
 
 protected:
-    virtual void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
+    virtual void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const;
     /**
      * @brief This function modifies the initial single layer test graph to add any necessary modifications that are specific to the cpu test scope.
      * @param ngPrc Graph precision.
@@ -114,7 +150,7 @@ protected:
      */
     virtual std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
                                                       ngraph::ParameterVector &params,
-                                                      const std::shared_ptr<ngraph::Node> &lastNode) const;
+                                                      const std::shared_ptr<ngraph::Node> &lastNode);
 
 protected:
     std::string getPrimitiveType() const;
@@ -123,32 +159,12 @@ protected:
     std::string selectedType;
 };
 
+// common parameters
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
+const std::map<std::string, std::string> cpuEmptyPluginConfig;
+const std::map<std::string, std::string> cpuBF16PluginConfig =
+        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
 
-const auto conv_ref_2D = CPUSpecificParams{{nchw}, {nchw}, {"ref_any"}, "ref_any"};
-const auto conv_ref_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref_any"}, "ref_any"};
-
-const auto conv_gemm_2D = CPUSpecificParams{{nchw}, {nchw}, {"gemm_any"}, "jit_gemm"};
-const auto conv_gemm_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"gemm_any"}, "jit_gemm"};
-
-const auto conv_sse42_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42"}, "jit_sse42"};
-const auto conv_sse42_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42"};
-const auto conv_sse42_dw_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42_dw"}, "jit_sse42_dw"};
-const auto conv_sse42_dw_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42_dw"}, "jit_sse42_dw"};
-
-const auto conv_avx2_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2"}, "jit_avx2"};
-const auto conv_avx2_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"};
-const auto conv_avx2_dw_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2_dw"}, "jit_avx2_dw"};
-const auto conv_avx2_dw_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2_dw"}, "jit_avx2_dw"};
-
-const auto conv_avx512_2D = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512"}, "jit_avx512"};
-const auto conv_avx512_3D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"};
-const auto conv_avx512_dw_2D = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512_dw"}, "jit_avx512_dw"};
-const auto conv_avx512_dw_3D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512_dw"}, "jit_avx512_dw"};
-
-const auto conv_sse42_2D_1x1 = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42_1x1"}, "jit_sse42_1x1"};
-const auto conv_avx2_2D_1x1 = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2_1x1"}, "jit_avx2_1x1"};
-const auto conv_avx512_2D_1x1 = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512_1x1"}, "jit_avx512_1x1"};
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);

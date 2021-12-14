@@ -2,888 +2,241 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <functional_test_utils/include/functional_test_utils/blob_utils.hpp>
 #include "ngraph_test_utils.hpp"
-
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <queue>
-#include <sstream>
-#include <string>
-#include <type_traits>
-#include <typeinfo>
-#include <vector>
-
-#include <ngraph/function.hpp>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/op/util/sub_graph_base.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-
-#include "details/ie_exception.hpp"
+#include <ngraph_functions/utils/ngraph_helpers.hpp>
 
 namespace {
-inline namespace tools {
-bool isTypeRelaxed(const std::string &type) {
-    return type.find_first_of("TypeRelaxed") == 0;
-}
 
-bool compareTypeInfo(const ngraph::DiscreteTypeInfo &info1, const ngraph::DiscreteTypeInfo &info2) {
-    if (!isTypeRelaxed(info1.name) && !isTypeRelaxed(info2.name) &&
-        (info1.version != info2.version)) {
-        return false;
-    }
-
-    const std::string info1Name =
-            isTypeRelaxed(info1.name) && (info1.parent != nullptr) ? info1.parent->name : info1.name;
-    const std::string info2Name =
-            isTypeRelaxed(info2.name) && (info2.parent != nullptr) ? info2.parent->name : info2.name;
-    return info1Name == info2Name;
-}
-
-template<typename Node>
-bool compare_rt_keys(const Node &node1, const Node &node2) {
-    const auto &first_node_rt_info = node1->get_rt_info();
-    const auto &second_node_rt_info = node2->get_rt_info();
-
-    if (first_node_rt_info.empty() && second_node_rt_info.empty()) {
-        return true;
-    }
-
-    if (first_node_rt_info.size() != second_node_rt_info.size()) {
-        return false;
-    }
-
-    auto first_node_rt_info_it = first_node_rt_info.begin();
-    auto second_node_rt_info_it = second_node_rt_info.begin();
-    while (first_node_rt_info_it != first_node_rt_info.end()) {
-        if (first_node_rt_info_it->first != second_node_rt_info_it->first) {
-            return false;
+template<class T_IE, class T_NGRAPH>
+static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
+    for (std::size_t i = 0; i < size; ++i) {
+        const T_NGRAPH &ref = expected[i];
+        const auto &res = actual[i];
+        const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+        if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
+            IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                       << " at index " << i << " with absolute threshold " << abs_threshold
+                       << " failed";
         }
-        ++first_node_rt_info_it;
-        ++second_node_rt_info_it;
-    }
-
-    return true;
-}
-
-bool less_by_name(
-        const std::shared_ptr<ngraph::op::v0::Result> &l,
-        const std::shared_ptr<ngraph::op::v0::Result> &r) {
-    return l->get_friendly_name() < r->get_friendly_name();
-}
-
-
-
-std::string typeInfoToStr(const ngraph::Node::type_info_t &typeInfo) {
-    return std::string(typeInfo.name) + "/" + to_str(typeInfo.version);
-}
-
-
-std::string tensor_names(const ngraph::descriptor::Tensor &t) {
-    std::string n;
-    const char *glue = "";
-    for (const auto &name : t.get_names()) {
-        n.append(glue).append(name);
-        glue = ", ";
-    }
-    return "\"" + n + "\"";
-}
-}  // namespace tools
-
-namespace subgraph {
-
-namespace detail {
-
-template<typename Ptr>
-Ptr not_null(Ptr &&p) {
-    if (!p) {
-        IE_THROW() << "empty pointer";
-    }
-    return std::forward<Ptr>(p);
-}
-
-template<typename InOut1, typename InOut2>
-bool equal_type_and_partial_shape(const InOut1 &lhs, const InOut2 &rhs) {
-    return lhs.get_element_type() == rhs.get_element_type() &&
-           lhs.get_partial_shape() == rhs.get_partial_shape();
-}
-
-class NodeAndInputDescription {
-public:
-    using SubGraphOp = ngraph::op::util::SubGraphOp;
-    using InputDescripton = SubGraphOp::InputDescription;
-    using InputNode = ngraph::Input<ngraph::Node>;
-    using Parameter = ngraph::opset6::Parameter;
-
-    explicit NodeAndInputDescription(
-            const InputNode &input, const Parameter *parameter, const InputDescripton *description)
-            : m_input(input), m_parameter(not_null(parameter)), m_description(not_null(description)) {}
-
-    static bool equal_descriptions(const InputDescripton *lhs, const InputDescripton *rhs) {
-        if (!lhs || !rhs || lhs->get_type_info() != rhs->get_type_info()) {
-            return false;
+        if (absoluteDifference <= threshold) {
+            continue;
         }
-
-        if (lhs->get_type_info() == SubGraphOp::SliceInputDescription::type_info) {
-            using InDesc = SubGraphOp::SliceInputDescription;
-            const InDesc *l_input = static_cast<const InDesc *>(lhs);
-            const InDesc *r_input = static_cast<const InDesc *>(rhs);
-            return l_input->m_start == r_input->m_start && l_input->m_stride == r_input->m_stride &&
-                   l_input->m_part_size == r_input->m_part_size &&
-                   l_input->m_end == r_input->m_end && l_input->m_axis == r_input->m_axis;
-        } else if (lhs->get_type_info() == SubGraphOp::MergedInputDescription::type_info) {
-            return true;  // noting extra to check
-        } else if (lhs->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
-            return true;  // noting extra to check
+        double max;
+        if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
+            max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+        } else {
+            max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
         }
-
-        IE_THROW() << "Type is not supported: [" << lhs->get_type_info().name << "]";
-
-        return false;
-    }
-
-    bool parameter_and_input_match(size_t num_iterations) const {
-        if (const SubGraphOp::SliceInputDescription *slice_description =
-                ngraph::as_type<const SubGraphOp::SliceInputDescription>(m_description)) {
-            if (m_parameter->get_element_type() != m_input.get_element_type()) {
-                return false;
-            }
-            const auto &param_partial_shape = m_parameter->get_partial_shape();
-            const auto &input_partial_shape = m_input.get_partial_shape();
-            if (param_partial_shape.is_dynamic() && input_partial_shape.is_dynamic()) {
-                return true;
-            }
-            if (!param_partial_shape.is_static() || !input_partial_shape.is_static()) {
-                return false;
-            }
-            const auto &param_shape = param_partial_shape.to_shape();
-            const auto &input_shape = input_partial_shape.to_shape();
-            if (param_shape.size() != input_shape.size()) {
-                return false;
-            }
-            if (param_shape[slice_description->m_axis] != slice_description->m_part_size) {
-                return false;
-            }
-            for (size_t i = 0; i != param_shape.size(); ++i) {
-                const auto expected_axis_size =
-                        i == slice_description->m_axis ? slice_description->m_part_size * num_iterations
-                                                       : param_shape[i];
-                if (input_shape[i] != expected_axis_size) {
-                    return false;
-                }
-            }
-            return true;
-        } else if (
-                m_description->get_type_info() == SubGraphOp::MergedInputDescription::type_info ||
-                m_description->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
-            return equal_type_and_partial_shape(*m_parameter, m_input);
-        }
-
-        IE_THROW() << "Type is not supported: [" << m_description->get_type_info().name
-                           << "]";
-
-        return false;
-    }
-
-    static bool equal_parameters(const Parameter *lhs, const Parameter *rhs) {
-        return lhs && rhs && equal_type_and_partial_shape(*lhs, *rhs);
-    }
-
-    friend bool operator==(const NodeAndInputDescription &lhs, const NodeAndInputDescription &rhs) {
-        if (!equal_descriptions(lhs.m_description, rhs.m_description)) {
-            return false;
-        }
-        return equal_parameters(lhs.m_parameter, rhs.m_parameter);
-    }
-
-private:
-    const InputNode m_input;
-    const Parameter *m_parameter;
-    const InputDescripton *m_description;
-};
-
-class NodeAndOutputDescription {
-public:
-    using SubGraphOp = ngraph::op::util::SubGraphOp;
-    using OutputDescription = SubGraphOp::OutputDescription;
-    using OutputNode = ngraph::Output<ngraph::Node>;
-    using Result = ngraph::opset6::Result;
-
-    explicit NodeAndOutputDescription(
-            const OutputNode &output, const Result *result, const OutputDescription *description)
-            : m_output(output), m_result(not_null(result)), m_description(not_null(description)) {}
-
-    static bool equal_descriptions(const OutputDescription *lhs, const OutputDescription *rhs) {
-        if (!lhs || !rhs || lhs->get_type_info() != rhs->get_type_info()) {
-            return false;
-        }
-
-        if (lhs->get_type_info() == SubGraphOp::ConcatOutputDescription::type_info) {
-            using OutDesc = SubGraphOp::ConcatOutputDescription;
-            const OutDesc *l_output = static_cast<const OutDesc *>(lhs);
-            const OutDesc *r_output = static_cast<const OutDesc *>(rhs);
-            return l_output->m_start == r_output->m_start &&
-                   l_output->m_stride == r_output->m_stride &&
-                   l_output->m_part_size == r_output->m_part_size &&
-                   l_output->m_end == r_output->m_end && l_output->m_axis == r_output->m_axis;
-        } else if (lhs->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
-            using OutDesc = SubGraphOp::BodyOutputDescription;
-            const OutDesc *l_output = static_cast<const OutDesc *>(lhs);
-            const OutDesc *r_output = static_cast<const OutDesc *>(rhs);
-            return l_output->m_iteration == r_output->m_iteration;
-        }
-
-        IE_THROW() << "Type is not supported: [" << lhs->get_type_info().name << "]";
-
-        return false;
-    }
-
-    bool result_and_output_match(size_t num_iterations) const {
-        if (const auto concat_desciption =
-                ngraph::as_type<const SubGraphOp::ConcatOutputDescription>(m_description)) {
-            if (m_result->output(0).get_element_type() != m_output.get_element_type()) {
-                return false;
-            }
-
-            const auto &output_partial_shape = m_output.get_partial_shape();
-            const auto &result_partial_shape = m_result->output(0).get_partial_shape();
-            if (result_partial_shape.is_dynamic() && output_partial_shape.is_dynamic()) {
-                return true;
-            }
-            if (!result_partial_shape.is_static() || !output_partial_shape.is_static()) {
-                return false;
-            }
-            const auto &output_shape = output_partial_shape.to_shape();
-            const auto &result_shape = result_partial_shape.to_shape();
-            if (result_shape.size() != output_shape.size()) {
-                return false;
-            }
-            for (size_t i = 0; i != result_shape.size(); ++i) {
-                const auto axis_multiplier = i == concat_desciption->m_axis ? num_iterations : 1;
-                if (result_shape[i] * axis_multiplier != output_shape[i]) {
-                    return false;
-                }
-            }
-            return true;
-        } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
-            return equal_type_and_partial_shape(m_result->output(0), m_output);
-        }
-
-        IE_THROW() << "Type is not supported: [" << m_description->get_type_info().name
-                           << "]";
-
-        return false;
-    }
-
-    static bool equal_results(const Result *lhs, const Result *rhs) {
-        return lhs && rhs && equal_type_and_partial_shape(lhs->output(0), rhs->output(0));
-    }
-
-    friend bool operator==(
-            const NodeAndOutputDescription &lhs, const NodeAndOutputDescription &rhs) {
-        if (!equal_descriptions(lhs.m_description, rhs.m_description)) {
-            return false;
-        }
-        return equal_results(lhs.m_result, rhs.m_result);
-    }
-
-private:
-    const OutputNode m_output;
-    const Result *m_result;
-    const OutputDescription *m_description;
-};
-
-class BackEdge {
-public:
-    using Parameter = ngraph::opset6::Parameter;
-    using Result = ngraph::opset6::Result;
-    using Id = uint64_t;
-
-    explicit BackEdge(const Parameter *parameter, const Result *result)
-            : m_parameter(not_null(parameter)), m_result(not_null(result)) {}
-
-    bool result_and_parameter_match() const {
-        return equal_type_and_partial_shape(m_result->output(0), *m_parameter);
-    }
-
-    friend bool operator==(const BackEdge &lhs, const BackEdge &rhs) {
-        return equal_type_and_partial_shape(*lhs.m_parameter, *rhs.m_parameter) &&
-               equal_type_and_partial_shape(lhs.m_result->output(0), rhs.m_result->output(0));
-    }
-
-private:
-    const Parameter *m_parameter;
-    const Result *m_result;
-};
-
-std::vector<NodeAndInputDescription> extract_inputs(ngraph::op::util::SubGraphOp *sub) {
-    std::vector<NodeAndInputDescription> nodes;
-    const auto &fn_body = sub->get_function();
-    const auto &fn_parameters = fn_body->get_parameters();
-
-    for (const auto &in_desc : sub->get_input_descriptions()) {
-        const auto parameter = fn_parameters.at(in_desc->m_body_parameter_index).get();
-        const auto input = sub->input(in_desc->m_input_index);
-        nodes.push_back(NodeAndInputDescription{input, parameter, in_desc.get()});
-    }
-    return nodes;
-}
-
-std::vector<NodeAndOutputDescription> extract_outputs(ngraph::op::util::SubGraphOp *sub) {
-    std::vector<NodeAndOutputDescription> nodes;
-    const auto &fn_body = sub->get_function();
-    const auto &fs_results = fn_body->get_results();
-
-    for (const auto &out_desc : sub->get_output_descriptions()) {
-        const auto result = fs_results.at(out_desc->m_body_value_index).get();
-        const auto output = sub->output(out_desc->m_output_index);
-        nodes.push_back(NodeAndOutputDescription{output, result, out_desc.get()});
-    }
-    return nodes;
-}
-
-std::vector<BackEdge> extract_backedges(ngraph::op::util::SubGraphOp *sub) {
-    using MergedInputDescription = ngraph::op::util::SubGraphOp::MergedInputDescription;
-    std::vector<BackEdge> edges;
-    const auto &fn_body = sub->get_function();
-
-    const auto &fs_parameters = fn_body->get_parameters();
-    const auto &fs_results = fn_body->get_results();
-
-    for (const auto &in_desc : sub->get_input_descriptions()) {
-        if (const auto &merged_in_desc =
-                ngraph::as_type_ptr<const MergedInputDescription>(in_desc)) {
-            const auto parameter = fs_parameters.at(merged_in_desc->m_body_parameter_index);
-            const auto result = fs_results.at(merged_in_desc->m_body_value_index);
-            edges.push_back(BackEdge{parameter.get(), result.get()});
-        }
-    }
-    return edges;
-}
-
-struct NotValidInputOrOutput {
-    NotValidInputOrOutput(int64_t num_iterations) : m_num_iterations(num_iterations) {}
-
-    bool operator()(const NodeAndOutputDescription &d) const {
-        return !d.result_and_output_match(m_num_iterations);
-    }
-
-    bool operator()(const NodeAndInputDescription &d) const {
-        return !d.parameter_and_input_match(m_num_iterations);
-    }
-
-    int64_t m_num_iterations;
-};
-
-bool not_valid_back_edge(const BackEdge &be) {
-    return !be.result_and_parameter_match();
-}
-
-bool equal_body_ports(ngraph::opset6::Loop *lhs, ngraph::opset6::Loop *rhs) {
-    if (!lhs || !rhs) {
-        return false;
-    }
-    const auto &lhs_fn_body = lhs->get_function();
-    const auto &rhs_fn_body = rhs->get_function();
-
-    const auto &lhs_sbp = lhs->get_special_body_ports();
-    const auto &rhs_sbp = rhs->get_special_body_ports();
-
-    constexpr int64_t port_not_provided = -1;
-
-    const bool input_provided = lhs_sbp.current_iteration_input_idx != port_not_provided ||
-                                rhs_sbp.current_iteration_input_idx != port_not_provided;
-
-    if (input_provided) {
-        const auto &lhs_parameter =
-                lhs_fn_body->get_parameters().at(lhs_sbp.current_iteration_input_idx);
-        const auto &rhs_parameter =
-                rhs_fn_body->get_parameters().at(rhs_sbp.current_iteration_input_idx);
-        if (!NodeAndInputDescription::equal_parameters(lhs_parameter.get(), rhs_parameter.get())) {
-            return false;
-        }
-    }
-
-    const auto &lhs_result = lhs_fn_body->get_results().at(lhs_sbp.body_condition_output_idx);
-    const auto &rhs_result = rhs_fn_body->get_results().at(rhs_sbp.body_condition_output_idx);
-
-    return NodeAndOutputDescription::equal_results(lhs_result.get(), rhs_result.get());
-}
-
-class CompareSubGraphs {
-public:
-    using Result = Comparator::Result;
-    using SubGraphOp = ngraph::op::util::SubGraphOp;
-
-    Result compare(SubGraphOp *sub_lhs, SubGraphOp *sub_rhs) {
-        const auto lhs_it_no = get_num_iterations(sub_lhs);
-        const auto rhs_it_no = get_num_iterations(sub_rhs);
-        if (lhs_it_no != rhs_it_no) {
-            return Result::error("different number of iterations");
-        }
-
-        not_valid_input_output = lhs_it_no;
-
-        const auto result_for_inputs = compare_inputs(sub_lhs, sub_rhs);
-        if (!result_for_inputs.valid) {
-            return result_for_inputs;
-        }
-
-        const auto result_for_outputs = compare_outputs(sub_lhs, sub_rhs);
-        if (!result_for_outputs.valid) {
-            return result_for_outputs;
-        }
-
-        return compare_backedges(sub_lhs, sub_rhs);
-    }
-
-private:
-    Result compare_inputs(SubGraphOp *sub_lhs, SubGraphOp *sub_rhs) const {
-        const auto &lhs_sub_inputs = extract_inputs(sub_lhs);
-        const auto &rhs_sub_inputs = extract_inputs(sub_rhs);
-
-        if (lhs_sub_inputs.empty() || rhs_sub_inputs.empty()) {
-            return Result::error("no input in subgraph");
-        }
-
-        if (std::any_of(begin(lhs_sub_inputs), end(lhs_sub_inputs), not_valid_input_output)) {
-            return Result::error("inputs and parameters mismatch");
-        }
-        if (std::any_of(begin(rhs_sub_inputs), end(rhs_sub_inputs), not_valid_input_output)) {
-            return Result::error("inputs and parameters mismatch");
-        }
-
-        if (lhs_sub_inputs.size() != rhs_sub_inputs.size() ||
-            !std::is_permutation(
-                    begin(lhs_sub_inputs), end(lhs_sub_inputs), begin(rhs_sub_inputs))) {
-            return Result::error("different SubGraph InputDescription");
-        }
-        return Result::ok();
-    }
-
-    Result compare_outputs(SubGraphOp *sub_lhs, SubGraphOp *sub_rhs) const {
-        const auto &lhs_sub_outputs = extract_outputs(sub_lhs);
-        const auto &rhs_sub_outputs = extract_outputs(sub_rhs);
-
-        if (lhs_sub_outputs.empty() || rhs_sub_outputs.empty()) {
-            return Result::error("no output in subgraph");
-        }
-
-        if (std::any_of(begin(lhs_sub_outputs), end(lhs_sub_outputs), not_valid_input_output)) {
-            return Result::error("outputs and results mismatch");
-        }
-        if (std::any_of(begin(rhs_sub_outputs), end(rhs_sub_outputs), not_valid_input_output)) {
-            return Result::error("outputs and results mismatch");
-        }
-
-        if (lhs_sub_outputs.size() != rhs_sub_outputs.size() ||
-            !std::is_permutation(
-                    begin(lhs_sub_outputs), end(lhs_sub_outputs), begin(rhs_sub_outputs))) {
-            return Result::error("different SubGraph OutputDescription");
-        }
-        return Result::ok();
-    }
-
-    Result compare_backedges(SubGraphOp *sub_lhs, SubGraphOp *sub_rhs) const {
-        const auto lhs_back_edges = extract_backedges(sub_lhs);
-        const auto rhs_back_edges = extract_backedges(sub_rhs);
-
-        if (std::any_of(begin(lhs_back_edges), end(lhs_back_edges), not_valid_back_edge)) {
-            return Result::error("back edges mismatch");
-        }
-        if (std::any_of(begin(rhs_back_edges), end(rhs_back_edges), not_valid_back_edge)) {
-            return Result::error("back edges mismatch");
-        }
-
-        if (lhs_back_edges.size() != rhs_back_edges.size() ||
-            !std::is_permutation(
-                    begin(lhs_back_edges), end(lhs_back_edges), begin(rhs_back_edges))) {
-            return Result::error("different SubGraph BackEdges");
-        }
-        if (auto loop_lhs = ngraph::as_type<ngraph::opset6::Loop>(sub_lhs)) {
-            auto loop_rhs = ngraph::as_type<ngraph::opset6::Loop>(sub_rhs);
-            if (!equal_body_ports(loop_lhs, loop_rhs)) {
-                return Result::error("different Special Body Ports");
-            }
-        }
-        return Result::ok();
-    }
-
-    static int64_t get_num_iterations(ngraph::op::util::SubGraphOp *sub) {
-        using namespace ngraph::opset6;
-        if (const auto ti = dynamic_cast<const TensorIterator *>(sub)) {
-            return ti->get_num_iterations();
-        }
-        if (const auto l = dynamic_cast<const Loop *>(sub)) {
-            return l->get_num_iterations();
-        }
-
-        return -1;
-    }
-
-    NotValidInputOrOutput not_valid_input_output{-1};
-};
-
-}  // namespace detail
-
-Comparator::Result compare_io(
-        ngraph::op::util::SubGraphOp *sub_lhs, ngraph::op::util::SubGraphOp *sub_rhs) {
-    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs);
-}
-}  // namespace subgraph
-}  // namespace
-Comparator::Result Comparator::compare(
-    const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2) {
-    /*
-     * This function compares two nGraph functions and requires them to have exactly one output
-     * + Check nodes types
-     * + Check number of inputs
-     * + Check shapes
-     * + Check parent ports
-     * + Check node attributes by Visitor API
-     */
-
-    auto f1_results = f1->get_results();
-    auto f2_results = f2->get_results();
-
-    std::sort(f1_results.begin(), f1_results.end(), less_by_name);
-    std::sort(f2_results.begin(), f2_results.end(), less_by_name);
-
-    if (f1_results.size() != f2_results.size()) {
-        return Result::error(
-            "Number of results is different: " + to_str(f1_results.size()) + " and " +
-            to_str(f2_results.size()));
-    }
-
-    const auto& f1_sinks = f1->get_sinks();
-    const auto& f2_sinks = f2->get_sinks();
-    if (f1_sinks.size() != f2_sinks.size()) {
-        return Result::error(
-            "Number of sinks is different: " + to_str(f1_sinks.size()) + " and " +
-            to_str(f2_sinks.size()));
-    }
-
-    for (size_t i = 0; i < f1_results.size(); ++i) {
-        if (should_compare(CmpValues::NAMES)) {
-            if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
-                name(f2_results[i]->get_input_node_shared_ptr(0))) {
-                return Result::error(
-                    "Different output names: " + name(f1_results[i]->get_input_node_shared_ptr(0)) +
-                    " and " + name(f2_results[i]->get_input_node_shared_ptr(0)));
-            }
-        }
-        q.push({f1_results[i].get(), f2_results[i].get()});
-        used.insert(f1_results[i].get());
-    }
-
-    std::stringstream errors;
-
-    while (!q.empty()) {
-        ngraph::Node* const node1 = q.front().first;
-        ngraph::Node* const node2 = q.front().second;
-        q.pop();
-
-        const auto result = compare(node1, node2, errors);
-        if (!result.valid) {
-            return result;
-        }
-
-        add_nodes_inputs_to_queue(node1, node2);
-    }
-    const auto msg = errors.str();
-    return msg.empty() ? Result::ok() : Result::error(msg);
-}
-
-Comparator::Result Comparator::compare(
-    ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
-    auto type_info1 = node1->get_type_info();
-    auto type_info2 = node2->get_type_info();
-
-    if (!compareTypeInfo(type_info1, type_info2)) {
-        return Result::error(typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
-    }
-
-    auto subgraph1 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node1);
-    auto subgraph2 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node2);
-
-    const bool subgraph_nodes = subgraph1 && subgraph2;
-
-    if (subgraph_nodes) {
-        const auto result = subgraph::compare_io(subgraph1, subgraph2);
-        if (!result.valid) {
-            return result;
-        }
-    }
-
-    const auto& dependencies_1 = node1->get_control_dependencies();
-    const auto& dependencies_2 = node2->get_control_dependencies();
-
-    if (dependencies_1.size() != dependencies_2.size()) {
-        return Result::error(
-            "Number of dependencies is different: " + to_str(dependencies_1.size()) + " for " +
-            name(node1) + " and " + to_str(dependencies_2.size()) + " for " + name(node2));
-    }
-
-    if (node1->inputs().size() != node2->inputs().size()) {
-        return Result::error(
-            "Number of inputs is different: " + to_str(node1->inputs().size()) + " for " +
-            name(node1) + " and " + to_str(node2->inputs().size()) + " for " + name(node2));
-    }
-
-    if (node1->outputs().size() != node2->outputs().size()) {
-        return Result::error(
-            "Number of outputs is different: " + to_str(node1->inputs().size()) + " for " +
-            name(node1) + " and " + to_str(node2->inputs().size()) + " for " + name(node2));
-    }
-
-    if (!subgraph_nodes) {
-        compare_inputs(node1, node2, err_log);
-        compare_outputs(node1, node2, err_log);
-    }
-
-    if (should_compare(CmpValues::ATTRIBUTES)) {
-        const auto result = attributes::compare(node1, node2, m_comparition_flags);
-        if (!result.valid) {
-            return result;
-        }
-    }
-
-    return Result::ok("Check if any minor error was log in to err_log");
-}
-
-
-void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
-    for (size_t i = 0; i < node1->inputs().size(); ++i) {
-        if (should_compare(CmpValues::CONST_VALUES)) {
-            using Constant = ngraph::opset1::Constant;
-            const auto equal_value =
-                ::attributes::detail::equal::Equal<std::shared_ptr<Constant>>::equal_value;
-
-            auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
-            auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
-            if (const1 && const2 && !equal_value(const1, const2)) {
-                err_log << "Different Constant values detected\n"
-                        << node1->description() << " Input(" << i << ") and "
-                        << node2->description() << " Input(" << i << ")" << std::endl;
-            }
-        }
-
-        if (should_compare(CmpValues::PRECISIONS)) {
-            if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
-                err_log << "Different element type detected\n"
-                        << name(node1) << " Input(" << i << ") "
-                        << node1->input(i).get_element_type() << " and " << name(node2) << " Input("
-                        << i << ") " << node2->input(i).get_element_type() << std::endl;
-            }
-        }
-
-        if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
-            err_log << "Different shape detected\n"
-                    << name(node1) << " Input(" << i << ") " << node1->input(i).get_partial_shape()
-                    << " and " << name(node2) << " Input(" << i << ") "
-                    << node2->input(i).get_partial_shape() << std::endl;
-        }
-
-        if (node1->get_input_source_output(i).get_index() !=
-            node2->get_input_source_output(i).get_index()) {
-            auto idx1 = node1->get_input_source_output(i).get_index();
-            auto idx2 = node2->get_input_source_output(i).get_index();
-            err_log << "Different ports detected\n"
-                    << name(node1) << " Input(" << i << ") connected to parent port " << idx1
-                    << " and " << name(node2) << " Input(" << i << ") connected to parent port "
-                    << idx2 << std::endl;
-        }
-
-        if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1, node2)) {
-            err_log << "Different runtime info detected\n"
-                    << name(node1) << " and " << name(node2) << " not equal runtime info."
-                    << std::endl;
+        double diff = static_cast<float>(absoluteDifference) / max;
+        if (max == 0 || (diff > static_cast<float>(threshold)) ||
+            (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
+            IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                       << " at index " << i << " with threshold " << threshold
+                       << " failed";
         }
     }
 }
 
-void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
-    for (int i = 0; i < node1->outputs().size(); ++i) {
-        const auto& tensor1 = node1->output(i).get_tensor();
-        const auto& tensor2 = node2->output(i).get_tensor();
+template <typename T_IE>
+void callCompare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
+                 const T_IE* actualBuffer, size_t size, float threshold, float abs_threshold) {
+    auto expectedBuffer = expected.second.data();
+    switch (expected.first) {
+        case ngraph::element::Type_t::i64:
+            Compare<T_IE, int64_t>(reinterpret_cast<const int64_t *>(expectedBuffer),
+                                                         actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::i32:
+            Compare<T_IE, int32_t>(reinterpret_cast<const int32_t *>(expectedBuffer),
+                                                         actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::i16:
+            Compare<T_IE, int16_t>(reinterpret_cast<const int16_t *>(expectedBuffer),
+                                                         actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::i8:
+            Compare<T_IE, int8_t>(reinterpret_cast<const int8_t *>(expectedBuffer),
+                                                        actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::u64:
+            Compare<T_IE, uint64_t>(reinterpret_cast<const uint64_t *>(expectedBuffer),
+                                                          actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::u32:
+            Compare<T_IE, uint32_t>(reinterpret_cast<const uint32_t *>(expectedBuffer),
+                                                          actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::u16:
+            Compare<T_IE, uint16_t>(reinterpret_cast<const uint16_t *>(expectedBuffer),
+                                                          actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::boolean:
+        case ngraph::element::Type_t::u8:
+            Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
+                                                         actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::f64:
+            Compare<T_IE, double>(reinterpret_cast<const double *>(expectedBuffer),
+                                                        actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::f32:
+            Compare<T_IE, float>(reinterpret_cast<const float *>(expectedBuffer),
+                                                       actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::f16:
+            Compare<T_IE, ngraph::float16>(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
+                                                                 actualBuffer, size, threshold, abs_threshold);
+            break;
+        case ngraph::element::Type_t::bf16:
+            Compare<T_IE, ngraph::bfloat16>(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
+                                                                  actualBuffer, size, threshold, abs_threshold);
+            break;
+//        case ngraph::element::Type_t::i4: {
+//            auto expectedOut = ngraph::helpers::convertOutputPrecision(
+//                    expected.second,
+//                    expected.first,
+//                    ngraph::element::Type_t::i8,
+//                    size);
+//            Compare<T_IE, int8_t>(reinterpret_cast<const int8_t *>(expectedOut.data()),
+//                                                        actualBuffer, size, threshold, abs_threshold);
+//            break;
+//        }
+//        case ngraph::element::Type_t::u4: {
+//            auto expectedOut = ngraph::helpers::convertOutputPrecision(
+//                    expected.second,
+//                    expected.first,
+//                    ngraph::element::Type_t::u8,
+//                    size);
+//            Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedOut.data()),
+//                                                         actualBuffer, size, threshold, abs_threshold);
+//            break;
+//        }
+        case ngraph::element::Type_t::dynamic:
+        case ngraph::element::Type_t::undefined:
+            Compare<T_IE, T_IE>(reinterpret_cast<const T_IE *>(expectedBuffer), actualBuffer, size, threshold, abs_threshold);
+            break;
+        default: FAIL() << "Comparator for " << expected.first << " precision isn't supported";
+    }
+    return;
+}
 
-        if (tensor1.get_names() != tensor2.get_names()) {
-            err_log << "Output tensors names " << tensor_names(tensor1) << " and "
-                    << tensor_names(tensor2)
-                    << " are different for nodes: " << node1->get_friendly_name() << " and "
-                    << node2->get_friendly_name() << std::endl;
+
+void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
+                    const InferenceEngine::Blob::Ptr &actual,
+                    float threshold,
+                    float abs_threshold) {
+    const auto &precision = actual->getTensorDesc().getPrecision();
+    auto k =  static_cast<float>(expected.first.size()) / precision.size();
+    // W/A for int4, uint4
+    if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
+        k /= 2;
+    } else if (expected.first == ngraph::element::Type_t::undefined || expected.first == ngraph::element::Type_t::dynamic) {
+        k = 1;
+    }
+    ASSERT_EQ(expected.second.size(), actual->byteSize() * k);
+
+    auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
+    IE_ASSERT(memory);
+    const auto lockedMemory = memory->wmap();
+    const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+
+    const auto &size = actual->size();
+    switch (precision) {
+        case InferenceEngine::Precision::FP32:
+            callCompare<float>(expected, reinterpret_cast<const float *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::I32:
+            callCompare<int32_t>(expected, reinterpret_cast<const int32_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::I64:
+            callCompare<int64_t>(expected, reinterpret_cast<const int64_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::I8:
+            callCompare<int8_t>(expected, reinterpret_cast<const int8_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::U16:
+            callCompare<uint16_t>(expected, reinterpret_cast<const uint16_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::I16:
+            callCompare<int16_t>(expected, reinterpret_cast<const int16_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::BOOL:
+        case InferenceEngine::Precision::U8:
+            callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::U64:
+            callCompare<uint64_t>(expected, reinterpret_cast<const uint64_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::BF16:
+            callCompare<ngraph::bfloat16>(expected, reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        case InferenceEngine::Precision::FP16:
+            callCompare<ngraph::float16>(expected, reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, threshold, abs_threshold);
+            break;
+        default:
+            FAIL() << "Comparator for " << precision << " precision isn't supported";
+    }
+}
+
+void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                    const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs,
+                    float threshold, float abs_threshold) {
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex];
+        const auto &actual = actualOutputs[outputIndex];
+        Compare(expected, actual, threshold, abs_threshold);
+    }
+}
+} // namespace
+
+void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Model> ref_function,
+                                          std::shared_ptr<ov::Model> cur_function) {
+    try {
+        if (ref_function->is_dynamic() || cur_function->is_dynamic()) {
+            return;
+        }
+        std::vector<std::vector<uint8_t>> input_data;
+        ngraph::element::TypeVector types;
+        for (auto param : ref_function->get_parameters()) {
+            types.push_back(param->get_element_type());
+
+            InferenceEngine::TensorDesc td(InferenceEngine::Precision::FP32, param->get_shape(), InferenceEngine::Layout::ANY);
+            const auto &input = FuncTestUtils::createAndFillBlob(td);
+            const auto &input_size = input->byteSize();
+
+            std::vector<uint8_t> data;
+            data.resize(input_size);
+
+            auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
+            IE_ASSERT(memory);
+
+            const auto lockedMemory = memory->wmap();
+            const auto buffer = lockedMemory.as<const std::uint8_t *>();
+            std::copy(buffer, buffer + input_size, data.data());
+
+            input_data.push_back(std::move(data));
         }
 
-        if (!node1->output(i).get_partial_shape().same_scheme(
-                node2->output(i).get_partial_shape())) {
-            err_log << "Different shape detected\n"
-                    << name(node1) << " Output(" << i << ") "
-                    << node1->output(i).get_partial_shape() << " and " << name(node2) << " Output("
-                    << i << ") " << node2->output(i).get_partial_shape() << std::endl;
+        auto ref_outputs = ngraph::helpers::interpreterFunction(ref_function, input_data, types);
+        auto outputs = ngraph::helpers::interpreterFunction(cur_function, input_data, types);
+
+        IE_ASSERT(ref_outputs.size() == outputs.size());
+
+        for (size_t i = 0; i < ref_outputs.size(); ++i) {
+            IE_ASSERT(ref_outputs[i].second.size() == outputs[i].second.size());
+            auto * ref = reinterpret_cast<float *>(ref_outputs[i].second.data());
+            auto * out = reinterpret_cast<float *>(outputs[i].second.data());
+            IE_ASSERT(ref_outputs[i].second.size() / 8);
+            size_t size = ref_outputs[i].second.size() / sizeof(float);
+            Compare<float, float>(ref, out, size, 1e-5);
         }
     }
-}
-
-void Comparator::add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2) {
-    for (int i = 0; i < node1->inputs().size(); ++i) {
-        if (!used.count(node1->input_value(i).get_node())) {
-            q.push({node1->input_value(i).get_node(), node2->input_value(i).get_node()});
-            used.insert(node1->input_value(i).get_node());
-        }
+    catch (const std::runtime_error &re) {
+        GTEST_FATAL_FAILURE_(re.what());
+    } catch (const std::exception &ex) {
+        GTEST_FATAL_FAILURE_(ex.what());
+    } catch (...) {
+        GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
-
-FunctionsComparator::Result FunctionsComparator::compare(
-    const std::shared_ptr<ngraph::Function>& f1,
-    const std::shared_ptr<ngraph::Function>& f2) const {
-    return Comparator(m_comparition_flags).compare(f1, f2);
-}
-
-void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
-    static const std::vector<std::string> attrs_to_check{"Variant::RuntimeAttribute::FusedNames"};
-
-    std::ostringstream err_log;
-    for (auto& op : f->get_ops()) {
-        if (ngraph::op::is_constant(op)) continue;
-
-        const auto& rt_info = op->get_rt_info();
-        for (const auto& attr_name : attrs_to_check) {
-            if (!rt_info.count(attr_name)) {
-                err_log << "Node: " << op->get_friendly_name() << " has no attribute: " << attr_name
-                        << std::endl;
-            }
-        }
-    }
-
-    auto err_msg = err_log.str();
-    if (!err_msg.empty()) {
-        throw ngraph::ngraph_error(err_msg);
-    }
-}
-
-NGRAPH_RTTI_DEFINITION(TestOpMultiOut, "TestOp", 0);
-
-namespace attributes {
-namespace detail {
-void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
-    if (auto inputs =
-            ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
-        insert(name, inputs->get());
-    } else if (
-            auto outputs =
-                    ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
-        insert(name, outputs->get());
-    } else if (ngraph::is_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
-        // drop comparison, no more info than port indexes which will be check in
-        // subgraph::compare_io
-    } else if (
-            auto a = ngraph::as_type<
-                    ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                    &adapter)) {
-        const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
-        const auto end = beg + a->get()->size();
-        insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
-    } else {
-        m_read_result += "store   attr [ ERR ]: " + name +
-                         " [drop `void` comparison which is '" + adapter.get_type_info().name +
-                         "']";
-    }
-}
-template <typename AttrValue>
-void ReadAndCompareAttributes::verify(const std::string &name, const AttrValue &attr_value) {
-    if (should_return()) {
-        return;
-    }
-    m_visited_attributes.insert(name);
-    const auto ref_value = m_attr_ref.get<AttrValue>(name);
-    if (!ref_value) {
-        m_cmp_result += "missing attribute name: '" + name + "'";
-        return;
-    }
-
-    if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-        m_cmp_result += "mismatch in value: '" + name +
-                        "' : " + str::Get<AttrValue>::value(*ref_value) + " vs " +
-                        str::Get<AttrValue>::value(attr_value);
-    }
-}
-
-void ReadAndCompareAttributes::verify_mem_buf(const std::string &name,
-                                              const std::shared_ptr<ngraph::runtime::AlignedBuffer> &buffer) {
-    if (should_return()) {
-        return;
-    }
-    m_visited_attributes.insert(name);
-    const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
-    if (!ref_value) {
-        m_cmp_result += "missing attribute name: '" + name + "'";
-        return;
-    }
-
-    if (buffer->size() != ref_value->size() ||
-        std::memcmp(ref_value->data(), buffer->get_ptr(), ref_value->size()) != 0) {
-        m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
-        return;
-    }
-}
-
-void ReadAndCompareAttributes::verify_function(const std::string &name, FunctionAccessor &adapter) {
-    if (should_return()) {
-        return;
-    }
-    m_visited_attributes.insert(name);
-    const auto ref_value = m_attr_ref.get<std::shared_ptr<ngraph::Function>>(name);
-    if (!ref_value) {
-        m_cmp_result += "missing attribute name: '" + name + "'";
-        return;
-    }
-    Comparator c(m_check_flags);
-    const auto result = c.compare(*ref_value, adapter.get());
-    if (!result.valid) {
-        m_cmp_result += result.message;
-    }
-}
-
-void ReadAndCompareAttributes::verify_others(const std::string &name, ngraph::ValueAccessor<void> &adapter) {
-    if (auto inputs =
-            ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
-        verify(name, inputs->get());
-    } else if (
-            auto outputs =
-                    ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
-        verify(name, outputs->get());
-    } else if (ngraph::is_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
-        // drop comparison, no more info than port indexes which will be check in
-        // subgraph::compare_io
-    } else if (
-            auto a = ngraph::as_type<
-                    ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                    &adapter)) {
-        verify_mem_buf(name, a->get());
-    } else {
-        m_cmp_result += "compare attr [ ERR ]: " + name +
-                        " [drop `void` comparison which is '" + adapter.get_type_info().name +
-                        "']";
-    }
-}
-
-}  // namespace detail
-
-Comparator::Result compare(
-        ngraph::Node* node1, ngraph::Node* node2, Comparator::CmpValues comparition_flags) {
-    detail::CompareNodesAttributes compare_nodes_attr(comparition_flags);
-    node1->visit_attributes(compare_nodes_attr.get_ref_reader());
-    node2->visit_attributes(compare_nodes_attr.get_cmp_reader());
-    if (!compare_nodes_attr.equal()) {
-        return Comparator::Result::error(
-                "Comparison of attributes failed for nodes " + name(node1) + ", " + name(node2) +
-                " [cmp status: " + to_str(compare_nodes_attr) + "]");
-    }
-    return Comparator::Result::ok(to_str(compare_nodes_attr));
-}
-
-}  // namespace attributes

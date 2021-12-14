@@ -16,7 +16,7 @@ class SqueezeTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> squeezeAxes;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
 };
 
 std::string stringifySqueezeArgs(const std::vector<float>& axes);
@@ -33,13 +33,10 @@ class SqueezeTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
-    static std::string getTestCaseName(testing::TestParamInfo<SqueezeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

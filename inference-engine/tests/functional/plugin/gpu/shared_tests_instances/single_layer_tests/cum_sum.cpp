@@ -26,7 +26,7 @@ std::vector<InferenceEngine::Precision> precisions = {InferenceEngine::Precision
 
 std::vector<std::vector<size_t>> shape1d = {{10}};
 std::vector<int64_t> axis1d = {0};
-INSTANTIATE_TEST_CASE_P(smoke_CumSum1D, CumSumLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum1D, CumSumLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shape1d),
                                 ::testing::ValuesIn(precisions),
@@ -36,7 +36,7 @@ INSTANTIATE_TEST_CASE_P(smoke_CumSum1D, CumSumLayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         CumSumLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_CumSum, CumSumLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum, CumSumLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(precisions),

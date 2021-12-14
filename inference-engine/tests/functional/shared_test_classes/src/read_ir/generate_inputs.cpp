@@ -273,13 +273,12 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::ROIPoo
         blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
 
-        CommonTestUtils::fill_data_roi(blob->buffer(),
-                                       blob->size(),
-                                       node->get_input_shape(0).front() - 1,
-                                       inputShape[2],
-                                       inputShape[3],
-                                       1.0f,
-                                       node->get_method() == "max");
+        CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob,
+                                                                         node->get_input_shape(0).front() - 1,
+                                                                         inputShape[2],
+                                                                         inputShape[3],
+                                                                         1.0f,
+                                                                         node->get_method() == "max");
         return blob;
     }
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
@@ -570,7 +569,7 @@ InferenceEngine::Blob::Ptr generateInput(const std::shared_ptr<ngraph::Node> nod
 
 InputsMap getInputMap() {
     static InputsMap inputsMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, generateInput<NAMESPACE::NAME>},
+#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
     #include "ngraph/opsets/opset1_tbl.hpp"
     #include "ngraph/opsets/opset2_tbl.hpp"
     #include "ngraph/opsets/opset3_tbl.hpp"

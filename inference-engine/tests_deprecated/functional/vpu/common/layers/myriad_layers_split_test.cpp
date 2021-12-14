@@ -4,7 +4,7 @@
 
 #include "myriad_layers_split_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSplit_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsSplit_smoke,
                         ::testing::Values<SplitTestParams>(
                                 MAKE_STRUCT(SplitParams, {4, 8, 16, 32, 64}, 2, 6),
                                 MAKE_STRUCT(SplitParams, {4, 8, 16, 32}, 2, 6),

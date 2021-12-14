@@ -13,6 +13,7 @@
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <openvino/core/preprocess/pre_post_process.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -82,19 +83,25 @@ public:
 };
 
 TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::TransposeFQReduction>();
     manager.register_pass<ngraph::pass::TransposeReduction>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::CONST_VALUES);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 
-INSTANTIATE_TEST_CASE_P(TransformationTest, TransposeSinkingFQ, testing::Values(
+INSTANTIATE_TEST_SUITE_P(TransformationTest, TransposeSinkingFQ, testing::Values(
         TransposeFQReduceParams{{1, 3, 240, 140}, {0, 2, 3, 1}, {1}, {3}, {1, 1, 1, 1}, {1, 1, 1, 3}, {1, 2}, true,
                                 {1, 1, 1, 1}, {1, 3, 1, 1}, {1, 1, 1, 1}, {1, 3, 1, 1}, {2, 3}, {0, 2, 3, 1}},
         TransposeFQReduceParams{{1, 3, 240, 140}, {0, 2, 3, 1}, {1}, {3}, {1, 1, 1, 1}, {1, 1, 1, 3}, {1, 2}, false,
@@ -163,19 +170,25 @@ private:
 };
 
 TEST_P(TransposeSinking, TransposeReduction) {
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::TransposeReduction>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
-    auto res = compare_functions(f, f_ref, true);
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::CONST_VALUES);
 
-ASSERT_TRUE(res.first) << res.second;
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 
-INSTANTIATE_TEST_CASE_P(TransposeSinkingReduces, TransposeSinking, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingReduces, TransposeSinking, testing::Combine(
         testing::Values(
             TransposeReduceParams{{1, 3, 240, 140}, {0, 2, 3, 1}, {1, 2}, true, {2, 3}, {0, 2, 3, 1}},
             TransposeReduceParams{{10, 20, 30, 40, 50, 60, 70}, {0, 6, 1, 5, 2, 4, 3}, {1, 3, 6}, true, {6, 5, 3}, {0, 6, 1, 5, 2, 4, 3}},
@@ -184,20 +197,148 @@ INSTANTIATE_TEST_CASE_P(TransposeSinkingReduces, TransposeSinking, testing::Comb
             TransposeReduceParams{{10, 20, 30, 40, 50, 60, 70}, {0, 6, 1, 5, 2, 4, 3}, {1, -4, 6}, false, {6, 5, 3}, {0, 1, 2, 3}},
             TransposeReduceParams{{1, 3, 240, 140}, {0, 1, 2, 3}, {0, 1, 2, -1}, false, {0, 1, 2, 3}, {}}),
         testing::Values(
-            ngraph::opset6::ReduceMax::type_info,
-            ngraph::opset6::ReduceMean::type_info,
-            ngraph::opset6::ReduceMin::type_info,
-            ngraph::opset6::ReduceProd::type_info,
-            ngraph::opset6::ReduceSum::type_info,
-            ngraph::opset6::ReduceL1::type_info,
-            ngraph::opset6::ReduceL2::type_info,
-            ngraph::opset6::ReduceLogicalAnd::type_info,
-            ngraph::opset6::ReduceLogicalOr::type_info)));
+            ngraph::opset6::ReduceMax::get_type_info_static(),
+            ngraph::opset6::ReduceMean::get_type_info_static(),
+            ngraph::opset6::ReduceMin::get_type_info_static(),
+            ngraph::opset6::ReduceProd::get_type_info_static(),
+            ngraph::opset6::ReduceSum::get_type_info_static(),
+            ngraph::opset6::ReduceL1::get_type_info_static(),
+            ngraph::opset6::ReduceL2::get_type_info_static(),
+            ngraph::opset6::ReduceLogicalAnd::get_type_info_static(),
+            ngraph::opset6::ReduceLogicalOr::get_type_info_static())));
 
-INSTANTIATE_TEST_CASE_P(TransposeSinkingSqueeze, TransposeSinking, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingSqueeze, TransposeSinking, testing::Combine(
         testing::Values(
             TransposeReduceParams{{2, 3, 1, 1}, {0, 2, 3, 1}, {1, 2}, false, {2, 3}, {0, 1}},
             TransposeReduceParams{{10, 20, 30, 1, 50, 1, 1}, {0, 6, 1, 5, 2, 4, 3}, {1, 3, 6}, false, {6, 5, 3}, {0, 1, 2, 3}}),
         testing::Values(
-            ngraph::opset6::Squeeze::type_info)));
+            ngraph::opset6::Squeeze::get_type_info_static())));
 
+TEST_F(TransformationTestsF, TransposeFuseEliminatesTranspose) {
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2 });
+        auto tr1_order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 5 }, { 0, 2, 3, 4, 1 });
+        auto transpose1 = std::make_shared<ngraph::opset6::Transpose>(input, tr1_order);
+        auto tr2_order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 5 }, { 0, 4, 1, 2, 3 });
+        auto transpose2 = std::make_shared<ngraph::opset6::Transpose>(transpose1, tr2_order);
+        auto add_const = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 1 });
+        auto add = std::make_shared<ngraph::opset6::Add>(transpose2, add_const);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+        manager.register_pass<ngraph::pass::TransposeFuse>();
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2 });
+        auto add_const = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 1 });
+        auto add = std::make_shared<ngraph::opset6::Add>(input, add_const);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeFuses) {
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2, 2 });
+        auto tr1_order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 5, 1, 2, 3, 4 });
+        auto transpose1 = std::make_shared<ngraph::opset6::Transpose>(input, tr1_order);
+        transpose1->set_friendly_name("transpose1");
+        auto tr2_order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 1, 3, 4, 2, 5 });
+        auto transpose2 = std::make_shared<ngraph::opset6::Transpose>(transpose1, tr2_order);
+        transpose2->set_friendly_name("transpose2");
+        auto add_const = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 1 });
+        auto add = std::make_shared<ngraph::opset6::Add>(transpose2, add_const);
+        add->set_friendly_name("add");
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+        manager.register_pass<ngraph::pass::TransposeFuse>();
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2, 2 });
+        auto tr_order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 5, 2, 3, 1, 4 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, tr_order);
+        transpose->set_friendly_name("transpose2");
+        auto add_const = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 1 });
+        auto add = std::make_shared<ngraph::opset6::Add>(transpose, add_const);
+        add->set_friendly_name("add");
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeReduceNegative) {
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 64});
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 0, 2, 1});
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {-1});
+        auto reduce_mean = std::make_shared<ngraph::opset6::ReduceMean>(transpose, axes, true);
+        auto sub = std::make_shared<opset6::Subtract>(transpose, reduce_mean);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ sub }, ngraph::ParameterVector{ input });
+        manager.register_pass<ngraph::pass::TransposeReduction>();
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeConvert) {
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2, 2 });
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 5, 1, 2, 3, 4 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto convert = std::make_shared<ngraph::opset6::Convert>(transpose, element::f16);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ convert }, ngraph::ParameterVector{ input });
+        manager.register_pass<ngraph::pass::TransposeConvert>();
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2, 2 });
+        auto convert = std::make_shared<ngraph::opset6::Convert>(input, element::f16);
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 5, 1, 2, 3, 4 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(convert, order);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ transpose }, ngraph::ParameterVector{ input });
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeConvertNegativeConsumers) {
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 640, 20, 2, 2 });
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 5, 1, 2, 3, 4 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto convert = std::make_shared<ngraph::opset6::Convert>(transpose, element::f16);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ convert, transpose }, ngraph::ParameterVector{ input });
+        manager.register_pass<ngraph::pass::TransposeConvert>();
+    }
+}
+
+TEST_F(TransformationTestsF, TransposePreProcessing) {
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 64 });
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 2, 1, 0 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto relu = std::make_shared<ngraph::opset6::Relu>(transpose);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relu }, ngraph::ParameterVector{ input });
+
+        using namespace ov::preprocess;
+        PrePostProcessor p(function);
+        p.input(0).tensor().set_element_type(element::f16);
+        p.input(0).preprocess().convert_layout({2, 0, 1});
+        p.build();
+
+        manager.register_pass<ngraph::pass::TransposeSinking>();
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::Shape{ 3, 64, 1 });
+        auto convert = std::make_shared<ngraph::opset6::Convert>(input, element::f32);
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 1, 0, 2 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(convert, order);
+        auto relu = std::make_shared<ngraph::opset6::Relu>(transpose);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relu }, ngraph::ParameterVector{ input });
+    }
+}

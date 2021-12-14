@@ -8,11 +8,11 @@ if (ENABLE_MKL_DNN)
     add_subdirectory(cpu)
 endif()
 
-if (ENABLE_CLDNN)
+if (ENABLE_INTEL_GPU)
     add_subdirectory(gpu)
 endif()
 
-if (ENABLE_GNA)
+if (ENABLE_INTEL_GNA)
     add_subdirectory(gna)
 endif()
 
@@ -21,4 +21,3 @@ if (ENABLE_MYRIAD)
 endif()
 
 add_subdirectory(conformance)
-

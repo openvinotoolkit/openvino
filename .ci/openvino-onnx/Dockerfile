@@ -4,7 +4,6 @@ LABEL version=2021.03.30.1
 
 # Build configuration arguments
 ARG BUILD_TYPE=Release
-ARG PROTOBUF_LITE=OFF
 
 ARG http_proxy
 ARG https_proxy
@@ -57,29 +56,24 @@ WORKDIR /openvino/build
 RUN cmake .. \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DENABLE_VPU=OFF \
-    -DENABLE_GNA=OFF \
+    -DENABLE_INTEL_GNA=OFF \
     -DENABLE_OPENCV=OFF \
     -DENABLE_CPPLINT=OFF \
     -DENABLE_TESTS=OFF \
     -DENABLE_MKL_DNN=ON \
-    -DENABLE_CLDNN=OFF \
+    -DENABLE_INTEL_GPU=OFF \
     -DENABLE_PROFILING_ITT=OFF \
     -DENABLE_SAMPLES=OFF \
-    -DENABLE_SPEECH_DEMO=OFF \
     -DENABLE_PYTHON=ON \
     -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-    -DNGRAPH_ONNX_IMPORT_ENABLE=ON \
-    -DNGRAPH_ONNX_EDITOR_ENABLE=ON \
-    -DNGRAPH_INTERPRETER_ENABLE=ON \
-    -DNGRAPH_DEBUG_ENABLE=OFF \
-    -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
-    -DCMAKE_INSTALL_PREFIX=/openvino/dist \
-    -DNGRAPH_USE_PROTOBUF_LITE=${PROTOBUF_LITE}
+    -DENABLE_OV_ONNX_FRONTEND=ON \
+    -DENABLE_OPENVINO_DEBUG=OFF \
+    -DCMAKE_INSTALL_PREFIX=/openvino/dist
 RUN make -j $(nproc) install
 
 # Run tests via tox
-WORKDIR /openvino/ngraph/python
-ENV ngraph_DIR=/openvino/dist/deployment_tools/ngraph
-ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
+WORKDIR /openvino/src/bindings/python
+ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
+ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib:/openvino/dist/runtime/3rdparty/tbb/lib
 ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}
 CMD tox

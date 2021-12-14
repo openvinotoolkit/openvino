@@ -232,7 +232,7 @@ protected:
     const int count = 10;
     std::vector<int> vec;
 
-    virtual void SetUp() override {
+    void SetUp() override {
         for (int i = 0; i < count; ++i) {
             vec.push_back(i);
         }

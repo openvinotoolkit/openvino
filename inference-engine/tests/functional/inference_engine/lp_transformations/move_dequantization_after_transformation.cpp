@@ -38,7 +38,7 @@ public:
     };
 
     ngraph::element::Type originalPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool updatePrecision;
     bool moveSubtract;
     Actual actual;
@@ -96,6 +96,8 @@ TEST_P(MoveDequantizationAfterTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, false, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::Shape> inputShapes = {
@@ -256,7 +258,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     MoveDequantizationAfterTransformation,
     ::testing::Combine(

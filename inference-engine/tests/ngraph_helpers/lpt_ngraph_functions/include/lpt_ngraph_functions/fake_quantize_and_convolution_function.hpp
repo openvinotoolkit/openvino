@@ -25,13 +25,13 @@ public:
     // TODO: move to ConvolutionFunction
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData,
         const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const DequantizationOperations::Convert& convertOnData,
         const DequantizationOperations& dequantizationOnData,
@@ -44,7 +44,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const DequantizationOperations::Convert& convertOnData,
         const DequantizationOperations& dequantizationOnData,

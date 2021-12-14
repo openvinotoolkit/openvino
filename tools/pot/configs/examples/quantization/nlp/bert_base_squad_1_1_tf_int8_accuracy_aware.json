@@ -1,0 +1,69 @@
+{
+    "model": {
+        "name": "bert_base_squad_1_1",
+	"model": "<PATH_TO_MODEL>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "config": "./configs/examples/accuracy_checker/bert_base_squad_1_1_tf_int8.yml"
+    },
+   "compression": {
+        "model_type": "transformer",
+        "algorithms": [
+            {
+                "name": "AccuracyAwareQuantization",
+                "params": {
+                    "metric_subset_ratio": 1,
+                    "ranking_subset_size": 300,
+                    "max_iter_num": 500,
+                    "maximal_drop": 0.01,
+                    "drop_type": "relative",
+                    "base_algorithm": "DefaultQuantization",
+                    "use_prev_if_drop_increase": true,
+                    "range_estimator": {
+                        "preset": "default"
+                    },
+                    "stat_subset_size": 1000,
+                    "ignored": {
+                        "scope" : [
+                            "bert/encoder/layer_0/output/dense/MatMul",
+                            "bert/encoder/layer_0/intermediate/dense/MatMul",
+                            "bert/encoder/layer_0/attention/self/key/MatMul",
+                            "bert/encoder/layer_0/attention/output/dense/MatMul",
+                            "bert/encoder/layer_0/attention/self/MatMul",
+                            "bert/encoder/layer_0/attention/self/MatMul_1",
+                            "bert/encoder/layer_1/attention/self/key/MatMul",
+                            "bert/encoder/layer_1/attention/self/MatMul",
+                            "bert/encoder/layer_1/attention/self/MatMul_1",
+                            "bert/encoder/layer_2/attention/self/MatMul",
+                            "bert/encoder/layer_2/attention/self/MatMul_1",
+                            "bert/encoder/layer_3/output/dense/MatMul",
+                            "bert/encoder/layer_3/intermediate/dense/MatMul",
+                            "bert/encoder/layer_3/attention/output/dense/MatMul",
+                            "bert/encoder/layer_3/attention/self/MatMul",
+                            "bert/encoder/layer_3/attention/self/MatMul_1",
+                            "bert/encoder/layer_4/attention/self/value/MatMul",
+                            "bert/encoder/layer_4/attention/self/MatMul",
+                            "bert/encoder/layer_4/attention/self/MatMul_1",
+                            "bert/encoder/layer_5/attention/self/MatMul",
+                            "bert/encoder/layer_5/attention/self/MatMul_1",
+                            "bert/encoder/layer_6/attention/self/MatMul",
+                            "bert/encoder/layer_6/attention/self/MatMul_1",
+                            "bert/encoder/layer_7/attention/self/MatMul",
+                            "bert/encoder/layer_7/attention/self/MatMul_1",
+                            "bert/encoder/layer_8/attention/self/MatMul",
+                            "bert/encoder/layer_8/attention/self/MatMul_1",
+                            "bert/encoder/layer_9/attention/self/MatMul",
+                            "bert/encoder/layer_9/attention/self/MatMul_1",
+                            "bert/encoder/layer_10/attention/self/MatMul",
+                            "bert/encoder/layer_10/attention/self/MatMul_1",
+                            "bert/encoder/layer_11/attention/self/MatMul",
+                            "bert/encoder/layer_11/attention/self/MatMul_1",
+                            "loss/MatMul"
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}

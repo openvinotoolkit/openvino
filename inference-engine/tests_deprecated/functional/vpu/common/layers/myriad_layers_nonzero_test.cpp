@@ -4,5 +4,5 @@
 
 #include "myriad_layers_nonzero_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerTestNonZero_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerTestNonZero_smoke,
                         ::testing::ValuesIn(inputDims));

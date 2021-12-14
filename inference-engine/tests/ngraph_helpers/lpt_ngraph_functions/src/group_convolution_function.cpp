@@ -13,7 +13,6 @@
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph::opset1;
 using namespace ngraph::pass::low_precision;
@@ -23,11 +22,12 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<Node> createWeightsOriginal(
+    const long long int rankLength,
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
     const size_t inputChannelsCount,
     const size_t outputChannelsCount,
     const size_t groupCount,
+    const int calculatedDimention,
     const size_t kernelSize,
     const std::vector<float>& weightsValues,
     const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
@@ -36,7 +36,9 @@ std::shared_ptr<Node> createWeightsOriginal(
     if (fakeQuantizeOnWeights.empty() && dequantizationOnWeights.empty()) {
         weights = ngraph::opset1::Constant::create(
             precision,
-            ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
+            rankLength == 3 ?
+                ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1 } :
+                ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
             weightsValues.size() == 1ul ?
                 std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
                 weightsValues);
@@ -44,9 +46,15 @@ std::shared_ptr<Node> createWeightsOriginal(
         const size_t inputChannelsPerGroup = inputChannelsCount / groupCount;
         weights = ngraph::opset1::Constant::create(
             precision,
-            ngraph::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize, kernelSize },
+            rankLength == 3 ?
+                ngraph::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize } :
+                ngraph::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize, kernelSize },
             weightsValues.size() == 1ul ?
-                std::vector<float>(outputChannelsCount * kernelSize * kernelSize * inputChannelsPerGroup, weightsValues[0]) :
+                std::vector<float>(
+                    rankLength == 3 ?
+                        outputChannelsCount * kernelSize * inputChannelsPerGroup :
+                        outputChannelsCount * kernelSize * kernelSize * inputChannelsPerGroup,
+                    weightsValues[0]) :
                 weightsValues);
 
         if (!fakeQuantizeOnWeights.empty()) {
@@ -54,7 +62,9 @@ std::shared_ptr<Node> createWeightsOriginal(
                 weights,
                 precision,
                 fakeQuantizeOnWeights.quantizationLevel,
-                { outputChannelsCount, 1, 1, 1 },
+                rankLength == 3 ?
+                    std::vector<size_t>{ outputChannelsCount, 1, 1 } :
+                    std::vector<size_t>{ outputChannelsCount, 1, 1, 1 },
                 fakeQuantizeOnWeights.inputLowValues,
                 fakeQuantizeOnWeights.inputHighValues,
                 fakeQuantizeOnWeights.outputLowValues,
@@ -69,8 +79,19 @@ std::shared_ptr<Node> createWeightsOriginal(
             weights,
             ngraph::opset1::Constant::create(
                 element::i64,
-                Shape{ 5 },
-                std::vector<size_t>({ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, kernelSize, kernelSize })),
+                Shape{ static_cast<size_t>(rankLength) + 1ul },
+                rankLength == 3 ?
+                    std::vector<int64_t> {
+                        calculatedDimention == 0 ? -1 : static_cast<int64_t>(groupCount),
+                        calculatedDimention == 1 ? -1 : static_cast<int64_t>(outputChannelsCount / groupCount),
+                        static_cast<int64_t>(inputChannelsPerGroup),
+                        static_cast<int64_t>(kernelSize) } :
+                    std::vector<int64_t> {
+                        calculatedDimention == 0 ? -1 : static_cast<int64_t>(groupCount),
+                        calculatedDimention == 1 ? -1 : static_cast<int64_t>(outputChannelsCount / groupCount),
+                        static_cast<int64_t>(inputChannelsPerGroup),
+                        static_cast<int64_t>(kernelSize),
+                        static_cast<int64_t>(kernelSize) }),
             true);
     }
 
@@ -82,9 +103,15 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const ngraph::Shape& inputShape,
     const ngraph::Shape& outputShape,
     const size_t groupCount,
+    const int groupCalculationDimention,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weightsConst,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
+    const auto rankLength = inputShape.size();
+    if ((rankLength != 3) && (rankLength != 4)) {
+        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
+    }
+
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto dequantization = makeDequantization(input, dequantizationBefore);
 
@@ -98,11 +125,12 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     }
 
     std::shared_ptr<ngraph::Node> weights = createWeightsOriginal(
+        rankLength,
         weightsConst->get_element_type(),
-        inputShape,
         inputChannelsCount,
         outputChannelsCount,
         groupCount,
+        groupCalculationDimention,
         kernelSize,
         weightsConst->cast_vector<float>(),
         fakeQuantizeOnWeights,
@@ -123,51 +151,95 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::Shape& outputShape,
     const size_t groupCount,
+    const int groupCalculationDimention,
     const FakeQuantizeOnData& fakeQuantizeOnData,
-    const FakeQuantizeOnWeights& fakeQuantizeOnWeights) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const bool addPrecisionPreserved) {
+    const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
+    if ((rankLength != 3) && (rankLength != 4)) {
+        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
+    }
 
-    std::shared_ptr<ngraph::Node> fakeQuantizeOnActivations;
-    if (fakeQuantizeOnData.empty()) {
-        fakeQuantizeOnActivations = nullptr;
-    } else {
-        fakeQuantizeOnActivations = std::make_shared<ngraph::opset1::FakeQuantize>(
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+
+    std::shared_ptr<ngraph::Node> parent = input;
+    if (!fakeQuantizeOnData.empty()) {
+        parent = std::make_shared<ngraph::opset1::FakeQuantize>(
             input,
-            std::make_shared<Constant>(precision, Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1, 1 }, fakeQuantizeOnData.inputLowValues),
-            std::make_shared<Constant>(precision, Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1, 1 }, fakeQuantizeOnData.inputHighValues),
-            std::make_shared<Constant>(precision, Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1, 1 }, fakeQuantizeOnData.outputLowValues),
-            std::make_shared<Constant>(precision, Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1, 1 }, fakeQuantizeOnData.outputHighValues),
+            std::make_shared<Constant>(
+                precision,
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1, 1 },
+                fakeQuantizeOnData.inputLowValues),
+            std::make_shared<Constant>(
+                precision,
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1, 1 },
+                fakeQuantizeOnData.inputHighValues),
+            std::make_shared<Constant>(
+                precision,
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1, 1 },
+                fakeQuantizeOnData.outputLowValues),
+            std::make_shared<Constant>(
+                precision,
+                rankLength == 3 ?
+                    Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1 } :
+                    Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1, 1 },
+                fakeQuantizeOnData.outputHighValues),
             fakeQuantizeOnData.quantizationLevel);
+    }
+
+    if (addPrecisionPreserved) {
+        const std::vector<size_t> stride(rankLength - 2, 1ul);
+        const std::vector<size_t> padBegin(rankLength - 2, 0ul);
+        const std::vector<size_t> padEnd(rankLength - 2, 0ul);
+        const std::vector<size_t> padKernel(rankLength - 2, 3ul);
+        const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
+        const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+        const auto pooling = std::make_shared<ngraph::opset1::MaxPool>(
+            parent,
+            stride,
+            padBegin,
+            padEnd,
+            padKernel,
+            roundingType,
+            padType);
+        parent = pooling;
     }
 
     // TODO: pass as argument
     //const size_t groupCount = 3ul;
     const size_t outputChannelsCount = outputShape[1];
     const size_t kernelSize = 5ul;
-    const size_t inputChannelsCount = inputShape[1];
+    const size_t inputChannelsCount = inputShape[1].get_length();
 
     std::vector<float> weightsValues = { 1.f };
     std::shared_ptr<ngraph::Node> weights = createWeightsOriginal(
+        rankLength,
         precision,
-        inputShape,
         inputChannelsCount,
         outputChannelsCount,
         groupCount,
+        groupCalculationDimention,
         kernelSize,
         weightsValues,
         fakeQuantizeOnWeights,
         {});
 
     const auto convolution = std::make_shared<ngraph::opset1::GroupConvolution>(
-        fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
+        parent,
         weights,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ngraph::Strides(rankLength - 2, 1ul),
+        ngraph::CoordinateDiff(rankLength - 2, 0),
+        ngraph::CoordinateDiff(rankLength - 2, 0),
+        ngraph::Strides(rankLength - 2, 1));
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "GroupConvolutionTransformation");
@@ -175,9 +247,10 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
-    const ngraph::Shape& outputShape,
+    const ngraph::PartialShape& inputShape,
+    const ngraph::PartialShape& outputShape,
     const size_t groupCount,
+    const int calculatedDimention,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weightsConst,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
@@ -185,12 +258,18 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const ngraph::element::Type precisionAfterDequantization) {
+    const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
+    if ((rankLength != 3) && (rankLength != 4)) {
+        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
+    }
+
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
-    const size_t inputChannelsCount = inputShape[1];
+    const bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
+    const size_t inputChannelsCount = !channelsIsDynamic ? inputShape[1].get_length() : 6ul;
 
-    const size_t outputChannelsCount = outputShape[1];
+    const size_t outputChannelsCount = !channelsIsDynamic ? outputShape[1].get_length() : 24ul;
     const size_t kernelSize = 7ul;
     const size_t inputChannelsInGroup = inputChannelsCount / groupCount;
     const size_t outputChannelsInGroup = outputChannelsCount / groupCount;
@@ -211,11 +290,12 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
                 weightsConst->cast_vector<float>()[0]) : weightsConst->cast_vector<float>());
     } else {
         weights = createWeightsOriginal(
+            rankLength,
             weightsConst->get_element_type(),
-            inputShape,
             inputChannelsCount,
             outputChannelsCount,
             groupCount,
+            calculatedDimention,
             kernelSize,
             weightsConst->cast_vector<float>(),
             fakeQuantizeOnWeights,
@@ -240,7 +320,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     deqAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(deqAfter) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionTransformation");
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "GroupConvolutionTransformation");
 }
 
 }  // namespace subgraph

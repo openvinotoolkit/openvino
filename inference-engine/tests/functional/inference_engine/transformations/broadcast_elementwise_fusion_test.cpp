@@ -238,32 +238,32 @@ TEST_P(NoEliminateDynamicBroadcastTest, CompareFunctions) {
     eliminate_broadcast_test(f, f_ref);
 }
 
-INSTANTIATE_TEST_CASE_P(EliminateBroadcast, EliminateBroadcastTest,
+INSTANTIATE_TEST_SUITE_P(EliminateBroadcast, EliminateBroadcastTest,
                         testing::Values(std::make_tuple(InputShape{1, 2, 3}, InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
                                         std::make_tuple(InputShape{DYN, 2, 3}, InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
                                         std::make_tuple(InputShape{DYN, DYN, DYN}, InputShape{1, 1, 1}, TargetShape{1, 1, 1}),
                                         std::make_tuple(InputShape{1, 2, 3}, InputShape{2, 3}, TargetShape{2, 3}),
                                         std::make_tuple(InputShape{1, 2, 1}, InputShape{1}, TargetShape{1})));
 
-INSTANTIATE_TEST_CASE_P(EliminateBroadcastSwapInputs, EliminateBroadcastSwapInputsTest,
+INSTANTIATE_TEST_SUITE_P(EliminateBroadcastSwapInputs, EliminateBroadcastSwapInputsTest,
                         testing::Values(std::make_tuple(InputShape{1, 2, 3}, InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
                                         std::make_tuple(InputShape{DYN, 2, 3}, InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
                                         std::make_tuple(InputShape{DYN, DYN, DYN}, InputShape{1, 1, 1}, TargetShape{1, 1, 1}),
                                         std::make_tuple(InputShape{1, 2, 3}, InputShape{2, 3}, TargetShape{2, 3}),
                                         std::make_tuple(InputShape{1, 2, 1}, InputShape{1}, TargetShape{1})));
 
-INSTANTIATE_TEST_CASE_P(NoEliminateBroadcast, NoEliminateBroadcastTest,
+INSTANTIATE_TEST_SUITE_P(NoEliminateBroadcast, NoEliminateBroadcastTest,
                         testing::Values(std::make_tuple(InputShape{1, 2, 1}, InputShape{3}, TargetShape{3}),
                                         std::make_tuple(InputShape{DYN, 2, 3}, InputShape{3, 2, 3}, TargetShape{3, 2, 3}),
                                         std::make_tuple(InputShape{DYN, DYN, DYN}, InputShape{3, 2, 1}, TargetShape{3, 2, 1}),
                                         std::make_tuple(ngraph::PartialShape::dynamic(), InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
                                         std::make_tuple(ngraph::PartialShape::dynamic(), ngraph::PartialShape::dynamic(), TargetShape{1, 2, 3})));
 
-INSTANTIATE_TEST_CASE_P(EliminateDynamicBroadcast, EliminateDynamicBroadcastTest,
+INSTANTIATE_TEST_SUITE_P(EliminateDynamicBroadcast, EliminateDynamicBroadcastTest,
                         testing::Values(std::make_tuple(InputShape{2, 2, 4}, InputShape{2, DYN, 4}, InputShape{2, DYN, 4}, InputShape{2, DYN, 4}),
                                         std::make_tuple(InputShape{2, 2, 4}, InputShape{DYN, DYN, DYN}, InputShape{DYN, DYN, DYN}, InputShape{DYN, DYN, DYN}),
                                         std::make_tuple(InputShape{2, 2, 4}, InputShape{2, 2, 4}, InputShape{2, DYN, 4}, InputShape{2, 2, 4})));
 
-INSTANTIATE_TEST_CASE_P(NoEliminateDynamicBroadcast, NoEliminateDynamicBroadcastTest,
+INSTANTIATE_TEST_SUITE_P(NoEliminateDynamicBroadcast, NoEliminateDynamicBroadcastTest,
                         testing::Values(std::make_tuple(InputShape{2, 1, 4}, InputShape{2, DYN, 4}, InputShape{2, DYN, 4}),
                                         std::make_tuple(InputShape{2, DYN, 4}, InputShape{2, DYN, 4}, InputShape{2, DYN, 4})));

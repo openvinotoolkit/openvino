@@ -4,7 +4,7 @@
 
 #include "vpu_layer_tests_utils.hpp"
 #include <fstream>
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 using namespace InferenceEngine;
 

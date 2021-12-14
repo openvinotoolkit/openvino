@@ -15,7 +15,7 @@ Preserving the exponent bits keeps BF16 to the same range as the FP32 (~1e-38 to
 Truncated mantissa leads to occasionally less precision, but according to [investigations](https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus), neural networks are more sensitive to the size of the exponent than the mantissa size. Also, in lots of models, precision is needed close to zero but not so much at the maximum range.
 Another useful feature of BF16 is possibility to encode INT8 in BF16 without loss of accuracy, because INT8 range completely fits in BF16 mantissa field. It reduces data flow in conversion from INT8 input image data to BF16 directly without intermediate representation in FP32, or in combination of [INT8 inference](Int8Inference.md) and BF16 layers.
 
-See the [Intel's site](https://software.intel.com/sites/default/files/managed/40/8b/bf16-hardware-numerics-definition-white-paper.pdf) for more bfloat16 format details.
+See the ["BFLOAT16 – Hardware Numerics Definition" white paper"](https://software.intel.com/sites/default/files/managed/40/8b/bf16-hardware-numerics-definition-white-paper.pdf) for more bfloat16 format details.
 
 There are two ways to check if CPU device can support bfloat16 computations for models:
 1. Query the instruction set via system `lscpu | grep avx512_bf16` or `cat /proc/cpuinfo | grep avx512_bf16`.
@@ -60,7 +60,7 @@ Low-Precision 8-bit integer models cannot be converted to BF16, even if bfloat16
 
 Bfloat16 simulation mode is available on CPU and Intel® AVX-512 platforms that do not support the native `avx512_bf16` instruction. The simulator does not guarantee an adequate performance.
 To enable Bfloat16 simulator:
-* In [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), add the `-enforcebf16=true` option
+* In [Benchmark App](../../samples/cpp/benchmark_app/README.md), add the `-enforcebf16=true` option
 * In C++ API, set `KEY_ENFORCE_BF16` to `YES`
 * In C API:
 ```

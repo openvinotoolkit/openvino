@@ -21,7 +21,7 @@ namespace {
         InferenceEngine::Precision::FP16
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_TensorIterator, TensorIteratorTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_TensorIterator, TensorIteratorTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(should_decompose),
                                     ::testing::ValuesIn(seqLengths),

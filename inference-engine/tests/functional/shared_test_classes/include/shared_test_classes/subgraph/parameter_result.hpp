@@ -21,7 +21,7 @@ typedef std::tuple<
 class ParameterResultSubgraphTest : public testing::WithParamInterface<parameterResultParams>,
                                     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<parameterResultParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj);
 protected:
     void SetUp() override;
 };

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/fetch_weights.cl"
 #include "include/imad.cl"
 #if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
@@ -20,7 +20,6 @@
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
-#define MAKE_VECTOR_TYPE(elem_type, size) CAT(elem_type, size)
 #define OUTPUT_TYPE16 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 16)
 #define BATCH_SLICE_SIZE 16
 #define FEATURE_SLICE_SIZE 16
@@ -119,7 +118,7 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
         for (uint z = 0; z < 16; z++) {
             output[dst_index + z] = results[z];
         }
-  
+
 #endif
     }
 }

@@ -14,8 +14,6 @@ target_include_directories(${TARGET_NAME}
         PRIVATE
         helpers
         cases
-        ${IE_MAIN_SOURCE_DIR}/tests_new/gtest/googletest/include
-        ${IE_MAIN_SOURCE_DIR}/tests_new/gtest/googletest/
         ${XLINK_INCLUDE}
         ${XLINK_PLATFORM_INCLUDE})
 

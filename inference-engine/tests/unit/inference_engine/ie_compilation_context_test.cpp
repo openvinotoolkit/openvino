@@ -13,7 +13,6 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/variant.hpp"
 #include "ngraph/opsets/opset6.hpp"
-#include "transformations/rt_info/dequantization_attribute.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -42,7 +41,7 @@ static std::string generateTestFilePrefix() {
 class FileGuard {
     std::string m_fileName;
 public:
-    FileGuard(const std::string& name): m_fileName(name) {}
+    explicit FileGuard(std::string name): m_fileName(std::move(name)) {}
     ~FileGuard() { std::remove(m_fileName.c_str()); }
 };
 
@@ -132,16 +131,21 @@ static std::shared_ptr<ngraph::Function> create_simple_function() {
     // Create opset6::Parameter operation with static shape
     auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i8, ngraph::Shape{3, 1, 2});
     data->set_friendly_name("Parameter");
+    data->get_output_tensor(0).set_names({"parameter"});
 
     auto mul_constant = ngraph::opset6::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {3});
     mul_constant->set_friendly_name("mul_constant");
+    mul_constant->get_output_tensor(0).set_names({"mul_constant"});
     auto mul = std::make_shared<ngraph::opset6::Multiply>(data, mul_constant);
     mul->set_friendly_name("mul");
+    mul->get_output_tensor(0).set_names({"mul"});
 
     auto add_constant = ngraph::opset6::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {2});
     add_constant->set_friendly_name("add_constant");
+    add_constant->get_output_tensor(0).set_names({"add_constant"});
     auto add = std::make_shared<ngraph::opset6::Add>(mul, add_constant);
     add->set_friendly_name("add");
+    add->get_output_tensor(0).set_names({"add"});
 
     // Create opset3::Result operation
     auto res = std::make_shared<ngraph::opset6::Result>(add);
@@ -149,7 +153,6 @@ static std::shared_ptr<ngraph::Function> create_simple_function() {
 
     // Create nGraph function
     auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data});
-    func->set_friendly_name("function");
     return func;
 }
 
@@ -158,8 +161,15 @@ static CNNNetwork createNetwork() {
     return res;
 }
 
-static void checkCustomRt(std::function<void(Node::RTMap&)> emptyCb,
-                          std::function<void(Node::RTMap&, const std::string& name)> nameCb) {
+static CNNNetwork createNetworkWithLayout(const ov::Layout& layout) {
+    auto fun = create_simple_function();
+    fun->get_parameters()[0]->set_layout(layout);
+    fun->get_results()[0]->set_layout(layout);
+    return CNNNetwork(fun);
+}
+
+static void checkCustomRt(const std::function<void(Node::RTMap&)>& emptyCb,
+                          const std::function<void(Node::RTMap&, const std::string& name)>& nameCb) {
     auto net1 = createNetwork();
     auto net2 = createNetwork();
     auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
@@ -207,10 +217,10 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
     auto net2 = createNetwork();
     auto net3 = createNetwork();
     auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
-    op2["PrimitivesPriority"] = std::make_shared<ngraph::VariantWrapper<std::string> > ("testPriority");
+    op2[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("testPriority");
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["PrimitivesPriority"] = std::make_shared<ngraph::VariantWrapper<std::string> > ("testPriority");
+    op3["PrimitivesPriority"] = "testPriority";
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
@@ -219,38 +229,22 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
               NetworkCompilationContext::computeHash(net3, {}));
 }
 
-TEST(NetworkContext_CNNNetwork, HashWithDequantization) {
-    auto setDeqEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<DequantizationAttr>::type_info.name] =
-                std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr());
-    };
-    auto setDeq = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<DequantizationAttr>::type_info.name] =
-                std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr(name));
-    };
-    checkCustomRt(setDeqEmpty, setDeq);
-}
-
 TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
     auto setFusedEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<FusedNames>::type_info.name] =
-                std::make_shared<VariantWrapper<FusedNames>>(FusedNames());
+        rtInfo[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames();
     };
     auto setFused = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<FusedNames>::type_info.name] =
-                std::make_shared<VariantWrapper<FusedNames>>(FusedNames(name));
+        rtInfo[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames(name);
     };
     checkCustomRt(setFusedEmpty, setFused);
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriorityType) {
     auto setPrimEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<PrimitivesPriority>::type_info.name] =
-                std::make_shared<VariantWrapper<PrimitivesPriority>>(PrimitivesPriority());
+        rtInfo[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("");
     };
     auto setPrim = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<PrimitivesPriority>::type_info.name] =
-                std::make_shared<VariantWrapper<PrimitivesPriority>>(PrimitivesPriority(name));
+        rtInfo[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority(name);
     };
     checkCustomRt(setPrimEmpty, setPrim);
 }
@@ -260,10 +254,10 @@ TEST(NetworkContext_CNNNetwork, HashWithAffinity) {
     auto net2 = createNetwork();
     auto net3 = createNetwork();
     auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
-    op2["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("testAffinity");
+    op2["affinity"] = "testAffinity";
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("testAffinity");
+    op3["affinity"] = "testAffinity";
 
     ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
@@ -278,13 +272,13 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_string) {
     auto net3 = createNetwork();
 
     auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
-    op1["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<std::string>>("hello");
+    op1["someFutureKey"] = "hello";
 
     auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
-    op2["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<std::string>>("hello");
+    op2["someFutureKey"] = "hello";
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<std::string>>("olleh");
+    op3["someFutureKey"] = "olleh";
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
@@ -299,13 +293,73 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_int64) {
     auto net3 = createNetwork();
 
     auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
-    op1["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(42);
+    op1["someFutureKey"] = int64_t(42);
 
     auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
-    op2["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(42);
+    op2["someFutureKey"] = int64_t(42);
 
     auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
-    op3["someFutureKey"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(43);
+    op3["someFutureKey"] = int64_t(43);
+
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
+              NetworkCompilationContext::computeHash(net2, {}));
+
+    ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}),
+              NetworkCompilationContext::computeHash(net3, {}));
+}
+
+TEST(NetworkContext_CNNNetwork, HashWithLayout) {
+    auto net1 = createNetworkWithLayout("NCHW");
+    auto net2 = createNetworkWithLayout("nchw");
+    auto net3 = createNetworkWithLayout("?CHW");
+    auto net3_1 = createNetworkWithLayout("?CH?");
+    auto net4 = createNetworkWithLayout("");
+    auto fun5 = create_simple_function();
+    fun5->get_parameters()[0]->set_layout("NCHW");
+    fun5->get_parameters()[0]->set_layout("");
+    fun5->get_results()[0]->set_layout("NHCW");
+    fun5->get_results()[0]->set_layout(ov::Layout());
+    auto net5 = CNNNetwork(fun5);
+
+    EXPECT_EQ(NetworkCompilationContext::computeHash(net1, {}),
+              NetworkCompilationContext::computeHash(net2, {}));
+
+    EXPECT_NE(NetworkCompilationContext::computeHash(net2, {}),
+              NetworkCompilationContext::computeHash(net3, {}));
+
+    EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
+              NetworkCompilationContext::computeHash(net3_1, {}));
+
+    EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
+              NetworkCompilationContext::computeHash(net4, {}));
+
+    EXPECT_EQ(NetworkCompilationContext::computeHash(net4, {}),
+              NetworkCompilationContext::computeHash(net5, {}));
+}
+
+TEST(NetworkContext_CNNNetwork, HashWithTensorNames) {
+    auto fun1 = create_simple_function();
+    auto fun2 = create_simple_function();
+    auto fun3 = create_simple_function();
+    std::unordered_set<std::string> names1, names2;
+    std::vector<std::string> testNames;
+    testNames.reserve(100);
+    for (int i = 0; i < 100; i++) {
+        testNames.push_back("test" + std::to_string(i));
+    }
+    std::for_each(testNames.begin(), testNames.end(), [&names1](const std::string& name) {
+        names1.insert(name);
+    });
+    std::for_each(testNames.rbegin(), testNames.rend(), [&names2](const std::string& name) {
+        names2.insert(name);
+    });
+
+    fun1->input().set_names(names1);
+    fun2->input().set_names(names2);
+
+    auto net1 = CNNNetwork(fun1);
+    auto net2 = CNNNetwork(fun2);
+    auto net3 = CNNNetwork(fun3);
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));

@@ -26,7 +26,7 @@ std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
 }
 
 std::shared_ptr<ngraph::Node>
-CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
     CPUTestsBase::modifyGraph(ngPrc, params, lastNode);
     std::shared_ptr<ngraph::Node> retNode = lastNode;
     if (postOpMgrPtr) {
@@ -36,25 +36,21 @@ CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::Param
     return retNode;
 }
 
-void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
-    CPUTestsBase::CheckPluginRelatedResults(execNet, nodeType);
-    InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
-    auto function = execGraphInfo.getFunction();
+void CpuTestWithFusing::CheckFusingResults(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
     ASSERT_NE(nullptr, function);
+    bool isNodeFound = false;
     for (const auto & op : function->get_ops()) {
         const auto &rtInfo = op->get_rt_info();
 
         auto getExecValue = [](const std::string &paramName, const ngraph::Node::RTMap& rtInfo) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-
-            return value->get();
+            return it->second.as<std::string>();
         };
 
         auto layerType = getExecValue("layerType", rtInfo);
         if (layerType == nodeType) {
+            isNodeFound = true;
             auto originalLayersNames = getExecValue("originalLayersNames", rtInfo);
             std::string opFriendlyName = op->get_friendly_name();
             auto pos = originalLayersNames.find(opFriendlyName);
@@ -65,11 +61,17 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
             }
         }
     }
+    ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
+}
+
+void CpuTestWithFusing::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
+    CPUTestsBase::CheckPluginRelatedResultsImpl(function, nodeType);
+    CheckFusingResults(function, nodeType);
 }
 
 std::shared_ptr<ngraph::Node>
 postFunctionMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
-    auto clonedPostFunction = clone_function(*_pFunction);
+    auto clonedPostFunction = ngraph::clone_function(*_pFunction);
     clonedPostFunction->set_friendly_name(_pFunction->get_friendly_name());
     clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], lastNode);
     return clonedPostFunction->get_result()->get_input_node_shared_ptr(0);
@@ -96,7 +98,7 @@ std::string postNodesMgr::getFusedOpsNames() const {
     const char* separator = "";
     for (const auto& item : _postNodes) {
         result << separator << item.name;
-        separator = ",";
+        separator = ".";
     }
     return result.str();
 }

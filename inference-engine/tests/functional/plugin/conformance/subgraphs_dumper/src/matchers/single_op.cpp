@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+ // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,20 +62,21 @@ bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
         case ngraph::element::Type_t::u64:
             return compare_constants_data<uint64_t>(op, ref);
         default:
-            std::cerr << "Can't compare constants" << op << " with " << ref << "\n" << "Unsupported data type";
+            std::cout << "Can't compare constants" << op << " with " << ref << "\n" << "Unsupported data type";
             return false;
     }
 }
 
-const char *SingleOpMatcher::name = "generic_single_op";
-bool
-SingleOpMatcher::same_op_type(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
+bool SingleOpMatcher::same_op_type(const std::shared_ptr<ngraph::Node> &node,
+                                   const std::shared_ptr<ngraph::Node> &ref,
+                                   const LayerTestsUtils::OPInfo &op_info) const {
     return node->get_type_info().name == ref->get_type_info().name &&
            node->get_type_info().version == ref->get_type_info().version;
 }
 
-bool
-SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
+bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
+                                   const std::shared_ptr<ngraph::Node> &ref,
+                                   const LayerTestsUtils::OPInfo &op_info) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
     }
@@ -95,7 +96,9 @@ SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node, const s
 }
 
 bool
-SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
+SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node,
+                               const std::shared_ptr<ngraph::Node> &ref,
+                               const LayerTestsUtils::OPInfo &op_info) const {
     if (node->get_output_size() != ref->get_output_size()) {
         return false;
     }
@@ -110,16 +113,20 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node, const 
     return true;
 }
 
-bool SingleOpMatcher::same_attrs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
+bool SingleOpMatcher::same_attrs(const std::shared_ptr<ngraph::Node> &node,
+                                 const std::shared_ptr<ngraph::Node> &ref,
+                                 const LayerTestsUtils::OPInfo &op_info) const {
     return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
 }
 
-bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
+bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node,
+                                  const std::shared_ptr<ngraph::Node> &ref,
+                                  const LayerTestsUtils::OPInfo &op_info) const {
     const auto &cfg = get_config(node);
     const std::vector<size_t> &ignored_ports = cfg->ignored_ports;
 
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
-        if (std::any_of(begin(ignored_ports), end(ignored_ports), [=](size_t p){return p == port_id;})) {
+        if (std::any_of(begin(ignored_ports), end(ignored_ports), [=](size_t p) { return p == port_id; })) {
             continue;
         }
         const auto &cur_node_input = node->input_value(port_id);
@@ -132,19 +139,29 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node, con
         if (cur_const_input && ref_const_input &&
             !compare_constants_data(cur_const_input, ref_const_input)) {
             return false;
-        // Check that input nodes on the port both not constants
+            // Check that input nodes on the port both not constants
         } else if ((cur_const_input && !ref_const_input) || (!cur_const_input && ref_const_input)) {
             return false;
         }
     }
     return true;
 }
-bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
-    return same_op_type(node, ref) &&
-           match_inputs(node, ref) &&
-           match_outputs(node, ref) &&
-           same_attrs(node, ref) &&
-           match_ports(node, ref);
+
+bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node,
+                            const std::shared_ptr<ngraph::Node> &ref,
+                            const LayerTestsUtils::OPInfo &op_info) const {
+    const auto &cfg = get_config(node);
+    if (match_only_configured_ops() && cfg->is_fallback_config) {
+        return false;
+    }
+    if (cfg->ignore_matching) {
+        return false;
+    }
+    return same_op_type(node, ref, op_info) &&
+           match_inputs(node, ref, op_info) &&
+           match_outputs(node, ref, op_info) &&
+           same_attrs(node, ref, op_info) &&
+           match_ports(node, ref, op_info);
 }
 
 SingleOpMatcher::SingleOpMatcher() {
@@ -153,14 +170,16 @@ SingleOpMatcher::SingleOpMatcher() {
             std::make_shared<MatcherConfig<ngraph::opset6::FakeQuantize>>(std::vector<std::string>{},
                                                                           std::vector<size_t>{0, 1, 2, 3, 4}),
             std::make_shared<MatcherConfig<
-                    ngraph::op::v1::Convolution,
-                    ngraph::op::v1::ConvolutionBackpropData,
-                    ngraph::op::v1::GroupConvolution,
-                    ngraph::op::v1::GroupConvolutionBackpropData,
                     ngraph::op::v0::MatMul,
                     ngraph::op::v1::Add,
                     ngraph::op::v1::Multiply,
                     ngraph::op::v1::Subtract,
                     ngraph::op::v1::Power>>(std::vector<std::string>{}, std::vector<size_t>{0, 1}),
+
+            std::make_shared<MatcherConfig<
+                    ngraph::op::v1::Convolution,
+                    ngraph::op::v1::ConvolutionBackpropData,
+                    ngraph::op::v1::GroupConvolution,
+                    ngraph::op::v1::GroupConvolutionBackpropData>>(true)
     };
 }
