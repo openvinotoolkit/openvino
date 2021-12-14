@@ -204,6 +204,23 @@ template <>
 void Generator::copy<float>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
     copy<uint32_t>(dst, src, size);
 }
+
+
+//template <>
+//void Generator::copy<int32_t>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
+//    copy<uint32_t>(dst, src, size);
+//}
+//
+//template <>
+//void Generator::copy<int64_t>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
+//    copy<uint64_t>(dst, src, size);
+//}
+//
+//template <>
+//void Generator::copy<long>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
+//    copy<uint64_t>(dst, src, size);
+//}
+
 }  // namespace jit
 }  // namespace runtime
 }  // namespace ngraph

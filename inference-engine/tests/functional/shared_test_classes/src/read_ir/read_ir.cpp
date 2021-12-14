@@ -6,6 +6,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
 #include "functional_test_utils/layer_test_utils/op_info.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include "shared_test_classes/read_ir/read_ir.hpp"
 #include "shared_test_classes/read_ir/compare_results.hpp"
@@ -30,6 +31,38 @@ void ReadIRTest::SetUp() {
     std::tie(pathToModel, targetDevice) = this->GetParam();
     auto net = getCore()->ReadNetwork(pathToModel);
     function = net.getFunction();
+
+//    ov::preprocess::PrePostProcessor prePostProc;
+//    const auto& outputNodes = function->outputs();
+//    prePostProc.output(InputInfo(0).tensor(InputTensorInfo().set_element_type(elementType)));
+//    for (size_t i = 0; i < outputNodes.size(); ++i) {
+//        for(size_t j = 0; j < inputs.size(); ++j) {
+//            const InputsMap::value_type& item = inputs.begin() + i;
+//        }
+//        auto itr = std::find_if(inputs.begin(), inputs.end(),
+//                                [&](const InputsMap::value_type& item) {
+//                                    return item.first->get_friendly_name() == inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+//                                });
+//        if (itr != inputs.end()) {
+//            auto elementType = itr->second.get_element_type();
+//            if (inputNodes[i].get_element_type() != elementType) {
+//                prePostProc.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(elementType)));
+//            }
+//        } else {
+//            std::stringstream errMsg;
+//            errMsg << "Couldn't find input with name " << inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+//            errMsg << " in the inputs map";
+//            throw std::runtime_error(errMsg.str());
+//        }
+//    }
+//    const auto& outputs = functionToProcess->outputs();
+//    for (size_t i = 0; i < outputs.size(); ++i) {
+//        if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
+//            prePostProc.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(outType)));
+//        }
+//    }
+//    functionToProcess = prePostProc.build(functionToProcess);
+
     const auto metaFile = CommonTestUtils::replaceExt(pathToModel, "meta");
     if (CommonTestUtils::fileExists(metaFile)) {
         pugi::xml_document doc;
@@ -114,7 +147,12 @@ void ReadIRTest::Compare(const std::vector<std::pair<ngraph::element::Type, std:
 
 std::vector<InferenceEngine::Blob::Ptr> ReadIRTest::GetOutputs() {
     std::vector<InferenceEngine::Blob::Ptr> outputs;
-    for (const auto &result : function->get_results()) {
+    auto results = function->get_results();
+    sort(results.begin(), results.end(),
+         [](const std::shared_ptr<ov::op::v0::Result> & resultA, const std::shared_ptr<ov::op::v0::Result> & resultB) -> bool {
+             return resultA->get_friendly_name() < resultB->get_friendly_name();
+         });
+    for (const auto &result : results) {
         for (size_t inPort = 0; inPort < result->get_input_size(); ++inPort) {
             const auto &inputNode = result->get_input_node_shared_ptr(inPort);
             for (size_t outPort = 0; outPort < inputNode->get_output_size(); ++outPort) {
@@ -131,7 +169,7 @@ std::vector<InferenceEngine::Blob::Ptr> ReadIRTest::GetOutputs() {
             }
         }
     }
-    iter_swap(outputs.begin() + 0, outputs.begin() + 2);
+//    iter_swap(outputs.begin() + 0, outputs.begin() + 2);
     return outputs;
 }
 } // namespace LayerTestsDefinitions

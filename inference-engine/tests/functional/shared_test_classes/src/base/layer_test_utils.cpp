@@ -542,6 +542,11 @@ void LayerTestsCommon::Validate() {
         std::size_t actual_size = 1;
         std::cout << '\t' << i << ": ";
         auto dims = actualOutputs[i]->getTensorDesc().getDims();
+        if (i == 0 || i == 1) {
+            dims[0] = expectedOutputs[0].second.size() / 24;
+//            dims[i] = expectedOutputs[i].second.size();
+        }
+        actualOutputs[i]->getTensorDesc().setDims(dims);
         for (std::size_t j = 0; j < dims.size(); ++j) {
             actual_size *= dims[j];
             std::cout << dims[j];
@@ -554,7 +559,7 @@ void LayerTestsCommon::Validate() {
         std::cout << std::endl << '\t';
         auto data = actualOutputs[i]->buffer().as<unsigned char*>();
         std::size_t actual_size_bytes = actual_size * 8;
-        for (std::size_t j = 0; j < fmin(actual_size_bytes, 100); ++j) {
+        for (std::size_t j = 0; j < fmin(actual_size_bytes, 100000); ++j) {
             int val = data[j];
             std::cout << val << " ";
         }

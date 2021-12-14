@@ -87,6 +87,26 @@ void jit_convert_vec<float16, int8_t>(jit::Generator& gen, const Xbyak::RegExp& 
     gen.movq(gen.qword[dst], p32vec_lo);        // save the result
 }
 
+template <>
+void jit_convert_vec_prepare<int64_t, int32_t>(jit::Generator& gen) {
+//    jit_convert_vec_prepare<float, int8_t>(gen);
+}
+
+template <>
+void jit_convert_vec<int64_t, int32_t>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+//    auto order = gen.ymm1;
+//    auto p32vec = gen.ymm2;
+//    auto p32vec_lo = gen.xmm2;
+//    auto p32vec_hi = gen.xmm3;
+//
+//    gen.vcvtph2ps(p32vec, gen.xword[src]);      // convert 8 fp16's to 8 floats
+//    gen.vcvtps2dq(p32vec, p32vec);              // convert 8 floats to 8 ints
+//    gen.vpshufb(p32vec, p32vec, order);         // Shuffle the bytes according to the order
+//    gen.vextracti128(p32vec_hi, p32vec, 1);     // extract upper part of p32vec
+//    gen.vpor(p32vec_lo, p32vec_lo, p32vec_hi);  // p32vec_lo = p32vec_lo | p32vec_hi
+//    gen.movq(gen.qword[dst], p32vec_lo);        // save the result
+}
+
 class jit_convert_array : public jit::Generator {
     typedef struct context {
         struct {
@@ -213,6 +233,14 @@ template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }
+
+template <>
+void convert<int64_t, int32_t>(const int64_t* arg, int32_t* out, size_t count) {
+    std::cout << "HI";
+//    convert<float16, float>(arg, out, count);
+//    convert_impl(arg, out, count);
+}
+
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
