@@ -159,16 +159,17 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
 }
 
 void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
+    OPENVINO_ASSERT(!blobs.empty(),
+                    "set_input_tensors/set_tensors can't be called with empty blobs for input '",
+                    name,
+                    "'");
+
     bool all_memory = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& item) {
         return item && item->is<MemoryBlob>() && !item->is<RemoteBlob>();
     });
     OPENVINO_ASSERT(all_memory,
                     "set_input_tensors/set_tensors error. Default implementation support only local memory tensors");
 
-    OPENVINO_ASSERT(!blobs.empty(),
-                    "set_input_tensors/set_tensors can't be called with empty blobs for input '",
-                    name,
-                    "'");
     if (blobs.size() == 1) {
         SetBlob(name, blobs[0]);
         return;
@@ -285,9 +286,8 @@ void IInferRequestInternal::applyBatchedBlobs() {
     for (const auto& item : _batched_blobs) {
         const auto& name = item.first;
         const auto& blobs = item.second;
-        if (blobs.size() > 1) {
-            applyBatchedBlob(name, blobs, _batched_descs[name]);
-        }
+        OPENVINO_ASSERT(blobs.size() > 1, "Internal error. Batched blob shall have size > 1, got ", blobs.size());
+        applyBatchedBlob(name, blobs, _batched_descs[name]);
     }
 }
 

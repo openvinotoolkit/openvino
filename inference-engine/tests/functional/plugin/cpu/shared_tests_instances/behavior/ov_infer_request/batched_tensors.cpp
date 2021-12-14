@@ -105,6 +105,19 @@ TEST_P(OVInferRequestBatchedTests, SetTensors_No_Name) {
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
+TEST_P(OVInferRequestBatchedTests, SetTensors_Friendly_Name) {
+    size_t batch = 3;
+    auto one_shape = Shape{1, 3, 3, 3};
+    auto batch_shape = Shape{batch, 3, 3, 3};
+    auto model = create_n_inputs(1, element::f32, batch_shape, "NCHW");
+    const std::string tensor_name = "input0";
+    auto execNet = ie->compile_model(model, targetDevice);
+    ov::runtime::InferRequest req;
+    req = execNet.create_infer_request();
+    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
+}
+
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_No_index) {
     size_t batch = 3;
     auto one_shape = Shape{1, 3, 3, 3};
@@ -180,6 +193,30 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Correct_all) {
     tensors.emplace_back(element::f32, one_shape, buffer.data());
     tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
     ASSERT_NO_THROW(req.set_input_tensors(tensors));
+}
+
+TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
+    auto one_shape = Shape{1, 3, 3, 3};
+    auto batch_shape = Shape{2, 3, 3, 3};
+    std::vector<float> buffer(ov::shape_size(batch_shape), 1);
+    std::vector<float> buffer_out(ov::shape_size(batch_shape), 1);
+    auto model = create_n_inputs(2, element::f32, batch_shape, "NCHW");
+    ie->set_config({{CONFIG_KEY(CACHE_DIR), m_cache_dir}});
+    auto execNet_no_cache = ie->compile_model(model, targetDevice);
+    auto execNet = ie->compile_model(model, targetDevice);
+    ov::runtime::InferRequest req;
+    req = execNet.create_infer_request();
+    model->input(0).set_names({"updated_input0"}); // Change param name of original model
+    model->get_parameters()[0]->set_layout("????");
+    model->output(0).set_names({"updated_output0"}); // Change result name of original model
+    std::vector<ov::runtime::Tensor> tensors;
+    tensors.emplace_back(element::f32, one_shape, buffer.data());
+    tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
+    auto out_tensor = ov::runtime::Tensor(element::f32, batch_shape, buffer_out.data());
+    // Verify that infer request still has its own copy of input/output, user can use old names
+    ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors));
+    ASSERT_NO_THROW(req.set_tensor("tensor_output0", out_tensor));
+    PluginCache::get().reset();
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Incorrect_tensor_element_type) {

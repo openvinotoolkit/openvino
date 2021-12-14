@@ -39,6 +39,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
+#include "transformations/utils/utils.hpp"
 #include "xml_parse_utils.h"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -503,33 +504,44 @@ public:
         return res;
     }
 
+    static ie::InputsDataMap copyInfo(const ie::InputsDataMap& networkInputs) {
+        ie::InputsDataMap _networkInputs;
+        for (const auto& it : networkInputs) {
+            ie::InputInfo::Ptr newPtr;
+            if (it.second) {
+                newPtr = std::make_shared<ie::InputInfo>();
+                newPtr->getPreProcess() = it.second->getPreProcess();
+                newPtr->setInputData(std::make_shared<ie::Data>(*it.second->getInputData()));
+            }
+            _networkInputs.emplace(it.first, newPtr);
+        }
+        return _networkInputs;
+    }
+
+    static ie::OutputsDataMap copyInfo(const ie::OutputsDataMap& networkOutputs) {
+        ie::OutputsDataMap _networkOutputs;
+        for (const auto& it : networkOutputs) {
+            ie::DataPtr newData;
+            if (it.second) {
+                newData = std::make_shared<ie::Data>(*it.second);
+            }
+            _networkOutputs.emplace(it.first, newData);
+        }
+        return _networkOutputs;
+    }
+
     static void updateCNNInfo(ie::SoExecutableNetworkInternal& exe_net, const ie::CNNNetwork& network) {
         // Temporary workaround until all plugins support caching of original model inputs
         OPENVINO_SUPPRESS_DEPRECATED_START
-        exe_net->setNetworkInputs(network.getInputsInfo());
-        exe_net->setNetworkOutputs(network.getOutputsInfo());
-        {
-            std::vector<std::shared_ptr<const ov::Node>> params;
-            const auto& orig_params = network.getFunction()->get_parameters();
-            std::transform(orig_params.begin(),
-                           orig_params.end(),
-                           std::back_inserter(params),
-                           [](const std::shared_ptr<op::v0::Parameter>& p) {
-                               return p;
-                           });
-            exe_net->setInputs(params);
-        }
-        {
-            std::vector<std::shared_ptr<const ov::Node>> results;
-            const auto& orig_results = network.getFunction()->get_results();
-            std::transform(orig_results.begin(),
-                           orig_results.end(),
-                           std::back_inserter(results),
-                           [](const std::shared_ptr<op::v0::Result>& r) {
-                               return r;
-                           });
-            exe_net->setOutputs(results);
-        }
+        exe_net->setNetworkInputs(copyInfo(network.getInputsInfo()));
+        exe_net->setNetworkOutputs(copyInfo(network.getOutputsInfo()));
+        std::vector<std::shared_ptr<const ov::Node>> const_params;
+        std::vector<std::shared_ptr<const ov::Node>> const_results;
+        std::tie(const_params, const_results) = InferenceEngine::details::CopyInputsOutputs(network.getFunction(),
+                                                                                            exe_net->GetInputsInfo(),
+                                                                                            exe_net->GetOutputsInfo());
+        exe_net->setInputs(const_params);
+        exe_net->setOutputs(const_results);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 

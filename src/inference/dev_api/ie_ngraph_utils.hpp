@@ -6,8 +6,11 @@
 
 #include <algorithm>
 #include <string>
+#include <tuple>
 
 #include "cpp/ie_cnn_network.h"
+#include "ie_common.h"
+#include "ie_input_info.hpp"
 #include "ie_precision.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -152,6 +155,11 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
  * @return A cloned object
  */
 INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
+
+std::tuple<std::vector<std::shared_ptr<const ov::Node>>, std::vector<std::shared_ptr<const ov::Node>>>
+CopyInputsOutputs(const std::shared_ptr<const ov::Model>& function,
+                  const ConstInputsDataMap& inputsInfo,
+                  const ConstOutputsDataMap& outputsInfo);
 
 }  // namespace details
 }  // namespace InferenceEngine

@@ -188,6 +188,8 @@ public:
     bool                        m_remoteContext = false;
     using CNNCallback = std::function<void(CNNNetwork&)>;
     CNNCallback                 m_cnnCallback = nullptr;
+    InputsDataMap               m_inputs_map;
+    OutputsDataMap              m_outputs_map;
 
     static std::string get_mock_engine_name() {
         std::string mockEngineName("mock_engine");
@@ -221,8 +223,8 @@ public:
         m_dirCreator = std::unique_ptr<MkDirGuard>(new MkDirGuard(m_cacheDir));
     }
 
-    static std::shared_ptr<MockExecutableNetwork> createMockIExecutableNet(const InputsDataMap& inputs_map = {},
-                                                                           const OutputsDataMap& outputs_map = {}) {
+    static std::shared_ptr<MockExecutableNetwork> createMockIExecutableNet(const InputsDataMap& inputs_map,
+                                                                           const OutputsDataMap& outputs_map) {
         auto mock = std::make_shared<MockExecutableNetwork>();
         ConstInputsDataMap inputMap;
         for (const auto &input_item : inputs_map) {
@@ -276,6 +278,8 @@ public:
     }
 
     void TearDown() override {
+        m_inputs_map = {};
+        m_outputs_map = {};
         for (const auto& net : networks) {
             EXPECT_TRUE(Mock::VerifyAndClearExpectations(net.get()));
         }
@@ -368,20 +372,22 @@ private:
                 WillByDefault(Invoke([&](std::istream &istr, const RemoteContext::Ptr&,
                                          const std::map<std::string, std::string> &) {
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return createMockIExecutableNet();
+            return createMockIExecutableNet(m_inputs_map, m_outputs_map);
         }));
 
         ON_CALL(plugin, ImportNetwork(_, _)).
                 WillByDefault(Invoke([&](std::istream &istr, const std::map<std::string, std::string> &) {
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return createMockIExecutableNet();
+            return createMockIExecutableNet(m_inputs_map, m_outputs_map);
         }));
 
         ON_CALL(plugin, LoadExeNetworkImpl(_, _, _)).
                 WillByDefault(Invoke([&](const CNNNetwork & cnn, const RemoteContext::Ptr&,
                                          const std::map<std::string, std::string> &) {
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            auto exe_net = createMockIExecutableNet(cnn.getInputsInfo(), cnn.getOutputsInfo());
+            m_inputs_map = cnn.getInputsInfo();
+            m_outputs_map = cnn.getOutputsInfo();
+            auto exe_net = createMockIExecutableNet(m_inputs_map, m_outputs_map);
             for (const auto& cb : m_post_mock_net_callbacks) {
                 cb(*exe_net);
             }
@@ -393,7 +399,9 @@ private:
                 WillByDefault(Invoke([&](const CNNNetwork & cnn,
                                          const std::map<std::string, std::string> &) {
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            auto exe_net = createMockIExecutableNet(cnn.getInputsInfo(), cnn.getOutputsInfo());
+            m_inputs_map = cnn.getInputsInfo();
+            m_outputs_map = cnn.getOutputsInfo();
+            auto exe_net = createMockIExecutableNet(m_inputs_map, m_outputs_map);
             for (const auto& cb : m_post_mock_net_callbacks) {
                 cb(*exe_net);
             }
@@ -473,10 +481,8 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         char a[sizeof(customData)];
         s.read(a, sizeof(customData));
         EXPECT_EQ(memcmp(a, customData, sizeof(customData)), 0);
-        auto mock = std::make_shared<MockExecutableNetwork>();
-        EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
-        EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
-        return mock;
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return createMockIExecutableNet(m_inputs_map, m_outputs_map);
     }));
 
     ON_CALL(*mockPlugin, ImportNetwork(_, _)).
@@ -484,10 +490,8 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         char a[sizeof(customData)];
         s.read(a, sizeof(customData));
         EXPECT_EQ(memcmp(a, customData, sizeof(customData)), 0);
-        auto mock = std::make_shared<MockExecutableNetwork>();
-        EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstInputsDataMap{}));
-        EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(ConstOutputsDataMap{}));
-        return mock;
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return createMockIExecutableNet(m_inputs_map, m_outputs_map);
     }));
 
     m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -1604,7 +1608,7 @@ TEST_P(CachingTest, LoadMulti_Archs) {
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(TEST_DEVICE_MAX_COUNT / 2)
                 .WillRepeatedly(Invoke([&](std::istream &, const std::map<std::string, std::string> &) {
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return createMockIExecutableNet();
+            return createMockIExecutableNet(m_inputs_map, m_outputs_map);
         }));
         m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
             EXPECT_CALL(net, Export(_)).Times(1); // each net will be exported once
