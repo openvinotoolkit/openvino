@@ -241,7 +241,7 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                               "Only one-dimensional features are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              (input_inst.size.feature[0] + pad.feature[0]) / split,
+                              input_inst.size.feature[0],
                               "input feature maps number",
                               weights_ifm,
                               "Weights/ifm mismatch");
@@ -249,7 +249,7 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
         if (!argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Weights feature maps number",
-                                  (input_inst.size.feature[0] + pad.feature[0]) / split,
+                                  input_inst.size.feature[0],
                                   "input feature maps number",
                                   weights_ifm,
                                   "Weights/ifm mismatch");
