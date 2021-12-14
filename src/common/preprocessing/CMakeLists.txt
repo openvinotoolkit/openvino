@@ -178,8 +178,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
-                                       INTERFACE inference_engine_s)
+target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt inference_engine)
 
 target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
 
