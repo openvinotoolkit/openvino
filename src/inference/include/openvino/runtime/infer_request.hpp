@@ -267,6 +267,13 @@ public:
     std::vector<VariableState> query_state();
 
     /**
+     * @brief Returns compiled model that creates this inference request
+     *
+     * @return Compiled model object
+     */
+    CompiledModel get_compiled_model();
+
+    /**
      * @brief Checks if current InferRequest object is not initialized
      * @return true if current InferRequest object is not initialized, false - otherwise
      */
