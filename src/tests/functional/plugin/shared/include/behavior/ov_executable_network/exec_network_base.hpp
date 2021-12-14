@@ -81,7 +81,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToDefaultDevice) {
-    EXPECT_NO_THROW(auto execNet = core->compile_model(function, configuration));
+    EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
