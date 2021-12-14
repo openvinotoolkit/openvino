@@ -113,8 +113,15 @@ MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::N
         }
 
         externOutShape = inputShapes.size() == 3;
-        if (isDynamicNode() && externOutShape && ngraph::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
-            lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+        if (externOutShape && isDynamicNode()) {
+            bool isConstOutShape = ngraph::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            if (isConstOutShape) {
+                lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+            }
+            const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
+            if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum || (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
+                IE_THROW() << "'output_shape' input has incorrect number of elements. Expected = " << spDimsNum;
+            }
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -692,12 +699,12 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<MemoryDescPtr> 
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (idx > 0) {
-        if (isInt8) {
-            return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), Shape(getInputShapeAtPort(idx).getStaticDims()));
-        } else if (idx == 2) {
-            return std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, Shape(getInputShapeAtPort(2).getStaticDims()));
-        }
+    if (idx == 2) {
+        return std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, Shape(getInputShapeAtPort(2).getStaticDims()));
+    } else if (idx > 0 && isInt8) {
+        // we need to store 'weight' input as edge,
+        // because at this moment we can't simple replace internal blob with input, since we need to save weight data as is, but with different order
+        return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), Shape(getInputShapeAtPort(idx).getStaticDims()));
     }
 
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : isInt8 ? primitive_desc_it.src_desc(idx) : primitive_desc_it.diff_dst_desc(idx);
@@ -826,6 +833,10 @@ std::vector<int32_t> MKLDNNDeconvolutionNode::readOutputSpatialDims() const {
     const auto &shapeMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
     if (!shapeMemPtr || !shapeMemPtr->GetPrimitivePtr()) {
         IE_THROW() << "'output_shape' input memory is not allocated.";
+    }
+    const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
+    if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
+        IE_THROW() << "Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements";
     }
     const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->GetPtr());
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
