@@ -37,7 +37,7 @@ std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
     }
     mvn->set_friendly_name("output");
     auto& rtInfo = mvn->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("mvn");
+    rtInfo["Variant::std::string"] = "mvn";
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(mvn) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MVNFunction");
@@ -90,7 +90,7 @@ std::shared_ptr<ngraph::Function> MVNFunction::getReference(
             dequantizationAfter.empty() ? precision : element::f32);
     }
     auto& rtInfo = mvn->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("mvn");
+    rtInfo["Variant::std::string"] = "mvn";
 
     auto deqAfterStructure = dequantizationAfter;
     deqAfterStructure.multiply.outPrecision = precision;

@@ -52,7 +52,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                  const std::string& model_name,
                                  bool fail_fast,
                                  bool no_conversion,
-                                 std::shared_ptr<ov::Function>& ng_function) const {
+                                 std::shared_ptr<ov::Model>& ng_function) const {
     // a map from operation names to generated OV Output<TFNodeDecoder>
     tf::OpMap ng_op_map;
 
@@ -263,51 +263,52 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
     // TODO: reorder results and params according to indices given in RT info (if any)
 
     // create the OV function
-    ng_function = std::make_shared<ov::Function>(results, params, model_name);
+    ng_function = std::make_shared<ov::Model>(results, params, model_name);
     OPENVINO_DEBUG << "Done with translations";
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
-bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
+bool FrontEndTF::supported_impl(const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() != 1)
         return false;
 
     // Validating first path, it must contain a model
-    if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
+    if (variants[0].is<std::string>()) {
         std::string suffix = ".pb";
-        std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+        std::string model_path = variants[0].as<std::string>();
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
-    } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
+    } else if (variants[0].is<GraphIterator::Ptr>()) {
         return true;
     }
     return false;
 }
 
-ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
+ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() == 1) {
         // a case when binary protobuf format is provided
-        if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
+        if (variants[0].is<std::string>()) {
             std::string suffix = ".pb";
-            std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+            std::string model_path = variants[0].as<std::string>();
             if (ov::util::ends_with(model_path, suffix.c_str())) {
                 return std::make_shared<InputModelTF>(
-                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path));
+                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path),
+                    m_telemetry);
             }
-        } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
-            auto graph_iterator = ov::as_type_ptr<VariantWrapper<GraphIterator::Ptr>>(variants[0])->get();
-            return std::make_shared<InputModelTF>(graph_iterator);
+        } else if (variants[0].is<GraphIterator::Ptr>()) {
+            auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
+            return std::make_shared<InputModelTF>(graph_iterator, m_telemetry);
         }
     }
     return nullptr;
 }
 
-std::shared_ptr<ov::Function> FrontEndTF::convert(ov::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndTF::convert(ov::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    std::shared_ptr<ov::Function> f;
+    std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
     normalize(f);
     // TODO: check that OV function does not contain operations which are not in the opset
@@ -315,22 +316,22 @@ std::shared_ptr<ov::Function> FrontEndTF::convert(ov::frontend::InputModel::Ptr 
     return f;
 }
 
-std::shared_ptr<ov::Function> FrontEndTF::convert_partially(ov::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndTF::convert_partially(ov::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    std::shared_ptr<ov::Function> f;
+    std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
     normalize(f);
     return f;
 }
 
-std::shared_ptr<ov::Function> FrontEndTF::decode(ov::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndTF::decode(ov::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    std::shared_ptr<ov::Function> f;
+    std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
     return f;
 }
 
-void FrontEndTF::convert(std::shared_ptr<ov::Function> partiallyConverted) const {
+void FrontEndTF::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<TFFrameworkNode>(node)) {
             translate_framework_node(std::dynamic_pointer_cast<TFFrameworkNode>(node), m_op_translators);
@@ -343,8 +344,14 @@ void FrontEndTF::convert(std::shared_ptr<ov::Function> partiallyConverted) const
     normalize(partiallyConverted);
 }
 
-void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
+void FrontEndTF::normalize(std::shared_ptr<ov::Model> function) const {
     ov::pass::Manager manager;
     manager.register_pass<ov::frontend::tf::pass::TransposeSinkingOVTF>();
     manager.run_passes(function);
+}
+
+void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+        m_telemetry = telemetry;
+    }
 }

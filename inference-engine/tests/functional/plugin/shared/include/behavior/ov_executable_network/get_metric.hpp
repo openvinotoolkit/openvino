@@ -89,7 +89,7 @@ using OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK = OVClassHeter
 TEST_P(OVClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     ov::runtime::Core ie = createCoreWithTemplate();
     std::stringstream strm;
-    ov::runtime::ExecutableNetwork executableNetwork;
+    ov::runtime::CompiledModel executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.compile_model(actualNetwork, deviceName));
     ASSERT_NO_THROW(executableNetwork.export_model(strm));
     ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, deviceName));

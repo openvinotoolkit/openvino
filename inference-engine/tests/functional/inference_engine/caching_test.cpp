@@ -131,7 +131,7 @@ public:
     MOCK_METHOD2(CreateInferRequestImpl, IInferRequestInternal::Ptr(InputsDataMap, OutputsDataMap));
     MOCK_METHOD1(setNetworkInputs, void(const InputsDataMap& networkInputs));
     MOCK_METHOD1(setNetworkOutputs, void(const OutputsDataMap& networkOutputs));
-    MOCK_METHOD0(GetExecGraphInfo, std::shared_ptr<ov::Function>());
+    MOCK_METHOD0(GetExecGraphInfo, std::shared_ptr<ov::Model>());
 
     // void Export(std::ostream& networkModel) override {
     //     std::lock_guard<std::mutex> guard(m_pluginMutex);
@@ -243,7 +243,7 @@ public:
                     auto notOp = std::make_shared<ov::op::v1::LogicalNot>(parameters.back());
                     ngraph::ResultVector results;
                     results.push_back(std::make_shared<ov::op::v0::Result>(notOp));
-                    return std::make_shared<ov::Function>(results, parameters, "empty_function");
+                    return std::make_shared<ov::Model>(results, parameters, "empty_function");
                 } ()));
         auto ptr = std::make_shared<MockIInferRequestInternal>();
         EXPECT_CALL(*ptr, SetCallback(_)).Times(AnyNumber());

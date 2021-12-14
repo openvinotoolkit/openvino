@@ -20,8 +20,8 @@
         "runtime/bin/intel64/Release/inference_engine_transformations.dll",
         "runtime/bin/intel64/Release/inference_engine_preproc.dll",
         "runtime/bin/intel64/Release/inference_engine_c_api.dll",
-        "runtime/bin/intel64/Release/HeteroPlugin.dll",
-        "runtime/bin/intel64/Release/MultiDevicePlugin.dll",
+        "runtime/bin/intel64/Release/ov_hetero_plugin.dll",
+        "runtime/bin/intel64/Release/ov_auto_plugin.dll",
         "runtime/bin/intel64/Release/ngraph.dll",
         "runtime/bin/intel64/Release/frontend_common.dll",
         "runtime/bin/intel64/Release/ir_ov_frontend.dll",
@@ -47,7 +47,7 @@
       "files": [
         "runtime/bin/intel64/Release/cache.json",
         "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
-        "runtime/bin/intel64/Release/clDNNPlugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_gpu_plugin.dll"
       ]
     },
     "vpu": {
@@ -57,8 +57,7 @@
       "files": [
         "runtime/bin/intel64/Release/usb-ma2x8x.mvcmd",
         "runtime/bin/intel64/Release/pcie-ma2x8x.elf",
-        "runtime/bin/intel64/Release/myriadPlugin.dll",
-        "runtime/bin/intel64/Release/inference_engine_legacy.dll"
+        "runtime/bin/intel64/Release/myriadPlugin.dll"
       ]
     },
     "gna": {
@@ -67,8 +66,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/gna.dll",
-        "runtime/bin/intel64/Release/inference_engine_legacy.dll",
-        "runtime/bin/intel64/Release/GNAPlugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_gna_plugin.dll"
       ]
     },
     "hddl": {
@@ -77,8 +75,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/HDDLPlugin.dll",
-        "runtime/bin/intel64/Release/inference_engine_legacy.dll",
-        "runtime/bin/intel64/Release/hddl_perfcheck.exe",
         "runtime/3rdparty/MovidiusDriver",
         "runtime/3rdparty/hddl"
       ]

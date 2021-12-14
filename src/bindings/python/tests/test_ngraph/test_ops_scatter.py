@@ -3,8 +3,8 @@
 
 import numpy as np
 
-import openvino.opset8 as ov
-from openvino.impl import Type
+import openvino.runtime.opset8 as ov
+from openvino.runtime import Type
 
 
 def test_scatter_update_props():

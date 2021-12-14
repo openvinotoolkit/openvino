@@ -21,8 +21,8 @@ add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 
 add_dependencies(${TARGET_NAME} inference_engine_preproc mock_engine)
 
-if(ENABLE_MULTI)
-    add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} ov_auto_plugin)
 endif()
 
 set_ie_threading_interface_for(${TARGET_NAME})
@@ -57,9 +57,9 @@ endif()
 target_link_libraries(${TARGET_NAME} PUBLIC ${SHARED_LIBRARIES})
 
 if(ENABLE_HETERO)
-    add_dependencies(${TARGET_NAME} HeteroPlugin)
+    add_dependencies(${TARGET_NAME} ov_hetero_plugin)
 endif()
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine_tests TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT tests TARGETS ${TARGET_NAME})

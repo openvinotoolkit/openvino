@@ -5,7 +5,7 @@
 #include "gather_nd_inst.h"
 
 #include "primitive_type_base.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -24,8 +24,7 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
     auto input_layout = input_layout_origin.size.sizes(input_layout_origin.format);
     auto indices_layout = indices_layout_origin.size.sizes(indices_layout_origin.format);
 
-    const size_t input_dims = input_layout.size();
-
+    const auto input_rank = static_cast<size_t>(op->input_rank);
     const auto indices_rank = op->indices_rank;
     const auto batch_dims = op->batch_dims;
 
@@ -37,7 +36,7 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
     }
 
     const size_t indices_last_dim = indices_layout[indices_rank - 1];
-    for (size_t x = static_cast<size_t>(batch_dims + indices_last_dim); x < input_dims; x++) {
+    for (size_t x = static_cast<size_t>(batch_dims + indices_last_dim); x < input_rank; x++) {
         output_sizes.push_back(input_layout[x]);
     }
 

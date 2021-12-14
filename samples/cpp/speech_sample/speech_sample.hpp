@@ -13,14 +13,14 @@
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
-/// @brief message for images argument
+/// @brief message for input data argument
 static const char input_message[] =
     "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
-/// @brief message for assigning cnn calculation to device
+/// @brief message for assigning calculation to device
 static const char target_device_message[] =
     "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
     "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
@@ -36,12 +36,17 @@ static const char execution_target_message[] =
     "or the latest fully supported generation by the software. "
     "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
 
-/// @brief message for execution target
+/// @brief message for compile target
 static const char compile_target_message[] = "Optional. Specify GNA compile target generation. "
                                              "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
                                              "By default, generation corresponds to the GNA HW available in the system "
                                              "or the latest fully supported generation by the software. "
                                              "See the GNA Plugin's GNA_COMPILE_TARGET config option description.";
+
+/// @brief message for enabling GNA log
+static const char enable_log_message[] = "Optional. Enable GNA logging, which may give additional info "
+                                         "about potential issues found in network. "
+                                         "By default logging is disabled.";
 
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
@@ -139,6 +144,9 @@ DEFINE_string(exec_target, "", execution_target_message);
 
 /// \brief GNA compile target <br>
 DEFINE_string(compile_target, "", compile_target_message);
+
+/// \brief GNA log level (default LOG_NONE) <br>
+DEFINE_string(log, "LOG_NONE", enable_log_message);
 
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);

@@ -91,10 +91,10 @@ TEST_P(MemoryConv, CheckTypeConversion) {
 
     for (auto &node : exec_ops) {
         auto var = node->get_rt_info()["layerType"];
-        auto s_val = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(var);
-        if (s_val->get() == "MemoryOutput")
+        auto s_val = var.as<std::string>();
+        if (s_val == "MemoryOutput")
             mem_w = node;
-        if (s_val->get() == "MemoryInput")
+        if (s_val == "MemoryInput")
             mem_r = node;
     }
 

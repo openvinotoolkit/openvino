@@ -32,7 +32,7 @@ set(DEPENDENCIES
     test_model_zoo
 )
 
-if(NGRAPH_IR_FRONTEND_ENABLE)
+if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 
@@ -41,18 +41,18 @@ if(ENABLE_IR_V7_READER)
 endif()
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES HeteroPlugin)
+    list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
-if(ENABLE_MULTI)
-    list(APPEND DEPENDENCIES MultiDevicePlugin)
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
-if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
+if (NOT ENABLE_OV_ONNX_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
-if (NOT NGRAPH_PDPD_FRONTEND_ENABLE)
+if (NOT ENABLE_OV_PDPD_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader")
 endif()
 
@@ -70,14 +70,14 @@ addIeTargetTest(
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-        NGRAPH_ONNX_FRONTEND_ENABLE
+        ENABLE_OV_ONNX_FRONTEND
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} onnx_ov_frontend)
 endif()
 
-if(NGRAPH_PDPD_FRONTEND_ENABLE)
+if(ENABLE_OV_PDPD_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
     add_dependencies(${TARGET_NAME} paddlepaddle_ov_frontend)
@@ -91,7 +91,6 @@ ie_faster_build(${TARGET_NAME}
 
 file(GLOB_RECURSE legacy_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp" # CVS-55385
-    "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
     "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
     )
