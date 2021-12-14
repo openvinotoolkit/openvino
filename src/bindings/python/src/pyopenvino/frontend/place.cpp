@@ -135,7 +135,7 @@ void regclass_frontend_Place(py::module m) {
                     return self.get_target_tensor(py::cast<int>(outputPortIndex));
                 }
             } else {
-                if (outputortIndex == py::none()) {
+                if (outputPortIndex == py::none()) {
                     return self.get_target_tensor(py::cast<std::string>(outputName));
                 } else {
                     return self.get_target_tensor(py::cast<std::string>(outputName), py::cast<int>(outputPortIndex));
