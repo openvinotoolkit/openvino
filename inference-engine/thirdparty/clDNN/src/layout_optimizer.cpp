@@ -284,10 +284,11 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<convolution>() &&
-        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4) &&
+        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
         ((fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
+        (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 &&
         (prev_output_layout.size.feature[0] == 3 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
         return true;
@@ -1269,6 +1270,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             format::bs_fs_yx_bsv32_fsv16,
             format::bs_fs_yx_bsv32_fsv32,
             format::bs_fs_yx_bsv4_fsv4,
+            format::bs_fs_yx_bsv8_fsv4,
             format::bs_fs_yx_bsv4_fsv2,
             format::bs_fs_zyx_bsv4_fsv4,
             format::bs_fs_zyx_bsv4_fsv2,
@@ -1453,7 +1455,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                     if (data_type_traits::is_floating_point(conv.get_output_layout().data_type) || ws.spatial[0] != 7 || conv.get_primitive()->groups > 1)
                         expected = format::bfyx;
                     else
-                        expected = format::bs_fs_yx_bsv4_fsv4;
+                        expected = format::bs_fs_yx_bsv8_fsv4;
 
                     auto conv_output_layout = conv.get_output_layout();
                     auto weights_layout = conv.weights(0).get_output_layout();
