@@ -526,7 +526,9 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
             ParseBatchDevice(val);
         } else if (name == CONFIG_KEY(AUTO_BATCH_TIMEOUT)) {
             try {
-                std::stoi(val);
+                auto t = std::stoi(val);
+                if (t < 0)
+                    IE_THROW(ParameterMismatch);
             } catch (const std::exception& e) {
                 IE_THROW(ParameterMismatch) << " Expecting unsigned int value for " << CONFIG_KEY(AUTO_BATCH_TIMEOUT)
                                             << " got " << val;

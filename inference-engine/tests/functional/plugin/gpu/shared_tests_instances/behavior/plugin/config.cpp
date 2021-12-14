@@ -8,10 +8,13 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16
-    };
+    INSTANTIATE_TEST_SUITE_P(
+            smoke_Basic,
+            DefaultConfigurationTest,
+            ::testing::Combine(
+                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                    ::testing::Values(DefaultParameter{GPU_CONFIG_KEY(PLUGIN_THROTTLE), InferenceEngine::Parameter{std::string{"0"}}})),
+            DefaultConfigurationTest::getTestCaseName);
 
     IE_SUPPRESS_DEPRECATED_START
     const std::vector<std::map<std::string, std::string>> inconfigs = {
@@ -96,8 +99,6 @@ namespace {
     const std::vector<std::map<std::string, std::string>> auto_batch_inconfigs = {
             {{CONFIG_KEY(AUTO_BATCH), CommonTestUtils::DEVICE_GPU},
                     {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "-1"}},
-            {{CONFIG_KEY(AUTO_BATCH), CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
             {{CONFIG_KEY(AUTO_BATCH), CommonTestUtils::DEVICE_GPU},
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
             {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
@@ -228,13 +229,6 @@ namespace {
             {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU}},
             {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
              {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}},
-            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
-            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
-            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-                    {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}},
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, DefaultValuesConfigTests,
