@@ -537,11 +537,12 @@ void LayerTestsCommon::Validate() {
         std::size_t actual_size = 1;
         std::cout << '\t' << i << ": ";
         auto dims = actualOutputs[i]->getTensorDesc().getDims();
-        if (i == 0 || i == 1) {
-            dims[0] = expectedOutputs[0].second.size() / 24;
-//            dims[i] = expectedOutputs[i].second.size();
-        }
-        actualOutputs[i]->getTensorDesc().setDims(dims);
+//        if (i == 0 || i == 1) {
+//            dims[0] = expectedOutputs[0].second.size() / 24;
+////            dims[i] = expectedOutputs[i].second.size();
+//        }
+//
+//        actualOutputs[i]->getTensorDesc().setDims(dims);
         for (std::size_t j = 0; j < dims.size(); ++j) {
             actual_size *= dims[j];
             std::cout << dims[j];
