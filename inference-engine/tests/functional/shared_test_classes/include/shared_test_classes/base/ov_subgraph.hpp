@@ -55,7 +55,7 @@ protected:
     std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
-    ov::runtime::ExecutableNetwork executableNetwork;
+    ov::runtime::CompiledModel executableNetwork;
     ov::runtime::InferRequest inferRequest;
 
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
@@ -63,9 +63,8 @@ protected:
 
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
 
-private:
-    std::vector<ov::runtime::Tensor> calculate_refs();
-    std::vector<ov::runtime::Tensor> get_plugin_outputs();
+    virtual std::vector<ov::runtime::Tensor> calculate_refs();
+    virtual std::vector<ov::runtime::Tensor> get_plugin_outputs();
 };
 
 inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& shapes) {
