@@ -8,6 +8,7 @@
 #include <openvino/core/except.hpp>
 #include <openvino/runtime/infer_request.hpp>
 #include <openvino/runtime/remote_tensor.hpp>
+#include <openvino/runtime/compiled_model.hpp>
 
 using namespace ::testing;
 using namespace std;
@@ -82,4 +83,10 @@ TEST(InferRequestOVTests, throwsOnUninitializedSetRemoteTensor) {
     ov::runtime::InferRequest req;
     ov::runtime::RemoteTensor remote_tensor;
     ASSERT_THROW(req.set_tensor(ov::Output<const ov::Node>(), remote_tensor), ov::Exception);
+}
+
+
+TEST(InferRequestOVTests, throwsOnGetCompiledModel) {
+    ov::runtime::InferRequest req;
+    ASSERT_THROW(req.get_compiled_model(), ov::Exception);
 }
