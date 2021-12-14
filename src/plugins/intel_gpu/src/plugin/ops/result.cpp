@@ -38,7 +38,12 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
     auto inputs = p.GetInputPrimitiveIDs(op);
     const auto outputDesc = outputData->getTensorDesc();
-    const auto outputlayout = outputDesc.getLayout();
+    auto outputlayout = outputDesc.getLayout();
+
+    if (ngraph::is_type<ngraph::op::v8::NV12toRGB>(prev) ||
+        ngraph::is_type<ngraph::op::v8::NV12toBGR>(prev)) {
+        outputlayout = NHWC;
+    }
 
     // TODO: add precision check once there's an outputInfo object
     if (outputlayout != NCHW &&
@@ -59,7 +64,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
     p.AddPrimitive(cldnn::reorder(outLayerName,
                                   outputID,
-                                  FormatFromLayout(outputData->getLayout()),
+                                  FormatFromLayout(outputlayout),
                                   DataTypeFromPrecision(precision),
                                   std::vector<float>(),
                                   cldnn::reorder_mean_mode::subtract,

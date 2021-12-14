@@ -77,6 +77,7 @@ void register_implementations() {
     REGISTER_OCL(cum_sum);
     REGISTER_OCL(embedding_bag);
     REGISTER_OCL(extract_image_patches);
+    REGISTER_OCL(convert_color);
 }
 
 }  // namespace ocl
