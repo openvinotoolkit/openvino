@@ -23,7 +23,8 @@ TEST_MODELS = [
     ('googlenet_example', 'pytorch', 'ANY'),
     ('mobilenetv2_ssd_example', 'pytorch', 'ANY'),
     ('densenet121_example', 'pytorch', 'ANY'),
-    ('multiple_out_ports_net', 'tf', 'ANY'),
+    # TODO: Enable these tests after solving IRReader problem
+    # ('multiple_out_ports_net', 'tf', 'ANY'),
     ('lstm_example', 'pytorch', 'GNA'),
     ('multiple_outputs_net_example', 'dldt', 'GNA'),
     # ('tensor_iterator_example', 'tf', 'ANY'),
