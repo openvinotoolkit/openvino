@@ -109,8 +109,8 @@ $(document).ready(function () {
 
     function getChartOptions(title, displayLabels) {
         return {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: false,
+            maintainAspectRatio:false,
             legend: { display: true, position: 'bottom' },
             title: {
                 display: true,
@@ -259,6 +259,13 @@ $(document).ready(function () {
             chart.append(canvas);
             container.append(chart);
             var context = canvas.get(0).getContext('2d');
+            context.canvas.height = labelsMapping[hwType].length * 55 + 30;
+            if (widthClass === 'col-md-8') {
+                context.canvas.width = context.canvas.width * 1.5;
+            }
+            else if(widthClass === 'col-md-12') {
+                context.canvas.width = context.canvas.width * 2.5;
+            }
             new Chart(context, {
                 type: 'horizontalBar',
                 data: getChartData(hwType, metric),
