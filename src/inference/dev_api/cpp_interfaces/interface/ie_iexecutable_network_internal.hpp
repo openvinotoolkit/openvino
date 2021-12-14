@@ -149,7 +149,7 @@ public:
     virtual std::shared_ptr<RemoteContext> GetContext() const;
 
 protected:
-    ~IExecutableNetworkInternal() = default;
+    virtual ~IExecutableNetworkInternal() = default;
 
     /**
      * @brief      Creates an inference request internal implementation.

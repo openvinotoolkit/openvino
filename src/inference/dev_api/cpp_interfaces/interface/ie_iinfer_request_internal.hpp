@@ -245,7 +245,7 @@ protected:
     /**
      * @brief Destroys the object.
      */
-    ~IInferRequestInternal();
+    virtual ~IInferRequestInternal();
 
     /**
      * @brief Checks and executes input data pre-processing if needed.
