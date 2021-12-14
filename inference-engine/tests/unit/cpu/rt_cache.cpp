@@ -13,11 +13,11 @@
 using namespace MKLDNNPlugin;
 
 namespace {
-struct Key {
+struct IntKey {
     size_t hash() const {
         return std::hash<int>().operator()(data);
     }
-    bool operator==(const Key& rhs) const noexcept {
+    bool operator==(const IntKey& rhs) const noexcept {
         return this->data == rhs.data;
     }
 
@@ -27,7 +27,7 @@ struct Key {
 
 TEST(LruCacheTests, Evict) {
     constexpr size_t capacity = 10;
-    LruCache<Key, int> cache(capacity);
+    LruCache<IntKey, int> cache(capacity);
     for (size_t i = 0; i < 2 * capacity; ++i) {
         ASSERT_NO_THROW(cache.put({10}, 10));
     }
@@ -40,7 +40,7 @@ TEST(LruCacheTests, Evict) {
 
 TEST(LruCacheTests, Put) {
     constexpr size_t capacity = 10;
-    LruCache<Key, int> cache(capacity);
+    LruCache<IntKey, int> cache(capacity);
     for (size_t i = 0; i < 2 * capacity; ++i) {
         ASSERT_NO_THROW(cache.put({10}, 10));
     }
@@ -50,7 +50,7 @@ TEST(LruCacheTests, Put) {
 
 TEST(LruCacheTests, Get) {
     constexpr size_t capacity = 10;
-    LruCache<Key, int> cache(capacity);
+    LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < 2 * capacity; ++i) {
         ASSERT_NO_THROW(cache.put({i}, i));
     }
@@ -66,7 +66,7 @@ TEST(LruCacheTests, Get) {
 
 TEST(LruCacheTests, LruPolicy) {
     constexpr size_t capacity = 10;
-    LruCache<Key, int> cache(capacity);
+    LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < capacity; ++i) {
         ASSERT_NO_THROW(cache.put({i}, i));
     }
@@ -87,7 +87,7 @@ TEST(LruCacheTests, LruPolicy) {
 TEST(LruCacheTests, Empty) {
     constexpr size_t capacity = 0;
     constexpr size_t attempts = 10;
-    LruCache<Key, int> cache(capacity);
+    LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < attempts; ++i) {
         ASSERT_NO_THROW(cache.put({i}, i));
     }
@@ -110,14 +110,14 @@ TEST(CacheEntryTests, GetOrCreate) {
 
     constexpr size_t capacity = 10;
 
-    mockBuilder<ValueType::element_type, Key> builderMock;
+    mockBuilder<ValueType::element_type, IntKey> builderMock;
     EXPECT_CALL(builderMock, build(_))
             .Times(3 * capacity)
-            .WillRepeatedly([](const Key& key){return key.data;});
+            .WillRepeatedly([](const IntKey& key){return key.data;});
 
-    auto builder = [&](const Key& key) { return std::make_shared<int>(builderMock.build(key)); };
+    auto builder = [&](const IntKey& key) { return std::make_shared<int>(builderMock.build(key)); };
 
-    CacheEntry<Key, ValueType> entry(capacity);
+    CacheEntry<IntKey, ValueType> entry(capacity);
 
     //creating so we miss everytime
     for (int i = 0; i < capacity; ++i) {
@@ -159,14 +159,14 @@ TEST(CacheEntryTests, Empty) {
     constexpr size_t capacity = 0;
     constexpr size_t attempts = 10;
 
-    mockBuilder<ValueType::element_type, Key> builderMock;
+    mockBuilder<ValueType::element_type, IntKey> builderMock;
     EXPECT_CALL(builderMock, build(_))
             .Times(2 * attempts)
-            .WillRepeatedly([](const Key& key){return key.data;});
+            .WillRepeatedly([](const IntKey& key){return key.data;});
 
-    auto builder = [&](const Key& key) { return std::make_shared<int>(builderMock.build(key)); };
+    auto builder = [&](const IntKey& key) { return std::make_shared<int>(builderMock.build(key)); };
 
-    CacheEntry<Key, ValueType> entry(capacity);
+    CacheEntry<IntKey, ValueType> entry(capacity);
 
     //creating so we miss everytime
     for (int i = 0; i < attempts; ++i) {
@@ -186,11 +186,11 @@ TEST(CacheEntryTests, Empty) {
 }
 
 namespace {
-struct KeyString {
+struct StringKey {
     size_t hash() const {
         return std::hash<std::string>().operator()(data);
     }
-    bool operator==(const KeyString& rhs) const noexcept {
+    bool operator==(const StringKey& rhs) const noexcept {
         return this->data == rhs.data;
     }
 
@@ -205,28 +205,28 @@ TEST(MultiCacheTests, GetOrCreate) {
 
     constexpr size_t capacity = 10;
 
-    mockBuilder<IntValueType::element_type, Key> intBuilderMock;
+    mockBuilder<IntValueType::element_type, IntKey> intBuilderMock;
     EXPECT_CALL(intBuilderMock, build(_))
             .Times(3 * capacity)
-            .WillRepeatedly([](const Key& key){return key.data;});
+            .WillRepeatedly([](const IntKey& key){return key.data;});
 
-    mockBuilder<StrValueType::element_type, KeyString> strBuilderMock;
+    mockBuilder<StrValueType::element_type, StringKey> strBuilderMock;
     EXPECT_CALL(strBuilderMock, build(_))
             .Times(3 * capacity)
-            .WillRepeatedly([](const KeyString& key){return key.data;});
+            .WillRepeatedly([](const StringKey& key){return key.data;});
 
-    auto intBuilder = [&](const Key& key) { return std::make_shared<int>(intBuilderMock.build(key)); };
-    auto strBuilder = [&](const KeyString& key) { return std::make_shared<std::string>(strBuilderMock.build(key)); };
+    auto intBuilder = [&](const IntKey& key) { return std::make_shared<int>(intBuilderMock.build(key)); };
+    auto strBuilder = [&](const StringKey& key) { return std::make_shared<std::string>(strBuilderMock.build(key)); };
 
     MultiCache cache(capacity);
 
     //creating so we miss everytime
     for (int i = 0; i < capacity; ++i) {
-        auto intResult = cache.getOrCreate(Key{i}, intBuilder);
+        auto intResult = cache.getOrCreate(IntKey{i}, intBuilder);
         ASSERT_NE(intResult.first, IntValueType());
         ASSERT_EQ(*intResult.first, i);
         ASSERT_EQ(intResult.second, CacheEntryBase::LookUpStatus::Miss);
-        auto strResult = cache.getOrCreate(KeyString{std::to_string(i)}, strBuilder);
+        auto strResult = cache.getOrCreate(StringKey{std::to_string(i)}, strBuilder);
         ASSERT_NE(strResult.first, StrValueType());
         ASSERT_EQ(*strResult.first, std::to_string(i));
         ASSERT_EQ(strResult.second, CacheEntryBase::LookUpStatus::Miss);
@@ -234,11 +234,11 @@ TEST(MultiCacheTests, GetOrCreate) {
 
     //always hit
     for (int i = 0; i < capacity; ++i) {
-        auto intResult = cache.getOrCreate(Key{i}, intBuilder);
+        auto intResult = cache.getOrCreate(IntKey{i}, intBuilder);
         ASSERT_NE(intResult.first, IntValueType());
         ASSERT_EQ(*intResult.first, i);
         ASSERT_EQ(intResult.second, CacheEntryBase::LookUpStatus::Hit);
-        auto strResult = cache.getOrCreate(KeyString{std::to_string(i)}, strBuilder);
+        auto strResult = cache.getOrCreate(StringKey{std::to_string(i)}, strBuilder);
         ASSERT_NE(strResult.first, StrValueType());
         ASSERT_EQ(*strResult.first, std::to_string(i));
         ASSERT_EQ(strResult.second, CacheEntryBase::LookUpStatus::Hit);
@@ -246,11 +246,11 @@ TEST(MultiCacheTests, GetOrCreate) {
 
     //new values displace old ones
     for (int i = capacity; i < 2 * capacity; ++i) {
-        auto intResult = cache.getOrCreate(Key{i}, intBuilder);
+        auto intResult = cache.getOrCreate(IntKey{i}, intBuilder);
         ASSERT_NE(intResult.first, IntValueType());
         ASSERT_EQ(*intResult.first, i);
         ASSERT_EQ(intResult.second, CacheEntryBase::LookUpStatus::Miss);
-        auto strResult = cache.getOrCreate(KeyString{std::to_string(i)}, strBuilder);
+        auto strResult = cache.getOrCreate(StringKey{std::to_string(i)}, strBuilder);
         ASSERT_NE(strResult.first, StrValueType());
         ASSERT_EQ(*strResult.first, std::to_string(i));
         ASSERT_EQ(strResult.second, CacheEntryBase::LookUpStatus::Miss);
@@ -258,11 +258,11 @@ TEST(MultiCacheTests, GetOrCreate) {
 
     //can not hit the old ones
     for (int i = 0; i < capacity; ++i) {
-        auto intResult = cache.getOrCreate(Key{i}, intBuilder);
+        auto intResult = cache.getOrCreate(IntKey{i}, intBuilder);
         ASSERT_NE(intResult.first, IntValueType());
         ASSERT_EQ(*intResult.first, i);
         ASSERT_EQ(intResult.second, CacheEntryBase::LookUpStatus::Miss);
-        auto strResult = cache.getOrCreate(KeyString{std::to_string(i)}, strBuilder);
+        auto strResult = cache.getOrCreate(StringKey{std::to_string(i)}, strBuilder);
         ASSERT_NE(strResult.first, StrValueType());
         ASSERT_EQ(*strResult.first, std::to_string(i));
         ASSERT_EQ(strResult.second, CacheEntryBase::LookUpStatus::Miss);
@@ -277,28 +277,28 @@ TEST(MultiCacheTests, Empty) {
     constexpr size_t capacity = 0;
     constexpr size_t attempts = 10;
 
-    mockBuilder<IntValueType::element_type, Key> intBuilderMock;
+    mockBuilder<IntValueType::element_type, IntKey> intBuilderMock;
     EXPECT_CALL(intBuilderMock, build(_))
             .Times(2 * attempts)
-            .WillRepeatedly([](const Key& key){return key.data;});
+            .WillRepeatedly([](const IntKey& key){return key.data;});
 
-    mockBuilder<StrValueType::element_type, KeyString> strBuilderMock;
+    mockBuilder<StrValueType::element_type, StringKey> strBuilderMock;
     EXPECT_CALL(strBuilderMock, build(_))
             .Times(2 * attempts)
-            .WillRepeatedly([](const KeyString& key){return key.data;});
+            .WillRepeatedly([](const StringKey& key){return key.data;});
 
-    auto intBuilder = [&](const Key& key) { return std::make_shared<int>(intBuilderMock.build(key)); };
-    auto strBuilder = [&](const KeyString& key) { return std::make_shared<std::string>(strBuilderMock.build(key)); };
+    auto intBuilder = [&](const IntKey& key) { return std::make_shared<int>(intBuilderMock.build(key)); };
+    auto strBuilder = [&](const StringKey& key) { return std::make_shared<std::string>(strBuilderMock.build(key)); };
 
     MultiCache cache(capacity);
 
     //creating so we miss everytime
     for (int i = 0; i < attempts; ++i) {
-        auto intResult = cache.getOrCreate(Key{i}, intBuilder);
+        auto intResult = cache.getOrCreate(IntKey{i}, intBuilder);
         ASSERT_NE(intResult.first, IntValueType());
         ASSERT_EQ(*intResult.first, i);
         ASSERT_EQ(intResult.second, CacheEntryBase::LookUpStatus::Miss);
-        auto strResult = cache.getOrCreate(KeyString{std::to_string(i)}, strBuilder);
+        auto strResult = cache.getOrCreate(StringKey{std::to_string(i)}, strBuilder);
         ASSERT_NE(strResult.first, StrValueType());
         ASSERT_EQ(*strResult.first, std::to_string(i));
         ASSERT_EQ(strResult.second, CacheEntryBase::LookUpStatus::Miss);
@@ -306,11 +306,11 @@ TEST(MultiCacheTests, Empty) {
 
     //since the capacity is 0 we will always miss
     for (int i = 0; i < attempts; ++i) {
-        auto intResult = cache.getOrCreate(Key{i}, intBuilder);
+        auto intResult = cache.getOrCreate(IntKey{i}, intBuilder);
         ASSERT_NE(intResult.first, IntValueType());
         ASSERT_EQ(*intResult.first, i);
         ASSERT_EQ(intResult.second, CacheEntryBase::LookUpStatus::Miss);
-        auto strResult = cache.getOrCreate(KeyString{std::to_string(i)}, strBuilder);
+        auto strResult = cache.getOrCreate(StringKey{std::to_string(i)}, strBuilder);
         ASSERT_NE(strResult.first, StrValueType());
         ASSERT_EQ(*strResult.first, std::to_string(i));
         ASSERT_EQ(strResult.second, CacheEntryBase::LookUpStatus::Miss);
@@ -342,19 +342,19 @@ TEST(MultiCacheTests, SmokeTypeIdSync) {
     constexpr size_t capacity = 10;
     constexpr size_t numThreads = 30;
 
-    auto intBuilder = [&](const Key& key) { return std::make_shared<int>(key.data); };
-    auto strBuilder = [&](const KeyString& key) { return std::make_shared<std::string>(key.data); };
+    auto intBuilder = [&](const IntKey& key) { return std::make_shared<int>(key.data); };
+    auto strBuilder = [&](const StringKey& key) { return std::make_shared<std::string>(key.data); };
 
     std::vector<MultiCache> vecCache(numThreads, MultiCache(capacity));
 
     auto testRoutine = [&](MultiCache& cache) {
         //creating so we miss everytime
         for (int i = 0; i < capacity; ++i) {
-            auto intResult = cache.getOrCreate(Key{i}, intBuilder);
+            auto intResult = cache.getOrCreate(IntKey{i}, intBuilder);
             ASSERT_NE(intResult.first, IntValueType());
             ASSERT_EQ(*intResult.first, i);
             ASSERT_EQ(intResult.second, CacheEntryBase::LookUpStatus::Miss);
-            auto strResult = cache.getOrCreate(KeyString{std::to_string(i)}, strBuilder);
+            auto strResult = cache.getOrCreate(StringKey{std::to_string(i)}, strBuilder);
             ASSERT_NE(strResult.first, StrValueType());
             ASSERT_EQ(*strResult.first, std::to_string(i));
             ASSERT_EQ(strResult.second, CacheEntryBase::LookUpStatus::Miss);
@@ -362,11 +362,11 @@ TEST(MultiCacheTests, SmokeTypeIdSync) {
 
         //always hit
         for (int i = 0; i < capacity; ++i) {
-            auto intResult = cache.getOrCreate(Key{i}, intBuilder);
+            auto intResult = cache.getOrCreate(IntKey{i}, intBuilder);
             ASSERT_NE(intResult.first, IntValueType());
             ASSERT_EQ(*intResult.first, i);
             ASSERT_EQ(intResult.second, CacheEntryBase::LookUpStatus::Hit);
-            auto strResult = cache.getOrCreate(KeyString{std::to_string(i)}, strBuilder);
+            auto strResult = cache.getOrCreate(StringKey{std::to_string(i)}, strBuilder);
             ASSERT_NE(strResult.first, StrValueType());
             ASSERT_EQ(*strResult.first, std::to_string(i));
             ASSERT_EQ(strResult.second, CacheEntryBase::LookUpStatus::Hit);
