@@ -1,8 +1,8 @@
 #include "bmp_reader.h"
 
+#include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <memory.h>
 
 int readBmpImage(const char* fileName, BitMap* image) {
     size_t cnt;
