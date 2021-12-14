@@ -128,12 +128,15 @@ std::map<std::string, std::string> parseArgMap(std::string argMap) {
 
     std::map<std::string, std::string> parsedMap;
     for (auto&& pair : pairs) {
-        const auto keyValue = splitStringList(pair, ':');
-        if (keyValue.size() != 2) {
+        const auto lastDelimPos = pair.find_last_of(':');
+        auto key = pair.substr(0, lastDelimPos);
+        auto value = pair.substr(lastDelimPos + 1);
+
+        if (lastDelimPos == std::string::npos || key.empty() || value.empty()) {
             throw std::invalid_argument("Invalid key/value pair " + pair + ". Expected <layer_name>:<value>");
         }
 
-        parsedMap[keyValue[0]] = keyValue[1];
+        parsedMap[std::move(key)] = std::move(value);
     }
 
     return parsedMap;
