@@ -71,13 +71,8 @@ const std::vector<std::map<std::string, std::string>> exportConfigs = {
 
 const std::vector<std::map<std::string, std::string>> importConfigs = {
         {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "32767"}
-        },
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "327.67"}
-        },
+                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+        }
 };
 
 const std::vector<std::string> appHeader = {
