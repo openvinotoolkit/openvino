@@ -11,6 +11,7 @@
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 
 #include "assign_shape_inference.hpp"
