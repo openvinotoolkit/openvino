@@ -60,19 +60,19 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type& input_type,
                                                     const std::string variable_id) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         auto read_value = std::make_shared<op::v3::ReadValue>(in, variable_id);
         auto assign = std::make_shared<op::v3::Assign>(read_value, variable_id);
-        return std::make_shared<Function>(OutputVector{assign}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{assign}, ParameterVector{in});
     }
 };
 
 class ReferenceReadValueAssignV6LayerTest : public ReferenceReadValueAssignV3LayerTest {
 private:
-    static std::shared_ptr<Function> CreateFunction(const Shape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                     const element::Type& input_type,
                                                     const std::string variable_id) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
@@ -80,7 +80,7 @@ private:
             op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_id});
         auto read_value = std::make_shared<op::v6::ReadValue>(in, variable);
         auto assign = std::make_shared<op::v6::Assign>(read_value, variable);
-        return std::make_shared<Function>(OutputVector{assign},
+        return std::make_shared<Model>(OutputVector{assign},
                                           ParameterVector{in},
                                           op::util::VariableVector{variable});
     }
@@ -119,6 +119,7 @@ std::vector<ReadValueAssignParams> generateParamsForReadValueAssign() {
 
 std::vector<ReadValueAssignParams> generateCombinedParamsForReadValueAssign() {
     const std::vector<std::vector<ReadValueAssignParams>> allTypeParams{
+        generateParamsForReadValueAssign<element::Type_t::f64>(),
         generateParamsForReadValueAssign<element::Type_t::f32>(),
         generateParamsForReadValueAssign<element::Type_t::f16>(),
         generateParamsForReadValueAssign<element::Type_t::bf16>(),
@@ -126,10 +127,13 @@ std::vector<ReadValueAssignParams> generateCombinedParamsForReadValueAssign() {
         generateParamsForReadValueAssign<element::Type_t::i32>(),
         generateParamsForReadValueAssign<element::Type_t::i16>(),
         generateParamsForReadValueAssign<element::Type_t::i8>(),
+        generateParamsForReadValueAssign<element::Type_t::i4>(),
         generateParamsForReadValueAssign<element::Type_t::u64>(),
         generateParamsForReadValueAssign<element::Type_t::u32>(),
         generateParamsForReadValueAssign<element::Type_t::u16>(),
         generateParamsForReadValueAssign<element::Type_t::u8>(),
+        generateParamsForReadValueAssign<element::Type_t::u4>(),
+        generateParamsForReadValueAssign<element::Type_t::boolean>()
     };
 
     std::vector<ReadValueAssignParams> combinedParams;
