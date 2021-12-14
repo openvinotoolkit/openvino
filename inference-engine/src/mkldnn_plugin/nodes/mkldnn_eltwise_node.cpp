@@ -1833,16 +1833,12 @@ void MKLDNNEltwiseNode::appendBinPostOps(mkldnn::post_ops& ops, const VectorDims
 
     switch (getAlgorithm()) {
     case EltwiseAdd:
+    case EltwiseSubtract:
         appendBinary(mkldnn::algorithm::binary_add, shiftsMemory, shifts);
         break;
-    case EltwiseSubtract:
-        appendBinary(mkldnn::algorithm::binary_sub, shiftsMemory, shifts);
-        break;
+    case EltwiseDivide:
     case EltwiseMultiply:
         appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scales);
-        break;
-    case EltwiseDivide:
-        appendBinary(mkldnn::algorithm::binary_div, scalesMemory, scales);
         break;
     case EltwiseMulAdd:
         appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scales);

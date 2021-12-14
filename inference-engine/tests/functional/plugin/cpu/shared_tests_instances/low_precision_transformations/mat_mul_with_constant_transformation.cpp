@@ -35,15 +35,15 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         "U8"
     },
     // 3D with different values
-    // {
-    //     { 1, 3, 4 },
-    //     { 256ul, {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}}, {-10.5f}, {4.5f}, {-10.5f}, {4.5f} },
-    //     { std::vector<float>(4 * 2, 2.f), ngraph::element::f32, ngraph::Shape{ 2, 4 } },
-    //     { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
-    //     { {}, {}, {} },
-    //     "FullyConnected",
-    //     "U8"
-    // },
+    {
+        { 1, 3, 4 },
+        { 256ul, {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}}, {-10.5f}, {4.5f}, {-10.5f}, {4.5f} },
+        { std::vector<float>(4 * 2, 2.f), ngraph::element::f32, ngraph::Shape{ 2, 4 } },
+        { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
+        { {}, {}, {} },
+        "FullyConnected",
+        "U8"
+    },
     // 4D with different values
     {
         { 1, 1, 3, 4 },

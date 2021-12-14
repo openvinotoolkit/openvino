@@ -1265,6 +1265,9 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             || isConvertablePowerStatic();
 }
 
+// @todo shifts for Subtract and scales for Divide are replaced with
+// Add (with opposite sign) and Multiply (with inverse value) for legacy dephwise post ops
+// This can be avoided after dephwise post ops are gone
 std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts(const MKLDNNNode *parentNode) const {
     std::vector<float> scales, shifts;
 
