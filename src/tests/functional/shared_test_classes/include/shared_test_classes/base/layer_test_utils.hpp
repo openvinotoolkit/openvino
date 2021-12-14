@@ -152,6 +152,10 @@ protected:
 
     virtual void Infer();
 
+    virtual void ExternalOptimization();
+
+    virtual void DumpInputs();
+
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
     std::shared_ptr<ngraph::Function> functionRefs;

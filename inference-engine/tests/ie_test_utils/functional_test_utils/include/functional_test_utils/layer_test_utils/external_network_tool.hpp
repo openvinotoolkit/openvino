@@ -20,16 +20,12 @@
 #include "transformations/serialize.hpp"
 #include "cpp/ie_cnn_network.h"
 
-#define path_delimiter "/"
-#ifdef _WIN32
-#define path_delimiter "\\"
-#endif
-
-#define MAX_FILE_NAME_SIZE 240
-#define SHORT_HASH_SIZE 10
-#define DEFAULT_INPUT_EXTENSION "bin"
-
 namespace LayerTestsUtils {
+
+#define SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP()  \
+if (ENT::toDumpModel() || ENT::toDumpInput()) {        \
+    return;                                             \
+}                                                       \
 
 class ExternalNetworkTool;
 enum class ExternalNetworkMode;
@@ -47,6 +43,15 @@ enum class ExternalNetworkMode {
 };
 
 class ExternalNetworkTool {
+#define MAX_FILE_NAME_SIZE 240
+#define SHORT_HASH_SIZE 10
+#define DEFAULT_INPUT_EXTENSION "bin"
+
+#define path_delimiter "/"
+#ifdef _WIN32
+#define path_delimiter "\\"
+#endif
+
 private:
     static ExternalNetworkMode mode;
 

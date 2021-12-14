@@ -49,8 +49,11 @@ void LayerTestsCommon::Run() {
     }
 
     try {
+        ExternalOptimization();
         LoadNetwork();
         GenerateInputs();
+        DumpInputs();
+        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
         Validate();
         s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
@@ -346,21 +349,19 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 }
 
-void LayerTestsCommon::LoadNetwork() {
-    // External Network Tool
-    if (ENT::toDumpModel()) {
-        std::string testName = GetTestCaseName() + "_" + GetTestName();
-        ENT::dumpNetworkToFile(function, testName);
-    }
+void LayerTestsCommon::ExternalOptimization() {
+    std::string testName = GetTestCaseName() + "_" + GetTestName();
 
-    if (ENT::toLoad()) {
-        std::string testName = GetTestCaseName() + "_" + GetTestName();
+    if (ENT::toDumpModel()) {
+        ENT::dumpNetworkToFile(function, testName);
+    } else if (ENT::toLoad()) {
         function = ENT::loadNetworkFromFile(testName);
         functionRefs = ngraph::clone_function(*function);
     }
+}
 
+void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
-
     CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
@@ -374,17 +375,27 @@ void LayerTestsCommon::GenerateInputs() {
         const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
-
         InferenceEngine::InputInfo::CPtr info = infoIt->second;
         InferenceEngine::Blob::Ptr blob = GenerateInput(*info);
+        inputs.push_back(blob);
+    }
+}
 
-        if (ENT::toDumpInput()) {
-            std::string network_name = GetTestCaseName() + "_" + GetTestName();
-            uint32_t ir_id = functionParams.size() - 1 - i;  // topological sort dependency!
+void LayerTestsCommon::DumpInputs() {
+    if (ENT::toDumpInput()) {
+        std::string network_name = GetTestCaseName() + "_" + GetTestName();
+        const auto& inputsInfo = executableNetwork.GetInputsInfo();
+        const auto& functionParams = function->get_parameters();
+        for (int i = 0; i < functionParams.size(); ++i) {
+            const auto& param = functionParams[i];
+            const auto infoIt = inputsInfo.find(param->get_friendly_name());
+            GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+            InferenceEngine::InputInfo::CPtr info = infoIt->second;
+            InferenceEngine::Blob::Ptr blob = inputs[i];
+            // topological sort dependency!
+            uint32_t ir_id = functionParams.size() - 1 - i;
             ENT::saveInputFile(network_name, info, blob, ir_id);
         }
-
-        inputs.push_back(blob);
     }
 }
 
