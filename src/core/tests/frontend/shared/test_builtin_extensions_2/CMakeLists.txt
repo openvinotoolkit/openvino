@@ -16,7 +16,5 @@ target_link_libraries(${TARGET_NAME} PRIVATE nlohmann_json inference_engine_tran
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION tests
-        LIBRARY DESTINATION tests
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
