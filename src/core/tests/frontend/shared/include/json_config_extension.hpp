@@ -13,7 +13,8 @@ class JsonConfigExtensionWrapper : public ov::frontend::JsonConfigExtension {
 public:
     explicit JsonConfigExtensionWrapper(const std::string& config_path)
         : ov::frontend::JsonConfigExtension(config_path){};
-    ~JsonConfigExtensionWrapper() override = default;;
+    ~JsonConfigExtensionWrapper() override = default;
+    ;
 
     std::vector<Extension::Ptr> get_loaded_extensions() {
         return m_loaded_extensions;
