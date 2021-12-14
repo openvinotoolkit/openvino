@@ -110,8 +110,18 @@ template <class T>
 static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto&& size = mem->get_layout().size;
 
-    file_stream << "shape: " << size.to_string() << " ";
-    file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);
+    tensor tmp_size(size);
+    tmp_size.batch[0] = batch_size;
+    if (tmp_size == size) {
+        file_stream << "shape: " << size.to_string() << " ";
+        file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+    } else {
+        file_stream << "shape: " << tmp_size.to_string() << " ";
+        file_stream << "(count: " << tmp_size.count() << ", original shape: " << size.to_string()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+    }
 
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
@@ -119,7 +129,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     std::stringstream buffer;
 
     for (cldnn::tensor::value_type g = 0; g < size.group[0]; ++g) {
-        for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
+        for (cldnn::tensor::value_type b = 0; b < batch_size; ++b) {
             for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
                 for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
                     for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
