@@ -7,13 +7,13 @@
 #include <memory>
 #include <vector>
 
-#include "transformations/utils/utils.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 
@@ -22,7 +22,7 @@ void visit_shape_path(const shared_ptr<ov::Node>& node, unordered_set<shared_ptr
     if (!node)
         return;
     visited.insert(node);
-    deque<shared_ptr<ov::Node>> nodes{ node };
+    deque<shared_ptr<ov::Node>> nodes{node};
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();
@@ -44,7 +44,7 @@ void visit_shape_path(const shared_ptr<ov::Node>& node, unordered_set<shared_ptr
 }
 }  // namespace
 
-bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_function(std::shared_ptr<ov::Function> f) {
+bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_ptr<ov::Model>& f) {
     deque<shared_ptr<Node>> nodes;
     unordered_set<shared_ptr<Node>> visited;
     for (auto& r : f->get_results())

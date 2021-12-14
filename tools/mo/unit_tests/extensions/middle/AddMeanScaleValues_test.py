@@ -22,7 +22,10 @@ nodes = {
 
     **regular_op_with_shaped_data('mul_scale', [1, 3, 227, 227], {'type': 'Multiply', 'op': 'Mul'}),
     **regular_op_with_shaped_data('add_mean', [1, 3, 227, 227], {'type': 'Add', 'op': 'Add'}),
-
+    **regular_op_with_shaped_data('convert', [1, 3, 227, 227], {'type': 'Convert',
+                                                                'op': 'Convert',
+                                                                'dst_type': np.float32}),
+    
     **valued_const_with_data('scale', np.array([1. / 1., 1. / 2., 1. / 3.]).reshape((1, 3, 1, 1))),
     **valued_const_with_data('mean', np.array([-1., -2., -3.]).reshape((1, 3, 1, 1))),
 
@@ -329,3 +332,46 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
         self.check_graph_attrs(graph, graph_ref, [])
+
+    def test_insert_add_mean_scale_after_convert(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', 'convert'),
+            *connect('convert', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]), np.array([1., 2., 3.])]])
+        graph = build_graph(nodes, [*connect('parameter', 'convert'), *connect('convert', 'result')],
+                            nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, [])
+
+    def test_insert_add_mean_scale_after_convert_different_type(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', 'convert'),
+            *connect('convert', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]),
+                                             np.array([1., 2., 3.])]])
+        graph = build_graph(nodes, [*connect('parameter', 'convert'), *connect('convert', 'result')],
+                            nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, [])
+        add_node = graph.get_op_nodes(type="Add")[0]
+        self.assertTrue(add_node.in_port(1).get_connection().get_source().node['value'].dtype == np.float32)

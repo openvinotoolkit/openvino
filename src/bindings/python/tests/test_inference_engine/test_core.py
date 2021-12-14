@@ -8,7 +8,7 @@ from sys import platform
 from pathlib import Path
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Function, Core, ExecutableNetwork, Tensor, tensor_from_file, compile_model
+from openvino.runtime import Model, Core, CompiledModel, Tensor, tensor_from_file, compile_model
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
@@ -22,7 +22,7 @@ def test_compact_api_xml():
     img = read_image()
 
     model = compile_model(test_net_xml)
-    assert(isinstance(model, ExecutableNetwork))
+    assert(isinstance(model, CompiledModel))
     results = model.infer_new_request({"data": img})
     assert np.argmax(results[list(results)[0]]) == 2
 
@@ -31,7 +31,7 @@ def test_compact_api_onnx():
     img = read_image()
 
     model = compile_model(test_net_onnx)
-    assert(isinstance(model, ExecutableNetwork))
+    assert(isinstance(model, CompiledModel))
     results = model.infer_new_request({"data": img})
     assert np.argmax(results[list(results)[0]]) == 2
 
@@ -40,7 +40,7 @@ def test_core_class():
     input_shape = [1, 3, 4, 4]
     param = ov.parameter(input_shape, np.float32, name="parameter")
     relu = ov.relu(param, name="relu")
-    func = Function([relu], [param], "test")
+    func = Model([relu], [param], "test")
     func.get_ordered_ops()[2].friendly_name = "friendly"
 
     core = Core()
@@ -60,16 +60,16 @@ def test_compile_model(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, device)
-    assert isinstance(exec_net, ExecutableNetwork)
+    assert isinstance(exec_net, CompiledModel)
 
 
 def test_read_model_from_ir():
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
     func = core.read_model(model=test_net_xml)
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
 
 def test_read_model_from_tensor():
@@ -77,31 +77,31 @@ def test_read_model_from_tensor():
     model = open(test_net_xml).read()
     tensor = tensor_from_file(test_net_bin)
     func = core.read_model(model=model, weights=tensor)
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
 
 def test_read_model_as_path():
     core = Core()
     func = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
     func = core.read_model(model=test_net_xml, weights=Path(test_net_bin))
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
     func = core.read_model(model=Path(test_net_xml))
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
 
 def test_read_model_from_onnx():
     core = Core()
     func = core.read_model(model=test_net_onnx)
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
 
 def test_read_model_from_onnx_as_path():
     core = Core()
     func = core.read_model(model=Path(test_net_onnx))
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
 
 def test_read_net_from_buffer():
@@ -111,7 +111,7 @@ def test_read_net_from_buffer():
     with open(model_path()[0], "rb") as f:
         xml = f.read()
     func = core.read_model(model=xml, weights=bin)
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
 
 def test_net_from_buffer_valid():
@@ -211,7 +211,7 @@ def test_register_plugin():
     ie.register_plugin("MKLDNNPlugin", "BLA")
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, "BLA")
-    assert isinstance(exec_net, ExecutableNetwork), \
+    assert isinstance(exec_net, CompiledModel), \
         "Cannot load the network to the registered plugin with name 'BLA'"
 
 
@@ -229,9 +229,9 @@ def test_register_plugins():
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, "CUSTOM")
     assert isinstance(exec_net,
-                      ExecutableNetwork), "Cannot load the network to " \
-                                          "the registered plugin with name 'CUSTOM' " \
-                                          "registered in the XML file"
+                      CompiledModel), "Cannot load the network to " \
+                                      "the registered plugin with name 'CUSTOM' " \
+                                      "registered in the XML file"
 
 
 @pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
@@ -302,7 +302,7 @@ def test_add_extension(device):
     else:
         core.add_extension(library_path="libtemplate_extension.so")
     func = core.read_model(model=model, init_from_buffer=True)
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)
 
     # input_blob = next(iter(network.input_info))
     # n, c, h, w = network.input_info[input_blob].input_data.shape
@@ -379,4 +379,4 @@ def test_read_model_from_buffer_no_weights(device):
 </net>""")
     core = Core()
     func = core.read_model(model=model)
-    assert isinstance(func, Function)
+    assert isinstance(func, Model)

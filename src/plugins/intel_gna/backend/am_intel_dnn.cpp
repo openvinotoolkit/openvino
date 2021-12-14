@@ -367,7 +367,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitCopyComponentPrivate(intel_dnn_compon
 }
 
 void GNAPluginNS::backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel_dnn_component_t &comp,
-                                                     DnnActivation function_id,
+                                                     const DnnActivation& function_id,
                                                      intel_dnn_orientation_t orientation,
                                                      uint32_t num_rows,
                                                      uint32_t num_columns,
