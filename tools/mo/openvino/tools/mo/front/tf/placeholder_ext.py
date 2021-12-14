@@ -28,8 +28,8 @@ class PlaceholderFrontExtractor(FrontExtractorOp):
             if len(extracted_output_shapes) == 1:   # check if attribute not empty
                 extracted_output_shapes = tf_tensor_shape(extracted_output_shapes[0])
 
-            # Check equality of extracted shapes. We know some cases then Placeholder operation has empty `shape` attribute
-            # value and non-empty `_output_shapes` attribute value and need co handle and support it.
+            # Check equality of extracted shapes. We know some cases when Placeholder operation has empty `shape` attribute
+            # value and non-empty `_output_shapes` attribute value and need to handle and support it.
             if len(extracted_output_shapes) > len(extracted_shape):
                 log.warning('Extracted shapes for Placeholder operation {} have different lengths: `shape` {} and '
                             '`_output_shapes` {}. Please, check if model is consistent'.format(node.pb.name,
