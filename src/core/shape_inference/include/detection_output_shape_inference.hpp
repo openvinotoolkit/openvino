@@ -19,7 +19,6 @@ void compute_num_classes(const DetectionOutputBase* op,
     const T& box_logits_pshape = input_shapes[0];
     const T& class_preds_pshape = input_shapes[1];
     const T& proposals_pshape = input_shapes[2];
-    const T& unknown_shape{};
     T ad_class_preds_shape{};
     T ad_box_preds_shape{};
     bool have_five_inputs = false;
@@ -139,7 +138,6 @@ void shape_infer_base(const DetectionOutputBase* op,
 
     val_type num_classes = 0;
     val_type num_prior_boxes = 0;
-    // StaticDim
     dim_t dim_num_images{};
     bool dim_num_images_updated = false;
 
