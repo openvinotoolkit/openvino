@@ -10,11 +10,11 @@ using namespace ov;
 using namespace ov::frontend;
 
 /// \brief Helper class to register user function as a FunctionPass
-class CustomFunctionPass : public ov::pass::ModelPass {
+class CustomModelPass : public ov::pass::ModelPass {
 public:
-    explicit CustomFunctionPass(std::function<bool(std::shared_ptr<ov::Model>)> pass) : m_pass(std::move(pass)) {}
+    explicit CustomModelPass(std::function<bool(std::shared_ptr<ov::Model>)> pass) : m_pass(std::move(pass)) {}
 
-    bool run_on_function(std::shared_ptr<ov::Model> f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         return m_pass(f);
     }
 
@@ -33,7 +33,7 @@ public:
 DecoderTransformationExtension::DecoderTransformationExtension(
     const std::function<bool(std::shared_ptr<ov::Model>)>& function_pass)
     : m_registration([=](ov::pass::Manager& manager) {
-          manager.register_pass<CustomFunctionPass>(function_pass);
+          manager.register_pass<CustomModelPass>(function_pass);
       }) {}
 
 DecoderTransformationExtension::DecoderTransformationExtension(
