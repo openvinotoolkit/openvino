@@ -213,7 +213,7 @@ class IEEngine(Engine):
                                                          'metric_name': metric_name,
                                                          'result': metric_value[i]})
 
-    def _populate_free_requests(self, free_irs, queued_irs, data_iterator):
+    def _populate_free_requests(self, model, free_irs, queued_irs, data_iterator):
         """Fills free inference requests with new data batch and start inference
         :param free_irs: list of completed infer requests
         :param queued_irs: list of running infer requests with corresponding image ids
@@ -225,7 +225,7 @@ class IEEngine(Engine):
                 break
             batch_id, batch = data_batch
             image_ids, images, batch_meta = self._process_batch(batch)
-            ir.start_async(inputs=self._fill_input(self._model, images))
+            ir.start_async(inputs=self._fill_input(model, images))
             queued_irs.append((batch_id, image_ids, batch_meta, ir))
 
         free_irs.clear()
@@ -265,18 +265,25 @@ class IEEngine(Engine):
         input_info = model.inputs
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
-            return {input_blob.get_node().friendly_name: np.stack(image_batch, axis=0)}
+            return {input_blob.get_any_name(): np.stack(image_batch, axis=0)}
 
         if len(input_info) == 2:
             image_info_nodes = list(filter(
-                lambda x: len(x.get_node().shape) == 2, input_info))
+                lambda x: len(x.shape) == 2, input_info))
 
             if len(image_info_nodes) != 1:
                 raise Exception('Two inputs networks must contain exactly one ImageInfo node')
 
-            image_info_name, _ = image_info_nodes[0]
-            image_tensor_name, _ = next(iter(filter(
-                lambda x: x[0] != x.get_node().friendly_name, input_info)))
+            image_info_node = image_info_nodes[0]
+            try:
+                image_info_name = image_info_node.get_any_name()
+            except RuntimeError:
+                image_info_name = image_info_node.get_tensor().set_names(set([image_info_node.node.friendly_name]))
+                image_info_name = image_info_node.get_any_name()
+
+            image_tensor_node = next(iter(filter(
+                lambda x: x.get_any_name() != image_info_name, input_info)))
+            image_tensor_name = image_tensor_node.get_any_name()
 
             image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
 
@@ -337,7 +344,7 @@ class IEEngine(Engine):
         # Start inference
         start_time = time()
         while free_irs or queued_irs:
-            self._populate_free_requests(free_irs, queued_irs, sampler_iter)
+            self._populate_free_requests(executable_model, free_irs, queued_irs, sampler_iter)
 
             ready_irs, queued_irs = self._wait_for_any(queued_irs)
             if ready_irs:
@@ -380,7 +387,7 @@ class IEEngine(Engine):
             batch_annotations, image_batch, batch_meta = self._process_batch(batch)
 
             # Infer batch of images
-            predictions = infer_request.infer(self._fill_input(self._model, image_batch))
+            predictions = infer_request.infer(self._fill_input(executable_model, image_batch))
             outputs = self._process_raw_output(predictions)
 
             self._process_infer_output(stats_layout, outputs,
