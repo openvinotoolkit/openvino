@@ -513,7 +513,7 @@ add_dependencies(ov_core_unit_tests template_extension)
 
 target_include_directories(ov_core_unit_tests PRIVATE ".")
 
-get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
+get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
 target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
 
 target_compile_definitions(ov_core_unit_tests

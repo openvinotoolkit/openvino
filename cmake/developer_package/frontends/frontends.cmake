@@ -34,7 +34,7 @@ function(ov_generate_frontends_hpp)
     endif()
 
     # add frontends to libraries including ov_frontends.hpp
-    ov_target_link_frontends(frontend_common)
+    ov_target_link_frontends(ov_runtime)
 
     set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
     set(frontends_hpp_in "${IEDevScripts_DIR}/frontends/ov_frontends.hpp.in")

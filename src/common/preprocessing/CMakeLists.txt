@@ -142,7 +142,7 @@ if(ENABLE_GAPI_PREPROCESSING)
         target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
     else()
         # for static linkage the dependencies are in opposite order
-        target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+        target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
     endif()
 
     # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5

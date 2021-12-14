@@ -314,7 +314,7 @@ function(ie_generate_plugins_hpp)
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
-    ie_target_link_plugins(inference_engine)
+    ie_target_link_plugins(ov_runtime)
     if(TARGET inference_engine_s)
         ie_target_link_plugins(inference_engine_s)
     endif()
