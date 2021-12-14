@@ -390,24 +390,41 @@ std::shared_ptr<opset1::Constant> NetworkHelper::toScalar(std::shared_ptr<opset1
     return std::make_shared<opset1::Constant>(constant->get_element_type(), Shape{}, constant->get_data_ptr());
 }
 
-std::shared_ptr<Node> NetworkHelper::getConstantInput(std::shared_ptr<Node> node) {
-    std::shared_ptr<Node> constant1 = ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr());
-    if (!constant1) {
-        constant1 = ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr());
-    }
-    return constant1;
-}
-
-int NetworkHelper::getConstantInputIndex(std::shared_ptr<Node> node) {
-    if (ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1)) != nullptr) {
-        return 1;
+std::shared_ptr<Node> NetworkHelper::getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected) {
+    std::shared_ptr<Node> parent = ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr());
+    if (parent != nullptr) {
+        return parent;
     }
 
-    if (ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(0)) != nullptr) {
-        return 0;
+    parent = ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr());
+    if (parent != nullptr) {
+        return parent;
     }
 
-    return -1;
+    if (convertIsExpected) {
+        auto getConstantBeforeConvert = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
+            std::shared_ptr<Node> parent = ov::as_type_ptr<opset1::Convert>(node);
+            if (parent != nullptr) {
+                parent = ov::as_type_ptr<opset1::Constant>(parent->input_value(0).get_node_shared_ptr());
+                if (parent != nullptr) {
+                    return parent;
+                }
+            }
+            return nullptr;
+        };
+
+        parent = getConstantBeforeConvert(node->input_value(0).get_node_shared_ptr());
+        if (parent != nullptr) {
+            return parent;
+        }
+
+        parent = getConstantBeforeConvert(node->input_value(1).get_node_shared_ptr());
+        if (parent != nullptr) {
+            return parent;
+        }
+    }
+
+    return nullptr;
 }
 
 std::vector<size_t> NetworkHelper::updateReshapeValues(
@@ -1430,9 +1447,18 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
     return dequantization;
 }
 
-std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise) {
-    const size_t constantIdx = getConstantInputIndex(eltwise);
-    const auto constant = ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(constantIdx));
+std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(
+        const std::shared_ptr<Node>& eltwise,
+        const bool convertIsExpected) {
+    auto constantNode = getConstantInput(eltwise, convertIsExpected);
+    if (constantNode == nullptr) {
+        return nullptr;
+    }
+
+    auto constant = ov::as_type_ptr<opset1::Constant>(constantNode);
+    if (constant == nullptr) {
+        return nullptr;
+    }
 
     const auto getConstWithNormalizeShape = [](
         const std::shared_ptr<Node>& eltwise,
