@@ -16,6 +16,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/framework_node.hpp>
 #include <transformations/init_node_info.hpp>
+#include <openvino/core/model.hpp>
 
 #include "ie_common.h"
 
@@ -44,8 +45,9 @@ public:
     }
 
     void TearDown() override {
+        auto cloned_function = ngraph::clone_function(*function);
         if (!function_ref) {
-            function_ref = ngraph::clone_function(*function);
+            function_ref = cloned_function;
         }
 
         manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison);
@@ -56,6 +58,10 @@ public:
 
         auto res = comparator.compare(function, function_ref);
         ASSERT_TRUE(res.valid) << res.message;
+
+        if (m_enable_accuracy_check) {
+            accuracy_check(cloned_function, function);
+        }
     }
 
     // TODO: this is temporary solution to disable rt info checks that must be applied by default
@@ -68,7 +74,13 @@ public:
         m_soft_names_comparison = true;
     }
 
-    std::shared_ptr<ngraph::Function> function, function_ref;
+    void enable_accuracy_check() {
+        m_enable_accuracy_check = true;
+    }
+
+    void accuracy_check(std::shared_ptr<ov::Model> ref_function, std::shared_ptr<ov::Model> cur_function);
+
+    std::shared_ptr<ov::Model> function, function_ref;
     ngraph::pass::Manager manager;
     FunctionsComparator comparator;
 
@@ -76,4 +88,5 @@ private:
     std::shared_ptr<ngraph::pass::UniqueNamesHolder> m_unh;
     bool m_disable_rt_info_check{false};
     bool m_soft_names_comparison{true};
+    bool m_enable_accuracy_check{false};
 };

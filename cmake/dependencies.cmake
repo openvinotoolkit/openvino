@@ -5,7 +5,7 @@
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it
-set_temp_directory(TEMP "${CMAKE_BINARY_DIR}")
+set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
@@ -265,7 +265,7 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake)
+include(${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake)
 
 if(ENABLE_INTEL_GNA)
     reset_deps_cache(
@@ -287,8 +287,8 @@ if(ENABLE_INTEL_GNA)
             set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "03.00.00.1377")
-            set(GNA_HASH "d45fb48994d8c2803a16e88e29ae48851066325b97c1c6c4a5bf4f4573d55c65")
+            set(GNA_VERSION "03.00.00.1455")
+            set(GNA_HASH "8ac1af18eb32777b00193f4f8c252ee4f8bd64a9069138b4a5aaeebd82ead464")
         endif()
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)

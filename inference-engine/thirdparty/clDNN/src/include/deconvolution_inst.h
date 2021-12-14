@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/deconvolution.hpp"
+#include "intel_gpu/primitives/deconvolution.hpp"
 #include "primitive_inst.h"
 
 #include <string>

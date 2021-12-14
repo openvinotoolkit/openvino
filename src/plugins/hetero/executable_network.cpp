@@ -82,10 +82,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         auto& nodeInfo = node->get_rt_info();
         auto itInfo = nodeInfo.find("affinity");
         if (itInfo != nodeInfo.end()) {
-            IE_ASSERT((ngraph::is_type<ngraph::VariantWrapper<std::string>>(itInfo->second)));
-            queryNetworkResult.supportedLayersMap.emplace(
-                node->get_friendly_name(),
-                ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(itInfo->second)->get());
+            IE_ASSERT(itInfo->second.is<std::string>());
+            queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itInfo->second.as<std::string>());
             allEmpty = false;
         }
     }
@@ -189,7 +187,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     colorIndex++;
                 }
             }}
-            .run_on_function(ngraph::clone_function(*function));
+            .run_on_model(ngraph::clone_function(*function));
     }
 
     NodeMap<InputSet> nodeInputDependencies;
@@ -481,7 +479,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     }
                 }
             }}
-            .run_on_function(ngraph::clone_function(*function));
+            .run_on_model(ngraph::clone_function(*function));
     }
     for (auto&& network : _networks) {
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
@@ -759,7 +757,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
             // Note: custom ngraph extensions are not supported
             std::stringstream xmlFile, binFile;
             ov::pass::Serialize serializer(xmlFile, binFile, ov::pass::Serialize::Version::IR_V10);
-            serializer.run_on_function(subnet.getFunction());
+            serializer.run_on_model(subnet.getFunction());
 
             auto m_constants = binFile.str();
             auto m_model = xmlFile.str();

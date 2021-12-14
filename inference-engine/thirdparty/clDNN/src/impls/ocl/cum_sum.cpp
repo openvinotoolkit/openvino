@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "cum_sum/cum_sum_kernel_selector.h"
 #include "cum_sum/cum_sum_kernel_ref.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 using namespace cldnn;
 

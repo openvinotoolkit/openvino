@@ -57,7 +57,6 @@ void DetectNetworkBatch::LoadNetwork() {
     functionRefs = ngraph::clone_function(*cnnNetwork.getFunction());
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
-    inferRequest = executableNetwork.CreateInferRequest();
 }
 
 TEST_P(DetectNetworkBatch, InferWithOneInput) {
