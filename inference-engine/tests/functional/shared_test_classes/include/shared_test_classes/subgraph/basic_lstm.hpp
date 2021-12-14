@@ -20,6 +20,7 @@ typedef std::tuple<
         std::string,                         // Target Device
         std::map<std::string, std::string>,  // Configuration
         std::pair<size_t, size_t>,           // Third dimenstion and hidden size
+        size_t,                              // Number of Cells
         bool                                 // Decompose LSTMCell
 > basicLstmParams;
 
@@ -31,6 +32,7 @@ public:
     void Run() override;
     static std::shared_ptr<ngraph::Function> GetNetwork(size_t thirdDimOut,
         size_t hiddenSize,
+        size_t num_cells = 10,
         const InferenceEngine::Precision& netPrecission = InferenceEngine::Precision::FP32,
         std::vector<float>* hidden_memory_init_out = nullptr,
         std::vector<float>* cell_memory_init_out = nullptr);
