@@ -3,7 +3,8 @@ Babel
 beautifulsoup4
 certifi
 charset-normalizer
-docutils
+Cython
+docutils==0.14
 idna
 imagesize
 Jinja2
@@ -29,3 +30,5 @@ sphinxcontrib-qthelp
 sphinxcontrib-serializinghtml
 urllib3
 sphinx_sitemap
+pytest
+pytest-html
