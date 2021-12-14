@@ -112,6 +112,7 @@ enum WeightsLayout {
     os_is_zyx_osa4_isa8_osv8_isv4,           // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_yx_osa4_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_zyx_osa4_isa8_osv8_isv2,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+    os_is_yx_osa2_isa8_osv8_isv2,
     os_is_yx_osa2_isa8_osv16_isv4,
     os_is_yx_osa2_isa8_osv16_isv2,
     g_os_is_yx_osa2_isa8_osv16_isv4,

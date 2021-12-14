@@ -259,6 +259,7 @@ cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
         case dnnl::memory::format_tag::Acdb16a: return cldnn::format::os_yxi_osv16;
         case dnnl::memory::format_tag::ABcde16b16a: return cldnn::format::os_is_zyx_isv16_osv16;
         case dnnl::memory::format_tag::aBcd16b: return cldnn::format::o_is_yx_isv16;
+        case dnnl::memory::format_tag::ABcd2a8b8a2b: return cldnn::format::os_is_yx_osa2_isa8_osv8_isv2;
         case dnnl::memory::format_tag::ABcd2a8b16a4b: return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4;
         case dnnl::memory::format_tag::ABcd2a8b16a2b: return cldnn::format::os_is_yx_osa2_isa8_osv16_isv2;
         default: throw std::runtime_error(std::string("Unsupported onednn fmt ") + dnnl_fmt_tag2str((dnnl_format_tag_t)fmt));

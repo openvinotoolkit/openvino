@@ -110,6 +110,14 @@ protected:
                     break;
                 }
 
+                case onednn_post_op_type::binary_relu:
+                {
+                    auto binary_op_mem = instance.fused_memory(memory_offset);
+                    args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_WEIGHTS,
+                                 binary_op_mem->get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(0))});
+                    break;
+                }
+
                 case onednn_post_op_type::scale:
                 {
                     auto scale_op_mem = instance.fused_memory(memory_offset);

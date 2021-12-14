@@ -43,6 +43,7 @@ enum class onednn_post_op_type : uint32_t {
     binary_add,
     binary_max,
     binary_min,
+    binary_relu,
     scale,
     sum,
     optimized,
