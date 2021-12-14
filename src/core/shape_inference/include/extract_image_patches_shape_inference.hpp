@@ -42,7 +42,6 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
         "Attribute padding should be in either valid or same_lower or same_upper.");
     
     if(input_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op, input_shape.size() == 4, "input tensor must be 4D tensor.");
         if (input_shape[1].is_dynamic() || input_shape[2].is_dynamic() || input_shape[3].is_dynamic()) {
             // Determine Batch
             output_shape[0] = input_shape[0];
