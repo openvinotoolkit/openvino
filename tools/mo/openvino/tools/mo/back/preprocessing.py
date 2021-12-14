@@ -297,19 +297,6 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
     return suitable_params
 
 
-def prune_obsolete_entries(mean_scale_values: dict, model_inputs: list):
-    """
-    Removes the dict values that don't have a matching input in the model.
-    :param: mean_scale_values mean/scale configuration with potentially obsolete entries
-    :param: model_inputs List of current model inputs
-    """
-    def is_function_input(name):
-        return any(name in input.get_names() for input in model_inputs)
-
-    pruned = {key: value for key, value in mean_scale_values.items() if is_function_input(key)}
-    return pruned
-
-
 def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     """
     Applies pre-processing of model inputs by adding appropriate operations
@@ -344,10 +331,6 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
                                                   scale=argv.scale)
     # On return, mean_scale_values is a dictionary with input names as key and mean/scale pair as value
     # {'inputName': {'mean': [1., 2., 3.], 'scale': [2.]}}
-
-    # The MO configuration could have modified the orignal model before preprocessing started and thus
-    # the mean_scale_values might contain keys that don't match the modified model's inputs
-    mean_scale_values = prune_obsolete_entries(mean_scale_values, ov_function.inputs)
 
     layout_values = {}
     if 'layout_values' in argv and argv.layout_values:
