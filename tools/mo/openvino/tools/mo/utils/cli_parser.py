@@ -273,10 +273,12 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the original input of the model.')
     common_group.add_argument('--reverse_input_channels',
                               help='Switch the input channels order from RGB to BGR (or vice versa). Applied to '
-                                   'original inputs of the model if and only if a number of channels equals 3. Applied '
-                                   'after application of --mean_values and --scale_values options, so numbers in '
-                                   '--mean_values and --scale_values go in the order of channels used in the original '
-                                   'model.',
+                                   'original inputs of the model if and only if a number of channels equals 3. '
+                                   'When --mean_values/--scale_values are also specified, reversing of channels will '
+                                   'be applied to user\'s input data first, so that numbers in --mean_values '
+                                   'and --scale_values go in the order of channels used in the original model. '
+                                   'In other words, if both options are specified, then the data flow in the model '
+                                   'looks as following: Parameter -> ReverseInputChannels -> Mean/Scale apply -> the original body of the model.',
                               action='store_true')
     common_group.add_argument('--log_level',
                               help='Logger level',
