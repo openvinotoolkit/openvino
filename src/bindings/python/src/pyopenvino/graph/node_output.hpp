@@ -125,4 +125,10 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def_property_readonly("partial_shape", &ov::Output<VT>::get_partial_shape);
     output.def_property_readonly("target_inputs", &ov::Output<VT>::get_target_inputs);
     output.def_property_readonly("tensor", &ov::Output<VT>::get_tensor);
+    output.def_property_readonly("get_rt_info",
+                                (ov::RTMap&(ov::Output<VT>::*)()) &
+                                ov::Output<VT>::get_rt_info);
+    output.def_property_readonly("get_rt_info",
+                                (const ov::RTMap&(ov::Output<VT>::*)() const) &
+                                ov::Output<VT>::get_rt_info);
 }

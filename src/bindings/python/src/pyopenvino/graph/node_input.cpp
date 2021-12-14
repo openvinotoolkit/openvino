@@ -75,4 +75,8 @@ void regclass_graph_Input(py::module m) {
                 get_source_output : Output
                     Output that is connected to the input.
               )");
+    input.def_property_readonly("get_rt_info",
+                                (ov::RTMap & (ov::Input<ov::Node>::*)()) & ov::Input<ov::Node>::get_rt_info);
+    input.def_property_readonly("get_rt_info",
+                                (const ov::RTMap& (ov::Input<ov::Node>::*)() const) & ov::Input<ov::Node>::get_rt_info);
 }
