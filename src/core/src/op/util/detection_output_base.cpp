@@ -89,7 +89,7 @@ ov::Dimension DetectionOutputBase::compute_num_classes(const AttributesBase& att
     int64_t num_prior_boxes_calculated = 0;
     ov::op::util::compute_num_classes(this, attrs, input_shapes, num_classes, num_prior_boxes_calculated);
     if (num_classes > 0)
-        return Dimension{num_classes};
+        return ov::Dimension{num_classes};
     else
-        return Dimension::dynamic();
+        return ov::Dimension::dynamic();
 }
