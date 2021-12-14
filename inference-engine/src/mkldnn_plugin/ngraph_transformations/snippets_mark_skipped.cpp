@@ -326,8 +326,13 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                 SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
             }
         }
-        if (GetNodeFusingType(node) != NodeFusingType::NotSet)
-                SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        if (GetNodeFusingType(node) != NodeFusingType::NotSet) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        // todo: Skipping TensorIterator for now, but snippets might go into the TI body in future
+        } else if (auto ti  = ov::as_type_ptr<ov::op::v0::TensorIterator>(node)) {
+            for (auto & op : ti->get_body()->get_ops())
+                SetSnippetsNodeType(op, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        }
     }
     return true;
 }
