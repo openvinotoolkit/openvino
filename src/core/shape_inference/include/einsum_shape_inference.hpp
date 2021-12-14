@@ -93,19 +93,19 @@ void shape_infer(const Einsum* op, const std::vector<T>& input_shapes, std::vect
     // compute the output shape
     std::vector<std::string> output_labels;
     output_labels = Einsum::extract_labels(output_subscript);
-    std::vector<DimType> output_pshape_vector;
+    auto& output_shape = output_shapes[0];
+
+    output_shape.resize(0);
 
     for (auto const& output_label : output_labels) {
         NODE_VALIDATION_CHECK(op,
                               label_to_shape.find(output_label) != label_to_shape.end(),
                               "Label in output subscript of Einsum equation must enter at least "
                               "one input subscript.");
-        output_pshape_vector.insert(output_pshape_vector.end(),
-                                    label_to_shape[output_label].begin(),
-                                    label_to_shape[output_label].end());
+        output_shape.insert(output_shape.end(),
+                            label_to_shape[output_label].begin(),
+                            label_to_shape[output_label].end());
     }
-
-    output_shapes[0] = T(output_pshape_vector);
 }
 }  // namespace v7
 }  // namespace op
