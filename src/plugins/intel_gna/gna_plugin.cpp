@@ -70,6 +70,7 @@
 #include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
+#include "transformations/remove_input_convert.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 #include "transformations/decompose_mvn.hpp"
@@ -690,6 +691,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
+        manager.register_pass<RemoveInputConvert>();
+        manager.register_pass<RemoveOutputConvert>();
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<DecomposeMVN>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
