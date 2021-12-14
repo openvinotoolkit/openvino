@@ -27,6 +27,10 @@ const std::vector<std::pair<size_t, size_t>> size_params = {
     {300, 38},
 };
 
+size_t small_num_cells = 10;
+
+size_t big_num_cells = 49;
+
 const std::vector<bool> decompose = { false, true };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BasicLSTM, Basic_LSTM_S,
@@ -35,6 +39,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_BasicLSTM, Basic_LSTM_S,
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(configs),
                             ::testing::ValuesIn(size_params),
+                            ::testing::Values(small_num_cells),
+                            ::testing::ValuesIn(decompose)),
+                        Basic_LSTM_S::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BasicLSTM_big_cells_num, Basic_LSTM_S,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                            ::testing::ValuesIn(configs),
+                            ::testing::Values(size_params[0]),
+                            ::testing::Values(big_num_cells),
                             ::testing::ValuesIn(decompose)),
                         Basic_LSTM_S::getTestCaseName);
 }  // namespace
