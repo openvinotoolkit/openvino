@@ -38,12 +38,14 @@ TEST_MODELS_DEFAULT = [
     ('densenet-121', 'caffe', 'FP32', {
         'performance': {'accuracy@top1': 0.73908, 'accuracy@top5': 0.91728},
         'mixed': {'accuracy@top1': 0.7389, 'accuracy@top5': 0.91714}}),
+    # TODO: Enable these tests after OMZ update
     # ('mobilenet-ssd', 'caffe', 'FP32', {
     #     'performance': {'map': 0.71978},
     #     'mixed': {'map': 0.71931}}),
     ('octave-resnet-26-0.25', 'mxnet', 'FP32', {
         'performance': {'accuracy@top1': 0.7581, 'accuracy@top5': 0.9256},
         'mixed': {'accuracy@top1': 0.759, 'accuracy@top5': 0.92466}}),
+    # TODO: Enable these tests after solving FP16 bug
     # ('ssd_mobilenet_v1_coco', 'tf', 'FP16', {
     #     'performance': {'coco_precision': 0.2312},
     #     'mixed': {'coco_precision': 0.2314}})
