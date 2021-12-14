@@ -31,7 +31,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 std::map<std::string, std::string>  additional_config = {};
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareRefs, ActivationConcatsEltwise,
+INSTANTIATE_TEST_SUITE_P(smoke_CompareRefs, ActivationConcatsEltwise,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_sizes),
                                 ::testing::ValuesIn(concat_const_sizes),

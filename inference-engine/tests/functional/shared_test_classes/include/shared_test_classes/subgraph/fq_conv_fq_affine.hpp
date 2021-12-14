@@ -30,6 +30,7 @@ typedef std::tuple<
 typedef std::tuple<
         FqSpecificParams,
         ConvParams,
+        bool,                              // Permute after convolution
         InferenceEngine::Precision,        // Net precision
         InferenceEngine::SizeVector,       // Input shapes
         LayerTestsUtils::TargetDevice,     // Device name
@@ -39,7 +40,7 @@ typedef std::tuple<
 class FqConvFqAffineTest : public testing::WithParamInterface<FqConvFqAffineTestParamsSet>,
                            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FqConvFqAffineTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FqConvFqAffineTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

@@ -50,7 +50,7 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeWithNotOpti
 // ngraph::builder::subgraph::FakeQuantizeOnData
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeTransformationParams;
@@ -59,7 +59,7 @@ class FakeQuantizeWithNotOptimalTransformation :
     public testing::WithParamInterface<FakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

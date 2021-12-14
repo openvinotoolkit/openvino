@@ -13,10 +13,34 @@
 
 using namespace cldnn;
 
-void prepare_padding::run(program_impl& p) {
+void prepare_padding::run(program& p) {
     if (output_size_handling_enabled) {
         // Prepare upper padding for primitives that support output_size parameter.
         for (const auto& node : p.get_processing_order()) {
+            if (node->get_dependencies().empty())
+                continue;
+
+            if (node->get_dependency(0).is_type<data>())
+                continue;
+
+            // Padded offsets aren't supported by onednn kernels
+            if (node->get_preferred_impl_type() == impl_types::onednn)
+                continue;
+
+            auto add_required_padding = [&p](program_node& node, padding& needed_padding) {
+                // Add extra reorder for cldnn primitive to handle required padding if needed
+                auto& input = node.get_dependency(0);
+                if (input.get_preferred_impl_type() == impl_types::onednn &&
+                    node.get_preferred_impl_type() == impl_types::ocl &&
+                    static_cast<bool>(needed_padding)) {
+                    auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
+                    auto& new_reorder_node = p.get_or_create(new_reorder);
+                    p.add_intermediate(new_reorder_node, node, input);
+                }
+
+                p.apply_needed_padding(node, node.get_dependency(0), needed_padding);
+            };
+
             if (node->is_type<convolution>()) {
                 auto& prim_node = node->as<convolution>();
                 const auto& prim = prim_node.get_primitive();
@@ -28,6 +52,7 @@ void prepare_padding::run(program_impl& p) {
                 if (format == format::b_fs_zyx_fsv16 ||
                     format == format::bs_fs_zyx_bsv16_fsv16 ||
                     format == format::bs_fs_yx_bsv16_fsv16 ||
+                    format == format::bs_fs_yx_bsv32_fsv32 ||
                     format == format::b_fs_zyx_fsv32)
                     continue;
 
@@ -36,13 +61,13 @@ void prepare_padding::run(program_impl& p) {
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
                                                                                filter_size,
-                                                                               prim->input_offset,
+                                                                               prim->pad,
                                                                                prim->stride,
                                                                                prim->dilation,
                                                                                false,
                                                                                1);
 
-                p.apply_needed_padding(prim_node, prim_node.input(), needed_padding);
+                add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<deconvolution>()) {
                 auto& prim_node = node->as<deconvolution>();
                 const auto& prim = prim_node.get_primitive();
@@ -55,13 +80,13 @@ void prepare_padding::run(program_impl& p) {
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
                                                                                filter_size,
-                                                                               prim->input_offset,
+                                                                               prim->pad,
                                                                                prim->stride,
                                                                                {1, 1, 1, 1},
                                                                                true,
                                                                                1);
 
-                p.apply_needed_padding(prim_node, prim_node.input(), needed_padding);
+                add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<pooling>()) {
                 auto& prim_node = node->as<pooling>();
                 const auto& prim = prim_node.get_primitive();
@@ -75,7 +100,7 @@ void prepare_padding::run(program_impl& p) {
                     needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                               prim->output_size,
                                                                               prim->size,
-                                                                              prim->input_offset,
+                                                                              prim->pad,
                                                                               prim->stride,
                                                                               {1, 1, 1, 1},
                                                                               false,
@@ -83,13 +108,13 @@ void prepare_padding::run(program_impl& p) {
                 else
                     needed_padding = prim_node.input().get_output_layout().data_padding;
 
-                p.apply_needed_padding(prim_node, prim_node.input(), needed_padding);
+                add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<binary_convolution>()) {
                 auto& prim_node = node->as<binary_convolution>();
 
                 auto needed_padding = prim_node.input().get_output_layout().data_padding;
 
-                p.apply_needed_padding(prim_node, prim_node.input(), needed_padding);
+                add_required_padding(prim_node, needed_padding);
             }
         }
     }
@@ -127,8 +152,15 @@ void prepare_padding::run(program_impl& p) {
             prev_prim_output_layout.data_type != data_types::i8 && prev_prim_output_layout.data_type != data_types::u8)
             continue;
 
-        // We shoudn't apply any padding to nodes which are marked as outputs
-        if (conv_input_node.is_output())
+        // We shoudn't apply any padding to nodes which are marked as outputs or have type as data
+        if (conv_input_node.is_output() || conv_input_node.is_type<data>())
+            continue;
+
+        // Padded offsets aren't supported by onednn kernels
+        if (conv_input_node.get_preferred_impl_type() == impl_types::onednn)
+            continue;
+
+        if (node.get_preferred_impl_type() == impl_types::onednn)
             continue;
 
         // Calculating input padding needed for convolution
@@ -138,20 +170,20 @@ void prepare_padding::run(program_impl& p) {
         layout filter_layout = filter_node.get_output_layout();
 
         // Compute initial required paddings for primitive used as input for convolution.
-        auto input_offset = conv->input_offset;
+        auto pad = conv->pad;
         auto stride = conv->stride;
         auto dilation = conv->dilation;
 
-        auto input_limit_x = input_offset.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
+        auto input_limit_x = -pad.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
                              (filter_layout.size.spatial[0] - 1) * dilation.spatial[0] + 1;
-        auto input_limit_y = input_offset.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
+        auto input_limit_y = -pad.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
                              (filter_layout.size.spatial[1] - 1) * dilation.spatial[1] + 1;
-        auto input_limit_z = input_offset.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
+        auto input_limit_z = -pad.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
                              (filter_layout.size.spatial[2] - 1) * dilation.spatial[2] + 1;
 
-        auto padding_begin_x = std::max(-input_offset.spatial[0], 0);
-        auto padding_begin_y = std::max(-input_offset.spatial[1], 0);
-        auto padding_begin_z = std::max(-input_offset.spatial[2], 0);
+        auto padding_begin_x = std::max(pad.spatial[0], 0);
+        auto padding_begin_y = std::max(pad.spatial[1], 0);
+        auto padding_begin_z = std::max(pad.spatial[2], 0);
         auto padding_end_x = std::max(input_limit_x - prev_prim_output_layout.size.spatial[0], 0);
         auto padding_end_y = std::max(input_limit_y - prev_prim_output_layout.size.spatial[1], 0);
         auto padding_end_z = std::max(input_limit_z - prev_prim_output_layout.size.spatial[2], 0);
@@ -183,8 +215,8 @@ void prepare_padding::run(program_impl& p) {
         if (conv_layout.format != cldnn::format::bfyx && conv_layout.format != cldnn::format::b_fs_yx_32fp)
             continue;
 
-        // We shoudn't apply any padding to nodes which are marked as outputs
-        if (conv_input_node.is_output())
+        // We shoudn't apply any padding to nodes which are marked as outputs or have type as data
+        if (conv_input_node.is_output() || conv_input_node.is_type<data>())
             continue;
 
         // Calculating input padding needed for convolution
@@ -197,20 +229,20 @@ void prepare_padding::run(program_impl& p) {
         auto prev_prim_output_layout = conv_input_node.get_output_layout();
 
         // Compute initial required paddings for primitive used as input for convolution.
-        auto input_offset = conv->input_offset;
+        auto pad = conv->pad;
         auto stride = conv->stride;
         auto dilation = conv->dilation;
 
-        auto input_limit_x = input_offset.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
+        auto input_limit_x = -pad.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
                              (filter_layout.size.spatial[0] - 1) * dilation.spatial[0] + 1;
-        auto input_limit_y = input_offset.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
+        auto input_limit_y = -pad.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
                              (filter_layout.size.spatial[1] - 1) * dilation.spatial[1] + 1;
-        auto input_limit_z = input_offset.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
+        auto input_limit_z = -pad.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
                              (filter_layout.size.spatial[2] - 1) * dilation.spatial[2] + 1;
 
-        auto padding_begin_x = std::max(-input_offset.spatial[0], 0);
-        auto padding_begin_y = std::max(-input_offset.spatial[1], 0);
-        auto padding_begin_z = std::max(-input_offset.spatial[2], 0);
+        auto padding_begin_x = std::max(pad.spatial[0], 0);
+        auto padding_begin_y = std::max(pad.spatial[1], 0);
+        auto padding_begin_z = std::max(pad.spatial[2], 0);
         auto padding_end_x = std::max(input_limit_x - prev_prim_output_layout.size.spatial[0], 0);
         auto padding_end_y = std::max(input_limit_y - prev_prim_output_layout.size.spatial[1], 0);
         auto padding_end_z = std::max(input_limit_z - prev_prim_output_layout.size.spatial[2], 0);

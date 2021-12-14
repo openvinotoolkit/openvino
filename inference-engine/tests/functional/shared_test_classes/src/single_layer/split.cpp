@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string SplitLayerTest::getTestCaseName(testing::TestParamInfo<splitParams> obj) {
+std::string SplitLayerTest::getTestCaseName(const testing::TestParamInfo<splitParams>& obj) {
     size_t numSplits;
     int64_t axis;
     InferenceEngine::Precision netPrecision;
@@ -33,7 +33,6 @@ std::string SplitLayerTest::getTestCaseName(testing::TestParamInfo<splitParams> 
 }
 
 void SplitLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     size_t axis, numSplits;
     std::vector<size_t> inputShape, outIndices;
     InferenceEngine::Precision netPrecision;

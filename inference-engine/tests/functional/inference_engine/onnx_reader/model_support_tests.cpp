@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/file_utils.hpp"
+#include "ie_common.h"
 #include <gtest/gtest.h>
 #include <fstream>
 
@@ -12,7 +14,7 @@ namespace {
         std::string path = ONNX_TEST_MODELS;
         path += "support_test/";
         path += model;
-        return path;
+        return CommonTestUtils::getModelFromTestModelZoo(path);
     }
 }
 
@@ -37,19 +39,15 @@ TEST(ONNXReader_ModelSupported, varint_on_two_bytes) {
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/varint_on_two_bytes.onnx")));
 }
 
-TEST(ONNXReader_ModelSupported, prototxt_basic) {
-    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic.prototxt")));
-}
-
 TEST(ONNXReader_ModelSupported, scrambled_keys) {
     // same as the prototxt_basic but with a different order of keys
-    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/scrambled_keys.prototxt")));
+    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/scrambled_keys.onnx")));
 }
 
 TEST(ONNXReader_ModelUnsupported, no_graph_field) {
     // this model contains only 2 fields (it doesn't contain a graph in particular)
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_graph_field.onnx")),
-                 InferenceEngine::Exception);
+                 InferenceEngine::NetworkNotRead);
 }
 
 TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
@@ -57,16 +55,11 @@ TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
     // this  test will have to be changed if the number of fields in onnx.proto
     // (ModelProto message definition) ever reaches 31 or more
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/incorrect_onnx_field.onnx")),
-                 InferenceEngine::Exception);
+                 InferenceEngine::NetworkNotRead);
 }
 
 TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
     // in this model the graph key contains wire type 7 encoded in it - this value is incorrect
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/unknown_wire_type.onnx")),
-                 InferenceEngine::Exception);
-}
-
-TEST(ONNXReader_ModelUnsupported, no_valid_keys) {
-    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_valid_keys.prototxt")),
-                 InferenceEngine::Exception);
+                 InferenceEngine::NetworkNotRead);
 }

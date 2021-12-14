@@ -433,7 +433,7 @@ public:
     // Convert from packed format to array of dimensions from minor to major.
     DimVector toPermutation() const;
 
-    // Get memory indeces for each dimension.
+    // Get memory indices for each dimension.
     DimValues toIndices() const;
 
     //

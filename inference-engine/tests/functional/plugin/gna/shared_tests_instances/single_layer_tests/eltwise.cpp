@@ -6,23 +6,23 @@
 #include "single_layer_tests/eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 
 namespace {
-std::vector<std::vector<std::vector<size_t>>> inShapes = {
+std::vector<std::vector<ov::Shape>> inShapes = {
+        {{2}},
+        {{8}},
         {{1, 200}},
-        // TODO: Issue 32544
-        // {{2}},
         {{1, 1, 1, 3}},
-        // {{1, 2, 4}},
-        // {{1, 4, 4}},
-        // {{1, 4, 4, 1}}
+        {{1, 2, 4}},
+        {{1, 4, 4}},
+        {{1, 4, 4, 1}},
 };
 
 
-std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
+std::vector<ov::test::ElementType> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16,
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
@@ -41,23 +41,29 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::ADD
 };
 
-std::map<std::string, std::string> additional_config = {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_SCALE_FACTOR_0", "1638.4"},
-        {"GNA_SCALE_FACTOR_1", "1638.4"}
+std::vector<std::map<std::string, std::string>> additional_config = {
+        {
+                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                {"GNA_SCALE_FACTOR_0", "1638.4"},
+                {"GNA_SCALE_FACTOR_1", "1638.4"}
+        },
+        {
+                {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+                {"GNA_SCALE_FACTOR_0", "1638.4"},
+                {"GNA_SCALE_FACTOR_1", "1638.4"}
+        }
 };
 
 const auto multiply_params = ::testing::Combine(
-        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
         ::testing::ValuesIn(eltwiseOpTypes),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::Values(additional_config));
+        ::testing::ValuesIn(additional_config));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 }  // namespace

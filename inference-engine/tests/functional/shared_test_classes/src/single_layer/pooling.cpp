@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj) {
+std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolLayerTestParamsSet>& obj) {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -48,7 +48,7 @@ std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTe
     return result.str();
 }
 
-std::string GlobalPoolingLayerTest::getTestCaseName(testing::TestParamInfo<globalPoolLayerTestParamsSet> obj) {
+std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<globalPoolLayerTestParamsSet>& obj) {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -84,6 +84,38 @@ std::string GlobalPoolingLayerTest::getTestCaseName(testing::TestParamInfo<globa
     if (padType == ngraph::op::PadType::EXPLICIT) {
         result << "Rounding=" << roundingType << "_";
     }
+    result << "AutoPad=" << padType << "_";
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetDevice;
+    return result.str();
+}
+
+std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerTestParamsSet>& obj) {
+    maxPoolV8SpecificParams poolParams;
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
+    std::vector<size_t> inputShapes;
+    std::string targetDevice;
+    std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
+    std::vector<size_t> kernel, stride, dilation;
+    std::vector<size_t> padBegin, padEnd;
+    ngraph::op::PadType padType;
+    ngraph::op::RoundingType roundingType;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType) = poolParams;
+
+    std::ostringstream result;
+    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
+    result << "S" << CommonTestUtils::vec2str(stride) << "_";
+    result << "D" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
+    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+    result << "Rounding=" << roundingType << "_";
     result << "AutoPad=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
@@ -159,4 +191,28 @@ void GlobalPoolingLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
 }
+
+void MaxPoolingV8LayerTest::SetUp() {
+    maxPoolV8SpecificParams poolParams;
+    std::vector<size_t> inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::vector<size_t> kernel, stride, dilation;
+    std::vector<size_t> padBegin, padEnd;
+    ngraph::op::PadType padType;
+    ngraph::op::RoundingType roundingType;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType) = poolParams;
+
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+
+    std::shared_ptr<ngraph::Node> maxPool = ngraph::builder::makeMaxPoolingV8(paramOuts[0], stride, dilation, padBegin, padEnd,
+                                                                              kernel, roundingType, padType);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(maxPool->output(0))};
+    function = std::make_shared<ngraph::Function>(results, params, "MaxPoolV8");
+}
+
 }  // namespace LayerTestsDefinitions

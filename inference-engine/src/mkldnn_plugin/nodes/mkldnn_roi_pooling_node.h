@@ -4,18 +4,14 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
+#include <ie_common.h>
+
 #include <string>
 #include <memory>
 #include <vector>
 
 namespace MKLDNNPlugin {
-
-enum ROIPoolingOpType {
-    Max,
-    Bilinear
-};
 
 struct jit_roi_pooling_params {
     int mb, c;
@@ -27,12 +23,17 @@ struct jit_roi_pooling_params {
     int pooled_h;
     int pooled_w;
 
-    ROIPoolingOpType alg;
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
+    int src_data_size = 0;
+    int dst_data_size = 0;
+
+    Algorithm alg;
 };
 
 struct jit_roi_pooling_call_args {
-    const float *src;
-    float *dst;
+    const void *src;
+    void *dst;
 
     size_t kh;
     size_t kw;
@@ -65,8 +66,7 @@ struct jit_uni_roi_pooling_kernel {
 
 class MKLDNNROIPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNROIPoolingNode() override = default;
+    MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -74,16 +74,62 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    void prepareParams() override;
+
 private:
-    int pooled_h = 0;
-    int pooled_w = 0;
-    float spatial_scale = 0;
-    ROIPoolingOpType opType = Max;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    jit_roi_pooling_params jpp = {};
+    template<typename T> void execute();
+    template<typename T> struct ROIPoolingExecute;
 
-    std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel = nullptr;
+    size_t src_data_size = 0;
+    size_t dst_data_size = 0;
+
+    jit_roi_pooling_params refParams = {};
+
+    std::string errorPrefix;
+
+    class ROIPoolingExecutor {
+    public:
+        ROIPoolingExecutor() = default;
+        virtual void exec(
+            const MKLDNNPlugin::MKLDNNMemory& srcData,
+            const MKLDNNPlugin::MKLDNNMemory& srcRoi,
+            const MKLDNNPlugin::MKLDNNMemory& dst) = 0;
+        virtual ~ROIPoolingExecutor() = default;
+
+        static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);
+
+    protected:
+        std::tuple<int, int, int, int> getBordersForMaxMode(
+            const int roi_start_h, const int roi_end_h, const int roi_start_w, const int roi_end_w,
+            const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w);
+        std::pair<float, float> getXYForBilinearMode(
+            const float roi_start_h, const float roi_end_h, const float roi_start_w, const float roi_end_w,
+            const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w);
+
+    private:
+        template <typename T>
+        static std::shared_ptr<ROIPoolingExecutor> makeExecutor(const jit_roi_pooling_params& jpp);
+
+        struct ROIPoolingContext {
+            std::shared_ptr<ROIPoolingExecutor> executor;
+            jit_roi_pooling_params jpp;
+        };
+
+        template<typename T>
+        struct ROIPoolingExecutorCreation {
+            void operator()(ROIPoolingContext& ctx) {
+                ctx.executor = ROIPoolingExecutor::makeExecutor<T>(ctx.jpp);
+            }
+        };
+    };
+
+    template <typename T> struct ROIPoolingJitExecutor;
+    template <typename T> struct ROIPoolingRefExecutor;
+
+    using executorPtr = std::shared_ptr<ROIPoolingExecutor>;
+    executorPtr execPtr = nullptr;
 };
-
 }  // namespace MKLDNNPlugin
-

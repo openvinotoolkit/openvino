@@ -44,6 +44,8 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases_fp32 = {
                             {1, 1, 1, 1}, {1, 1, 1, 1},  {},  {},  {} },
         StridedSliceSpecificParams{ { 2, 2, 2, 2 }, { 1, 1, 1, 1 }, { 2, 2, 2, 2 }, { 1, 1, 1, 1 },
                             {0, 0, 0, 0}, {1, 1, 1, 1},  {},  {},  {} },
+        StridedSliceSpecificParams{ { 1, 2, 128, 2 }, { 0, 0, 0, 1 }, { 0, 1, 0, 2 }, { 1, 1, 1, 1 },
+                            {1, 0, 1, 0}, {1, 0, 1, 0},  {0, 0, 0, 0},  {0, 1, 0, 1},  {0, 0, 0, 0} },
         StridedSliceSpecificParams{ { 2, 2, 2, 2 }, { 1, 1, 1, 1 }, { 2, 2, 2, 2 }, { 1, 1, 1, 1 },
                             {0, 0, 0, 0}, {0, 0, 0, 0},  {},  {},  {} },
         StridedSliceSpecificParams{ { 2, 2, 4, 3 }, { 0, 0, 0, 0 }, { 2, 2, 4, 3 }, { 1, 1, 2, 1 },
@@ -69,7 +71,7 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases_i64 = {
                                        {0, 0, 0, 0}, {0, 0, 0, 0},  {},  {},  {} },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CLDNN_FP32, StridedSliceLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(ss_only_test_cases_fp32),
@@ -82,7 +84,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::Values(std::map<std::string, std::string>())),
         StridedSliceLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CLDNN_I64, StridedSliceLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(ss_only_test_cases_i64),

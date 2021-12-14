@@ -18,19 +18,14 @@
 
 using namespace testing;
 
-TEST(TransformationTests, HSigmoidDecompositionTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSigmoidDecompositionTest) {
     {
         auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<ngraph::opset5::HSigmoid>(input);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::HSigmoidDecomposition>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -43,9 +38,6 @@ TEST(TransformationTests, HSigmoidDecompositionTest) {
         auto mul_constant = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {(1.0/6.0)});  // const(1/6)
         auto mul = std::make_shared<ngraph::opset5::Multiply>(min, mul_constant);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

@@ -24,6 +24,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::opset1;
@@ -71,16 +73,19 @@ private:
 };
 
 TEST_P(ConvertConvolutionTest, CompareFunctions) {
-    const auto & orig_shape = f->get_output_partial_shape(0);
-    pass::InitNodeInfo().run_on_function(f);
-    pass::ConvertConvolutions().run_on_function(f);
+    const auto orig_shape = f->get_output_partial_shape(0);
+    pass::Manager manager;
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertConvolutions>();
+    manager.run_passes(f);
+
     ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
     ASSERT_TRUE(orig_shape.same_scheme(f->get_output_partial_shape(0))) << "Shape " << orig_shape << " is not equal to " << f->get_output_partial_shape(0);
 }
 
-INSTANTIATE_TEST_CASE_P(ConvertConvolution, ConvertConvolutionTest,
+INSTANTIATE_TEST_SUITE_P(ConvertConvolution, ConvertConvolutionTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}),

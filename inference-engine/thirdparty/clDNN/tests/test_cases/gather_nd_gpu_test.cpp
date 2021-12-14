@@ -1,44 +1,42 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
+#include "test_utils.h"
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/gather_nd.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/gather_nd.hpp>
 
-#include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
 
-inline void DoTest(const engine& engine,
-    const cldnn::memory& input0,
-    const cldnn::memory& input1,
+inline void DoTestBase(engine& engine,
+    const cldnn::memory::ptr input0,
+    const cldnn::memory::ptr input1,
     const std::vector<float>& expected_results,
     const int indices_rank,
-    const int batch_dims) {
+    const int batch_dims,
+    const cldnn::format fmt,
+    const tensor ts,
+    const bool batch_merged_output) {
     topology topology;
-    topology.add(input_layout("InputData", input0.get_layout()));
-    topology.add(input_layout("InputIndices", input1.get_layout()));
-    topology.add(
-        gather_nd("gather_nd", "InputData", "InputIndices", indices_rank, batch_dims)
-    );
+
+    int input_rank = 0;
+    if (input0->get_layout().format == format::bfyx) {
+        input_rank = 4;
+    } else if (input0->get_layout().format == format::bfzyx) {
+        input_rank = 5;
+    } else if (input0->get_layout().format == format::bfwzyx) {
+        input_rank = 6;
+    } else {
+        FAIL();
+    }
+
+    auto gather_nd_inst = gather_nd("gather_nd", "InputData", "InputIndices", input_rank, indices_rank, batch_dims, batch_merged_output);
+    topology.add(input_layout("InputData", input0->get_layout()));
+    topology.add(input_layout("InputIndices", input1->get_layout()));
+    topology.add(gather_nd_inst);
 
     network network(engine, topology);
 
@@ -46,21 +44,62 @@ inline void DoTest(const engine& engine,
     network.set_input_data("InputIndices", input1);
     auto outputs = network.execute();
     auto output = outputs.at("gather_nd").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
 
+    // Compare output shape
+    auto output_format = output->get_layout().format;
+    auto output_shape = output->get_layout().size;
+
+    EXPECT_EQ(fmt, output_format);
+
+    int32_t dim_size = 6;
+    if (fmt == format::bfyx) {
+        dim_size = 4;
+    } else if (fmt == format::bfzyx) {
+        dim_size = 5;
+    }
+
+    for (int32_t i = 0; i < dim_size; i++)
+    {
+        EXPECT_EQ(ts.sizes()[i], output_shape.sizes()[i]);
+    }
+
+    // Compare output value
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
+inline void DoTestV5(engine& engine,
+    const cldnn::memory::ptr input0,
+    const cldnn::memory::ptr input1,
+    const std::vector<float>& expected_results,
+    const int indices_rank,
+    const int batch_dims,
+    const cldnn::format fmt,
+    const tensor size) {
+    DoTestBase(engine, input0, input1, expected_results, indices_rank, batch_dims, fmt, size, true);
+}
+
+inline void DoTestV8(engine& engine,
+    const cldnn::memory::ptr input0,
+    const cldnn::memory::ptr input1,
+    const std::vector<float>& expected_results,
+    const int indices_rank,
+    const int batch_dims,
+    const cldnn::format fmt,
+    const tensor size) {
+    DoTestBase(engine, input0, input1, expected_results, indices_rank, batch_dims, fmt, size, false);
+}
+
 TEST(gather_nd_gpu_fp16, d23322_i231312_ir6_batch2) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 6;
     const int batch_dims = 2;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 2, 2, 3 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 3, 2, 1, 3, 1 } }); // indices
-    // expected output dim: {6,1,3,1,2}
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 2, 2, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 2, 1, 3, 1 } }); // indices
+    // expected output dim: v5{6,1,3,1,2}, v8{2,3,1,3,1,2}
 
     set_values(input0, {
         FLOAT16(11), FLOAT16(12),  FLOAT16(13), FLOAT16(14),    FLOAT16(15), FLOAT16(16),  FLOAT16(11), FLOAT16(12),    FLOAT16(13), FLOAT16(14),  FLOAT16(15), FLOAT16(16),
@@ -92,17 +131,18 @@ TEST(gather_nd_gpu_fp16, d23322_i231312_ir6_batch2) {
         FLOAT16(31), FLOAT16(32),   FLOAT16(35), FLOAT16(36),   FLOAT16(33), FLOAT16(34),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfzyx, {6, 1, 2, 1, 3});
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfwzyx, { 2, 3, 2, 1, 3, 1 });
 }
 
 TEST(gather_nd_gpu_fp16, d231322_i231321_ir6_batch5) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 6;
     const int batch_dims = 5;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 3, 2, 2, 3, 1 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 2, 3, 1, 2, 3, 1 } }); // indices
-    // expected output dim: {36}
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 2, 2, 3, 1 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 1, 2, 3, 1 } }); // indices
+    // expected output dim: v5{36}, v8{2, 3, 2, 3, 1}
 
     set_values(input0, {
         FLOAT16(11), FLOAT16(12),   FLOAT16(13), FLOAT16(14),   FLOAT16(15), FLOAT16(16),   FLOAT16(17), FLOAT16(18),   FLOAT16(19), FLOAT16(10),   FLOAT16(21), FLOAT16(18),
@@ -134,17 +174,18 @@ TEST(gather_nd_gpu_fp16, d231322_i231321_ir6_batch5) {
         FLOAT16(32), FLOAT16(33),   FLOAT16(35), FLOAT16(38),   FLOAT16(30), FLOAT16(29),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, {36, 1, 1, 1});
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfzyx, {2, 3, 2, 3, 1});
 }
 
 TEST(gather_nd_gpu_fp16, d23322_i23321_ir5_batch4) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 5;
     const int batch_dims = 4;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 2, 2, 3 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 1, 2, 3 } }); // indices
-    // expected output dim: {36}
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 2, 2, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 1, 2, 3 } }); // indices
+    // expected output dim: v5{36}, v8{2,3,2,3}
 
     set_values(input0, {
         FLOAT16(11), FLOAT16(12),   FLOAT16(13), FLOAT16(14),   FLOAT16(15), FLOAT16(16),   FLOAT16(17), FLOAT16(18),   FLOAT16(19), FLOAT16(10),   FLOAT16(21), FLOAT16(18),
@@ -176,17 +217,19 @@ TEST(gather_nd_gpu_fp16, d23322_i23321_ir5_batch4) {
         FLOAT16(32), FLOAT16(33),   FLOAT16(35), FLOAT16(38),   FLOAT16(30), FLOAT16(29),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 36, 1, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 3, 2, 3 });
 }
 
+
 TEST(gather_nd_gpu_fp16, d23223_i2321_ir4_batch3) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 3;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 3, 2, 2 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 1, 2 } }); // indices
-    // expected output dim: {2*3*2,3}
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 3, 3, 2, 2 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 2 } }); // indices
+    // expected output dim: v5{12,3} v8{2,3,3,2}
 
     set_values(input0, {
         FLOAT16(11), FLOAT16(12), FLOAT16(13),  FLOAT16(14), FLOAT16(15), FLOAT16(16),  FLOAT16(17), FLOAT16(18),FLOAT16(15),  FLOAT16(16), FLOAT16(17), FLOAT16(18),
@@ -218,17 +261,18 @@ TEST(gather_nd_gpu_fp16, d23223_i2321_ir4_batch3) {
         FLOAT16(29), FLOAT16(30), FLOAT16(31),  FLOAT16(35), FLOAT16(36), FLOAT16(33),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 12, 3, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 3, 3, 2 });
 }
 
 TEST(gather_nd_gpu_fp16, d2342_i2312_ir4_batch2) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 2;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 2, 4 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 2, 1 } }); // indices
-    // expected output dim: {6,1}
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 2, 4 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 2, 1 } }); // indices
+    // expected output dim: v5{6,1}, v8(2,3,1)
 
     set_values(input0, {
         FLOAT16(11), FLOAT16(12),   FLOAT16(13), FLOAT16(14),   FLOAT16(15), FLOAT16(16),   FLOAT16(17), FLOAT16(18),
@@ -260,17 +304,18 @@ TEST(gather_nd_gpu_fp16, d2342_i2312_ir4_batch2) {
         FLOAT16(33),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 6, 1, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 3, 1, 1 });
 }
 
 TEST(gather_nd_gpu_fp16, d234_i2311_ir4_batch2) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 2;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 1, 4 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 1, 1 } }); // indices
-    // expected output dim: {6,1,1}
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 4 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 1 } }); // indices
+    // expected output dim: v5{6,1,1}, v8{2,3,1,1}
 
     set_values(input0, {
         FLOAT16(1), FLOAT16(2), FLOAT16(3), FLOAT16(4),
@@ -303,17 +348,18 @@ TEST(gather_nd_gpu_fp16, d234_i2311_ir4_batch2) {
         FLOAT16(23),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 6, 1, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 3, 1, 1 });
 }
 
 TEST(gather_nd_gpu_fp16, d234_i21_ir2_batch1) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 2;
     const int batch_dims = 1;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 1, 4 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
-    // expected output dim: {2,4}
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 1, 4 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    // expected output dim: v5{2,4,1,1}, v8{2,4,1,1}
 
     set_values(input0, {
         FLOAT16(1), FLOAT16(2), FLOAT16(3), FLOAT16(4),
@@ -336,17 +382,18 @@ TEST(gather_nd_gpu_fp16, d234_i21_ir2_batch1) {
         FLOAT16(13), FLOAT16(14), FLOAT16(15), FLOAT16(16),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 4, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 4, 1, 1 });
 }
 
 TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch1) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 2;
     const int batch_dims = 1;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
-    // expected output dim: 2
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    // expected output dim: v5{2,1,1}, v8{2,1,1}
 
     set_values(input0, {
         FLOAT16(1), FLOAT16(2),
@@ -363,17 +410,18 @@ TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch1) {
         FLOAT16(3),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 1, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 1, 1, 1, 1 });
 }
 
 TEST(gather_nd_gpu_fp16, d3223_i321113_ir6_batch0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 6;
     const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 3, 2 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 3, 2, 3, 1, 1, 1 } }); // indices
-    // expected output dim: 321113
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 3, 2 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 3, 2, 3, 1, 1, 1 } }); // indices
+    // expected output dim: 323111
 
     set_values(input0, {
         FLOAT16(11), FLOAT16(12), FLOAT16(13),   FLOAT16(14), FLOAT16(15), FLOAT16(16),
@@ -408,17 +456,18 @@ TEST(gather_nd_gpu_fp16, d3223_i321113_ir6_batch0) {
         FLOAT16(11), FLOAT16(12), FLOAT16(13),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfwzyx, { 3, 2, 3, 1, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfwzyx, { 3, 2, 3, 1, 1, 1 });
 }
 
 TEST(gather_nd_gpu_fp16, d3221_i32312_ir3_batch0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 3;
     const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 2, 1, 3 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 2 } }); // indices
-    // expected output dim: 32312
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 2, 1, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 2 } }); // indices
+    // expected output dim: 32213
 
     set_values(input0, {
         FLOAT16(11), FLOAT16(12),     FLOAT16(13), FLOAT16(14),     FLOAT16(15), FLOAT16(16),
@@ -453,17 +502,18 @@ TEST(gather_nd_gpu_fp16, d3221_i32312_ir3_batch0) {
         FLOAT16(11), FLOAT16(12),     FLOAT16(13), FLOAT16(14),     FLOAT16(15), FLOAT16(16),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfzyx, { 3, 2, 2, 1, 3 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfzyx, { 3, 2, 2, 1, 3 });
 }
 
 TEST(gather_nd_gpu_fp16, d3231_i32312_ir3_batch0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 3;
     const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 3, 2, 2, 1, 3 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 3 } }); // indices
-    // expected output dim: {3,2,1,2}
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 2, 1, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 3 } }); // indices
+    // expected output dim: {3,2,2,1}
 
     set_values(input0, {
         FLOAT16(11), FLOAT16(12),     FLOAT16(13), FLOAT16(14),     FLOAT16(15), FLOAT16(16),
@@ -498,16 +548,17 @@ TEST(gather_nd_gpu_fp16, d3231_i32312_ir3_batch0) {
         FLOAT16(11), FLOAT16(12),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 2, 2, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 2, 2, 1 });
 }
 
 TEST(gather_nd_gpu_fp16, d3112_i3221_ir4_batch0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 1, 2, 1 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 2 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 1, 2, 1 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 2 } }); // indices
     // expected output dim: {3,2,2,1,1,2}
 
     set_values(input0, {
@@ -538,56 +589,18 @@ TEST(gather_nd_gpu_fp16, d3112_i3221_ir4_batch0) {
         FLOAT16(1), FLOAT16(2),         FLOAT16(7), FLOAT16(8),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
-}
-
-TEST(gather_nd_gpu_fp16, d311211_i322111_ir4_batch0) {
-    const auto& engine = get_test_engine();
-
-    const int indices_rank = 4;
-    const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 3, 1, 1, 1, 2, 1 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, { 3, 2, 1, 1, 1, 2 } }); // indices
-    // expected output dim: {3,2,2,1,1,2,1,1}
-
-    set_values(input0, {
-        FLOAT16(1), FLOAT16(2),
-        FLOAT16(7), FLOAT16(8),
-        FLOAT16(13), FLOAT16(14),
-    });
-
-    set_values(input1, {
-        FLOAT16(2), FLOAT16(1),
-        FLOAT16(0), FLOAT16(1),
-
-        FLOAT16(2), FLOAT16(1),
-        FLOAT16(0), FLOAT16(1),
-
-        FLOAT16(2), FLOAT16(1),
-        FLOAT16(0), FLOAT16(1),
-    });
-
-    std::vector<float> expected_results = {
-        FLOAT16(13), FLOAT16(14),       FLOAT16(7), FLOAT16(8),
-        FLOAT16(1), FLOAT16(2),         FLOAT16(7), FLOAT16(8),
-
-        FLOAT16(13), FLOAT16(14),       FLOAT16(7), FLOAT16(8),
-        FLOAT16(1), FLOAT16(2),         FLOAT16(7), FLOAT16(8),
-
-        FLOAT16(13), FLOAT16(14),       FLOAT16(7), FLOAT16(8),
-        FLOAT16(1), FLOAT16(2),         FLOAT16(7), FLOAT16(8),
-    };
-
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfwzyx, { 3, 2, 2, 1, 1, 2 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfwzyx, { 3, 2, 2, 1, 1, 2 });
 }
 
 TEST(gather_nd_gpu_fp16, d3332_i3223_ir4_batch0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 4;
     const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 3, 3, 2 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 3, 2 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 3, 2 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 3, 2 } }); // indices
+    // expected output dim: {3,2,3,2}
 
     set_values(input0, {
         FLOAT16(1), FLOAT16(2), FLOAT16(3),     FLOAT16(4), FLOAT16(5), FLOAT16(6),
@@ -625,16 +638,18 @@ TEST(gather_nd_gpu_fp16, d3332_i3223_ir4_batch0) {
         FLOAT16(34), FLOAT16(35), FLOAT16(36),      FLOAT16(16), FLOAT16(17), FLOAT16(18),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 2, 3, 2 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 2, 3, 2 });
 }
 
 TEST(gather_nd_gpu_fp16, d3323_i322_ir3_batch0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 3;
     const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 3, 3, 2 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 2 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 3, 3, 2 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 2 } }); // indices
+    // expected output dim: {3,2,3,2}
 
     set_values(input0, {
         FLOAT16(1), FLOAT16(2), FLOAT16(3),     FLOAT16(4), FLOAT16(5), FLOAT16(6),
@@ -672,16 +687,18 @@ TEST(gather_nd_gpu_fp16, d3323_i322_ir3_batch0) {
         FLOAT16(13), FLOAT16(14), FLOAT16(15),     FLOAT16(16), FLOAT16(17), FLOAT16(18),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 2, 3, 2 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 2, 3, 2 });
 }
 
 TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 2;
     const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
+    // expected output dim: {2,2,1,1}
 
     set_values(input0, {
         FLOAT16(1), FLOAT16(2),
@@ -697,16 +714,18 @@ TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch0) {
         FLOAT16(1), FLOAT16(2),
     };
 
-    DoTest(engine, input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 2, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 2, 1, 1 });
 }
 
 TEST(gather_nd_gpu_fp16, d22_i32_ir2_batch0) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int indices_rank = 2;
     const int batch_dims = 0;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
+    // expected output dim: {3,1,1}
 
     set_values(input0, {
         FLOAT16(1), FLOAT16(2),
@@ -725,6 +744,6 @@ TEST(gather_nd_gpu_fp16, d22_i32_ir2_batch0) {
         FLOAT16(4),
     };
 
-    DoTest(engine,input0, input1, expected_results, indices_rank, batch_dims);
+    DoTestV5(engine,input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 1, 1, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 1, 1, 1 });
 }
-

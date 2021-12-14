@@ -6,7 +6,7 @@
 
 #include <string>
 #include <vector>
-#include <iostream>
+#include <ostream>
 
 #include <vpu/model/data.hpp>
 #include <vpu/backend/blob_format.hpp>

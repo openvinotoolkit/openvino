@@ -23,8 +23,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertNMS4FiveInputsToNMS5) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS4FiveInputsToNMS5) {
     {
         auto boxes = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -34,13 +33,9 @@ TEST(TransformationTests, ConvertNMS4FiveInputsToNMS5) {
         auto nms = std::make_shared<opset4::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                opset4::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertNMS4ToNMS5>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ConvertNMS4ToNMS5>();
     }
 
     {
@@ -52,27 +47,19 @@ TEST(TransformationTests, ConvertNMS4FiveInputsToNMS5) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS4TwoInputsToNMS5) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS4TwoInputsToNMS5) {
     {
         auto boxes = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 1000});
         auto nms = std::make_shared<opset4::NonMaxSuppression>(boxes, scores, opset4::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertNMS4ToNMS5>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ConvertNMS4ToNMS5>();
     }
 
     {
@@ -84,15 +71,11 @@ TEST(TransformationTests, ConvertNMS4TwoInputsToNMS5) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS3FiveInputsToNMS5) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS3FiveInputsToNMS5) {
     {
         auto boxes = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -102,13 +85,9 @@ TEST(TransformationTests, ConvertNMS3FiveInputsToNMS5) {
         auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertNMS3ToNMS5>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ConvertNMS3ToNMS5>();
     }
 
     {
@@ -120,27 +99,19 @@ TEST(TransformationTests, ConvertNMS3FiveInputsToNMS5) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS3TwoInputsToNMS5) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS3TwoInputsToNMS5) {
     {
         auto boxes = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1, 1000});
         auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertNMS3ToNMS5>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ConvertNMS3ToNMS5>();
     }
 
     {
@@ -152,15 +123,11 @@ TEST(TransformationTests, ConvertNMS3TwoInputsToNMS5) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS1FiveInputsToNMS5) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS1FiveInputsToNMS5) {
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -170,13 +137,9 @@ TEST(TransformationTests, ConvertNMS1FiveInputsToNMS5) {
         auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                opset1::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertNMS1ToNMS5>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ConvertNMS1ToNMS5>();
     }
 
     {
@@ -188,27 +151,19 @@ TEST(TransformationTests, ConvertNMS1FiveInputsToNMS5) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS1TwoInputsToNMS5) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS1TwoInputsToNMS5) {
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
         auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes, scores, opset1::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertNMS1ToNMS5>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ConvertNMS1ToNMS5>();
     }
 
     {
@@ -220,9 +175,6 @@ TEST(TransformationTests, ConvertNMS1TwoInputsToNMS5) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

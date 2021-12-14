@@ -8,7 +8,7 @@ using namespace SubgraphTestsDefinitions;
 
 namespace {
 
-INSTANTIATE_TEST_CASE_P(smoke_Check, ParameterShapeOfResultSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ParameterShapeOfResultSubgraphTest,
                         ::testing::Combine(
                             ::testing::Values(
                                 ngraph::element::f32,

@@ -16,15 +16,18 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
+    {GNA_CONFIG_KEY(EXEC_TARGET), ""},
+    {GNA_CONFIG_KEY(COMPILE_TARGET), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
-    {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)},
+    {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(YES)},
     {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(PRECISION), Precision(Precision::I16).name()},
     {GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "1.000000"},
     {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
-    {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)}
+    {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
+    {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE}
 };
 
 class GNAPluginConfigTest : public ::testing::Test {
@@ -104,28 +107,33 @@ TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_HARDWARE));
 #else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardware);
-    EXPECT_EQ(config.pluginGna2DeviceConsistent, Gna2DeviceVersionSoftwareEmulation);
+    EXPECT_EQ(config.swExactMode, false);
+#endif
+#if GNA_LIB_VER == 2
+    SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW_WITH_SW_FBACK);
+    EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardwareWithSoftwareFallback);
+    EXPECT_EQ(config.swExactMode, false);
 #endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW);
 #if GNA_LIB_VER == 1
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE));
 #else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
-    EXPECT_EQ(config.pluginGna2DeviceConsistent, Gna2DeviceVersionSoftwareEmulation);
+    EXPECT_EQ(config.swExactMode, false);
 #endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT);
 #if GNA_LIB_VER == 1
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE));
 #else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
-    EXPECT_EQ(config.pluginGna2DeviceConsistent, Gna2DeviceVersion1_0);
+    EXPECT_EQ(config.swExactMode, true);
 #endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO);
 #if GNA_LIB_VER == 1
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_AUTO));
 #else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeAuto);
-    EXPECT_EQ(config.pluginGna2DeviceConsistent, Gna2DeviceVersionSoftwareEmulation);
+    EXPECT_EQ(config.swExactMode, false);
 #endif
     ExpectThrow(GNA_CONFIG_KEY(DEVICE_MODE), "");
     ExpectThrow(GNA_CONFIG_KEY(DEVICE_MODE), "abc");
@@ -186,4 +194,37 @@ TEST_F(GNAPluginConfigTest, GnaConfigSingleThreadTest) {
     SetAndCheckFlag(CONFIG_KEY(SINGLE_THREAD),
                     config.gnaFlags.gna_openmp_multithreading,
                     true);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_2_0");
+    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_2_0");
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_0");
+    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_0");
+    ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5");
+    ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "0");
+    ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_5");
+    ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET");
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigGnaCompileTargetTest) {
+    SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_2_0");
+    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_2_0");
+    SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_0");
+    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_0");
+    ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_5");
+    ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "0");
+    ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_1_5");
+    ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET");
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigLogLevel) {
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_WARNING);
+    EXPECT_EQ(config.gnaFlags.log_level, PluginConfigParams::LOG_WARNING);
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE);
+    EXPECT_EQ(config.gnaFlags.log_level, PluginConfigParams::LOG_NONE);
+    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_ERROR);
+    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_INFO);
+    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_DEBUG);
+    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_TRACE);
 }

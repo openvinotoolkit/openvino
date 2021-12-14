@@ -46,7 +46,7 @@ std::vector<bool> addReshape = {
     false
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_InputConv, InputConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_InputConv, InputConvTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

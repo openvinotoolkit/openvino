@@ -34,11 +34,16 @@ ParamsKey TileKernelRef::GetSupportedKey() const {
 
 CommonDispatchData TileKernelRef::SetDefault(const tile_params& params, const optional_params&) const {
     CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::Z, Tensor::DataChannelName::W },
+                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
     auto out = params.output;
 
-    dispatchData.gws = {out.X().v * out.Y().v, out.Z().v * out.W().v, out.Batch().v * out.Feature().v};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.gws = { out.X().v * out.Y().v, out.Z().v * out.W().v, out.Batch().v * out.Feature().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -55,7 +60,7 @@ KernelsData TileKernelRef::GetKernelsData(const Params& params, const optional_p
     tile_params& newParams = *static_cast<tile_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

@@ -1,0 +1,29 @@
+models:
+  - name: east
+    launchers:
+      - framework: dlsdk
+        device: CPU
+        allow_reshape_input: True
+        adapter:
+          type: east_text_detection
+          score_map_out: feature_fusion/Conv_7/Sigmoid
+          geometry_map_out: feature_fusion/concat_3
+
+    datasets:
+    - name: ICDAR2015
+      data_source: <PATH_TO_DATASET>
+      annotation_conversion:
+          converter: icdar_detection
+          data_dir: <PATH_TO_GROUND_TRUTH>
+
+      preprocessing:
+      - type: resize
+        dst_height: 2400
+        dst_width: 32
+        aspect_ratio_scale: east_keep_aspect_ratio
+      - type: bgr_to_rgb
+
+      metrics:
+      - type: incidental_text_hmean
+        name: f-measure
+        ignore_difficult: True

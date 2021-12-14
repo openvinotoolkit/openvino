@@ -22,7 +22,7 @@ std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concat
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "trgDev=" << targetName << "_";
+    result << "trgDev=" << targetName;
     return result.str();
 }
 

@@ -25,7 +25,7 @@ typedef std::tuple<
 
 class ConcatQuantDuringMemoryRequantTest
     : public testing::WithParamInterface<ConcatQuantDuringMemoryRequantTuple>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 private:
     void switchToNgraphFriendlyModel();
     std::vector<float> memory_1_init;
@@ -35,5 +35,7 @@ public:
 protected:
     void SetUp() override;
     void Run() override;
+    void LoadNetwork() override;
+    void Infer() override;
 };
 } // namespace SubgraphTestsDefinitions

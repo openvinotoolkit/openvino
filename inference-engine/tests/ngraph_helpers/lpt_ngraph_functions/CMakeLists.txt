@@ -4,10 +4,6 @@
 
 set(TARGET_NAME lptNgraphFunctions)
 
-list(APPEND EXPORT_DEPENDENCIES
-        ngraphFunctions
-        )
-
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 addIeTarget(
@@ -21,16 +17,14 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
-                ${EXPORT_DEPENDENCIES}
+                ngraphFunctions
                 inference_engine_lp_transformations
                 inference_engine_legacy
         ADD_CPPLINT
         DEPENDENCIES
             ngraphFunctions
         DEVELOPER_PACKAGE
-            inference_engine_tests
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
+            tests
 )
 
 ie_faster_build(${TARGET_NAME}

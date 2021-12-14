@@ -4,7 +4,7 @@
 
 #include "myriad_layers_convolution_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy_chw_dilation, myriadLayerConvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_chw_dilation, myriadLayerConvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 37, 43, 43)
                                        , MAKE_STRUCT(tensor_test_params, 1, 37, 19, 19))
@@ -21,7 +21,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_chw_dilation, myriadLayerConvolution_smoke,
         )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayers_IR3_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayers_IR3_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({1, 3, 32, 24})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -33,7 +33,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayers_IR3_ConvTests_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_0, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_0, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 5, 1, 1})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -45,7 +45,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_0, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_1, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_1, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 576, 7, 7})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -57,7 +57,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_1, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_2, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_2, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 128, 7, 7})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -69,7 +69,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_2, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_3, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_3, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 4, 7, 7})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_3, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_4, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_4, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 256, 7, 7})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -93,7 +93,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_4, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_5, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_5, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 1024, 4, 4})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -105,7 +105,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_5, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_6, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_6, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 192, 4, 4})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -117,7 +117,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_6, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_7, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_7, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 160, 4, 4})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -129,7 +129,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_7, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_8, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_8, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 224, 4, 4})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -141,7 +141,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_8, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_9, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_9, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 1024, 4, 4})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -153,7 +153,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_9, myriadLayers_BatchTest_ConvTests_smoke
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_10, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_10, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({1, 64, 56, 56})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -165,7 +165,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_10, myriadLayers_BatchTest_ConvTests_smok
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_11, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_11, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 192, 7, 7})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -177,7 +177,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_11, myriadLayers_BatchTest_ConvTests_smok
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_12, myriadLayers_BatchTest_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_12, myriadLayers_BatchTest_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 576, 7, 7})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -189,7 +189,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_12, myriadLayers_BatchTest_ConvTests_smok
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_Batch_1, myriadLayers_BatchTest2_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_Batch_1, myriadLayers_BatchTest2_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({10, 576, 7, 7})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -201,7 +201,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_Batch_1, myriadLayers_BatchTest2_ConvTests_smok
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_3X3, myriadLayers_IR3_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_3X3, myriadLayers_IR3_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({1, 3, 32, 24})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -213,7 +213,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_3X3, myriadLayers_IR3_ConvTests_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_3X1, myriadLayers_IR3_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_3X1, myriadLayers_IR3_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({1, 3, 32, 24})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 1))
@@ -225,7 +225,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_3X1, myriadLayers_IR3_ConvTests_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_1X3, myriadLayers_IR3_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_1X3, myriadLayers_IR3_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({1, 4, 16, 16})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 3))
@@ -237,7 +237,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_1X3, myriadLayers_IR3_ConvTests_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayers_3X3X3_ConstInput_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayers_3X3X3_ConstInput_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({1, 3, 10, 10})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -249,7 +249,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayers_3X3X3_ConstInput_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_crossroad_spatialConv, myriadLayerConvolutionTensorFlow,
+INSTANTIATE_TEST_SUITE_P(accuracy_crossroad_spatialConv, myriadLayerConvolutionTensorFlow,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 1024, 1024))
           , ::testing::Values<DimsOutput>(MAKE_STRUCT(tensor_test_params, 1, 3, 512, 512))
@@ -262,7 +262,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_crossroad_spatialConv, myriadLayerConvolutionTe
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_inception_v2, myriadLayerConvolutionTensorFlow,
+INSTANTIATE_TEST_SUITE_P(accuracy_inception_v2, myriadLayerConvolutionTensorFlow,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 16, 28, 28))
           , ::testing::Values<DimsOutput>(MAKE_STRUCT(tensor_test_params, 1, 64, 14, 14))
@@ -275,7 +275,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_inception_v2, myriadLayerConvolutionTensorFlow,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_inception_v1, myriadLayerConvolutionTensorFlow,
+INSTANTIATE_TEST_SUITE_P(accuracy_inception_v1, myriadLayerConvolutionTensorFlow,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 224, 224),
                                          MAKE_STRUCT(tensor_test_params, 1, 32, 224, 224)
@@ -290,7 +290,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_inception_v1, myriadLayerConvolutionTensorFlow,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(test_3x3_SSD_dilation, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(test_3x3_SSD_dilation, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 19, 19))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -303,7 +303,7 @@ INSTANTIATE_TEST_CASE_P(test_3x3_SSD_dilation, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(test_TF_Resnet_50, myriadLayers_IR3_ConvTests_smoke,
+INSTANTIATE_TEST_SUITE_P(test_TF_Resnet_50, myriadLayers_IR3_ConvTests_smoke,
         ::testing::Combine(
             ::testing::Values<InferenceEngine::SizeVector>({1, 512, 38, 38})
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -315,7 +315,7 @@ INSTANTIATE_TEST_CASE_P(test_TF_Resnet_50, myriadLayers_IR3_ConvTests_smoke,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(test_3x3_icvnet_dilation, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(test_3x3_icvnet_dilation, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 24, 20, 20))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -330,7 +330,7 @@ INSTANTIATE_TEST_CASE_P(test_3x3_icvnet_dilation, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(test_5x5_with_dilation, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(test_5x5_with_dilation, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 64,  77))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 5, 5))
@@ -346,7 +346,7 @@ INSTANTIATE_TEST_CASE_P(test_5x5_with_dilation, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(test_7x7_with_dilation, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(test_7x7_with_dilation, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 64,  77))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 7, 7))
@@ -363,7 +363,7 @@ INSTANTIATE_TEST_CASE_P(test_7x7_with_dilation, myriadLayerConvolution,
 );
 
 
-INSTANTIATE_TEST_CASE_P(test_conv1x1, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(test_conv1x1, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 10, 13, 13))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -377,7 +377,7 @@ INSTANTIATE_TEST_CASE_P(test_conv1x1, myriadLayerConvolution,
            )
 );
 
-INSTANTIATE_TEST_CASE_P(test_yolo_tiny_2_512x13x13_use_3x3_convolution, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(test_yolo_tiny_2_512x13x13_use_3x3_convolution, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 512, 13, 13))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -390,7 +390,7 @@ INSTANTIATE_TEST_CASE_P(test_yolo_tiny_2_512x13x13_use_3x3_convolution, myriadLa
            )
 );
 
-INSTANTIATE_TEST_CASE_P(test_yolo_tiny_2_512x13x13_use_1x1_convolution, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(test_yolo_tiny_2_512x13x13_use_1x1_convolution, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 4608, 13, 13))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -403,7 +403,7 @@ INSTANTIATE_TEST_CASE_P(test_yolo_tiny_2_512x13x13_use_1x1_convolution, myriadLa
            )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_group, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_group, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 64,  77)
                                        , MAKE_STRUCT(tensor_test_params, 1, 32, 112, 96))
@@ -422,7 +422,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_group, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_group_large_input, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_group_large_input, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 192, 336))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -437,7 +437,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_group_large_input, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_any_group, myriadLayerConvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_any_group, myriadLayerConvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 64,  77))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -453,7 +453,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_any_group, myriadLayerConvolution_smoke,
         )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_any_group, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_any_group, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 64,  77))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -469,7 +469,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_any_group, myriadLayerConvolution,
         )
 );
 
-INSTANTIATE_TEST_CASE_P(set_optimization_for_3x3_with_group, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(set_optimization_for_3x3_with_group, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 24, 80, 80)
                                        , MAKE_STRUCT(tensor_test_params, 1, 36, 80, 80))
@@ -484,7 +484,7 @@ INSTANTIATE_TEST_CASE_P(set_optimization_for_3x3_with_group, myriadLayerConvolut
           )
 );
 
-INSTANTIATE_TEST_CASE_P(set_optimization_for_3x3s1, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(set_optimization_for_3x3s1, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 24, 80, 80))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -497,7 +497,7 @@ INSTANTIATE_TEST_CASE_P(set_optimization_for_3x3s1, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_1x1, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_1x1, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 16, 64, 64)
                                        , MAKE_STRUCT(tensor_test_params, 1, 32, 1, 1))
@@ -514,7 +514,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_1x1, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_3x3, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_3x3, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 8, 16, 16)
                                        , MAKE_STRUCT(tensor_test_params, 1, 8, 59, 73))
@@ -530,7 +530,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_3x3, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_1x3, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_1x3, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 8, 59, 73))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 3), MAKE_STRUCT(param_size, 3, 1))
@@ -544,7 +544,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_1x3, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_5x5, myriadLayerConvolution_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy_5x5, myriadLayerConvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 16, 32, 32)
                                      /*, MAKE_STRUCT(tensor_test_params, 1, 8, 511, 399) failed*/)
@@ -561,7 +561,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_5x5, myriadLayerConvolution_smoke,
         )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_5x5, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_5x5, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 16, 32, 32)
                                      /*, MAKE_STRUCT(tensor_test_params, 1, 8, 511, 399) failed*/)
@@ -578,7 +578,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_5x5, myriadLayerConvolution,
         )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_7x7, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_7x7, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 8, 32, 32)
                                      /*, MAKE_STRUCT(tensor_test_params, 1, 8, 511, 399) failed*/)
@@ -595,7 +595,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_7x7, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_3x3_large_input_1, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_3x3_large_input_1, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 3, 720, 1280))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -608,7 +608,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_3x3_large_input_1, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_3x3_large_input_2, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_3x3_large_input_2, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 24, 357, 637))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -622,7 +622,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_3x3_large_input_2, myriadLayerConvolution,
 );
 
 
-INSTANTIATE_TEST_CASE_P(accuracy_3x3_large_input_3, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_3x3_large_input_3, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 16, 359, 639))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -635,7 +635,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_3x3_large_input_3, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_1x1_large_input, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_1x1_large_input, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 24, 355, 635))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 1, 1))
@@ -648,7 +648,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_1x1_large_input, myriadLayerConvolution,
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_small_input_0, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_small_input_0, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 128, 38, 38))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -660,7 +660,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_small_input_0, myriadLayerConvolution,
           , ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMinor)
           )
 );
-INSTANTIATE_TEST_CASE_P(accuracy_small_input_1, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_small_input_1, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 2, 3))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -672,7 +672,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_small_input_1, myriadLayerConvolution,
           , ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMinor)
           )
 );
-INSTANTIATE_TEST_CASE_P(accuracy_small_input_2, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_small_input_2, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 2, 2))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
@@ -684,7 +684,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_small_input_2, myriadLayerConvolution,
           , ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMinor)
           )
 );
-INSTANTIATE_TEST_CASE_P(accuracy_small_input_3, myriadLayerConvolution,
+INSTANTIATE_TEST_SUITE_P(accuracy_small_input_3, myriadLayerConvolution,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 256, 1, 1))
           , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))

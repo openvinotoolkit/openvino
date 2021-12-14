@@ -50,7 +50,7 @@ std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesFpToInt = {
         ngraph::helpers::ComparisonTypes::LESS,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ComparisonFp,
+INSTANTIATE_TEST_SUITE_P(smoke_ComparisonFp,
                         ComparisonLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
@@ -63,7 +63,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ComparisonFp,
                             ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         ComparisonLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ComparisonInt,
+INSTANTIATE_TEST_SUITE_P(smoke_ComparisonInt,
                         ComparisonLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),

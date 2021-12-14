@@ -4,7 +4,7 @@
 
 #include "myriad_get_output_tests.hpp"
 
-INSTANTIATE_TEST_CASE_P(Test_params_pool, myriadGetOutput_nightly,
+INSTANTIATE_TEST_SUITE_P(Test_params_pool, myriadGetOutput_nightly,
         testing::Values(
                 std::make_tuple(std::make_tuple(&full_model, &poolModel), "pool1_3x3_s2"),
                 std::make_tuple(std::make_tuple(&full_model, &convModel), "conv1_7x7_s2"),

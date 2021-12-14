@@ -4,9 +4,9 @@
 
 #include "myriad_layers_roi_feature_extractor_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsROIFeatureExtractor_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsROIFeatureExtractor_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_ROIFeatureExtractorLayerInput),
         ::testing::ValuesIn(s_ROIFeatureExtractorLayerParam),
-        ::testing::ValuesIn(s_ROIFeatureExtractorNumROIs)),
+        ::testing::ValuesIn(s_ROIFeatureExtractorNumROIs))
 );

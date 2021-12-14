@@ -26,7 +26,18 @@ New operator registration must happen before an ONNX model is read. For example,
 Reregistering ONNX operators within the same process is supported. If you register an existing operator, you get a warning.
 
 The example below demonstrates an exemplary model that requires a previously created `CustomRelu` operator:
-@snippet onnx_custom_op/onnx_custom_op.cpp onnx_custom_op:model
+@include onnx_custom_op/custom_relu_model.prototxt
+This model is in text format, so before it can be passed to Inference Engine, it has to be converted to binary using:
+```py
+from google.protobuf import text_format
+import onnx
+
+with open("custom_relu_model.prototxt") as in_file:
+    proto = onnx.ModelProto()
+    text_format.Parse(in_file.read(), proto, allow_field_number=True)
+    s = onnx._serialize(proto)
+    onnx._save_bytes(s, "custom_relu_model.onnx")
+```
 
 
 To create a graph with nGraph operations, visit [Custom nGraph Operations](AddingNGraphOps.md).
@@ -39,21 +50,20 @@ If you do not need an operator anymore, unregister it by calling `unregister_ope
 
 The same principles apply when registering a custom ONNX operator based on custom nGraph operations.
 This example shows how to register a custom ONNX operator based on `Operation` presented in [this tutorial](AddingNGraphOps.md), which is used in [TemplateExtension](Extension.md).
-@snippet template_extension/extension.cpp extension:ctor
+@snippet template_extension/old/extension.cpp extension:ctor
 
 Here, the `register_operator` function is called in the constructor of Extension. The constructor makes sure that the function is called before InferenceEngine::Core::ReadNetwork, because InferenceEngine::Core::AddExtension must be called before a model with a custom operator is read.
 
 The example below demonstrates how to unregister an operator from the destructor of Extension:
-@snippet template_extension/extension.cpp extension:dtor
+@snippet template_extension/old/extension.cpp extension:dtor
 
-> **NOTE**: It is mandatory to unregister a custom ONNX operator if it is defined in a dynamic shared library.
+> **REQUIRED**: It is mandatory to unregister a custom ONNX operator if it is defined in a dynamic shared library.
 
 ## Requirements for Building with CMake
 
-A program that uses the `register_operator` functionality requires `ngraph` and `onnx_importer` libraries in addition to the Inference Engine.
-The `onnx_importer` is a component of the `ngraph` package , so `find_package(ngraph REQUIRED COMPONENTS onnx_importer)` can find both.
-The `ngraph` package exposes two variables, `${NGRAPH_LIBRARIES}` and `${ONNX_IMPORTER_LIBRARIES}`, which reference the `ngraph` and `onnx_importer` libraries.
-Those variables need to be passed to the `target_link_libraries` command in the CMakeLists.txt file.
+A program that uses the `register_operator` functionality requires `openvino::core` and `openvino::frontend::onnx` libraries in addition to the OpenVINO Inference Runtime.
+The `onnx_ov_frontend` is a component of the `OpenVINO` package , so `find_package(OpenVINO REQUIRED COMPONENTS ONNX)` can find both.
+Those libraries need to be passed to the `target_link_libraries` command in the CMakeLists.txt file.
 
 See CMakeLists.txt below for reference:
 @snippet onnx_custom_op/CMakeLists.txt cmake:onnx_custom_op

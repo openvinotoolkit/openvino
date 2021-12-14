@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/batch_headers/common.cl"
+#include "include/batch_headers/data_types.cl"
 
 // JIT Parameters:
 // SIMD         - sub-group size/simd width, one of {8, 16};

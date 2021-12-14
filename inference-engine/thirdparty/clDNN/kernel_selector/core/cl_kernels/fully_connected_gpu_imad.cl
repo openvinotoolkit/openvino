@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-
-#include "include/data_types.cl"
-#include "include/fetch.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 #include "include/imad.cl"
 
 #define SIMD_SIZE         16

@@ -125,12 +125,6 @@ typedef enum {
 } ncDeviceOption_t;
 
 typedef enum {
-    NC_ANY_PLATFORM = 0,
-    NC_MYRIAD_2 = 2450,
-    NC_MYRIAD_X = 2480,
-} ncDevicePlatform_t;
-
-typedef enum {
     NC_ANY_PROTOCOL = 0,
     NC_USB,
     NC_PCIE,
@@ -158,7 +152,6 @@ struct ncDeviceHandle_t {
 
 struct ncDeviceDescr_t {
     ncDeviceProtocol_t protocol;
-    ncDevicePlatform_t platform;
     char name[NC_MAX_NAME_SIZE];
 };
 

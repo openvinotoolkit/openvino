@@ -42,12 +42,12 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::LSTMSequenceParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
 
-        size_t seq_lenghts;
+        size_t seq_lengths;
         size_t batch;
         size_t hidden_size;
         size_t input_size;
@@ -60,12 +60,12 @@ protected:
 
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(m_mode, seq_lenghts, batch, hidden_size, input_size, activations, clip, direction, netPrecision, targetDevice) = basicParamsSet;
+        std::tie(m_mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, netPrecision, targetDevice) = basicParamsSet;
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
-        m_max_seq_len = seq_lenghts;
+        m_max_seq_len = seq_lengths;
         std::vector<std::vector<size_t>> inputShapes = {
-            {{batch, seq_lenghts, input_size},
+            {{batch, seq_lengths, input_size},
              {batch, num_directions, hidden_size},
              {batch, num_directions, hidden_size},
              {batch},
@@ -73,6 +73,16 @@ protected:
              {num_directions, 4 * hidden_size, hidden_size},
              {num_directions, 4 * hidden_size}},
         };
+
+        // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // returned output format always tnc
+        if (inFmts.size() >= 3) {
+            for (size_t i = 1; i < 3; i++) {
+                if (ngraph::shape_size(inputShapes[i]) == 1) {
+                    inFmts[i] = tnc;
+                }
+            }
+        }
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -104,6 +114,18 @@ protected:
                                                        true,
                                                        direction,
                                                        m_mode);
+
+        // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // returned output format always tnc
+        if (outFmts.size() >= 3) {
+            for (size_t i = 1; i < 3; i++) {
+                if (ngraph::shape_size(lstm_sequence->get_output_shape(i)) == 1 ||
+                        lstm_sequence->get_output_shape(0) == ngraph::Shape{1, 1, 2, 10}) {
+                    outFmts[i] = tnc;
+                }
+            }
+        }
+
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(1)),
                                      std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(2))};
@@ -124,7 +146,7 @@ protected:
         }
     }
 
-    void GenerateInputs() {
+    void GenerateInputs() override {
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
@@ -154,8 +176,8 @@ std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-CPUSpecificParams cpuParams{{ntc, nc, nc}, {ntc, nc, nc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{tnc, nc, nc}, {tnc, nc, nc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParams{{ntc, tnc, tnc}, {ntc, tnc, tnc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 std::vector<size_t> seq_lengths_zero_clip{2};
@@ -170,7 +192,7 @@ std::vector<float> clip{0.f};
 std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCPU,
                         LSTMSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -186,7 +208,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPU,
                                            ::testing::ValuesIn(additionalConfig)),
                         LSTMSequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPUbatchSizeOne,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCPUbatchSizeOne,
                         LSTMSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),

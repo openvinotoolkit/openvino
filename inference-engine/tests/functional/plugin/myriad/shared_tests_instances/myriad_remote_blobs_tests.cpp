@@ -14,5 +14,5 @@ const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remot
 #endif
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlobMultiMyriad, MultiDevice_SupportTest,
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiMyriad, MultiDevice_SupportTest,
                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs), MultiDevice_SupportTest::getTestCaseName);

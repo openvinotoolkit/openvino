@@ -20,11 +20,6 @@ clDNN uses 3<sup>rd</sup>-party components licensed under following licenses:
 - *OpenCL™ ICD and C++ Wrapper* under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
 - *RapidJSON* under [Tencent\* License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 
-## Documentation
-There is inline documentation available that can be generated with Doxygen.
-
-Accelerate Deep Learning Inference with Intel® Processor Graphics whitepaper [link](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
-
 ## Support
 Please report issues and suggestions
 [GitHub issues](https://github.com/openvinotoolkit/openvino/issues).
@@ -34,7 +29,7 @@ We welcome community contributions to clDNN. If you have an idea how to improve 
 
 - Share your proposal via
  [GitHub issues](https://github.com/openvinotoolkit/openvino/issues)
-- Ensure you can build the product and run all the examples with your patch
+- Ensure you can build the product and run all the tests with your patch
 - In the case of a larger feature, create a test
 - Submit a [pull request](https://github.com/openvinotoolkit/openvino/pulls)
 

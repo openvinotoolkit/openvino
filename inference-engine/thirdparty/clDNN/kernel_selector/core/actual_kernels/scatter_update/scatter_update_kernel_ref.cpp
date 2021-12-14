@@ -269,7 +269,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
 
     for (int i = start_with_iteration; i < 2; i++) {
         auto dispatchData = SetDefault(newParams, options, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
 
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));

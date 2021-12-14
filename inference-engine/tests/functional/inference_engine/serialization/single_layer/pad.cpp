@@ -35,6 +35,6 @@ const auto pad2DConstparams = testing::Combine(
     testing::Values(std::vector<size_t>{13, 5}),
     testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_Pad2DConstSerialization, PadLayerTest, pad2DConstparams,
+INSTANTIATE_TEST_SUITE_P(smoke_Pad2DConstSerialization, PadLayerTest, pad2DConstparams,
                         PadLayerTest::getTestCaseName);
 } // namespace

@@ -5,7 +5,7 @@
 #include "max_unpooling_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <memory>
@@ -16,7 +16,7 @@ primitive_type_id max_unpooling::type_id() {
     return &instance;
 }
 
-max_unpooling_node::typed_program_node(const std::shared_ptr<max_unpooling> prim, program_impl& prog)
+max_unpooling_node::typed_program_node(const std::shared_ptr<max_unpooling> prim, program& prog)
     : parent(prim, prog) {
     can_share_buffer(false);  // for max_unpooling initial zero values are significant
 }
@@ -44,7 +44,7 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
         return {input_layout.data_type, input_layout.format, output_size};
     }
 
-    auto input_offset = desc->input_offset;
+    auto pad = desc->pad;
     auto stride = desc->stride;
     auto window_size = desc->size;
 
@@ -72,46 +72,10 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
                                    "",
                                    0,
                                    "Size Y (of pooling window) must be positive (>= 1)");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Input offset spatial X",
-                             2 * input_offset.spatial[0],
-                             "input layout size spatial X",
-                             input_layout.size.spatial[0],
-                             "Input offset is greater than input data range. There is no input data to process");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Input offset spatial Y",
-                             2 * input_offset.spatial[1],
-                             "input layout size spatial Y",
-                             input_layout.size.spatial[1],
-                             "Input offset is greater than input data range. There is no input data to process");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Negate input offset spatial X",
-                             -input_offset.spatial[0],
-                             "input window size spatial X",
-                             window_size.spatial[0],
-                             "First pool is outside of image. please reduce input offset X");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Negate input offset spatial Y",
-                             -input_offset.spatial[1],
-                             "input window size spatial Y",
-                             window_size.spatial[1],
-                             "First pool is outside of image. please reduce input offset Y");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset feature",
-                          input_offset.feature[0],
-                          "",
-                          0,
-                          "Input offset in feature is not supported");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset batch",
-                          input_offset.batch[0],
-                          "",
-                          0,
-                          "Input offset in batch is not supported");
 
     auto output_range = calc_sliding_window_needed_input_range(input_layout.size,
                                                                window_size,
-                                                               input_offset,
+                                                               pad,
                                                                stride,
                                                                {1, 1, 1, 1},
                                                                true,
@@ -142,7 +106,7 @@ std::string max_unpooling_inst::to_string(max_unpooling_node const& node) {
     return primitive_description.str();
 }
 
-max_unpooling_inst::typed_primitive_inst(network_impl& network, max_unpooling_node const& node)
+max_unpooling_inst::typed_primitive_inst(network& network, max_unpooling_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

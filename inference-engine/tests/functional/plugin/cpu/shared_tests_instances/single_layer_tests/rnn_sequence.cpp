@@ -16,7 +16,7 @@ namespace {
                                                          ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM,
                                                          ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST,
                                                          ngraph::helpers::SequenceTestsMode::PURE_SEQ};
-    // output values increase rapidly without clip, so use only seq_lenghts = 2
+    // output values increase rapidly without clip, so use only seq_lengths = 2
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
     std::vector<size_t> batch{1, 10};
@@ -31,7 +31,7 @@ namespace {
     };
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-    INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonZeroClip, RNNSequenceTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCommonZeroClip, RNNSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -45,7 +45,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),

@@ -3,6 +3,7 @@
 //
 
 #include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 
 #include <cstdlib>
 #include <unordered_map>
@@ -29,6 +30,9 @@ PluginCache &PluginCache::get() {
 }
 
 std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &deviceToCheck) {
+    // w/a for myriad (cann't store 2 caches simultaneously)
+    ov::test::utils::PluginCache::get().reset();
+
     std::lock_guard<std::mutex> lock(g_mtx);
     if (std::getenv("DISABLE_PLUGIN_CACHE") != nullptr) {
 #ifndef NDEBUG
@@ -49,6 +53,13 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
     }
     assert(0 != ie_core.use_count());
 
+    // register template plugin if it is needed
+    try {
+        std::string pluginName = "templatePlugin";
+        pluginName += IE_BUILD_POSTFIX;
+        ie_core->RegisterPlugin(pluginName, "TEMPLATE");
+    } catch (...) {}
+
     if (!deviceToCheck.empty()) {
         std::vector<std::string> metrics = ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS));
 
@@ -61,11 +72,13 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
                 std::exit(EXIT_FAILURE);
             }
 
+#ifndef NDEBUG
             std::cout << "Available devices for " << deviceToCheck << ":" << std::endl;
 
             for (const auto &device : availableDevices) {
                 std::cout << "    " << device << std::endl;
             }
+#endif
         }
     }
     return ie_core;

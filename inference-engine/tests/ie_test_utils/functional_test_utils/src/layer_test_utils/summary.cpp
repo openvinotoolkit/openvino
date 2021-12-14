@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <pugixml.hpp>
+
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 using namespace LayerTestsUtils;
 
+#ifdef _WIN32
+# define getpid _getpid
+#endif
 
 Summary *Summary::p_instance = nullptr;
 bool Summary::extendReport = false;
@@ -31,6 +36,7 @@ Summary::Summary() {
     opsets.push_back(ngraph::get_opset5());
     opsets.push_back(ngraph::get_opset6());
     opsets.push_back(ngraph::get_opset7());
+    opsets.push_back(ngraph::get_opset8());
 }
 
 Summary &Summary::getInstance() {
@@ -47,6 +53,9 @@ void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Sta
         auto &passrate = it->second;
         switch (status) {
             case PassRate::PASSED:
+                if (!passrate.isImplemented) {
+                    passrate.isImplemented = true;
+                }
                 passrate.passed++;
                 passrate.crashed--;
                 break;
@@ -76,6 +85,18 @@ void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Sta
                 opsStats[op] = PassRate(0, 0, 0, 1);
                 break;
         }
+    }
+}
+
+void Summary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {
+    auto it = opsStats.find(op);
+    if (it != opsStats.end()) {
+        if (!it->second.isImplemented && implStatus) {
+            it->second.isImplemented = true;
+        }
+    } else {
+        opsStats[op] = PassRate(0, 0, 0, 0);
+        opsStats[op].isImplemented = implStatus;
     }
 }
 
@@ -114,30 +135,85 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
 }
 
 void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
+    if (function->get_parameters().empty()) {
+        return;
+    }
+    bool isFunctionalGraph = false;
     for (const auto &op : function->get_ordered_ops()) {
-        if (ngraph::is_type<ngraph::op::Parameter>(op) ||
+        if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
+            !ngraph::is_type<ngraph::op::Constant>(op) &&
+            !ngraph::is_type<ngraph::op::Result>(op)) {
+            isFunctionalGraph = true;
+            break;
+        }
+    }
+
+    for (const auto &op : function->get_ordered_ops()) {
+        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
             ngraph::is_type<ngraph::op::Constant>(op) ||
-            ngraph::is_type<ngraph::op::Result>(op)) {
+            ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
             continue;
         } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
             updateOPsStats(op->get_type_info(), status);
             auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
             auto ti_body = ti->get_function();
-            for (const auto &ti_op : ti_body->get_ordered_ops()) {
-                updateOPsStats(ti_op->get_type_info(), status);
-            }
+            updateOPsStats(ti_body, status);
         } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
             updateOPsStats(op->get_type_info(), status);
             auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
             auto loop_body = loop->get_function();
-            for (const auto &loop_op : loop_body->get_ordered_ops()) {
-                updateOPsStats(loop_op->get_type_info(), status);
-            }
+            updateOPsStats(loop_body, status);
         } else {
             updateOPsStats(op->get_type_info(), status);
         }
     }
 }
+
+void Summary::updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus) {
+    if (function->get_parameters().empty()) {
+        return;
+    }
+    bool isFunctionalGraph = false;
+    for (const auto &op : function->get_ordered_ops()) {
+        if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
+            !ngraph::is_type<ngraph::op::Constant>(op) &&
+            !ngraph::is_type<ngraph::op::Result>(op)) {
+            isFunctionalGraph = true;
+            break;
+        }
+    }
+
+    for (const auto &op : function->get_ordered_ops()) {
+        if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
+             ngraph::is_type<ngraph::op::Constant>(op) ||
+             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
+            continue;
+        } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
+            updateOPsImplStatus(op->get_type_info(), implStatus);
+            auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+            auto ti_body = ti->get_function();
+            updateOPsImplStatus(ti_body, implStatus);
+        } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
+            updateOPsImplStatus(op->get_type_info(), implStatus);
+            auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
+            auto loop_body = loop->get_function();
+            updateOPsImplStatus(loop_body, implStatus);
+        } else {
+            updateOPsImplStatus(op->get_type_info(), implStatus);
+        }
+    }
+}
+
+#ifdef IE_TEST_DEBUG
+void Summary::saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                             unsigned long skipped, unsigned long crashed) {
+    std::string outputFilePath = "./part_report.txt";
+    std::ofstream file;
+    file.open(outputFilePath, std::ios_base::app);
+    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << '\n';
+    file.close();
+}
+#endif  //IE_TEST_DEBUG
 
 void Summary::saveReport() {
     if (isReported) {
@@ -168,8 +244,7 @@ void Summary::saveReport() {
 
     pugi::xml_document doc;
 
-    std::ifstream file;
-    file.open(outputFilePath);
+    const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
 
     time_t rawtime;
     struct tm *timeinfo;
@@ -182,7 +257,7 @@ void Summary::saveReport() {
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 
     pugi::xml_node root;
-    if (file) {
+    if (fileExists) {
         doc.load_file(outputFilePath.c_str());
         root = doc.child("report");
         //Ugly but shorter than to write predicate for find_atrribute() to update existing one
@@ -211,6 +286,7 @@ void Summary::saveReport() {
         std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
+        entry.append_attribute("implemented").set_value(it.second.isImplemented);
         entry.append_attribute("passed").set_value(it.second.passed);
         entry.append_attribute("failed").set_value(it.second.failed);
         entry.append_attribute("skipped").set_value(it.second.skipped);
@@ -218,12 +294,13 @@ void Summary::saveReport() {
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
 
-    if (extendReport && file) {
+    if (extendReport && fileExists) {
         auto opStataFromReport = summary.getOpStatisticFromReport();
         for (auto &item : opStataFromReport) {
             pugi::xml_node entry;
             if (opList.find(item.first) == opList.end()) {
                 entry = currentDeviceNode.append_child(item.first.c_str());
+                entry.append_attribute("implemented").set_value(item.second.isImplemented);
                 entry.append_attribute("passed").set_value(item.second.passed);
                 entry.append_attribute("failed").set_value(item.second.failed);
                 entry.append_attribute("skipped").set_value(item.second.skipped);
@@ -231,12 +308,16 @@ void Summary::saveReport() {
                 entry.append_attribute("passrate").set_value(item.second.getPassrate());
             } else {
                 entry = currentDeviceNode.child(item.first.c_str());
+                auto implStatus = entry.attribute("implemented").value() == std::string("true") ? true : false;
                 auto p = std::stoi(entry.attribute("passed").value()) + item.second.passed;
                 auto f = std::stoi(entry.attribute("failed").value()) + item.second.failed;
                 auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
                 auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
                 PassRate obj(p, f, s, c);
 
+                (implStatus || obj.isImplemented)
+                    ? entry.attribute("implemented").set_value(true)
+                    : entry.attribute("implemented").set_value(false);
                 entry.attribute("passed").set_value(obj.passed);
                 entry.attribute("failed").set_value(obj.failed);
                 entry.attribute("skipped").set_value(obj.skipped);
@@ -258,5 +339,4 @@ void Summary::saveReport() {
     } else {
         isReported = true;
     }
-    file.close();
 }

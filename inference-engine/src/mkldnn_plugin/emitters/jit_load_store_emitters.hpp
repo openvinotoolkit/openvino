@@ -18,8 +18,8 @@ struct load_emitter_context : public emitter_context {
     load_emitter_context() : src_prc_(Precision::FP32), dst_prc_(Precision::FP32), load_num_(8),
     offset_byte_(0), is_fill_(false), fill_value_("zero") {}
 
-    load_emitter_context(Precision src_prc, Precision dst_prc, int load_num, bool is_fill = false, std::string fill_value = "zero", int offset_byte = 0):
-    src_prc_(src_prc), dst_prc_(dst_prc), load_num_(load_num), is_fill_(is_fill), fill_value_(fill_value), offset_byte_(offset_byte) {}
+    load_emitter_context(Precision src_prc, Precision dst_prc, int load_num, int offset_byte = 0, bool is_fill = false, std::string fill_value = "zero"):
+    src_prc_(src_prc), dst_prc_(dst_prc), load_num_(load_num), offset_byte_(offset_byte), is_fill_(is_fill), fill_value_(fill_value) {}
 
     int offset_byte_;
     int load_num_;
@@ -123,6 +123,8 @@ public:
                   const emitter_context *emit_context) const override;
 
     size_t get_inputs_num() const override;
+
+    void emit_data() const override;
 
     std::shared_ptr<jit_emu_vcvtneps2bf16> get_emu_vcvtneps2bf16() const {
         return emu_vcvtneps2bf16;

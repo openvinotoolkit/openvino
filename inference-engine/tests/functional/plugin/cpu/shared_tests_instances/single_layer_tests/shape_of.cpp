@@ -14,7 +14,7 @@ namespace {
             InferenceEngine::Precision::I32
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_Check, ShapeOfLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Check, ShapeOfLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(std::vector<size_t>({10, 10, 10})),

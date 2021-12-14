@@ -9,7 +9,7 @@
 
 #include <ie_compound_blob.h>
 
-#include <cldnn/cldnn_config.hpp>
+#include <gpu/gpu_config.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
@@ -25,13 +25,13 @@ class RemoteBlob_Test : public CommonTestUtils::TestsCommon {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 
-    virtual void SetUp() {
+    void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     }
 };
 
 TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
-#if defined(_WIN32) || defined(ANDROID)
+#if defined(ANDROID)
     GTEST_SKIP();
 #endif
     CNNNetwork net(fn_ptr);
@@ -39,7 +39,6 @@ TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
 
-    auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
     // TODO: Issue: investigate issue with IECore
     auto ie = InferenceEngine::Core();
     auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
@@ -85,10 +84,62 @@ TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
     }
 }
 
-TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
-#if defined _WIN32
+
+TEST_F(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
+#if defined(ANDROID)
     GTEST_SKIP();
 #endif
+    CNNNetwork net(fn_ptr);
+
+    net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
+    net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
+
+    // TODO: Issue: investigate issue with IECore
+    auto ie = InferenceEngine::Core();
+    auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+
+    // regular inference
+    auto inf_req_regular = exec_net.CreateInferRequest();
+    InferenceEngine::Blob::Ptr fakeImageData = FuncTestUtils::createAndFillBlob(
+            net.getInputsInfo().begin()->second->getTensorDesc());
+    inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
+
+    inf_req_regular.Infer();
+    auto outputBlob_regular = inf_req_regular.GetBlob(net.getOutputsInfo().begin()->first);
+
+    // inference using remote blob
+    auto inf_req_shared = exec_net.CreateInferRequest();
+    auto cldnn_context = exec_net.GetContext();
+    cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+
+    auto dims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
+    size_t imSize = dims[1] * dims[2] * dims[3];
+
+    Blob::Ptr shared_blob = make_shared_blob(net.getInputsInfo().begin()->second->getTensorDesc(), cldnn_context);
+    shared_blob->allocate();
+    {
+        cl::Buffer shared_buffer = *shared_blob->as<gpu::ClBufferBlob>();
+        void *buffer = fakeImageData->buffer();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, imSize, buffer);
+    }
+
+    inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, shared_blob);
+
+    inf_req_shared.Infer();
+    auto outputBlob_shared = inf_req_shared.GetBlob(net.getOutputsInfo().begin()->first);
+
+    // compare results
+    {
+        ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
+        ASSERT_EQ(outputBlob_regular->size(), outputBlob_shared->size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        FuncTestUtils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
+    }
+}
+
+
+TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
     auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     CNNNetwork net(fn_ptr);
 
@@ -127,6 +178,186 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
     }
 }
 
+TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
+#if defined _WIN32
+    GTEST_SKIP();
+#endif
+    auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    CNNNetwork net(fn_ptr);
+
+    net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
+    net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
+
+    auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+
+    auto ie = PluginCache::get().ie();
+    auto exec_net_regular = ie->LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+
+    // regular inference
+    auto inf_req_regular = exec_net_regular.CreateInferRequest();
+    auto fakeImageData = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
+
+    inf_req_regular.Infer();
+    auto outputBlob_regular = inf_req_regular.GetBlob(net.getOutputsInfo().begin()->first);
+
+    // inference using remote blob
+    auto ocl_instance = std::make_shared<OpenCL>();
+    cl_int err;
+
+    auto in_desc = net.getInputsInfo().begin()->second->getTensorDesc();
+    auto out_desc = net.getOutputsInfo().begin()->second->getTensorDesc();
+    auto in_dims = in_desc.getDims();
+    auto out_dims = out_desc.getDims();
+    size_t in_size = in_dims[1] * in_dims[2] * in_dims[3];
+    size_t out_size = out_dims[1] * out_dims[2] * out_dims[3] * sizeof(float);
+
+    // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
+    // without calling thread blocks
+    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_queue.get());
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context);
+    auto inf_req_shared = exec_net_shared.CreateInferRequest();
+
+    // Allocate shared buffers for input and output data which will be set to infer request
+    cl::Buffer shared_input_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
+    cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+    // Allocate output buffer where inference result will be put as a post-processing step
+    cl::Buffer output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+
+    // Wrap buffers above with IE blobs
+    Blob::Ptr shared_input_blob = make_shared_blob(in_desc, remote_context, shared_input_buffer);
+    Blob::Ptr shared_output_blob = make_shared_blob(out_desc, remote_context, shared_output_buffer);
+    Blob::Ptr output_blob = make_shared_blob(out_desc, remote_context, output_buffer);
+    // Allocate is needed to actually trigger memory handle sharing. For other buffers it's called inside SetBlob impl
+    // TODO: Why do we need to call it explicitly? Consider doing it internally
+    output_blob->allocate();
+
+    // Pass shared blobs to infer request
+    inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, shared_input_blob);
+    inf_req_shared.SetBlob(net.getOutputsInfo().begin()->first, shared_output_blob);
+
+    // 1. Pre-processing. Enqueue non-blocking copy from host ptr to shared device input buffer and barrier to ensure that copy is finished before
+    // inference primitives starts execution
+    {
+        void *buffer = fakeImageData->buffer();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_buffer, false, 0, in_size, buffer);
+        ocl_instance->_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+    }
+
+    // 2. Enqueue inference primitives. With shared queue this call ensures that all kernels are scheduled to the corresponding queue
+    // before giving the control back
+    inf_req_shared.StartAsync();
+
+    // 3. Post-processing. Enqueue copy from shared blob with inference result to another output blob
+    // Enqueue barrier with empty wait list is needed to ensure that previous kernels are finished before copying the data. It's needed here since we
+    // create OOO queue.
+    // Note: inf_req_shared.Wait() can be dropped in some cases, but if plugin-side post-processing is required,
+    // then the result may be incorrect without Wait().
+    {
+        ocl_instance->_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+        ocl_instance->_queue.enqueueCopyBuffer(shared_output_buffer, output_buffer, 0, 0, output_blob->byteSize());
+    }
+
+    // 4. Wait for infer request and post-processing completion
+    ocl_instance->_queue.finish();
+
+    // compare results
+    {
+        ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
+        ASSERT_EQ(outputBlob_regular->size(), output_blob->size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        FuncTestUtils::compareBlobs(outputBlob_regular, output_blob, thr);
+    }
+}
+
+TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
+#if defined _WIN32
+    GTEST_SKIP();
+#endif
+    auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+    CNNNetwork net(fn_ptr);
+
+    net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
+    net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
+
+    auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+
+    auto ie = PluginCache::get().ie();
+    auto exec_net_regular = ie->LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+
+    // regular inference
+    auto inf_req_regular = exec_net_regular.CreateInferRequest();
+    auto fakeImageData = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
+
+    inf_req_regular.Infer();
+    auto outputBlob_regular = inf_req_regular.GetBlob(net.getOutputsInfo().begin()->first);
+
+    // inference using remote blob
+    auto ocl_instance = std::make_shared<OpenCL>();
+    ocl_instance->_queue = cl::CommandQueue(ocl_instance->_context, ocl_instance->_device);
+    cl_int err;
+
+    auto in_desc = net.getInputsInfo().begin()->second->getTensorDesc();
+    auto out_desc = net.getOutputsInfo().begin()->second->getTensorDesc();
+    auto in_dims = in_desc.getDims();
+    auto out_dims = out_desc.getDims();
+    size_t in_size = in_dims[1] * in_dims[2] * in_dims[3];
+    size_t out_size = out_dims[1] * out_dims[2] * out_dims[3] * sizeof(float);
+
+    // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
+    // without calling thread blocks
+    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_queue.get());
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context);
+    auto inf_req_shared = exec_net_shared.CreateInferRequest();
+
+    // Allocate shared buffers for input and output data which will be set to infer request
+    cl::Buffer shared_input_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
+    cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+    // Allocate output buffer where inference result will be put as a post-processing step
+    cl::Buffer output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+
+    // Wrap buffers above with IE blobs
+    Blob::Ptr shared_input_blob = make_shared_blob(in_desc, remote_context, shared_input_buffer);
+    Blob::Ptr shared_output_blob = make_shared_blob(out_desc, remote_context, shared_output_buffer);
+    Blob::Ptr output_blob = make_shared_blob(out_desc, remote_context, output_buffer);
+    // Allocate is needed to actually trigger memory handle sharing. For other buffers it's called inside SetBlob impl
+    // TODO: Why do we need to call it explicitly? Consider doing it internally
+    output_blob->allocate();
+
+    // Pass shared blobs to infer request
+    inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, shared_input_blob);
+    inf_req_shared.SetBlob(net.getOutputsInfo().begin()->first, shared_output_blob);
+
+    // 1. Pre-processing. Enqueue non-blocking copy from host ptr to shared device input buffer
+    {
+        void *buffer = fakeImageData->buffer();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_buffer, false, 0, in_size, buffer);
+    }
+
+    // 2. Enqueue inference primitives. With shared queue this call ensures that all kernels are scheduled to the corresponding queue
+    // before giving the control back
+    inf_req_shared.StartAsync();
+
+    // 3. Post-processing. Enqueue copy from shared blob with inference result to another output blob
+    // Note: inf_req_shared.Wait() can be dropped in some cases, but if plugin-side post-processing is required,
+    // then the result may be incorrect without Wait().
+    {
+        ocl_instance->_queue.enqueueCopyBuffer(shared_output_buffer, output_buffer, 0, 0, output_blob->byteSize());
+    }
+
+    // 4. Wait for infer request and post-processing completion
+    ocl_instance->_queue.finish();
+
+    // compare results
+    {
+        ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
+        ASSERT_EQ(outputBlob_regular->size(), output_blob->size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        FuncTestUtils::compareBlobs(outputBlob_regular, output_blob, thr);
+    }
+}
+
 class BatchedBlob_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
         num_batch = this->GetParam();
@@ -142,7 +373,7 @@ protected:
 };
 
 TEST_P(BatchedBlob_Test, canInputNV12) {
-#if defined(_WIN32) || defined(ANDROID)
+#if defined(ANDROID)
     GTEST_SKIP();
 #endif
     const int height = 16;
@@ -175,7 +406,7 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
 
     /* XXX: is it correct to set KEY_CLDNN_NV12_TWO_INPUTS in case of remote blob? */
     auto exec_net_b = ie.LoadNetwork(net_remote, CommonTestUtils::DEVICE_GPU,
-                { { CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS, PluginConfigParams::YES} });
+                { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES} });
     auto inf_req_remote = exec_net_b.CreateInferRequest();
     auto cldnn_context = exec_net_b.GetContext();
     cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
@@ -269,21 +500,29 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
 
 const std::vector<size_t> num_batches{1, 2, 4};
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn(num_batches), BatchedBlob_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn(num_batches), BatchedBlob_Test::getTestCaseName);
 
-class TwoNets_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
+using TwoNetsParams = std::tuple<size_t,   // number of streams
+                                 size_t>;  // number of requests
+
+class TwoNets_Test : public CommonTestUtils::TestsCommon,
+    public testing::WithParamInterface<TwoNetsParams> {
     void SetUp() override {
-        num_streams = this->GetParam();
+        std::tie(num_streams, num_requests) = this->GetParam();
         fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
                    ngraph::builder::subgraph::makeMultiSingleConv()};
     };
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<std::size_t> &obj) {
-        return "num_streams_" + std::to_string(obj.param);
+    static std::string getTestCaseName(const testing::TestParamInfo<TwoNetsParams>& obj) {
+        size_t streams, requests;
+        std::tie(streams, requests) = obj.param;
+        return "_num_streams_" + std::to_string(streams) + "_num_req_" +
+            std::to_string(requests);
     }
 
 protected:
     size_t num_streams;
+    size_t num_requests;
     std::vector<std::shared_ptr<ngraph::Function>> fn_ptrs;
 };
 
@@ -309,7 +548,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
         auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU,
                                        {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)}});
 
-        for (int j = 0; j < num_streams; j++) {
+        for (int j = 0; j < num_streams * num_requests; j++) {
             outputs.push_back(net.getOutputsInfo().begin()->first);
 
             auto inf_req = exec_net.CreateInferRequest();
@@ -325,7 +564,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
             const auto blobSize = inBlob->byteSize();
             const auto inBlobBuf = inBlob->cbuffer().as<uint8_t *>();
             std::vector<uint8_t> inData(inBlobBuf, inBlobBuf + blobSize);
-            std::vector<uint8_t> reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front();
+            auto reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
             ref.push_back(reOutData);
         }
     }
@@ -355,6 +594,10 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
     }
 }
 
-const std::vector<size_t> num_streams{1, 2};
+const std::vector<size_t> num_streams{ 1, 2 };
+const std::vector<size_t> num_requests{ 1, 4 };
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_streams), TwoNets_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, TwoNets_Test,
+    ::testing::Combine(::testing::ValuesIn(num_streams),
+        ::testing::ValuesIn(num_requests)),
+    TwoNets_Test::getTestCaseName);

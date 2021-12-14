@@ -82,7 +82,7 @@ protected:
             "Actual");
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(variadic_split_setup.data_shape.size()));
 
-        const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeVariadicSplit}};
+        const auto transformations = vpu::Transformations{{node->get_type_info(), vpu::dynamicToStaticShapeVariadicSplit}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -135,6 +135,6 @@ protected:
 TEST_P(DynamicToStaticShapeVeriadicSplit, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeVeriadicSplit, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeVeriadicSplit, combinations);
 
 }  // namespace

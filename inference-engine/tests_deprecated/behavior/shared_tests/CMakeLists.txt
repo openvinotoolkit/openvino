@@ -4,27 +4,29 @@
 
 set(TARGET_NAME IEBehaviorSharedTests)
 
-disable_deprecated_warnings()
-
 file(GLOB_RECURSE SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
-add_dependencies(${TARGET_NAME} MultiDevicePlugin inference_engine_preproc)
+add_dependencies(${TARGET_NAME} inference_engine_preproc)
+
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} ov_auto_plugin)
+endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests")
 
 target_link_libraries(${TARGET_NAME} PUBLIC
         funcTestUtils
+        inference_engine_legacy
         ieTestHelpers
         )
 
 target_link_libraries(${TARGET_NAME} PUBLIC gmock)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests)
 
 # developer package
-openvino_developer_export_targets(COMPONENT inference_engine_tests TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT tests TARGETS ${TARGET_NAME})

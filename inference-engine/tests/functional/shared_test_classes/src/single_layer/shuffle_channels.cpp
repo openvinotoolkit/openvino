@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj) {
+std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamInfo<shuffleChannelsLayerTestParamsSet>& obj) {
     shuffleChannelsSpecificParams shuffleChannelsParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

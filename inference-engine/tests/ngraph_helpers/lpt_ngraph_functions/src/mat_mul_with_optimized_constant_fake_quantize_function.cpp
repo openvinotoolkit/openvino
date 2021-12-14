@@ -13,11 +13,11 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape1,
-    const ngraph::Shape& inputShape2,
+    const ngraph::PartialShape& inputShape1,
+    const ngraph::PartialShape& inputShape2,
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnData& fqOnWeights) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape1));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
 
     const auto lowConstantOnActivations = std::make_shared<ngraph::opset1::Constant>(precision, fqOnData.constantShape, fqOnData.inputLowValues);
     const auto highConstantOnActivations = std::make_shared<ngraph::opset1::Constant>(precision, fqOnData.constantShape, fqOnData.inputHighValues);
@@ -29,7 +29,7 @@ std::shared_ptr<ngraph::Function> MatMulWithOptimizedConstantFakeQuantizeFunctio
         highConstantOnActivations,
         fqOnWeights.quantizationLevel);
 
-    const ngraph::Shape weightsShape = { inputShape2[0], inputShape1[1] };
+    const ngraph::Shape weightsShape = { static_cast<size_t>(inputShape2[0].get_length()), static_cast<size_t>(inputShape1[1].get_length()) };
     const std::vector<float> weigths(weightsShape[0] * weightsShape[1], 10.f);
 
     const auto weightsConst = std::make_shared<ngraph::opset1::Constant>(precision, weightsShape, weigths);

@@ -26,9 +26,10 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
     k.DisableTuning();
-    k.EnableLocalConvolution();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();
+    k.EnableDeformableMask();
+    k.EnableBilinearInterpolationPad();
     return k;
 }
 
@@ -68,6 +69,9 @@ JitConstants DeformableConvolutionKernel_bfyx_interp::GetJitConstants(const conv
                      });
     jit.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});
     jit.AddConstants({MakeJitConstant("DEFORMABLE_MODE", params.deformable_mode)});
+    jit.AddConstants({MakeJitConstant("DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
+    jit.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
+
     return jit;
 }
 
@@ -81,7 +85,7 @@ KernelsData DeformableConvolutionKernel_bfyx_interp::GetKernelsData(const Params
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
     CommonDispatchData dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

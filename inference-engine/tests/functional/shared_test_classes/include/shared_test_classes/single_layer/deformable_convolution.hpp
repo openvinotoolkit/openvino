@@ -26,7 +26,9 @@ typedef std::tuple<
         size_t,                         // Groups
         size_t,                         // Deformable groups
         size_t,                         // Num out channels
-        ngraph::op::PadType             // Padding type
+        ngraph::op::PadType,            // Padding type
+        bool,                           // Bilinear interpolation pad
+        bool                            // Modulation
 > deformableConvSpecificParams;
 typedef std::tuple<
         deformableConvSpecificParams,
@@ -42,7 +44,7 @@ typedef std::tuple<
 class DeformableConvolutionLayerTest : public testing::WithParamInterface<deformableConvLayerTestParamsSet>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<deformableConvLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<deformableConvLayerTestParamsSet>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

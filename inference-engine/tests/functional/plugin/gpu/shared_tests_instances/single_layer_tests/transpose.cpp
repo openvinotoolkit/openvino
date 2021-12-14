@@ -46,7 +46,7 @@ const auto params = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Transpose,
         TransposeLayerTest,
         params,
@@ -82,7 +82,7 @@ const auto params5D = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Transpose_5D,
         TransposeLayerTest,
         params5D,
@@ -118,7 +118,7 @@ const auto params6D = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Transpose_6D,
         TransposeLayerTest,
         params6D,

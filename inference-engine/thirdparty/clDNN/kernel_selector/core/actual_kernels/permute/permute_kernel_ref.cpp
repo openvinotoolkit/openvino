@@ -31,10 +31,16 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
 
 CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
+                                                                     {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                                                                     {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+
     const auto& in =  params.inputs[0];
 
     dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -89,18 +95,18 @@ static std::string GetReorderedOutputOrder(const permute_params& params, const s
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            reordered_order += (permute_out_idx.back() + "/" + std::to_string(params.output.Y().v)
-                                 + ", " + permute_out_idx.back() + "%" + std::to_string(params.output.Y().v)
+            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.output.Y().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Y().v)
                                  + ", " + permute_out_idx[2]);
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            reordered_order += (permute_out_idx.back() + "/ (" + std::to_string(params.output.Y().v)
-                                 + " * " + std::to_string(params.output.Z().v) + ")"
-                                 + ", " + permute_out_idx.back() + "/" + std::to_string(params.output.Y().v)
-                                 + ", " + permute_out_idx.back() + "%" + std::to_string(params.output.Y().v)
+            reordered_order += (permute_out_idx.back() + "/ (" + toCodeString(params.output.Y().v)
+                                 + " * " + toCodeString(params.output.Z().v) + ")"
+                                 + ", " + permute_out_idx.back() + "/" + toCodeString(params.output.Y().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Y().v)
                                  + ", " + permute_out_idx[2]);
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            reordered_order += (permute_out_idx.back() + "/" + std::to_string(params.output.Z().v)
-                                 + ", " + permute_out_idx.back() + "%" + std::to_string(params.output.Z().v)
+            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.output.Z().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Z().v)
                                  + ", " + permute_out_idx[3]
                                  + ", " + permute_out_idx[2]);
         }

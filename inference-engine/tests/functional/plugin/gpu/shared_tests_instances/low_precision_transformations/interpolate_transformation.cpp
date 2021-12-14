@@ -13,7 +13,7 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f16
 };
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> shapes = {
     {{1, 4, 16, 16}, {32, 32}},
     {{1, 2, 48, 80}, {50, 60}},
 };
@@ -48,5 +48,5 @@ const auto combineValues = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_GPU),
     ::testing::ValuesIn(interpAttrs));
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, InterpolateTransformation, combineValues, InterpolateTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, InterpolateTransformation, combineValues, InterpolateTransformation::getTestCaseName);
 }  // namespace

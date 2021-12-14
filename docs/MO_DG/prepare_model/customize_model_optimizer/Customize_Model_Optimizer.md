@@ -32,19 +32,17 @@
       - <a href="#generic-back-phase-transformations">Generic Back Phase Transformations</a>
 - <a href="#see-also">See Also</a>
 
-<a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the
-optimized intermediate representation (IR) as described in the
+<a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the 
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
-mechanism is a core part of the Model Optimizer. The Model Optimizer itself uses it under the hood, being a huge set of examples on how to add custom logic to support your model.
+mechanism is a core part of the Model Optimizer, which uses it under the hood, so the Model Optimizer itself is a huge set of examples for adding custom logic to support your model.
 
 There are several cases when the customization is needed:
 
 * A model contains operation(s) not known for the Model Optimizer, but these operation(s) could be expressed as a
 combination of supported operations. In this case, a custom transformation should be implemented to replace unsupported
 operation(s) with supported ones.
-* A model contains sub-graph of operations that can be replaced with a smaller number of operations to get the better
-performance. This example corresponds to so called fusing transformations. For example, replace a sub-graph performing
-the following calculation \f$x / (1.0 + e^{-(beta * x)})\f$ with a single operation of type
+* A model contains a sub-graph of operations that can be replaced with a smaller number of operations to get better
+performance. This example corresponds to so-called *fusing transformations*, for example, replacing a sub-graph performing the calculation \f$x / (1.0 + e^{-(beta * x)})\f$ with a single operation of type
 [Swish](../../../ops/activation/Swish_4.md).
 * A model contains a custom framework operation (the operation that is not a part of an official operation set of the
 framework) that was developed using the framework extensibility mechanism. In this case, the Model Optimizer should know
@@ -287,10 +285,9 @@ More information on how to develop middle transformations and dedicated API desc
 ### NHWC to NCHW Layout Change <a name="layout-change"></a>
 There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations
 are triggered by default for TensorFlow\* models only because it is the only framework with Convolution operations in
-NHWC layout.
-
-> **NOTE**: If a TensorFlow\* model is in NCHW layout, you should specify the `--disable_nhwc_to_nchw` command line
-> parameter to disable these transformations.
+NHWC layout. This layout change is disabled if the model does not have operations that OpenVINO&trade needs to execute in
+NCHW layout, for example, Convolutions in NHWC layout. It is still possible to force Model Optimizer to do layout change
+using `--disable_nhwc_to_nchw` command-line parameter.
 
 The layout change is a complex problem and detailed explanation of it is out of this document scope. A very brief
 explanation of this process is provided below:

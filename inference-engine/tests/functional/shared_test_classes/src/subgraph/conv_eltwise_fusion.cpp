@@ -49,26 +49,26 @@ void ConvEltwiseFusion::SetUp() {
         auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, {}, true);
         auto eltwise_const = ngraph::builder::makeConstant<float>(precision, const_shape, {}, true);
         std::shared_ptr<ngraph::Node> conv;
-        if (conv_type == ngraph::opset4::Convolution::type_info) {
+        if (conv_type == ngraph::opset4::Convolution::get_type_info_static()) {
             conv = std::make_shared<ngraph::opset4::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset4::GroupConvolution::type_info) {
+        } else if (conv_type == ngraph::opset4::GroupConvolution::get_type_info_static()) {
             conv = std::make_shared<ngraph::opset4::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset4::ConvolutionBackpropData::type_info) {
+        } else if (conv_type == ngraph::opset4::ConvolutionBackpropData::get_type_info_static()) {
             conv = std::make_shared<ngraph::opset4::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset4::GroupConvolutionBackpropData::type_info) {
+        } else if (conv_type == ngraph::opset4::GroupConvolutionBackpropData::get_type_info_static()) {
             conv = std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
         } else {
             throw ngraph::ngraph_error("Unsupported type");
         }
 
         std::shared_ptr<ngraph::Node> eltwise;
-        if (eltwise_type == ngraph::opset4::Multiply::type_info) {
+        if (eltwise_type == ngraph::opset4::Multiply::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset4::Multiply>(conv, eltwise_const);
             manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
             manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
             manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
             manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-        } else if (eltwise_type == ngraph::opset4::Add::type_info) {
+        } else if (eltwise_type == ngraph::opset4::Add::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset4::Add>(conv, eltwise_const);
             manager.register_pass<ngraph::pass::ConvertConvolutions>();
             manager.register_pass<ngraph::pass::ConvFusion>();

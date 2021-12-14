@@ -10,6 +10,7 @@
 #include <functional>
 #include <string>
 #include <memory>
+#include <atomic>
 #include <mutex>
 #include <map>
 
@@ -41,7 +42,7 @@ public:
     }
 
 protected:
-    static const int kTableSize = 256;
+    static constexpr int kTableSize = 256;
     uint64_t table[kTableSize];
 };
 
@@ -62,7 +63,7 @@ class MKLDNNWeightsSharing {
 
         std::mutex guard;
         std::weak_ptr<MKLDNNMemory> sharedMemory;
-        bool valid;
+        std::atomic<bool> valid;
     };
 
 public:

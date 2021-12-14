@@ -23,6 +23,6 @@ TEST_P(myriadMultipleGraphsTests_nightly, LoadGraphsOnDevice) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(numerOfGraphs, myriadMultipleGraphsTests_nightly,
+INSTANTIATE_TEST_SUITE_P(numerOfGraphs, myriadMultipleGraphsTests_nightly,
     ::testing::Values(2, 4, 10)
 );

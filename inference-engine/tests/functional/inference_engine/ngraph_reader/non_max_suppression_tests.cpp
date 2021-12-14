@@ -18,8 +18,6 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#include "legacy/convert_function_to_cnn_network.hpp"
-
 using namespace ngraph;
 
 TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {

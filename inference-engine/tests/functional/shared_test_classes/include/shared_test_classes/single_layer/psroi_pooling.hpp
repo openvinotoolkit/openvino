@@ -30,7 +30,7 @@ using psroiParams = std::tuple<std::vector<size_t>,            // input shape
 class PSROIPoolingLayerTest : public testing::WithParamInterface<psroiParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
         public:
-            static std::string getTestCaseName(testing::TestParamInfo<psroiParams> obj);
+            static std::string getTestCaseName(const testing::TestParamInfo<psroiParams>& obj);
             void GenerateInputs() override;
     static void fillROITensor(float* buffer, int numROIs, int batchSize,
                               int height, int width, int groupSize,

@@ -61,5 +61,5 @@ std::string region_yolo_inst::to_string(region_yolo_node const& node) {
     return primitive_description.str();
 }
 
-region_yolo_inst::typed_primitive_inst(network_impl& network, region_yolo_node const& node) : parent(network, node) {}
+region_yolo_inst::typed_primitive_inst(network& network, region_yolo_node const& node) : parent(network, node) {}
 }  // namespace cldnn

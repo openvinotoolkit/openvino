@@ -18,8 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, SoftPlusFusing) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SoftPlusFusing) {
     {
         auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
@@ -27,28 +26,20 @@ TEST(TransformationTests, SoftPlusFusing) {
         auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SoftPlusFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(data);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SoftPlusFusingDynamic) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SoftPlusFusingDynamic) {
     {
         auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
         auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
@@ -56,28 +47,20 @@ TEST(TransformationTests, SoftPlusFusingDynamic) {
         auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SoftPlusFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
         auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(data);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SoftPlusFusingNegative) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SoftPlusFusingNegative) {
     {
         auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
         auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
@@ -85,13 +68,9 @@ TEST(TransformationTests, SoftPlusFusingNegative) {
         auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SoftPlusFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -101,9 +80,6 @@ TEST(TransformationTests, SoftPlusFusingNegative) {
         auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

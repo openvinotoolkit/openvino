@@ -2,7 +2,7 @@
 
 ## Download the Pre-trained Language Model on One Billion Word Benchmark
 
-TensorFlow* provides [a pre-trained Language Model on One Billion Word Benchmark](https://github.com/tensorflow/models/tree/master/research/lm_1b).
+TensorFlow* provides [a pre-trained Language Model on One Billion Word Benchmark](https://github.com/tensorflow/models/tree/r2.3.0/research/lm_1b).
 
 To download the model for IR conversion, please follow the instruction:
 1. Create new directory to store the model:
@@ -86,7 +86,7 @@ There is a certain limitations for the model conversion:
 To generate the `lm_1b` Intermediate Representation (IR), provide TensorFlow `lm_1b` model to the
 Model Optimizer with parameters:
 ```sh
-python3 ./mo_tf.py
+ mo
 --input_model lm_1b/graph-2016-09-10.pbtxt  \
 --input_checkpoint lm_1b/ckpt               \
 --input_model_is_text                       \

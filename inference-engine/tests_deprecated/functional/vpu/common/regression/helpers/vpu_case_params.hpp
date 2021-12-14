@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <regression_tests.hpp>
 #include <string>
 #include <vector>
+#include <map>
+#include <ostream>
+#include <functional>
 
-using namespace InferenceEngine;
-using namespace Regression::Matchers;
 using String2StringMap = std::map<std::string, std::string>;
 using AdditionCfgParamsFactory = std::function<String2StringMap()>;
 
@@ -53,23 +53,12 @@ public:
     inline ClassificationSrcParam(
             std::string model_name,
             std::string img_name,
-            double reference_delta,
-            Regression::EMean mean = Regression::EMean::eValues);
-
-    // Accessors
-    inline Regression::EMean mean() const;
-
-    // Operations
-    inline std::string name() const override;
+            double reference_delta);
 
     friend std::ostream& operator<<(std::ostream& os, const ClassificationSrcParam& param) {
         return os << param.modelName() << ", " << param.imageName() <<
-        ", " << std::to_string(param.referenceDelta()) << ", " << format_mean(param.mean());
+        ", " << std::to_string(param.referenceDelta());
     }
-
-private:
-    //Data section
-    Regression::EMean mean_;
 };
 
 //------------------------------------------------------------------------------
@@ -136,19 +125,8 @@ inline std::string SourceParameterBase::name() const {
 inline ClassificationSrcParam::ClassificationSrcParam(
         std::string model_name,
         std::string img_name,
-        double reference_delta,
-        Regression::EMean mean):
-        SourceParameterBase(model_name, img_name, reference_delta),
-        mean_(mean) {
-}
-
-inline Regression::EMean ClassificationSrcParam::mean() const {
-    return mean_;
-}
-
-inline std::string ClassificationSrcParam::name() const {
-    return SourceParameterBase::name() +
-           "_Mean=" + format_mean(mean_);
+        double reference_delta):
+        SourceParameterBase(model_name, img_name, reference_delta) {
 }
 
 //------------------------------------------------------------------------------

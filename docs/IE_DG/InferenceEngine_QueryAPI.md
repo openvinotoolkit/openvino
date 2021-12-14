@@ -2,7 +2,7 @@ Introduction to Inference Engine Device Query API {#openvino_docs_IE_DG_Inferenc
 ===============================
 
 This section provides a high-level description of the process of querying of different device properties and configuration values.
-Refer to the [Hello Query Device Sample](../../inference-engine/samples/hello_query_device/README.md) sources and [Multi-Device Plugin guide](supported_plugins/MULTI.md) for example of using the Inference Engine Query API in user applications.
+Refer to the [Hello Query Device Sample](../../samples/cpp/hello_query_device/README.md) sources and [Multi-Device Plugin guide](supported_plugins/MULTI.md) for example of using the Inference Engine Query API in user applications.
 
 ## Using the Inference Engine Query API in Your Code
 
@@ -29,8 +29,6 @@ The function returns list of available devices, for example:
 ```
 MYRIAD.1.2-ma2480
 MYRIAD.1.4-ma2480
-FPGA.0
-FPGA.1
 CPU
 GPU.0
 GPU.1
@@ -57,7 +55,7 @@ For documentation about common configuration keys, refer to `ie_plugin_config.hp
 
 @snippet snippets/InferenceEngine_QueryAPI2.cpp part2
 
-A returned value looks as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
+A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
 > **NOTE**: All metrics have specific type, which is specified during metric instantiation. The list of common device-agnostic metrics can be found in `ie_plugin_config.hpp`. Device specific metrics (for example, for `HDDL`, `MYRIAD` devices) can be found in corresponding plugin folders.
 

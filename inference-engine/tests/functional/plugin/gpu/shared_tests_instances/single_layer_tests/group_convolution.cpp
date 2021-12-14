@@ -45,7 +45,7 @@ const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -57,7 +57,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvoluti
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -97,7 +97,7 @@ const auto groupConv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -109,7 +109,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D_ExplicitPadding, GroupConvoluti
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D_AutoPadValid, GroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D_AutoPadValid, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),

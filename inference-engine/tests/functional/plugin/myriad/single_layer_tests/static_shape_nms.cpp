@@ -115,7 +115,7 @@ std::vector<InferenceEngine::Precision> NMSPrecisions = {
 };
 
 // #-30919
-INSTANTIATE_TEST_CASE_P(DISABLED_accuracy, StaticShapeNMSLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_accuracy, StaticShapeNMSLayerTest,
         ::testing::Combine(
         ::testing::ValuesIn(NMSParams),
         ::testing::ValuesIn(NMSPrecisions),
@@ -170,7 +170,7 @@ TEST_P(NMS1toStaticShapeNMS, PreviousNMSCanBeLoaded) {
     ASSERT_NO_THROW(LoadNetwork());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NetworkLoad, NMS1toStaticShapeNMS,
+INSTANTIATE_TEST_SUITE_P(smoke_NetworkLoad, NMS1toStaticShapeNMS,
                         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 class NMS3toStaticShapeNMS : public PreviousNMStoStaticShapeNMS {
@@ -190,7 +190,7 @@ TEST_P(NMS3toStaticShapeNMS, PreviousNMSCanBeLoaded) {
     ASSERT_NO_THROW(LoadNetwork());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NetworkLoad, NMS3toStaticShapeNMS,
+INSTANTIATE_TEST_SUITE_P(smoke_NetworkLoad, NMS3toStaticShapeNMS,
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 class NMS4toStaticShapeNMS : public PreviousNMStoStaticShapeNMS {
@@ -211,7 +211,7 @@ TEST_P(NMS4toStaticShapeNMS, PreviousNMSCanBeLoaded) {
     ASSERT_NO_THROW(LoadNetwork());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NetworkLoad, NMS4toStaticShapeNMS,
+INSTANTIATE_TEST_SUITE_P(smoke_NetworkLoad, NMS4toStaticShapeNMS,
                         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 }  // namespace LayerTestsDefinitions

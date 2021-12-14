@@ -4,27 +4,22 @@
 
 set(TARGET_NAME subgraphsDumper)
 
-list(APPEND DEPENDENCIES
-        gflags
-        inference_engine
-        commonTestUtils
-        )
-
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/include
-            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-        DEPENDENCIES
-            ${DEPENDENCIES}
-            inference_engine_ir_reader
         LINK_LIBRARIES
             PRIVATE
-                ${DEPENDENCIES}
+                gflags
+                inference_engine
+                commonTestUtils
+                pugixml::static
         ADD_CPPLINT
 )
 
-ie_faster_build(${TARGET_NAME}
-        PCH PRIVATE "src/precomp.hpp"
-        )
+if(TARGET ir_ov_frontend)
+    add_dependencies(${TARGET_NAME} ir_ov_frontend)
+endif()
+
+ie_faster_build(${TARGET_NAME} UNITY)

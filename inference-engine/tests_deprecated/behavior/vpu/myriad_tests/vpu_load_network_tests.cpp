@@ -55,27 +55,3 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenNameIsInvalid) {
     ASSERT_ANY_THROW(ExeNetwork exe_network =
         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 }
-
-TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenPlatformConflictWithProtocol) {
-    std::string wrong_platform;
-    auto devices = getDevicesList();
-    ASSERT_TRUE(devices.size());
-
-    auto device_to_load = devices[0];
-
-    IE_SUPPRESS_DEPRECATED_START
-    if(isMyriadXDevice(device_to_load)) {
-        wrong_platform = VPU_MYRIAD_2450;
-    } else {
-        wrong_platform = VPU_MYRIAD_2480;
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    std::map<std::string, std::string> config = {
-        {KEY_DEVICE_ID, device_to_load},
-        {KEY_VPU_MYRIAD_PLATFORM, wrong_platform},
-    };
-
-    ASSERT_ANY_THROW(ExeNetwork exe_network =
-        ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
-}

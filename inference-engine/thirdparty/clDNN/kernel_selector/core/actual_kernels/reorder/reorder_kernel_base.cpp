@@ -177,7 +177,11 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
         }
     }
 
-    if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 && params.inputs[0].Feature().v % 16 == 0) {
+    if ((params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+         params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16) &&
+        params.inputs[0].Feature().v % 16 == 0) {
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 16;
         dispatchData.lws[2] = 1;
@@ -198,7 +202,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -206,7 +210,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
-    kernel.arguments = GetArgsDesc(1, false, false);
+    kernel.params.arguments = GetArgsDesc(1, false, false);
 
     return {kd};
 }
@@ -222,7 +226,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     DispatchData dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -230,9 +234,9 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
-    kernel.arguments = GetArgsDesc(1, false, false);
+    kernel.params.arguments = GetArgsDesc(1, false, false);
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }
 
     return {kd};

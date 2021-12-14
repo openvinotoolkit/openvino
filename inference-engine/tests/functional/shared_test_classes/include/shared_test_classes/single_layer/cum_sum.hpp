@@ -22,7 +22,7 @@ typedef std::tuple<
 
 class CumSumLayerTest : public testing::WithParamInterface<cumSumParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<cumSumParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<cumSumParams>& obj);
 
 protected:
     void SetUp() override;

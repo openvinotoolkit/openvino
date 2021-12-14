@@ -3,6 +3,7 @@
 //
 
 #include "vpu_classification_case.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 
 //------------------------------------------------------------------------------
 // Implementation of methods of class VpuNoClassificationRegression

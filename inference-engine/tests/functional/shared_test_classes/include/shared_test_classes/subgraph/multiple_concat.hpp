@@ -17,7 +17,7 @@ typedef std::tuple<
     std::map<std::string, std::string>  // Configuration
 > multipleConcatParams;
 
-class MultipleConcatTest : public LayerTestsUtils::LayerTestsCommon,
+class MultipleConcatTest : virtual public LayerTestsUtils::LayerTestsCommon,
     public testing::WithParamInterface<multipleConcatParams> {
 protected:
     void SetUp() override;

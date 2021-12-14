@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple <
     element::Type,
-    Shape,
+    PartialShape,
     std::string,
     AxisSet,
     bool> MVNTransformationParams;
@@ -25,13 +25,10 @@ class MVNTransformation :
     public testing::WithParamInterface<MVNTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MVNTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MVNTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

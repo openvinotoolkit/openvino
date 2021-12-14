@@ -25,7 +25,7 @@ typedef std::tuple<
 class BroadcastPowerTest : public testing::WithParamInterface<BroadCastPowerTuple>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BroadCastPowerTuple> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<BroadCastPowerTuple>& obj);
 
 protected:
     void SetUp() override;

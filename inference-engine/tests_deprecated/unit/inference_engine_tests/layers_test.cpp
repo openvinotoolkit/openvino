@@ -20,12 +20,6 @@ InferenceEngine::Precision defaultPrecision{InferenceEngine::Precision::FP32};
 
 class LayersTests : public ::testing::Test {
 public:
-    virtual void TearDown() {
-    }
-
-    virtual void SetUp() {
-    }
-
     static InferenceEngine::LayerParams getParamsForLayer(std::string name, std::string type,
                                                           InferenceEngine::Precision precision) {
         InferenceEngine::LayerParams params = {};

@@ -19,6 +19,7 @@
 
 namespace {
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 
 class ShuffleChannelsTransformationTestValues {
@@ -38,7 +39,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     std::int64_t axis;
     std::int64_t group;
     Actual actual;
@@ -46,13 +47,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::Shape,
+    ngraph::PartialShape,
     ShuffleChannelsTransformationTestValues> ShuffleChannelsTransformationParams;
 
 class ShuffleChannelsTransformation : public LayerTransformation, public testing::WithParamInterface<ShuffleChannelsTransformationParams> {
 public:
     void SetUp() override {
-        ngraph::Shape inputShape = std::get<0>(GetParam());
+        ngraph::PartialShape inputShape = std::get<0>(GetParam());
         ShuffleChannelsTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getOriginal(
@@ -77,7 +78,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsTransformationParams> obj) {
-        ngraph::Shape inputShape = std::get<0>(obj.param);
+        ngraph::PartialShape inputShape = std::get<0>(obj.param);
         ShuffleChannelsTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -94,11 +95,15 @@ TEST_P(ShuffleChannelsTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> inputShapes = {
     { 1, 3, 8, 10 },
     { 4, 3, 8, 10 },
+    { Dimension::dynamic(), 3, 8, Dimension::dynamic() }
 };
 
 const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
@@ -134,7 +139,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         }
     },
-    // U8 quantization by special dimension, shuffling by the same dimension
+    // U8 quantization by spatial dimension, shuffling by the same dimension
     {
         LayerTransformation::createParamsU8I8(),
         2,
@@ -158,7 +163,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             }
         }
     },
-    // U8 per channel quantization, shuffling by special dimension
+    // U8 per channel quantization, shuffling by spatial dimension
     {
         LayerTransformation::createParamsU8I8(),
         -2,
@@ -206,7 +211,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         }
     },
-    // I8 quantization by special dimension, shuffling by the same dimension
+    // I8 quantization by spatial dimension, shuffling by the same dimension
     {
         LayerTransformation::createParamsI8I8(),
         2,
@@ -230,7 +235,7 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             }
         }
     },
-    // I8 per channel quantization, shuffling by special dimension
+    // I8 per channel quantization, shuffling by spatial dimension
     {
         LayerTransformation::createParamsI8I8(),
         -2,
@@ -280,11 +285,94 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ShuffleChannelsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(testValues)),
     ShuffleChannelsTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
+    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+};
+
+const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
+    // U8 per tensor quantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        1, // axis
+        1, // group
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.02f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.02f}}
+        }
+    },
+    // U8 per channel quantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        1,
+        1,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ShuffleChannelsTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+    ShuffleChannelsTransformation::getTestCaseName);
+} // namespace testValues2
+
+namespace testValues3 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+    ngraph::PartialShape::dynamic()
+};
+
+const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
+    // U8 per tensor quantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        1, // axis
+        1, // group
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.02f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.02f}},
+            ngraph::element::f32,
+            {},
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ShuffleChannelsTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicRank),
+        ::testing::ValuesIn(testValues)),
+    ShuffleChannelsTransformation::getTestCaseName);
+} // namespace testValues3
 } // namespace

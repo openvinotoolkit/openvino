@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-TEST_P(MvnLayerTest, CompareWithRefs) {
+TEST_P(Mvn1LayerTest, CompareWithRefs) {
     Run();
 };
 

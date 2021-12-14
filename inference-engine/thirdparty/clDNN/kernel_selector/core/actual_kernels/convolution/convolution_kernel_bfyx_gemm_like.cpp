@@ -98,6 +98,9 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_p
 
     const auto& params = static_cast<const convolution_params&>(p);
 
+    if (!IsSIMDSizeSupported(p.engineInfo, 8) && params.inputs[0].GetDType() == Datatype::F32)
+        return false;
+
     if (!params.engineInfo.bSubGroupShortSupport && params.inputs[0].GetDType() == Datatype::F16) {
         return false;
     }

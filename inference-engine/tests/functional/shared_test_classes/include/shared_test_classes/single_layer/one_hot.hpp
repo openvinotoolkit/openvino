@@ -27,7 +27,7 @@ typedef std::tuple<
 class OneHotLayerTest : public testing::WithParamInterface<oneHotLayerTestParamsSet>,
                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<oneHotLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<oneHotLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

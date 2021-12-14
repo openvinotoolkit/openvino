@@ -46,7 +46,7 @@ const auto quantGroupConv2DParams = ::testing::Combine(
         ::testing::ValuesIn(quantizeWeights)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_QuantGroupConv2D, QuantGroupConvLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConv2D, QuantGroupConvLayerTest,
                         ::testing::Combine(
                                 quantGroupConv2DParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -75,7 +75,7 @@ const auto quantGroupConv3DParams = ::testing::Combine(
         ::testing::ValuesIn(quantizeWeights)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_QuantGroupConv3D, QuantGroupConvLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConv3D, QuantGroupConvLayerTest,
                         ::testing::Combine(
                                 quantGroupConv3DParams,
                                 ::testing::ValuesIn(netPrecisions),

@@ -25,7 +25,7 @@ typedef std::tuple<
 
 class NegativeMemoryOffsetTest
     : public testing::WithParamInterface<NegativeMemoryLayerOffsetTuple>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 private:
     void switchToNgraphFriendlyModel();
     std::vector<float> memory_init;
@@ -34,5 +34,7 @@ public:
 protected:
     void SetUp() override;
     void Run() override;
+    void LoadNetwork() override;
+    void Infer() override;
 };
 } // namespace SubgraphTestsDefinitions

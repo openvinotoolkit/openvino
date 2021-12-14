@@ -7,8 +7,6 @@
 #include <map>
 #include <fstream>
 
-#include <pugixml.hpp>
-
 #include "ngraph/ngraph.hpp"
 
 #include "common_test_utils/test_constants.hpp"
@@ -38,6 +36,7 @@ struct PassRate {
     unsigned long failed = 0;
     unsigned long skipped = 0;
     unsigned long crashed = 0;
+    bool isImplemented = false;
 
     PassRate() = default;
 
@@ -46,6 +45,13 @@ struct PassRate {
         failed = f;
         skipped = s;
         crashed = c;
+        if (!isImplemented && passed > 0) {
+            isImplemented = true;
+        }
+    }
+
+    void setImplementationStatus(bool implStatus) {
+        isImplemented = implStatus;
     }
 
     float getPassrate() const {
@@ -89,10 +95,22 @@ public:
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
     void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status);
+    void updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus);
 
     void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status);
+    void updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus);
 
     static Summary &getInstance();
+    std::vector<ngraph::OpSet> getOpSets() {
+        return opsets;
+    }
+
+    // #define IE_TEST_DEBUG
+
+    #ifdef IE_TEST_DEBUG
+    void saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                        unsigned long skipped, unsigned long crashed);
+    #endif  //IE_TEST_DEBUG
 
     void saveReport();
 

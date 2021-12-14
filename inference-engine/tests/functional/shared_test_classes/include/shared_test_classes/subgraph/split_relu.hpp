@@ -25,7 +25,7 @@ typedef std::tuple<
 
 class SplitRelu:
         public testing::WithParamInterface<SplitReluTuple>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SplitReluTuple> &obj);
 protected:
