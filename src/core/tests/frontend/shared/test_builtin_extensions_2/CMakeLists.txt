@@ -17,5 +17,6 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
+        LIBRARY DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
