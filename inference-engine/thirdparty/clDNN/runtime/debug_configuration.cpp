@@ -124,10 +124,6 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
 
-    if (dump_layers_path.length() > 0 && !disable_usm) {
-        disable_usm = 1;
-        GPU_DEBUG_COUT << "DisableUsm=1 because of DumpLayersPath" << std::endl;
-    }
     if (dump_layers.length() > 0)
         dump_layers = " " + dump_layers + " "; // Insert delimiter for easier parsing when used
 #endif

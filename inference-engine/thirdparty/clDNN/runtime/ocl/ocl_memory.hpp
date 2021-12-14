@@ -121,6 +121,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 
 protected:
     cl::UsmMemory _buffer;
+    cl::UsmMemory _host_buffer;
 
     static allocation_type detect_allocation_type(ocl_engine* engine, const cl::UsmMemory& buffer);
 };
