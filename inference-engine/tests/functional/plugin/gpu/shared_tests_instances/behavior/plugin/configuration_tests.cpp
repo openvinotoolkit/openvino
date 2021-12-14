@@ -13,7 +13,7 @@ namespace {
             DefaultConfigurationTest,
             ::testing::Combine(
                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                    ::testing::Values(DefaultParameter{})),
+                    ::testing::Values(DefaultParameter{GPU_CONFIG_KEY(PLUGIN_THROTTLE), InferenceEngine::Parameter{std::string{"0"}}})),
             DefaultConfigurationTest::getTestCaseName);
 
     IE_SUPPRESS_DEPRECATED_START
