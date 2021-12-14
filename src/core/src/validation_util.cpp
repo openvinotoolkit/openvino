@@ -694,6 +694,159 @@ bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
     return true;
 }
 
+PartialShape ngraph::infer_slice_shape(const Node* node,
+                                       const PartialShape& input_shape,
+                                       const std::vector<int64_t>& begin,
+                                       const std::vector<int64_t>& end,
+                                       const std::vector<int64_t>& strides,
+                                       const AxisSet& begin_mask,
+                                       const AxisSet& end_mask,
+                                       const AxisSet& new_axis_mask,
+                                       const AxisSet& shrink_axis_mask,
+                                       const AxisSet& ellipsis_mask) {
+    if (begin.size() && end.size()) {
+        NODE_VALIDATION_CHECK(node,
+                              begin.size() == end.size(),
+                              "Lower bounds and Upper bounds needs to have same number of values");
+    }
+    if (begin.size() && strides.size()) {
+        NODE_VALIDATION_CHECK(node,
+                              begin.size() == strides.size(),
+                              "Lower bounds and strides needs to have same number of values");
+    }
+    if (end.size() && strides.size()) {
+        NODE_VALIDATION_CHECK(node,
+                              end.size() == strides.size(),
+                              "Upper bounds and strides needs to have same number of values");
+    }
+
+    NODE_VALIDATION_CHECK(node, ellipsis_mask.size() <= 1, "At most one ellipsis is allowed.");
+
+    if (input_shape.rank().is_dynamic()) {
+        return PartialShape::dynamic();
+    }
+
+    NODE_VALIDATION_CHECK(node,
+                          input_shape.rank().get_length() + new_axis_mask.size() >= begin.size(),
+                          "Input rank plus number of new axis has to be at least the size of Lower "
+                          "and Upper bounds vector.");
+
+    std::vector<Dimension> dim;
+
+    int64_t input_shape_idx = 0;
+    for (size_t axis = 0; axis < begin.size(); ++axis) {
+        // add all dimensions hidden under the ellipsis mask if ellipsis mask is set
+        if (ellipsis_mask.count(axis)) {
+            // only one bit in ellipsis mask is allowed
+            int num_new_axis_after_ellipses = 0;
+            int num_input_axis_before_ellipses = 0;
+            for (size_t i = 0; i < axis; ++i) {
+                if (!new_axis_mask.count(i)) {
+                    num_input_axis_before_ellipses++;
+                }
+            }
+            for (size_t i = axis + 1; i < begin.size(); ++i) {
+                if (new_axis_mask.count(i)) {
+                    num_new_axis_after_ellipses++;
+                }
+            }
+
+            int64_t num_input_axis_after_ellipses =
+                (begin.size() - axis - num_new_axis_after_ellipses - 1);  // -1 because it's a position of ellipses
+            int64_t num_of_hidden_dims =
+                input_shape.rank().get_length() - num_input_axis_after_ellipses - num_input_axis_before_ellipses;
+            for (int64_t i = 0; i < num_of_hidden_dims; ++i) {
+                dim.emplace_back(input_shape[input_shape_idx]);
+                input_shape_idx++;
+            }
+        } else {
+            // add new single dimension if new_axis_mask is set
+            if (new_axis_mask.count(axis)) {
+                dim.emplace_back(1);
+            }
+            // skip this dimension if shrink_axis_mask is set
+            else if (shrink_axis_mask.count(axis)) {
+                input_shape_idx++;
+            }
+            // calculating dimension (begin, end, begin_mask, end_mask, stride)
+            else {
+                // check dynamic dimension
+                if (input_shape[input_shape_idx].is_dynamic()) {
+                    input_shape_idx++;
+                    dim.emplace_back(Dimension::dynamic());
+                    continue;
+                }
+
+                int64_t lb = begin[axis];
+                int64_t ub = end[axis];
+
+                // set default value for stride or use given value
+                int64_t stride = 1;
+                if (strides.size() > axis) {
+                    stride = strides[axis];
+                }
+                NODE_VALIDATION_CHECK(node, stride != 0, "Stride must be non-zero");
+
+                // convert negative indexes to positive
+                // take max for this case: if abs(lb) > input_shape[input_shape_idx],then after
+                // conversion lb < 0
+                // so according to tensorflow and numpy we just get 0
+                if (lb < 0) {
+                    lb = std::max(input_shape[input_shape_idx].get_length() + lb, int64_t(0));
+                }
+
+                if (ub < 0) {
+                    ub =
+                        std::max(input_shape[input_shape_idx].get_length() + ub, stride > 0 ? int64_t(0) : int64_t(-1));
+                }
+
+                // apply restrictions when begin or end values more than max possible values.
+                lb = std::min(input_shape[input_shape_idx].get_length(), lb);
+                ub = std::min(input_shape[input_shape_idx].get_length(), ub);
+
+                int64_t dimension = 0;
+                if (stride < 0) {
+                    // apply masks
+                    if (begin_mask.count(axis)) {
+                        lb = input_shape[input_shape_idx].get_length() - 1;
+                    }
+                    if (end_mask.count(axis)) {
+                        ub = -1;
+                    }
+
+                    lb = std::min(lb, input_shape[input_shape_idx].get_length() - 1);
+                    lb -= 1;  // we always get 1st element, so we need decrease range
+                    if (ub <= lb) {
+                        dimension = (ub - lb) / stride + 1;
+                    }
+                } else {
+                    // apply masks
+                    if (begin_mask.count(axis)) {
+                        lb = 0;
+                    }
+                    if (end_mask.count(axis)) {
+                        ub = input_shape[input_shape_idx].get_length();
+                    }
+
+                    lb += 1;  // we always get 1st element, so we need decrease range
+                    if (ub >= lb) {
+                        dimension = (ub - lb) / stride + 1;
+                    }
+                }
+
+                dim.emplace_back(dimension);
+                input_shape_idx++;
+            }
+        }
+    }
+    // get remaining values
+    for (; input_shape_idx < input_shape.rank().get_length(); ++input_shape_idx) {
+        dim.emplace_back(input_shape[input_shape_idx]);
+    }
+
+    return dim;
+}
+
 void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
     const auto& min_value = -tensor_rank;
     const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;

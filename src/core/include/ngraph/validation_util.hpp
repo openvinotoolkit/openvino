@@ -127,6 +127,18 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
                             CoordinateDiff& padding_above,
                             CoordinateDiff& padding_below);
 
+NGRAPH_API
+PartialShape infer_slice_shape(const Node* node,
+                               const PartialShape& input_shape,
+                               const std::vector<int64_t>& begin,
+                               const std::vector<int64_t>& end,
+                               const std::vector<int64_t>& strides,
+                               const AxisSet& begin_mask,
+                               const AxisSet& end_mask,
+                               const AxisSet& new_axis_mask,
+                               const AxisSet& shrink_axis_mask,
+                               const AxisSet& ellipsis_mask);
+
 /// \brief Try to compute the maximum value of value
 /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
 /// if not.
