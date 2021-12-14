@@ -51,7 +51,7 @@ from openvino.frontend import FrontEndManager
 def create_test_onnx_models():
     models = {}
     # Input model 1
-    add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
+    add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"], name="onnx_add_op")
     split = onnx.helper.make_node("Split", inputs=["add_out"],
                                   outputs=["out1", "out2"], name="split1", axis=0)
     relu = onnx.helper.make_node("Relu", inputs=["in3"], outputs=["out3"])
@@ -1205,3 +1205,21 @@ def test_set_name_for_dimension():
     with pytest.raises(Exception) as e:
         model.set_name_for_dimension(one_const, 0, dim_name)
     assert "ONNX initializer shape dimension cannot be dynamic." in str(e)
+
+
+def test_set_input_partial_shape_using_input_edge():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_operator = model.get_place_by_operation_name("onnx_add_op")
+    add_input_edge = add_operator.get_input_port(inputPortIndex=0)
+    model.set_partial_shape(add_input_edge, PartialShape([10, 10]))
+    add_input_edge = add_operator.get_input_port(inputPortIndex=1)
+    model.set_partial_shape(add_input_edge, PartialShape([1]))
+
+    ov_model = fe.convert(model)
+    assert ov_model.input("in1").get_partial_shape() == PartialShape([10, 10])
+    assert ov_model.input("in2").get_partial_shape() == PartialShape([1])
+
+    assert ov_model.output("out4").get_partial_shape() == PartialShape([10, 10])
