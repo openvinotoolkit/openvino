@@ -333,6 +333,8 @@ class MapFN2InputSlicing(FrontReplacementSubgraph):
 
         # Loop.update_port_map_value_ext(loop_node.input_port_map, 'internal_layer_id', unstack_placeholder_layer_id,
         #                                'axis', 0)
+        Loop.re_numerate_input_ports(loop_node)
+        Loop.re_numerate_output_ports(loop_node)
 
 
     def find_and_replace_pattern(self, graph: Graph):
