@@ -55,7 +55,6 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             broadcastload->set_broadcast_info(bct);
             // Todo: So we can broadcastload only trailing ones? The why don't we checl only the last dimension right-away?
             if (broadcastload->is_broadcast(inshape.size()-1)) {
-//            if (broadcastload->is_broadcast(outshape.size()-1)) {
                 ngraph::copy_runtime_info(root, broadcastload);
                 ngraph::replace_node(root, broadcastload);
                 return true;

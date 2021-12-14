@@ -13,17 +13,9 @@ namespace ngraph {
 namespace snippets {
 namespace pass {
 /*
- SubgraphStart - it's safe to start subgraph without AppropriateForSubgraph check
- SubgraphBody - it's safe to continue subgraph without AppropriateForSubgraph check
- Ignored - must be skipped, since can't be handled properly at this time
- Important notes:
-    -- The enum ORDER IS CRITICAL: all nodes with SnippetsNodeType > SnippetsNodeType::NotSet will be skipped
-    -- Plugin Transformations must set only the SkippedByPlugin flag, otherwise tokenization might work incorreclty
+ NotSet - default value returned by GetSnippetsNodeType(...) if the node wasn't marked
+ SkippedByPlugin - indicate that snippets can't include this node in subgraph. Can be set by Plugin via SetSnippetsNodeType(...).
  */
-// Todo: Currently there are two skipping labels: SkippedByPlugin and SkippedBySnippets.
-//  This is done so the snippets and the plugin skipping transformation won't interfere, otherwise
-//  one transformation might continue skipping chains created by the other one. An alternative solution is to
-//  fix the order of transformations (e.g. snippets skip must always be the first), but this is hardly better.
 enum class SnippetsNodeType : int64_t {NotSet, SkippedByPlugin};
 void SetSnippetsNodeType(const std::shared_ptr<Node>&, SnippetsNodeType);
 SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>&);

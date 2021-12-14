@@ -38,14 +38,14 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
     return std::make_pair(rin, rout);
 }
 
-ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& f,
+ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& m,
                                                              const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     if (!target->is_supported())
         throw ngraph_error("unsupported architecture for code genration");
 
-    auto params = f->get_parameters();
-    auto results = f->get_results();
+    auto params = m->get_parameters();
+    auto results = m->get_results();
     auto in = params.size();
     auto out = results.size();
     auto nptrs = in + out;
@@ -53,20 +53,20 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
     std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>> lowered;
-    for (auto n : f->get_ordered_ops()) {
+    for (auto n : m->get_ordered_ops()) {
         lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
 
     // scalar tile
-    auto f_scalar = ov::clone_model(*f.get());
-    ngraph::pass::Manager m;
-    m.register_pass<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>();
-    m.register_pass<ngraph::snippets::pass::ReplaceStoresWithScalarStores>();
-    m.run_passes(f_scalar);
+    auto m_scalar = ov::clone_model(*m.get());
+    ngraph::pass::Manager mng;
+    mng.register_pass<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>();
+    mng.register_pass<ngraph::snippets::pass::ReplaceStoresWithScalarStores>();
+    mng.run_passes(m_scalar);
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile_get")
     std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> scalar_lowered;
-    for (auto n : f_scalar->get_ordered_ops()) {
+    for (auto n : m_scalar->get_ordered_ops()) {
         scalar_lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
     OV_ITT_TASK_NEXT(GENERATE, "::Tiles1D")

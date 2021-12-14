@@ -58,9 +58,9 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
     return std::find_if_not(std::begin(outputs), std::end(outputs), check_shapes_broadcastable) != std::end(outputs);
 }
 
-auto is_lo(const std::shared_ptr<const Node> &n) -> bool {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_lo")
-    auto is_lob = [](const std::shared_ptr<const Node> &n) -> bool {
+auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_layout_oblivious")
+    auto is_layout_oblivious_binary = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Add>(n)
             || ov::is_type<opset1::Divide>(n)
             || ov::is_type<opset1::Equal>(n)
@@ -84,7 +84,7 @@ auto is_lo(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<opset1::Xor>(n);
     };
 
-    auto is_lou = [](const std::shared_ptr<const Node> &n) -> bool {
+    auto is_layout_oblivious_unary = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Abs>(n)
             || ov::is_type<opset1::Clamp>(n)
             || ov::is_type<opset1::Elu>(n)
@@ -100,10 +100,11 @@ auto is_lo(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ngraph::op::v7::Gelu>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
-    return is_lou(n) || is_lob(n);
+    return is_layout_oblivious_unary(n) || is_layout_oblivious_binary(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
+    // todo: clarify why we can't evaluate snippets on const paths
     bool has_only_const_inputs{true};
     for (const auto& in : n->inputs()) {
         if (in.get_tensor().get_element_type() != ngraph::element::f32) {
@@ -167,7 +168,6 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 }
 // Need to update tensor name manually, since MKLDNNGraph::Replicate() looks at input.get_tensor().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
-// todo: remove this function when MKLDNNGraph::Replicate() will rely only on node->get_friendly_name()
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
     bool not_set = true;
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
@@ -191,7 +191,7 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
 } // namespace
 
 bool AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
-    return is_lo(node) && has_supported_in_out(node);
+    return is_layout_oblivious(node) && has_supported_in_out(node);
 }
 
 void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nodeType) {

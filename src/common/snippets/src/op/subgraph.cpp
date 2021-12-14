@@ -214,7 +214,7 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     // Todo: ngraph::pass::Manager introduces appreciable overheads, especially while used on small graphs.
     // So don't wrap this transformation as a MatcherPass, but rewrite convert_to_snippet_dialect() as a
     // for loop to improve first-inference time.
-    // repalace power with power static
+    // replace power with power static
 
     for (auto op : m_body->get_ordered_ops()) {
         if (ov::is_type<opset1::Power>(op) &&
