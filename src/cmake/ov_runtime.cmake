@@ -62,10 +62,25 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         INCLUDES DESTINATION runtime/include
                              runtime/include/ie)
 
-list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
-                      "IE_PARALLEL_CMAKE")
+# --------------- OpenVINO runtime library dev ------------------------------
+add_library(${TARGET_NAME}_dev INTERFACE)
+target_link_libraries(${TARGET_NAME}_dev INTERFACE inference_engine_plugin_api)
+target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>>
+                                                        $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>>)
+add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
+set_ie_threading_interface_for(${TARGET_NAME}_dev)
+
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_dev)
+
+# Install static libraries for case BUILD_SHARED_LIBS=OFF
+ov_install_static_lib(${TARGET_NAME}_dev core)
+# --------------- OpenVINO runtime library dev ------------------------------
+
 
 # Install OpenVINO runtime
+
+list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
+                      "IE_PARALLEL_CMAKE")
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
