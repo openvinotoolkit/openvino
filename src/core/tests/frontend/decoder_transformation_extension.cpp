@@ -40,7 +40,7 @@ TEST(DecoderTransformation, TestPass) {
         OPENVINO_RTTI("ov::pass::TestPass");
         TestPass() = default;
         TestPass(const TestPass& tp) = default;
-        bool run_on_function(std::shared_ptr<ov::Model>) override {
+        bool run_on_model(const std::shared_ptr<ov::Model>&) override {
             *m_flag = true;
             return *m_flag;
         }
