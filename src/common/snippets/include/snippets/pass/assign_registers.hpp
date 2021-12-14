@@ -18,12 +18,12 @@ namespace pass {
  */
 class AssignRegisters : public ngraph::pass::FunctionPass {
 public:
-    AssignRegisters() : FunctionPass() {
+    AssignRegisters() {
         set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
-    bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 
-} // namespace pass
-} // namespace snippets
-} // namespace ngraph
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ngraph

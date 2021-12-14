@@ -39,7 +39,7 @@ void ConvertColorI420LayerTest::SetUp() {
         } else {
             convert_color = std::make_shared<ov::op::v8::NV12toBGR>(param);
         }
-        function = std::make_shared<ov::Function>(std::make_shared<ov::op::v0::Result>(convert_color),
+        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
                                                       ov::ParameterVector{param}, "ConvertColorI420");
     } else {
         auto uvShape = ov::Shape{inputShape[0], inputShape[1] / 2, inputShape[2] / 2, 1};
@@ -52,7 +52,7 @@ void ConvertColorI420LayerTest::SetUp() {
         } else {
             convert_color = std::make_shared<ov::op::v8::I420toBGR>(param_y, param_u, param_v);
         }
-        function = std::make_shared<ov::Function>(std::make_shared<ov::op::v0::Result>(convert_color),
+        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
                                                       ov::ParameterVector{param_y, param_u, param_v},
                                                       "ConvertColorI420");
     }

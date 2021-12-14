@@ -43,6 +43,11 @@ static const char compile_target_message[] = "Optional. Specify GNA compile targ
                                              "or the latest fully supported generation by the software. "
                                              "See the GNA Plugin's GNA_COMPILE_TARGET config option description.";
 
+/// @brief message for enabling GNA log
+static const char enable_log_message[] = "Optional. Enable GNA logging, which may give additional info "
+                                         "about potential issues found in network. "
+                                         "By default logging is disabled.";
+
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
 
@@ -139,6 +144,9 @@ DEFINE_string(exec_target, "", execution_target_message);
 
 /// \brief GNA compile target <br>
 DEFINE_string(compile_target, "", compile_target_message);
+
+/// \brief GNA log level (default LOG_NONE) <br>
+DEFINE_string(log, "LOG_NONE", enable_log_message);
 
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);

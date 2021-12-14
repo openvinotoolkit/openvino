@@ -38,7 +38,7 @@ def update_conformance_test_counters(results: ET.SubElement, logger: logging.Log
         for op in device:
             op_test_count = 0
             for attr_name in op.attrib:
-                if attr_name == "passrate":
+                if attr_name == "passrate" or attr_name == "implemented":
                     continue
                 op_test_count += int(op.attrib.get(attr_name))
             if not op.tag in max_test_cnt.keys():
@@ -52,7 +52,7 @@ def update_conformance_test_counters(results: ET.SubElement, logger: logging.Log
             if op.tag in incorrect_ops:
                 test_cnt = 0
                 for attr_name in op.attrib:
-                    if attr_name == "passrate":
+                    if attr_name == "passrate" or attr_name == "implemented":
                         continue
                     test_cnt += int(op.attrib[attr_name])
                 if test_cnt != max_test_cnt[op.tag]:
