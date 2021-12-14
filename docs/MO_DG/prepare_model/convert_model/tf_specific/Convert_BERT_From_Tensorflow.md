@@ -77,9 +77,9 @@ python3 download_glue_data.py --tasks MRPC
     import os, sys
     import tensorflow as tf
     from tensorflow.python.framework import graph_io
-    with tf.compat.v1.Session(graph=tf.get_default_graph()) as sess:
+    with tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph()) as sess:
         (assignment_map, initialized_variable_names) = \
-            modeling.get_assignment_map_from_checkpoint(tf.trainable_variables(), init_checkpoint)
+            modeling.get_assignment_map_from_checkpoint(tf.compat.v1.trainable_variables(), init_checkpoint)
         tf.compat.v1.train.init_from_checkpoint(init_checkpoint, assignment_map)
         sess.run(tf.compat.v1.global_variables_initializer())
         frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["bert/pooler/dense/Tanh"])
