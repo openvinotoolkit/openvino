@@ -9,19 +9,6 @@ if(ENABLE_LTO)
 endif()
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-if(ENABLE_TBBBIND_2_5)
-    # try to find prebuilt version of tbbbind_2_5
-    find_package(TBBBIND_2_5 QUIET)
-    if(TBBBIND_2_5_FOUND)
-        message(STATUS "Static tbbbind_2_5 package is found")
-        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
-            INTERFACE_COMPILE_DEFINITIONS TBBBIND_2_5_AVAILABLE)
-        if(NOT BUILD_SHARED_LIBS)
-            set(install_tbbbind ON)
-        endif()
-    endif()
-endif()
-
 add_custom_target(ov_runtime_libraries)
 
 include(cmake/install_tbb.cmake)
@@ -162,8 +149,6 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 
 set(IE_INCLUDE_DIR "include/ie")
 set(IE_NGRAPH_DIR ".")
-set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
-set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
