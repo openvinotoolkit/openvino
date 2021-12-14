@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/avg_pool.hpp"
 
-#include "cldnn/primitives/pooling.hpp"
+#include "intel_gpu/primitives/pooling.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 struct PoolingParameters {
     cldnn::tensor kernel;
@@ -69,7 +71,7 @@ static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Av
                                    params.kernel,
                                    params.stride,
                                    params.pad_begin,
-                                   CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                   tensor_from_dims(op->get_output_shape(0)),
                                    DataTypeFromPrecision(op->get_output_element_type(0)),
                                    op->get_friendly_name());
     poolPrim.pad_end = params.pad_end;
@@ -89,7 +91,7 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Ma
                                    params.kernel,
                                    params.stride,
                                    params.pad_begin,
-                                   CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                   tensor_from_dims(op->get_output_shape(0)),
                                    DataTypeFromPrecision(op->get_output_element_type(0)),
                                    op->get_friendly_name());
     poolPrim.pad_end = params.pad_end;
@@ -100,4 +102,6 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Ma
 REGISTER_FACTORY_IMPL(v1, MaxPool);
 REGISTER_FACTORY_IMPL(v1, AvgPool);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

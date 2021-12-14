@@ -70,7 +70,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GroupConvolutionParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GroupConvolutionParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
@@ -82,7 +82,7 @@ private:
                                                                        params.padEnd,
                                                                        params.dialations,
                                                                        auto_pad);
-        return std::make_shared<ov::Function>(NodeVector {GroupConvolution}, ParameterVector {in, filter});
+        return std::make_shared<ov::Model>(NodeVector {GroupConvolution}, ParameterVector {in, filter});
     }
 };
 

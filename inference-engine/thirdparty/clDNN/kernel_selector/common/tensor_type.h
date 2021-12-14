@@ -112,6 +112,7 @@ enum WeightsLayout {
     os_is_zyx_osa4_isa8_osv8_isv4,           // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_yx_osa4_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_zyx_osa4_isa8_osv8_isv2,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+    os_is_yx_osa2_isa8_osv8_isv2,
     os_is_yx_osa2_isa8_osv16_isv4,
     os_is_yx_osa2_isa8_osv16_isv2,
     g_os_is_yx_osa2_isa8_osv16_isv4,
@@ -203,7 +204,7 @@ using NDims = std::vector<Dim>;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class DataChannelName { X = 0, Y = 1, Z = 2, W = 3, FEATURE = 4, BATCH = 5, COUNT = 6 };
 
-enum class WeightsChannelName { X = 0, Y = 1, Z = 2, IFM = 3, OFM = 4, LX = 5, LY = 6, G = 7, COUNT = 8 };
+enum class WeightsChannelName { X = 0, Y = 1, Z = 2, IFM = 3, OFM = 4, G = 5, COUNT = 6 };
 
 inline bool SimpleLayout(WeightsLayout l) {
     switch (l) {
@@ -568,8 +569,6 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
     Dim Z() const { return Extract(layout, WeightsChannelName::Z, dims); }
     Dim IFM() const { return Extract(layout, WeightsChannelName::IFM, dims); }
     Dim OFM() const { return Extract(layout, WeightsChannelName::OFM, dims); }
-    Dim LX() const { return Extract(layout, WeightsChannelName::LX, dims); }
-    Dim LY() const { return Extract(layout, WeightsChannelName::LY, dims); }
     Dim G() const { return Extract(layout, WeightsChannelName::G, dims); }
 
     static inline Dim Extract(WeightsLayout l, WeightsChannelName channel, const NDims& d) {

@@ -93,7 +93,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const MulticlassNmsParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const MulticlassNmsParams& params) {
         op::v8::MulticlassNms::Attributes attrs;
         attrs.nms_top_k = params.nms_top_k;
         attrs.iou_threshold = params.iou_threshold;
@@ -108,7 +108,7 @@ private:
         const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, PartialShape::dynamic());
         const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, PartialShape::dynamic());
         const auto nms = std::make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
-        const auto f = std::make_shared<Function>(nms->outputs(), ParameterVector{boxes, scores});
+        const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
 };

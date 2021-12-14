@@ -258,6 +258,12 @@ const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
         ngraph::helpers::ReductionType::L2,
 };
 
+const std::vector<ngraph::helpers::ReductionType> reductionTypesFusing = {
+        ngraph::helpers::ReductionType::Mean,
+        ngraph::helpers::ReductionType::Max,
+        ngraph::helpers::ReductionType::L2,
+};
+
 const std::vector<ngraph::helpers::ReductionType> reductionLogicalTypes = {
         ngraph::helpers::ReductionType::LogicalOr,
         ngraph::helpers::ReductionType::LogicalAnd
@@ -315,13 +321,9 @@ std::vector<CPUSpecificParams> cpuParams_HybridLayout_5D = {
 
 const std::vector<fusingSpecificParams> fusingParamsSet {
         /* activations */
-        fusingRelu,
-        fusingElu,
-        fusingTanh,
         fusingSwish,
 
         /* FQ */
-        fusingFakeQuantizePerChannel,
         fusingFakeQuantizePerChannelRelu,
         fusingFakeQuantizePerTensorRelu,
         /* another patterns */
@@ -576,7 +578,7 @@ const auto params_OneAxis_fusing = testing::Combine(
             testing::ValuesIn(axes),
             testing::ValuesIn(opTypes),
             testing::Values(true),
-            testing::ValuesIn(reductionTypes),
+            testing::ValuesIn(reductionTypesFusing),
             testing::ValuesIn(inpOutPrc),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
@@ -589,7 +591,7 @@ const auto params_MultiAxis_4D_fusing = testing::Combine(
                 testing::ValuesIn(axesND),
                 testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true),
-                testing::ValuesIn(reductionTypes),
+                testing::ValuesIn(reductionTypesFusing),
                 testing::ValuesIn(inpOutPrc),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
@@ -602,7 +604,7 @@ const auto params_MultiAxis_5D_fusing = testing::Combine(
                 testing::ValuesIn(axes5D),
                 testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true),
-                testing::ValuesIn(reductionTypes),
+                testing::ValuesIn(reductionTypesFusing),
                 testing::ValuesIn(inpOutPrc),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
@@ -637,7 +639,7 @@ const auto params_OneAxis_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(axes),
             testing::ValuesIn(opTypes),
             testing::Values(false),
-            testing::ValuesIn(reductionTypes),
+            testing::ValuesIn(reductionTypesFusing),
             testing::ValuesIn(inpOutPrc),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
@@ -650,7 +652,7 @@ const auto params_MultiAxis_4D_Hybrid_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(axesNDFusing),
             testing::Values(CommonTestUtils::OpType::VECTOR),
             testing::Values(false),
-            testing::ValuesIn(reductionTypes),
+            testing::ValuesIn(reductionTypesFusing),
             testing::ValuesIn(inpOutPrc),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
@@ -663,7 +665,7 @@ const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(axes5DFusing),
             testing::Values(CommonTestUtils::OpType::VECTOR),
             testing::Values(false),
-            testing::ValuesIn(reductionTypes),
+            testing::ValuesIn(reductionTypesFusing),
             testing::ValuesIn(inpOutPrc),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),

@@ -4,7 +4,8 @@
 
 #include "layout_optimizer.h"
 #include "primitive_inst.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "program_helpers.h"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"
@@ -18,6 +19,8 @@
 #include "permute_inst.h"
 #include "quantize_inst.h"
 #include "mvn_inst.h"
+#include "depth_to_space_inst.h"
+#include "region_yolo_inst.h"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -190,6 +193,20 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return false;
     };
 
+    // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
+    if (next.get_preferred_impl_type() == impl_types::onednn) {
+        for (auto& fused_op : next.get_fused_primitives()) {
+            if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+                auto eltw_in_layout = next.get_dependency(fused_op.dep_start_idx).get_output_layout();
+                auto out_layout = next.get_output_layout();
+                if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout) &&
+                    program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout) &&
+                    prev.get_output_layout().format != out_layout.format)
+                    return false;
+            }
+        }
+    }
+
     if (next.is_type<reorder>()) {
         // Avoid fusing current reorder to fuse next reorder
         if (next.get_users().size() == 1 && next.get_users().front()->is_type<convolution>() && use_onednn_impls) {
@@ -310,7 +327,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             !data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt)) {
             auto& node = prev.get_users().front();
             // Avoid to fuse padding reorder to previous onednn convolution
-            if (prev.is_type<convolution>() && prev.as<convolution>().get_preferred_impl_type() == impl_types::onednn &&
+            if (prev.get_preferred_impl_type() == impl_types::onednn &&
                 (node->get_output_layout().data_padding != prev.get_output_layout().data_padding))
                 return false;
             else
@@ -347,9 +364,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     return false;
 }
 
-bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node& next, format fmt_prev, format fmt_next) {
+bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next) {
+    if (next == nullptr) {
+        // Ref kernels are the main for depth_to_space and region_yolo. It can do anything
+        return prev.is_type<depth_to_space>() || prev.is_type<region_yolo>();
+    }
+
     auto dt_prev = prev.get_output_layout().data_type;
-    auto dt_next = next.get_output_layout().data_type;
+    auto dt_next = next->get_output_layout().data_type;
     auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
     if (prev.is_type<reorder>())

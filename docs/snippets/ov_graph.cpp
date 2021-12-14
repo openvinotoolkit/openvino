@@ -40,8 +40,7 @@ int main() {
     auto result = std::make_shared<ov::opset8::Result>(concat);
     result->set_friendly_name("result");  // operation name
 
-    auto f =
-        std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{data1, data2}, "function_name");
+    auto f = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data1, data2}, "function_name");
     //! [ov:graph]
     return 0;
 }

@@ -35,8 +35,7 @@ Plugin::Plugin() {
     _pluginName = "TEMPLATE";
 
     // create ngraph backend which performs inference using ngraph reference implementations
-    ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
-    _backend = ngraph::runtime::Backend::create("INTERPRETER");
+    _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
     _waitExecutor =
