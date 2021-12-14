@@ -4,7 +4,7 @@
 
 #include "paddlepaddle_frontend/place.hpp"
 
-#include "decoder.hpp"
+#include "decoder_pdpd.hpp"
 #include "framework.pb.h"
 
 using namespace ov;

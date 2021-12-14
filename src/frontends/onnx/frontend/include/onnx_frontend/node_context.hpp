@@ -22,10 +22,6 @@ public:
 
 protected:
     const ngraph::onnx_import::Node& context;
-
-    ov::Any get_attribute_as_any(const std::string& name) const override {
-        return context.get_attribute_value<ov::Any>(name);
-    }
 };
 }
 }

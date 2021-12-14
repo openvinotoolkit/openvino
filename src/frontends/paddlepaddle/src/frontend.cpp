@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "decoder.hpp"
+#include "decoder_pdpd.hpp"
 #include "framework.pb.h"
 #include "paddlepaddle_frontend/node_context.hpp"
 #include "op_table.hpp"

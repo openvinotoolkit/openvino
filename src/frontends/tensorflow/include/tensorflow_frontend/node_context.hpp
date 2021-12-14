@@ -25,10 +25,6 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 class NodeContext : public ov::frontend::NodeContext {
     const DecoderBase& m_decoder;
     const NamedInputs& m_name_map;
-
-    ov::Any get_attribute_as_any(const std::string& name) const override {
-        return ov::Any();
-    }
 public:
     NodeContext(const DecoderBase& decoder, const NamedInputs& name_map) :
     ov::frontend::NodeContext(m_decoder.get_op_type(), name_map.at(0)),

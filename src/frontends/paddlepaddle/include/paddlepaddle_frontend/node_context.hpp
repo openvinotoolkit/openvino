@@ -17,22 +17,19 @@ namespace pdpd {
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
 class NodeContext : public ov::frontend::NodeContext {
-    const DecoderBase& decoder;
-    const NamedInputs& name_map;
+    const DecoderBase& m_decoder;
+    const NamedInputs& m_name_map;
 
-    ov::Any get_attribute_as_any(const std::string& name) const override {
-        return ov::Any();
-    }
 public:
     NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map) :
-        ov::frontend::NodeContext(decoder.get_op_type(), name_map),
-        decoder(_decoder),
-        name_map(_name_map) {}
+        ov::frontend::NodeContext(_decoder.get_op_type(), _name_map),
+        m_decoder(_decoder),
+        m_name_map(_name_map) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <class T>
     T get_attribute(const std::string& name, const T& def) const {
-        auto res = decoder.get_attribute(name, typeid(T));
+        auto res = m_decoder.get_attribute(name, typeid(T));
         if (!res.empty()) {
             return res.as<T>();
         } else {
@@ -42,20 +39,20 @@ public:
 
     template <class T>
     T get_attribute(const std::string& name) const {
-        auto res = decoder.get_attribute(name, typeid(T));
+        auto res = m_decoder.get_attribute(name, typeid(T));
         FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
         return res.as<T>();
     }
 
     template <class T>
     bool has_attribute(const std::string& name) const {
-        return !decoder.get_attribute(name, typeid(T)).empty();
+        return !m_decoder.get_attribute(name, typeid(T)).empty();
     }
 
     /// Detects if there is at least one input attached with a given name
     bool has_ng_input(const std::string& name) const {
-        auto found = name_map.find(name);
-        if (found != name_map.end())
+        auto found = m_name_map.find(name);
+        if (found != m_name_map.end())
             return !found->second.empty();
         return false;
     }
@@ -63,35 +60,35 @@ public:
     /// Returns exactly one input with a given name; throws if there is no inputs or
     /// there are more than one input
     Output<Node> get_ng_input(const std::string& name) const {
-        FRONT_END_GENERAL_CHECK(name_map.at(name).size() == 1);
-        return name_map.at(name).at(0);
+        FRONT_END_GENERAL_CHECK(m_name_map.at(name).size() == 1);
+        return m_name_map.at(name).at(0);
     }
 
     /// Returns all inputs with a given name
     OutputVector get_ng_inputs(const std::string& name) const {
-        return name_map.at(name);
+        return m_name_map.at(name);
     }
 
     /// Returns all inputs in order they appear in map. This is used for FrameworkNode
     /// creation
     OutputVector get_all_ng_inputs() const {
         OutputVector res;
-        for (const auto& entry : name_map) {
+        for (const auto& entry : m_name_map) {
             res.insert(res.end(), entry.second.begin(), entry.second.end());
         }
         return res;
     }
 
     std::vector<OutPortName> get_output_names() const {
-        return decoder.get_output_names();
+        return m_decoder.get_output_names();
     }
 
     ov::element::Type get_out_port_type(const std::string& port_name) const {
-        return decoder.get_out_port_type(port_name);
+        return m_decoder.get_out_port_type(port_name);
     }
 
     std::string get_op_type() const {
-        return decoder.get_op_type();
+        return m_decoder.get_op_type();
     }
 
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node>& node,

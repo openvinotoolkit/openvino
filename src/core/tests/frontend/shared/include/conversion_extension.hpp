@@ -1,0 +1,29 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <manager.hpp>
+#include <common/conversion_extension.hpp>
+
+struct ConversionExtensionFEParam {
+    std::string m_frontEndName;
+    std::string m_modelsPath;
+    std::string m_modelName;
+};
+
+class FrontEndConversionExtensionTest : public ::testing::TestWithParam<ConversionExtensionFEParam> {
+public:
+    ConversionExtensionFEParam m_param;
+    ov::frontend::FrontEndManager m_fem;
+
+    static std::string getTestCaseName(const testing::TestParamInfo<ConversionExtensionFEParam>& obj);
+
+    void SetUp() override;
+
+protected:
+    void initParamTest();
+};

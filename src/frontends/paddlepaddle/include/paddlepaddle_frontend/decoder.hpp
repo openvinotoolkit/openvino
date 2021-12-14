@@ -1,0 +1,49 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+#include "common/node_context.hpp"
+#include "ngraph/compatibility.hpp"
+#include "openvino/core/any.hpp"
+#include "paddlepaddle_frontend/exceptions.hpp"
+#include "paddlepaddle_frontend/utility.hpp"
+
+namespace ov {
+namespace frontend {
+namespace pdpd {
+    using InPortName = std::string;
+    using OutPortName = std::string;
+    using TensorName = std::string;
+    using NamedOutputs = std::map<OutPortName, OutputVector>;
+    using NamedInputs = std::map<InPortName, OutputVector>;
+
+    class DecoderBase {
+    public:
+        /// \brief Get attribute value by name and requested type
+        ///
+        /// \param name Attribute name
+        /// \param type_info Attribute type information
+        /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
+        virtual ov::Any get_attribute(const std::string &name, const std::type_info &type_info) const = 0;
+
+        virtual std::vector<OutPortName> get_output_names() const = 0;
+
+        virtual size_t get_output_size() const = 0;
+
+        /// \brief Get output port type
+        ///
+        /// Current API assumes that output port has only one output type.
+        /// If decoder supports multiple types for specified port, it shall throw general
+        /// exception
+        ///
+        /// \param port_name Port name for the node
+        ///
+        /// \return Type of specified output port
+        virtual ov::element::Type get_out_port_type(const std::string &port_name) const = 0;
+
+        virtual std::string get_op_type() const = 0;
+    };
+}
+}
+}

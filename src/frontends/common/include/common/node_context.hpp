@@ -9,7 +9,6 @@
 #include <type_traits>
 
 #include "frontend_defs.hpp"
-#include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -34,14 +33,6 @@ public:
     const std::string& op_type() const {
         return m_op_type;
     }
-
-    template <typename T>
-    T get_attribute(const std::string& name) {
-        return get_attribute_as_any(name).as<T>();
-    }
-
-protected:
-    virtual ov::Any get_attribute_as_any(const std::string& name) const = 0;
 
 private:
     std::string m_op_type;
