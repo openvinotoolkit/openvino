@@ -12,7 +12,7 @@
 namespace MKLDNNPlugin {
 
 /**
- * @brief Class that represent a cache of limited capacity for different key/value pair types.
+ * @brief Class that represent a preemptive cache for different key/value pair types.
  *
  * @attention This implementation IS NOT THREAD SAFE!
  */
@@ -33,9 +33,9 @@ public:
     explicit MultiCache(size_t capacity) : _capacity(capacity) {}
 
     /**
-    * @brief search of ValueType in the cache by the provided key or creates it (if nothing was found)
+    * @brief Searches a value of ValueType in the cache using the provided key or creates a new ValueType instance (if nothing was found)
     *       using the key and the builder functor and adds the new record to the cache
-    * @param key is a search key
+    * @param key is the search key
     * @param builder is a callable object that creates the ValType object from the KeyType lval reference.
     *       Also the builder type is used for the ValueType deduction
     * @return result of the operation which is a pair of the requested object of ValType and the status of whether the cache hit or miss occurred

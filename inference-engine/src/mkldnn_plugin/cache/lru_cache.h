@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 /**
- * @brief This is yet another implementation of a cache with limited capacity and LRU eviction policy.
+ * @brief This is yet another implementation of a preemptive cache with LRU eviction policy.
  * @tparam Key is a key type that must define hash() const method with return type convertible to size_t and define comparison operator.
  * @tparam Value is a type that must meet all the requirements to the std::unordered_map mapped type
  *
@@ -26,7 +26,7 @@ public:
     explicit LruCache(size_t capacity) : _capacity(capacity) {}
 
     /**
-     * @brief Puts the value associated with a key into the cache.
+     * @brief Puts the value associated with the key into the cache.
      * @param key
      * @param value
      */
@@ -49,9 +49,9 @@ public:
     }
 
     /**
-     * @brief Search a value associated with the key.
+     * @brief Searches a value associated with the key.
      * @param key
-     * @return Value associated with the key or default constructed instance of Value type.
+     * @return Value associated with the key or default constructed instance of the Value type.
      */
 
     Value get(const Key &key) {
