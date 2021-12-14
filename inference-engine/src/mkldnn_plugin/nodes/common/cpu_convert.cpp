@@ -365,6 +365,50 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
     }
 };
 
+template<>
+struct ConvertPrecision<std::tuple<float, bfloat16_t>> {
+    void operator()(ConvertContext & ctx) {
+        auto src = static_cast<const float *>(ctx.srcPtr);
+        auto dst = static_cast<bfloat16_t *>(ctx.dstPtr);
+
+        if (ctx.interimPrc.is_float()) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<bfloat16_t>(src[i]);
+            });
+        } else {
+            float lbound, ubound;
+            std::tie(lbound, ubound) = ctx.range<float>();
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template<>
+struct ConvertPrecision<std::tuple<bfloat16_t, float>> {
+    void operator()(ConvertContext & ctx) {
+        auto src = static_cast<const bfloat16_t *>(ctx.srcPtr);
+        auto dst = static_cast<float *>(ctx.dstPtr);
+
+        if (ctx.interimPrc.is_float()) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<float>(src[i]);
+            });
+        } else {
+            float lbound, ubound;
+            std::tie(lbound, ubound) = ctx.range<bfloat16_t>();
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = std::trunc(std::max(std::min(static_cast<float>(src[i]), ubound), lbound));
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
 template<typename src_t>
 struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
     void operator()(ConvertContext & ctx) {
