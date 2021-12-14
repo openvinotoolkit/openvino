@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
 
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
-
+        ov::set_batch(model, batchSize);
         ov::Shape input_shape = model->input().get_shape();
         input_shape[ov::layout::batch_idx(tensor_layout)] = batchSize;
 
