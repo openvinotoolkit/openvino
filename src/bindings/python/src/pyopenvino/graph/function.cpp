@@ -559,7 +559,9 @@ void regclass_graph_Model(py::module m) {
 
     function.def("input", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::input);
 
-    function.def("input", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input, py::arg("index"));
+    function.def("input",
+                 (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input,
+                 py::arg("index"));
 
     function.def("input",
                  (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::input,
@@ -575,7 +577,9 @@ void regclass_graph_Model(py::module m) {
 
     function.def("output", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::output);
 
-    function.def("output", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output, py::arg("index"));
+    function.def("output",
+                 (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output,
+                 py::arg("index"));
 
     function.def("output",
                  (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::output,
