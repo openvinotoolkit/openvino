@@ -40,6 +40,7 @@ class ArangeLikeReplacer(FrontReplacementOp):
             shape_node.out_port(0).connect(gather_node.in_port(0))
             gather_node.out_port(0).connect(range_node.in_port(1))
             node.out_port(0).get_connection().set_source(range_node.out_port(0))
+            rename_nodes([(node, name + '/ShouldBeDeleted'), (range_node, name)])
         else:
             r'''
             Replace arange_like op to subgraph:
@@ -63,6 +64,7 @@ class ArangeLikeReplacer(FrontReplacementOp):
             range_node.out_port(0).connect(reshape_node2.in_port(0))
             shape_node.out_port(0).connect(reshape_node2.in_port(1))
             node.out_port(0).get_connection().set_source(reshape_node2.out_port(0))
+            rename_nodes([(node, name + '/ShouldBeDeleted'), (reshape_node2, name)])
 
         # MXNet arange_like op has no stop attribute and the result tensor always matches the input shape, so
         # we have to correct the stop value for the Range node if start > 0
@@ -75,5 +77,3 @@ class ArangeLikeReplacer(FrontReplacementOp):
         squeeze_node = create_op_with_const_inputs(graph, Squeeze, port_value_dict={1: int64_array(0)},
                                                    op_attrs={"name": range_node.name + '/Stop/Squeeze'})
         range_node.in_port(1).get_connection().insert_node(squeeze_node)
-
-        rename_nodes([(node, name + '/ShouldBeDeleted'), (range_node, name)])
