@@ -17,19 +17,17 @@ namespace frontend {
 namespace tf {
 using InPortName = size_t;
 using OutPortName = size_t;
-using NamedOutputs = std::map<OutPortName, OutputVector>;
-using NamedInputs = std::map<InPortName, OutputVector>;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
 class NodeContext : public ov::frontend::NodeContext {
     const DecoderBase& m_decoder;
-    const NamedInputs& m_name_map;
+    const OutputVector& m_inputs;
 public:
-    NodeContext(const DecoderBase& decoder, const NamedInputs& name_map) :
-    ov::frontend::NodeContext(m_decoder.get_op_type(), name_map.at(0)),
+    NodeContext(const DecoderBase& decoder, const OutputVector& inputs) :
+    ov::frontend::NodeContext(decoder.get_op_type(), inputs),
     m_decoder(decoder),
-    m_name_map(name_map) {}
+    m_inputs(inputs) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <typename T>
@@ -57,37 +55,29 @@ public:
 
     /// Detects if there is at least one input attached with a given name
     bool has_input(const size_t& port_index) const {
-        auto found = m_name_map.find(port_index);
-        if (found != m_name_map.end())
-            return !found->second.empty();
-        return false;
+        return m_inputs.size() >= port_index + 1;
     }
 
     /// Returns exactly one input with a given name; throws if there is no inputs or
     /// there are more than one input
     Output<Node> get_input(const size_t& port_index) const {
-        FRONT_END_GENERAL_CHECK(m_name_map.at(port_index).size() == 1);
-        return m_name_map.at(port_index).at(0);
+        return m_inputs.at(port_index);
     }
 
     /// Returns all inputs with a given name
     OutputVector get_inputs(const size_t& port_index) const {
-        return m_name_map.at(port_index);
+        return {m_inputs.at(port_index)};
     }
 
     /// Returns all inputs in order they appear in map. This is used for FrameworkNode
     /// creation
     OutputVector get_all_inputs() const {
-        OutputVector res;
-        for (const auto& entry : m_name_map) {
-            res.insert(res.end(), entry.second.begin(), entry.second.end());
-        }
-        return res;
+        return m_inputs;
     }
 
     /// Get a number of inputs
     size_t get_input_size() const {
-        return m_name_map.size();
+        return m_inputs.size();
     }
 
     /// Get operation type
