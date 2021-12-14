@@ -24,6 +24,7 @@
 #include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
+#include "pyopenvino/core/extension.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
@@ -125,6 +126,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
+    regclass_Extension(m);
 
     regclass_frontend_Place(m);
     regclass_frontend_InitializationFailureFrontEnd(m);
@@ -135,7 +137,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_FrontEndManager(m);
     regclass_frontend_FrontEnd(m);
     regclass_frontend_InputModel(m);
-    regclass_frontend_Extension(m);
     regclass_frontend_TelemetryExtension(m);
     regclass_frontend_DecoderTransformationExtension(m);
     regclass_frontend_JsonConfigExtension(m);

@@ -6,7 +6,7 @@
 
 #include <openvino/core/core.hpp>
 
-bool TestExtension1::transform(std::shared_ptr<ov::Model>& function, const std::string& config) const {
+bool TestExtension1::transform(const std::shared_ptr<ov::Model>& function, const std::string& config) const {
     function->set_friendly_name("TestFunction");
     return true;
 }

@@ -18,10 +18,6 @@ namespace py = pybind11;
 
 using namespace ov::frontend;
 
-void regclass_frontend_Extension(py::module m) {
-    py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
-}
-
 void regclass_frontend_TelemetryExtension(py::module m) {
     {
         py::class_<TelemetryExtension, std::shared_ptr<TelemetryExtension>, ov::Extension> ext(m,

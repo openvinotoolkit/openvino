@@ -31,7 +31,7 @@ public:
 };
 
 DecoderTransformationExtension::DecoderTransformationExtension(
-    const std::function<bool(std::shared_ptr<ov::Model>)>& function_pass)
+    const std::function<bool(const std::shared_ptr<ov::Model>)>& function_pass)
     : m_registration([=](ov::pass::Manager& manager) {
           manager.register_pass<CustomModelPass>(function_pass);
       }) {}

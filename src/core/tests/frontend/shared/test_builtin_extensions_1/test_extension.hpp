@@ -11,5 +11,5 @@ class TestExtension1 : public ov::frontend::JsonTransformationExtension {
 public:
     TestExtension1();
 
-    bool transform(std::shared_ptr<ov::Model>& function, const std::string& config) const override;
+    bool transform(const std::shared_ptr<ov::Model>& function, const std::string& config) const override;
 };

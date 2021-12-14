@@ -5,7 +5,6 @@
 #include "json_config_extension.hpp"
 
 #include <json_extension/json_config_extension.hpp>
-#include <json_extension/json_schema.hpp>
 #include <json_extension/json_transformation_extension.hpp>
 #include <nlohmann/json-schema.hpp>
 #include <ostream>
@@ -70,11 +69,6 @@ void FrontEndJsonConfigTest::generate_json_config() {
     ]
     )";
     nlohmann::json config_json = nlohmann::json::parse(json);
-
-    // Validate JSON config
-    nlohmann::json_schema::json_validator validator;
-    validator.set_root_schema(json_schema);
-    validator.validate(config_json);
 
     // update lib path
     for (auto& section : config_json) {

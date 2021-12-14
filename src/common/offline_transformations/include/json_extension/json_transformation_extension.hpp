@@ -42,7 +42,7 @@ public:
         return m_id;
     }
 
-    virtual bool transform(std::shared_ptr<ov::Model>& function,
+    virtual bool transform(const std::shared_ptr<ov::Model>& function,
                            const std::string& replacement_descriptions) const = 0;
 
 private:

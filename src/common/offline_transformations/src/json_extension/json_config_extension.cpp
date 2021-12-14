@@ -4,10 +4,142 @@
 
 #include "json_extension/json_config_extension.hpp"
 
+#include "nlohmann/json-schema.hpp"
 #include "common/extensions/decoder_transformation_extension.hpp"
-#include "json_extension/json_schema.hpp"
 #include "json_extension/json_transformation_extension.hpp"
 #include "so_extension.hpp"
+
+namespace {
+static const nlohmann::json validation_schema =
+R"(
+{
+        "definitions": {},
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Root",
+        "type": "array",
+        "default": [],
+        "items": {
+            "$id": "#root/items",
+                    "title": "Items",
+                    "type": "object",
+                    "required": [
+            "id",
+                    "match_kind"
+            ],
+            "properties": {
+                "custom_attributes": {
+                    "$id": "#root/items/custom_attributes",
+                            "title": "Custom_attributes",
+                            "type": "object",
+                            "properties": {
+                    }
+                },
+                "id": {
+                    "$id": "#root/items/id",
+                            "title": "Id",
+                            "type": "string",
+                            "pattern": "^.*$",
+                            "minLength": 1
+                },
+                "inputs": {
+                    "$id": "#root/items/inputs",
+                            "title": "Inputs",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                        "$id": "#root/items/inputs/items",
+                                "title": "Items",
+                                "type": "array",
+                                "default": [],
+                                "items": {
+                            "$id": "#root/items/inputs/items/items",
+                                    "title": "Items",
+                                    "type": "object",
+                                    "properties": {
+                                "node": {
+                                    "$id": "#root/items/inputs/items/items/node",
+                                            "title": "Node",
+                                            "type": "string",
+                                            "default": "",
+                                            "pattern": "^.*$"
+                                },
+                                "port": {
+                                    "$id": "#root/items/inputs/items/items/port",
+                                            "title": "Port",
+                                            "type": "integer",
+                                            "default": 0
+                                }
+                            },
+                            "required": ["node", "port"]
+                        }
+
+                    }
+                },
+                "instances": {
+                    "$id": "#root/items/instances",
+                            "title": "Instances",
+                            "type": ["array", "object"],
+                    "items": {
+                        "$id": "#root/items/instances/items",
+                                "title": "Items",
+                                "type": "string",
+                                "default": "",
+                                "pattern": "^.*$"
+                    }
+                },
+                "match_kind": {
+                    "$id": "#root/items/match_kind",
+                            "title": "Match_kind",
+                            "type": "string",
+                            "enum": ["points", "scope", "general"],
+                    "default": "points",
+                            "pattern": "^.*$"
+                },
+                "outputs": {
+                    "$id": "#root/items/outputs",
+                            "title": "Outputs",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                        "$id": "#root/items/outputs/items",
+                                "title": "Items",
+                                "type": "object",
+                                "properties": {
+                            "node": {
+                                "$id": "#root/items/outputs/items/node",
+                                        "title": "Node",
+                                        "type": "string",
+                                        "default": "",
+                                        "pattern": "^.*$"
+                            },
+                            "port": {
+                                "$id": "#root/items/outputs/items/port",
+                                        "title": "Port",
+                                        "type": "integer",
+                                        "default": 0
+                            }
+                        },
+                        "required": ["node", "port"]
+                    }
+
+                },
+                "include_inputs_to_sub_graph": {
+                    "$id": "#root/items/include_inputs_to_sub_graph",
+                            "title": "Include_inputs_to_sub_graph",
+                            "type": "boolean",
+                            "default": false
+                },
+                "include_outputs_to_sub_graph": {
+                    "$id": "#root/items/include_outputs_to_sub_graph",
+                            "title": "Include_outputs_to_sub_graph",
+                            "type": "boolean",
+                            "default": false
+                }
+            }
+        }
+}
+)"_json;
+} //  namespace
 
 using namespace ov;
 using namespace ov::frontend;
@@ -30,7 +162,7 @@ JsonConfigExtension::JsonConfigExtension(const std::string& config_path)
     // Validate JSON config
     nlohmann::json_schema::json_validator validator;
     try {
-        validator.set_root_schema(json_schema);
+        validator.set_root_schema(validation_schema);
     } catch (const std::exception& e) {
         OPENVINO_ASSERT(false, "Invalid json schema : ", e.what());
     }
