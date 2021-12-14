@@ -4,8 +4,8 @@
 
 #include "ngraph/op/util/detection_output_base.hpp"
 
-#include <ngraph/validation_util.hpp>
 #include <detection_output_shape_inference.hpp>
+#include <ngraph/validation_util.hpp>
 
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
@@ -76,7 +76,7 @@ bool ov::op::util::DetectionOutputBase::visit_attributes_base(AttributeVisitor& 
 
 ov::Dimension DetectionOutputBase::compute_num_classes(const AttributesBase& attrs) {
     NODE_VALIDATION_CHECK(this,
-                          3 == get_input_size() && get_input_size() == 5,
+                          3 == get_input_size() || get_input_size() == 5,
                           "A number of arguments must be  equal to 3 or equal to 5. Got  ",
                           get_input_size());
 
