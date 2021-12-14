@@ -17,7 +17,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
 
-add_library(${TARGET_NAME}_obj OBJECT EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -58,8 +58,8 @@ openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 # TODO: remove this
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core OPTIONAL
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core OPTIONAL)
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
 else()
-    ov_install_static_lib(${TARGET_NAME} core OPTIONAL)
+    ov_install_static_lib(${TARGET_NAME} core)
 endif()
