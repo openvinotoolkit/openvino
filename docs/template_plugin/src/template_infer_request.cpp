@@ -337,25 +337,6 @@ void TemplateInferRequest::inferPostprocess() {
         auto networkOutput = _networkOutputBlobs[output.first];
         {
             std::size_t actual_size = 1;
-            auto dims = networkOutput->getTensorDesc().getDims();
-            for (std::size_t j = 0; j < dims.size(); ++j) {
-                actual_size *= dims[j];
-                std::cout << dims[j];
-                if (j < dims.size() - 1) {
-                    std::cout << '*';
-                }
-            }
-            std::cout << " - networkOutput : " << std::endl;
-            auto data = networkOutput->buffer().as<unsigned char *>();
-            std::size_t actual_size_bytes = actual_size * 8;
-            for (std::size_t j = 0; j < fmin(actual_size_bytes, 100); ++j) {
-                int val = data[j];
-                std::cout << val << " ";
-            }
-            std::cout << std::endl << std::endl;
-        }
-        {
-            std::size_t actual_size = 1;
             auto dims = outputBlob->getTensorDesc().getDims();
             for (std::size_t j = 0; j < dims.size(); ++j) {
                 actual_size *= dims[j];
@@ -373,8 +354,7 @@ void TemplateInferRequest::inferPostprocess() {
             }
             std::cout << std::endl << std::endl;
         }
-        if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
-            std::cout << "ngraph::runtime::reference::convert<int64_t, int32_t>" << std::endl;
+        if (result->get_output_partial_shape(0).is_dynamic() && outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
             auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
             auto* data = new std::int64_t [tensor->get_size_in_bytes() / 8];
             tensor->read(data,tensor->get_size_in_bytes());
@@ -382,31 +362,14 @@ void TemplateInferRequest::inferPostprocess() {
             for (size_t j = 0; j < tensor->get_size_in_bytes() / 8; ++j) {
                 write_data[j] = data[j];
             }
-//            int my_index = 0;
-//            for(size_t j = 0; j < tensor->get_size_in_bytes() / 8; ++j){
-//                for(size_t h = 0; h < 4; ++h) {
-//                    data[1 + my_index + h] = data[1 + j * 8 + 4 + h];
-//                }
-//                my_index += 4;
-//            }
-//            auto* wdata = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<unsigned char *>();
-//            for (size_t j = 0; j < (tensor->get_size_in_bytes() - 1) / 2 + 1; ++j) {
-//                wdata[j] = data[j];
-//            }
-//            ngraph::runtime::reference::convert<int64_t, int32_t>(
-//                    InferenceEngine::as<InferenceEngine::MemoryBlob>(networkOutput)->rmap().as<const int64_t *>(),
-//                    InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<int32_t *>(),
-//                    networkOutput->size());
+        }
+        else if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
+            blobCopy(networkOutput, outputBlob);
         } else if (result->get_output_partial_shape(0).is_dynamic()) {
             std::cout << "call wmap().as<char*>()" << std::endl << std::endl;
             auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
             tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(),
                          tensor->get_size_in_bytes());
-        } else {
-            blobCopy(networkOutput, outputBlob);
-        }
-        {
-
         }
         {
             std::size_t actual_size = 1;
