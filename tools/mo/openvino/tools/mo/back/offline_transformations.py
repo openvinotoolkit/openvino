@@ -67,7 +67,7 @@ def add_layouts(ov_function, argv: argparse.Namespace):
             node_name = list(found)[0]
             found_layout = layout_values[node_name]
             if found_layout['source_layout']:
-                prep.input(node_name).network().set_layout(Layout(found_layout['source_layout']))
+                prep.input(node_name).model().set_layout(Layout(found_layout['source_layout']))
             if found_layout['target_layout']:
                 prep.input(node_name).tensor().set_layout(Layout(found_layout['target_layout']))
 
@@ -78,7 +78,7 @@ def add_layouts(ov_function, argv: argparse.Namespace):
             node_name = list(found)[0]
             found_layout = layout_values[node_name]
             if found_layout['source_layout']:
-                prep.output(node_name).network().set_layout(Layout(found_layout['source_layout']))
+                prep.output(node_name).model().set_layout(Layout(found_layout['source_layout']))
             if found_layout['target_layout']:
                 prep.output(node_name).tensor().set_layout(Layout(found_layout['target_layout']))
     prep.build()

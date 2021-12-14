@@ -34,7 +34,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    AttrPtr initPrimitiveAttr() const override;
+    AttrPtr initPrimitiveAttr() override;
 
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const;
