@@ -62,7 +62,7 @@ bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor) {
 }
 
 bool op::v3::Assign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v6_Assign_evaluate);
+    NGRAPH_OP_SCOPE(v3_Assign_evaluate);
 
     outputs[0]->set_unary(inputs[0]);
     void* input = inputs[0]->get_data_ptr();
@@ -72,7 +72,7 @@ bool op::v3::Assign::evaluate(const HostTensorVector& outputs, const HostTensorV
 }
 
 bool op::v3::Assign::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Assign_has_evaluate);
+    NGRAPH_OP_SCOPE(v3_Assign_has_evaluate);
     return true;
 }
 
