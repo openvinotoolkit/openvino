@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
         ov::runtime::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
 
-        std::shared_ptr<ov::Function> model = core.read_model(FLAGS_m);
+        std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
         OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
 
@@ -121,8 +121,8 @@ int main(int argc, char* argv[]) {
         if (useGna) {
             std::string gnaDevice =
                 useHetero ? FLAGS_d.substr(FLAGS_d.find("GNA"), FLAGS_d.find(",") - FLAGS_d.find("GNA")) : FLAGS_d;
-            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE] = "GNA_SW";
-            // gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
+            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE] =
+                gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
         }
 
         if (FLAGS_pc) {
@@ -228,7 +228,7 @@ int main(int argc, char* argv[]) {
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::ExecutableNetwork executableNet = core.compile_model(model, deviceStr);
+        ov::runtime::CompiledModel executableNet = core.compile_model(model, deviceStr);
 
         // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
