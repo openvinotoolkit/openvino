@@ -118,7 +118,7 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
                 _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
             else:
                 _input_shapes.append({'node': node, 'shape': shape})
-    elif isinstance(input_user_shapes, np.ndarray):
+    elif isinstance(input_user_shapes, tuple):
         model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
         _input_shapes.append({'node': model_inputs[0], 'shape': input_user_shapes})

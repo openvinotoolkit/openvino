@@ -257,10 +257,12 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'models. Model Optimizer performs necessary transformations to convert the shape to '
                                    'the layout required by Inference Engine (N,C,H,W). The shape could contain '
                                    'undefined dimensions (-1) and should fit the dimensions defined in the input '
-                                   'operation of the graph. If there are multiple inputs in the model, --input_shape '
-                                   'should contain definition of shape for each input separated by a comma, for '
-                                   'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
-                                   'Alternatively, specify shapes with the --input option.')
+                                   'operation of the graph. Boundaries of undefined dimension can be specified with '
+                                   'ellipsis, for example [1,1..10,128,128]. One boundary can be undefined, for '
+                                   'example [1,..100] or [1,3,1..,1..]. If there are multiple inputs in the model, '
+                                   '--input_shape should contain definition of shape for each input separated by a '
+                                   'comma, for example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D '
+                                   'shapes. Alternatively, specify shapes with the --input option.')
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -778,12 +780,12 @@ def remove_shape_from_input_value(input_value: str):
     :return: string without shape specification
     """
     assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
-    return re.sub(r'[(\[]([0-9  -]*)[)\]]', '', input_value)
+    return re.sub(r'[(\[]([0-9\.?  -]*)[)\]]', '', input_value)
 
 
 def get_shape_from_input_value(input_value: str):
     """
-    Returns the numpy array with shape corresponding to the shape specified in the input value string
+    Returns the list of tuples corresponding to the shape specified in the input value string
     :param input_value: string passed as input to the --input command line parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
@@ -791,11 +793,11 @@ def get_shape_from_input_value(input_value: str):
     input_value = input_value.split('->')[0]
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9  -]*)[)\]]', input_value)
+    shape = re.findall(r'[(\[]([0-9\.\?  -]+)[)\]]', input_value)
     if len(shape) == 0:
         shape = None
     elif len(shape) == 1:
-        shape = np.fromstring(shape[0], dtype=np.int64, sep=' ')
+        shape = tuple(map(parse_dimension, shape[0].split(' ')))
     else:
         raise Error("Wrong syntax to specify shape. Use --input "
                     "\"node_name[shape]->value\"")
@@ -853,6 +855,11 @@ def parse_input_value(input_value: str):
     value = get_value_from_input_value(input_value)
     shape = get_shape_from_input_value(input_value.split('->')[0])
     value_size = np.prod(len(value)) if isinstance(value, list) else 1
+
+    if value is not None and shape is not None:
+        for dim in shape:
+            if isinstance(dim, tuple) or dim == -1:
+                raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
 
     if shape is not None and value is not None and np.prod(shape) != value_size:
         raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
@@ -1043,6 +1050,33 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     return placeholder_values, input_node_names
 
 
+def parse_dimension(dim: str):
+    if '..' in dim:
+        numbers_reg = r'^[0-9]+$'
+        dims = dim.split('..')
+        match_res0 = re.match(numbers_reg, dims[0])
+        match_res1 = re.match(numbers_reg, dims[1])
+        if len(dims[0].strip()) > 0 and match_res0 is None:
+            Error("Incorrect min value of dimension '{}'".format(dims[0]))
+        if len(dims[1].strip()) > 0 and match_res1 is None:
+            Error("Incorrect max value of dimension '{}'".format(dims[1]))
+
+        min_val = np.int64(dims[0]) if match_res0 else np.int64(0)
+        max_val = np.int64(dims[1]) if match_res1 else np.iinfo(np.int64).max
+        assert min_val >= 0, "Incorrect min value of the dimension {}".format(dim)
+
+        if min_val == np.int64(0) and max_val == np.iinfo(np.int64).max:
+            return np.int64(-1)
+
+        assert min_val < max_val, "Min value should be less than max value. Got min value: {}, " \
+                                  "max value: {}".format(min_val, max_val)
+
+        return min_val, max_val
+    if '?' in dim:
+        return np.int64(-1)
+    return np.int64(dim)
+
+
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
     """
     Parses input layers names and input shapes from the cli and returns the parsed object.
@@ -1055,16 +1089,18 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         E.g. 'inp1,inp2', 'node_name1[shape1]->value1,node_name2[shape2]->value2'
     argv_input_shape
         string with a list of input shapes: either an empty string, or tuples separated with comma.
-        E.g. '(1,2),(3,4)'.
-        Only positive integers are accepted except -1, which can be on any position in a shape.
+        E.g. '[1,2],[3,4]'.
+        Only positive integers are accepted.
+        '?' marks dynamic dimension.
+        Partial shape is specified with ellipsis. E.g. '[1..10,2,3]'
     argv_batch
         integer that overrides batch size in input shape
 
     Returns
     -------
-        parsed shapes in form of {'name of input':ndarray} if names of inputs are provided with shapes
+        parsed shapes in form of {'name of input':tuple} if names of inputs are provided with shapes
         parsed shapes in form of {'name of input':None} if names of inputs are provided without shapes
-        ndarray if only one shape is provided and no input name
+        tuple if only one shape is provided and no input name
         None if neither shape nor input were provided
     """
     if argv_input_shape and argv_batch:
@@ -1099,7 +1135,8 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     inputs = list()
     placeholder_shapes = None
 
-    first_digit_reg = r'([0-9 ]+|-1)'
+    range_reg = r'([0-9]*\.\.[0-9]*)'
+    first_digit_reg = r'([0-9 ]+|-1|\?|{})'.format(range_reg)
     next_digits_reg = r'(,{})*'.format(first_digit_reg)
     tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
                                                   first_digit_reg, next_digits_reg)
@@ -1107,7 +1144,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
         if not re.match(full_reg, argv_input_shape):
             raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
-        shapes = re.findall(r'[(\[]([0-9, -]+)[)\]]', argv_input_shape)
+        shapes = re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
 
     if argv_input:
         inputs = argv_input.split(',')
@@ -1118,14 +1155,22 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         if len(shapes) > 1:
             raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
         else:
-            placeholder_shapes = np.fromstring(shapes[0], dtype=np.int64, sep=',')
+            placeholder_shapes = tuple(map(parse_dimension, shapes[0].split(',')))
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
-        inputs = list(map(lambda x: x.split('->')[0], inputs))
-        placeholder_shapes = dict(zip_longest(inputs,
-                                              map(lambda x: np.fromstring(x, dtype=np.int64,
-                                                                          sep=',') if x else None, shapes)))
+        inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
+        placeholder_shapes = dict(zip_longest(inputs_without_value,
+                                              map(lambda x: tuple(map(parse_dimension, x.split(','))) if x else None,
+                                                  shapes)))
+        for inp in inputs:
+            if '->' not in inp:
+                continue
+            shape = placeholder_shapes[inp.split('->')[0]]
+            for dim in shape:
+                if isinstance(dim, tuple) or dim == -1:
+                    raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
+
     elif argv_input:
         raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
 

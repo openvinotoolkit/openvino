@@ -537,11 +537,11 @@ class TestUserDataRepack(unittest.TestCase):
 
     def test_error(self):
         graph = build_graph(self.nodes, self.edges)
-        self.assertRaises(Error, input_user_data_repack, graph, np.array([1, 227, 227, 3]), None)
+        self.assertRaises(Error, input_user_data_repack, graph, tuple([1, 227, 227, 3]), None)
 
     def test_error_2(self):
         graph = build_graph(self.nodes, self.edges)
-        self.assertRaises(Error, input_user_data_repack, graph, np.array([1, 227, 227, 3]), None)
+        self.assertRaises(Error, input_user_data_repack, graph, tuple([1, 227, 227, 3]), None)
 
     def test_error_3(self):
         graph = build_graph(self.nodes, self.edges)
@@ -549,7 +549,7 @@ class TestUserDataRepack(unittest.TestCase):
 
     def test_input_and_freeze(self):
         graph = build_graph(self.nodes, self.edges)
-        shape_1 = np.array([1, 160, 160, 3])
+        shape_1 = tuple([1, 160, 160, 3])
         input, freeze_placeholder = input_user_data_repack(graph, shape_1, {'Bb': True})
         self.assertDictEqual(input, {'A': [{'shape': shape_1, 'port': None}], 'B': [{'shape': None, 'port': None}]})
         self.assertDictEqual(freeze_placeholder, {'B': True})
