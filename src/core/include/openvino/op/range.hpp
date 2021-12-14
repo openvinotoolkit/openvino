@@ -40,7 +40,7 @@ public:
         m_output_type = output_type;
     }
 
-    element::Type get_output_type() const {
+    const element::Type& get_output_type() const {
         return m_output_type;
     }
 

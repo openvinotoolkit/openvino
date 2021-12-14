@@ -27,10 +27,9 @@ void shape_infer(const Einsum* op, const std::vector<T>& input_shapes, std::vect
                           "Equation must contain a number of subscripts equal to a number of Einsum inputs.");
     NODE_VALIDATION_CHECK(op, output_shapes.size() == 1);
 
-    // create a dictionary with dimension sizes (or ranges in case dynamic shapes) for each label
-    // and check their compatibility in case repeating labels
+    // create a dictionary with dimension sizes (or ranges in case of dynamic shapes) for each label
+    // and check their compatibility in case of repeating labels
     std::unordered_map<std::string, T> label_to_shape;
-    label_to_shape.clear();
 
     for (size_t input_idx = 0; input_idx < input_shapes.size(); ++input_idx) {
         const auto& pshape = input_shapes[input_idx];

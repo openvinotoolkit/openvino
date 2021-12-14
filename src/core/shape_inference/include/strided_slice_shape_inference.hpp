@@ -70,7 +70,7 @@ void shape_infer(const StridedSlice* op,
 
         auto convert_mask_to_axis_set = [](const std::vector<int64_t>& mask) {
             AxisSet axis_set{};
-            for (size_t i = 0; i < static_cast<size_t>(mask.size()); ++i) {
+            for (size_t i = 0; i < mask.size(); ++i) {
                 if (mask[i] == 1) {
                     axis_set.emplace(i);
                 }
@@ -138,16 +138,8 @@ void shape_infer(const StridedSlice* op,
                 }
                 // calculating dimension (begin, end, begin_mask, end_mask, stride)
                 else {
-                    // check dynamic dimension
-                    if (input_shape[input_shape_idx].is_dynamic()) {
-                        input_shape_idx++;
-                        dim.emplace_back(Dimension::dynamic());
-                        continue;
-                    }
-
-                    int64_t lb = begin[axis];
-                    int64_t ub = end[axis];
-
+                    const int64_t lb0 = begin[axis];
+                    const int64_t ub0 = end[axis];
                     // set default value for stride or use given value
                     int64_t stride = 1;
                     if (strides.size() > axis) {
@@ -155,54 +147,75 @@ void shape_infer(const StridedSlice* op,
                     }
                     NODE_VALIDATION_CHECK(op, stride != 0, "Stride must be non-zero");
 
-                    // convert negative indexes to positive
-                    // take max for this case: if abs(lb) > input_shape[input_shape_idx],then after
-                    // conversion lb < 0
-                    // so according to tensorflow and numpy we just get 0
-                    if (lb < 0) {
-                        lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx].get_length()) + lb, int64_t(0));
-                    }
-
-                    if (ub < 0) {
-                        ub = std::max(static_cast<int64_t>(input_shape[input_shape_idx].get_length()) + ub,
-                                      stride > 0 ? int64_t(0) : int64_t(-1));
-                    }
-
-                    // apply restrictions when begin or end values more than max possible values.
-                    lb = std::min(static_cast<int64_t>(input_shape[input_shape_idx].get_length()), lb);
-                    ub = std::min(static_cast<int64_t>(input_shape[input_shape_idx].get_length()), ub);
-
-                    int64_t dimension = 0;
-                    if (stride < 0) {
-                        // apply masks
-                        if (begin_mask.count(axis)) {
-                            lb = input_shape[input_shape_idx].get_length() - 1;
-                        }
-                        if (end_mask.count(axis)) {
-                            ub = -1;
+                    auto get_output_dim = [&](int64_t input_dim) {
+                        // make a mutable copy
+                        auto lb = lb0;
+                        auto ub = ub0;
+                        // convert negative indexes to positive
+                        // take max for this case: if abs(lb) > input_shape[input_shape_idx],then after
+                        // conversion lb < 0
+                        // so according to tensorflow and numpy we just get 0
+                        if (lb < 0) {
+                            lb = std::max(input_dim + lb, int64_t(0));
                         }
 
-                        lb = std::min(lb, static_cast<int64_t>(input_shape[input_shape_idx].get_length()) - 1);
-                        lb -= 1;  // we always get 1st element, so we need decrease range
-                        if (ub <= lb) {
-                            dimension = (ub - lb) / stride + 1;
+                        if (ub < 0) {
+                            ub = std::max(input_dim + ub, stride > 0 ? int64_t(0) : int64_t(-1));
                         }
+
+                        // apply restrictions when begin or end values more than max possible values.
+                        lb = std::min(input_dim, lb);
+                        ub = std::min(input_dim, ub);
+
+                        int64_t dimension = 0;
+                        if (stride < 0) {
+                            // apply masks
+                            if (begin_mask.count(axis)) {
+                                lb = input_dim - 1;
+                            }
+                            if (end_mask.count(axis)) {
+                                ub = -1;
+                            }
+
+                            lb = std::min(lb, input_dim - 1);
+                            lb -= 1;  // we always get 1st element, so we need decrease range
+                            if (ub <= lb) {
+                                dimension = (ub - lb) / stride + 1;
+                            }
+                        } else {
+                            // apply masks
+                            if (begin_mask.count(axis)) {
+                                lb = 0;
+                            }
+                            if (end_mask.count(axis)) {
+                                ub = input_dim;
+                            }
+
+                            lb += 1;  // we always get 1st element, so we need decrease range
+                            if (ub >= lb) {
+                                dimension = (ub - lb) / stride + 1;
+                            }
+                        }
+                        return dimension;
+                    };
+
+                    if (input_shape[input_shape_idx].is_dynamic()) {
+                        // the relationship between input and output length is monotonically increasing
+                        // so we repeat the dimension inference twice to infer dynamic dimension
+                        const Interval& interval = input_shape[input_shape_idx].get_interval();
+                        int64_t odim_min = get_output_dim(interval.get_min_val());
+                        int64_t odim_max;
+                        if (interval.has_upper_bound())
+                            odim_max = get_output_dim(interval.get_max_val());
+                        else
+                            odim_max = -1;
+
+                        dim.emplace_back(ov::Dimension(odim_min, odim_max));
                     } else {
-                        // apply masks
-                        if (begin_mask.count(axis)) {
-                            lb = 0;
-                        }
-                        if (end_mask.count(axis)) {
-                            ub = input_shape[input_shape_idx].get_length();
-                        }
-
-                        lb += 1;  // we always get 1st element, so we need decrease range
-                        if (ub >= lb) {
-                            dimension = (ub - lb) / stride + 1;
-                        }
+                        int64_t dimension = get_output_dim(input_shape[input_shape_idx].get_length());
+                        dim.emplace_back(dimension);
                     }
 
-                    dim.emplace_back(dimension);
                     input_shape_idx++;
                 }
             }

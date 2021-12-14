@@ -348,18 +348,24 @@ void op::v0::Range::validate_and_infer_types() {
                           result_et != element::boolean,
                           "Element type for start, stop, and step, must not be boolean.");
 
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).compatible(ov::Shape{}), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this,
+                          result_et != element::Type_t::u1 && result_et != element::Type_t::i4 &&
+                              result_et != element::Type_t::u4 && result_et != element::Type_t::undefined,
+                          "Internal nGraph error: unsupported element type: ",
+                          result_et);
 
-    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
-    std::vector<PartialShape> input_shapes;
-    for (int i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
+    if (result_et == element::Type_t::dynamic) {
+        set_output_type(0, result_et, ov::PartialShape::dynamic(1));
+    } else {
+        std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
+        std::vector<PartialShape> input_shapes;
+        for (int i = 0; i < get_input_size(); i++)
+            input_shapes.push_back(get_input_partial_shape(i));
 
-    op::v0::shape_infer(this, input_shapes, result_shapes);
+        op::v0::shape_infer(this, input_shapes, result_shapes);
 
-    set_output_type(0, result_et, result_shapes[0]);
+        set_output_type(0, result_et, result_shapes[0]);
+    }
 }
 
 shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const {
