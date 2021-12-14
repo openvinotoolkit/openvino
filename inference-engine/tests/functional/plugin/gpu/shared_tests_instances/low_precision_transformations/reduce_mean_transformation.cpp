@@ -24,23 +24,31 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params = {
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
-        { 2, 3 },
-        true,
+        {},
+        {},
+        {{2, 3}, true},
+        {}
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
-        { 2, 3 },
-        false,
+        {},
+        {},
+        {{2, 3}, false},
+        {}
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
-        { 1 },
-        true,
+        {},
+        {},
+        {{ 1 }, true},
+        {}
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
-        { 1 },
-        false,
+        {},
+        {},
+        {{ 1 }, false},
+        {}
     },
     {
         {
@@ -50,8 +58,10 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
             { 0.f, 0.f, 0.f },
             { 255.f, 25.5f, 2.55f }
         },
-        { 2, 3 },
-        true
+        {},
+        {},
+        {{ 2, 3 }, true},
+        {}
     },
     {
         {
@@ -61,8 +71,10 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
             { 0.f, 0.f, 0.f },
             { 255.f, 25.5f, 2.55f }
         },
-        { 2, 3 },
-        false,
+        {},
+        {},
+        {{ 2, 3 }, false},
+        {}
     },
     {
         {
@@ -72,8 +84,10 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
             { 0.f, 0.f, 0.f },
             { 255.f, 25.5f, 2.55f }
         },
-        { 0, 1 },
-        true,
+        {},
+        {},
+        {{ 0, 1 }, true},
+        {}
     },
     {
         {
@@ -83,8 +97,10 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
             { 0.f, 0.f, 0.f },
             { 255.f, 25.5f, 2.55f }
         },
-        { 0, 1 },
-        false,
+        {},
+        {},
+        {{ 0, 1 }, false},
+        {}
     },
 };
 

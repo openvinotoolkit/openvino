@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(ProposalIE) : public Op {
+class ProposalIE : public Op {
 public:
     OPENVINO_OP("ProposalIE", "legacy");
     BWDCMP_RTTI_DECLARATION;
