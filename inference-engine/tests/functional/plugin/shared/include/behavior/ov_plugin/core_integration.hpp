@@ -424,7 +424,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
         }
         for (const auto& op : func->get_ops()) {
             std::string affinity = rl_map[op->get_friendly_name()];
-            op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            op->get_rt_info()["affinity"] = affinity;
         }
         auto exeNetwork = ie.compile_model(ksoNetwork, deviceName);
     } catch (const InferenceEngine::NotImplemented& ex) {
@@ -446,7 +446,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
         }
         for (const auto& op : func->get_ops()) {
             std::string affinity = rl_map[op->get_friendly_name()];
-            op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            op->get_rt_info()["affinity"] = affinity;
         }
         auto exeNetwork = ie.compile_model(ksoNetwork, deviceName);
     } catch (const ov::Exception& ex) {
@@ -865,7 +865,7 @@ TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
 TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
     auto ie = createCoreWithTemplate();
     auto net = ie.compile_model(actualNetwork, deviceName);
-    auto runtime_function = net.get_runtime_function();
+    auto runtime_function = net.get_runtime_model();
     ASSERT_NE(nullptr, runtime_function);
     auto actual_parameters = runtime_function->get_parameters();
     auto actual_results = runtime_function->get_results();

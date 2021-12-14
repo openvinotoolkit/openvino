@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -38,8 +38,8 @@ protected:
 
     virtual void configure_model();
     virtual void compile_model();
-    virtual void init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);
-    virtual void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
+    virtual void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);
+    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void infer();
     virtual void validate();
 
@@ -49,13 +49,13 @@ protected:
     std::string targetDevice;
     Config configuration;
 
-    std::shared_ptr<ov::Function> function, functionRefs = nullptr;
+    std::shared_ptr<ov::Model> function, functionRefs = nullptr;
     std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor> inputs;
     std::vector<ngraph::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
-    ov::runtime::ExecutableNetwork executableNetwork;
+    ov::runtime::CompiledModel executableNetwork;
     ov::runtime::InferRequest inferRequest;
 
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
@@ -63,9 +63,8 @@ protected:
 
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
 
-private:
-    std::vector<ov::runtime::Tensor> calculate_refs();
-    std::vector<ov::runtime::Tensor> get_plugin_outputs();
+    virtual std::vector<ov::runtime::Tensor> calculate_refs();
+    virtual std::vector<ov::runtime::Tensor> get_plugin_outputs();
 };
 
 inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& shapes) {

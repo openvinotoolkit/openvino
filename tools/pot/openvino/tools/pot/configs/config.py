@@ -5,7 +5,7 @@ from pathlib import Path
 from copy import deepcopy
 from addict import Dict
 
-import mo
+import openvino.tools.mo
 
 from ..graph.utils import create_quantization_info_for_mo, create_cli_params_for_mo
 from ..utils.ac_imports import ConfigReader
@@ -15,7 +15,7 @@ from .utils import check_params
 
 logger = get_logger(__name__)
 
-MO_PATH = Path(mo.__file__).parent.parent
+MO_PATH = Path(openvino.tools.mo.__file__).parent.parent
 DEFAULT_TARGET_DEVICE = 'ANY'
 DEFAULT_PRESET = 'performance'
 
@@ -228,8 +228,6 @@ class Config(Dict):
                 'opt_backend': None,
             },
             'TunableQuantization': {
-                'tuning_scope': None,
-                'estimator_tuning_scope': None,
                 'outlier_prob_choices': None
             },
             'MagnitudeSparsity': {

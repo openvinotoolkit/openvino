@@ -13,7 +13,7 @@ function(ie_generate_dev_package_config)
             APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
         list(APPEND all_dev_targets ${${component}})
     endforeach()
-    add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
+    add_custom_target(ie_dev_targets DEPENDS ${all_dev_targets})
 
     configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
                                   "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
@@ -32,8 +32,8 @@ endfunction()
 
 function(register_extra_modules)
     # post export
-    openvino_developer_export_targets(COMPONENT inference_engine TARGETS inference_engine)
-    openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph)
+    openvino_developer_export_targets(COMPONENT core TARGETS inference_engine)
+    openvino_developer_export_targets(COMPONENT core TARGETS ngraph)
 
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
 
@@ -92,9 +92,6 @@ endfunction()
 #
 # Extra modules support
 #
-
-# for Template plugin
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
 
 # this InferenceEngineDeveloperPackageConfig.cmake is not used
 # during extra modules build since it's generated after modules

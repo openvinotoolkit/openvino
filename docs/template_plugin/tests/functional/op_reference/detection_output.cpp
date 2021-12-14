@@ -179,7 +179,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DetectionOutputParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DetectionOutputParams& params) {
         const auto loc = std::make_shared<op::v0::Parameter>(params.inType, params.locShape);
         const auto conf = std::make_shared<op::v0::Parameter>(params.inType, params.confShape);
         const auto priorBoxes = std::make_shared<op::v0::Parameter>(params.inType, params.priorBoxesShape);
@@ -187,10 +187,10 @@ private:
             const auto auxConf = std::make_shared<op::v0::Parameter>(params.inType, params.auxConfShape);
             const auto auxLoc = std::make_shared<op::v0::Parameter>(params.inType, params.auxLocShape);
             const auto DetectionOutput = std::make_shared<op::v0::DetectionOutput>(loc, conf, priorBoxes, auxConf, auxLoc, params.attrs);
-            return std::make_shared<ov::Function>(NodeVector {DetectionOutput}, ParameterVector {loc, conf, priorBoxes, auxConf, auxLoc});
+            return std::make_shared<ov::Model>(NodeVector {DetectionOutput}, ParameterVector {loc, conf, priorBoxes, auxConf, auxLoc});
         } else {
             const auto DetectionOutput = std::make_shared<op::v0::DetectionOutput>(loc, conf, priorBoxes, params.attrs);
-            return std::make_shared<ov::Function>(NodeVector {DetectionOutput}, ParameterVector {loc, conf, priorBoxes});
+            return std::make_shared<ov::Model>(NodeVector {DetectionOutput}, ParameterVector {loc, conf, priorBoxes});
         }
     }
 };
@@ -224,7 +224,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DetectionOutputParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DetectionOutputParams& params) {
         const auto loc = std::make_shared<op::v0::Parameter>(params.inType, params.locShape);
         const auto conf = std::make_shared<op::v0::Parameter>(params.inType, params.confShape);
         const auto priorBoxes = std::make_shared<op::v0::Parameter>(params.inType, params.priorBoxesShape);
@@ -233,11 +233,11 @@ private:
             const auto auxLoc = std::make_shared<op::v0::Parameter>(params.inType, params.auxLocShape);
             const auto DetectionOutput =
                 std::make_shared<op::v8::DetectionOutput>(loc, conf, priorBoxes, auxConf, auxLoc, params.attrs_v8);
-            return std::make_shared<ov::Function>(NodeVector{DetectionOutput},
+            return std::make_shared<ov::Model>(NodeVector{DetectionOutput},
                                                   ParameterVector{loc, conf, priorBoxes, auxConf, auxLoc});
         } else {
             const auto DetectionOutput = std::make_shared<op::v8::DetectionOutput>(loc, conf, priorBoxes, params.attrs_v8);
-            return std::make_shared<ov::Function>(NodeVector{DetectionOutput}, ParameterVector{loc, conf, priorBoxes});
+            return std::make_shared<ov::Model>(NodeVector{DetectionOutput}, ParameterVector{loc, conf, priorBoxes});
         }
     }
 };
