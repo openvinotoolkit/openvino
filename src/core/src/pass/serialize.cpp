@@ -452,6 +452,22 @@ public:
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
             const auto& attrs = a->get();
             m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            const auto& attrs = a->get();
+            std::stringstream shape_str_stream;
+            shape_str_stream << attrs;
+            auto shape_str = shape_str_stream.str();
+            if (shape_str[0] == '{' && shape_str[shape_str.size() - 1] == '}')
+                shape_str = shape_str.substr(1, shape_str.size() - 2);
+            m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            const auto& attrs = a->get();
+            std::stringstream dim_str_stream;
+            dim_str_stream << attrs;
+            auto dim_str = dim_str_stream.str();
+            if (dim_str[0] == '{' && dim_str[dim_str.size() - 1] == '}')
+                dim_str = dim_str.substr(1, dim_str.size() - 2);
+            m_xml_node.append_attribute(name.c_str()).set_value(dim_str.c_str());
         } else {
             throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
@@ -1035,7 +1051,7 @@ std::string provide_bin_path(const std::string& xmlPath, const std::string& binP
 
 void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
-                   std::shared_ptr<ov::Function> f,
+                   std::shared_ptr<ov::Model> f,
                    ov::pass::Serialize::Version ver,
                    const std::map<std::string, ngraph::OpSet>& custom_opsets,
                    bool deterministic = false) {
@@ -1071,7 +1087,7 @@ void serializeFunc(std::ostream& xml_file,
 }  // namespace
 
 namespace ov {
-bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
@@ -1150,7 +1166,7 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
     : StreamSerialize(stream, {}, custom_data_serializer, version) {}
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     /*
         Format:
         [ DataHeader  ]
@@ -1193,7 +1209,8 @@ bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f)
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);
     XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler, version);
-    visitor.on_attribute(name, f);
+    std::shared_ptr<ov::Model> fun = f;
+    visitor.on_attribute(name, fun);
 
     // IR
     hdr.model_offset = m_stream.tellp();
@@ -1250,7 +1267,7 @@ public:
 };
 }  // namespace
 
-bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
+bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);

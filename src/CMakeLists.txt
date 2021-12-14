@@ -9,6 +9,8 @@ add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_custom_target(ov_runtime_libraries)
 
+include(cmake/install_tbb.cmake)
+
 # TODO: Fix Wall for core, frontends, tests and  c binding
 add_subdirectory(core)
 add_subdirectory(frontends)

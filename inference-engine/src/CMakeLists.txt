@@ -7,8 +7,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
 endif()
 
-add_subdirectory(offline_transformations)
-
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
 endif()
@@ -16,4 +14,3 @@ endif()
 if(ENABLE_VPU)
     add_subdirectory(vpu)
 endif()
-

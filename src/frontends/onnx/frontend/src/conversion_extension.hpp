@@ -6,7 +6,6 @@
 #include "common/conversion_extension.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/extension.hpp"
-#include "openvino/core/variant.hpp"
 #include "onnx_frontend/frontend.hpp"
 
 namespace ov {

@@ -294,7 +294,7 @@ PyAny from_ov_any(const ov::Any& any) {
     }
 }
 
-uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual) {
+uint32_t get_optimal_number_of_requests(const ov::runtime::CompiledModel& actual) {
     try {
         auto parameter_value = actual.get_metric(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as<std::vector<std::string>>();
@@ -319,7 +319,6 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
     py::dict res;
     for (const auto& out : outputs) {
         ov::runtime::Tensor t{request.get_tensor(out)};
-        std::cout << t.get_element_type() << " !\n";
         switch (t.get_element_type()) {
         case ov::element::Type_t::i8: {
             py::array arr(t.get_shape(), t.data<int8_t>());

@@ -24,9 +24,9 @@ namespace frontend {
 class ONNX_FRONTEND_API FrontEndONNX : public FrontEnd {
 public:
     using CreatorFunction = std::function<::ov::OutputVector(const NodeContext&)>;
-    std::shared_ptr<ov::Function> convert(InputModel::Ptr model) const override;
-    void convert(std::shared_ptr<ov::Function> partially_converted) const override;
-    std::shared_ptr<ov::Function> decode(InputModel::Ptr model) const override;
+    std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override;
+    void convert(std::shared_ptr<ov::Model> partially_converted) const override;
+    std::shared_ptr<ov::Model> decode(InputModel::Ptr model) const override;
     std::string get_name() const override;
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
