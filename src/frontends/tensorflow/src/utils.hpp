@@ -21,7 +21,7 @@
 #pragma once
 
 #include "graph_iterator_proto.hpp"
-#include "node_context.hpp"
+#include "tensorflow_frontend/node_context.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/log.hpp"

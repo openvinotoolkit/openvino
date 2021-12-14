@@ -8,12 +8,12 @@
 #include <map>
 #include <string>
 
-#include "node_context.hpp"
+#include "paddlepaddle_frontend/node_context.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pdpd {
-using CreatorFunction = std::function<NamedOutputs(const ov::frontend::NodeContext&)>;
+using CreatorFunction = std::function<NamedOutputs(const ov::frontend::pdpd::NodeContext&)>;
 
 std::map<std::string, CreatorFunction> get_supported_ops();
 

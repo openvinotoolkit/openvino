@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <limits>  // std::numeric_limits
-#include <node_context.hpp>
+#include "paddlepaddle_frontend/node_context.hpp"
 #include <numeric>
 
 #include "openvino/opsets/opset6.hpp"

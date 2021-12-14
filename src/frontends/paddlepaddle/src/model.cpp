@@ -9,7 +9,7 @@
 
 #include "decoder.hpp"
 #include "framework.pb.h"
-#include "node_context.hpp"
+#include "paddlepaddle_frontend/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "paddlepaddle_frontend/exceptions.hpp"
 #include "paddlepaddle_frontend/place.hpp"

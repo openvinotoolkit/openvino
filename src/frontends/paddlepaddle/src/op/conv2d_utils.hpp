@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "node_context.hpp"
+#include "paddlepaddle_frontend/node_context.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 
 namespace ov {

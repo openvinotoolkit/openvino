@@ -9,6 +9,7 @@
 #include <fstream>
 #include <onnx_import/core/node.hpp>
 #include <common/node_context.hpp>
+#include <openvino/core/any.hpp>
 
 namespace ov {
 namespace frontend {

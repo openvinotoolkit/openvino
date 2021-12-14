@@ -4,7 +4,7 @@
 
 #include "conv2d_utils.hpp"
 
-#include "node_context.hpp"
+#include "paddlepaddle_frontend/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "transformations/utils/utils.hpp"
 

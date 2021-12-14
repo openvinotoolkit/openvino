@@ -5,7 +5,7 @@
 #include "place.hpp"
 
 #include "common/frontend_exceptions.hpp"
-#include "node_context.hpp"
+#include "tensorflow_frontend/node_context.hpp"
 #include "op_def.pb.h"
 #include "tensor.pb.h"
 #include "types.pb.h"

@@ -15,8 +15,9 @@
 #include <onnx_import/onnx_utils.hpp>
 
 #include "onnx_common/onnx_model_validator.hpp"
-#include "conversion_extension.hpp"
-#include "node_context.hpp"
+#include "onnx_frontend/conversion_extension.hpp"
+#include "onnx_frontend/node_context.hpp"
+#include "so_extension.hpp"
 
 using namespace ov;
 using namespace ov::frontend;

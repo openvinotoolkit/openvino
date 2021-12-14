@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 
+#include "tensorflow_frontend/node_context.hpp"
 #include "common/conversion_extension.hpp"
 #include "common/frontend.hpp"
 #include "common/input_model.hpp"
@@ -19,7 +20,7 @@ namespace ov {
 namespace frontend {
 class TF_API FrontEndTF : public ov::frontend::FrontEnd {
 public:
-    using CreatorFunction = std::function<::ov::OutputVector(const NodeContext&)>;
+    using CreatorFunction = std::function<::ov::OutputVector(const ov::frontend::tf::NodeContext&)>;
     using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
 
     FrontEndTF();

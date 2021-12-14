@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
+#include "paddlepaddle_frontend/node_context.hpp"
 
 #include "openvino/opsets/opset7.hpp"
 #include "paddlepaddle_frontend/utility.hpp"

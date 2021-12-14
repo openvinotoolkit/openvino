@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
+#include "tensorflow_frontend/node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
 

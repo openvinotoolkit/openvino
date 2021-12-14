@@ -21,7 +21,7 @@ class PDPD_API FrontEndPDPD : public FrontEnd {
 public:
     using OutPortName = std::string;
     using NamedOutputs = std::map<OutPortName, OutputVector>;
-    using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
+    using CreatorFunction = std::function<NamedOutputs(const ov::frontend::pdpd::NodeContext&)>;
     using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
     FrontEndPDPD();
