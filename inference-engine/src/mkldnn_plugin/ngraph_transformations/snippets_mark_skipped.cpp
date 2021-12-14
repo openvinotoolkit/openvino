@@ -278,6 +278,27 @@ void PropagateIfHasOnlyChild(const std::shared_ptr<Node> &node, NodeFusingType n
     const bool has_only_child = out.size() == 1 && out[0].get_target_inputs().size() == 1;
     SetNodeFusingType(node, has_only_child ? nodeType : NodeFusingType::FusedTerminator);
 }
+// todo: Skipping MultiSubGraphOp such as TensorIterator, Loop and If. Snippets might tokenize their bodies in the future.
+//  Note that the function is recurrent, since there might be multi-level MultiSubGraphOp, if(){if(){}}else{} for example.
+void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
+    if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
+        std::vector<std::shared_ptr<ov::Model>> models{};
+        // Covers TensorIterator and Loop
+        if (auto s = ov::as_type_ptr<ov::op::util::SubGraphOp>(node)) {
+            models.push_back(s->get_function());
+        // Add new multi-body subgraph op here
+        } else if (auto if_op  = ov::as_type_ptr<ov::op::v8::If>(node)) {
+            models.push_back(if_op->get_then_body());
+            models.push_back(if_op->get_else_body());
+        }
+        for (auto& m : models) {
+            for (auto& n : m->get_ops()) {
+                snippets::pass::SetSnippetsNodeType(n, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+                MarkSubgraphOpAsSkipped(n);
+            }
+        }
+    }
+}
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
@@ -328,10 +349,8 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
         }
         if (GetNodeFusingType(node) != NodeFusingType::NotSet) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
-        // todo: Skipping TensorIterator for now, but snippets might go into the TI body in future
-        } else if (auto ti  = ov::as_type_ptr<ov::op::v0::TensorIterator>(node)) {
-            for (auto & op : ti->get_body()->get_ops())
-                SetSnippetsNodeType(op, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        } else {
+            MarkSubgraphOpAsSkipped(node);
         }
     }
     return true;
