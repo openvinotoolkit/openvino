@@ -44,7 +44,7 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
     result << "trgDev=" << targetDevice;
     result << "config=(";
     for (const auto configEntry : additionalConfig) {
-        result << configEntry.first << ", " << configEntry.second << ":";
+        result << configEntry.first << ", " << configEntry.second << ";";
     }
     result << ")";
     return result.str();

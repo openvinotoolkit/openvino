@@ -11,7 +11,8 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::I32,
 };
 
 const std::vector<ShapeRelatedParams> shapeRelatedParams = {

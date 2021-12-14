@@ -157,9 +157,6 @@ bool MKLDNNDeconvolutionNode::canBeExecutedInInt8() const {
         return false;
     }
 
-    // todo: [antonvor] added these checks to fix performance problems
-    if (kernel.size() == 3)
-        return false;
     if (!withGroups && stride.back() > 3)
         return false;
     if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common)) {
@@ -271,17 +268,25 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
 void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     mkldnn::post_ops ops;
 
+    auto getBinPostOpShape = [&](){
+        const auto outShape = getOutputShapeAtPort(0).getStaticDims();
+        const auto outShapeRank = getOutputShapeAtPort(0).getRank();
+        const auto chIdx = getFusingAxis();
+        std::vector<size_t> binaryShape(outShapeRank, 1);
+        binaryShape[chIdx] = outShape[chIdx];
+        return binaryShape;
+    };
+
     for (auto &node : fusedWith) {
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode) {
+        if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             // TODO [DS]: change to shape from memory
             constexpr int align = 16;
+            // use legacy depthwise since backprop convolution does not support binary post ops
             eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
             continue;
         }
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+        if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
@@ -358,6 +363,8 @@ void MKLDNNDeconvolutionNode::createPrimitive() {
         auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
         primArgs = {{DNNL_ARG_DIFF_DST, src}, {DNNL_ARG_WEIGHTS, weights}, {DNNL_ARG_DIFF_SRC, dst}};
     }
+
+    appendPostOpArgs(attr);
 }
 
 void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,

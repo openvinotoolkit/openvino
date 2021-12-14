@@ -121,10 +121,21 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}, int align = -1, bool initAsBinary = false,
-                       bool initBinaryMemory = false) override;
+    // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
+    // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
+    // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}, int align = 16) override;
+    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    enum BroadcastingPolicy {
+        PerChannel, // all FQ operations are per channel
+        PerTensor,  // all FQ operations are per tensor
+        Mixed,      // some per channel, some per tensor
+    };
+
+    BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
     MKLDNNMemoryPtr cropLowMemory;
     MKLDNNMemoryPtr cropHighMemory;
@@ -149,6 +160,7 @@ private:
 
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
+    void initializePostOpData(const VectorDims &postOpDims, const size_t bufferAlignment);
     void executeReference();
     void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
     void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
@@ -195,6 +207,8 @@ private:
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 
     std::string errorPrefix;
+
+    BroadcastingPolicy broadcastingPolicy;
 };
 
 }  // namespace MKLDNNPlugin

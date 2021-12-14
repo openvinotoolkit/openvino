@@ -19,7 +19,7 @@ public:
     void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
-    void FuseConvolutionAndBias(MKLDNNGraph &graph);
+    void FuseConvolutionMatMulAndBias(MKLDNNGraph &graph);
     void FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseMultiplyAndAdd(MKLDNNGraph &graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
