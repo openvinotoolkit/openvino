@@ -342,12 +342,12 @@ def prepare_ir(argv : argparse.Namespace):
             ngraph_function = moc_pipeline(argv, moc_front_end)
             return graph, ngraph_function
         except Exception as e:
-            fallback_reasons.append(f"frontend failure with exception:\n{e}")
+            fallback_reasons.append(f"frontend failure with exception: {e}")
     if len(fallback_reasons) > 0:
-        reasons_message = "\n".join(fallback_reasons)
+        reasons_message = ", ".join(fallback_reasons)
         t.send_event("mo", "fallback_reason", reasons_message)
-        log.warning("The IR prepartion was fallback to old the MO path."
-            f"The reason of fail on frontend path is: {reasons_message}"
+        log.warning("The IR prepartion was fallback to old the MO path. "
+            f"The reason of fail on frontend path is: {reasons_message}. "
             "Use --use_legacy_frontend flag to force using the old MO path to avoid additional checks.")
 
     t.send_event("mo", "conversion_method", "mo_legacy")

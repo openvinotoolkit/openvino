@@ -53,6 +53,9 @@ def base_args_config():
     args.disable_weights_compression = None
     args.reverse_input_channels = None
     args.data_type = None
+    args.layout = None
+    args.source_layout = None
+    args.target_layout = None
     return args
 
 
@@ -165,7 +168,7 @@ class TestMoFallback(unittest.TestCase):
             os.remove(args.transformations_config) # clean-up
 
 
-    @generate(*[('dir_to_extension', 'config.json', True, 'mo_legacy', 'extensions\ntransformations_config'),
+    @generate(*[('dir_to_extension', 'config.json', True, 'mo_legacy', 'extensions, transformations_config'),
                 (None, 'config.json', True, 'mo_legacy', 'transformations_config'),
                 ('dir_to_extension', None, True, 'mo_legacy', 'extensions'),
                 (None, None, True, 'onnx_frontend', None),
