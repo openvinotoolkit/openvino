@@ -25,7 +25,10 @@ set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "USE_STATIC_IE")
+    COMPILE_DEFINITIONS "USE_STATIC_IE"
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/cnn_network_ngraph_impl.cpp" PROPERTIES
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
@@ -163,8 +166,14 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
 
 # Static library used for unit tests which are always built
 
+file(GLOB_RECURSE legacy_src "${LEGACY_SRC_ROOT}/*.cpp"
+                             "${LEGACY_SRC_ROOT}/*.hpp")
+
+set_source_files_properties(${legacy_src} PROPERTIES
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
+            ${legacy_src}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
             ${IE_STATIC_DEPENDENT_FILES})
 
