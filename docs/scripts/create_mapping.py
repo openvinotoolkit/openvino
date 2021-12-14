@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import argparse
 import json
 import logging
@@ -10,6 +13,9 @@ REPOSITORIES = [
 ]
 
 def create_mapping(xml_input: Path, output_dir: Path, strip_path: Path):
+    """
+    Create a mapping between doxygen label and file path for edit on github button.
+    """
     xml_input = xml_input.resolve()
     output_dir = output_dir.resolve()
     strip_path = strip_path.resolve()
