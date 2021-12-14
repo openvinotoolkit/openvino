@@ -85,8 +85,11 @@ ov::Dimension DetectionOutputBase::compute_num_classes(const AttributesBase& att
         input_shapes.push_back(get_input_partial_shape(input_idx));
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
-    int64_t num_classes = -1;
-    int64_t num_prior_boxes_calculated = -1;
+    int64_t num_classes = 0;
+    int64_t num_prior_boxes_calculated = 0;
     ov::op::util::compute_num_classes(this, attrs, input_shapes, num_classes, num_prior_boxes_calculated);
-    return Dimension{num_classes};
+    if (num_classes > 0)
+        return Dimension{num_classes};
+    else
+        return Dimension::dynamic();
 }
