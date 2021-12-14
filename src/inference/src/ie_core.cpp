@@ -534,9 +534,10 @@ public:
         if (!enabled)
             return;
         try {
-            // do not reshape/re-batch originally batched networks!
+            // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
             const InputsDataMap inputInfo = network.getInputsInfo();
             ICNNNetwork::InputShapes shapes = network.getInputShapes();
+            bool atLeastOneInputIsBatched = false;
             for (const InputsDataMap::value_type& item : inputInfo) {
                 auto layout = item.second->getTensorDesc().getLayout();
                 if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
@@ -545,63 +546,68 @@ public:
                     if (1 != shapes[item.first][0])  // do not reshape/re-batch originally batched networks
                         IE_THROW(NotImplemented)
                             << "Auto-batching does not reshape/re-batch originally batched networks!";
+                    else
+                        atLeastOneInputIsBatched = true;
                 }
-                auto deviceNameWithoutBatch = !deviceNameWithBatchSize.empty()
-                                                  ? DeviceIDParser::getBatchDevice(deviceNameWithBatchSize)
-                                                  : deviceName;
-                unsigned int requests = 0;
-                unsigned int optimalBatchSize = 0;
-                if (deviceNameWithBatchSize.empty()) {
-                    // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
-                    // let's query the optimal batch size
-                    std::map<std::string, ie::Parameter> options;
-                    options["MODEL_PTR"] = &network;
-                    optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameWithoutBatch).getDeviceName())
-                                           .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
-                                           .as<unsigned int>();
-                    auto res =
-                        GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
-                    requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-                    const auto& reqs = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-                    if (reqs != config_with_batch.end())
-                        requests = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
-                    if (requests) {
-                        std::cout << "!!!!!!!!!!!!!!!Detected reqs_limitation: " << requests << std::endl;
-                        optimalBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
-                    }
-                }
-                auto function = network.getFunction();
-                bool bDetectionOutput = false;
-                for (auto&& node : function->get_ops()) {
-                    auto isDetectionOutputParent = [](decltype(node)& nd) {
-                        for (size_t n = 0; n < nd->get_input_size(); n++) {
-                            if (!std::strcmp("DetectionOutput", nd->get_input_node_ptr(n)->get_type_info().name))
-                                return true;
-                        }
-                        return false;
-                    };
+            }
+            if (!atLeastOneInputIsBatched)
+                IE_THROW(NotImplemented)
+                    << "Auto-batching supports only networks featuring inputs with the batched layouts !";
 
-                    if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
-                        (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
-                        node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                        std::cout << "!!! AFF !!! type: " << node->get_type_info().name
-                                  << ", name: " << node->get_friendly_name() << std::endl;
-                        bDetectionOutput = true;
-                    } else {
-                        node->get_rt_info()["affinity"] = "BATCH";
-                    }
+            auto deviceNameWithoutBatch =
+                !deviceNameWithBatchSize.empty() ? DeviceIDParser::getBatchDevice(deviceNameWithBatchSize) : deviceName;
+            unsigned int requests = 0;
+            unsigned int optimalBatchSize = 0;
+            if (deviceNameWithBatchSize.empty()) {
+                // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
+                // let's query the optimal batch size
+                std::map<std::string, ie::Parameter> options;
+                options["MODEL_PTR"] = &network;
+                optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameWithoutBatch).getDeviceName())
+                                       .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
+                                       .as<unsigned int>();
+                auto res =
+                    GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+                requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
+                const auto& reqs = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+                if (reqs != config_with_batch.end())
+                    requests = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
+                if (requests) {
+                    std::cout << "!!!!!!!!!!!!!!!Detected reqs_limitation: " << requests << std::endl;
+                    optimalBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
                 }
-                if (optimalBatchSize > 1 || !deviceNameWithBatchSize.empty()) {
-                    auto batchConfig = deviceNameWithBatchSize.empty()
-                                           ? deviceNameWithoutBatch + "(" + std::to_string(optimalBatchSize) + ")"
-                                           : deviceNameWithBatchSize;
-                    if (bDetectionOutput) {
-                        deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-                        std::cout << "HETERO code path!!!!" << std::endl;
-                        config_with_batch[CONFIG_KEY(AUTO_BATCH)] = batchConfig;
-                    } else {
-                        deviceName = "BATCH:" + batchConfig;
+            }
+            auto function = network.getFunction();
+            bool bDetectionOutput = false;
+            for (auto&& node : function->get_ops()) {
+                auto isDetectionOutputParent = [](decltype(node)& nd) {
+                    for (size_t n = 0; n < nd->get_input_size(); n++) {
+                        if (!std::strcmp("DetectionOutput", nd->get_input_node_ptr(n)->get_type_info().name))
+                            return true;
                     }
+                    return false;
+                };
+
+                if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
+                    (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
+                    node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
+                    std::cout << "!!! AFF !!! type: " << node->get_type_info().name
+                              << ", name: " << node->get_friendly_name() << std::endl;
+                    bDetectionOutput = true;
+                } else {
+                    node->get_rt_info()["affinity"] = "BATCH";
+                }
+            }
+            if (optimalBatchSize > 1 || !deviceNameWithBatchSize.empty()) {
+                auto batchConfig = deviceNameWithBatchSize.empty()
+                                       ? deviceNameWithoutBatch + "(" + std::to_string(optimalBatchSize) + ")"
+                                       : deviceNameWithBatchSize;
+                if (bDetectionOutput) {
+                    deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
+                    std::cout << "HETERO code path!!!!" << std::endl;
+                    config_with_batch[CONFIG_KEY(AUTO_BATCH)] = batchConfig;
+                } else {
+                    deviceName = "BATCH:" + batchConfig;
                 }
             }
         } catch (...) {
