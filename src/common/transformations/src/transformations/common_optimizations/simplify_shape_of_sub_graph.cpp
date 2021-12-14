@@ -239,8 +239,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
         auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
             auto shape_of = gather->get_input_node_shared_ptr(0);
-            if ((!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) ||
-                (shape_of->get_output_target_inputs(0).size() > 1)) {
+            if (!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) {
                 return false;
             }
             return shape_of->input_value(0) == data;
