@@ -42,7 +42,7 @@ void op::ReverseSequence::validate_and_infer_types() {
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& seq_lengths_et = get_input_element_type(1);
     const auto& seq_lengths_pshape = get_input_partial_shape(1);
-    normal_reverse_sequence_axis(this);
+    normalize_axes(this);
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {data_pshape, seq_lengths_pshape};
     shape_infer(this, input_shapes, output_shapes);
@@ -73,7 +73,7 @@ void op::ReverseSequence::set_sequence_axis(int64_t sequence_axis) {
     m_normalized_seq_axis = ov::normalize_axis(this, m_seq_axis, data_rank);
 }
 
-void op::ReverseSequence::normal_reverse_sequence_axis(ReverseSequence* op) {
+void op::ReverseSequence::normalize_axes(ReverseSequence* op) {
     const auto& data_pshape = op->get_input_partial_shape(0);
     const auto& data_rank = data_pshape.rank();
     NODE_VALIDATION_CHECK(op,

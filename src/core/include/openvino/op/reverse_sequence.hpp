@@ -57,7 +57,7 @@ private:
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes);
 
-    void normal_reverse_sequence_axis(ReverseSequence* op);
+    void normalize_axes(ReverseSequence* op);
 };
 }  // namespace v0
 }  // namespace op
