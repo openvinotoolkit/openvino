@@ -475,12 +475,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs_copy(3);
             expectedOutputs = ngraph::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
-            iter_swap(expectedOutputs.begin() + 0, expectedOutputs.begin() + 2);
-//            expectedOutputs[0] = expectedOutputs_copy[1];
-//            expectedOutputs[1] = expectedOutputs_copy[2];
-//            expectedOutputs[2] = expectedOutputs_copy[0];
             break;
         }
         case CONSTANT_FOLDING: {
