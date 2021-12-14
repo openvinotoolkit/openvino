@@ -1,29 +1,29 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <time.h>
-
+// clang-format off
 #include <chrono>
+#include <time.h>
 #include <fstream>
 #include <functional>
-#include <gna/gna_config.hpp>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
-#include <openvino/openvino.hpp>
 #include <random>
-#include <samples/args_helper.hpp>
-#include <samples/slog.hpp>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
-
+#include <openvino/openvino.hpp>
+#include <gna/gna_config.hpp>
 #include "fileutils.hpp"
 #include "speech_sample.hpp"
 #include "utils.hpp"
+#include <samples/args_helper.hpp>
+#include <samples/slog.hpp>
+// clang-format on
 
 using namespace ov::preprocess;
 
@@ -228,7 +228,7 @@ int main(int argc, char* argv[]) {
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::CompiledModel executableNet = core.compile_model(model, deviceStr);
+        ov::runtime::CompiledModel executableNet = core.compile_model(model, deviceStr, genericPluginConfig);
 
         // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
