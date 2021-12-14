@@ -33,7 +33,7 @@ namespace frontend {
 /// to derive new classes by regular users, this class is intended to be derived from and it doesn't have convenient
 /// ctos to be initialized. So it is intended for more advanced, internal users inside such components like Model
 /// Optimizer.
-class FRONTEND_API JsonTransformationExtension : public DecoderTransformationExtension {
+class JsonTransformationExtension : public DecoderTransformationExtension {
 public:
     explicit JsonTransformationExtension(const std::string& id) : m_id(id) {}
 
@@ -43,7 +43,7 @@ public:
     }
 
     virtual bool transform(std::shared_ptr<ov::Model>& function,
-                           const nlohmann::json& replacement_descriptions) const = 0;
+                           const std::string& replacement_descriptions) const = 0;
 
 private:
     std::string m_id;

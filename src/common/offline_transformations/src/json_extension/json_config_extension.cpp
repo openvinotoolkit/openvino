@@ -63,7 +63,7 @@ JsonConfigExtension::JsonConfigExtension(const std::string& config_path)
             if (auto json_ext = std::dynamic_pointer_cast<JsonTransformationExtension>(extension)) {
                 for (const auto& section : sections) {
                     if (section["id"] == json_ext->id()) {
-                        m_target_extensions.push_back({json_ext, section});
+                        m_target_extensions.push_back({json_ext, section.dump()});
                     }
                 }
             }

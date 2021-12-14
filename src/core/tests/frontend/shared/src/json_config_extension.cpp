@@ -10,7 +10,6 @@
 #include <nlohmann/json-schema.hpp>
 #include <ostream>
 #include <util/graph_comparator.hpp>
-
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -26,6 +25,11 @@ void FrontEndJsonConfigTest::SetUp() {
     initParamTest();
 }
 
+void FrontEndJsonConfigTest::TearDown() {
+    m_output_json.close();
+    std::remove(m_file_name.c_str());
+}
+
 void FrontEndJsonConfigTest::initParamTest() {
     m_param = GetParam();
     m_param.m_modelName = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_modelName);
@@ -35,7 +39,7 @@ inline std::string get_lib_path(const std::string& lib_name) {
     return ov::util::make_plugin_library_name<char>(ov::util::get_ov_lib_path(), lib_name + IE_BUILD_POSTFIX);
 }
 
-std::string generate_json_config() {
+void FrontEndJsonConfigTest::generate_json_config() {
     std::string json = R"(
     [
       {
@@ -71,13 +75,13 @@ std::string generate_json_config() {
     validator.set_root_schema(json_schema);
     validator.validate(config_json);
 
+    // update lib path
     for (auto& section : config_json) {
         section["library"] = get_lib_path(section["library"]);
     }
-    std::string path = "/home/itikhonov/OpenVINO/openvino/src/core/tests/frontend/shared/include/json_files/test.json";
-    std::ofstream output_json(path);
-    output_json << std::setw(4) << config_json << std::endl;
-    return path;
+
+    m_output_json.open(m_file_name);
+    m_output_json << std::setw(4) << config_json << std::endl;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -87,7 +91,7 @@ TEST_P(FrontEndJsonConfigTest, testJsonConfig) {
 }
 
 TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
-    auto path_to_json = generate_json_config();
+    EXPECT_NO_THROW(generate_json_config());
     std::map<std::string, nlohmann::json> reference_map = {
         {"buildin_extensions_1::TestExtension1",
          nlohmann::json::parse(
@@ -126,6 +130,7 @@ TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
                  }
                  )")},
     };
+
     for (auto& ref_val : reference_map) {
         ref_val.second["library"] = get_lib_path(ref_val.second["library"]);
     }
@@ -136,7 +141,7 @@ TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
         ov::frontend::InputModel::Ptr m_inputModel;
         m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
 
-        auto json_config_ext = std::make_shared<JsonConfigExtensionWrapper>(path_to_json);
+        auto json_config_ext = std::make_shared<JsonConfigExtensionWrapper>(m_file_name);
         m_frontEnd->add_extension(json_config_ext);
 
         auto loaded_ext = json_config_ext->get_loaded_extensions();
@@ -148,7 +153,7 @@ TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
         for (const auto& target : target_ext) {
             auto transformation = std::dynamic_pointer_cast<JsonTransformationExtension>(target.first);
             EXPECT_NE(transformation, nullptr);
-            EXPECT_EQ(reference_map.at(transformation->id()), target.second);
+            EXPECT_EQ(reference_map.at(transformation->id()).dump(), target.second);
         }
         ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_param.m_modelName));
         ASSERT_NE(m_inputModel, nullptr);
@@ -160,7 +165,7 @@ TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
 }
 
 TEST_P(FrontEndJsonConfigTest, compareFunctions) {
-    auto path_to_json = generate_json_config();
+    EXPECT_NO_THROW(generate_json_config());
 
     std::shared_ptr<ov::Model> function;
     {
@@ -168,7 +173,7 @@ TEST_P(FrontEndJsonConfigTest, compareFunctions) {
         ov::frontend::InputModel::Ptr m_inputModel;
         m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
 
-        auto json_config_ext = std::make_shared<JsonConfigExtensionWrapper>(path_to_json);
+        auto json_config_ext = std::make_shared<JsonConfigExtensionWrapper>(m_file_name);
         m_frontEnd->add_extension(json_config_ext);
 
         ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_param.m_modelName));

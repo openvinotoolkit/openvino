@@ -13,13 +13,13 @@ class JsonConfigExtensionWrapper : public ov::frontend::JsonConfigExtension {
 public:
     explicit JsonConfigExtensionWrapper(const std::string& config_path)
         : ov::frontend::JsonConfigExtension(config_path){};
-    ~JsonConfigExtensionWrapper() override{};
+    ~JsonConfigExtensionWrapper() override = default;;
 
     std::vector<Extension::Ptr> get_loaded_extensions() {
         return m_loaded_extensions;
     };
 
-    std::vector<std::pair<std::shared_ptr<DecoderTransformationExtension>, nlohmann::json>> get_target_extensions() {
+    std::vector<std::pair<std::shared_ptr<DecoderTransformationExtension>, std::string>> get_target_extensions() {
         return m_target_extensions;
     }
 };
@@ -32,13 +32,17 @@ struct JsonConfigFEParam {
 
 class FrontEndJsonConfigTest : public ::testing::TestWithParam<JsonConfigFEParam> {
 public:
+    std::string m_file_name = "test_json.json";
+    std::ofstream m_output_json;
     JsonConfigFEParam m_param;
     ov::frontend::FrontEndManager m_fem;
 
     static std::string getTestCaseName(const testing::TestParamInfo<JsonConfigFEParam>& obj);
 
     void SetUp() override;
+    void TearDown() override;
 
 protected:
+    void generate_json_config();
     void initParamTest();
 };
