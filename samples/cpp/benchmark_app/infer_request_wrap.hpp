@@ -8,7 +8,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <functional>
-#include <inference_engine.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -16,7 +15,11 @@
 #include <string>
 #include <vector>
 
+// clang-format off
+#include "inference_engine.hpp"
+
 #include "statistics_report.hpp"
+// clang-format on
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
