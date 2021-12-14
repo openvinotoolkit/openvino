@@ -98,9 +98,9 @@ def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs:
                 raise Error('Input/Output with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
 
     for name, new_name in rename_dict.items():
-        if name in dict_to_validate:
-            dict_to_validate[new_name] = dict_to_validate[name]
-            del dict_to_validate[name]
+        assert name in dict_to_validate, 'Key {} is not in initial dict'.format(name)
+        dict_to_validate[new_name] = dict_to_validate[name]
+        del dict_to_validate[name]
 
 
 def update_layout_is_input_flag(ov_function: Model, layout_values: dict):
@@ -343,7 +343,7 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
 
     mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
                                                   mean_scale_val=mean_scale_values,
-                                                  scale=argv.scale if "scale" in argv else None)
+                                                  scale=argv.scale)
     # On return, mean_scale_values is a dictionary with input names as key and mean/scale pair as value
     # {'inputName': {'mean': [1., 2., 3.], 'scale': [2.]}}
 
