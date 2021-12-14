@@ -34,5 +34,7 @@ public:
 protected:
     void SetUp() override;
     void Run() override;
+    void LoadNetwork() override;
+    void Infer() override;
 };
 } // namespace SubgraphTestsDefinitions

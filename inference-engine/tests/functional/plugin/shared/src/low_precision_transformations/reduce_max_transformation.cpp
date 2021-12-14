@@ -37,12 +37,19 @@ void ReduceMaxTransformation::SetUp() {
     ReduceMaxTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::opset1::ReduceMax>(
+    ngraph::builder::subgraph::DequantizationOperations::Convert convert;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+
+    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMax>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
+        convert,
+        dequantizationBefore,
         param.constantValues,
-        param.keepDims);
+        param.keepDims,
+        dequantizationAfter);
 }
 
 void ReduceMaxTransformation::Run() {

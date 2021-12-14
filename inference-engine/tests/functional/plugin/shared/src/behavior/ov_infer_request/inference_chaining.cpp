@@ -19,7 +19,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -33,7 +33,7 @@ std::string OVInferenceChaining::getTestCaseName(const testing::TestParamInfo<In
     return OVInferRequestTests::getTestCaseName(obj);
 }
 
-std::shared_ptr<ov::Function> OVInferenceChaining::getFirstStaticFunction(const ov::PartialShape &shape) {
+std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov::PartialShape &shape) {
     auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape});
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
@@ -46,10 +46,10 @@ std::shared_ptr<ov::Function> OVInferenceChaining::getFirstStaticFunction(const 
     eltwise2->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise2->set_friendly_name("result_0");
 
-    return std::make_shared<ov::Function>(eltwise2, ov::ParameterVector(params));
+    return std::make_shared<ov::Model>(eltwise2, ov::ParameterVector(params));
 }
 
-std::shared_ptr<ov::Function> OVInferenceChaining::getSecondStaticFunction(const ov::PartialShape &shape) {
+std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov::PartialShape &shape) {
     auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape});
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
@@ -59,10 +59,10 @@ std::shared_ptr<ov::Function> OVInferenceChaining::getSecondStaticFunction(const
     eltwise->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise->set_friendly_name("result_0");
 
-    return std::make_shared<ov::Function>(eltwise, ov::ParameterVector(params));
+    return std::make_shared<ov::Model>(eltwise, ov::ParameterVector(params));
 }
 
-std::shared_ptr<ov::Function> OVInferenceChaining::getThirdStaticFunction(const ov::PartialShape &shape) {
+std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov::PartialShape &shape) {
     auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape, shape});
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
@@ -78,11 +78,11 @@ std::shared_ptr<ov::Function> OVInferenceChaining::getThirdStaticFunction(const 
     eltwise3->get_output_tensor(0).set_names({"result_tensor_0"});
     eltwise3->set_friendly_name("result_0");
 
-    return std::make_shared<ov::Function>(eltwise3, ov::ParameterVector(params));
+    return std::make_shared<ov::Model>(eltwise3, ov::ParameterVector(params));
 }
 
 void OVInferenceChaining::Run() {
-    ov::runtime::ExecutableNetwork execNet0, execNet1, execNet2;
+    ov::runtime::CompiledModel execNet0, execNet1, execNet2;
     OV_ASSERT_NO_THROW(execNet0 = core->compile_model(function0, targetDevice, configuration));
     OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function1, targetDevice, configuration));
     OV_ASSERT_NO_THROW(execNet2 = core->compile_model(function2, targetDevice, configuration));

@@ -3,10 +3,10 @@
 //
 
 #include "engines_util/execute_tools.hpp"
+#include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_control.hpp"
@@ -44,16 +44,10 @@ static void BinaryConvolutionTest(const std::vector<T_IN>& inputs,
                                                pad_value,
                                                auto_pad);
     auto f = make_shared<Function>(bin_conv, ParameterVector{inputs_param});
-
-    auto backend = runtime::Backend::create("INTERPRETER");
-
-    auto input_tensor = backend->create_tensor(element::from<T_IN>(), inputs_shape);
-    copy_data(input_tensor, inputs);
-    auto result = backend->create_tensor(element::from<T_IN>(), outputs_shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {input_tensor});
-    EXPECT_TRUE(test::all_close_f((outputs), read_vector<T_IN>(result), MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase(f);
+    test_case.add_input(inputs_shape, inputs);
+    test_case.add_expected_output(outputs_shape, outputs);
+    test_case.run();
 }
 
 template <typename T_IN>
@@ -81,17 +75,11 @@ static void ConvolutionTest(const std::vector<T_IN>& inputs,
                                                  auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
 
-    auto backend = runtime::Backend::create("INTERPRETER");
-
-    auto input_tensor = backend->create_tensor(element::from<T_IN>(), inputs_shape);
-    copy_data(input_tensor, inputs);
-    auto filters_tensor = backend->create_tensor(element::from<T_IN>(), filters_shape);
-    copy_data(filters_tensor, filters);
-    auto result = backend->create_tensor(element::from<T_IN>(), outputs_shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {input_tensor, filters_tensor});
-    EXPECT_TRUE(test::all_close_f((outputs), read_vector<T_IN>(result), MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase(f);
+    test_case.add_input(inputs_shape, inputs);
+    test_case.add_input(filters_shape, filters);
+    test_case.add_expected_output(outputs_shape, outputs);
+    test_case.run();
 }
 
 // --------------------- 1D convolution ------------------------------------------

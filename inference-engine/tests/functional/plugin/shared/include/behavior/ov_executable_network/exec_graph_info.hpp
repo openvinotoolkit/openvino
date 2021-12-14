@@ -62,7 +62,7 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     ov::element::Type_t elementType;
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
 };
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
@@ -70,7 +70,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
 // Create simple function
     {
@@ -99,7 +99,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::runtime::ExecutableNetwork importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
@@ -197,7 +197,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     EXPECT_NO_THROW(function->input("in1"));     // remove if read_model does not change function names
     EXPECT_NO_THROW(function->output("round"));  // remove if read_model does not change function names
 
-    ov::runtime::ExecutableNetwork execNet = core->compile_model(function, targetDevice, configuration);
+    ov::runtime::CompiledModel execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(execNet.inputs().size(), 1);
     EXPECT_EQ(execNet.outputs().size(), 1);
     EXPECT_NO_THROW(execNet.input("in1"));
@@ -210,7 +210,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::runtime::ExecutableNetwork importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(importedExecNet.inputs().size(), 1);
     EXPECT_EQ(importedExecNet.outputs().size(), 1);
     EXPECT_NO_THROW(importedExecNet.input("in1"));
@@ -255,7 +255,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     std::stringstream strm;
     execNet.Export(strm);
 
-    ov::runtime::ExecutableNetwork importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
@@ -289,7 +289,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     // Create simple function
     {

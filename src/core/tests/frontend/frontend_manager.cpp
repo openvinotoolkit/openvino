@@ -6,10 +6,23 @@
 #include <manager.hpp>
 #include <memory>
 
-#include "backend.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
+#include "ngraph/util.hpp"
+#include "openvino/util/file_util.hpp"
+
+#ifdef _WIN32
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#    if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+#        error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
+#    endif
+#elif defined(__linux) || defined(__APPLE__)
+#    include <dlfcn.h>
+#endif
 
 #ifdef _WIN32
 const char FrontEndPathSeparator[] = ";";
@@ -19,6 +32,28 @@ const char FrontEndPathSeparator[] = ":";
 
 using namespace ngraph;
 using namespace ov::frontend;
+
+static std::string find_my_pathname() {
+#ifdef _WIN32
+    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"frontend_common" SHARED_LIB_SUFFIX);
+    WCHAR wpath[MAX_PATH];
+    GetModuleFileNameW(hModule, wpath, MAX_PATH);
+    std::wstring ws(wpath);
+    std::string path(ws.begin(), ws.end());
+    std::replace(path.begin(), path.end(), '\\', '/');
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    path = file_util::get_directory(path);
+    NGRAPH_SUPPRESS_DEPRECATED_END
+    path += "/";
+    return path;
+#elif defined(__linux) || defined(__APPLE__)
+    Dl_info dl_info;
+    dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
+    return ov::util::get_absolute_file_path(dl_info.dli_fname);
+#else
+#    error "Unsupported OS"
+#endif
+}
 
 static int set_test_env(const char* name, const char* value) {
 #ifdef _WIN32
@@ -50,8 +85,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    std::string fePath =
-        ngraph::file_util::get_directory(ngraph::runtime::Backend::get_backend_shared_library_search_directory());
+    std::string fePath = ngraph::file_util::get_directory(find_my_pathname());
     fePath = fePath + FrontEndPathSeparator + "someInvalidPath";
     set_test_env("OV_FRONTEND_PATH", fePath.c_str());
 

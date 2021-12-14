@@ -406,7 +406,7 @@ bool removeExternalConnections(ngraph::Node* source, SubGraph& topSubGraph, SubG
 
 }  // namespace
 
-bool ExtractBatch::run_on_function(std::shared_ptr<ngraph::Function> functionPointer) {
+bool ExtractBatch::run_on_model(const std::shared_ptr<ngraph::Function>& functionPointer) {
     auto& function = *functionPointer;
     bool changed = false;
 
