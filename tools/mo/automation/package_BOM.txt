@@ -810,7 +810,7 @@ openvino/tools/mo/middle/sparse_reshape.py
 openvino/tools/mo/middle/split_tdnn_memoryoffset.py
 openvino/tools/mo/middle/SplitConcatPairToInterpolate.py
 openvino/tools/mo/middle/StridedSliceNormalizer.py
-openvino/tools/mo/middle/StridedSliceReplacer.py
+openvino/tools/mo/middle/StridedSliceShrinkNewAxisReplacer.py
 openvino/tools/mo/middle/SwapAxesMiddleReplacer.py
 openvino/tools/mo/middle/TensorIterator_utils.py
 openvino/tools/mo/middle/TensorIteratorBackEdge.py
