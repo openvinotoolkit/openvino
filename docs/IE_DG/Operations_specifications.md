@@ -42,6 +42,7 @@
    openvino_docs_ops_detection_DeformablePSROIPooling_1
    openvino_docs_ops_movement_DepthToSpace_1
    openvino_docs_ops_detection_DetectionOutput_1
+   openvino_docs_ops_detection_DetectionOutput_8
    openvino_docs_ops_signals_DFT_7
    openvino_docs_ops_arithmetic_Divide_1
    openvino_docs_ops_matrix_Einsum_7
@@ -70,6 +71,7 @@
    openvino_docs_ops_movement_Gather_8
    openvino_docs_ops_movement_GatherElements_6
    openvino_docs_ops_movement_GatherND_5
+   openvino_docs_ops_movement_GatherND_8
    openvino_docs_ops_activation_GELU_2
    openvino_docs_ops_activation_GELU_7
    openvino_docs_ops_comparison_GreaterEqual_1
@@ -79,6 +81,8 @@
    openvino_docs_ops_activation_HardSigmoid_1
    openvino_docs_ops_activation_HSigmoid_5
    openvino_docs_ops_activation_HSwish_4
+   openvino_docs_ops_image_I420toBGR_8
+   openvino_docs_ops_image_I420toRGB_8
    openvino_docs_ops_signals_IDFT_7
    openvino_docs_ops_condition_If_8
    openvino_docs_ops_image_Interpolate_1
@@ -114,6 +118,8 @@
    openvino_docs_ops_condition_NonZero_3
    openvino_docs_ops_normalization_NormalizeL2_1
    openvino_docs_ops_comparison_NotEqual_1
+   openvino_docs_ops_image_NV12toBGR_8
+   openvino_docs_ops_image_NV12toRGB_8
    openvino_docs_ops_sequence_OneHot_1
    openvino_docs_ops_activation_PReLU_1
    openvino_docs_ops_detection_PSROIPooling_1
@@ -122,6 +128,7 @@
    openvino_docs_ops_arithmetic_Power_1
    openvino_docs_ops_detection_PriorBoxClustered_1
    openvino_docs_ops_detection_PriorBox_1
+   openvino_docs_ops_detection_PriorBox_8
    openvino_docs_ops_detection_Proposal_1
    openvino_docs_ops_detection_Proposal_4
    openvino_docs_ops_generation_RandomUniform_8
@@ -163,6 +170,7 @@
    openvino_docs_ops_arithmetic_Sin_1
    openvino_docs_ops_arithmetic_Sinh_1
    openvino_docs_ops_activation_SoftMax_1
+   openvino_docs_ops_activation_SoftMax_8
    openvino_docs_ops_activation_SoftPlus_4
    openvino_docs_ops_movement_SpaceToBatch_2
    openvino_docs_ops_movement_SpaceToDepth_1
