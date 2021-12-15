@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/layer_test_utils/external_network_tool.hpp"
+#include "functional_test_utils/layer_test_utils/external_optimization_util.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "manager.hpp"
 

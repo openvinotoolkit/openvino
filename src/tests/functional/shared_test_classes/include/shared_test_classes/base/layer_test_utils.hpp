@@ -28,7 +28,7 @@
 #include "functional_test_utils/precision_utils.hpp"
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "functional_test_utils/layer_test_utils/environment.hpp"
-#include "functional_test_utils/layer_test_utils/external_network_tool.hpp"
+#include "functional_test_utils/layer_test_utils/external_optimization_util.hpp"
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"

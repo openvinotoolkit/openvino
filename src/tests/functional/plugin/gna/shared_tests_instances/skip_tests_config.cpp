@@ -6,7 +6,7 @@
 #include <string>
 
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/layer_test_utils/external_network_tool.hpp"
+#include "functional_test_utils/layer_test_utils/external_optimization_util.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> standardPatterns {

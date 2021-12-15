@@ -6,7 +6,7 @@
 
 #include "functional_test_utils/layer_test_utils/environment.hpp"
 #include "functional_test_utils/layer_test_utils/summary.hpp"
-#include "functional_test_utils/layer_test_utils/external_network_tool.hpp"
+#include "functional_test_utils/layer_test_utils/external_optimization_util.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 int main(int argc, char *argv[]) {
