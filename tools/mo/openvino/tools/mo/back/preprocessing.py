@@ -372,6 +372,12 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
             else:
                 prep.output(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
 
+    # Apply reverse_input_channels
+    if need_reverse:
+        for name, _ in suitable_params_ric:
+            prep.input(name).preprocess().reverse_channels()
+            log.debug('reverse_input_channels pre-processing applied to {}'.format(name))
+
     for node_name, node_mean_scale_values in mean_scale_values.items():
         # Apply mean first, then scale
         if node_mean_scale_values['mean'] is not None:
@@ -379,12 +385,6 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
         if node_mean_scale_values['scale'] is not None:
             prep.input(node_name).preprocess().scale(node_mean_scale_values['scale'])
         log.debug('Mean/Scale pre-processing applied to {}'.format(node_name))
-
-    # Apply reverse_input_channels
-    if need_reverse:
-        for name, _ in suitable_params_ric:
-            prep.input(name).preprocess().reverse_channels()
-            log.debug('reverse_input_channels pre-processing applied to {}'.format(name))
 
     # Apply pre-processing builder to a function
     ov_function = prep.build()
