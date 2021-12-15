@@ -4,7 +4,7 @@
 
 #include "ngraph/op/broadcast.hpp"
 
-#include <broadcast_base_shape_inference.hpp>
+#include <broadcast_shape_inference.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
@@ -160,7 +160,7 @@ void op::v3::Broadcast::validate_and_infer_types() {
         input_shapes = {arg_shape, target_shape, axes_mapping};
     }
 
-    shape_infer(this, input_shapes, output_shapes, {});
+    shape_infer(this, input_shapes, output_shapes);
 
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape
@@ -281,7 +281,7 @@ void op::v1::Broadcast::validate_and_infer_types() {
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes = {arg_shape, target_shape, axes_mapping};
-    shape_infer(this, input_shapes, output_shapes, {});
+    shape_infer(this, input_shapes, output_shapes);
 
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape

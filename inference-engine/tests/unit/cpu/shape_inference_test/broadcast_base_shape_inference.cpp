@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <broadcast_base_shape_inference.hpp>
+#include <broadcast_shape_inference.hpp>
 #include <openvino/op/broadcast.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>

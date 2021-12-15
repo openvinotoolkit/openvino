@@ -38,7 +38,7 @@ void validate_target_shape_none(const ov::Node* op,
 
         for (size_t i = 0; i < axes_mapping_val.size(); i++) {
             NODE_VALIDATION_CHECK(op,
-                                  static_cast<int64_t>(axes_mapping_val[i]) < target_rank_length,
+                                  axes_mapping_val[i] < target_rank_length,
                                   "Broadcast axes_mapping[",
                                   i,
                                   "]: ",
@@ -100,7 +100,7 @@ void set_result_shape_pdpd(const ov::Node* op,
                            const ov::op::BroadcastModeSpec& broadcast_spec) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     if (arg0_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
-        result_shape = PartialShape::dynamic(target_shape.size());
+        result_shape = PartialShape::dynamic(target_shape.rank());
         return;
     }
     result_shape = target_shape;
@@ -162,10 +162,11 @@ void set_result_shape_bidirectional(const ov::Node* op, const T& arg_shape, T& t
 }
 
 template <class T>
-void broadcase_base_shape_infer(const ov::op::util::BroadcastBase* op,
-                                const std::vector<T>& input_shapes,
-                                std::vector<T>& output_shapes,
-                                const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+void broadcase_base_shape_infer(
+    const ov::op::util::BroadcastBase* op,
+    const std::vector<T>& input_shapes,
+    std::vector<T>& output_shapes,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
 
     // shape node should produce a one dimensional shape.
@@ -175,7 +176,8 @@ void broadcase_base_shape_infer(const ov::op::util::BroadcastBase* op,
                           "Broadcast shape rank must be 1, but has ",
                           broadcast_shape_rank);
 
-    if (op->m_mode.m_type == BroadcastType::NONE) {
+    auto& mode = op->get_broadcast_spec();
+    if (mode.m_type == BroadcastType::NONE) {
         // axes_mapping node should produce a one dimensional shape.
         auto axes_shape_rank = input_shapes[2].rank();
         NODE_VALIDATION_CHECK(op,
@@ -192,26 +194,27 @@ void broadcase_base_shape_infer(const ov::op::util::BroadcastBase* op,
     T output_shape;
     bool output_shape_defined = get_data_as_shape<T>(1, op, output_shape, constant_data);
 
-    if (auto concat = ov::as_type_ptr<ngraph::op::v0::Concat>(op->input_value(1).get_node_shared_ptr())) {
-        auto concat_inputs = concat->inputs();
-
-        if (!output_shape_defined && concat->get_output_partial_shape(0).is_static() &&
-            concat->get_shape().size() == 1 && concat_inputs.size() == shape_size(concat->get_shape())) {
-            auto output_partial_shape = std::vector<DimType>{};
-            for (const auto& concat_input : concat_inputs) {
-                auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
-                if (auto source_const_ptr = ov::as_type_ptr<ngraph::op::v0::Constant>(source_node_ptr)) {
-                    output_partial_shape.emplace_back(source_const_ptr->get_axis_vector_val()[0]);
-                } else {
-                    output_partial_shape.push_back(Dimension::dynamic());
+    if (!output_shape_defined) {
+        if (auto concat = ov::as_type_ptr<ngraph::op::v0::Concat>(op->input_value(1).get_node_shared_ptr())) {
+            auto concat_inputs = concat->inputs();
+            if (concat->get_output_partial_shape(0).is_static() && concat->get_shape().size() == 1 &&
+                concat_inputs.size() == shape_size(concat->get_shape())) {
+                auto output_partial_shape = std::vector<DimType>{};
+                for (const auto& concat_input : concat_inputs) {
+                    auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
+                    if (auto source_const_ptr = ov::as_type_ptr<ngraph::op::v0::Constant>(source_node_ptr)) {
+                        output_partial_shape.emplace_back(source_const_ptr->get_axis_vector_val()[0]);
+                    } else {
+                        output_partial_shape.push_back(Dimension::dynamic());
+                    }
                 }
+                output_shape_defined = true;
+                output_shape = T(output_partial_shape);
             }
-            output_shape_defined = true;
-            output_shape = T(output_partial_shape);
         }
     }
 
-    if (op->m_mode.m_type == BroadcastType::NONE) {
+    if (mode.m_type == BroadcastType::NONE) {
         if (output_shape_defined) {
             result_shape = output_shape;
         } else if (is_target_shape_known) {
@@ -221,7 +224,7 @@ void broadcase_base_shape_infer(const ov::op::util::BroadcastBase* op,
         }
         // Validate axes_mapping
         auto axes_shape = input_shapes[2];
-        if (input_shape.is_static() && target_shape.is_static() && axes_shape.is_static()) {
+        if (input_shape.rank().is_static() && target_shape.rank().is_static() && axes_shape.is_static()) {
             auto axes = axes_shape.to_shape();
             auto input_rank = (input_shape.size() == 0 && axes[0] > 0) ? 1 : input_shape.size();
             NODE_VALIDATION_CHECK(op,
@@ -237,7 +240,7 @@ void broadcase_base_shape_infer(const ov::op::util::BroadcastBase* op,
                 validate_target_shape_none(op, input_shape, axes_mapping, output_shape);
             }
         }
-    } else if (op->m_mode.m_type == BroadcastType::NUMPY) {
+    } else if (mode.m_type == BroadcastType::NUMPY) {
         if (output_shape_defined) {
             result_shape = output_shape;
             validate_target_shape_numpy(op, input_shape, output_shape);
@@ -246,15 +249,15 @@ void broadcase_base_shape_infer(const ov::op::util::BroadcastBase* op,
         } else {
             result_shape = PartialShape::dynamic();
         }
-    } else if (op->m_mode.m_type == BroadcastType::PDPD) {
+    } else if (mode.m_type == BroadcastType::PDPD) {
         if (output_shape_defined) {
-            set_result_shape_pdpd(op, input_shape, output_shape, result_shape, op->m_mode);
+            set_result_shape_pdpd(op, input_shape, output_shape, result_shape, mode);
         } else if (is_target_shape_known) {
             result_shape = PartialShape::dynamic(target_shape[0].get_length());
         } else {
             result_shape = PartialShape::dynamic();
         }
-    } else if (op->m_mode.m_type == BroadcastType::BIDIRECTIONAL) {
+    } else if (mode.m_type == BroadcastType::BIDIRECTIONAL) {
         if (output_shape_defined) {
             set_result_shape_bidirectional(op, input_shape, output_shape, result_shape);
         } else if (input_shape.rank().is_static() && is_target_shape_known) {
@@ -272,9 +275,10 @@ template <class T>
 void shape_infer(const ov::op::v3::Broadcast* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, output_shapes.size() == 1);
-    if (op->m_mode.m_type == BroadcastType::NONE) {
+    auto& mode = op->get_broadcast_spec();
+    if (mode.m_type == BroadcastType::NONE) {
         NODE_VALIDATION_CHECK(op,
                               input_shapes.size() == 3,
                               "axes_mapping input should be provided if explicit mode is used");
@@ -292,7 +296,7 @@ template <class T>
 void shape_infer(const ov::op::v1::Broadcast* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, output_shapes.size() == 1 && (input_shapes.size() == 2 || input_shapes.size() == 3));
 
     broadcase_base_shape_infer(op, input_shapes, output_shapes, constant_data);

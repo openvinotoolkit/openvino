@@ -18,7 +18,7 @@
 #include "shape_nodes.hpp"
 #include "fake_quantize.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
-#include "broadcast_base_shape_inference.hpp"
+#include "broadcast_shape_inference.hpp"
 
 
 void shape_inference(ov::Node* op,
