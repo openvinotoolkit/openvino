@@ -42,7 +42,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
-set_ie_threading_interface_for(ov_runtime)
+set_ie_threading_interface_for(${TARGET_NAME})
 ie_mark_target_as_cc(${TARGET_NAME})
 
 # LTO
