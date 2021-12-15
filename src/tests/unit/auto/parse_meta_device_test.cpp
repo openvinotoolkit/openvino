@@ -17,6 +17,7 @@
 #include <gmock/gmock.h>
 #include "plugin/mock_auto_device_plugin.hpp"
 #include "cpp/ie_plugin.hpp"
+#include "mock_common.hpp"
 
 using ::testing::MatcherCast;
 using ::testing::HasSubstr;
@@ -35,13 +36,6 @@ using ::testing::AtLeast;
 using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
-
-#define IE_SET_METRIC(key, name,  ...)                                                            \
-    typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
-        __VA_ARGS__;
-
-#define RETURN_MOCK_VALUE(value) \
-    InvokeWithoutArgs([value](){return value;})
 
 const char cpuFullDeviceName[] = "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz";
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
