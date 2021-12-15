@@ -28,8 +28,7 @@ public:
 
 protected:
     void executeDynamicImpl(mkldnn::stream strm) override;
-    bool needPrepareParams() const override;
-    void prepareParams() override;
+    bool needPrepareParams() const override { return false; };
     bool needShapeInfer() const override { return false; }
 
 private:
@@ -44,13 +43,14 @@ private:
     class PortMapHelper {
     public:
         PortMapHelper(const MKLDNNMemoryPtr& from, const MKLDNNMemoryPtr& to, const mkldnn::engine& eng);
-        virtual ~PortMapHelper() = default;
-        virtual void execute(mkldnn::stream& strm);
+        ~PortMapHelper() = default;
+        void execute(mkldnn::stream& strm);
 
     private:
-        mkldnn::reorder reorder;
-        mkldnn::memory mem_holder_src;
-        mkldnn::memory mem_holder_dst;
+        void redefineTo();
+
+        MKLDNNMemoryPtr srcMemPtr;
+        MKLDNNMemoryPtr dstMemPtr;
 
         ptrdiff_t size;
     };
@@ -72,11 +72,7 @@ private:
         elseInputPortMap,
         elseOutputPortMap;
 
-    // if condition was changed or there are new input shapes,
-    // after subgraph inference we should redefine out memory of 'If'
-    bool new_state = false;
-
-    bool condition;
+    uint8_t condition;
     const std::shared_ptr<ov::Node> ovOp;
 };
 

@@ -7,27 +7,34 @@
 #include "mkldnn_extension_utils.h"
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "common/memory_desc_wrapper.hpp"
+#include "common/cpu_memcpy.h"
 
 #include <string>
 #include <vector>
 
 using namespace MKLDNNPlugin;
 
-MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
-    // we should redefine 'to' memory for dynamism
-    const auto &currDesc = to->getDesc();
-    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != from->getStaticDims()) {
-        to->redefineDesc(from->getDesc());
-    }
 
-    mem_holder_src = from->GetPrimitive();
-    mem_holder_dst = to->GetPrimitive();
-
-    reorder = {mem_holder_src, mem_holder_dst};
+MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) : srcMemPtr(from), dstMemPtr(to) {
+    if (srcMemPtr->getDesc().isDefined())
+        size = srcMemPtr->GetSize();
 }
 
 void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
-    reorder.execute(strm, mem_holder_src, mem_holder_dst);
+    // if condition was changed or there are new input shapes,
+    // after subgraph inference we should redefine out memory of 'If'
+    redefineTo();
+
+    cpu_memcpy(dstMemPtr->GetPtr(), srcMemPtr->GetPtr(), size);
+}
+
+void MKLDNNIfNode::PortMapHelper::redefineTo() {
+    const auto &currDesc = dstMemPtr->getDesc();
+    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
+        dstMemPtr->redefineDesc(srcMemPtr->getDesc());
+        size = srcMemPtr->GetSize();
+    }
 }
 
 bool MKLDNNIfNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -163,6 +170,12 @@ void MKLDNNIfNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNIfNode::createPrimitive() {
+    const auto& eng = getEngine();
+    prepareBeforeMappers(true, eng);
+    prepareBeforeMappers(false, eng);
+    prepareAfterMappers(true, eng);
+    prepareAfterMappers(false, eng);
+
     if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
@@ -170,31 +183,10 @@ void MKLDNNIfNode::createPrimitive() {
     }
 }
 
-bool MKLDNNIfNode::needPrepareParams() const {
-    return MKLDNNNode::inputShapesModified() ||
-           condition != static_cast<bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
-}
-
-void MKLDNNIfNode::prepareParams() {
-    const auto& eng = getEngine();
-
-    if (isDynamic) {
-        new_state = true;
-        condition = static_cast<bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
-        prepareBeforeMappers(condition, eng);
-    } else {
-        prepareBeforeMappers(true, eng);
-        prepareBeforeMappers(false, eng);
-        prepareAfterMappers(true, eng);
-        prepareAfterMappers(false, eng);
-    }
-}
-
 void MKLDNNIfNode::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &inputPortMap = isThen ? thenInputPortMap : elseInputPortMap;
     auto &inputMems = isThen ? inputMemThen : inputMemElse;
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
-    beforeMappers.clear();
     for (auto& map_rule : inputPortMap) {
         auto &fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &toMem = inputMems[map_rule.to];
@@ -207,7 +199,6 @@ void MKLDNNIfNode::prepareAfterMappers(const bool isThen, const dnnl::engine& en
     auto &outputPortMap = isThen ? thenOutputPortMap : elseOutputPortMap;
     auto &outputMems = isThen ? outputMemThen : outputMemElse;
     auto &afterMappers = isThen ? afterThenMappers : afterElseMappers;
-    afterMappers.clear();
     for (auto& map_rule : outputPortMap) {
         auto &toMem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &fromMem = outputMems[map_rule.to];
@@ -217,8 +208,7 @@ void MKLDNNIfNode::prepareAfterMappers(const bool isThen, const dnnl::engine& en
 }
 
 void MKLDNNIfNode::execute(mkldnn::stream strm) {
-    if (!isDynamic)
-        condition = static_cast<bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
+    condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
@@ -228,15 +218,6 @@ void MKLDNNIfNode::execute(mkldnn::stream strm) {
         mapper->execute(strm);
     subGraph.ResetInferCount();
     subGraph.Infer();
-
-    // if condition was changed or there are new input shapes,
-    // after subgraph inference we should redefine out memory of 'If'
-    if (new_state) {
-        new_state = false;
-        const auto& eng = getEngine();
-        prepareAfterMappers(condition, eng);
-    }
-
     for (auto &mapper : afterMappers)
         mapper->execute(strm);
 }
