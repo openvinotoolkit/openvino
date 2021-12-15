@@ -258,9 +258,9 @@ void IInferRequestInternal::checkBatchedBlobs(const std::string& name, const std
         auto item_desc = item->getTensorDesc();
         item_desc.getDims()[batch_idx] = batched_desc.getDims()[batch_idx];
         OPENVINO_ASSERT(item_desc.getDims() == batched_desc.getDims() &&
-                        item_desc.getLayout() == batched_desc.getLayout() &&
-                        item_desc.getPrecision() == batched_desc.getPrecision() &&
-                        item_desc.getBlockingDesc().getOrder() == batched_desc.getBlockingDesc().getOrder(),
+                            item_desc.getLayout() == batched_desc.getLayout() &&
+                            item_desc.getPrecision() == batched_desc.getPrecision() &&
+                            item_desc.getBlockingDesc().getOrder() == batched_desc.getBlockingDesc().getOrder(),
                         "set_input_tensors/set_tensors error. Blob ",
                         desc_to_string(item_desc),
                         " is not compatible with batched blob ",
@@ -268,8 +268,7 @@ void IInferRequestInternal::checkBatchedBlobs(const std::string& name, const std
     });
 }
 
-void IInferRequestInternal::convertBatchedBlob(const std::string& name,
-                                               const BatchedBlob::Ptr& batched_blob) {
+void IInferRequestInternal::convertBatchedBlob(const std::string& name, const BatchedBlob::Ptr& batched_blob) {
     auto tmp_desc = batched_blob->getBlob(0)->getTensorDesc();
     tmp_desc.getDims()[0] = batched_blob->size();
     auto blockingDims = tmp_desc.getBlockingDesc().getBlockDims();
@@ -283,7 +282,8 @@ void IInferRequestInternal::convertBatchedBlob(const std::string& name,
         if (net) {
             remote_context = net->GetContext();
         }
-    } catch(...) {}
+    } catch (...) {
+    }
     if (remote_context) {
         mem_blob = remote_context->CreateHostBlob(batched_desc);
     } else {
@@ -390,6 +390,8 @@ void IInferRequestInternal::SetCallback(Callback callback) {
 }
 
 void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& preprocessedBlobs, bool serial) {
+    // Convert batched blobs (if set) set by set_tensors/set_input_tensors into a single large-size blob
+    convertBatchedBlobs();
     for (auto& input : preprocessedBlobs) {
         // If there is a pre-process entry for an input then it must be pre-processed
         // using preconfigured resize algorithm.

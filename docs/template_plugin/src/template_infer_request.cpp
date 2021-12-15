@@ -150,8 +150,6 @@ void TemplateInferRequest::allocateBlobs() {
 
 // ! [infer_request:infer_impl]
 void TemplateInferRequest::InferImpl() {
-    // Convert batched blobs (if set) set by set_tensors/set_input_tensors into a single large-size blob
-    convertBatchedBlobs();
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     inferPreprocess();
     startPipeline();

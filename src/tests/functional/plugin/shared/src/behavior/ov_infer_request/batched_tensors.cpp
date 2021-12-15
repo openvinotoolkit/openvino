@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset8.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "behavior/ov_infer_request/batched_tensors.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -323,19 +323,6 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Batch_Incorrect) {
     auto one_shape = Shape{1, 3, 3, 3};
     auto batch_shape = Shape{batch, 3, 3, 3};
     auto model = create_n_inputs(1, element::f32, batch_shape, "DCHWN");
-    const std::string tensor_name = "tensor_input0";
-    auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
-    req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
-    ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
-}
-
-TEST_P(OVInferRequestBatchedTests, SetInputTensors_Batch_Non_0) {
-    size_t batch = 3;
-    auto one_shape = Shape{1, 3, 3, 3};
-    auto batch_shape = Shape{batch, 3, 3, 3};
-    auto model = create_n_inputs(1, element::f32, batch_shape, "CNHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
     ov::runtime::InferRequest req;

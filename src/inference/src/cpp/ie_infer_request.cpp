@@ -354,7 +354,7 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
         const auto& name = get_legacy_name_from_port(port);
         auto blob = _impl->GetBlob(name);
         OPENVINO_ASSERT(!blob->is<InferenceEngine::BatchedBlob>(),
-                "get_tensor shall not be used together with batched set_tensors/set_input_tensors");
+                        "get_tensor shall not be used together with batched set_tensors/set_input_tensors");
         return {_so, blob};
     });
 }
