@@ -9,7 +9,6 @@ from pathlib import Path
 import numpy as np
 import cv2 as cv
 
-from openvino.runtime import Layout # pylint: disable=E0611,E0401
 from openvino.tools.pot.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -35,11 +34,12 @@ def crop(image, central_fraction):
     return image[start_height:start_height + dst_height, start_width:start_width + dst_width]
 
 
-def prepare_image(image, layout, dst_shape, central_fraction=None):
+def prepare_image(image, dst_shape, central_fraction=None):
+
     if central_fraction:
         image = crop(image, central_fraction)
 
-    if layout == Layout('NCHW') or layout == Layout('CHW'):
+    if image.shape[-1] in [3, 1]:
         image = cv.resize(image, dst_shape[::-1])
         return image.transpose(2, 0, 1)
 
