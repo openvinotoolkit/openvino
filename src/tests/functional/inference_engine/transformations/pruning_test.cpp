@@ -8,6 +8,8 @@
 #include <memory>
 #include <queue>
 
+#include "openvino/openvino.hpp"
+#include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <pruning.hpp>
@@ -46,6 +48,53 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
     return std::make_shared<opset5::Constant>(element::f32, shape, values);
 }
 
+TEST(TransformationTests, MyFirstTest){
+    //ov::runtime::Core core;
+    InferenceEngine::Core core;
+    const std::string input_model = "/home/dlyakhov/model_export/13_10_21/ir/efficientnet_b0_pruning_20_no_transformations/efficientnet_bo_pruning_20_int8.xml";
+
+    //const std::string input_model = "/home/dlyakhov/model_export/25_11_21/ir/efficientnet_with_bn/efficientnet_bo_pruning_test.xml";
+    //const std::string input_model = "/home/dlyakhov/model_export/19_11_21_yolo_v5_pruning/yolo_v5s_pruned.xml";
+        // -------- Step 2. Read a model --------
+    auto f = core.ReadNetwork(input_model).getFunction();
+
+    pass::Manager m;
+    m.register_pass<pass::InitMasks>();
+    m.register_pass<pass::PropagateMasks>();
+
+    // VisualizeTree modifier helps to print Masks and mark nodes with masks
+    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
+        std::stringstream ss;
+        size_t index{0};
+        for (const auto & output : node.outputs()) {
+            if (const auto & mask = getMask(output)) {
+                if (!mask->all_dims_are_empty()) {
+                    attributes.emplace_back("color=green");
+                    attributes.emplace_back("penwidth=2");
+                }
+                ss << "Mask(" << index << ") : " << *mask << "\\n";
+            }
+            index++;
+        }
+        if (!ss.str().empty()) {
+            auto label = std::find_if(attributes.begin(), attributes.end(),
+                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
+            if (label != attributes.end()) {
+                label->pop_back();
+                *label += "\n" + ss.str() + "\"";
+            } else {
+                attributes.push_back("label=\"" + ss.str() + "\"");
+            }
+        }
+    };
+
+    // Uncomment modifier above and following line and change path to resulting svg file
+    m.register_pass<ngraph::pass::VisualizeTree>("/home/dlyakhov/model_export/22_11_21/efficientnet_with_masks.svg", modifier);
+    m.register_pass<pass::ShrinkWeights>();
+    //ngraph::pass::VisualizeTree("/home/dlyakhov/model_export/22_11_21/efficientnet.png").run_on_function(f);
+    m.run_passes(f);
+}
+
 TEST(TransformationTests, InitMasksOI) {
     Shape weights_shape{6, 3, 3, 3};
     auto weights = opset5::Constant::create(element::f32, weights_shape, {0});
@@ -57,7 +106,6 @@ TEST(TransformationTests, InitMasksOI) {
 TEST(TransformationTests, InitMasksOutputChannel) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{6, 3, 3, 3};
-
     std::vector<double> values(shape_size(weights_shape), 1);
     NGRAPH_SUPPRESS_DEPRECATED_START
     CoordinateTransform iter(weights_shape, {0, 1, 0, 0}, {6, 2, 3, 3});
@@ -127,18 +175,22 @@ TEST(TransformationTests, PropagateMasksBasic) {
 
     auto add_const = create_constant_with_zeros(Shape{1, 6, 1, 1}, {{}, {1, 2, 3, 4, 5}, {}, {}});
     auto add = std::make_shared<opset5::Add>(relu, add_const);
+    add->set_friendly_name("add");
 
     auto sub_const = create_constant_with_zeros(Shape{6, 1, 1}, {{1, 2, 3}, {}, {}});
     auto sub = std::make_shared<opset5::Subtract>(add, sub_const);
+    sub->set_friendly_name("sub");
 
     auto mul_const = create_constant_with_zeros(Shape{1, 6, 1, 1}, {{}, {4}, {}, {}});
-    auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
+    auto mul = std::make_shared<ov::op::v1::Multiply/*opset5::Multiply*/>(sub, mul_const);
+    mul->set_friendly_name("mul");
 
     auto weights2 = create_constant_with_zeros(weights_shape2, {{1, 2}, {1, 2, 3}, {}, {}});
     auto conv2 = std::make_shared<opset5::Convolution>(mul, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
+    ngraph::pass::VisualizeTree("/tmp/out_basic.png").run_on_function(f);
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();

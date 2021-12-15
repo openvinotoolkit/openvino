@@ -56,6 +56,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
         }
 
         setMask(const_node, mask);
+        setInitMask(const_node, mask);
         if (!mask->all_dims_are_empty()) {
             NGRAPH_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
         }
