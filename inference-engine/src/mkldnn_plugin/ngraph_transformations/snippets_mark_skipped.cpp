@@ -4,6 +4,8 @@
 #include "snippets_mark_skipped.hpp"
 #include <snippets/pass/collapse_subgraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <utils/general_utils.h>
+#include <utils/cpu_utils.hpp>
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::SnippetsMarkSkipped, "SnippetsMarkSkipped", 0);
 
@@ -63,7 +65,7 @@ bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Nod
             ov::is_type<ngraph::op::v5::Round>(node);
 }
 
-bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node) {
+bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const size_t channelAxis) {
     size_t fusingPort = 0;
     size_t numNonConstInputs = 0;
     ov::PartialShape dataShape;
@@ -85,31 +87,12 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node) {
     }
 
     const auto isBroadcastableToDataInput = [&]() {
-        const auto isPerTensorOrPerChannelBroadcastable = [](const ov::Shape& dataShape, const ov::Shape& weightShape) {
-            // per-tensor broabcastable
-            if (std::all_of(weightShape.begin(), weightShape.end(), [](size_t v){return v == 1;}))
-                return true;
-            if (weightShape.size() > dataShape.size())
-                return false;
-            // Normalize weightShape
-            std::vector<size_t> normalizedWeigthShape{weightShape};
-            for (size_t j = 0; j < (dataShape.size() - weightShape.size()); j++) {
-                normalizedWeigthShape.insert(normalizedWeigthShape.begin(), 1);
-            }
-            // per-channel broadcastable
-            for (size_t j = 0; j < normalizedWeigthShape.size(); j++) {
-                if ((j == 1 && normalizedWeigthShape[1] != dataShape[1]) || (j != 1 && normalizedWeigthShape[j] != 1))
-                    return false;
-            }
-            return true;
-        };
-
         for (size_t i = 0; i < node->get_input_size(); i++) {
             if (i == fusingPort)
                 continue;
             const ov::PartialShape weightShape = node->get_input_partial_shape(i);
             if (weightShape.is_dynamic() ||
-                !isPerTensorOrPerChannelBroadcastable(dataShape.get_shape(), weightShape.get_shape()))
+                !isPerTensorOrPerChannelBroadcastable(dataShape.get_shape(), weightShape.get_shape(), channelAxis, true))
                 return false;
         }
         return true;
@@ -124,14 +107,14 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node) {
            isBroadcastableToDataInput();
 }
 
-bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node) {
+bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node, const size_t channelAxis = 1) {
     return SupportsFusingWithConvolution_SumActivation(node) ||
            ov::is_type<ngraph::op::Tanh>(node) ||
            ov::is_type<ngraph::op::v0::Gelu>(node) ||
            ov::is_type<ngraph::op::v7::Gelu>(node) ||
            ov::is_type<ngraph::op::Abs>(node) ||
            ov::is_type<ngraph::op::Sqrt>(node) ||
-           canBePerformedAsScaleShift(node);
+           canBePerformedAsScaleShift(node, channelAxis);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(const std::shared_ptr<const Node> &node) {
@@ -181,13 +164,11 @@ bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node) {
+bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, const size_t channelAxis = 1) {
     // Note: Fusing child is allowed to have several users, but that must be the end of the chain
-    return SupportsFusingWithConvolution_Simple(node) && getNumNonConstInputs(node) == 1;
+    return SupportsFusingWithConvolution_Simple(node, channelAxis) && getNumNonConstInputs(node) == 1;
 }
 bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, NodeFusingType &updatedChainType) {
-    if (!ov::is_type<ngraph::opset1::Add>(node))
-        return false;
     int num_non_const_inputs = 0;
     bool can_be_converted_to_FC = false;
     ov::Shape bias_shape;
@@ -198,12 +179,21 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
             bias_shape = parent_out.get_shape();
             num_non_const_inputs++;
         } else {
-            if (getNumNonConstInputs(parent) == 1)
-                can_be_converted_to_FC = true;
             const auto pshape = parent_out.get_partial_shape();
-            if (pshape.is_dynamic())
+            if (pshape.is_dynamic() || pshape.get_shape().empty())
                 return false;
             matmul_shape = pshape.get_shape();
+            const auto& grandparents = parent->input_values();
+            // first check that weights are constant and both activations and weights have static shape
+            if (grandparents.size() == 2 &&
+                grandparents[0].get_partial_shape().is_static() &&
+                grandparents[1].get_partial_shape().is_static() &&
+                ov::is_type<ov::op::v0::Constant>(grandparents[1].get_node_shared_ptr())) {
+                auto rank_a = grandparents[0].get_partial_shape().rank().get_length();
+                auto rank_w = grandparents[1].get_partial_shape().rank().get_length();
+                if (rank_a != 1 && rank_w != 1 && rank_a <= 3 && rank_w <= 3)
+                    can_be_converted_to_FC = true;
+            }
         }
     }
     if (num_non_const_inputs != 1)
@@ -212,15 +202,19 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
     // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
     // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
     // eliminate getNumNonConstInputs() check
-    if (SupportsFusingWithConvolution_Simple(node) &&
-        (!can_be_converted_to_FC || matmul_shape.size() != 3)) {
+    size_t fusingAxis;
+    if (can_be_converted_to_FC)
+        fusingAxis = matmul_shape.size() == 3 ? 2 : 1;
+    else
+        fusingAxis = matmul_shape.size() - 1;
+    if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
         updatedChainType = NodeFusingType::FusedWithMisc;
         return true;
     }
     //    FullyConnectedBiasFusion
-    if (!can_be_converted_to_FC ||
-        bias_shape.back() != matmul_shape.back() ||
-        bias_shape.back() != shape_size(bias_shape)) {
+    if (!(can_be_converted_to_FC && ov::is_type<ngraph::opset1::Add>(node) &&
+        bias_shape.back() == matmul_shape.back() &&
+        bias_shape.back() == shape_size(bias_shape))) {
         return false;
     }
     // Fusing chain must be interrupted after the node, since reshape will be inserted
