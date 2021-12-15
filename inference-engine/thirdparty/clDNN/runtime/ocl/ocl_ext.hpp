@@ -659,13 +659,17 @@ public:
     , _shared_memory(shared_memory) { }
 
     void* ptr() { return _ptr; }
-    ~UsmHolder() {
+    void memFree() {
         try {
             if (!_shared_memory)
                 _usmHelper.free_mem(_ptr);
         } catch (...) {
             // Exception may happen only when clMemFreeINTEL function is unavailable, thus can't free memory properly
         }
+        _ptr = nullptr;
+    }
+    ~UsmHolder() {
+        memFree();
     }
 private:
     const cl::UsmHelper& _usmHelper;
@@ -708,6 +712,12 @@ public:
         _allocate(_usmHelper.allocate_device(nullptr, size, 0, &error));
         if (error != CL_SUCCESS)
             detail::errHandler(error, "[CL_EXT] UsmDevice in cl extensions constructor failed");
+    }
+
+    void freeMem() {
+        if (!_usm_pointer)
+            throw std::runtime_error("[CL ext] Can not free memory of empty UsmHolder");
+        _usm_pointer->memFree();
     }
 
     virtual ~UsmMemory() = default;
