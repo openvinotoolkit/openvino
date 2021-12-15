@@ -14,23 +14,30 @@ using namespace ov::frontend;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-InputModelONNX::InputModelONNX(const std::string& path)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
+InputModelONNX::InputModelONNX(const std::string& path,
+                               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry)} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModelONNX::InputModelONNX(const std::wstring& path)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
+InputModelONNX::InputModelONNX(const std::wstring& path,
+                               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry)} {}
 #endif
 
-InputModelONNX::InputModelONNX(std::istream& model_stream)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream)} {}
+InputModelONNX::InputModelONNX(std::istream& model_stream,
+                               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", telemetry)} {}
 
-InputModelONNX::InputModelONNX(std::istream& model_stream, const std::string& path)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path)} {}
+InputModelONNX::InputModelONNX(std::istream& model_stream,
+                               const std::string& path,
+                               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, telemetry)} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModelONNX::InputModelONNX(std::istream& model_stream, const std::wstring& path)
-    : InputModelONNX(model_stream, ov::util::wstring_to_string(path)) {}
+InputModelONNX::InputModelONNX(std::istream& model_stream,
+                               const std::wstring& path,
+                               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+    : InputModelONNX(model_stream, ov::util::wstring_to_string(path), telemetry) {}
 #endif
 
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const {
@@ -132,11 +139,11 @@ void InputModelONNX::set_element_type(Place::Ptr place, const ngraph::element::T
     m_editor->set_input_types(m);
 }
 
-std::shared_ptr<Function> InputModelONNX::decode() {
+std::shared_ptr<Model> InputModelONNX::decode() {
     return m_editor->decode();
 }
 
-std::shared_ptr<Function> InputModelONNX::convert() {
+std::shared_ptr<Model> InputModelONNX::convert() {
     return m_editor->get_function();
 }
 

@@ -3,12 +3,13 @@
 
 import numpy as np
 import pytest
-from openvino.pyopenvino import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension
+from openvino.runtime.exceptions import UserInputError
 
-import openvino.opset8 as ov
-import openvino.opset1 as ov_opset1
-import openvino.opset5 as ov_opset5
-from openvino.impl import Type
+import openvino.runtime.opset8 as ov
+import openvino.runtime.opset1 as ov_opset1
+import openvino.runtime.opset5 as ov_opset5
+from openvino.runtime import Type
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -109,7 +110,7 @@ def test_ctc_greedy_decoder(dtype):
                              (np.float64, np.int64, "i64", "i32", False, False),
                              (np.float64, np.int64, "i32", "i64", False, False),
                              (np.float64, np.int64, "i64", "i64", False, False)
-                         ],)
+                         ], )
 def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index):
     input0_shape = [8, 20, 128]
     input1_shape = [8]
@@ -786,7 +787,7 @@ def test_rnn_sequence():
 
 
 def test_loop():
-    from openvino.utils.tensor_iterator_types import (
+    from openvino.runtime.utils.tensor_iterator_types import (
         GraphBody,
         TensorIteratorSliceInputDesc,
         TensorIteratorMergedInputDesc,
@@ -1095,41 +1096,6 @@ def test_prior_box_clustered(int_dtype, fp_dtype):
 @pytest.mark.parametrize(
     "int_dtype, fp_dtype",
     [
-        (np.int8, np.float32),
-        (np.int16, np.float32),
-        (np.int32, np.float32),
-        (np.int64, np.float32),
-        (np.uint8, np.float32),
-        (np.uint16, np.float32),
-        (np.uint32, np.float32),
-        (np.uint64, np.float32),
-        (np.int32, np.float16),
-        (np.int32, np.float64),
-    ],
-)
-def test_detection_output(int_dtype, fp_dtype):
-    attributes = {
-        "num_classes": int_dtype(85),
-        "keep_top_k": np.array([64], dtype=int_dtype),
-        "nms_threshold": fp_dtype(0.645),
-    }
-
-    box_logits = ov.parameter([4, 8], fp_dtype, "box_logits")
-    class_preds = ov.parameter([4, 170], fp_dtype, "class_preds")
-    proposals = ov.parameter([4, 2, 10], fp_dtype, "proposals")
-    aux_class_preds = ov.parameter([4, 4], fp_dtype, "aux_class_preds")
-    aux_box_preds = ov.parameter([4, 8], fp_dtype, "aux_box_preds")
-
-    node = ov.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
-
-    assert node.get_type_name() == "DetectionOutput"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == [1, 1, 256, 7]
-
-
-@pytest.mark.parametrize(
-    "int_dtype, fp_dtype",
-    [
         (np.uint8, np.float32),
         (np.uint16, np.float32),
         (np.uint32, np.float32),
@@ -1162,7 +1128,7 @@ def test_proposal(int_dtype, fp_dtype):
 
 
 def test_tensor_iterator():
-    from openvino.utils.tensor_iterator_types import (
+    from openvino.runtime.utils.tensor_iterator_types import (
         GraphBody,
         TensorIteratorSliceInputDesc,
         TensorIteratorMergedInputDesc,
@@ -1951,3 +1917,114 @@ def test_slice():
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
     assert tuple(node.get_output_shape(0)) == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape
+
+
+def test_i420_to_bgr():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    node_single_plane = ov.i420_to_bgr(arg_single_plane)
+
+    assert node_single_plane.get_type_name() == "I420toBGR"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == expected_output_shape
+
+    # Separate planes (three args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_u = ov.parameter([1, 240, 320, 1], name="input_u", dtype=np.float32)
+    arg_v = ov.parameter([1, 240, 320, 1], name="input_v", dtype=np.float32)
+
+    node_separate_planes = ov.i420_to_bgr(arg_y, arg_u, arg_v)
+
+    assert node_separate_planes.get_type_name() == "I420toBGR"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+    # Incorrect inputs number
+    with pytest.raises(UserInputError, match=r".*Operation I420toBGR*."):
+        node_separate_planes = ov.i420_to_bgr(arg_y, arg_v)
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toBGR*."):
+        node_separate_planes = ov.i420_to_bgr(arg_single_plane, None, arg_v)
+
+
+def test_i420_to_rgb():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    node_single_plane = ov.i420_to_rgb(arg_single_plane)
+
+    assert node_single_plane.get_type_name() == "I420toRGB"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == expected_output_shape
+
+    # Separate planes (three args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_u = ov.parameter([1, 240, 320, 1], name="input_u", dtype=np.float32)
+    arg_v = ov.parameter([1, 240, 320, 1], name="input_v", dtype=np.float32)
+
+    node_separate_planes = ov.i420_to_rgb(arg_y, arg_u, arg_v)
+
+    assert node_separate_planes.get_type_name() == "I420toRGB"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toRGB*."):
+        node_separate_planes = ov.i420_to_rgb(arg_y, arg_v)
+
+    with pytest.raises(UserInputError, match=r".*Operation I420toRGB*."):
+        node_separate_planes = ov.i420_to_rgb(arg_single_plane, None, arg_v)
+
+
+def test_nv12_to_bgr():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    node_single_plane = ov.nv12_to_bgr(arg_single_plane)
+
+    assert node_single_plane.get_type_name() == "NV12toBGR"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == expected_output_shape
+
+    # Separate planes (two args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_uv = ov.parameter([1, 240, 320, 2], name="input_uv", dtype=np.float32)
+
+    node_separate_planes = ov.nv12_to_bgr(arg_y, arg_uv)
+
+    assert node_separate_planes.get_type_name() == "NV12toBGR"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+
+def test_nv12_to_rgb():
+    expected_output_shape = [1, 480, 640, 3]
+
+    # # Single plane (one arg)
+    arg_single_plane = ov.parameter([1, 720, 640, 1], name="input", dtype=np.float32)
+    node_single_plane = ov.nv12_to_rgb(arg_single_plane)
+
+    assert node_single_plane.get_type_name() == "NV12toRGB"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == expected_output_shape
+
+    # Separate planes (two args)
+    arg_y = ov.parameter([1, 480, 640, 1], name="input_y", dtype=np.float32)
+    arg_uv = ov.parameter([1, 240, 320, 2], name="input_uv", dtype=np.float32)
+
+    node_separate_planes = ov.nv12_to_rgb(arg_y, arg_uv)
+
+    assert node_separate_planes.get_type_name() == "NV12toRGB"
+    assert node_separate_planes.get_output_size() == 1
+    assert node_separate_planes.get_output_element_type(0) == Type.f32
+    assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape

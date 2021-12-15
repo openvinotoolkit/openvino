@@ -17,7 +17,6 @@ namespace py = pybind11;
 namespace Containers {
     using TensorIndexMap = std::map<size_t, ov::runtime::Tensor>;
     using TensorNameMap = std::map<std::string, ov::runtime::Tensor>;
-    using InferResults = std::vector<ov::runtime::Tensor>;
 
     void regclass_TensorIndexMap(py::module m);
     void regclass_TensorNameMap(py::module m);

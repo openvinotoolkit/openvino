@@ -8,20 +8,18 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
-set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
-
-add_subdirectory(runtime)
+set(OV_ONNX_NAMESPACE ngraph_onnx)
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
     add_subdirectory(util)
     add_subdirectory(engines_util)
-    if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    if (ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_test_util)
     endif()
 endif()
 
-if(NOT NGRAPH_UNIT_TEST_ENABLE)
+if(NOT ENABLE_OV_CORE_UNIT_TESTS)
     message(STATUS "nGraph unit tests disabled")
     return()
 endif()
@@ -69,28 +67,6 @@ set(SRC
     rtti.cpp
     op.cpp
     opset.cpp
-    op_eval/binary_convolution.cpp
-    op_eval/bucketize.cpp
-    op_eval/clamp.cpp
-    op_eval/einsum.cpp
-    op_eval/floor_mod.cpp
-    op_eval/gelu.cpp
-    op_eval/hsigmoid.cpp
-    op_eval/hswish.cpp
-    op_eval/interpolate.cpp
-    op_eval/matmul.cpp
-    op_eval/memory.cpp
-    op_eval/mish.cpp
-    op_eval/non_zero.cpp
-    op_eval/roi_align.cpp
-    op_eval/roi_pooling.cpp
-    op_eval/round.cpp
-    op_eval/softplus.cpp
-    op_eval/split.cpp
-    op_eval/swish.cpp
-    op_eval/strided_slice.cpp
-    op_eval/transpose.cpp
-    op_eval/variadic_split.cpp
     opset1.cpp
     ov_default_allocator_test.cpp
     ov_tensor_test.cpp
@@ -271,6 +247,7 @@ set(SRC
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
     visitors/partial_shape.cpp
+    visitors/dimension.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
     visitors/op/acos.cpp
@@ -318,6 +295,7 @@ set(SRC
     visitors/op/exp.cpp
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
@@ -427,7 +405,6 @@ set(SRC
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
-    util.cpp
 )
 
 # For type relaxed types
@@ -445,64 +422,47 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
-if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
-    message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-    if (ENABLE_STRICT_DEPENDENCIES)
-        # For convinience add a runtime dependency to build along with this target.
-        # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
-    endif()
-endif()
-
-if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
-    message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-    if (ENABLE_STRICT_DEPENDENCIES)
-        # For convinience add a runtime dependency to build along with this target.
-        # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
-    endif()
-endif()
-
-if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
-    list(APPEND SRC
-        builder.cpp
-        backend_api.cpp)
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
-endif()
-
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the `test/backend` directory
 # 3) Include "util/test_control.hpp" in your cpp file
 # 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
-# 5) Use the `NGRAPH_TEST` macro in place of `TEST`.
+# 5) Use the `OV_CORE_TEST` macro in place of `TEST`.
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 
+# TODO: Enable these tests in new infrastructure
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/aliased_output.in.cpp
-    backend/api.in.cpp
-    backend/auto_broadcast.in.cpp
-    backend/builder_reduce_ops_opset1.in.cpp
-    backend/dyn_reshape.in.cpp
-    backend/dynamic.in.cpp
-    backend/experimental_detectron_prior_grid.in.cpp
-    backend/function_name.in.cpp
     backend/interpolate.in.cpp
-    backend/multiple_backends.in.cpp
-    backend/multiple_result.in.cpp
-    backend/node_name.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
-    backend/unhandled_op.in.cpp
-    backend/validate_call.in.cpp
-    backend/zero_sized.in.cpp
+    # It should be a part of template plugin
+    op_eval/binary_convolution.cpp
+    op_eval/bucketize.cpp
+    op_eval/clamp.cpp
+    op_eval/einsum.cpp
+    op_eval/floor_mod.cpp
+    op_eval/gelu.cpp
+    op_eval/hsigmoid.cpp
+    op_eval/hswish.cpp
+    op_eval/interpolate.cpp
+    op_eval/matmul.cpp
+    op_eval/memory.cpp
+    op_eval/mish.cpp
+    op_eval/non_zero.cpp
+    op_eval/roi_align.cpp
+    op_eval/roi_pooling.cpp
+    op_eval/round.cpp
+    op_eval/softplus.cpp
+    op_eval/split.cpp
+    op_eval/swish.cpp
+    op_eval/strided_slice.cpp
+    op_eval/transpose.cpp
+    op_eval/variadic_split.cpp
 )
 
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_com_microsoft.in.cpp
@@ -510,24 +470,20 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             onnx/onnx_import_const_folding.in.cpp
             onnx/onnx_import_convpool.in.cpp
             onnx/onnx_import_deprecated.in.cpp
-            onnx/onnx_import_dyn_shapes.in.cpp
+            # onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
-            onnx/onnx_import_quant.in.cpp)
+            onnx/onnx_import_quant.in.cpp
+            onnx/onnx_test_utils.in.cpp
+            onnx/onnx_import_with_editor.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
             onnx/onnx_tensor_names.cpp
-            onnx/onnx_transformations.cpp)
-endif()
-
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
-    list(APPEND SRC onnx/onnx_editor.cpp)
-    list(APPEND MULTI_TEST_SRC
-        onnx/onnx_test_utils.in.cpp
-        onnx/onnx_import_with_editor.in.cpp)
+            onnx/onnx_transformations.cpp
+            onnx/onnx_editor.cpp)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
@@ -543,48 +499,39 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC)
 endforeach()
 add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
-foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
-    string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
-    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest)
 
-    foreach(TEST_SRC ${MULTI_TEST_SRC})
-        string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
-        string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
-        configure_file(${TEST_SRC} ${TARGET_NAME})
-        set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
-    endforeach()
-
-    message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
+foreach(TEST_SRC ${MULTI_TEST_SRC})
+    string(REPLACE ".in." "_TEMPLATE." TARGET_NAME ${TEST_SRC})
+    configure_file(${TEST_SRC} ${TARGET_NAME})
+    set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
 endforeach()
 
-add_executable(unit-test ${SRC})
+add_executable(ov_core_unit_tests ${SRC})
 
-add_dependencies(unit-test template_extension)
+add_dependencies(ov_core_unit_tests template_extension)
 
-target_include_directories(unit-test PRIVATE ".")
-target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+target_include_directories(ov_core_unit_tests PRIVATE ".")
 
-get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
-target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
+get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
+target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
 
-target_compile_definitions(unit-test
+target_compile_definitions(ov_core_unit_tests
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(UNIT_TESTS_DEPENDENCIES)
-    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
+    add_dependencies(ov_core_unit_tests ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(unit-test PRIVATE ngraph_test_util
+target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
                                         ngraph::builder
+                                        ngraph_reference
                                         openvino::util
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
-                                        ie_backend
-                                        interpreter_backend
                                         Threads::Threads
                                         openvino::conditional_compilation
                                         openvino::util
@@ -592,39 +539,39 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
-    target_include_directories(unit-test
+    target_include_directories(ov_core_unit_tests
         SYSTEM PRIVATE
             $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
             ${Protobuf_INCLUDE_DIRS})
-    target_compile_definitions(unit-test
+    target_compile_definitions(ov_core_unit_tests
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_definitions(unit-test PRIVATE NGRAPH_ONNX_FRONTEND_ENABLE)
+    target_compile_definitions(ov_core_unit_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
-    target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
+    target_compile_options(ov_core_unit_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (ENABLE_OV_ONNX_FRONTEND)
     get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(unit-test PRIVATE onnx_ov_frontend onnx_test_util)
+    target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
+    target_link_libraries(ov_core_unit_tests PRIVATE onnx_ov_frontend onnx_test_util)
     if (LINUX)
-        target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+        target_link_options(ov_core_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
-        target_link_options(unit-test PRIVATE -Wl,-dead_strip)
+        target_link_options(ov_core_unit_tests PRIVATE -Wl,-dead_strip)
     endif()
 endif()
 
-if(NGRAPH_IR_FRONTEND_ENABLE)
-    add_dependencies(unit-test ir_ov_frontend)
+if(ENABLE_OV_IR_FRONTEND)
+    add_dependencies(ov_core_unit_tests ir_ov_frontend)
 endif()
 
-install(TARGETS unit-test
+install(TARGETS ov_core_unit_tests
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
@@ -632,4 +579,4 @@ install(TARGETS unit-test
 add_subdirectory(frontend)
 
 # process models
-add_dependencies(unit-test test_model_zoo)
+add_dependencies(ov_core_unit_tests test_model_zoo)
