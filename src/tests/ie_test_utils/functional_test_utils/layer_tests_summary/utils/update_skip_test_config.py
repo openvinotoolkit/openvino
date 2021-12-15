@@ -19,25 +19,12 @@ def parse_arguments():
 
     return parser.parse_args()
 
-
-def is_conformance(content: str):
-    if 'conformance' in content:
-        return True
-    return False
-
-
 def is_hung_test(content: str):
-    # if content == '' or \
-    #     "SKIPPED" in content or \
-    #     "FAILED" in content or \
-    #     "Unexpected application crash!" in content or \
-    #     "PASSED" in content:
-    #     return False
-    if "NOT_IMPLEMENTED" in content:
-        a = 0
-    if "listed below" in content:
-        return True
-    if "PASSED" in content:
+    if content == '' or \
+            "SKIPPED" in content or \
+            "FAILED" in content or \
+            "Unexpected application crash!" in content or \
+            "PASSED" in content:
         return False
     return True
 
@@ -64,9 +51,6 @@ def get_conformance_hung_test(test_log_dirs: list):
         for log_file in glob.glob(os.path.join(test_log_dir, '*/*')):
             with open(log_file) as log:
                 content = log.read()
-                if "NOT_IMPLEMENTED" in content.upper():
-                    print(log_file)
-                # if not (is_hung_test(content) and is_conformance(content)):
                 if not (is_hung_test(content)):
                     continue
                 device = get_device_name(content)
