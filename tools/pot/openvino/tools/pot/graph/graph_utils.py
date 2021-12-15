@@ -4,9 +4,9 @@
 import os
 import tempfile
 from copy import deepcopy
-from mo.graph.graph import Graph
-from mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
-from mo.utils.logger import init_logger
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
+from openvino.tools.mo.utils.logger import init_logger
 from openvino.inference_engine import IECore  # pylint: disable=E0611
 from openvino.offline_transformations import ApplyPOTTransformations  # pylint: disable=import-error,no-name-in-module
 

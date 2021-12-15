@@ -155,6 +155,13 @@ DECLARE_GPU_CONFIG_KEY(MAX_NUM_THREADS);
  * Thus, this key should be turned off if graph loading time is considered to be most important target to optimize.*/
 DECLARE_GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
 
+/**
+ * @brief This keys instructs the GPU plugin to use surface/buffer and batched memory type.
+ */
+DECLARE_GPU_CONFIG_KEY(SURFACE);
+DECLARE_GPU_CONFIG_KEY(BUFFER);
+DECLARE_GPU_CONFIG_KEY(BATCHED);
+
 }  // namespace GPUConfigParams
 
 namespace PluginConfigParams {

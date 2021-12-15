@@ -86,7 +86,7 @@ std::string TestsCommon::GetTestName() const {
 }
 
 }  // namespace test
-std::shared_ptr<SharedRTInfo> FunctionAccessor::get_shared_info() const {
+std::shared_ptr<SharedRTInfo> ModelAccessor::get_shared_info() const {
     if (auto f = m_function.lock()) {
         return f->m_shared_rt_info;
     }

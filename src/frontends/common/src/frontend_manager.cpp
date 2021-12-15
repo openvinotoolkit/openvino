@@ -73,7 +73,7 @@ public:
         return names;
     }
 
-    FrontEnd::Ptr load_by_model(const std::vector<std::shared_ptr<Variant>>& variants) {
+    FrontEnd::Ptr load_by_model(const std::vector<ov::Any>& variants) {
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         // Step 1: Search from hard-coded prioritized frontends first
         auto ptr = search_priority(variants);
@@ -116,7 +116,7 @@ private:
         return info.is_file_name_match(names.file_name) || info.get_creator().m_name == names.name;
     }
 
-    FrontEnd::Ptr search_priority(const std::vector<std::shared_ptr<Variant>>& variants) {
+    FrontEnd::Ptr search_priority(const std::vector<ov::Any>& variants) {
         // Map between file extension and suitable frontend
         static const std::map<std::string, FrontEndNames> priority_fe_extensions = {
             {".xml", {"ir", "ir"}},
@@ -138,12 +138,12 @@ private:
         std::string model_path;
 
         const auto& model_variant = variants.at(0);
-        if (ov::is_type<ov::VariantWrapper<std::string>>(model_variant)) {
-            const auto& tmp_path = ov::as_type_ptr<ov::VariantWrapper<std::string>>(model_variant)->get();
+        if (model_variant.is<std::string>()) {
+            const auto& tmp_path = model_variant.as<std::string>();
             model_path = tmp_path;
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        } else if (ov::is_type<ov::VariantWrapper<std::wstring>>(model_variant)) {
-            auto wpath = ov::as_type_ptr<ov::VariantWrapper<std::wstring>>(model_variant)->get();
+        } else if (model_variant.is<std::wstring>()) {
+            auto wpath = model_variant.as<std::wstring>();
             model_path = ov::util::wstring_to_string(wpath);
 #endif
         }
@@ -216,7 +216,7 @@ FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework) {
     return m_impl->load_by_framework(framework);
 }
 
-FrontEnd::Ptr FrontEndManager::load_by_model_impl(const std::vector<std::shared_ptr<Variant>>& variants) {
+FrontEnd::Ptr FrontEndManager::load_by_model_impl(const std::vector<ov::Any>& variants) {
     return m_impl->load_by_model(variants);
 }
 
@@ -229,7 +229,7 @@ void FrontEndManager::register_front_end(const std::string& name, FrontEndFactor
 }
 
 template <>
-FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants) {
+FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants) {
     return load_by_model_impl(variants);
 }
 
@@ -239,30 +239,30 @@ FrontEnd::FrontEnd() = default;
 
 FrontEnd::~FrontEnd() = default;
 
-bool FrontEnd::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-InputModel::Ptr FrontEnd::load_impl(const std::vector<std::shared_ptr<Variant>>& params) const {
+InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& params) const {
     FRONT_END_NOT_IMPLEMENTED(load_impl);
 }
-std::shared_ptr<ngraph::Function> FrontEnd::convert(InputModel::Ptr model) const {
+std::shared_ptr<Model> FrontEnd::convert(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-void FrontEnd::convert(std::shared_ptr<ngraph::Function>) const {
+void FrontEnd::convert(std::shared_ptr<Model>) const {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(InputModel::Ptr model) const {
+std::shared_ptr<Model> FrontEnd::convert_partially(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(convert_partially);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(InputModel::Ptr model) const {
+std::shared_ptr<Model> FrontEnd::decode(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(decode);
 }
 
-void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const {
+void FrontEnd::normalize(std::shared_ptr<Model> model) const {
     FRONT_END_NOT_IMPLEMENTED(normalize);
 }
 
@@ -370,15 +370,15 @@ void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs, const s
 }
 
 // Setting tensor properties
-void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape&) {
+void InputModel::set_partial_shape(Place::Ptr place, const PartialShape&) {
     FRONT_END_NOT_IMPLEMENTED(set_partial_shape);
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(Place::Ptr place) const {
+PartialShape InputModel::get_partial_shape(Place::Ptr place) const {
     FRONT_END_NOT_IMPLEMENTED(get_partial_shape);
 }
 
-void InputModel::set_element_type(Place::Ptr place, const ngraph::element::Type&) {
+void InputModel::set_element_type(Place::Ptr place, const element::Type&) {
     FRONT_END_NOT_IMPLEMENTED(set_element_type);
 }
 

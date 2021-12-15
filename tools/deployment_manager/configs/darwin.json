@@ -21,7 +21,7 @@
         "runtime/lib/intel64/libinference_engine_preproc.so",
         "runtime/lib/intel64/libinference_engine_c_api.dylib",
         "runtime/lib/intel64/libov_hetero_plugin.so",
-        "runtime/lib/intel64/libMultiDevicePlugin.so",
+        "runtime/lib/intel64/libov_auto_plugin.so",
         "runtime/lib/intel64/libngraph.dylib",
         "runtime/lib/intel64/libfrontend_common.dylib",
         "runtime/lib/intel64/libir_ov_frontend.dylib",
@@ -46,7 +46,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/libmyriadPlugin.so",
-        "runtime/lib/intel64/libinference_engine_legacy.dylib",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd"
       ]

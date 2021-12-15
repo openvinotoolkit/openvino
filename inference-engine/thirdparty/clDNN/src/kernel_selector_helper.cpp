@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
 #include "kernel_selector_params.h"
@@ -363,6 +363,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_zyx_osv16_isv16;
         case format::g_os_is_zyx_osv16_isv16:
             return kernel_selector::weights_layout::g_os_is_zyx_osv16_isv16;
+        case format::os_is_yx_osa2_isa8_osv8_isv2:
+            return kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv8_isv2;
         case format::os_is_yx_osa2_isa8_osv16_isv4:
             return kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4;
         case format::g_os_is_yx_osa2_isa8_osv16_isv4:
@@ -452,6 +454,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_is_zyx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4:
             return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4;
+        case kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv8_isv2:
+            return cldnn::format::os_is_yx_osa2_isa8_osv8_isv2;
         case kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv2:
             return cldnn::format::os_is_yx_osa2_isa8_osv16_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv16_isv2:
@@ -707,8 +711,6 @@ layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
     size.spatial[0] = static_cast<int32_t>(l.X().v);
     size.spatial[1] = static_cast<int32_t>(l.Y().v);
     size.spatial[2] = static_cast<int32_t>(l.Z().v);
-    size.local[0] = static_cast<int32_t>(l.LX().v);
-    size.local[1] = static_cast<int32_t>(l.LY().v);
 
     return layout(type, format, size);
 }
