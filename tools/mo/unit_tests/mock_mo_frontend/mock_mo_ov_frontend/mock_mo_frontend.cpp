@@ -3,7 +3,7 @@
 //
 
 #include "mock_mo_frontend.hpp"
-#include "common/frontend_defs.hpp"
+#include "common/defs.hpp"
 #include "manager.hpp"
 #include "ngraph/visibility.hpp"
 
