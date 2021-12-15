@@ -765,7 +765,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1) {
     test_case.run(4);
 }
 
-NGRAPH_TEST(TEMPLATE, onnx_model_softmax_axis_negative_1_opset11) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset11) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_negative_1_opset11.onnx"));
 
@@ -794,7 +794,7 @@ NGRAPH_TEST(TEMPLATE, onnx_model_softmax_axis_negative_1_opset11) {
     test_case.run(6);
 }
 
-NGRAPH_TEST(TEMPLATE, onnx_model_softmax_axis_negative_1_opset13) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset13) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_negative_1_opset13.onnx"));
 
