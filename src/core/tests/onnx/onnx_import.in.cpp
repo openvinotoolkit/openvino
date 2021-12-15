@@ -765,6 +765,34 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1) {
     test_case.run(4);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1_opset11) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_1_opset11.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(SOFTMAX_INPUT);
+
+    // clang-format off
+    test_case.add_expected_output<float>(
+        Shape{3, 4, 5},
+        {0.88890495, 0.04825497, 0.27088348, 0.04490523, 0.02037154,
+         0.06955369, 0.31998834, 0.39223197, 0.68041159, 0.05141776,
+         0.02566661, 0.5885689,  0.12453075, 0.06257374, 0.03019055,
+         0.01587475, 0.0431878,  0.21235381, 0.21210944, 0.89802015,
+
+         0.31752626, 0.19442629, 0.0546935,  0.06279221, 0.36823282,
+         0.10362164, 0.06523066, 0.24006419, 0.03103672, 0.32987983,
+         0.55743381, 0.473766,   0.61451431, 0.09486084, 0.03722801,
+         0.02141829, 0.26657706, 0.090728,   0.81131024, 0.26465935,
+
+         0.08619648, 0.43343993, 0.3877785,  0.04523505, 0.15625437,
+         0.61900597, 0.01653285, 0.06394322, 0.56592636, 0.27376196,
+         0.11201305, 0.31654337, 0.21947994, 0.07893034, 0.05236297,
+         0.18278451, 0.23348385, 0.32879834, 0.30990825, 0.5176207});
+    // clang-format on
+
+    test_case.run(4);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset11) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_negative_1_opset11.onnx"));
