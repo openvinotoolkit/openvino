@@ -1063,6 +1063,8 @@ MKLDNNConvolutionNode::ConvolutionExecutor::ConvolutionExecutor(const mkldnn::co
                                                                 MKLDNNMemoryPtr inMem,
                                                                 MKLDNNMemoryPtr weightMem,
                                                                 MKLDNNMemoryPtr outMem,
+                                                                const mkldnn::primitive_attr &attr,
+                                                                const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
                                                                 const mkldnn::engine& engine,
                                                                 MKLDNNMemoryPtr biasMem) {
     execPrim.reset(new mkldnn::convolution_forward(pd));
@@ -1085,7 +1087,7 @@ MKLDNNConvolutionNode::ConvolutionExecutor::ConvolutionExecutor(const mkldnn::co
         primArgs[DNNL_ARG_BIAS] = biasMem->GetPrimitive();
     }
 
-    appendPostOpArgs(*pAttrLocal, primArgs, binaryPostOpsArgs);
+    MKLDNNNode::appendPostOpArgs(attr, primArgs, binPostOpsArgs);
 }
 
 void MKLDNNConvolutionNode::execute(mkldnn::stream strm) {
