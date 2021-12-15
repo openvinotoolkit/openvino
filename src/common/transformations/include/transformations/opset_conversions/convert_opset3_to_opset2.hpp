@@ -19,5 +19,5 @@ class TRANSFORMATIONS_API ConvertOpSet3ToOpSet2;
 class ngraph::pass::ConvertOpSet3ToOpSet2: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
