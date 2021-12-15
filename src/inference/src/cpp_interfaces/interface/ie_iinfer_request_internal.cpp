@@ -297,6 +297,21 @@ void IInferRequestInternal::convertBatchedBlob(const std::string& name, const Ba
     for (size_t i = 0; i < batched_blob->size(); i++) {
         const auto& blob = as<MemoryBlob>(batched_blob->getBlob(i));
         OPENVINO_ASSERT(mem_blob, "Internal error - can't cast blob ", i, " to MemoryBlob");
+        const auto& blob_desc = blob->getTensorDesc().getBlockingDesc();
+        bool offsets_0 = std::all_of(blob_desc.getOffsetPaddingToData().begin(),
+                                     blob_desc.getOffsetPaddingToData().end(),
+                                     [](size_t dim) {
+                                         return dim == 0;
+                                     });
+        OPENVINO_ASSERT(offsets_0,
+                        "set_tensors/set_input_tensors - default combining is not supported for "
+                        "ROI tensors. All tensors offsets shall be 0");
+        OPENVINO_ASSERT(mem_blob->getTensorDesc().getBlockingDesc().getOrder() == blob_desc.getOrder(),
+                        "set_tensors/set_input_tensors - default combining is not supported for "
+                        "ROI tensors. Axis order shall be default");
+        OPENVINO_ASSERT(mem_blob->getTensorDesc().getBlockingDesc().getStrides() == blob_desc.getStrides(),
+                        "set_tensors/set_input_tensors - default combining is not supported for "
+                        "ROI tensors. Input blobs shall have default strides set");
         memcpy(ptr.as<uint8_t*>() + i * blob->byteSize(),
                blob->rmap().as<uint8_t*>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding(),
                blob->byteSize());

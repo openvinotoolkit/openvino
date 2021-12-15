@@ -40,6 +40,34 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_remote_tensor_default) {
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
+// Default implementation - throw on complicated ROI blobs combining
+TEST_P(OVInferRequestBatchedTests, SetInputTensors_Strides) {
+    size_t batch = 2;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto one_shape_stride = Shape{1, 4, 4, 4};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    auto one_shape_size_stride = ov::shape_size(one_shape_stride);
+    auto model = create_n_inputs(2, element::f32, batch_shape, "N...");
+    std::vector<float> buffer1(one_shape_size_stride, 10);
+    std::vector<float> buffer2(one_shape_size_stride, 20);
+    auto execNet = ie->compile_model(model, targetDevice);
+    // Create InferRequest
+    ov::runtime::InferRequest req;
+    req = execNet.create_infer_request();
+    auto tensor1 = runtime::Tensor(element::f32, one_shape_stride, &buffer1[0]);
+    auto tensor2 = runtime::Tensor(element::f32, one_shape_stride, &buffer2[0]);
+    auto tensor1_cut =  runtime::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
+    auto tensor2_cut =  runtime::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
+    std::vector<ov::runtime::Tensor> tensors;
+    tensors.push_back(tensor1_cut);
+    tensors.push_back(tensor2_cut);
+    auto exp_tensor = ov::runtime::Tensor(element::f32, batch_shape);
+    ASSERT_THROW({
+                     req.set_tensors("tensor_input0", tensors);
+                     req.infer();
+                 }, ov::Exception);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_TEMPLATE, OVInferRequestBatchedTests,
                          ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                          OVInferRequestBatchedTests::getTestCaseName);
