@@ -107,7 +107,11 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     for (auto& fused_desc : get_fused_primitives()) {
         json_composite fused_node_info;
         fused_node_info.add("id", fused_desc.node->id());
-        fused_node_info.add("dependencies", fused_desc.deps);
+        std::vector<primitive_id> dep_ids;
+        for (auto dep : fused_desc.deps) {
+            dep_ids.push_back(dep.first);
+        }
+        fused_node_info.add("dependencies", dep_ids);
         fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
@@ -332,6 +336,14 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 dnnl::memory::desc desc;
                 cur_p_ops.get_params_binary(idx, alg, desc);
                 new_p_ops.append_binary(alg, desc);
+                break;
+            }
+
+            case onednn_post_op_type::binary_relu:
+            {
+                int mask;
+                cur_p_ops.get_params_prelu(idx, mask);
+                new_p_ops.append_prelu(mask);
                 break;
             }
 
@@ -709,6 +721,7 @@ void program_node::init_onednn_primitive_attributes() {
                                   type == onednn_post_op_type::binary_mul ||
                                   type == onednn_post_op_type::binary_max ||
                                   type == onednn_post_op_type::binary_min ||
+                                  type == onednn_post_op_type::binary_relu ||
                                   type == onednn_post_op_type::scale ||
                                   type == onednn_post_op_type::sum;
         if (has_memory_buffers)
@@ -719,10 +732,18 @@ void program_node::init_onednn_primitive_attributes() {
         auto node = cldnn_post_ops[idx].node;
 
         if (node->is_type<activation>()) {
-            auto fused_desc = node->as<activation>().get_primitive();
-            dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
-            post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+            auto& a_node = node->as<activation>();
+            if (!a_node.get_primitive()->additional_params_input.empty()) {
+                auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
+                int oc_dim = node->get_output_layout().size.feature.size();
+                post_ops.append_prelu(1 << oc_dim);
+                update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
+            } else {
+                auto fused_desc = node->as<activation>().get_primitive();
+                dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
+                post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+            }
         } else if (node->is_type<eltwise>()) {
             auto& e_node = node->as<eltwise>();
             auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
