@@ -28,7 +28,7 @@ for ((i=1;i <= $#;i++)) {
         *)
             if [[ "$1" != "" ]]; then
                 echo "\"${!i}\" is unsupported parameter"
-                echo $"Usage: $0 {caffe|tf|mxnet|kaldi|onnx} {venv}"
+                echo $"Usage: $0 {caffe|tf|tf2|mxnet|kaldi|onnx} {venv}"
                 exit 1
             fi
             ;;
