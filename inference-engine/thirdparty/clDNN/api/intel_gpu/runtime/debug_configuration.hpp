@@ -38,9 +38,6 @@ public:
     int dump_layers_limit_batch;    // Limit the size of batch to dump
     int base_batch_for_memory_estimation; // Base batch size to be used in memory estimation
     static const debug_configuration *get_instance();
-
-private:
-    void print_help_messages();
 };
 
 }  // namespace cldnn

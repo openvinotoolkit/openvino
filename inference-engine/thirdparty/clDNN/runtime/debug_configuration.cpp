@@ -99,6 +99,34 @@ void get_common_debug_env_var(const std::string &var, T &val) {
     return get_debug_env_var(var, val, allowed_option_prefixes);
 }
 
+static void print_help_messages() {
+    std::vector<std::pair<std::string, std::string>> message_list;
+    message_list.emplace_back("OV_GPU_Help", "Print help messages");
+    message_list.emplace_back("OV_GPU_Verbose", "Verbose execution");
+    message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
+    message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
+    message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
+    message_list.emplace_back("OV_GPU_DumpGraphs", "Dump optimized graph");
+    message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
+    message_list.emplace_back("OV_GPU_DumpLayersPath", "Enable dumping intermediate buffers and set the dest path");
+    message_list.emplace_back("OV_GPU_DumpLayers", "Dump intermediate buffers of specified layers only, separated by space");
+    message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
+    message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
+    message_list.emplace_back("OV_GPU_DryRunPath", "Dry run and serialize execution graph into the specified path");
+    message_list.emplace_back("OV_GPU_BaseBatchForMemEstimation", "Base batch size to be used in memory estimation");
+
+    auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
+        [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
+            return a.first.size() < b.first.size();
+    });
+    int name_width = static_cast<int>(max_name_length_item->first.size()) + 2;
+
+    GPU_DEBUG_COUT << "Supported environment variables for debugging" << std::endl;
+    for (auto& p : message_list) {
+        GPU_DEBUG_COUT << " - " << std::left << std::setw(name_width) << p.first + ": " << p.second << std::endl;
+    }
+}
+
 #endif
 
 debug_configuration::debug_configuration()
@@ -142,37 +170,6 @@ debug_configuration::debug_configuration()
 
     if (dump_layers.length() > 0)
         dump_layers = " " + dump_layers + " "; // Insert delimiter for easier parsing when used
-#endif
-}
-
-void debug_configuration::print_help_messages() {
-#ifdef GPU_DEBUG_CONFIG
-    std::vector<std::pair<std::string, std::string>> message_list;
-    message_list.emplace_back("OV_GPU_Help", "Print help messages");
-    message_list.emplace_back("OV_GPU_Verbose", "Verbose execution");
-    message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
-    message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
-    message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
-    message_list.emplace_back("OV_GPU_DumpGraphs", "Dump optimized graph");
-    message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
-    message_list.emplace_back("OV_GPU_DumpLayersPath", "Enable dumping intermediate buffers and set the dest path");
-    message_list.emplace_back("OV_GPU_DumpLayers", "Dump intermediate buffers of specified layers only, separated by space");
-    message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
-    message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
-    message_list.emplace_back("OV_GPU_DryRunPath", "Dry run and serialize execution graph into the specified path");
-    message_list.emplace_back("OV_GPU_BaseBatchForMemEstimation", "Base batch size to be used in memory estimation");
-
-    auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
-        [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
-            return a.first.size() < b.first.size();
-    });
-    int name_width = static_cast<int>(max_name_length_item->first.size()) + 2;
-
-    GPU_DEBUG_COUT << "Supported environment variables for debugging" << std::endl;
-    for (auto& p : message_list) {
-        GPU_DEBUG_COUT << " - " << std::left << std::setw(name_width) << p.first + ": " << p.second << std::endl;
-    }
-
 #endif
 }
 

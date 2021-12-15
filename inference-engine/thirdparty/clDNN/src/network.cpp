@@ -119,8 +119,8 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
         file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
     } else {
         file_stream << "shape: " << tmp_size.to_string() << " ";
-        file_stream << "(count: " << tmp_size.count() << ", original shape: " << size.to_string()
-                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+        file_stream << "(count: " << tmp_size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+            << ", original shape: " << size.to_string() << ")" << std::endl;
     }
 
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
