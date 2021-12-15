@@ -1378,51 +1378,49 @@ bool MKLDNNNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
-  std::vector<ov::StaticShape> input_shapes;
-  std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
-  for (size_t i = 0; i < inputShapes.size(); i++) {
-    const auto &memPtr = getParentEdgesAtPort(i)[0]->getMemory();
-    input_shapes.push_back(memPtr.getStaticDims());
-
-    input_values[i] = std::make_shared<ngraph::runtime::HostTensor>(
-        InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
-        memPtr.getStaticDims(), memPtr.GetPtr());
-  }
-
-  std::vector<ov::StaticShape> output_shapes(outputShapes.size());
-
-  shape_inference(opToShapeInfer.get(), input_shapes, output_shapes,
-                  input_values);
-
-  std::vector<VectorDims> result(output_shapes.size());
-  std::transform(output_shapes.begin(), output_shapes.end(), result.begin(),
-                 [](const ov::StaticShape &s) { return s.to_shape(); });
-
-  return result;
+    return shapeInferGeneric();
 }
 
-std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes) const {
-    if (shapes.size() < opToShapeInfer->get_input_size()) {
-        IE_THROW(Unexpected) << "MKLDNNNode::shapeInferGeneric input shapes vector size is " << shapes.size() << ", but " << opToShapeInfer->get_input_size() <<
-            " required for node with name: " << getName();
+std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes,
+                                                      uint32_t input_value_port_mask) const {
+    // collect input shapes
+    std::vector<ov::StaticShape> input_shapes;
+    if (shapes.empty()) {
+        // from graph runtime
+        for (size_t i = 0; i < inputShapes.size(); i++)
+            input_shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getStaticDims());
+    } else {
+        // from parameter given
+        for (size_t i = 0; i < shapes.size(); i++)
+            input_shapes.push_back(shapes[i].getStaticDims());
     }
 
-    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
-        if (!dynamic_cast<ngraph::opset1::Constant *>(opToShapeInfer->get_input_node_ptr(i))) {
-            opToShapeInfer->get_input_tensor(i).set_partial_shape(shapes[i].toPartialShape());
+    // collect input values
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
+    if (input_value_port_mask) {
+        for (size_t i = 0; i < inputShapes.size(); i++) {
+            if (input_value_port_mask & (1 << i)) {
+                const auto& memPtr = getParentEdgesAtPort(i)[0]->getMemory();
+
+                input_values[i] = std::make_shared<ngraph::runtime::HostTensor>(
+                    InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
+                    memPtr.getStaticDims(),
+                    memPtr.GetPtr());
+            }
         }
     }
 
-    opToShapeInfer->validate_and_infer_types();
+    std::vector<ov::StaticShape> output_shapes(outputShapes.size());
 
-    std::vector<VectorDims> newOutputShapes(opToShapeInfer->get_output_size());
-    for (size_t i = 0; i < newOutputShapes.size(); i++) {
-        const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
-        if (partShape.is_dynamic())
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
-        newOutputShapes[i] = partShape.get_shape();
-    }
-    return newOutputShapes;
+    // call shape inference API
+    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
+
+    std::vector<VectorDims> result(output_shapes.size());
+    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s) {
+        return s.to_shape();
+    });
+
+    return result;
 }
 
 void MKLDNNNode::updateLastInputDims() {
