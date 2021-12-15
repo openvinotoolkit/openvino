@@ -54,7 +54,7 @@ def einsum(
 
     :param inputs: The list of input nodes
     :param equation: Einsum equation
-    :return:: The new node performing Einsum operation on the inputs
+    :return: The new node performing Einsum operation on the inputs
     """
     attributes = {
         "equation": equation
@@ -116,7 +116,7 @@ def gather(
     :param indices:      N-D tensor with indices by which data is gathered
     :param axis:         axis along which elements are gathered
     :param batch_dims:   number of batch dimensions
-    :return::             The new node which performs Gather
+    :return:             The new node which performs Gather
     """
     inputs = as_nodes(data, indices, axis)
     attributes = {
@@ -135,7 +135,7 @@ def dft(
     :param data: Tensor with transformed data.
     :param axes: Tensor with axes to transform.
     :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
-    :return:: The new node which performs DFT operation on the input data tensor.
+    :return: The new node which performs DFT operation on the input data tensor.
     """
     if signal_size is None:
         inputs = as_nodes(data, axes)
@@ -156,7 +156,7 @@ def idft(
     :param data: Tensor with transformed data.
     :param axes: Tensor with axes to transform.
     :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
-    :return:: The new node which performs IDFT operation on the input data tensor.
+    :return: The new node which performs IDFT operation on the input data tensor.
     """
     if signal_size is None:
         inputs = as_nodes(data, axes)

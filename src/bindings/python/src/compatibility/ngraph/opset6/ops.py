@@ -61,7 +61,7 @@ def ctc_greedy_decoder_seq_len(
     :param sequence_length: Input 1D tensor with sequence length. Shape: [batch_size]
     :param blank_index:     Scalar or 1D tensor with specifies the class index to use for the blank class.
                             Optional parameter. Default value is num_classes-1.
-    :return::                The new node which performs CTCGreedyDecoderSeqLen.
+    :return:                The new node which performs CTCGreedyDecoderSeqLen.
     """
     if blank_index is not None:
         inputs = as_nodes(data, sequence_length, blank_index)
@@ -89,7 +89,7 @@ def gather_elements(
     :param data:       N-D tensor with data for gathering
     :param indices:    N-D tensor with indices by which data is gathered
     :param axis:       axis along which elements are gathered
-    :return::           The new node which performs GatherElements
+    :return:           The new node which performs GatherElements
     """
     inputs = as_nodes(data, indices)
 

@@ -138,8 +138,6 @@ for more details and command line parameters used for the model conversion.
 mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
 ```
 
-@endsphinxdirective
-
 > **NOTE**: This conversion guide is applicable for the 2021.3 release of OpenVINO and that starting from 2021.4
 > the OpenVINO supports this model out of the box.
 

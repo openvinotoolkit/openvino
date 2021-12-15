@@ -1,7 +1,7 @@
 # Custom ONNX* Operators {#openvino_docs_IE_DG_Extensibility_DG_Custom_ONNX_Ops}
 
 The ONNX\* importer provides a mechanism to register custom ONNX operators based on predefined or custom nGraph operations.
-The function responsible for registering a new operator is called `ngraph::onnx_import::register_operator` and is defined in [`onnx_import/onnx_utils.hpp`](https://docs.openvinotoolkit.org/latest/ngraph_cpp_api/onnx__utils_8hpp_source.html).
+The function responsible for registering a new operator is called `ngraph::onnx_import::register_operator` and defined in the `onnx_import/onnx_utils.hpp` file.
 
 ## Register Custom ONNX Operator Based on Predefined nGraph Operations
 
@@ -23,7 +23,7 @@ where `alpha` and `beta` are float constants.
 
 The `register_operator` function takes four arguments: op_type, opset version, domain, and a function object.
 The function object is a user-defined function that takes `ngraph::onnx_import::Node` as an input and based on that, returns a graph with nGraph operations.
-The `ngraph::onnx_import::Node` class represents a node in an ONNX model. It provides functions to fetch input node(s) using `get_ng_inputs`, attribute value using `get_attribute_value`, and many more. See [`onnx_import/core/node.hpp`](https://docs.openvinotoolkit.org/latest/ngraph_cpp_api/core_2include_2ngraph_2node_8hpp_source.html) for full class declaration.
+The `ngraph::onnx_import::Node` class represents a node in an ONNX model. It provides functions to fetch input node(s) using `get_ng_inputs`, attribute value using `get_attribute_value`, and many more. See the `onnx_import/core/node.hpp` file for the full class declaration.
 
 New operator registration must happen before an ONNX model is read. For example, if an model uses the `CustomRelu` operator, call `register_operator("CustomRelu", ...)` before InferenceEngine::Core::ReadNetwork.
 Reregistering ONNX operators within the same process is supported. If you register an existing operator, you get a warning.
