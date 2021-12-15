@@ -150,7 +150,6 @@ TEST(UtilTests, cloneNet) {
 
                .finalize();
 
-    InferenceEngine::ResponseDesc resp;
     net->setName("net");
 
     {
