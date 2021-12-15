@@ -29,12 +29,12 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
       SCOPED_TIMER(time_to_inference);
       {
         SCOPED_TIMER(load_plugin);
-        TimeTest::setPerformanceConfig(ie, device);
         ie.GetVersions(device);
-
-        if (isCacheEnabled)
-          ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
       }
+      // Set performance and model cache configs
+      TimeTest::setPerformanceConfig(ie, device);
+      if (isCacheEnabled)
+          ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
       {
         SCOPED_TIMER(create_exenetwork);
         if (!isCacheEnabled) {

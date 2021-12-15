@@ -10,7 +10,8 @@
 #include <vector>
 
 /// @brief message for help argument
-static const char help_message[] = "Print a usage message";
+static const char help_message[] =
+    "Print a usage message.";
 
 /// @brief message for model argument
 static const char model_message[] =
@@ -19,16 +20,17 @@ static const char model_message[] =
 
 /// @brief message for target device argument
 static const char target_device_message[] =
-    "Required. Specify a target device to infer on. "
+    "Required. Specify a target device to infer on. \n"
     "Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO "
-    "plugin. "
+    "plugin. \n"
     "Use \"-d MULTI:<comma-separated_devices_list>\" format to specify MULTI "
-    "plugin. "
+    "plugin. \n"
     "The application looks for a suitable plugin for the specified device.";
 
 /// @brief message for cache argument
 static const char model_cache_message[] =
-    "Not required. Use this key to run timetests with models caching.";
+    "Not required. Use this key to run timetests with models caching. \n"
+    "TimeInfer executable should be run twice - the second run will use cache prepared from first run.";
 
 /// @brief message for statistics path argument
 static const char statistics_path_message[] =
@@ -61,12 +63,12 @@ DEFINE_string(s, "", statistics_path_message);
  */
 static void showUsage() {
   std::cout << std::endl;
-  std::cout << "TimeTests [OPTION]" << std::endl;
+  std::cout << "TimeInfer [OPTION]" << std::endl;
   std::cout << "Options:" << std::endl;
   std::cout << std::endl;
-  std::cout << "    -h, --help                  " << help_message << std::endl;
+  std::cout << "    -h, --help                " << help_message << std::endl;
   std::cout << "    -m \"<path>\"               " << model_message << std::endl;
   std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
   std::cout << "    -s \"<path>\"               " << statistics_path_message << std::endl;
-  std::cout << "    -c                          " << model_cache_message << std::endl;
+  std::cout << "    -c                        " << model_cache_message << std::endl;
 }

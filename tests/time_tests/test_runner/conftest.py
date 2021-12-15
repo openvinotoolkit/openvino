@@ -250,9 +250,8 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
         with open(db_meta_path, "r") as db_meta_f:
             test_info["db_info"].update(json.load(db_meta_f))
 
-    # add cpu cache status
-    cpu_cache = True if request.config.getoption("model_cache") else False
-    test_info["db_info"].update({"model_cache": cpu_cache})
+    # add model cache status
+    test_info["db_info"].update({"model_cache": request.config.getoption("model_cache")})
 
     # add test info
     info = {
