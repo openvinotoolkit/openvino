@@ -42,7 +42,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
 namespace Activation {
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(-10, 20, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(10, 20, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;
@@ -185,24 +185,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> 
 
     return Activation::generate(elemType, targetShape);
 }
-
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    switch (port) {
-//        case 1: {
-//            std::vector<float> alpha(node->get_input_shape(1).size(), 0.2f);
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), alpha.data(), alpha.size());
-//        }
-//        case 2: {
-//            std::vector<float> beta(node->get_input_shape(2).size(), 0.5f);
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), beta.data(), beta.size());
-//        }
-//        default: {
-//            return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//        }
-//    }
-//}
 //
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize> node,
 //                                    const InferenceEngine::InputInfo &info,
@@ -261,31 +243,35 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> 
 //    }
 //}
 //
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Log> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed(), 1, 20);
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Negative> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PRelu> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    switch (port) {
-//        case 1: {
-//            std::vector<float> negativeSlope(node->get_input_shape(1).size(), -0.01f);
-//            FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), negativeSlope.data(), negativeSlope.size());
-//        }
-//        default: {
-//            return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//        }
-//    }
-//}
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Log> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape, InputGenerateData(1, 20, 32768, 1));
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Negative> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::PRelu> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    switch (port) {
+        case 1: {
+            std::vector<float> negativeSlope(node->get_input_shape(1).size(), -0.01f);
+            return ov::test::utils::create_tensor<float>(elemType, targetShape, negativeSlope, negativeSlope.size());
+        }
+        default: {
+            return Activation::generate(elemType, targetShape);
+        }
+    }
+}
+
 //
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PSROIPooling> node,
 //                                    const InferenceEngine::InputInfo &info,
@@ -330,64 +316,73 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> 
 //    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 //}
 //
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Selu> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    switch (port) {
-//        case 1: {
-//            std::vector<float> alpha(node->get_input_shape(1).size(), 1.6732f);
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), alpha.data(), alpha.size());
-//        }
-//        case 2: {
-//            std::vector<float> lambda(node->get_input_shape(1).size(), 1.0507f);
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), lambda.data(), lambda.size());
-//        }
-//        default:
-//            return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//    }
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sigmoid> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sign> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sin> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sinh> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Sqrt> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed(), 1, 20);
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Tan> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Tanh> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Selu> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    switch (port) {
+        case 1: {
+            std::vector<float> alpha(node->get_input_shape(1).size(), 1.6732f);
+            return ov::test::utils::create_tensor<float>(elemType, targetShape, alpha, alpha.size());
+        }
+        case 2: {
+            std::vector<float> lambda(node->get_input_shape(2).size(), 1.0507f);
+            return ov::test::utils::create_tensor<float>(elemType, targetShape, lambda, lambda.size());
+        }
+        default: {
+            return Activation::generate(elemType, targetShape);
+        }
+    }
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Sigmoid> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Sign> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Sin> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Sinh> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Sqrt> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape, InputGenerateData(1, 20, 32768, 1));
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Tan> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Tanh> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
 
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::GatherTree> node,
 //                                    const InferenceEngine::InputInfo &info,
@@ -472,18 +467,20 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> 
 //    }
 //}
 //
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::HSwish> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::Mish> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::HSwish> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Mish> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::Proposal> node,
 //                                    const InferenceEngine::InputInfo &info,
 //                                    size_t port) {
@@ -493,18 +490,20 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> 
 //    return FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
 //}
 //
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::SoftPlus> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::Swish> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::SoftPlus> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Swish> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
+
 //InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::BatchNormInference node,
 //                                    const InferenceEngine::InputInfo &info,
 //                                    size_t port) {
@@ -521,11 +520,12 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> 
 //    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 //}
 //
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v5::HSigmoid> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::HSigmoid> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return Activation::generate(elemType, targetShape);
+}
 //
 //InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::Loop node,
 //                                    const InferenceEngine::InputInfo &info,

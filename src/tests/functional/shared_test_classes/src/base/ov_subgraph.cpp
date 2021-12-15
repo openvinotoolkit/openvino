@@ -51,30 +51,31 @@ void SubgraphBaseTest::run() {
 
     ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
     std::string errorMessage;
-//    try {
+    try {
         compile_model();
         for (const auto& targetStaticShapeVec : targetStaticShapes) {
-//            try {
+            try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
                     init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
-//            } catch (const std::exception &ex) {
-//                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
-//            }
-        }
+            } catch (const std::exception& ex) {
+                throw std::runtime_error("Incorrect target static shape: " +
+                                         CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+            }
             infer();
             validate();
+        }
         status = LayerTestsUtils::PassRate::Statuses::PASSED;
-//    } catch (const std::exception &ex) {
-//        status = LayerTestsUtils::PassRate::Statuses::FAILED;
-//        errorMessage = ex.what();
-//    } catch (...) {
-//        status = LayerTestsUtils::PassRate::Statuses::FAILED;
-//        errorMessage = "Unknown failure occurred.";
-//    }
-//    summary.updateOPsStats(function, status);
+    } catch (const std::exception& ex) {
+        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+        errorMessage = ex.what();
+    } catch (...) {
+        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+        errorMessage = "Unknown failure occurred.";
+    }
+    summary.updateOPsStats(function, status);
     if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
         GTEST_FATAL_FAILURE_(errorMessage.c_str());
     }

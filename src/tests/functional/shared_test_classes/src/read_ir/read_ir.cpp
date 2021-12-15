@@ -30,12 +30,11 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     auto configItem = config.begin();
     while (configItem != config.end()) {
         result << configItem->first << "=" << configItem->second;
-        if (++configItem == config.end()) {
-            result << ")";
-        } else {
+        if (++configItem != config.end()) {
             result << "_";
         }
     }
+    result << ")";
     return result.str();
 }
 
