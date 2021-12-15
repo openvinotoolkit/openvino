@@ -536,7 +536,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         }
     };
 
-    const auto reorder_input_deconvolution = [&p, &lo, &rf](typed_program_node<deconvolution>& deconv_node) {
+    const auto reorder_input_and_weights_deconvolution = [&p, &lo, &rf](typed_program_node<deconvolution>& deconv_node) {
         auto& input = deconv_node.input();
         auto input_layout = input.get_output_layout();
         auto new_format = lo.get_preferred_format(deconv_node);
@@ -547,14 +547,41 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 p.add_intermediate(reorder.first, deconv_node, 0, !reorder.second);
             }
         }
+
+        auto& weights = deconv_node.weights();
+        auto weights_layout = weights.get_output_layout();
+        if (!format::is_simple_data_format(weights_layout.format) && !weights.is_type<data>() && !weights.is_constant()) {
+            auto dims = weights_layout.format.dimension();
+            auto preferred_format = dims <= 4 ? format::bfyx : dims == 5 ? format::bfzyx : format::bfwzyx;
+            auto reorder = rf.get_reorder(weights.id(), weights_layout,
+                layout{ weights_layout.data_type, preferred_format, weights_layout.size });
+            if (reorder.first) {
+                p.add_intermediate(reorder.first, deconv_node, 1, !reorder.second);
+            }
+        }
+    };
+
+    const auto reorder_weights_convolution = [&p, &lo, &rf](typed_program_node<convolution>& conv_node) {
+        auto& weights = conv_node.weights();
+        auto weights_layout = weights.get_output_layout();
+        if (!format::is_simple_data_format(weights_layout.format) && !weights.is_type<data>() && !weights.is_constant()) {
+            auto dims = weights_layout.format.dimension();
+            auto preferred_format = dims <= 4 ? format::bfyx : dims == 5 ? format::bfzyx : format::bfwzyx;
+            auto reorder = rf.get_reorder(weights.id(), weights_layout,
+                layout{ weights_layout.data_type, preferred_format, weights_layout.size });
+            if (reorder.first) {
+                p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
+            }
+        }
     };
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, binary_convolution, deconvolution>(
+        program_helpers::do_for_types<detection_output, binary_convolution, deconvolution, convolution>(
             *prim,
             reorder_input_detection_output,
             reorder_input_binary_convolution,
-            reorder_input_deconvolution);
+            reorder_input_and_weights_deconvolution,
+            reorder_weights_convolution);
     }
 
     for (auto n : p.get_processing_order()) {

@@ -196,15 +196,16 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
         return {};
     }
 
+    auto preferredWeightsLayout = GetPreferredWeightsLayout(newParams);
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
-                                       GetPreferredWeightsLayout(newParams),
+                                       preferredWeightsLayout,
                                        kd.weightsReorderParams,
                                        GetSupportedKey(),
                                        newParams.groups,
                                        newParams.transposed);
 
-    bool bSupportedWeightsLayout = newParams.weights.GetLayout() == GetPreferredWeightsLayout(newParams);
+    bool bSupportedWeightsLayout = newParams.weights.GetLayout() == preferredWeightsLayout;
     const bool bWeightsOK = bSupportedWeightsLayout || options.allowStaticInputReordering;
 
     if (!succeed || !bWeightsOK) {

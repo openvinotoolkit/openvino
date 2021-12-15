@@ -346,7 +346,7 @@ bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
     std::function<bool(const std::shared_ptr<ngraph::Node>&)> is_const_node = [&nodes_processed, &is_const_node](const std::shared_ptr<ngraph::Node>& node) {
         if (nodes_processed.count(node)) return true;
         nodes_processed.insert(node);
-        // If input is constant, then drop if from the processing list
+        // If input is constant, then drop it from the processing list
         if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(node) != nullptr)
             return true;
         // If the node doesn't have any parents and it's not a constant, then we deal with dynamic path

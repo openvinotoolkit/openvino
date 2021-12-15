@@ -741,10 +741,10 @@ program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
 }
 
 void program::add_intermediate(program_node& node,
-                                    program_node& next,
-                                    size_t prev_idx,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               size_t prev_idx,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     if (connect_int_node_with_old_dep && !node.dependencies.empty())
         throw std::invalid_argument(
             "Node which is about to be added in between two other nodes should not have any existing dependencies");
@@ -1112,8 +1112,8 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use
 // primitive_inst::to_string?)
 void program::dump_program(const char* stage,
-                                bool with_full_info,
-                                std::function<bool(program_node const&)> const& filter) const {
+                           bool with_full_info,
+                           std::function<bool(program_node const&)> const& filter) const {
     std::string path = get_dir_path(options);
     if (path.empty() || !with_full_info) {
         return;
@@ -1230,7 +1230,7 @@ void program::save_pass_info(std::string pass_name) {
 }
 
 void program::add_optimized_primitive_info(primitive_id optimized_primitive_id,
-                                                std::vector<primitive_id> replaced_with_ids) {
+                                           std::vector<primitive_id> replaced_with_ids) {
     for (auto& e : optimized) {
         auto it = std::find_if(e.second.begin(), e.second.end(), [&optimized_primitive_id](const primitive_id& id) {
            return optimized_primitive_id == id;

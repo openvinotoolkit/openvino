@@ -43,7 +43,7 @@ TEST(memory_tests, DISABLED_network_creation_loop)
 {
     engine eng;
 
-    memory in = memory::allocate(eng, layout{ data_types::f32, format::bfyx,{ 1, 1, 1000, 1000 } });
+    memory in = memory::allocate(eng, layout{ data_types::f32, format::bfyx, { 1, 1, 1000, 1000 } });
 
     topology tpl{
         input_layout("in", in->get_layout()),
@@ -66,7 +66,7 @@ TEST(memory_pool, basic_non_padded_relu_pipe) {
     auto x_size = 1;
     auto y_size = 1;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -86,7 +86,7 @@ TEST(memory_pool, basic_non_padded_relu_pipe) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 64);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)64);
  }
 
 TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
@@ -99,13 +99,13 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     auto x_size = 4;
     auto y_size = 4;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(activation("relu", "input", activation_func::relu));
     topology.add(activation("relu1", "relu", activation_func::relu));
-    topology.add(pooling("pool1", "relu1",pooling_mode::max, { 1,1,3,3 }, { 1,1,2,2 }));
+    topology.add(pooling("pool1", "relu1", pooling_mode::max, { 1, 1, 3, 3 }, { 1, 1, 2, 2 }));
     topology.add(activation("relu2", "pool1", activation_func::relu));
     topology.add(activation("relu3", "relu2", activation_func::relu));
     topology.add(activation("relu4", "relu3", activation_func::relu));
@@ -133,7 +133,7 @@ TEST(memory_pool, multi_outputs_network) {
     auto x_size = 4;
     auto y_size = 4;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -153,7 +153,7 @@ TEST(memory_pool, multi_outputs_network) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)1536);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 1536);
 }
 
 TEST(memory_pool, oooq) {
@@ -171,14 +171,14 @@ TEST(memory_pool, oooq) {
     auto x_size = 4;
     auto y_size = 4;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num)) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(activation("relu1", "input", activation_func::relu));
     topology.add(activation("relu2", "input", activation_func::relu));
     topology.add(activation("relu3", "input", activation_func::relu));
-    topology.add(concatenation("concat1", { "relu1", "relu2"},concatenation::along_f));
+    topology.add(concatenation("concat1", { "relu1", "relu2" },concatenation::along_f));
     topology.add(activation("relu4", "concat1", activation_func::relu));
     topology.add(activation("relu5", "relu3", activation_func::relu));
     topology.add(concatenation("concat2", { "relu4", "relu5" }, concatenation::along_f));
@@ -209,7 +209,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     auto inp_x_size = 4;
     auto inp_y_size = 4;
 
-    auto input = engine->allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
+    auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
 
     set_values(input,
     {   1.0f, 2.5f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 6.1f, 4.7f, 1.0f, 1.0f, 8.2f, 1.0f, 2.0f, 1.0f,
@@ -227,7 +227,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     topology.add(activation("relu4", "concat1", activation_func::relu));
     topology.add(activation("relu5", "relu3", activation_func::relu));
     topology.add(concatenation("concat2", { "relu4", "relu5" }, concatenation::along_f));
-    topology.add(activation("relu6", "concat2", activation_func::linear, {1.0f, 0.5f}));
+    topology.add(activation("relu6", "concat2", activation_func::linear, { 1.0f, 0.5f }));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -286,8 +286,8 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
     auto inp_x_size = 4;
     auto inp_y_size = 4;
 
-    auto input= engine->allocate_memory({ data_types::f32, format::bfyx,{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
-    auto weights = engine->allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+    auto input= engine->allocate_memory({ data_types::f32, format::bfyx, { tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
+    auto weights = engine->allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
 
     std::vector<float> dummy_input_data_1 = {
        /*f0 xy*/ 0.8f, 0.65f, 0.1f, 1.0f, 1.0f, 0.5f, 0.11f, 0.33f, 0.66f, 0.11f, 0.22f, 0.33f, 0.99f, 0.8f, 0.7f, 0.5f,
@@ -373,10 +373,10 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     layout lay_batch_8 = { dt, fmt, { tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_8)) }};
     auto input_1 = engine->allocate_memory(lay_batch_1);
     auto input_8 = engine->allocate_memory(lay_batch_8);
-    auto weights = engine->allocate_memory({ dt, fmt, { 1, 1, 3, 2 } });
+    auto weights = engine->allocate_memory({ dt, fmt, { 1, 3, 3, 2 } });
 
-    std::vector<float> dummy_input_data_1 = generate_random_1d<float>(batch_1*feature_num*inp_x_size*inp_y_size, 0, 1);
-    std::vector<float> dummy_input_data_8 = generate_random_1d<float>(batch_8*feature_num*inp_x_size*inp_y_size, 0, 1);
+    std::vector<float> dummy_input_data_1 = generate_random_1d<float>(batch_1 * feature_num * inp_x_size * inp_y_size, 0, 1);
+    std::vector<float> dummy_input_data_8 = generate_random_1d<float>(batch_8 * feature_num * inp_x_size * inp_y_size, 0, 1);
 
     set_values(input_1, dummy_input_data_1);
     set_values(input_8, dummy_input_data_8);
@@ -396,14 +396,14 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     auto outputs = network_first.execute();
 
     auto dev_info = engine->get_device_info();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)3928);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 4744);
 
     topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
     network network_second(*engine, topo, bo);
     network_second.set_input_data("input", input_1);
     auto outputs_second = network_second.execute();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)4328);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 5912);
 }
 
 TEST(memory_pool, shared_dep_two_output) {
@@ -459,20 +459,20 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
 
     auto input_memory1 = engine.allocate_memory(input_layout1);
     auto input_memory2 = engine.allocate_memory(input_layout2);
-    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1,1,1,1 }));
+    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 1, 1 }));
     auto data_memory = cldnn::data("scale_mem", scale_memory);
 
     set_values(input_memory1, { 1.0f, 2.0f, 3.0f, 4.0f });
     set_values(input_memory2, { 5.0f, 6.0f, 7.0f, 8.0f });
-    set_values(scale_memory, { 1.0f});
+    set_values(scale_memory, { 1.0f });
 
     auto reshape_tensor = cldnn::tensor(8, 1, 1, 1);
     auto input = cldnn::input_layout("input1", input_layout1);
     auto input2 = cldnn::input_layout("input2", input_layout2);
     auto concat = cldnn::concatenation("concat", { "input1", "input2" }, cldnn::concatenation::along_b);
     auto reshape = cldnn::reshape("reshape", "concat", reshape_tensor);
-    auto crop1 = cldnn::crop("crop1", "reshape", { 1,1,1,1 }, { 0, 0, 0, 0 });
-    auto crop2 = cldnn::crop("crop2", "reshape", { 1,1,1,1 }, { 1, 0, 0, 0 });
+    auto crop1 = cldnn::crop("crop1", "reshape", { 1, 1, 1, 1 }, { 0, 0, 0, 0 });
+    auto crop2 = cldnn::crop("crop2", "reshape", { 1, 1, 1, 1 }, { 1, 0, 0, 0 });
     auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
     auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
 
@@ -508,7 +508,7 @@ TEST(memory_pool, add_mem_dep_test) {
     auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 2, 2, 2 });
 
     auto input_memory1 = engine.allocate_memory(input_layout1);
-    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1,1,1,1 }));
+    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 1, 1 }));
     auto data_memory = cldnn::data("scale_mem", scale_memory);
 
     set_values(input_memory1, { 1.0f, 2.0f, 3.0f, 4.0f,
@@ -518,8 +518,8 @@ TEST(memory_pool, add_mem_dep_test) {
     auto input = cldnn::input_layout("input1", input_layout1);
     auto actv1 = cldnn::activation("input_activ1", "input1", activation_func::abs);
     auto actv2 = cldnn::activation("input_activ2", "input1", activation_func::abs);
-    auto crop1 = cldnn::crop("crop1", "input_activ1", { 1,1,2,2 }, { 0, 0, 0, 0 });
-    auto crop2 = cldnn::crop("crop2", "input_activ2", { 1,1,2,2 }, { 0, 1, 0, 0 });
+    auto crop1 = cldnn::crop("crop1", "input_activ1", { 1, 1, 2, 2 }, { 0, 0, 0, 0 });
+    auto crop2 = cldnn::crop("crop2", "input_activ2", { 1, 1, 2, 2 }, { 0, 1, 0, 0 });
     auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
     auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
     auto actv3 = cldnn::activation("out3", "elt1", activation_func::abs);

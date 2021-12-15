@@ -82,11 +82,11 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
     int32_t off_factor = -2;
     size_t spatial_dims = cldnn::format::traits(input_layout.format).spatial_num;
     CLDNN_ERROR_GREATER_THAN(node.id(),
-                                   "number of spatial dimensions",
-                                   spatial_dims,
-                                   "expected number of dimensions",
-                                   3,
-                                   "As for now, deconvolutions with more than 3 dimensions are not supported");
+                             "number of spatial dimensions",
+                             spatial_dims,
+                             "expected number of dimensions",
+                             3,
+                             "As for now, deconvolutions with more than 3 dimensions are not supported");
 
     int32_t x = off_factor * pad.spatial[0] + (input_layout.size.spatial[0] - 1) * strd.spatial[0] + filter_size.spatial[0];
     int32_t y = 1;
@@ -208,6 +208,7 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                                   1,
                                   "Spatial[0] of bias should be 1. Bias isn't 1D vector.");
         }
+
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "deconvolution padding filling value",
                               node.get_output_layout().data_padding.filling_value(),
@@ -240,10 +241,19 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                               "Only one-dimensional features are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              (input_inst.size.feature[0] + pad.feature[0]) / split,
+                              input_inst.size.feature[0],
                               "input feature maps number",
                               weights_ifm,
-                              "Weights/ifm mimsmatch");
+                              "Weights/ifm mismatch");
+
+        if (!argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                  "Weights feature maps number",
+                                  input_inst.size.feature[0],
+                                  "input feature maps number",
+                                  weights_ifm,
+                                  "Weights/ifm mismatch");
+        }
     }
 }
 }  // namespace cldnn

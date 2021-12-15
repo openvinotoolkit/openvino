@@ -125,7 +125,7 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
                               "Only one-dimensional batch size are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              (input_inst.size.feature[0] + pad.feature[0]) / split,
+                              input_inst.size.feature[0],
                               "input feature maps number",
                               filter_inst.size.feature[0],
                               "Weights/ifm mismatch");
