@@ -8,7 +8,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include "defs.hpp"
+#include "visibility.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"

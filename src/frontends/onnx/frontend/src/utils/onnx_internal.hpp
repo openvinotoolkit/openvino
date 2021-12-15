@@ -8,7 +8,7 @@
 #include <string>
 
 #include "ngraph/function.hpp"
-#include "openvino/frontend/common/telemetry_extension.hpp"
+#include "openvino/frontend/telemetry_extension.hpp"
 
 namespace ONNX_NAMESPACE {
 class ModelProto;

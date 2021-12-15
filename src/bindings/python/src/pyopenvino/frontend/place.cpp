@@ -6,7 +6,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "openvino/frontend/common/exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "pyopenvino/graph/function.hpp"
 

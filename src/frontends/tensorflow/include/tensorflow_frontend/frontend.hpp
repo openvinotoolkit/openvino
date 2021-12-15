@@ -9,9 +9,9 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/frontend/common/frontend.hpp"
-#include "openvino/frontend/common/input_model.hpp"
-#include "openvino/frontend/common/telemetry_extension.hpp"
+#include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/telemetry_extension.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {

@@ -6,7 +6,7 @@
 #include <rt_info_deserializer.hpp>
 #include <transformations/rt_info/attributes.hpp>
 
-#include "openvino/frontend/common/exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 
 using namespace ov;
 

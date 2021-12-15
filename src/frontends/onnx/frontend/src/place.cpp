@@ -4,7 +4,7 @@
 
 #include "place.hpp"
 
-#include <openvino/frontend/common/exceptions.hpp>
+#include <openvino/frontend/exception.hpp>
 
 using namespace ov;
 using namespace ov::frontend::onnx;

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/common/place.hpp"
+#include "openvino/frontend/place.hpp"
 
 #include <openvino/util/env_util.hpp>
 
-#include "openvino/frontend/common/exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "utils.hpp"
 
 using namespace ov;

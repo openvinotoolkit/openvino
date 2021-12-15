@@ -7,7 +7,7 @@
 #include <istream>
 #include <map>
 #include <memory>
-#include <openvino/frontend/common/telemetry_extension.hpp>
+#include <openvino/frontend/telemetry_extension.hpp>
 
 #include "editor_types.hpp"
 #include "ngraph/function.hpp"

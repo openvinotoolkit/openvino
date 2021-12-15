@@ -6,7 +6,7 @@
 
 #include <editor.hpp>
 #include <memory>
-#include <openvino/frontend/common/place.hpp>
+#include <openvino/frontend/place.hpp>
 #include <sstream>
 
 namespace ov {

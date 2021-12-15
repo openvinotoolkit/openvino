@@ -8,7 +8,7 @@
 #include <queue>
 
 #include "node_context.hpp"
-#include "openvino/frontend/common/exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "place.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"

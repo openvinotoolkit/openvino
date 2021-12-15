@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "defs.hpp"
+#include "visibility.hpp"
 #include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"

@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "defs.hpp"
+#include "visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "place.hpp"

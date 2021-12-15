@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include "openvino/frontend/common/exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 
 namespace ov {
 namespace frontend {

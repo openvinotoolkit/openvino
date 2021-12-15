@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "defs.hpp"
+#include "visibility.hpp"
 
 namespace ov {
 namespace frontend {

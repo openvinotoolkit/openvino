@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <openvino/frontend/common/frontend.hpp>
-#include <openvino/frontend/common/telemetry_extension.hpp>
+#include <openvino/frontend/frontend.hpp>
+#include <openvino/frontend/telemetry_extension.hpp>
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define ONNX_FRONTEND_API

@@ -6,7 +6,7 @@
 
 #include <editor.hpp>
 #include <fstream>
-#include <openvino/frontend/common/input_model.hpp>
+#include <openvino/frontend/input_model.hpp>
 
 namespace ov {
 namespace frontend {

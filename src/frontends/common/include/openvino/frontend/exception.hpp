@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "defs.hpp"
+#include "visibility.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov {

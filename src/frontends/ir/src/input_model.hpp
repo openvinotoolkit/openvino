@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "openvino/frontend/common/defs.hpp"
+#include "openvino/frontend/visibility.hpp"
 #include "openvino/frontend/manager.hpp"
 
 namespace ov {

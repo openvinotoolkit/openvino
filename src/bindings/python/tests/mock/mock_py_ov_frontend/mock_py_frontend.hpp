@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ngraph/visibility.hpp"
-#include "openvino/frontend/common/defs.hpp"
+#include "openvino/frontend/visibility.hpp"
 #include "openvino/frontend/manager.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)

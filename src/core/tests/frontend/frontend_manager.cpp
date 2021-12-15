@@ -3,7 +3,7 @@
 //
 
 #include <memory>
-#include <openvino/frontend/common/exceptions.hpp>
+#include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
 
 #include "gmock/gmock.h"

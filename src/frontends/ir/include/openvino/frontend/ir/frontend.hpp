@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "openvino/frontend/common/exceptions.hpp"
-#include "openvino/frontend/common/frontend.hpp"
-#include "openvino/frontend/common/telemetry_extension.hpp"
-#include "openvino/frontend/ir/utility.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/telemetry_extension.hpp"
+#include "openvino/frontend/ir/visibility.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
