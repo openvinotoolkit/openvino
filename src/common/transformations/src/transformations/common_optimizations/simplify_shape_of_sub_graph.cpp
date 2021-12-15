@@ -20,7 +20,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedShapeOf, "SharedShapeOf", 0);
 
-bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SharedShapeOf);
     bool graph_rewritten = false;
 
@@ -29,7 +29,7 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
             if (auto sub_graph = sub_graph_node->get_function())
-                graph_rewritten |= run_on_function(sub_graph);
+                graph_rewritten |= run_on_model(sub_graph);
 
         if (ov::is_type<ngraph::opset1::ShapeOf>(node) || ov::is_type<ngraph::opset3::ShapeOf>(node))
             source_to_shape_of[node->input_value(0)].push_back(node);
@@ -290,7 +290,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSubGraph", 0);
 
-bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);

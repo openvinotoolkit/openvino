@@ -1,6 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
+from openvino.tools.mo.back.FakeOutputResolver import FakeOutputResolver
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.result import Result
@@ -11,6 +11,9 @@ class MaxPool(BackReplacementPattern):
     Rename Pooling/max to MaxPool
     """
     enabled = True
+
+    def run_after(self):
+        return [FakeOutputResolver]
 
     def pattern(self):
         return dict(

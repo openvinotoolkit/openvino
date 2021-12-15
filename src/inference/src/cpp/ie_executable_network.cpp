@@ -10,7 +10,7 @@
 #include "ie_executable_network_base.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/runtime/executable_network.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 
 namespace InferenceEngine {
 
@@ -112,18 +112,18 @@ ExecutableNetwork::operator bool() const noexcept {
 
 namespace ov {
 namespace runtime {
-ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so,
-                                     const std::shared_ptr<ie::IExecutableNetworkInternal>& impl)
+CompiledModel::CompiledModel(const std::shared_ptr<void>& so,
+                             const std::shared_ptr<ie::IExecutableNetworkInternal>& impl)
     : _so{so},
       _impl{impl} {
-    OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized.");
+    OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized.");
 }
 
-std::shared_ptr<const Function> ExecutableNetwork::get_runtime_function() const {
-    OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
+std::shared_ptr<const Model> CompiledModel::get_runtime_model() const {
+    OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Model>(_impl->GetExecGraphInfo()));
 }
 
-std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
+std::vector<ov::Output<const ov::Node>> CompiledModel::inputs() const {
     OV_EXEC_NET_CALL_STATEMENT({
         std::vector<ov::Output<const ov::Node>> inputs;
         for (const auto& input : _impl->getInputs()) {
@@ -133,7 +133,7 @@ std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
     });
 }
 
-ov::Output<const ov::Node> ExecutableNetwork::input() const {
+ov::Output<const ov::Node> CompiledModel::input() const {
     OV_EXEC_NET_CALL_STATEMENT({
         const auto inputs = _impl->getInputs();
         if (inputs.size() != 1) {
@@ -143,11 +143,11 @@ ov::Output<const ov::Node> ExecutableNetwork::input() const {
     });
 }
 
-ov::Output<const ov::Node> ExecutableNetwork::input(size_t i) const {
+ov::Output<const ov::Node> CompiledModel::input(size_t i) const {
     OV_EXEC_NET_CALL_STATEMENT(return _impl->getInputs().at(i));
 }
 
-ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_name) const {
+ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) const {
     OV_EXEC_NET_CALL_STATEMENT({
         for (const auto& param : _impl->getInputs()) {
             if (param->get_output_tensor(0).get_names().count(tensor_name)) {
@@ -158,7 +158,7 @@ ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_na
     });
 }
 
-std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
+std::vector<ov::Output<const ov::Node>> CompiledModel::outputs() const {
     OV_EXEC_NET_CALL_STATEMENT({
         std::vector<ov::Output<const ov::Node>> outputs;
         for (const auto& output : _impl->getOutputs()) {
@@ -167,7 +167,7 @@ std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
         return outputs;
     });
 }
-ov::Output<const ov::Node> ExecutableNetwork::output() const {
+ov::Output<const ov::Node> CompiledModel::output() const {
     OV_EXEC_NET_CALL_STATEMENT({
         const auto outputs = _impl->getOutputs();
         if (outputs.size() != 1) {
@@ -176,10 +176,10 @@ ov::Output<const ov::Node> ExecutableNetwork::output() const {
         return outputs.at(0);
     });
 }
-ov::Output<const ov::Node> ExecutableNetwork::output(size_t i) const {
+ov::Output<const ov::Node> CompiledModel::output(size_t i) const {
     OV_EXEC_NET_CALL_STATEMENT(return _impl->getOutputs().at(i));
 }
-ov::Output<const ov::Node> ExecutableNetwork::output(const std::string& tensor_name) const {
+ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name) const {
     OV_EXEC_NET_CALL_STATEMENT({
         for (const auto& result : _impl->getOutputs()) {
             if (result->get_output_tensor(0).get_names().count(tensor_name)) {
@@ -190,35 +190,35 @@ ov::Output<const ov::Node> ExecutableNetwork::output(const std::string& tensor_n
     });
 }
 
-InferRequest ExecutableNetwork::create_infer_request() {
+InferRequest CompiledModel::create_infer_request() {
     OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
 }
 
-void ExecutableNetwork::export_model(std::ostream& networkModel) {
+void CompiledModel::export_model(std::ostream& networkModel) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
-void ExecutableNetwork::set_config(const ie::ParamMap& config) {
+void CompiledModel::set_config(const ie::ParamMap& config) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
-ie::Parameter ExecutableNetwork::get_config(const std::string& name) const {
+ie::Parameter CompiledModel::get_config(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
 }
 
-ie::Parameter ExecutableNetwork::get_metric(const std::string& name) const {
+ie::Parameter CompiledModel::get_metric(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
 }
 
-RemoteContext ExecutableNetwork::get_context() const {
+RemoteContext CompiledModel::get_context() const {
     OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetContext()});
 }
 
-bool ExecutableNetwork::operator!() const noexcept {
+bool CompiledModel::operator!() const noexcept {
     return !_impl;
 }
 
-ExecutableNetwork::operator bool() const noexcept {
+CompiledModel::operator bool() const noexcept {
     return !!_impl;
 }
 }  // namespace runtime

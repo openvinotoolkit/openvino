@@ -299,9 +299,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         using namespace ov::preprocess;
         PrePostProcessor prepost(function);
 
-        auto ir_version_impl = it->second.as<std::shared_ptr<ov::RuntimeAttributeWrapper<int64_t>>>();
-        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
-        const int64_t ir_version = ir_version_impl->get();
+        const int64_t ir_version = it->second.as<int64_t>();
 
         if (ir_version == 10 && newAPI) {
             const auto inputs = function->inputs();
@@ -312,7 +310,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             }
 
             // in order to support the following scenarios for IR v10 cases:
-            // ov::Function f = ie.read_model(..);
+            // ov::Model f = ie.read_model(..);
             // f.input("input_operation_name");
             // f.output("output_operation_name");
             // f.add_output("operation_name[].port_index]");
@@ -345,11 +343,12 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             function = prepost.build();
 
             // Set version to 10
-            rt_info["version"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(10);
+            rt_info["version"] = int64_t(10);
         } else if (ir_version == 11 && !newAPI) {
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
+            bool need_validate_nodes_and_infer_types = false;
             auto& parameters = function->get_parameters();
             for (size_t i = 0; i < parameters.size(); ++i) {
                 const auto& parameter = parameters[i];
@@ -357,10 +356,20 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto it_type = rtInfo.find(old_api_map_key_type);
                 auto& pre_input = prepost.input(i);
                 if (it_type != rtInfo.end()) {
-                    auto type = it_type->second.as<ov::OldApiMapElementType>().value;
-                    pre_input.tensor().set_element_type(type);
+                    const auto old_api_map_type = it_type->second.as<ov::OldApiMapElementType>().value;
+                    const auto param_type = parameter->get_element_type();
 
-                    OPENVINO_ASSERT(!type.is_dynamic(), "Old API map does not support dynamic type");
+                    // In the following code we add Convert node from old_api_map_type to Parameter type
+                    // using PrePostProcessor. As some plugins do not support uint8 type, Convert to uint8 leads
+                    // to error, so for such case type is set directly to Parameter node instead of inserting Convert.
+                    if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
+                        parameter->set_element_type(old_api_map_type);
+                        need_validate_nodes_and_infer_types = true;
+                    } else {
+                        pre_input.tensor().set_element_type(old_api_map_type);
+                    }
+
+                    OPENVINO_ASSERT(!old_api_map_type.is_dynamic(), "Old API map does not support dynamic type");
                     rtInfo.erase(it_type);
                 }
                 const auto it_order = rtInfo.find(old_api_map_key_order);
@@ -387,8 +396,11 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 rtInfo.erase(it);
             }
 
+            if (need_validate_nodes_and_infer_types)
+                function->validate_nodes_and_infer_types();
+
             // Set version to 10
-            rt_info["version"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(10);
+            rt_info["version"] = int64_t(10);
 
             function = prepost.build();
         }
@@ -451,7 +463,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::RuntimeAttributeVector params{model_path};
+    ov::AnyVector params{model_path};
 
     if (!binPath.empty()) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -517,7 +529,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::RuntimeAttributeVector params{&modelStream};
+    ov::AnyVector params{&modelStream};
     if (weights) {
         char* data = weights->cbuffer().as<char*>();
         std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =

@@ -11,7 +11,7 @@
 using namespace ov;
 using namespace ov::preprocess;
 
-static std::shared_ptr<Function> create_simple_function(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
@@ -21,11 +21,11 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
-    return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
 template <int N>
-static std::shared_ptr<Function> create_n_inputs(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
     ResultVector res;
     ParameterVector params;
     for (size_t i = 0; i < N; i++) {
@@ -41,7 +41,7 @@ static std::shared_ptr<Function> create_n_inputs(element::Type type, const Parti
         params.push_back(data1);
         res.push_back(res1);
     }
-    return std::make_shared<Function>(res, params);
+    return std::make_shared<Model>(res, params);
 }
 
 TEST(pre_post_process, simple_mean_scale) {
@@ -534,6 +534,31 @@ TEST(pre_post_process, reuse_model_layout_no_tensor_info) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
 }
 
+TEST(pre_post_process, set_layout_out_of_bounds) {
+    auto shape = PartialShape{1, 2};
+    std::stringstream shape_str;
+    shape_str << shape;
+    auto f = create_simple_function(element::f32, shape);
+    Layout from{"NHWC"};
+    Layout to{"NCHW"};
+    // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
+    try {
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_layout(from);
+        p.input().model().set_layout(to);
+        f = p.build();
+        FAIL() << "Layout conversion shall throw";
+    } catch (const ov::Exception& err) {
+        // Verify that error message contains tensor and network  layout
+        EXPECT_TRUE(std::string(err.what()).find(from.to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(to.to_string()) != std::string::npos) << err.what();
+        // Verify that error message contains 'shape' word
+        EXPECT_TRUE(std::string(err.what()).find(shape_str.str()) != std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
 TEST(pre_post_process, reuse_model_layout_tensor_info) {
     auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(), 3, 2, 1});
     f->get_parameters().front()->set_layout("NC??");
@@ -757,9 +782,11 @@ TEST(pre_post_process, preprocess_convert_layout_dims) {
 
     auto p = PrePostProcessor(f);
     p.input().preprocess().convert_layout({0, 3, 1, 2});
+    p.input().model().set_layout("NCHW");
     p.build();
 
     EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_parameters()[0]->get_layout(), Layout("NHWC"));
 }
 
 TEST(pre_post_process, preprocess_convert_layout_dims_empty) {

@@ -32,7 +32,7 @@ class RuntimeAttribute;
 class ParamMap;
 
 namespace runtime {
-class ExecutableNetwork;
+class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
 class InferencePlugin;
@@ -328,7 +328,7 @@ class OPENVINO_API Any {
     friend class ::ov::ParamMap;
     friend class ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
-    friend class ::ov::runtime::ExecutableNetwork;
+    friend class ::ov::runtime::CompiledModel;
     friend class ::ov::runtime::RemoteContext;
     friend class ::ov::runtime::RemoteTensor;
     friend class ::ov::runtime::InferencePlugin;
@@ -687,6 +687,7 @@ namespace util {
 template <>
 struct AsTypePtr<Any> {
     template <typename T>
+    OPENVINO_DEPRECATED("Please use ov::Any::as() method")
     static std::shared_ptr<T> call(const Any& any) {
         try {
             return any.as<std::shared_ptr<T>>();
@@ -699,10 +700,13 @@ struct AsTypePtr<Any> {
 
 using RTMap = std::map<std::string, Any>;
 
+using AnyVector = std::vector<ov::Any>;
+
 }  // namespace ov
 
 namespace std {
 template <typename T>
+OPENVINO_DEPRECATED("Please use ov::Any::as() method")
 std::shared_ptr<T> dynamic_pointer_cast(const ::ov::Any& any) {
     try {
         return any.as<std::shared_ptr<T>>();
@@ -712,6 +716,7 @@ std::shared_ptr<T> dynamic_pointer_cast(const ::ov::Any& any) {
 }
 
 template <typename T>
+OPENVINO_DEPRECATED("Please use ov::Any::as() method")
 std::shared_ptr<T> static_pointer_cast(const ::ov::Any& any) {
     return any.as<std::shared_ptr<T>>();
 }
