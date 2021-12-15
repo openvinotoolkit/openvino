@@ -13,6 +13,7 @@ from openvino.tools.mo.front.tf.custom_subgraph_call import skip_nodes_by_condit
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
 from openvino.tools.mo.middle.pattern_match import find_pattern_matches, inverse_dict
+from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.squeeze import Squeeze
 from openvino.tools.mo.ops.unsqueeze import Unsqueeze
@@ -324,17 +325,25 @@ class MapFN2InputSlicing(FrontReplacementSubgraph):
                 opp = op.node
                 if opp.op == "EmptyTensorList":
                     op.disconnect()
+                    pass
+                    l = Loop.external_port_id_to_body_node(loop_node, in_port,loop_node.input_port_map)
+                    Loop.update_port_map_value_ext(loop_node.input_port_map, 'internal_layer_id',
+                                                   l, 'axis', 0)
 
         for op in body_graph.get_op_nodes(op='TensorListPushBack'):
             assert op.out_port(0).get_destination().node.type == 'Result'
-            port = op.out_port(0).get_connection().get_destination()
-            op.out_port(0).disconnect()
-            op.in_port(0).get_connection().set_destination(port)
+            concat_op = Concat(body_graph, {'name': 'TensorListPushBack_', 'in_ports_count': 2}).create_node()
+            op.in_port(0).get_connection().set_destination(concat_op.in_port(0))
+            op.in_port(1).get_connection().set_destination(concat_op.in_port(1))
+            port = op.out_port(0).get_connection().set_source(concat_op.out_port(0))
+
+
+            # op.in_port(0).get_connection().set_destination(port)
 
         # Loop.update_port_map_value_ext(loop_node.input_port_map, 'internal_layer_id', unstack_placeholder_layer_id,
         #                                'axis', 0)
-        Loop.re_numerate_input_ports(loop_node)
-        Loop.re_numerate_output_ports(loop_node)
+        Loop. normalize_input_output_ports(loop_node)
+        # Loop.re_numerate_output_ports(loop_node)
 
 
     def find_and_replace_pattern(self, graph: Graph):
