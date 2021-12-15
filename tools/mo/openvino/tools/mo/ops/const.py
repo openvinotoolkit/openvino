@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
 from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, \
     precision_to_destination_type
 from openvino.tools.mo.ops.op import Op
@@ -30,9 +30,9 @@ class Const(Op):
         if not isinstance(self.attrs['value'], np.ndarray):
             self.attrs['value'] = mo_array(self.attrs['value'])
 
-        self.attrs['shape'] = mo_array(self.attrs['value'].shape, dtype=np.int64)
+        self.attrs['shape'] = int64_array(self.attrs['value'].shape)
         if 'force_shape' in self.attrs and self.attrs['force_shape'] is not None:
-            self.attrs['shape'] = mo_array(self.attrs['force_shape'], dtype=np.int64)
+            self.attrs['shape'] = int64_array(self.attrs['force_shape'])
 
         self.attrs['data_type'] = self.attrs['value'].dtype
         if 'force_type' in self.attrs and self.attrs['force_type'] is not None:

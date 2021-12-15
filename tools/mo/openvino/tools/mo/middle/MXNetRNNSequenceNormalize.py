@@ -4,8 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.ops.transpose import Transpose
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_insert
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_insert, mo_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.const import Const
@@ -126,7 +125,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 rnn_layer,
-                {'value': blob, 'shape': mo_array(blob.shape, dtype=np.int64)},
+                {'value': blob, 'shape': int64_array(blob.shape)},
                 {'in': port, 'permutation': None}
             )
 
@@ -149,7 +148,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 rnn_cell,
-                {'value': h_init, 'shape': mo_array(h_init.shape, dtype=np.int64)},
+                {'value': h_init, 'shape': int64_array(h_init.shape)},
                 {'in': h_init_port, 'permutation': None}
             )
         else:
@@ -163,7 +162,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
                 Op.create_and_connect_input_data_node(
                     graph,
                     rnn_cell,
-                    {'value': c_init, 'shape': mo_array(c_init.shape, dtype=np.int64)},
+                    {'value': c_init, 'shape': int64_array(c_init.shape)},
                     {'in': c_init_port, 'permutation': None}
                 )
             else:

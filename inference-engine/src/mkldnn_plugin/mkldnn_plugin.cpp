@@ -76,6 +76,7 @@
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/disable_decompression_convert_constant_folding.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
@@ -355,6 +356,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             });
 
     // List of enabled/disabled transformations
+    pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
     pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
     pass_config->disable<ngraph::pass::ConvertGELU>();
     pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();

@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -153,5 +153,5 @@ class Unique(Op):
         j = 0
         for out_node_ind in node.out_nodes():
             node.out_node(out_node_ind).value = mo_array(unique_output[j], dtype=np.float)
-            node.out_node(out_node_ind).shape = mo_array(node.out_node(out_node_ind).value.shape, dtype=np.int64)
+            node.out_node(out_node_ind).shape = int64_array(node.out_node(out_node_ind).value.shape)
             j += 1

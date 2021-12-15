@@ -8,7 +8,7 @@ import numpy as np
 from openvino.tools.mo.middle.TensorIterator_utils import delete_selects_from
 from openvino.tools.mo.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
 from openvino.tools.mo.ops.identity import Identity
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
@@ -19,7 +19,7 @@ def make_nodes_1D(nodes: list):
     """
     for node in nodes:
         assert node.shape is None or len(node.shape) == 0
-        node.shape = mo_array([1], dtype=np.int64)
+        node.shape = int64_array([1])
         if node.value is not None:
             node.value = np.reshape(node.value, node.shape)
 

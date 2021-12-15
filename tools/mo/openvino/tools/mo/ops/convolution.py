@@ -304,12 +304,4 @@ class Convolution(Op):
                 in_node_1.soft_get('name', in_node_1.id), in_type_1, in_type_0),
                 extra={'is_warning': True})
             convert_const_node_value_type(in_node_1, in_type_0)
-        if node.is_in_port_connected(2):
-            in_type_2 = node.in_port(1).get_data_type()
-            if in_type_2 in [np.float16, np.float32, np.float64] and in_type_0 != in_type_2 and in_node_2.op == 'Const':
-                in_node_2 = node.in_port(2).get_source().node
-                log.error("Changing Const node '{}' data type from {} to {} for Convolution operation".format(
-                    in_node_2.soft_get('name', in_node_2.id), in_type_2, in_type_0),
-                    extra={'is_warning': True})
-                convert_const_node_value_type(in_node_2, in_type_0)
         node.out_port(0).set_data_type(node.in_port(0).get_data_type())

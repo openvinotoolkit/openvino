@@ -3,8 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_delete
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_delete, mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -124,7 +123,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 lstm,
-                {'value': blob, 'shape': mo_array(blob.shape, dtype=np.int64)},
+                {'value': blob, 'shape': int64_array(blob.shape)},
                 {'in': port, 'bin': name, 'permutation': None}
             )
 

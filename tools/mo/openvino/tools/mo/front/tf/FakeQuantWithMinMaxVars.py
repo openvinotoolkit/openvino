@@ -50,7 +50,8 @@ class FakeQuantWithMinMaxVarsToQuantize(FrontReplacementOp):
         maximum = Select(graph, {'name': name + '/maximum'}).create_node([min_less_max, max_port_tuple, min_port_tuple])
 
         # to create zero of limits data type, we multiply it by integer zero
-        zero = create_op_node_with_second_input(graph, Mul, int64_array(0), {'name': name + '/zero'}, input_node=minimum)
+        zero = create_op_node_with_second_input(graph, Mul, np.array(0, dtype=dtype), {'name': name + '/zero'},
+                                                input_node=minimum)
 
         # if 0 < min < max: min_adj = 0 and max_adj = max - min
         min_greater_zero = Greater(graph, {'name': name + '/if_minimum_greater_zero'}).create_node([minimum, zero])

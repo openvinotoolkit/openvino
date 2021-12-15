@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from openvino.tools.mo.front.tf.common import tf_data_type_decode
 from openvino.tools.mo.utils.error import Error
@@ -17,7 +17,7 @@ def tf_tensor_shape(pb):
 
 
 def tf_int_list(pb):
-    return mo_array(pb.i, dtype=np.int64)
+    return int64_array(pb.i)
 
 
 def tf_dtype_extractor(pb_dtype, default=None):

@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.ops.const import Const
 
@@ -17,7 +17,7 @@ def dim_to_shape(dim):
     Returns:
         shape of the layer as np.array
     """
-    return mo_array(dim, dtype=np.int64)
+    return int64_array(dim)
 
 
 def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: str = None):

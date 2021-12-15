@@ -158,7 +158,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
 
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
-            prev_node['shape'] = mo_array([1, layer_i], dtype=np.int64)
+            prev_node['shape'] = int64_array([1, layer_i])
 
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
@@ -191,7 +191,7 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
         if prev_node.op == 'Parameter':
             parameters = Node(graph, layer_id).parameters
             input_dim = read_token_value(parameters, b'<InputDim>')
-            prev_node['shape'] = mo_array([1, input_dim], dtype=np.int64)
+            prev_node['shape'] = int64_array([1, input_dim])
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0, create_edge_attrs(prev_layer_id, layer_id, prev_layer_id))

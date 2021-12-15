@@ -1,10 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.utils.error import Error
 
 
@@ -28,7 +26,7 @@ def mxnet_slice_axis_infer(node):
     node.axis = get_canonical_axis_index(in_shape, node.axis)
     slice_axis = node.axis
 
-    new_shape = mo_array(in_shape, dtype=np.int64)
+    new_shape = int64_array(in_shape)
     new_shape[slice_axis] = new_shape[slice_axis] / len(node.out_nodes())
 
     axis_size = in_shape[slice_axis]

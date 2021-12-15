@@ -207,9 +207,9 @@ def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
 
 def assign_dims_to_weights(node, spatial, input_channel, output_channel=None, dims_number=None):
     if spatial is not None:
-        node['spatial_dims'] = mo_array(spatial, dtype=np.int64)
-    node['input_channel_dim'] = mo_array(input_channel, dtype=np.int64)
-    node['output_channel_dim'] = mo_array(output_channel, dtype=np.int64)
+        node['spatial_dims'] = int64_array(spatial)
+    node['input_channel_dim'] = int64_array(input_channel)
+    node['output_channel_dim'] = int64_array(output_channel)
     if 'dim_attrs' in node and 'input_channel_dim' not in node['dim_attrs']:
         node['dim_attrs'].append('input_channel_dim')
     node['dims_number'] = dims_number

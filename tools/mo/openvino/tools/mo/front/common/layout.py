@@ -4,11 +4,11 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
 from openvino.tools.mo.utils.error import Error
 
-nchw_to_nhwc_permute = mo_array([0, 2, 3, 1], dtype=np.int64)
-nhwc_to_nchw_permute = mo_array([0, 3, 1, 2], dtype=np.int64)
+nchw_to_nhwc_permute = int64_array([0, 2, 3, 1])
+nhwc_to_nchw_permute = int64_array([0, 3, 1, 2])
 supported_layouts = ('NCHW', 'NHWC')
 # the attribute 'layout' in the graph.graph can have two values only: "NCHW" or "NHWC". If the tensor has 5 dimensions
 # then it is necessary to transform "NCHW" to "NCDHW" and "NHWC" to "NDHWC" respectively. The dictionary below id used

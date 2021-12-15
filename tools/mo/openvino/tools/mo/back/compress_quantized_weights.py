@@ -238,8 +238,6 @@ class CompressQuantizeWeights(BackReplacementPattern):
             Cast.infer(match['convert'])
         else:
             dst_type = match['const'].value.dtype
-            if np.issubdtype(dst_type, np.floating):
-                dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
         quantized_type, mode = None, None
         for quantization_levels in sorted(self.QUANTIZATION_MAP):
