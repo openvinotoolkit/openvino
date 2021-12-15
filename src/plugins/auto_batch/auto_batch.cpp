@@ -220,10 +220,7 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
     };
         _pipeline = {
             { /*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this, needPerfCounters] {
-                // TODO: exception checking
                 this->_inferRequest->CopyOutputsIfNeeded();
-//                if (needPerfCounters)
-//                    _inferRequest->_perfMap = _inferRequest->_workerInferRequest->_inferRequest->GetPerformanceCounts();
             }}
     };
   }
@@ -653,7 +650,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 const size_t footprint = report_footprint(GetCore(), deviceName, "After BATCHED");
                 if (footprint > total_mem) {  // WA for inaccurate footprint estimations
                     std::cout << "!!!! Total on-device mem is " << total_mem << " less than :" << footprint << std::endl;
-                    // throw NETWORK_NOT_LOADED;
                 }
             }
         } catch (...) {
@@ -663,6 +659,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
 
     if (!executableNetworkWithBatch) {
         executableNetworkWithBatch = executableNetworkWithoutBatch;
+        metaDevice.batchForDevice = 1;
         std::cout << "FALLBACK to using batch1 network!!!" << std::endl;
     }
 

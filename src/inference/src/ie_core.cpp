@@ -577,28 +577,28 @@ public:
                     optimalBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
                 }
             }
-            auto function = network.getFunction();
-            bool bDetectionOutput = false;
-            for (auto&& node : function->get_ops()) {
-                auto isDetectionOutputParent = [](decltype(node)& nd) {
-                    for (size_t n = 0; n < nd->get_input_size(); n++) {
-                        if (!std::strcmp("DetectionOutput", nd->get_input_node_ptr(n)->get_type_info().name))
-                            return true;
-                    }
-                    return false;
-                };
-
-                if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
-                    (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
-                    node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                    std::cout << "!!! AFF !!! type: " << node->get_type_info().name
-                              << ", name: " << node->get_friendly_name() << std::endl;
-                    bDetectionOutput = true;
-                } else {
-                    node->get_rt_info()["affinity"] = "BATCH";
-                }
-            }
             if (optimalBatchSize > 1 || !deviceNameWithBatchSize.empty()) {
+                auto function = network.getFunction();
+                bool bDetectionOutput = false;
+                for (auto&& node : function->get_ops()) {
+                    auto isDetectionOutputParent = [](decltype(node)& nd) {
+                        for (size_t n = 0; n < nd->get_input_size(); n++) {
+                            if (!std::strcmp("DetectionOutput", nd->get_input_node_ptr(n)->get_type_info().name))
+                                return true;
+                        }
+                        return false;
+                    };
+
+                    if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
+                        (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
+                        node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
+                        std::cout << "!!! AFF !!! type: " << node->get_type_info().name
+                                  << ", name: " << node->get_friendly_name() << std::endl;
+                        bDetectionOutput = true;
+                    } else {
+                        node->get_rt_info()["affinity"] = "BATCH";
+                    }
+                }
                 auto batchConfig = deviceNameWithBatchSize.empty()
                                        ? deviceNameWithoutBatch + "(" + std::to_string(optimalBatchSize) + ")"
                                        : deviceNameWithBatchSize;
