@@ -1924,7 +1924,7 @@ void MKLDNNEltwiseNode::prepareParams() {
                                             eltwise->getBeta(), eltwise->getGamma()});
             }
         } else if (node->getType() == FakeQuantize) {
-            node->appendPostOps(key.postOps, {}, 16);
+            node->appendPostOps(key.postOps, {});
         } else {
             IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
         }
