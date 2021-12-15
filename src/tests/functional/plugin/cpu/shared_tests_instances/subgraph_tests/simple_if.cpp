@@ -17,16 +17,34 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes = {
             {{}, {{30, 20, 10}}}
         },
         {
-            {{-1, -1, -1}, {{10, 20, 5}, {10, 20, 5}, {1, 5, 5}}},
-            {{-1, -1, -1}, {{10, 20, 5}, {10, 20, 5}, {1, 1, 5}}}
+            {
+                {-1, -1, -1},
+                {{10, 20, 5}, {10, 20, 5}, {1, 5, 5}}
+            },
+            {
+                {-1, -1, -1},
+                {{10, 20, 5}, {10, 20, 5}, {1, 1, 5}}
+            }
         },
         {
-            {{-1, 5, -1}, {{10, 5, 10}, {2, 5, 5}, {1, 5, 5}}},
-            {{-1, 5, -1}, {{1, 5, 1}, {2, 5, 5}, {5, 5, 5}}}
+            {
+                {-1, 5, -1},
+                {{10, 5, 10}, {2, 5, 5}, {1, 5, 5}}
+            },
+            {
+                {-1, 5, -1},
+                {{1, 5, 1}, {2, 5, 5}, {5, 5, 5}}
+            }
         },
         {
-            {{{1, 10}, {1, 10}, {1, 10}}, {{2, 5, 10}, {2, 5, 1}, {1, 5, 5}}},
-            {{{1, 10}, {1, 10}, {1, 10}}, {{2, 5, 10}, {2, 1, 5}, {5, 5, 5}}}
+            {
+                {{1, 10}, {1, 10}, {1, 10}},
+                {{2, 5, 10}, {2, 5, 1}, {1, 5, 5}}
+            },
+            {
+                {{1, 10}, {1, 10}, {1, 10}},
+                {{2, 5, 10}, {2, 1, 5}, {5, 5, 5}}
+            }
         },
 };
 
@@ -76,25 +94,29 @@ TEST_P(SimpleIfNotConstConditionTest, CompareWithRefs) {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_2 = {
         {
-            {{-1, -1, -1}, {{10, 20, 5}, {10, 20, 5}, {1, 5, 5}}},
+            {
+                {-1, -1, -1},
+                {{10, 20, 5}, {10, 20, 5}, {1, 5, 5}}
+            },
         },
         {
-            {{-1, 5, -1}, {{10, 5, 10}, {2, 5, 5}, {1, 5, 5}}},
+            {
+                {-1, 5, -1},
+                {{10, 5, 10}, {2, 5, 5}, {1, 5, 5}}
+            },
         },
         {
-            {{{1, 10}, {1, 10}, {1, 10}}, {{2, 5, 10}, {2, 5, 1}, {1, 5, 5}}},
+            {
+                {{1, 10}, {1, 10}, {1, 10}},
+                {{2, 5, 10}, {2, 5, 1}, {1, 5, 5}}
+            },
         },
-};
-
-const std::vector<ov::test::ElementType> inTypes_2 = {
-        ov::test::ElementType::f32,
-        ov::test::ElementType::bf16
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionAndInternalDynamismTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_2),
-                                 ::testing::ValuesIn(inTypes_2),
+                                 ::testing::ValuesIn(inTypes),
                                  ::testing::ValuesIn(conditions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          SimpleIfNotConstConditionTest::getTestCaseName);

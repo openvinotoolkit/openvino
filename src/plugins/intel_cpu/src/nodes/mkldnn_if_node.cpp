@@ -7,7 +7,6 @@
 #include "mkldnn_extension_utils.h"
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
-#include "common/memory_desc_wrapper.hpp"
 #include "common/cpu_memcpy.h"
 
 #include <string>
@@ -177,8 +176,6 @@ void MKLDNNIfNode::createPrimitive() {
     prepareAfterMappers(false, eng);
 
     if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
         updateLastInputDims();
     }
 }
@@ -208,7 +205,7 @@ void MKLDNNIfNode::prepareAfterMappers(const bool isThen, const dnnl::engine& en
 }
 
 void MKLDNNIfNode::execute(mkldnn::stream strm) {
-    condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
+    const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

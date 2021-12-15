@@ -72,7 +72,6 @@ private:
         elseInputPortMap,
         elseOutputPortMap;
 
-    uint8_t condition;
     const std::shared_ptr<ov::Node> ovOp;
 };
 
