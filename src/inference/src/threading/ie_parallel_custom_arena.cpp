@@ -21,6 +21,19 @@
 namespace custom {
 namespace detail {
 
+#    if TBB_NUMA_SUPPORT_PRESENT || TBB_HYBRID_CPUS_SUPPORT_PRESENT
+static tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c) {
+    tbb::task_arena::constraints result{};
+#        if TBB_HYBRID_CPUS_SUPPORT_PRESENT
+    result.core_type = c.core_type;
+    result.max_threads_per_core = c.max_threads_per_core;
+#        endif
+    result.numa_id = c.numa_id;
+    result.max_concurrency = c.max_concurrency;
+    return result;
+}
+#    endif
+
 #    if USE_TBBBIND_2_5
 extern "C" {
 void __TBB_internal_initialize_system_topology(std::size_t groups_num,
@@ -161,7 +174,6 @@ const TBBbindSystemTopology& system_topology() {
 }
 
 #    if USE_TBBBIND_2_5
-
 binding_observer::binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c)
     : task_scheduler_observer(ta) {
     detail::system_topology();
@@ -190,18 +202,6 @@ static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int n
         observer->observe(true);
     }
     return observer;
-}
-
-#    elif TBB_NUMA_SUPPORT_PRESENT
-static tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c) {
-    tbb::task_arena::constraints result{};
-#        if TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    result.core_type = c.core_type;
-    result.max_threads_per_core = c.max_threads_per_core;
-#        endif
-    result.numa_id = c.numa_id;
-    result.max_concurrency = c.max_concurrency;
-    return result;
 }
 #    endif
 }  // namespace detail
