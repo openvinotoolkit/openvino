@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/common/manager.hpp"
+#include "openvino/frontend/manager.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>

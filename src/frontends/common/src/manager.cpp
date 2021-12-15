@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/common/manager.hpp"
+#include "openvino/frontend/manager.hpp"
 
 #include <openvino/util/env_util.hpp>
 #include <openvino/util/file_util.hpp>

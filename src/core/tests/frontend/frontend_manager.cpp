@@ -4,7 +4,7 @@
 
 #include <memory>
 #include <openvino/frontend/common/exceptions.hpp>
-#include <openvino/frontend/common/manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

@@ -5,7 +5,7 @@
 #include "mock_py_frontend.hpp"
 
 #include "openvino/frontend/common/defs.hpp"
-#include "openvino/frontend/common/manager.hpp"
+#include "openvino/frontend/manager.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

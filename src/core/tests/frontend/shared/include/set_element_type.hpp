@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontend/common/manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 struct SetTypeFEParam {
     std::string m_frontEndName;

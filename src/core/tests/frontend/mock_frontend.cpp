@@ -4,7 +4,7 @@
 
 #include "ngraph/visibility.hpp"
 #include "openvino/frontend/common/defs.hpp"
-#include "openvino/frontend/common/manager.hpp"
+#include "openvino/frontend/manager.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
 #ifdef mock1_ov_frontend_EXPORTS

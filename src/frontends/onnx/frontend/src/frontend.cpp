@@ -6,8 +6,8 @@
 #include <input_model.hpp>
 #include <onnx_import/onnx.hpp>
 #include <openvino/frontend/common/exceptions.hpp>
-#include <openvino/frontend/common/manager.hpp>
 #include <openvino/frontend/common/telemetry_extension.hpp>
+#include <openvino/frontend/manager.hpp>
 #include <openvino/frontend/onnx/frontend.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>

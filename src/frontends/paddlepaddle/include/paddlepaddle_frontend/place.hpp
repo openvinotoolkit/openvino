@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/frontend/common/manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #include "exceptions.hpp"
 

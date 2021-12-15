@@ -18,7 +18,7 @@
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
-#include "openvino/frontend/common/manager.hpp"
+#include "openvino/frontend/manager.hpp"
 #ifdef ENABLE_IR_V7_READER
 #    include "legacy/ie_ir_version.hpp"
 #endif

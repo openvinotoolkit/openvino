@@ -3,7 +3,7 @@
 //
 
 #include <openvino/frontend/common/exceptions.hpp>
-#include <openvino/frontend/common/manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "paddle_utils.hpp"
