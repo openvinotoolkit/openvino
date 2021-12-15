@@ -139,30 +139,25 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         return {false, false};
     if (l1.get_linear_size() != l2.get_linear_size())
         return {false, false};
-    if ((l1.format == format::b_fs_yx_fsv4 && l2.format != format::b_fs_yx_fsv4) ||
-        (l2.format == format::b_fs_yx_fsv4 && l1.format != format::b_fs_yx_fsv4) ||
-        (l1.format == format::fs_b_yx_fsv32 && l2.format != format::fs_b_yx_fsv32) ||
-        (l2.format == format::fs_b_yx_fsv32 && l1.format != format::fs_b_yx_fsv32) ||
-        (l1.format == format::b_fs_yx_fsv16 && l2.format != format::b_fs_yx_fsv16) ||
-        (l2.format == format::b_fs_yx_fsv16 && l1.format != format::b_fs_yx_fsv16) ||
-        (l1.format == format::b_fs_yx_fsv32 && l2.format != format::b_fs_yx_fsv32) ||
-        (l2.format == format::b_fs_yx_fsv32 && l1.format != format::b_fs_yx_fsv32) ||
-        (l1.format == format::b_fs_zyx_fsv32 && l2.format != format::b_fs_zyx_fsv32) ||
-        (l2.format == format::b_fs_zyx_fsv32 && l1.format != format::b_fs_zyx_fsv32) ||
-        (l1.format == format::b_fs_zyx_fsv16 && l2.format != format::b_fs_zyx_fsv16) ||
-        (l2.format == format::b_fs_zyx_fsv16 && l1.format != format::b_fs_zyx_fsv16) ||
-        (l1.format == format::bs_fs_yx_bsv4_fsv4 && l2.format != format::bs_fs_yx_bsv4_fsv4) ||
-        (l2.format == format::bs_fs_yx_bsv4_fsv4 && l1.format != format::bs_fs_yx_bsv4_fsv4) ||
-        (l1.format == format::bs_fs_yx_bsv4_fsv2 && l2.format != format::bs_fs_yx_bsv4_fsv2) ||
-        (l2.format == format::bs_fs_yx_bsv4_fsv2 && l1.format != format::bs_fs_yx_bsv4_fsv2) ||
-        (l1.format == format::bs_fs_yx_bsv32_fsv16 && l2.format != format::bs_fs_yx_bsv32_fsv16) ||
-        (l2.format == format::bs_fs_yx_bsv32_fsv16 && l1.format != format::bs_fs_yx_bsv32_fsv16) ||
-        (l1.format == format::bs_fs_yx_bsv32_fsv32 && l2.format != format::bs_fs_yx_bsv32_fsv32) ||
-        (l2.format == format::bs_fs_yx_bsv32_fsv32 && l1.format != format::bs_fs_yx_bsv32_fsv32) ||
-        (l1.format == format::bs_fs_yx_bsv16_fsv16 && l2.format != format::bs_fs_yx_bsv16_fsv16) ||
-        (l2.format == format::bs_fs_yx_bsv16_fsv16 && l1.format != format::bs_fs_yx_bsv16_fsv16) ||
-        (l1.format == format::bs_fs_zyx_bsv16_fsv16 && l2.format != format::bs_fs_zyx_bsv16_fsv16) ||
-        (l2.format == format::bs_fs_zyx_bsv16_fsv16 && l1.format != format::bs_fs_zyx_bsv16_fsv16))
+
+    auto check_format = [&l1, &l2](cldnn::format format) {
+        return (l1.format == format && l2.format != format) ||
+               (l2.format == format && l1.format != format);
+    };
+
+    if (check_format(format::b_fs_yx_fsv4) ||
+        check_format(format::fs_b_yx_fsv32) ||
+        check_format(format::b_fs_yx_fsv16) ||
+        check_format(format::b_fs_yx_fsv32) ||
+        check_format(format::b_fs_zyx_fsv32) ||
+        check_format(format::b_fs_zyx_fsv16) ||
+        check_format(format::bs_fs_yx_bsv4_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv4) ||
+        check_format(format::bs_fs_yx_bsv4_fsv2) ||
+        check_format(format::bs_fs_yx_bsv32_fsv16) ||
+        check_format(format::bs_fs_yx_bsv32_fsv32) ||
+        check_format(format::bs_fs_yx_bsv16_fsv16) ||
+        check_format(format::bs_fs_zyx_bsv16_fsv16))
         return {false, false};
 
     auto l1_pitch = l1.get_pitches();
