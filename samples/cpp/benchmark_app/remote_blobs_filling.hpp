@@ -4,13 +4,15 @@
 
 #if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
 #    define HAVE_DEVICE_MEM_SUPPORT
-#    include <gpu/gpu_context_api_ocl.hpp>
+#    include "gpu/gpu_context_api_ocl.hpp"
 #endif
 
-#include <inference_engine.hpp>
+// clang-format off
+#include "inference_engine.hpp"
 
 #include "infer_request_wrap.hpp"
 #include "utils.hpp"
+// clang-format on
 
 namespace gpu {
 

@@ -58,12 +58,12 @@ void SubgraphBaseTest::run() {
                     init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
-                infer();
-                validate();
             } catch (const std::exception& ex) {
                 throw std::runtime_error("Incorrect target static shape: " +
                                          CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
             }
+            infer();
+            validate();
         }
         status = LayerTestsUtils::PassRate::Statuses::PASSED;
     } catch (const std::exception& ex) {
@@ -160,12 +160,12 @@ void SubgraphBaseTest::configure_model() {
 void SubgraphBaseTest::compile_model() {
     configure_model();
     if (functionRefs == nullptr) {
-        functionRefs = ov::clone_function(*function);
+        functionRefs = ov::clone_model(*function);
     }
     executableNetwork = core->compile_model(function, targetDevice, configuration);
 }
 
-void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
+void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
     ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
 }
 
@@ -196,7 +196,7 @@ void SubgraphBaseTest::infer() {
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
 
-    auto functionToProcess = ov::clone_function(*functionRefs);
+    auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
     static const precisions_array precisions = {
             { ngraph::element::bf16, ngraph::element::f32 },

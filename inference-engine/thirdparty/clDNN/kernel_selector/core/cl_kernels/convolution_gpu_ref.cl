@@ -93,10 +93,6 @@ KERNEL(kernel_name)(
                                 uint filter_idx = GET_FILTER_INDEX_5D(FILTER, g, of, k, l, j, i);
 #endif
 
-#ifdef LOCAL_CONVOLUTION
-                                filter_idx += FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z
-                                    * (x + OUTPUT_SIZE_X * y + OUTPUT_SIZE_X * OUTPUT_SIZE_Y * z);
-#endif
                                 ACCUMULATOR_TYPE in = TO_ACCUMULATOR_TYPE(conv_input[input_idx]);
 #if ASYMMETRIC_DATA_QUANTIZATION
                                 in -= TO_ACCUMULATOR_TYPE(activations_zp[g * FILTER_IFM_NUM + k]);

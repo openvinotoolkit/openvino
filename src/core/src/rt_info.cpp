@@ -11,10 +11,13 @@ namespace {
 
 ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
     std::unordered_map<std::string, std::vector<ov::Any>> attrs;
-    OPENVINO_SUPPRESS_DEPRECATED_START
     for (const auto& node : nodes) {
         for (const auto& item : node->get_rt_info()) {
-            if (item.second->is_copyable() && item.first != "opset") {
+            bool copy = item.first != "opset";
+            if (item.second.is<ov::RuntimeAttribute>()) {
+                copy = copy && item.second.as<ov::RuntimeAttribute>().is_copyable();
+            }
+            if (copy) {
                 attrs[item.first].push_back(item.second);
             }
         }
@@ -26,18 +29,19 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
         if (item.second.size() == 1) {
             merged_attrs[item.first] = attr;
         } else {
-            auto merge_attr = attr->merge(nodes);
-            if (!merge_attr.empty()) {
-                merged_attrs[item.first] = merge_attr;
+            if (attr.is<ov::RuntimeAttribute>()) {
+                auto merge_attr = attr.as<ov::RuntimeAttribute>().merge(nodes);
+                if (!merge_attr.empty()) {
+                    merged_attrs[item.first] = merge_attr;
+                }
             }
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return merged_attrs;
 }
 
-std::shared_ptr<ngraph::Variant> get_opset(const ngraph::Node::RTMap& rt_info) {
+ov::Any get_opset(const ngraph::Node::RTMap& rt_info) {
     auto it = rt_info.find("opset");
     if (it != rt_info.end()) {
         return it->second;
@@ -48,7 +52,7 @@ std::shared_ptr<ngraph::Variant> get_opset(const ngraph::Node::RTMap& rt_info) {
 void assign_runtime_info(const ngraph::Node::RTMap& from, ngraph::Node::RTMap& to) {
     auto opset = get_opset(to);
     to = from;
-    if (opset) {
+    if (!opset.empty()) {
         to["opset"] = opset;
     }
 }
@@ -61,14 +65,16 @@ void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_p
     attrs.clear();
 
     for (const auto& item : from->get_rt_info()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (item.second->is_copyable() && item.first != "opset") {
+        bool copy = item.first != "opset";
+        if (item.second.is<ov::RuntimeAttribute>()) {
+            copy = copy && item.second.as<ov::RuntimeAttribute>().is_copyable();
+        }
+        if (copy) {
             attrs[item.first] = item.second;
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
-    if (opset) {
+    if (!opset.empty()) {
         attrs["opset"] = opset;
     }
 }

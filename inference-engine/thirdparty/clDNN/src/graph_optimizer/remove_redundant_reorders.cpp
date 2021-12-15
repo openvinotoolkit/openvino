@@ -14,6 +14,8 @@
 #include "reshape_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
+#include "depth_to_space_inst.h"
+#include "region_yolo_inst.h"
 
 using namespace cldnn;
 
@@ -230,6 +232,9 @@ void remove_redundant_reorders::run(program& p) {
         if (!ident.second)
             continue;
 
+        if (r_node.is_output() && i_layout.get_linear_size() != o_layout.get_linear_size())
+            continue;
+
         // mark as optimized
         r_node.can_be_optimized(true);
         r_node.requires_reinterpret(!ident.first);
@@ -307,33 +312,31 @@ void remove_redundant_reorders::run(program& p) {
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
 
-            if (node.is_output())
-                continue;
-
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
             if (!node.get_fused_activations_funcs().empty())
                 continue;
 
-            if (input.get_users().size() != 1 || node.get_users().empty())
+            if (input.get_users().size() != 1)
                 continue;
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>()) || (input.is_type<permute>());
+            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
+                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
-            if (!lo.can_fuse_reorder_to_prev(input, *node.get_users().front(), input.get_output_layout().format, output_layout.format))
+            auto next_node = node.get_users().empty() ? nullptr : node.get_users().front();
+            if (!lo.can_fuse_reorder_to_prev(input, next_node, input.get_output_layout().format, output_layout.format))
                 continue;
 
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
-                p.replace_all_usages(node, input);
+                node.can_be_optimized(true);
                 p.add_optimized_primitive_info(node.id());
-                p.remove_all_connections(node);
-                p.remove_if_dangling(node);
+                p.extract_and_remove(node);
             } else {
                 input.set_output_layout(old_output_layout_of_input, false);
             }

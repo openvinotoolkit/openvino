@@ -16,7 +16,6 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/variant.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -99,7 +98,7 @@ protected:
     // Support for dynamic shapes required transition to ov::PartialShape.
     // To smoothly transition to ov::PartialShape we introduced m_partial_shape
     // and kept m_shape in sync with m_partial_shape. Synchronization point was placed
-    // in set_partial_shape which dramatically affected performance of ov::Function
+    // in set_partial_shape which dramatically affected performance of ov::Model
     // validation. Since we have started the transition to ov::PartialShape and reduced
     // Shape usage the only user of m_shape was get_shape method with signature:
     // const PartialShape& descriptor::Tensor::get_shape() const
@@ -114,7 +113,7 @@ protected:
     std::string m_name;
 
     std::unordered_set<std::string> m_names;
-    std::map<std::string, Any> m_rt_info;
+    RTMap m_rt_info;
     mutable std::atomic_bool m_shape_changed;
 };
 

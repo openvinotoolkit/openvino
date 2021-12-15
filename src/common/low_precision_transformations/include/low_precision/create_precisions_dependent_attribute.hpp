@@ -45,20 +45,18 @@ public:
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreatePrecisionsDependentAttribute");
                 auto &rt = node->get_rt_info();
 
-                const auto precisionPreservedAttribute = std::make_shared<ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(
-                    std::make_shared<PrecisionPreservedAttribute>(false));
-                rt[ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name] = precisionPreservedAttribute;
-                const auto &targetSharedValue = precisionPreservedAttribute->get()->sharedValue;
+                const auto precisionPreservedAttribute = PrecisionPreservedAttribute(false);
+                rt[PrecisionPreservedAttribute::get_type_info_static()] = precisionPreservedAttribute;
+                const auto &targetSharedValue = precisionPreservedAttribute.attribute->sharedValue;
 
-                const auto attribute = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>(
-                    std::make_shared<AttributeType>());
-                rt[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = attribute;
+                const auto attribute = AttributeType{};
+                rt[AttributeType::get_type_info_static()] = attribute;
 
-                ngraph::pass::low_precision::NetworkHelper::reassign<PrecisionPreservedSharedValue, PrecisionPreservedAttribute>(
+                ngraph::pass::low_precision::NetworkHelper::reassign<AttributeType>(
                     targetSharedValue,
                     {
-                        std::dynamic_pointer_cast<PrecisionPreservedAttribute>(attribute->get()),
-                        std::dynamic_pointer_cast<PrecisionPreservedAttribute>(precisionPreservedAttribute->get())
+                        attribute.attribute,
+                        precisionPreservedAttribute.attribute
                     });
             }
             return true;
