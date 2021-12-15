@@ -70,7 +70,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
-  - script: dir $(BUILD_DIR)\temp\ /s
+  - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
 
   - script: call "$(MSVS_VARS_PATH)" && $(WORK_DIR)\ninja-win\ninja

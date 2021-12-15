@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 
 #include <opencv2/gapi/s11n.hpp>
 #include <opencv2/gapi/garg.hpp>
@@ -30,6 +30,11 @@ cv::GRunArgs cv::gapi::detail::getRunArgs(const std::vector<char> &p) {
     return run_args_deserialize(is);
 }
 
+std::vector<std::string> cv::gapi::detail::getVectorOfStrings(const std::vector<char> &p) {
+    cv::gapi::s11n::ByteMemoryInStream is(p);
+    return vector_of_strings_deserialize(is);
+}
+
 std::vector<char> cv::gapi::serialize(const cv::GMetaArgs& ma)
 {
     cv::gapi::s11n::ByteMemoryOutStream os;
@@ -51,27 +56,34 @@ std::vector<char> cv::gapi::serialize(const cv::GCompileArgs& ca)
     return os.data();
 }
 
+std::vector<char> cv::gapi::serialize(const std::vector<std::string>& vs)
+{
+    cv::gapi::s11n::ByteMemoryOutStream os;
+    serialize(os, vs);
+    return os.data();
+}
+
 // FIXME: This function should move from S11N to GRunArg-related entities.
 // it has nothing to do with the S11N as it is
-cv::GRunArgsP cv::gapi::bind(cv::GRunArgs &results)
+cv::GRunArgsP cv::gapi::bind(cv::GRunArgs &out_args)
 {
     cv::GRunArgsP outputs;
-    outputs.reserve(results.size());
-    for (cv::GRunArg &res_obj : results)
+    outputs.reserve(out_args.size());
+    for (cv::GRunArg &res_obj : out_args)
     {
         using T = cv::GRunArg;
         switch (res_obj.index())
         {
 #if !defined(GAPI_STANDALONE)
         case T::index_of<cv::UMat>() :
-            outputs.emplace_back((cv::UMat*)(&(cv::util::get<cv::UMat>(res_obj))));
+            outputs.emplace_back(&(cv::util::get<cv::UMat>(res_obj)));
             break;
 #endif
         case cv::GRunArg::index_of<cv::Mat>() :
-            outputs.emplace_back((cv::Mat*)(&(cv::util::get<cv::Mat>(res_obj))));
+            outputs.emplace_back(&(cv::util::get<cv::Mat>(res_obj)));
             break;
         case cv::GRunArg::index_of<cv::Scalar>() :
-            outputs.emplace_back((cv::Scalar*)(&(cv::util::get<cv::Scalar>(res_obj))));
+            outputs.emplace_back(&(cv::util::get<cv::Scalar>(res_obj)));
             break;
         case T::index_of<cv::detail::VectorRef>() :
             outputs.emplace_back(cv::util::get<cv::detail::VectorRef>(res_obj));
@@ -80,7 +92,10 @@ cv::GRunArgsP cv::gapi::bind(cv::GRunArgs &results)
             outputs.emplace_back(cv::util::get<cv::detail::OpaqueRef>(res_obj));
             break;
         case cv::GRunArg::index_of<cv::RMat>() :
-            outputs.emplace_back((cv::RMat*)(&(cv::util::get<cv::RMat>(res_obj))));
+            outputs.emplace_back(&(cv::util::get<cv::RMat>(res_obj)));
+            break;
+        case cv::GRunArg::index_of<cv::MediaFrame>() :
+            outputs.emplace_back(&(cv::util::get<cv::MediaFrame>(res_obj)));
             break;
         default:
             GAPI_Assert(false && "This value type is not supported!"); // ...maybe because of STANDALONE mode.
@@ -117,6 +132,9 @@ cv::GRunArg cv::gapi::bind(cv::GRunArgP &out)
 
     case T::index_of<cv::RMat*>() :
         return cv::GRunArg(*cv::util::get<cv::RMat*>(out));
+
+    case T::index_of<cv::MediaFrame*>() :
+        return cv::GRunArg(*cv::util::get<cv::MediaFrame*>(out));
 
     default:
         // ...maybe our types were extended

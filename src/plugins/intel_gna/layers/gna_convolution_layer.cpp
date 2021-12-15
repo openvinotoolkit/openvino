@@ -30,9 +30,10 @@ double getWeightsReducer(InferenceEngine::ConvolutionLayer& conv) {
     using KRT = std::pair<uint32_t, double>;
     // Empirically determined weights reducers for 2D Convolution
     // i.e.:
+    // for kernelSize >= 14      -> 1.7
     // for kernelSize >= 9       -> 1.3
     // for kernelSize in {7, 8}  -> 1.2
-    const std::vector< KRT > reducers{ {9, 1.3}, {7, 1.2} };
+    const std::vector< KRT > reducers{ {49, 3.0}, {36, 2.6}, {21, 2.3}, {14, 1.7}, {9, 1.3}, {7, 1.2} };
     auto reducer = 1.0;
     const auto inDepth = GetDataDimSize(conv.insData.front().lock(), InferenceEngine::DataDimName::C);
     const auto inHeight = GetDataDimSize(conv.insData.front().lock(), InferenceEngine::DataDimName::H);

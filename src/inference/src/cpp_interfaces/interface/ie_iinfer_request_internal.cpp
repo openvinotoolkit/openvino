@@ -355,6 +355,10 @@ void IInferRequestInternal::setPointerToExecutableNetworkInternal(
     _exeNetwork = exeNetwork;
 }
 
+std::shared_ptr<IExecutableNetworkInternal> IInferRequestInternal::getPointerToExecutableNetworkInternal() const {
+    return _exeNetwork;
+}
+
 bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,
                                                   const Blob::Ptr& userBlob,
                                                   const Blob::Ptr& deviceBlob) {

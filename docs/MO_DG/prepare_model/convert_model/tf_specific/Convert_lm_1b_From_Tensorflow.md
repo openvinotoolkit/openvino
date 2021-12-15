@@ -86,7 +86,7 @@ There is a certain limitations for the model conversion:
 To generate the `lm_1b` Intermediate Representation (IR), provide TensorFlow `lm_1b` model to the
 Model Optimizer with parameters:
 ```sh
-python3 ./mo_tf.py
+ mo
 --input_model lm_1b/graph-2016-09-10.pbtxt  \
 --input_checkpoint lm_1b/ckpt               \
 --input_model_is_text                       \
