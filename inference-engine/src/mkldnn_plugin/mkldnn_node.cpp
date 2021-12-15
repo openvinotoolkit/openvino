@@ -1383,8 +1383,10 @@ std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
   for (size_t i = 0; i < inputShapes.size(); i++) {
     const auto &memPtr = getParentEdgesAtPort(i)[0]->getMemory();
     input_shapes.push_back(memPtr.getStaticDims());
+
     input_values[i] = std::make_shared<ngraph::runtime::HostTensor>(
-        ngraph::element::Type_t::i32, memPtr.getStaticDims(), memPtr.GetPtr());
+        InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
+        memPtr.getStaticDims(), memPtr.GetPtr());
   }
 
   std::vector<ov::StaticShape> output_shapes(outputShapes.size());
