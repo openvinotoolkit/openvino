@@ -90,6 +90,8 @@ private:
                                   MKLDNNMemoryPtr inMem,
                                   MKLDNNMemoryPtr weightMem,
                                   MKLDNNMemoryPtr outMem,
+                                  const mkldnn::primitive_attr &attr,
+                                  const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
                                   const mkldnn::engine& engine);
     };
 
@@ -99,6 +101,8 @@ private:
                                MKLDNNMemoryPtr inMem,
                                MKLDNNMemoryPtr weightMem,
                                MKLDNNMemoryPtr outMem,
+                               const mkldnn::primitive_attr &attr,
+                               const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
                                const mkldnn::engine& engine);
     };
 

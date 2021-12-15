@@ -519,10 +519,12 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
                     prepareMemory(itpd);
                 }
                 auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
-                execPtr = std::make_shared<DeconvExecutorInt8>(prim_desc, srcMemPtr, internalBlobMemory.front(), dstMemPtr, getEngine());
+                execPtr = std::make_shared<DeconvExecutorInt8>(prim_desc, srcMemPtr, internalBlobMemory.front(), dstMemPtr, *attr,
+                                                               binaryPostOpsArgs, getEngine());
             } else {
                 auto prim_desc = convolution_backward_data::primitive_desc(itpd.get());
-                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, getEngine());
+                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, *attr,
+                                                                  binaryPostOpsArgs, getEngine());
             }
             return;
         }
@@ -542,7 +544,8 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
             auto anyDeconvItpd = anyDeconvDesc->createPrimitiveDescriptorIterator(getEngine(), *attr);
             if (static_cast<bool>(anyDeconvItpd)) {
                 auto prim_desc = convolution_backward_data::primitive_desc(anyDeconvItpd.get());
-                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, getEngine());
+                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, *attr,
+                                                                  binaryPostOpsArgs, getEngine());
                 return;
             }
         }
@@ -771,6 +774,8 @@ MKLDNNDeconvolutionNode::DeconvExecutorDefault::DeconvExecutorDefault(const mkld
                                                                       MKLDNNMemoryPtr inMem,
                                                                       MKLDNNMemoryPtr weightMem,
                                                                       MKLDNNMemoryPtr outMem,
+                                                                      const mkldnn::primitive_attr &attr,
+                                                                      const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
                                                                       const mkldnn::engine& engine) {
     execPrim.reset(new mkldnn::convolution_backward_data(pd));
 
@@ -794,12 +799,15 @@ MKLDNNDeconvolutionNode::DeconvExecutorDefault::DeconvExecutorDefault(const mkld
     } else {
         primArgs[DNNL_ARG_DIFF_SRC] = outMem->GetPrimitive();
     }
+    MKLDNNNode::appendPostOpArgs(attr, primArgs, binPostOpsArgs);
 }
 
 MKLDNNDeconvolutionNode::DeconvExecutorInt8::DeconvExecutorInt8(const mkldnn::deconvolution_forward::primitive_desc& pd,
                                                                 MKLDNNMemoryPtr inMem,
                                                                 MKLDNNMemoryPtr weightMem,
                                                                 MKLDNNMemoryPtr outMem,
+                                                                const mkldnn::primitive_attr &attr,
+                                                                const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
                                                                 const mkldnn::engine& engine) {
     execPrim.reset(new mkldnn::deconvolution_forward(pd));
 
@@ -823,6 +831,7 @@ MKLDNNDeconvolutionNode::DeconvExecutorInt8::DeconvExecutorInt8(const mkldnn::de
     } else {
         primArgs[DNNL_ARG_DST] = outMem->GetPrimitive();
     }
+    MKLDNNNode::appendPostOpArgs(attr, primArgs, binPostOpsArgs);
 }
 
 std::vector<int32_t> MKLDNNDeconvolutionNode::readOutputSpatialDims() const {

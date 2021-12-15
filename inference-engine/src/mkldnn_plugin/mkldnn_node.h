@@ -208,7 +208,9 @@ public:
         return 1;
     }
 
-    void appendPostOpArgs(const mkldnn::primitive_attr& attr);
+    static void appendPostOpArgs(const mkldnn::primitive_attr& attr,
+                                 std::unordered_map<int, mkldnn::memory>& primArgs,
+                                 const std::vector<MKLDNNMemoryPtr>& binaryPostOpsArgs);
 
     bool isFusedWith(Type type) const;
 
