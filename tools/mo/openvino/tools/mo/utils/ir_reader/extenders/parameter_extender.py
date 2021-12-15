@@ -35,5 +35,13 @@ class Parameter_extender(Extender):
                         shape_list.append(dim)
                     else:
                         shape_list.append(parse_dimension(dim))
+
+                # This value is used only for serialization of partial shapes with boundaries
+                # for Parameter node.
+                # 'user_shape' is not used in shape inference, as propagation of partial shapes with boundaries
+                # is not implemented in MO.
                 op['user_shape'] = tuple(shape_list)
+
+            # If 'user_shape' is not set, 'shape' attribute is used for serialization.
+            # 'shape' is also used for shape inference.
             op.shape = shape
