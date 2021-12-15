@@ -34,6 +34,8 @@ private:
     void FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph);
     void FuseReduceAndSimpleOperation(MKLDNNGraph &graph);
 
+    void VerticalReorderFusion(MKLDNNNodePtr& node, MKLDNNGraph& graph, std::set<MKLDNNNodePtr>& processed);
+    void HorizontalReorderFusion(MKLDNNNodePtr& node, MKLDNNGraph& graph, std::vector<MKLDNNEdgePtr>& graphEdges, std::set<MKLDNNNodePtr>& processed);
     void DropRedundantReorders(MKLDNNGraph& graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
