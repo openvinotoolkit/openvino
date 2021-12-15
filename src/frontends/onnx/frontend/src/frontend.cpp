@@ -6,9 +6,9 @@
 #include <input_model.hpp>
 #include <onnx_import/onnx.hpp>
 #include <openvino/frontend/exception.hpp>
-#include <openvino/frontend/telemetry_extension.hpp>
 #include <openvino/frontend/manager.hpp>
 #include <openvino/frontend/onnx/frontend.hpp>
+#include <openvino/frontend/telemetry_extension.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 

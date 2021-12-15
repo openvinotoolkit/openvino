@@ -5,8 +5,8 @@
 #include <openvino/util/env_util.hpp>
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/place.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/frontend/place.hpp"
 #include "utils.hpp"
 
 using namespace ov;

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <openvino/frontend/telemetry_extension.hpp>
 #include <openvino/frontend/manager.hpp>
+#include <openvino/frontend/telemetry_extension.hpp>
 
 #include "exceptions.hpp"
 #include "model.hpp"

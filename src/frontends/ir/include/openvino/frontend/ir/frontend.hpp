@@ -6,8 +6,8 @@
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/telemetry_extension.hpp"
 #include "openvino/frontend/ir/visibility.hpp"
+#include "openvino/frontend/telemetry_extension.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {

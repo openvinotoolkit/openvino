@@ -6,8 +6,8 @@
 #include <openvino/util/file_util.hpp>
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/place.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/frontend/place.hpp"
 #include "openvino/util/env_util.hpp"
 #include "plugin_loader.hpp"
 #include "so_extension.hpp"
