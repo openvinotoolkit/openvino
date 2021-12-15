@@ -44,13 +44,13 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
                 DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb)
     endif()
-    install(FILES "${TBB}/LICENSE"
+    install(FILES "${TBB}/LICENSE.txt"
             DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
 
-    set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
-    install(FILES "${TBB}/cmake/TBBConfig.cmake"
-                  "${TBB}/cmake/TBBConfigVersion.cmake"
+    set(IE_TBB_DIR_INSTALL "3rdparty/tbb/lib/cmake/tbb")
+    install(FILES "${TBB}/lib/cmake/tbb/TBBConfig.cmake"
+                  "${TBB}/lib/cmake/tbb/TBBConfigVersion.cmake"
             DESTINATION runtime/${IE_TBB_DIR_INSTALL}
             COMPONENT tbb_dev)
     install(DIRECTORY "${TBB}/include"
