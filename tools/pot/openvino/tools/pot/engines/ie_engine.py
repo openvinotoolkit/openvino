@@ -7,10 +7,11 @@ from time import time
 
 import copy
 import numpy as np
-from openvino.runtime import Core   # pylint: disable=E0611
+from openvino.runtime import Core   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
-    restore_original_node_names, align_stat_names_with_results
+    restore_original_node_names, align_stat_names_with_results, \
+    process_raw_output
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -247,7 +248,7 @@ class IEEngine(Engine):
             if infer_status:
                 logger.debug('Infer request %d returned %s message', ir_id, infer_status)
                 return [], []
-            outputs = self._process_raw_output(ir.results)
+            outputs = process_raw_output(ir.results)
 
             result.append((batch_id, image_annotations, batch_meta, outputs, ir))
             free_indexes.append(ir_id)
@@ -388,7 +389,7 @@ class IEEngine(Engine):
 
             # Infer batch of images
             predictions = infer_request.infer(self._fill_input(executable_model, image_batch))
-            outputs = self._process_raw_output(predictions)
+            outputs = process_raw_output(predictions)
 
             self._process_infer_output(stats_layout, outputs,
                                        batch_annotations, batch_meta,
@@ -451,12 +452,3 @@ class IEEngine(Engine):
         stats_layout_ie_style = {convert_output_key(key): value
                                  for key, value in stats_layout.items()}
         return stats_layout_ie_style, stat_names_aliases
-    
-    @staticmethod
-    def _process_raw_output(raw_output):
-        """Processes raw output into the POT friendly format"""
-        result = {}
-        for result_node, result_data in raw_output.items():
-            result_name = result_node.get_node().friendly_name.replace('/sink_port_0', '')
-            result[result_name] = result_data
-        return result

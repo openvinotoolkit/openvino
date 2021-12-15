@@ -21,7 +21,7 @@ from ....statistics.functions import aggregation as agf
 from ....statistics.statistics import TensorStatisticAxis
 from ....utils.launcher import IELauncher
 from ....utils.logger import get_logger
-from ....engines.ie_engine import IEEngine
+from ....engines.utils import process_raw_output
 
 logger = get_logger(__name__)
 
@@ -340,12 +340,13 @@ class BiasCorrection(Algorithm):
             _, q_outputs = self._engine.predict(ref_stats_layout, self._sampler)
             q_output = agf.mean(q_outputs[add_name]['mean_per_channel'])
         else:
-            self._launcher.set_model(model_copy, input_names=[param['param_name'] for param in params['parameters_data_dict']])
+            input_names = [param['param_name'] for param in params['parameters_data_dict']]
+            self._launcher.set_model(model_copy, input_names=input_names)
             q_outputs = []
             for feed_dict in params['feed_dicts']:
                 self._reshape_model_by_feed_dict(feed_dict, model_copy)
                 q_output = self._launcher.infer(feed_dict)
-                q_output = IEEngine._process_raw_output(q_output)
+                q_output = process_raw_output(q_output)
                 q_outputs.append(asf.mean_per_channel_axis(q_output[add_name], add_name, channel=self._channel_axis))
             q_output = agf.mean(q_outputs)
 
@@ -363,11 +364,12 @@ class BiasCorrection(Algorithm):
             if not bias_is_updated:
                 fq_nodes = mu.get_nodes_by_type(model_copy, ['FakeQuantize'])
                 self._graph_transformer.remove_fq_nodes(model_copy, fq_nodes)
-            self._launcher.set_model(model_copy, input_names=[param['param_name'] for param in params['parameters_data_dict']])
+            input_names = [param['param_name'] for param in params['parameters_data_dict']]
+            self._launcher.set_model(model_copy, input_names=input_names)
             for feed_dict in params['feed_dicts']:
                 self._reshape_model_by_feed_dict(feed_dict, model_copy)
                 q_output = self._launcher.infer(feed_dict)
-                q_output = IEEngine._process_raw_output(q_output)
+                q_output = process_raw_output(q_output)
                 for result_data_dict in params['results_data_dict']:
                     q_stat_updated = q_output[result_data_dict['output_name']]
                     self._fp32_statistics[result_data_dict['output_name']]['batch_mean_in'].append(q_stat_updated)

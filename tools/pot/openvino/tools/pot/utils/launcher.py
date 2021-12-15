@@ -1,7 +1,7 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Core  # pylint: disable=E0611
+from openvino.runtime import Core  # pylint: disable=E0611,E0401
 
 from ..utils.utils import create_tmp_dir
 from ..graph.model_utils import save_model
@@ -19,6 +19,7 @@ class IELauncher:
         self._tmp_dir = create_tmp_dir()
         self.device = device
         self.model = None
+        self.infer_request = None
 
         self._ie = Core()
 
@@ -42,7 +43,7 @@ class IELauncher:
             ir_model.reshape(md_shapes)
 
         self.model = self._ie.compile_model(model=ir_model, device_name=self.device)
-        
+
         if input_names is not None:
             self.model.input().get_tensor().set_names(set(input_names))
 

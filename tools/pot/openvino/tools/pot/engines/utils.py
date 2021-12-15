@@ -133,3 +133,11 @@ def align_stat_names_with_results(result_names, nodes_name, output2node, stats_l
                 assert out_name_with_port in result_names
                 update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
                 output2node[out_name_with_port] = original_out_name
+
+def process_raw_output(raw_output):
+    """Processes raw output into the POT friendly format"""
+    result = {}
+    for result_node, result_data in raw_output.items():
+        result_name = result_node.get_node().friendly_name.replace('/sink_port_0', '')
+        result[result_name] = result_data
+    return result
