@@ -133,7 +133,7 @@ void MulticlassNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutp
 void MulticlassNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &expectedOutputs,
                                      const std::vector<ov::runtime::Tensor> &actualOutputs) {
     auto batchIndex = -1;
-    size_t numBatches, maxOutputBoxesPerBatch;
+    size_t numBatches(0), maxOutputBoxesPerBatch(0);
     GetOutputParams(numBatches, maxOutputBoxesPerBatch);
     std::vector<int32_t> numPerBatch(numBatches);
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0; outputIndex--) {
