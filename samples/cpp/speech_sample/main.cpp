@@ -221,6 +221,11 @@ int main(int argc, char* argv[]) {
                     throw std::logic_error("Ports should have integer type");
                 }
             }
+            if (!FLAGS_m.empty()) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    model->add_output(outputs[i], ports[i]);
+                }
+            }
         }
 
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
@@ -300,7 +305,7 @@ int main(int argc, char* argv[]) {
 
                 uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
                     numBytesReferenceScoreThisUtterance(0);
-                auto dims = executableNet.output().get_shape();
+                auto dims = executableNet.outputs()[0].get_shape();
                 const auto numScoresPerFrame =
                     std::accumulate(std::begin(dims), std::end(dims), size_t{1}, std::multiplies<size_t>());
 
@@ -411,7 +416,7 @@ int main(int argc, char* argv[]) {
                                                   numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
 
                                     ov::runtime::Tensor outputBlob =
-                                        inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
+                                        inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
@@ -419,7 +424,7 @@ int main(int argc, char* argv[]) {
                                 if (!FLAGS_r.empty()) {
                                     /** Compare output data with reference scores **/
                                     ov::runtime::Tensor outputBlob =
-                                        inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
+                                        inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
                                     CompareScores(
                                         outputBlob.data<float>(),
                                         &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
