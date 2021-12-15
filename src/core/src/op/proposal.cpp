@@ -23,7 +23,7 @@ op::v0::Proposal::Proposal(const Output<Node>& class_probs,
     constructor_validate_and_infer_types();
 }
 
-void op::v0::Proposal::validate() {
+void op::v0::Proposal::validate_element_types() {
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_real(),
                           "Proposal layer input class_probs should have floating point type (",
@@ -45,7 +45,7 @@ void op::v0::Proposal::validate() {
 
 void op::v0::Proposal::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Proposal_validate_and_infer_types);
-    validate();
+    validate_element_types();
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
                                                   get_input_partial_shape(1),
@@ -91,7 +91,7 @@ op::v4::Proposal::Proposal(const Output<Node>& class_probs,
 
 void op::v4::Proposal::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
-    v0::Proposal::validate();
+    v0::Proposal::validate_element_types();
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),

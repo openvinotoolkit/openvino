@@ -57,8 +57,7 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
                                                   get_input_partial_shape(3)};
     shape_infer(this, input_shapes, output_shapes);
 
-    auto input_et = get_input_element_type(0);
-    set_output_size(2);
+    const auto& input_et = get_input_element_type(0);
     set_output_type(0, input_et, output_shapes[0]);
     set_output_type(1, input_et, output_shapes[1]);
 }

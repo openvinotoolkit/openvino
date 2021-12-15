@@ -21,25 +21,25 @@ void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
     const auto& anchors_shape = input_shapes[1];
     const auto& deltas_shape = input_shapes[2];
     const auto& scores_shape = input_shapes[3];
+    const auto im_info_shape_rank = im_info_shape.rank();
+    NODE_VALIDATION_CHECK(op,
+                          im_info_shape_rank.compatible(1),
+                          "The 'input_im_info' input is expected to be a 1D. Got: ",
+                          im_info_shape);
 
-    if (im_info_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              im_info_shape.size() == 1,
-                              "The 'input_im_info' input is expected to be a 1D. Got: ",
-                              im_info_shape);
-
+    if (im_info_shape_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               im_info_shape[0].compatible(3),
                               "The 'input_im_info' shape is expected to be a compatible with [3]. Got: ",
                               im_info_shape);
     }
 
-    if (anchors_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              anchors_shape.size() == 2,
-                              "The 'input_anchors' input is expected to be a 2D. Got: ",
-                              anchors_shape);
-
+    const auto anchors_shape_rank = anchors_shape.rank();
+    NODE_VALIDATION_CHECK(op,
+                          anchors_shape_rank.compatible(2),
+                          "The 'input_anchors' input is expected to be a 2D. Got: ",
+                          anchors_shape);
+    if (anchors_shape_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               anchors_shape[1].compatible(4),
                               "The second dimension of 'input_anchors' should be compatible with 4. Got: ",
@@ -71,11 +71,14 @@ void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
                               deltas_shape[2],
                               scores_shape[2]);
     }
-    output_shapes[0].resize(2);
-    output_shapes[1].resize(1);
-    (output_shapes[0])[0] = post_nms_count;
-    (output_shapes[0])[1] = 4;
-    (output_shapes[1])[0] = post_nms_count;
+    auto& rois_shape = output_shapes[0];
+    auto& rois_scores_shape = output_shapes[1];
+
+    rois_shape.resize(2);
+    rois_scores_shape.resize(1);
+    rois_shape[0] = post_nms_count;
+    rois_shape[1] = 4;
+    rois_scores_shape[0] = post_nms_count;
 }
 
 }  // namespace v6

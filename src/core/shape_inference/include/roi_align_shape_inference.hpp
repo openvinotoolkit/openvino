@@ -14,6 +14,7 @@ namespace v3 {
 
 template <class T>
 void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
 
     const auto& input_ps = input_shapes[0];
@@ -34,7 +35,7 @@ void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_sha
                           batch_indices_ps);
 
     if (rois_ps_rank.is_static()) {
-        const auto rois_second_dim = rois_ps[1];
+        const auto& rois_second_dim = rois_ps[1];
         NODE_VALIDATION_CHECK(op,
                               rois_second_dim.compatible(4),
                               "The second dimension of ROIs input should contain box coordinates. ",
@@ -52,19 +53,22 @@ void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_sha
         }
     }
 
-    output_shapes[0].resize(4);
-    (output_shapes[0])[1] = input_ps[1];
-    (output_shapes[0])[2] = op->get_pooled_h();
-    (output_shapes[0])[3] = op->get_pooled_w();
+    auto& output_shape = output_shapes[0];
+    output_shape.resize(4);
+    output_shape[1] = input_ps_rank.is_static() ? input_ps[1] : -1;
+    output_shape[2] = op->get_pooled_h();
+    output_shape[3] = op->get_pooled_w();
 
     // if either of those 2 dimensions is static its value will be used
     // for the first dimension of the output shape - 'NUM_ROIS'
-    if (rois_ps_rank.is_static() && rois_ps[0].is_static()) {
-        (output_shapes[0])[0] = rois_ps[0];
-    } else if (batch_indices_ps_rank.is_static() && batch_indices_ps[0].is_static()) {
-        (output_shapes[0])[0] = batch_indices_ps[0];
+    if (rois_ps_rank.is_static() && batch_indices_ps_rank.is_static()) {
+        DimType::merge(output_shape[0], batch_indices_ps[0], rois_ps[0]);
+    } else if (rois_ps_rank.is_static()) {
+        output_shape[0] = rois_ps[0];
+    } else if (batch_indices_ps_rank.is_static()) {
+        output_shape[0] = batch_indices_ps[0];
     } else {
-        (output_shapes[0])[0] = Dimension::dynamic();
+        output_shape[0] = Dimension::dynamic();
     }
 }
 
