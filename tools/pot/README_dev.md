@@ -32,8 +32,8 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
    ```
 3) Declare Model Optimizer. 
     You can declare Model Optimizer that needs for POT purposed with the two ways:
-    1. Install Model Optimizer with pip using "python setup.py install" at the mo folder (<openvino_path>/tools/mo/setup.py)
-    2. Declare Model Optimizer for Python using PYTHONPATH environment variable. Add the the following <openvino_path>/tools/mo into PYTHONPATH.
+    1. Install Model Optimizer with pip using "python setup.py install" at the mo folder (`<openvino_path>/tools/mo/setup.py`)
+    2. Declare Model Optimizer for Python using PYTHONPATH environment variable. Add the the following `<openvino_path>/tools/mo` into PYTHONPATH.
 4) Install requirements for accuracy checker:
     - From POT root: `cd ./thirdparty/open_model_zoo/tools/accuracy_checker`
     - Call setup script: `python3 setup.py install`
@@ -50,4 +50,4 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 To test the tool you can use PyTorch Mobilenet_v2 model from `tests/data/models/mobilenetv2_example/mobilenetv2_example.onnx`
 
 - If there're some errors with imports in ModelOptimizer, first of all make the following steps:
-    - If you've installed ModelOptimizer with setting _PYTHONPATH_ variable, checkout the path. It should be as following <openvino_path>/tools/mo. The whole command can be found in step 3 Installation (Temporary) guide above.
+    - If you've installed ModelOptimizer with setting _PYTHONPATH_ variable, checkout the path. It should be as following `<openvino_path>/tools/mo.` The whole command can be found in step 3 Installation (Temporary) guide above.
