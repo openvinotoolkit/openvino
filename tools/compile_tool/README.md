@@ -85,5 +85,5 @@ To import a blob with the network from a generated file into your application, u
 ```cpp
 ov::runtime::Core ie;
 std::ifstream file{"model_name.blob"};
-ov::runtime::ExecutableNetwork = ie.import_model(file, "MYRIAD", {});
+ov::runtime::CompiledModel compiled_model = ie.import_model(file, "MYRIAD", {});
 ```
