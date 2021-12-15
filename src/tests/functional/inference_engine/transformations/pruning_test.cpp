@@ -51,9 +51,9 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
 TEST(TransformationTests, MyFirstTest){
     //ov::runtime::Core core;
     InferenceEngine::Core core;
-    const std::string input_model = "/home/dlyakhov/model_export/13_10_21/ir/efficientnet_b0_pruning_20_no_transformations/efficientnet_bo_pruning_20_int8.xml";
+    //const std::string input_model = "/home/dlyakhov/model_export/13_10_21/ir/efficientnet_b0_pruning_20_no_transformations/efficientnet_bo_pruning_20_int8.xml";
 
-    //const std::string input_model = "/home/dlyakhov/model_export/25_11_21/ir/efficientnet_with_bn/efficientnet_bo_pruning_test.xml";
+    const std::string input_model = "/home/dlyakhov/model_export/25_11_21/ir/efficientnet_with_bn/efficientnet_bo_pruning_test.xml";
     //const std::string input_model = "/home/dlyakhov/model_export/19_11_21_yolo_v5_pruning/yolo_v5s_pruned.xml";
         // -------- Step 2. Read a model --------
     auto f = core.ReadNetwork(input_model).getFunction();

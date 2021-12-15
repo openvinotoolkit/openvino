@@ -17,7 +17,7 @@ static const std::string g_init_suffix = "init";
 Mask::Ptr getMask(const Output<const Node> & output) {
     auto &rtInfo = output.get_rt_info();
 
-    const auto attr_it = rtInfo.find(Mask::get_type_info_static().name);
+    const auto attr_it = rtInfo.find(Mask::get_type_info_static());
     if (attr_it == rtInfo.end()) return nullptr;
 
     const auto &attr = attr_it->second;
@@ -27,7 +27,7 @@ Mask::Ptr getMask(const Output<const Node> & output) {
 Mask::Ptr getMask(const Output<Node> & output) {
     auto &rtInfo = output.get_rt_info();
 
-    const auto attr_it = rtInfo.find(Mask::get_type_info_static().name);
+    const auto attr_it = rtInfo.find(Mask::get_type_info_static());
     if (attr_it == rtInfo.end()) return nullptr;
 
     const auto &attr = attr_it->second;
