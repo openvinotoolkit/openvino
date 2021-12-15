@@ -6,6 +6,7 @@
     precision: FP32
     full_path: ${SHARE}/models/internal/kaldi/tdnn2/kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
     irs_out_path: ${SHARE}/models/internal/kaldi/tdnn2/kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
+    cache_path: ${SHARE}/models/internal/kaldi/tdnn2/kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
     framework: kaldi
     source: share
   references: {}
@@ -16,6 +17,7 @@
     precision: FP32
     full_path: /nfs/inn/proj/vdp/vdp_extra/users/vdymchis/memory_tests/irs/KALDI_Tdnn2/tdnn2.xml
     irs_out_path: /nfs/inn/proj/vdp/vdp_extra/users/vdymchis/memory_tests/irs/KALDI_Tdnn2/tdnn2.xml
+    cache_path: /nfs/inn/proj/vdp/vdp_extra/users/vdymchis/memory_tests/irs/KALDI_Tdnn2/tdnn2.xml
     framework: kaldi
     source: share
   references: {}
