@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_infer_request/remote.hpp"
+#include "behavior/ov_plugin/remote.hpp"
 #include "transformations/utils/utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
