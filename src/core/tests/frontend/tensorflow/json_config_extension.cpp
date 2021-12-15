@@ -3,7 +3,6 @@
 //
 
 #include "json_config.hpp"
-
 #include "tf_utils.hpp"
 
 using namespace ov::frontend;

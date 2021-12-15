@@ -3,7 +3,6 @@
 //
 
 #include "json_config.hpp"
-
 #include "onnx_utils.hpp"
 
 using namespace ov::frontend;
