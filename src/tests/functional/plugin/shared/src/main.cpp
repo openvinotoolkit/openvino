@@ -33,24 +33,24 @@ int main(int argc, char *argv[]) {
                 throw std::runtime_error("Incorrect value of \"--save_report_timeout\" argument");
             }
             LayerTestsUtils::Summary::setSaveReportTimeout(timeout);
-        } else if (std::string(argv[i]).find("--external_network_mode") != std::string::npos) {
-            auto mode = std::string(argv[i]).substr(std::string("--external_network_mode").length() + 1);
+        } else if (std::string(argv[i]).find("--external_optimization_mode") != std::string::npos) {
+            auto mode = std::string(argv[i]).substr(std::string("--external_optimization_mode").length() + 1);
             if (mode == "LOAD") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::LOAD);
+                LayerTestsUtils::ExternalOptimizationUtil::setMode(LayerTestsUtils::ExternalOptimizationMode::LOAD);
             } else if (mode == "DUMP") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::DUMP);
+                LayerTestsUtils::ExternalOptimizationUtil::setMode(LayerTestsUtils::ExternalOptimizationMode::DUMP);
             } else if (mode == "DUMP_MODELS_ONLY") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::DUMP_MODELS_ONLY);
+                LayerTestsUtils::ExternalOptimizationUtil::setMode(LayerTestsUtils::ExternalOptimizationMode::DUMP_MODELS_ONLY);
             } else if (mode == "DUMP_INPUTS_ONLY") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::DUMP_INPUTS_ONLY);
+                LayerTestsUtils::ExternalOptimizationUtil::setMode(LayerTestsUtils::ExternalOptimizationMode::DUMP_INPUTS_ONLY);
             } else if (mode == "DUMP_ALL") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::DUMP_ALL);
+                LayerTestsUtils::ExternalOptimizationUtil::setMode(LayerTestsUtils::ExternalOptimizationMode::DUMP_ALL);
             } else {
-                throw std::runtime_error("Incorrect value of \"--external_network_mode\" argument");
+                throw std::runtime_error("Incorrect value of \"--external_optimization_mode\" argument");
             }
-        } else if (std::string(argv[i]).find("--external_network_path") != std::string::npos) {
-            auto path = std::string(argv[i]).substr(std::string("--external_network_path").length() + 1);
-            LayerTestsUtils::ExternalNetworkTool::setModelsPath(path);
+        } else if (std::string(argv[i]).find("--external_optimization_path") != std::string::npos) {
+            auto path = std::string(argv[i]).substr(std::string("--external_optimization_path").length() + 1);
+            LayerTestsUtils::ExternalOptimizationUtil::setModelsPath(path);
         }
     }
 
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
                   "Mutually exclusive with --extend_report." << std::endl;
         std::cout << "  --save_report_timeout" << std::endl;
         std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
-        std::cout << "  --external_network_mode" << std::endl;
+        std::cout << "  --external_optimization_mode" << std::endl;
         std::cout << "       Unlocks functionality to dump network to file or load it from file " << std::endl;
         std::cout << "       for supported tests. The mode is defined by value of argument" << std::endl;
         std::cout << "       [LOAD, DUMP, DUMP_MODELS_ONLY, DUMP_INPUTS_ONLY, DUMP_ALL] " << std::endl;
@@ -78,10 +78,10 @@ int main(int argc, char *argv[]) {
         std::cout << "         LOAD - load test networks from files " << std::endl;
         std::cout << "         DUMP - serialize test models and dump generated inputs into files" << std::endl;
         std::cout << "         DUMP_ALL - same as DUMP but skipped tests will be enabled for serialization too" << std::endl;
-        std::cout << "       Example is --external_network_mode=DUMP" << std::endl;
-        std::cout << "  --external_network_path" << std::endl;
-        std::cout << "       Set up path for dumping or loading (depends on --external_network_mode) network" << std::endl;
-        std::cout << "       for supported tests. Example is --external_network_path=/home/user/tests_networks" << std::endl;
+        std::cout << "       Example is --external_optimization_mode=DUMP" << std::endl;
+        std::cout << "  --external_optimization_path" << std::endl;
+        std::cout << "       Set up path for dumping or loading (depends on --external_optimization_mode) network" << std::endl;
+        std::cout << "       for supported tests. Example is --external_optimization_path=/home/user/tests_networks" << std::endl;
         std::cout << std::endl;
     }
 

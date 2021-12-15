@@ -22,18 +22,18 @@
 
 namespace LayerTestsUtils {
 
-#define SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP()  \
-if (ENT::toDumpModel() || ENT::toDumpInput()) {        \
-    return;                                             \
-}                                                       \
+#define SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP()                  \
+if (ExtOptUtil::toDumpModel() || ExtOptUtil::toDumpInput()) {           \
+    return;                                                             \
+}                                                                       \
 
-class ExternalNetworkTool;
-enum class ExternalNetworkMode;
+class ExternalOptimizationUtil;
+enum class ExternalOptimizationMode;
 
-using ENT = ExternalNetworkTool;
-using ENTMode = ExternalNetworkMode;
+using ExtOptUtil = ExternalOptimizationUtil;
+using ExtOptMode = ExternalOptimizationMode;
 
-enum class ExternalNetworkMode {
+enum class ExternalOptimizationMode {
     DISABLED,
     LOAD,
     DUMP,
@@ -42,7 +42,7 @@ enum class ExternalNetworkMode {
     DUMP_ALL,
 };
 
-class ExternalNetworkTool {
+class ExternalOptimizationUtil {
 #define MAX_FILE_NAME_SIZE 240
 #define SHORT_HASH_SIZE 10
 #define DEFAULT_INPUT_EXTENSION "bin"
@@ -53,7 +53,7 @@ class ExternalNetworkTool {
 #endif
 
 private:
-    static ExternalNetworkMode mode;
+    static ExternalOptimizationMode mode;
 
     static std::string& modelsPath();
 
@@ -108,9 +108,9 @@ private:
 
 
 protected:
-    ExternalNetworkTool() = delete;
+    ExternalOptimizationUtil() = delete;
 
-    ~ExternalNetworkTool() = delete;
+    ~ExternalOptimizationUtil() = delete;
 
 public:
     static void dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
@@ -133,9 +133,9 @@ public:
 
     static const std::string &getModelsPath() { return modelsPath(); }
 
-    static ExternalNetworkMode getMode() { return mode; }
+    static ExternalOptimizationMode getMode() { return mode; }
 
-    static bool isMode(ExternalNetworkMode val) { return mode == val; }
+    static bool isMode(ExternalOptimizationMode val) { return mode == val; }
 
     static bool toDumpModel();
 
@@ -145,7 +145,7 @@ public:
 
     static void setModelsPath(std::string &val);
 
-    static void setMode(ExternalNetworkMode val) { mode = val; }
+    static void setMode(ExternalOptimizationMode val) { mode = val; }
 
     static std::string processTestName(const std::string &network_name, const size_t extension_len = 3);
 

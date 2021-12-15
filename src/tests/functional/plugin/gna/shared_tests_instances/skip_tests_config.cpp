@@ -99,11 +99,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*MultipleInputTest.*)",
     };
 
-    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::DUMP_ALL)) {
+    if (LayerTestsUtils::ExtOptUtil::isMode(LayerTestsUtils::ExtOptMode::DUMP_ALL)) {
         return serializationPatterns;
     }
 
-    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::LOAD)) {
+    if (LayerTestsUtils::ExtOptUtil::isMode(LayerTestsUtils::ExtOptMode::LOAD)) {
         standardPatterns.insert(std::end(standardPatterns),
                                 std::begin(loadingPatterns),
                                 std::end(loadingPatterns));

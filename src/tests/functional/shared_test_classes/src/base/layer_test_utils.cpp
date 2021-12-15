@@ -352,10 +352,10 @@ void LayerTestsCommon::ConfigureNetwork() {
 void LayerTestsCommon::ExternalOptimization() {
     std::string testName = GetTestCaseName() + "_" + GetTestName();
 
-    if (ENT::toDumpModel()) {
-        ENT::dumpNetworkToFile(function, testName);
-    } else if (ENT::toLoad()) {
-        function = ENT::loadNetworkFromFile(testName);
+    if (ExtOptUtil::toDumpModel()) {
+        ExtOptUtil::dumpNetworkToFile(function, testName);
+    } else if (ExtOptUtil::toLoad()) {
+        function = ExtOptUtil::loadNetworkFromFile(testName);
         functionRefs = ngraph::clone_function(*function);
     }
 }
@@ -382,7 +382,7 @@ void LayerTestsCommon::GenerateInputs() {
 }
 
 void LayerTestsCommon::DumpInputs() {
-    if (ENT::toDumpInput()) {
+    if (ExtOptUtil::toDumpInput()) {
         std::string network_name = GetTestCaseName() + "_" + GetTestName();
         const auto& inputsInfo = executableNetwork.GetInputsInfo();
         const auto& functionParams = function->get_parameters();
@@ -394,7 +394,7 @@ void LayerTestsCommon::DumpInputs() {
             InferenceEngine::Blob::Ptr blob = inputs[i];
             // topological sort dependency!
             uint32_t ir_id = functionParams.size() - 1 - i;
-            ENT::saveInputFile(network_name, info, blob, ir_id);
+            ExtOptUtil::saveInputFile(network_name, info, blob, ir_id);
         }
     }
 }

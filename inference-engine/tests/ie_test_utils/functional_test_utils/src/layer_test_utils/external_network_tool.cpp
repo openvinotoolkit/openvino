@@ -8,31 +8,31 @@
 
 using namespace LayerTestsUtils;
 
-ExternalNetworkMode ExternalNetworkTool::mode = ExternalNetworkMode::DISABLED;
+ExternalOptimizationMode ExternalOptimizationUtil::mode = ExternalOptimizationMode::DISABLED;
 
-std::string &ExternalNetworkTool::modelsPath() {
+std::string &ExternalOptimizationUtil::modelsPath() {
     static std::string models_path { "" };
     return models_path;
 }
 
-void ExternalNetworkTool::setModelsPath(std::string &val) {
+void ExternalOptimizationUtil::setModelsPath(std::string &val) {
     std::string &ref = modelsPath();
     ref = val;
 }
 
-bool ExternalNetworkTool::toDumpModel() {
-    return isMode(ENTMode::DUMP) || isMode(ENTMode::DUMP_MODELS_ONLY) || isMode(ENTMode::DUMP_ALL);
+bool ExternalOptimizationUtil::toDumpModel() {
+    return isMode(ExtOptMode::DUMP) || isMode(ExtOptMode::DUMP_MODELS_ONLY) || isMode(ExtOptMode::DUMP_ALL);
 }
 
-bool ExternalNetworkTool::toDumpInput() {
-    return isMode(ENTMode::DUMP) || isMode(ENTMode::DUMP_INPUTS_ONLY) || isMode(ENTMode::DUMP_ALL);
+bool ExternalOptimizationUtil::toDumpInput() {
+    return isMode(ExtOptMode::DUMP) || isMode(ExtOptMode::DUMP_INPUTS_ONLY) || isMode(ExtOptMode::DUMP_ALL);
 }
 
-bool ExternalNetworkTool::toLoad() {
-    return isMode(ENTMode::LOAD);
+bool ExternalOptimizationUtil::toLoad() {
+    return isMode(ExtOptMode::LOAD);
 }
 
-void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
+void ExternalOptimizationUtil::writeToHashMap(const std::string &network_name,
                                          const std::string &shorted_name) {
     std::ofstream hash_map_file;
     std::string file_path;
@@ -52,7 +52,7 @@ void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
 }
 
 template <typename T>
-std::vector<std::shared_ptr<ov::Node>> ExternalNetworkTool::topological_name_sort(T root_nodes) {
+std::vector<std::shared_ptr<ov::Node>> ExternalOptimizationUtil::topological_name_sort(T root_nodes) {
     std::vector<std::shared_ptr<ov::Node>> results = ngraph::topological_sort<T>(root_nodes);
 
     auto node_comaparator = [](std::shared_ptr<ov::Node> node_left,
@@ -67,7 +67,7 @@ std::vector<std::shared_ptr<ov::Node>> ExternalNetworkTool::topological_name_sor
     return results;
 }
 
-std::string ExternalNetworkTool::replaceInName(const std::string &network_name, const std::map<std::string, std::string> replace_map) {
+std::string ExternalOptimizationUtil::replaceInName(const std::string &network_name, const std::map<std::string, std::string> replace_map) {
     std::string new_network_name { network_name };
 
     for (auto &pair : replace_map) {
@@ -83,7 +83,7 @@ std::string ExternalNetworkTool::replaceInName(const std::string &network_name, 
     return new_network_name;
 }
 
-std::string ExternalNetworkTool::eraseInName(const std::string &network_name, const std::vector<std::string> patterns) {
+std::string ExternalOptimizationUtil::eraseInName(const std::string &network_name, const std::vector<std::string> patterns) {
     std::string new_network_name { network_name };
 
     for (auto &pattern : patterns) {
@@ -97,7 +97,7 @@ std::string ExternalNetworkTool::eraseInName(const std::string &network_name, co
     return new_network_name;
 }
 
-std::string ExternalNetworkTool::eraseRepeatedInName(const std::string &network_name, const std::vector<char> target_symbols) {
+std::string ExternalOptimizationUtil::eraseRepeatedInName(const std::string &network_name, const std::vector<char> target_symbols) {
     if (!network_name.length()) {
         return network_name;
     }
@@ -126,7 +126,7 @@ std::string ExternalNetworkTool::eraseRepeatedInName(const std::string &network_
     return std::string(buffer, new_name_size);
 }
 
-std::string ExternalNetworkTool::generateHashName(std::string value) {
+std::string ExternalOptimizationUtil::generateHashName(std::string value) {
     std::hash<std::string> hasher;
     size_t hash = hasher(value);
     std::string hash_string = std::to_string(hash);
@@ -134,7 +134,7 @@ std::string ExternalNetworkTool::generateHashName(std::string value) {
     return hash_prefix + hash_string;
 }
 
-std::string ExternalNetworkTool::processTestName(const std::string &network_name, const size_t extension_len) {
+std::string ExternalOptimizationUtil::processTestName(const std::string &network_name, const size_t extension_len) {
     std::vector<std::string> erase_patterns = {
         "netPRC",
         "netPrecision",
@@ -184,7 +184,7 @@ std::string ExternalNetworkTool::processTestName(const std::string &network_name
     return new_network_name;
 }
 
-void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> network) {
+void ExternalOptimizationUtil::updateFunctionNames(std::shared_ptr<ngraph::Function> network) {
     auto rename = [](std::shared_ptr<ov::Node> node) {
         std::string id   {std::to_string(node->get_instance_id())};
         std::string type {node->get_type_name()};
@@ -199,7 +199,7 @@ void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> 
     }
 }
 
-void ExternalNetworkTool::unifyFunctionNames(std::shared_ptr<ngraph::Function> network) {
+void ExternalOptimizationUtil::unifyFunctionNames(std::shared_ptr<ngraph::Function> network) {
     auto rename = [](std::shared_ptr<ov::Node> node, size_t index) {
         std::string id   {std::to_string(index)};
         std::string type {node->get_type_name()};
@@ -217,7 +217,7 @@ void ExternalNetworkTool::unifyFunctionNames(std::shared_ptr<ngraph::Function> n
 }
 
 template<>
-void ExternalNetworkTool::writeToArkFile<float>(const std::string &fileName, const float *ptrMemory, uint32_t numRows, uint32_t numColumns) {
+void ExternalOptimizationUtil::writeToArkFile<float>(const std::string &fileName, const float *ptrMemory, uint32_t numRows, uint32_t numColumns) {
     std::ios_base::openmode mode = std::ios::binary;
     std::ofstream out_file(fileName.c_str(), mode);
     const std::string &token = "input ";
@@ -237,7 +237,7 @@ void ExternalNetworkTool::writeToArkFile<float>(const std::string &fileName, con
     printf("Input data dumped to ark file %s\n", fileName.c_str());
 }
 
-void ExternalNetworkTool::saveInputFile(const std::string &network_name,
+void ExternalOptimizationUtil::saveInputFile(const std::string &network_name,
                                         const InferenceEngine::InputInfo::CPtr &input_info,
                                         const InferenceEngine::Blob::CPtr &blob,
                                         uint32_t id,
@@ -300,7 +300,7 @@ void ExternalNetworkTool::saveInputFile(const std::string &network_name,
         }
     }
 
-void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
+void ExternalOptimizationUtil::dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
                                             const std::string &network_name) {
     const auto exportPathString = getModelsPath();
     auto new_network_name = processTestName(network_name);
@@ -327,7 +327,7 @@ static ov::frontend::FrontEndManager& get_frontend_manager() {
     return manager;
 }
 
-std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const std::string &network_name) {
+std::shared_ptr<ngraph::Function> ExternalOptimizationUtil::loadNetworkFromFile(const std::string &network_name) {
     const auto importPathString = getModelsPath();
     auto new_network_name = processTestName(network_name);
 
@@ -355,7 +355,7 @@ std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const
     return function;
 }
 
-InferenceEngine::CNNNetwork ExternalNetworkTool::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
+InferenceEngine::CNNNetwork ExternalOptimizationUtil::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
                                                                      const std::string &network_name) {
     const auto importPathString = getModelsPath();
     auto new_network_name = processTestName(network_name);
