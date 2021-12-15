@@ -37,13 +37,15 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
 
         if (!mask) continue;
 
-        if (init_mask){
-            for(size_t dim = 0; dim < init_mask->size(); ++dim){
+        if (init_mask) {
+            for (size_t dim = 0; dim < init_mask->size(); ++dim) {
                 auto& dim_init_set = (*init_mask)[dim];
                 auto&  dim_current_set = (*mask)[dim];
-                if(!dim_init_set.empty() && !std::includes(dim_current_set.begin(), dim_current_set.end(),
-                                                           dim_init_set.begin(), dim_init_set.end())){
-                    NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name() << "\nInit mask: " << *init_mask << "\nCurrent mask: " << *mask;
+                if (!dim_init_set.empty() && !std::includes(dim_current_set.begin(), dim_current_set.end(),
+                                                           dim_init_set.begin(), dim_init_set.end())) {
+                    NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name() << "\n";
+                    NGRAPH_DEBUG << "Init mask: " << *init_mask << "\n";
+                    NGRAPH_DEBUG << "Current mask: " << *mask;
                     break;
                 }
             }

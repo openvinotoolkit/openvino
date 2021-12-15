@@ -233,7 +233,7 @@ public:
             auto input_mask_row = input_mask.get();
             // Check reshape mask already initialized during StopPropagation pass
             auto output_mask = getMask(m_output);
-            if(!output_mask)
+            if (!output_mask)
                 output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
 
             auto output_mask_row = output_mask.get();
@@ -594,7 +594,6 @@ public:
 class ngraph::pass::mask_propagation::Reduce : public MatcherPass {
 public:
     Reduce() {
-
         auto inputs = pattern::any_input();
         auto weights = pattern::any_input(pattern::has_static_shape());
         auto pooling_by_reduce = pattern::wrap_type<opset6::ReduceMin, opset6::ReduceMax, opset6::ReduceMean>({inputs, weights});
@@ -621,7 +620,7 @@ public:
                 }, output_mask);
                 output_mask->add_callback([input_mask_row, reduce_dims](Mask::Ptr cur_mask) -> bool{
                     // Propagate masks through dimension only if this dimension isn't reduced
-                    for(size_t dim = 0; dim < input_mask_row->size(); ++dim)
+                    for (size_t dim = 0; dim < input_mask_row->size(); ++dim)
                         if (std::find(reduce_dims.begin(), reduce_dims.end(), dim) == reduce_dims.end())
                             cur_mask->at(dim) = input_mask_row->at(dim);
                     return true;

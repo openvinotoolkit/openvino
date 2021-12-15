@@ -12,7 +12,7 @@
 
 namespace ngraph {
 
-static const std::string g_init_suffix = "init";
+static const char g_init_suffix[] = "init";
 
 Mask::Ptr getMask(const Output<const Node> & output) {
     auto &rtInfo = output.get_rt_info();
@@ -41,9 +41,8 @@ void setMask(Output<Node> output, const Mask::Ptr & mask) {
 
 Mask::Ptr getInitMask(const Output<Node> & output) {
     auto &rtInfo = output.get_rt_info();
-   
-    auto init_mask_name = g_init_suffix + Mask::get_type_info_static().name; 
 
+    auto init_mask_name = std::string(g_init_suffix) + Mask::get_type_info_static().name;
     const auto attr_it = rtInfo.find(init_mask_name);
     if (attr_it == rtInfo.end()) return nullptr;
 
@@ -53,10 +52,9 @@ Mask::Ptr getInitMask(const Output<Node> & output) {
 
 void setInitMask(Output<Node> output, const Mask::Ptr & mask) {
     auto &rtInfo = output.get_rt_info();
-
     auto copy_mask = std::make_shared<Mask>();
     std::copy(mask->begin(), mask->end(), std::back_inserter(*copy_mask));
-    auto new_name = g_init_suffix + Mask::get_type_info_static().name;
+    auto new_name = std::string(g_init_suffix) + Mask::get_type_info_static().name;
    rtInfo[Mask::get_type_info_static()] = mask;
 }
 

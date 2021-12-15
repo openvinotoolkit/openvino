@@ -160,7 +160,7 @@ public:
             return false;
         }
         // In case this mask already visited and didn't change by
-        // callback call - stop recursion  
+        // callback call - stop recursion
         if (!m_need_initialization && *this == ref_state) {
             return true;
         }
@@ -195,7 +195,7 @@ private:
 
     // Masks dependent on this mask vs methods, specifying how
     // this mask will be modifed by correspondent dependent mask
-    std::map<Mask *, std::function<bool(Mask::Ptr)>> m_callbacks; 
+    std::map<Mask *, std::function<bool(Mask::Ptr)>> m_callbacks;
     // Vector of all dependent masks
     std::vector<Mask *> m_dependencies;
     // Param used like visiting label (visited or not) during mask applying call
