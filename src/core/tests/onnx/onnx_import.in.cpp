@@ -380,7 +380,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_initializer_wo_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamicquantizelinear.onnx"));
 
@@ -392,7 +392,7 @@ NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function) {
     test_case.run();
 }
 
-NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal.onnx"));
 
@@ -403,7 +403,7 @@ NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function_dependency_to_created_sub
     test_case.run();
 }
 
-NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_context_dependent_function) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_function) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/softmax_crossentropy_consumed.onnx"));
 
