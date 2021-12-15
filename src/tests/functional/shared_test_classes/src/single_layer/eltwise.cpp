@@ -63,10 +63,6 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
         for (auto& staticShape : targetStaticShapes) {
             staticShape[1] = secondInputShape.get_shape();
         }
-        inputDynamicShapes[1] = secondInputShape;
-        for (auto& staticShape : targetStaticShapes) {
-            staticShape[1] = secondInputShape.get_shape();
-        }
     }
 }
 

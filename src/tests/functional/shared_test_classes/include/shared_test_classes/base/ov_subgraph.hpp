@@ -51,7 +51,7 @@ protected:
 
     std::shared_ptr<ov::Model> function, functionRefs = nullptr;
     std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor> inputs;
-    std::vector<ngraph::PartialShape> inputDynamicShapes;
+    std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
