@@ -102,21 +102,22 @@ def test_const_output_get_names(device):
     assert node.any_name == input_name
 
 
-def test_const_output_get_rf_info(device):
+def test_const_get_rf_info(device):
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, device)
+    output_node = exec_net.output(0)
+    rt_info = output_node.get_rt_info()
+    assert isinstance(rt_info, dict)
+    assert rt_info == {}
+
+
+def test_const_output_runtime_info(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
     input_name = "data"
     output_node = exec_net.input(input_name)
-    assert output_node.get_rt_info == {}
-
-
-def test_input_node(device):
-    core = Core()
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(func, device)
-    input = exec_net.output(0)
-    input_node = input.get_node().inputs()[0]
-    rt_info = input_node.get_rt_info
+    rt_info = output_node.rt_info
     assert isinstance(rt_info, dict)
     assert rt_info == {}

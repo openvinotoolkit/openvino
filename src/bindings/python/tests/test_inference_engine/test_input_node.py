@@ -96,6 +96,17 @@ def test_input_get_rt_info(device):
     exec_net = core.compile_model(func, device)
     input = exec_net.output(0)
     input_node = input.get_node().inputs()[0]
-    rt_info = input_node.get_rt_info
+    rt_info = input_node.get_rt_info()
+    assert isinstance(rt_info, dict)
+    assert rt_info == {}
+
+
+def test_input_rt_info(device):
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, device)
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    rt_info = input_node.rt_info
     assert isinstance(rt_info, dict)
     assert rt_info == {}
