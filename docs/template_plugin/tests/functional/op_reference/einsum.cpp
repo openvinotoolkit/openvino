@@ -30,7 +30,7 @@ class ReferenceEinsumTest : public testing::TestWithParam<EinsumParams>, public 
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params);
+        function = CreateModel(params);
         for (const auto& input_tensor : params.inputs) {
             inputData.push_back(input_tensor.data);
         }
@@ -52,7 +52,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const EinsumParams& params) {
+    static std::shared_ptr<Model> CreateModel(const EinsumParams& params) {
         OutputVector output_vector;
         ParameterVector param_vector;
         for (const auto& input_tensor : params.inputs) {
@@ -61,7 +61,7 @@ private:
             param_vector.push_back(param);
         }
         const auto einsum = std::make_shared<opset7::Einsum>(output_vector, params.equation);
-        const auto f = std::make_shared<Function>(OutputVector{einsum}, param_vector);
+        const auto f = std::make_shared<Model>(OutputVector{einsum}, param_vector);
         return f;
     }
 };

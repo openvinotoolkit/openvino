@@ -36,7 +36,7 @@ class ReferenceExtractImagePatchesTest : public testing::TestWithParam<ExtractIm
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params);
+        function = CreateModel(params);
         inputData = {params.data.data};
         refOutData = {params.expectedResult.data};
     }
@@ -59,14 +59,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ExtractImagePatchesParams& params) {
+    static std::shared_ptr<Model> CreateModel(const ExtractImagePatchesParams& params) {
         const auto data = std::make_shared<opset1::Parameter>(params.data.type, params.data.shape);
         const auto extrace_image_patches = std::make_shared<opset3::ExtractImagePatches>(data,
                                                                                          params.sizes,
                                                                                          params.strides,
                                                                                          params.rates,
                                                                                          params.autoPad);
-        const auto f = std::make_shared<Function>(extrace_image_patches, ParameterVector{data});
+        const auto f = std::make_shared<Model>(extrace_image_patches, ParameterVector{data});
         return f;
     }
 };
