@@ -63,6 +63,7 @@
 #include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "intel_gpu/primitives/grn.hpp"
 #include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
+#include "intel_gpu/primitives/convert_color.hpp"
 #include "generic_layer.hpp"
 
 
@@ -144,6 +145,7 @@ REGISTER_OCL(ctc_greedy_decoder);
 REGISTER_OCL(cum_sum);
 REGISTER_OCL(embedding_bag);
 REGISTER_OCL(extract_image_patches);
+REGISTER_OCL(convert_color);
 
 #undef REGISTER_OCL
 
