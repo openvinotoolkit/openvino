@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import cv2 as cv
 
-from openvino.runtime import Layout
+from openvino.runtime import Layout # pylint: disable=E0611,E0401
 from openvino.tools.pot.utils.logger import get_logger
 
 logger = get_logger(__name__)

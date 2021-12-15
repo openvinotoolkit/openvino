@@ -1,10 +1,9 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 from cv2 import imread, IMREAD_GRAYSCALE
 
-from openvino.runtime import Layout, Dimension
+from openvino.runtime import Layout, Dimension # pylint: disable=E0611,E0401
 from ..api.data_loader import DataLoader
 from ..data_loaders.utils import prepare_image, collect_img_files
 
@@ -49,7 +48,7 @@ class ImageLoader(DataLoader):
             self._layout = Layout(self._layout)
             return
 
-        layout_from_ir = input_node.graph.graph['layout']
+        layout_from_ir = input_node.graph.graph.get('layout', None)
         if layout_from_ir is not None:
             self._layout = Layout(layout_from_ir)
             return
