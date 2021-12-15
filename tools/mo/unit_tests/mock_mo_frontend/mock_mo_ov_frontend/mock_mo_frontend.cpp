@@ -4,7 +4,7 @@
 
 #include "mock_mo_frontend.hpp"
 #include "common/frontend_defs.hpp"
-#include "frontend_manager.hpp"
+#include "manager.hpp"
 #include "ngraph/visibility.hpp"
 
 using namespace ngraph;
