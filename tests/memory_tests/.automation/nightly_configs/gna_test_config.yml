@@ -4,9 +4,9 @@
   model:
     name: nnet3_tdnn
     precision: FP32
-    full_path: ${SHARE}/models/internal/kaldi/tdnn2/kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
-    irs_out_path: ${SHARE}/models/internal/kaldi/tdnn2/kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
-    cache_path: ${SHARE}/models/internal/kaldi/tdnn2/kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
+    full_path: ${SHARE}\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
+    irs_out_path: ${SHARE}\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
+    cache_path: ${SHARE}\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
     framework: kaldi
     source: share
   references: {}
@@ -15,9 +15,9 @@
   model:
     name: tdnn2
     precision: FP32
-    full_path: /nfs/inn/proj/vdp/vdp_extra/users/vdymchis/memory_tests/irs/KALDI_Tdnn2/tdnn2.xml
-    irs_out_path: /nfs/inn/proj/vdp/vdp_extra/users/vdymchis/memory_tests/irs/KALDI_Tdnn2/tdnn2.xml
-    cache_path: /nfs/inn/proj/vdp/vdp_extra/users/vdymchis/memory_tests/irs/KALDI_Tdnn2/tdnn2.xml
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn2\tdnn2.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn2\tdnn2.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn2\tdnn2.xml
     framework: kaldi
     source: share
   references: {}
