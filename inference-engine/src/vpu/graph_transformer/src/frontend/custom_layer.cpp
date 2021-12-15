@@ -37,8 +37,8 @@ namespace vpu {
 
 namespace {
 
-void assertExactlyOneOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& childs) {
-    for (const auto &name : childs) {
+void assertExactlyOneOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& children) {
+    for (const auto &name : children) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
         VPU_THROW_UNLESS(child.next_sibling(name.c_str()).empty(),
@@ -46,8 +46,8 @@ void assertExactlyOneOccurrence(const pugi::xml_node &node, const SmallVector<st
     }
 }
 
-void assertOneOrMoreOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& childs) {
-    for (const auto& name : childs) {
+void assertOneOrMoreOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& children) {
+    for (const auto& name : children) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(),
             "Required parameter %s is not found", name);

@@ -50,11 +50,16 @@ JitConstants ReorderKernelBinary::GetJitConstants(const reorder_params& params) 
 
 ReorderKernelBinary::DispatchData ReorderKernelBinary::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
 
     const auto& input = params.inputs[0];
 
     dispatchData.gws = { input.Batch().v, CeilDiv(input.Feature().v, 32), input.Y().v * input.X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

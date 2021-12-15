@@ -42,11 +42,16 @@ JitConstants ExtractImagePatchesKernelBase::GetJitConstants(const extract_image_
 
 ExtractImagePatchesKernelBase::DispatchData ExtractImagePatchesKernelBase::SetDefault(const extract_image_patches_params& params) const {
     DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
 
     dispatchData.gws = { params.output.Batch().v,
                          params.output.Feature().v,
                          params.output.Y().v * params.output.X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -63,7 +68,7 @@ KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& pa
     KernelData kd = KernelData::Default<extract_image_patches_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];

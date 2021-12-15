@@ -122,7 +122,7 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
     }
 
     auto cldnn_jit = GetJitConstants(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -137,7 +137,7 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
                      !newParams.bias.empty(),
                      1,
                      GetFusedPrimitiveInputsCount(params));
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
     return {kd};
 }

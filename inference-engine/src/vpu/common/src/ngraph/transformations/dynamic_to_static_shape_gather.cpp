@@ -19,7 +19,7 @@ namespace vpu {
 void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
     const auto gather = ngraph::as_type_ptr<ngraph::opset3::Gather>(target);
     VPU_THROW_UNLESS(gather, "dynamicToStaticShapeGather transformation is not applicable for {}, it should be {} instead",
-            target, ngraph::opset3::Gather::type_info);
+            target, ngraph::opset3::Gather::get_type_info_static());
 
     int64_t axis = gather->get_axis();
     VPU_THROW_UNLESS(axis != std::numeric_limits<int64_t>::max() && axis >= 0,

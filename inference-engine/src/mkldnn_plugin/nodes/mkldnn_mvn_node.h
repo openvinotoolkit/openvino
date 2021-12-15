@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
 #include <memory>
@@ -73,47 +72,60 @@ struct jit_uni_mvn_kernel {
 
 class MKLDNNMVNNode : public MKLDNNNode {
 public:
-    MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNMVNNode() override = default;
+    MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool canBeInPlace() const override {
         return false;
     }
 
-    static bool checkAxesSuitability(const std::shared_ptr<const ngraph::Node>&);
+    inline bool getAcrossChannels() const {
+        return initAcrossChannels_;
+    }
+
+    inline bool getNormalizeVariance() const {
+        return normalizeVariance_;
+    }
+
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
+    void prepareParams() override;
 
 private:
-    void mvn_pln(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+    void mvn_pln(const uint8_t *src_data, uint8_t *dst_data);
 
-    void mvn_blk(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+    void mvn_blk(const uint8_t *src_data, uint8_t *dst_data);
 
-    void mvn_ref(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+    void mvn_ref(const uint8_t *src_data, uint8_t *dst_data);
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
-    std::tuple<size_t, size_t, size_t, size_t, size_t> get5dShapes(const InferenceEngine::SizeVector& dims);
+    void transformTo5DCase(const InferenceEngine::SizeVector& shape);
 
-    bool across_channels = false;
-    bool normalize_variance = true;
-    float eps = 1e-9f;
+    std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
+
+    bool initAcrossChannels_ = false;
+    bool execAcrossChannels_ = false;
+    bool normalizeVariance_ = true;
+    float epsValue_ = 1e-9f;
     // Defines way to add epsilon: inside sqrt or outside.
-    enum epsType {
-        insideSqrt,
-        outsideSqrt
+    enum MVNEpsMode {
+        INSIDE_SQRT,
+        OUTSIDE_SQRT
     };
-    epsType epsMode_;
+    MVNEpsMode epsMode_;
 
     InferenceEngine::Precision input_prec, output_prec;
-    size_t src_data_size, dst_data_size;
+    size_t src_data_size = 0;
+    size_t dst_data_size = 0;
 
     mkldnn::primitive_attr attr;
-
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
     std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
     std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;

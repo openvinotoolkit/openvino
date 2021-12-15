@@ -8,12 +8,9 @@
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/opsets/opset3.hpp"
-#include "ngraph/evaluator.hpp"
 #include <ngraph/validation_util.hpp>
 
 namespace ngraph { namespace vpu { namespace op {
-
-constexpr NodeTypeInfo StaticShapeBroadcast::type_info;
 
 StaticShapeBroadcast::StaticShapeBroadcast(const Output<Node>& arg,
                                            const Output<Node>& targetShape,

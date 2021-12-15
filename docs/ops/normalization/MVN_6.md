@@ -30,10 +30,9 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
 
   * **Description**: *normalize_variance* is a flag that specifies whether to perform variance normalization.
   * **Range of values**:
-    * `false` -- Do not normalize variance
-    * `true` -- Normalize variance
+    * `false` - do not normalize variance
+    * `true` - normalize variance
   * **Type**: `boolean`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *eps*
@@ -41,24 +40,22 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
   * **Description**: *eps* is the number to be added to the variance to avoid division by zero when normalizing the value.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *eps_mode*
 
   * **Description**: Choose where to add epsilon.
   * **Range of values**:
-    * `inside_sqrt` -- Add epsilon inside sqrt
-    * `outside_sqrt` -- Add epsilon outside of sqrt
+    * `inside_sqrt` - add epsilon inside sqrt
+    * `outside_sqrt` - add epsilon outside of sqrt
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
 
-* **1**: `data` - Input tensor to be normalized. Type *T*. Required.
+* **1**: `data` - Input tensor to be normalized of type *T* and arbitrary shape. **Required.**
 
-* **2**: `axes` - 1D tensor which specifies indices of dimensions in `data` that define normalization slices. Allowed range of axes is `[-r; r-1]` where `r = rank(data)`, the order can be not sorted. Negative value means counting dimensions from the back. Type *T_IND*. Required.
+* **2**: `axes` - 1D tensor which specifies indices of dimensions in `data` that define normalization slices. Allowed range of axes is `[-r; r-1]` where `r = rank(data)`, the order can be not sorted. Negative value means counting dimensions from the back. Type *T_IND*. **Required.**
 
 **Outputs**
 
@@ -67,7 +64,6 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
 **Types**
 
 * *T*: any floating point type.
-
 * *T_IND*: `int64` or `int32`.
 
 **Example**

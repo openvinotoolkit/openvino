@@ -25,7 +25,10 @@ jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, 
 jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, InferenceEngine::Precision exec_prc)
     : jit_emitter(host, host_isa, node, exec_prc) {
     auto eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode*>(node);
-    kind = static_cast<mkldnn_alg_kind_t>(eltwiseNode->getAlgorithm());
+    if (!eltwiseNode) {
+        IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNEltwiseNode";
+    }
+    kind = static_cast<mkldnn_alg_kind_t>(eltwiseNode->getMKLDNNAlgorithm());
     alpha = eltwiseNode->getAlpha();
     beta = eltwiseNode->getBeta();
 

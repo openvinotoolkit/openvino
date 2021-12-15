@@ -37,7 +37,7 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
     KernelData kd = KernelData::Default<reshape_params>(params);
     reshape_params& newParams = *static_cast<reshape_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -56,10 +56,10 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
         gws2 *= in_dims[i].v;
     }
 
-    kernel.workGroups.global = {gws0, gws1, gws2};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc(1, false, false);
+    kernel.params.workGroups.global = {gws0, gws1, gws2};
+    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc(1, false, false);
 
     return {kd};
 }

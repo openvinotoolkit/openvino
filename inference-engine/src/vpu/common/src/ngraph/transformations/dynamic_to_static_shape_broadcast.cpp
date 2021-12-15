@@ -23,7 +23,7 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(broadcast,
                      "dynamicToStaticShapeBroadcast transformation is not applicable for {}, "
                      "it should be {} instead",
-                     target, ngraph::opset3::Broadcast::type_info);
+                     target, ngraph::opset3::Broadcast::get_type_info_static());
 
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> staticShapeBroadcast;
     if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::EXPLICIT) {

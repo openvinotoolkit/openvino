@@ -55,14 +55,6 @@ ParamsKey ScatterElementsUpdateKernelRef::GetSupportedKey() const {
     return k;
 }
 
-static inline std::string GetOrderString(std::vector<std::string>& order) {
-    std::string order_str = order[0];
-    for (size_t i = 1; i < order.size(); i++)
-        order_str += ", " + order[i];
-
-    return order_str;
-}
-
 static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     std::vector<std::string> default_order;
     if (size <= 4) {
@@ -78,6 +70,10 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 
 CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, const optional_params&, bool is_second) const {
     CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
+
     const auto& output = params.output;
     const auto& indices = params.inputs[1];
 
@@ -86,21 +82,30 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
     switch (params.inputs[0].GetLayout()) {
     case DataLayout::bfyx:
         dispatchData.gws = {scope.X().v, scope.Y().v, scope.Feature().v * scope.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
 
     case DataLayout::bfzyx:
         dispatchData.gws = {scope.X().v * scope.Y().v, scope.Z().v, scope.Feature().v * scope.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
 
     case DataLayout::bfwzyx:
         dispatchData.gws = {scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
     default:
         throw std::invalid_argument("Unsupported data layout for scatter elements update primitive");
         break;
     }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -145,7 +150,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params,
 
     for (int i = 0; i < 2; i++) {
         auto dispatchData = SetDefault(newParams, options, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
 
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));

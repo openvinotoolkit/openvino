@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/batch_headers/common.cl"
+#include "include/batch_headers/data_types.cl"
 
 KERNEL (lrn_gpu_across_channel_ref)(
     const __global INPUT0_TYPE* input,

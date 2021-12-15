@@ -11,7 +11,8 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 if(NOT CLDNN__IOCL_ICD_INCDIRS OR TRUE)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API0.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API1.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API2.cpp")
+                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API2.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API3.cpp")
 endif()
 
 # remove OpenCV related sources
@@ -25,17 +26,6 @@ if(NOT OpenCV_FOUND)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide5.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
-
-# ONNX importer related files
-if(NOT NGRAPH_ONNX_IMPORT_ENABLE)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial0.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial1.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial2.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial3.cpp")
-endif()
-
-# remove snippets for deprecated / removed API
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Migration_CoreAPI.cpp")
 
 # requires mfxFrameSurface1 and MSS API
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.cpp"
@@ -55,8 +45,8 @@ if(OpenCV_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
 endif()
 
-if(NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(${TARGET_NAME} PRIVATE onnx_importer)
+if(ENABLE_OV_ONNX_FRONTEND)
+    target_link_libraries(${TARGET_NAME} PRIVATE onnx_ov_frontend)
 endif()
 
 if(NOT MSVC)
