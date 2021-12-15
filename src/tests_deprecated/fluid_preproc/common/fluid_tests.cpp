@@ -971,7 +971,6 @@ TEST_P(ColorConvertYUV420TestIE, AccuracyTest)
     const int depth = CV_8U;
     auto in_fmt = ColorFormat::NV12;
     const auto out_fmt = ColorFormat::BGR;  // for now, always BGR
-    const auto in_layout = Layout::NCHW;
     auto out_layout = Layout::ANY;
     cv::Size size;
     double tolerance = 0.0;
@@ -995,8 +994,6 @@ TEST_P(ColorConvertYUV420TestIE, AccuracyTest)
     CV_Assert(3 == out_channels || 4 == out_channels);
 
     ASSERT_TRUE(in_mat_y.isContinuous() && out_mat.isContinuous());
-
-    const Precision precision = Precision::U8;
 
     auto make_nv12_blob = [&](){
         auto y_blob = img2Blob<Precision::U8>(in_mat_y, Layout::NHWC);
@@ -1032,6 +1029,7 @@ TEST_P(ColorConvertYUV420TestIE, AccuracyTest)
     Blob2Img<Precision::U8>(out_blob, out_mat, out_layout);
 
 #if PERF_TEST
+    const auto in_layout = Layout::NCHW;
     // iterate testing, and print performance
     test_ms([&](){ preprocess->execute(out_blob, info, false); },
             100, "Color Convert IE %s %s %s %dx%d %s->%s",

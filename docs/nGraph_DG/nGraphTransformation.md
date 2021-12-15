@@ -430,7 +430,7 @@ PassConfig instance taken from pass::Manager is shared across all registered tra
 ## Transformations testing <a name="transformations_testing"></a>
 
 If you are developing new transformation inside plugin, you need to add test into the `template_plugin/tests/functional/transformations` folder.
-We have two types of tests: nGraph reader tests located in `inference-engine/tests/functional/inference_engine/ngraph_reader` and transformation tests located in `inference-engine/tests/functional/inference_engine/transformations`
+We have two types of tests: nGraph reader tests located in `src/tests/functional/inference_engine/ngraph_reader` and transformation tests located in `src/tests/functional/inference_engine/transformations`
 Reader tests are IR based and test end-to-end conversion from IR to CNNNetwork. Transformation tests test single ngraph transformations or low-level functions that are used inside transformations.
 
 The basic transformation test looks like this:

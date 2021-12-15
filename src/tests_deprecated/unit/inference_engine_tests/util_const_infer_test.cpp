@@ -333,8 +333,6 @@ TEST_F(RemoveLayerTests, canFindConstLayers) {
     auto constLayers = testTransformator->getConstLayers(sortedLayers);
 
     ASSERT_EQ(constLayers.size(), 2);
-    auto begin = constLayers.begin();
-    auto end = constLayers.end();
     ASSERT_FALSE(constLayers.at("input1"));
     ASSERT_FALSE(constLayers.at("layer2"));
 }

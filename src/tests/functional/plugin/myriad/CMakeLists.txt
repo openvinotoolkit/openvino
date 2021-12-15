@@ -13,7 +13,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
-            ${IE_MAIN_SOURCE_DIR}/tests_deprecated/behavior/vpu/myriad_tests/helpers
+            ${OpenVINO_SOURCE_DIR}/src/tests_deprecated/behavior/vpu/myriad_tests/helpers
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE}
         DEPENDENCIES
@@ -27,8 +27,8 @@ addIeTargetTest(
         DEFINES
             __PC__
         OBJECT_FILES
-            ${IE_MAIN_SOURCE_DIR}/tests_deprecated/behavior/vpu/myriad_tests/helpers/myriad_devices.hpp
-            ${IE_MAIN_SOURCE_DIR}/tests_deprecated/behavior/vpu/myriad_tests/helpers/myriad_devices.cpp
+            ${OpenVINO_SOURCE_DIR}/src/tests_deprecated/behavior/vpu/myriad_tests/helpers/myriad_devices.hpp
+            ${OpenVINO_SOURCE_DIR}/src/tests_deprecated/behavior/vpu/myriad_tests/helpers/myriad_devices.cpp
         LABELS
             VPU
             MYRIAD
