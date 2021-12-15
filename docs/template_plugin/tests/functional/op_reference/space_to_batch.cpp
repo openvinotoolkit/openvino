@@ -60,13 +60,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const SpaceToBatchParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const SpaceToBatchParams& params) {
         const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto blockShape = std::make_shared<opset1::Constant>(element::i64, params.blockShapeTensor.shape, params.blockShapeTensor.data.data());
         const auto padsBegin = std::make_shared<opset1::Constant>(element::i64, params.padsBeginTensor.shape, params.padsBeginTensor.data.data());
         const auto padsEnd = std::make_shared<opset1::Constant>(element::i64, params.padsEndTensor.shape, params.padsEndTensor.data.data());
         const auto batchToSpace = std::make_shared<opset2::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
-        return std::make_shared<ov::Function>(NodeVector {batchToSpace}, ParameterVector {data});
+        return std::make_shared<ov::Model>(NodeVector {batchToSpace}, ParameterVector {data});
     }
 };
 

@@ -93,7 +93,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ExperimentalPGGParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ExperimentalPGGParams& params) {
         const auto priors = std::make_shared<op::v0::Parameter>(params.inType, params.priorsShape);
         const auto featureMap = std::make_shared<op::v0::Parameter>(params.inType, params.featureMapShape);
         const auto im_info = std::make_shared<op::v0::Parameter>(params.inType, params.imageSizeInfoShape);
@@ -101,7 +101,7 @@ private:
                                                                     featureMap,
                                                                     im_info,
                                                                     params.attrs);
-        return std::make_shared<ov::Function>(NodeVector {ExperimentalPGG}, ParameterVector {priors, featureMap, im_info});
+        return std::make_shared<ov::Model>(NodeVector {ExperimentalPGG}, ParameterVector {priors, featureMap, im_info});
     }
 };
 
