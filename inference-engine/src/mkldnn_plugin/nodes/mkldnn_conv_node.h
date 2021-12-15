@@ -69,7 +69,7 @@ private:
     void executeDynamicImpl(mkldnn::stream strm) override;
 
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights, bool initAsBinary);
+    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
     bool isNspcAvailable() const;
@@ -122,4 +122,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-

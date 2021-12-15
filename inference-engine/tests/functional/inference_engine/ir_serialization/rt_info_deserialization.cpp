@@ -565,6 +565,146 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     }
 }
 
+
+TEST_F(RTInfoDeserialization, NodeV11_uint8) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="u8" shape="1,22,22,3"/>
+            <rt_info>
+                <attribute name="old_api_map_element_type" version="0" value="f16"/>
+                <attribute name="old_api_map_order" version="0" value="0,2,3,1"/>
+                <attribute name="fused_names" version="0" value="in1"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32" names="input_tensor">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <rt_info>
+                <attribute name="fused_names" version="0" value="Round1,Round2"/>
+            </rt_info>
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="output_tensor">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <rt_info>
+                <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
+
+    // read IR v11 with old API and check that old_api_map is applied
+
+    const ngraph::PartialShape shape{1, 3, 22, 22};
+    auto type = ngraph::element::f16;
+    auto param = std::make_shared<ngraph::opset8::Parameter>(type, shape);
+    param->set_friendly_name("in1");
+    param->get_output_tensor(0).set_names({"input_tensor"});
+
+    auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::u64,
+                                                             ngraph::Shape{4},
+                                                             std::vector<uint64_t>{0, 2, 3, 1});
+    auto transpose_param = std::make_shared<opset8::Transpose>(param, constant_param);
+
+    auto round = std::make_shared<opset8::Round>(transpose_param,
+                                                 ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
+    round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
+    auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::u64,
+                                                              ngraph::Shape{4},
+                                                              std::vector<uint64_t>{0, 3, 1, 2});
+    auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
+
+    transpose_result->set_friendly_name("Round");
+    transpose_result->get_output_tensor(0).set_names({"output_tensor"});
+
+    auto result = std::make_shared<opset8::Result>(transpose_result);
+    result->set_friendly_name("output");
+
+    auto f_10_ref =
+            std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+    f_10_ref->set_friendly_name("Network");
+
+    InferenceEngine::Core core;
+    auto cnn_core = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+    auto f_10_core = cnn_core.getFunction();
+    ASSERT_NE(nullptr, f_10_core);
+
+    ASSERT_GT(cnn_core.getInputsInfo().count("in1"), 0);
+    EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getInputsInfo()["in1"]->getPrecision());
+    ASSERT_GT(cnn_core.getOutputsInfo().count("Round"), 0);
+    EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
+
+    const auto fc = FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::RUNTIME_KEYS)
+            .enable(FunctionsComparator::NAMES)
+            .enable(FunctionsComparator::CONST_VALUES);
+    auto res = fc.compare(f_10_core, f_10_ref);
+    EXPECT_TRUE(res.valid) << res.message;
+
+    EXPECT_EQ(shape, f_10_ref->input().get_partial_shape());
+    EXPECT_EQ(shape, f_10_core->input().get_partial_shape());
+    EXPECT_EQ(shape, f_10_ref->get_output_partial_shape(0));
+    EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
+
+    // check that old api map is removed once applied
+    auto check_old_api_rt_info = [](const RTMap & info) {
+        const std::string & key_order = ov::OldApiMapOrder::get_type_info_static();
+        EXPECT_EQ(0, info.count(key_order));
+        const std::string & key_type = ov::OldApiMapElementType::get_type_info_static();
+        EXPECT_EQ(0, info.count(key_type));
+    };
+
+    check_old_api_rt_info(f_10_core->get_parameters()[0]->get_rt_info());
+    check_old_api_rt_info(f_10_core->get_result()->get_rt_info());
+
+    // check information about layout
+    EXPECT_TRUE(f_10_core->get_parameters()[0]->get_layout().empty())
+                        << f_10_core->get_parameters()[0]->get_layout().to_string();
+    EXPECT_TRUE(f_10_core->get_results()[0]->get_layout().empty())
+                        << f_10_core->get_results()[0]->get_layout().to_string();
+}
+
+
 TEST_F(RTInfoDeserialization, NodeV11MultipleRTKeys) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
