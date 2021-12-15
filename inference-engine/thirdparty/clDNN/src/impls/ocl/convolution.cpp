@@ -225,6 +225,11 @@ attach_convolution_impl::attach_convolution_impl() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
 
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
+
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),

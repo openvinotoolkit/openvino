@@ -39,6 +39,7 @@ enum DataLayout {
     bs_fs_yx_bsv16_fsv16,   // batch, feature, 2D spatial. Blocks of 16 batch and channels
     bs_fs_zyx_bsv16_fsv16,  // batch, feature, 3D spatial. Blocks of 16 batch and channels
     bs_fs_yx_bsv4_fsv4,     // batch, feature, 2D spatial. Blocks of 4 batch and 4 channels
+    bs_fs_yx_bsv8_fsv4,     // batch, feature, 2D spatial. Blocks of 8 batch and 4 channels
     bs_fs_yx_bsv4_fsv2,     // batch, feature, 2D spatial. Blocks of 4 batch and 2 channels
     bs_fs_yx_bsv32_fsv32,   // batch, feature, 2D spatial. Blocks of 32 batch and 32 channels
     bs_fs_yx_bsv32_fsv16,   // batch, feature, 2D spatial. Blocks of 32 batch and 16 channels
