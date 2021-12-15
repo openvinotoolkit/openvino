@@ -681,7 +681,7 @@ TEST_P(conv_fp32_reorder_fsv16_to_bfyx_conv, basic) {
         reorder("reorder_fsv16", "input", format::b_fs_yx_fsv16, data_types::f32),
         convolution("conv_prim", "reorder_fsv16", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
         reorder("reorder_bfyx", "conv_prim", format::bfyx, data_types::f32),
-        convolution("conv_output", "reorder_bfyx", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        convolution("conv_output", "reorder_bfyx", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
         activation("activation", "conv_output", activation_func::abs),
         reorder("reorder_output", "activation", p.default_format, data_types::f32)
     );
@@ -10059,7 +10059,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature)
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
         reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32, values_to_subtract),
-        convolution("conv_output", "reorder_fsv32", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        convolution("conv_output", "reorder_fsv32", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
         activation("activation", "conv_output", activation_func::abs)
     );
 
@@ -10088,7 +10088,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
         convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
         reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32),
         activation("activation_quantize", "reorder_fsv32", activation_func::relu),
-        convolution("conv_output", "activation_quantize", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        convolution("conv_output", "activation_quantize", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
         activation("activation", "conv_output", activation_func::abs)
     );
 
@@ -10116,7 +10116,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
         reorder("reorder_fsv32", "conv_prim", layout(data_types::f32, format::fs_b_yx_fsv32, dw_tensor, padding{ {0, 0, 1, 1}, 0 })),
-        convolution("conv_output", "reorder_fsv32", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        convolution("conv_output", "reorder_fsv32", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
         activation("activation", "conv_output", activation_func::abs),
         activation("activation2", "conv_prim", activation_func::abs),
         eltwise("add_bias", { "activation", "activation2" }, eltwise_mode::sum)
