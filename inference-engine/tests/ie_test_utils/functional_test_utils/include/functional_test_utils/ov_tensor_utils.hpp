@@ -17,6 +17,17 @@ ov::runtime::Tensor create_and_fill_tensor(
         const int32_t resolution = 1,
         const int seed = 1);
 
+template <class T>
+static ov::runtime::Tensor create_tensor(const ov::element::Type& element_type,
+                                         const ov::Shape& shape,
+                                         const std::vector<T>& values,
+                                         const size_t size = 0) {
+    const size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
+    ov::runtime::Tensor tensor { element_type, shape };
+    std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
+    return tensor;
+}
+
 ov::runtime::Tensor create_and_fill_tensor_unique_sequence(
         const ov::element::Type element_type,
         const ov::Shape& shape,

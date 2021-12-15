@@ -184,7 +184,13 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     for (const auto &param : function->get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
-                const auto nodePtr = node.get_node()->shared_from_this();
+                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                if (ngraph::is_type<ov::op::v0::Convert>(nodePtr)) {
+                    std::shared_ptr<ov::Node> nextNodePtr = nodePtr->get_default_output().get_node_shared_ptr();
+                    if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                        nodePtr = nextNodePtr;
+                    }
+                }
                 auto it = inputMap.find(nodePtr->get_type_info());
                 auto itTargetShape = targetInputStaticShapes.begin();
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {

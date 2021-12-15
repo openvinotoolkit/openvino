@@ -418,18 +418,6 @@ void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::
     fill_data_random_float<InferenceEngine::Precision::BF16>(blob, range, start_from, k, seed);
 }
 
-template <class T>
-static ov::runtime::Tensor create_tensor(
-        const ov::element::Type& element_type,
-        const ov::Shape& shape,
-        const std::vector<T>& values,
-        const size_t size = 0) {
-    const size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
-    ov::runtime::Tensor tensor { element_type, shape };
-    std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
-    return tensor;
-}
-
 template<typename T>
 typename std::enable_if<std::is_signed<T>::value, T>::type
 inline ie_abs(const T &val) {

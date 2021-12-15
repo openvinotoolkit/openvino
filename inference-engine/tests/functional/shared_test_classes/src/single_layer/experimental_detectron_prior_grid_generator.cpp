@@ -86,7 +86,7 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std
     }
 
     for (auto j = i; j < funcInputs.size(); ++j) {
-        ov::runtime::Tensor inputTensor = CommonTestUtils::create_tensor<float>(
+        ov::runtime::Tensor inputTensor = ov::test::utils::create_tensor<float>(
             ov::element::f32,
             targetInputStaticShapes[j],
             std::vector<float>(0.f, shape_size(targetInputStaticShapes[j])));
