@@ -22,12 +22,12 @@ endif()
 
 add_subdirectory(plugins)
 add_subdirectory(inference)
+include(cmake/ov_runtime.cmake)
+
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
 endif()
-
-include(cmake/ov_runtime.cmake)
 
 add_subdirectory(common)
 
