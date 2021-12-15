@@ -38,7 +38,7 @@ void regclass_CompiledModel(py::module m) {
         },
         py::arg("inputs"));
 
-    cls.def("export_model", &ov::runtime::CompiledModel::export_model, py::arg("network_model"));
+    cls.def("export_model", &ov::runtime::CompiledModel::export_model, py::arg("model_stream"));
 
     cls.def(
         "get_config",
