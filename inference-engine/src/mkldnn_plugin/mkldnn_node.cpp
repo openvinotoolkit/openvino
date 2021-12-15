@@ -62,6 +62,9 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
+
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace openvino;
@@ -1375,16 +1378,25 @@ bool MKLDNNNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
-    std::vector<Shape> shapes;
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
-    }
+  std::vector<ov::StaticShape> input_shapes;
+  std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
+  for (size_t i = 0; i < inputShapes.size(); i++) {
+    const auto &memPtr = getParentEdgesAtPort(i)[0]->getMemory();
+    input_shapes.push_back(memPtr.getStaticDims());
+    input_values[i] = std::make_shared<ngraph::runtime::HostTensor>(
+        ngraph::element::Type_t::i32, memPtr.getStaticDims(), memPtr.GetPtr());
+  }
 
-    auto newOutputShapes = shapeInferGeneric(shapes);
+  std::vector<ov::StaticShape> output_shapes(outputShapes.size());
 
-    IE_ASSERT(newOutputShapes.size() == outputShapes.size());
+  shape_inference(opToShapeInfer.get(), input_shapes, output_shapes,
+                  input_values);
 
-    return newOutputShapes;
+  std::vector<VectorDims> result(output_shapes.size());
+  std::transform(output_shapes.begin(), output_shapes.end(), result.begin(),
+                 [](const ov::StaticShape &s) { return s.to_shape(); });
+
+  return result;
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes) const {
