@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_custom_target(ov_runtime_libraries)
@@ -27,6 +24,10 @@ add_subdirectory(plugins)
 add_subdirectory(inference)
 add_subdirectory(common)
 
+if(ENABLE_TESTS)
+    add_subdirectory(tests_deprecated)
+    add_subdirectory(tests)
+endif()
 
 if(ENABLE_OV_IR_FRONTEND)
     if(BUILD_SHARED_LIBS)
