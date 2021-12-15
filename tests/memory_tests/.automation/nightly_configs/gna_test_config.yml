@@ -4,9 +4,9 @@
   model:
     name: nnet3_tdnn
     precision: FP32
-    full_path: ${SHARE}\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
-    irs_out_path: ${SHARE}\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
-    cache_path: ${SHARE}\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
+    full_path: \\nncv03a-cifs.inn.intel.com\vdp_tests\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
+    irs_out_path: \\nncv03a-cifs.inn.intel.com\vdp_tests\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
+    cache_path: \\nncv03a-cifs.inn.intel.com\vdp_tests\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
     framework: kaldi
     source: share
   references: {}
