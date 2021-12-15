@@ -17,8 +17,9 @@ using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+static string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
-NGRAPH_TEST(TEMPLATE, interpolate_down_scales_const_linear) {
+NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear) {
     Shape input_shape{1, 1, 2, 4};
     Shape output_shape{1, 1, 1, 2};
     op::v0::InterpolateAttrs attrs;
@@ -33,7 +34,7 @@ NGRAPH_TEST(TEMPLATE, interpolate_down_scales_const_linear) {
     auto interpolate = make_shared<op::v0::Interpolate>(input, output_shape_input, attrs);
     auto f = make_shared<Function>(interpolate, ParameterVector{input});
 
-    auto test_case = test::TestCase(f);
+    auto test_case = test::TestCase(f, s_device);
     test_case.add_input(intput_data);
     test_case.add_expected_output(expected_output);
     test_case.run();

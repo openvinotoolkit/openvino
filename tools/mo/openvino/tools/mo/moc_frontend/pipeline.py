@@ -12,6 +12,8 @@ from openvino.runtime import Dimension, PartialShape        # pylint: disable=no
 from openvino.frontend import FrontEnd, Place       # pylint: disable=no-name-in-module,import-error
 from openvino.runtime.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
 
+import numpy as np
+
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     """
@@ -66,7 +68,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         for user_shape in user_shapes:
             if user_shape.get('shape') is not None:
                 input_model.set_partial_shape(
-                    user_shape['node'], PartialShape(user_shape['shape']))
+                    user_shape['node'], partial_shape_from_tuple(user_shape['shape']))
             if user_shape.get('data_type') is not None:
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug('Set data type: {}'.format(data_type))
@@ -97,3 +99,16 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     ngraph_function = moc_front_end.convert(input_model)
     return ngraph_function
+
+
+def partial_shape_from_tuple(shape: tuple):
+    new_shape = []
+    for dim in shape:
+        if isinstance(dim, tuple):
+            assert len(dim) == 2, "Incorrect boundaries of dimension {} in shape {}".format(dim, shape)
+            assert dim[0] >= 0, "Incorrect min value of dimension {} in shape".format(dim, shape)
+            new_shape.append(Dimension(dim[0], dim[1]))
+        else:
+            assert isinstance(dim, np.int64), "Incorrect type of dimension {} in shape".format(dim, shape)
+            new_shape.append(Dimension(dim))
+    return PartialShape(new_shape)
