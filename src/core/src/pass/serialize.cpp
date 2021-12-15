@@ -452,6 +452,22 @@ public:
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
             const auto& attrs = a->get();
             m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            const auto& attrs = a->get();
+            std::stringstream shape_str_stream;
+            shape_str_stream << attrs;
+            auto shape_str = shape_str_stream.str();
+            if (shape_str[0] == '{' && shape_str[shape_str.size() - 1] == '}')
+                shape_str = shape_str.substr(1, shape_str.size() - 2);
+            m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            const auto& attrs = a->get();
+            std::stringstream dim_str_stream;
+            dim_str_stream << attrs;
+            auto dim_str = dim_str_stream.str();
+            if (dim_str[0] == '{' && dim_str[dim_str.size() - 1] == '}')
+                dim_str = dim_str.substr(1, dim_str.size() - 2);
+            m_xml_node.append_attribute(name.c_str()).set_value(dim_str.c_str());
         } else {
             throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }

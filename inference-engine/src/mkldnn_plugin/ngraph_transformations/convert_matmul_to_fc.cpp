@@ -36,8 +36,9 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
 
-        // Transformation to FC is not supported for 1D second input
-        if (rank_b == 1) {
+        // Transformation to FC is not supported for 1D inputs
+        if (rank_a == 1 || rank_b == 1 ||
+            rank_a > 3 || rank_b > 3) {
             return false;
         }
 
@@ -47,7 +48,6 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::count_if(shape_b.begin(), shape_b.end(), [](ngraph::Dimension x) { return x != 1; }) > 2) {
             return false;
         }
-
         /*
          *  get_aligned_shapes function align two input shapes to have the same size and
          *  the same batch dimensions (last two dimensions are not comparable).
