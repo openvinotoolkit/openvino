@@ -87,8 +87,6 @@ int main(int argc, char* argv[]) {
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
 
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
 
         const ov::Layout tensor_layout{"NC"};
 
