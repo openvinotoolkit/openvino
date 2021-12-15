@@ -1345,7 +1345,7 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
 }
 
 bool MKLDNNNode::isInputTensorAtPortEmpty(size_t port) const {
-    if (getParentEdges().size() <= port) {
+    if (inputShapes.size() <= port) {
         IE_THROW() << "Incorrect input port number for node " << getName();
     }
     return getParentEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
@@ -1353,7 +1353,7 @@ bool MKLDNNNode::isInputTensorAtPortEmpty(size_t port) const {
 
 bool MKLDNNNode::isOutputTensorAtPortEmpty(size_t port) const {
     if (outputShapes.size() <= port) {
-        IE_THROW() << "Incorrect input port number for node " << getName();
+        IE_THROW() << "Incorrect output port number for node " << getName();
     }
     return getChildEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
 }

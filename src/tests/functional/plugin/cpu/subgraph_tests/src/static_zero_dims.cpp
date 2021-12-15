@@ -43,6 +43,8 @@ protected:
     void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
         ASSERT_EQ(expected.size(), actual.size());
         for (size_t i = 0; i < expected.size(); i++) {
+            // skip second output tensor because it's output ExperimentalDetectronTopKROIs: input dims [0, 4]
+            // so according to spec output values undefined
             if (i == 1) {
                 continue;
             }

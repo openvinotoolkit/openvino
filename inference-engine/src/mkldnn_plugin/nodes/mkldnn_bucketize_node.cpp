@@ -207,10 +207,6 @@ bool MKLDNNBucketizeNode::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-bool MKLDNNBucketizeNode::needPrepareParams() const {
-    return inputShapesModified();
-}
-
 std::vector<VectorDims> MKLDNNBucketizeNode::shapeInfer() const {
     return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }

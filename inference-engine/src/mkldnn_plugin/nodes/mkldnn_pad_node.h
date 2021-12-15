@@ -74,7 +74,7 @@ private:
             }
         };
 
-        bool cornerCase = false;
+        bool zeroInputDimsCase = false;
 
         struct {
             PadAttrs attrs;

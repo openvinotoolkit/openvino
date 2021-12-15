@@ -228,7 +228,7 @@ void MKLDNNPadNode::createPrimitive() {
 }
 
 bool MKLDNNPadNode::isExecutable() const {
-    return !(isInputTensorAtPortEmpty(0) && isOutputTensorAtPortEmpty(0));
+    return !isOutputTensorAtPortEmpty(0);
 }
 
 bool MKLDNNPadNode::needPrepareParams() const {
@@ -247,9 +247,9 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
     params.attrs = attrs;
     params.dstDims = dstDims;
 
-    cornerCase = std::any_of(srcDims.begin(), srcDims.end(), [](size_t dim) { return dim == 0; } ) &&
-                 std::none_of(dstDims.begin(), dstDims.end(), [](size_t dim) { return dim == 0; } );
-    if (cornerCase) {
+    zeroInputDimsCase = std::any_of(srcDims.begin(), srcDims.end(), [](size_t dim) { return dim == 0; } ) &&
+                        std::none_of(dstDims.begin(), dstDims.end(), [](size_t dim) { return dim == 0; } );
+    if (zeroInputDimsCase) {
         return;
     }
 
@@ -303,32 +303,9 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
     }
 }
 
-struct PadCornerContext {
-    void *dstPtr;
-    VectorDims dstDims;
-    float padValue;
-};
-
-template<typename T>
-struct PadCornerEmitter {
-    void operator()(PadCornerContext & ctx) {
-        const auto workAmount = std::accumulate(ctx.dstDims.begin(), ctx.dstDims.end(), 1, std::multiplies<size_t>());
-        T* data = reinterpret_cast<T*>(ctx.dstPtr);
-        parallel_for(workAmount, [&](size_t i) {
-            data[i] = static_cast<T>(ctx.padValue);
-        });
-    }
-};
-
 void MKLDNNPadNode::PadExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    if (cornerCase) {
-        PadCornerContext ctx { dstMemPtr->GetPtr(), dstMemPtr->getStaticDims(), params.attrs.padValue };
-        OV_SWITCH(MKLDNNPlugin, PadCornerEmitter, ctx, params.attrs.prc,
-                  OV_CASE(InferenceEngine::Precision::FP32, float),
-                  OV_CASE(InferenceEngine::Precision::I32, int32_t),
-                  OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
-                  OV_CASE(InferenceEngine::Precision::I8, int8_t),
-                  OV_CASE(InferenceEngine::Precision::U8, uint8_t));
+    if (zeroInputDimsCase) {
+        padConstant(srcMemPtr, dstMemPtr);
     } else {
         switch (params.attrs.padMode) {
             case CONSTANT:
@@ -377,7 +354,7 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
 }
 
 void MKLDNNPadNode::PadExecutor::padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    if (params.attrs.padValue == 0) {
+    if (params.attrs.padValue == 0 && !zeroInputDimsCase) {
         padConstantZero(srcMemPtr, dstMemPtr);
         return;
     }
@@ -393,10 +370,16 @@ void MKLDNNPadNode::PadExecutor::padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNM
 
 template<typename T>
 void MKLDNNPadNode::PadExecutor::padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     T* dstData = reinterpret_cast<T*>(dstMemPtr->GetPtr());
     const T value = static_cast<T>(params.attrs.padValue);
+    if (zeroInputDimsCase) {
+        const auto workAmount = dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        parallel_for(workAmount, [&](size_t i) {
+            dstData[i] = value;
+        });
+    }
 
+    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     const size_t beginShift = params.attrs.padsBegin[params.nDimsForWork] * params.shift;
     const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
     const size_t endShift = params.attrs.padsEnd[params.nDimsForWork] * params.shift;

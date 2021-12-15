@@ -54,11 +54,11 @@ file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
-# if(TARGET offline_transformations)
+if(TARGET offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
-# else()
-#     set(OFFLINE_TRANSFORMATIONS_LIB IE::offline_transformations)
-# endif()
+else()
+    set(OFFLINE_TRANSFORMATIONS_LIB IE::offline_transformations)
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB} openvino::frontend::common)
