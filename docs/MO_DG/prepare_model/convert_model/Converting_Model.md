@@ -91,11 +91,14 @@ Framework-agnostic parameters:
   --reverse_input_channels
                         Switch the input channels order from RGB to BGR (or
                         vice versa). Applied to original inputs of the model
-                        if and only if a number of channels equals 3. Applied
-                        after application of --mean_values and --scale_values
-                        options, so numbers in --mean_values and
-                        --scale_values go in the order of channels used in the
-                        original model.
+                        if and only if a number of channels equals 3.
+                        When --mean_values/--scale_values are also specified,
+                        reversing of channels will be applied to user's input
+                        data first, so that numbers in --mean_values and
+                        --scale_values go in the order of channels used in
+                        the original model. In other words, if both options are
+                        specified then the data flow in the model looks as following:
+                        Parameter -> ReverseInputChannels -> Mean/Scale apply -> the original body of the model.                        
   --log_level {CRITICAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
                         Logger level
   --input INPUT         Quoted list of comma-separated input nodes names with
@@ -131,7 +134,7 @@ Framework-agnostic parameters:
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
-                        specified, all model weights and biases are quantized
+                        specified, all model weights and biases are compressed
                         to FP16.
   --disable_fusing      Turn off fusing of linear operations to Convolution
   --disable_resnet_optimization
@@ -183,7 +186,7 @@ Usually neural network models are trained with the normalized input data. This m
  
 In the first case, the Model Optimizer generates the IR with required pre-processing layers and Inference Engine samples may be used to infer the model. 
  
-In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. 
+In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`. 
 
 If both mean and scale values are specified, the mean is subtracted first and then scale is applied. Input values are *divided* by the scale value(s). 
 
@@ -243,8 +246,8 @@ Launch the Model Optimizer for the Caffe bvlc_alexnet model with reversed input 
 mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto.
- file For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
+Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto 
+ file. For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
 ```sh
 mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```

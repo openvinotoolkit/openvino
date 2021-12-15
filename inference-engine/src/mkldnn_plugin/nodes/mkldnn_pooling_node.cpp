@@ -511,7 +511,7 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
-MKLDNNNode::AttrPtr MKLDNNPoolingNode::initPrimitiveAttr() const {
+MKLDNNNode::AttrPtr MKLDNNPoolingNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
     setPostOps(*attr, true);
