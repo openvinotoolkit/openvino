@@ -324,15 +324,21 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             return true;
 
         // Remove Reorder for Convolution: b_fs_yx_fsv32 (i8/u8) -> b_fs_yx_fsv16 (fp32/fp16)
-        if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16 &&
-            !data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt)) {
-            auto& node = prev.get_users().front();
-            // Avoid to fuse padding reorder to previous onednn convolution
-            if (prev.get_preferred_impl_type() == impl_types::onednn &&
-                (node->get_output_layout().data_padding != prev.get_output_layout().data_padding))
-                return false;
-            else
-                return true;
+        //                                 b_fs_yx_fsv16 (fp32/fp16) -> b_fs_yx_fsv32 (i8/u8)
+        if (next.is_type<convolution>()) {
+            const bool fsv32_to_fsv16 = (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16 &&
+                    !data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt));
+            const bool fsv16_to_fsv32 = (fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv32 &&
+                    data_type_traits::is_floating_point(prev_dt) && !data_type_traits::is_floating_point(next_dt));
+            if (fsv32_to_fsv16 || fsv16_to_fsv32) {
+                auto& node = prev.get_users().front();
+                // Avoid to fuse padding reorder to previous onednn convolution
+                if (prev.get_preferred_impl_type() == impl_types::onednn &&
+                    (node->get_output_layout().data_padding != prev.get_output_layout().data_padding))
+                    return false;
+                else
+                    return true;
+            }
         }
 
         if (next.is_type<quantize>())
@@ -915,10 +921,10 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         /* ***************************** OneDNN impls format selection part ****************************** */
         bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
         // TODO: uncomment this code when corresponding fsv32 optimizations inside clDNN will be implemented
-        // bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
+        bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
         // bool is_first_conv = input_layout.size.feature[0] < 4;
 
-        if (i8_u8_input) {
+        if (i8_u8_output) {
             if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
                 if (input_layout.size.batch[0] % 16 == 0) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
@@ -938,7 +944,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                 expected_format = imad_case(node);
             }
             expected_tensor = current_layout.size;
-        } else if (input_layout.data_type == data_types::f16 && is_2d) {
+        } else if ((output_layout.data_type == data_types::f16 || output_layout.data_type == data_types::f32) && is_2d) {
             expected_tensor = current_layout.size;
 
             if (input_layout.size.batch[0] >= 16 && onednn_valid_post_ops) {
@@ -954,7 +960,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
             } else {
                 expected_format = cldnn::format::b_fs_yx_fsv16;
             }
-        } else if (input_layout.data_type == data_types::f16 &&
+        } else if (output_layout.data_type == data_types::f16 &&
                 convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim) &&
                 (output_layout.data_type == input_layout.data_type ||
                 !data_type_traits::is_floating_point(input_layout.data_type)) && is_2d) {
@@ -1156,10 +1162,11 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         auto wei_dt = is_conv ? node.as<convolution>().weights().get_output_layout().data_type :
                                 node.as<deconvolution>().weights().get_output_layout().data_type;
 
-        if ((in_dt == data_types::f16 && wei_dt == data_types::f16) && (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
+        if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+            (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8 || out_dt == data_types::u8))
             return true;
         if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
-            (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::i8 || out_dt == data_types::u8))
+            (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
             return true;
     } else if (node.is_type<fully_connected>()) {
         auto& fc_node = node.as<fully_connected>();
@@ -1256,6 +1263,12 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (input_layout.format.dimension() != output_layout.format.dimension()) {
             preferred_impl = impl_types::ocl;
         }
+        if (input_layout.format == format::b_fs_yx_fsv16 && (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8))
+            preferred_impl = impl_types::ocl;
+        if (output_layout.format == format::b_fs_yx_fsv16 && (output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8))
+            preferred_impl = impl_types::ocl;
+        if (output_layout.format == format::bfyx && output_layout.data_type == data_types::f32)
+            preferred_impl = impl_types::ocl;
     } else if (node.is_type<pooling>() || node.is_type<convolution>() || node.is_type<deconvolution>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
