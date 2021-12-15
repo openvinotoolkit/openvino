@@ -172,21 +172,10 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& str, const Dimension& dimension);
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::Dimension> : public ValueAccessor<int64_t> {
+class OPENVINO_API AttributeAdapter<ov::Dimension> : public DirectValueAccessor<ov::Dimension> {
 public:
-    AttributeAdapter(ov::Dimension& value) : m_ref(value) {}
-
-    const int64_t& get() override;
-    void set(const int64_t& value) override;
-    operator ov::Dimension&() {
-        return m_ref;
-    }
+    AttributeAdapter(ov::Dimension& value) : DirectValueAccessor<ov::Dimension>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::Dimension>");
-
-protected:
-    ov::Dimension& m_ref;
-    int64_t m_buffer{0};
-    bool m_buffer_valid{false};
 };
 }  // namespace ov

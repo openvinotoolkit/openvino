@@ -38,8 +38,11 @@ public:
         gemm_params.transpose_input0 = desc->transpose_input0;
         gemm_params.transpose_input1 = desc->transpose_input1;
 
-        if (arg.get_output_layout().data_type == data_types::i8 ||
-            arg.get_output_layout().data_type == data_types::u8) {
+        bool is_quantized = true;
+        for (auto& input : arg.get_dependencies())
+            is_quantized &= data_type_traits::is_quantized(input->get_output_layout().data_type);
+
+        if (is_quantized) {
             gemm_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
         } else {
             gemm_params.quantization = kernel_selector::QuantizationType::NONE;

@@ -92,9 +92,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> toScalar(std::shared_ptr<opset1::Constant> constant);
 
-    static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
-
-    static int getConstantInputIndex(std::shared_ptr<Node> node);
+    static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected = false);
 
     static std::vector<size_t> updateReshapeValues(
         const Shape& elementwiseConstantShape,
@@ -155,7 +153,9 @@ public:
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
-    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
+    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(
+            const std::shared_ptr<Node>& eltwise,
+            const bool convertIsExpected = false);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible

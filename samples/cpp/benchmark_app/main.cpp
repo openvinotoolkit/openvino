@@ -4,18 +4,22 @@
 
 #include <algorithm>
 #include <chrono>
-#include <gna/gna_config.hpp>
-#include <gpu/gpu_config.hpp>
-#include <inference_engine.hpp>
 #include <map>
 #include <memory>
-#include <samples/args_helper.hpp>
-#include <samples/common.hpp>
-#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
-#include <vpu/vpu_plugin_config.hpp>
+
+// clang-format off
+#include "inference_engine.hpp"
+
+#include "gna/gna_config.hpp"
+#include "gpu/gpu_config.hpp"
+#include "vpu/vpu_plugin_config.hpp"
+
+#include "samples/args_helper.hpp"
+#include "samples/common.hpp"
+#include "samples/slog.hpp"
 
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
@@ -24,6 +28,7 @@
 #include "remote_blobs_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
+// clang-format on
 
 using namespace InferenceEngine;
 

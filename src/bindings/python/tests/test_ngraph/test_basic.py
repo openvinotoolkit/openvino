@@ -9,13 +9,14 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import Variant
+from openvino.pyopenvino import OVAny
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.impl import Function, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
+from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
 from openvino.runtime import Tensor
 from openvino.pyopenvino import DescriptorTensor
-from openvino.runtime.impl.op import Parameter
+from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -31,7 +32,7 @@ def test_ngraph_function_api():
     assert parameter_a.partial_shape == PartialShape([2, 2])
     parameter_a.layout = ov.Layout("NCWH")
     assert parameter_a.layout == ov.Layout("NCWH")
-    function = Function(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
+    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
 
@@ -489,18 +490,18 @@ def test_node_target_inputs_soruce_output():
     assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
 
 
-def test_variants():
-    variant_int = Variant(32)
-    variant_str = Variant("test_text")
+def test_any():
+    any_int = OVAny(32)
+    any_str = OVAny("test_text")
 
-    assert variant_int.get() == 32
-    assert variant_str.get() == "test_text"
+    assert any_int.get() == 32
+    assert any_str.get() == "test_text"
 
-    variant_int.set(777)
-    variant_str.set("another_text")
+    any_int.set(777)
+    any_str.set("another_text")
 
-    assert variant_int.get() == 777
-    assert variant_str.get() == "another_text"
+    assert any_int.get() == 777
+    assert any_str.get() == "another_text"
 
 
 def test_runtime_info():
@@ -540,7 +541,7 @@ def test_sink_function_ctor():
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    function = Function(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
+    function = Model(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
 
     ordered_ops = function.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
@@ -561,6 +562,66 @@ def test_node_version():
 
     assert node.get_version() == 1
     assert node.version == 1
+
+
+def test_strides_iteration_methods():
+    data = np.array([1, 2, 3])
+    strides = Strides(data)
+
+    assert len(strides) == data.size
+    assert np.equal(strides, data).all()
+    assert np.equal([strides[i] for i in range(data.size)], data).all()
+
+    data2 = np.array([5, 6, 7])
+    for i in range(data2.size):
+        strides[i] = data2[i]
+
+    assert np.equal(strides, data2).all()
+
+
+def test_axis_vector_iteration_methods():
+    data = np.array([1, 2, 3])
+    axisVector = AxisVector(data)
+
+    assert len(axisVector) == data.size
+    assert np.equal(axisVector, data).all()
+    assert np.equal([axisVector[i] for i in range(data.size)], data).all()
+
+    data2 = np.array([5, 6, 7])
+    for i in range(data2.size):
+        axisVector[i] = data2[i]
+
+    assert np.equal(axisVector, data2).all()
+
+
+def test_coordinate_iteration_methods():
+    data = np.array([1, 2, 3])
+    coordinate = Coordinate(data)
+
+    assert len(coordinate) == data.size
+    assert np.equal(coordinate, data).all()
+    assert np.equal([coordinate[i] for i in range(data.size)], data).all()
+
+    data2 = np.array([5, 6, 7])
+    for i in range(data2.size):
+        coordinate[i] = data2[i]
+
+    assert np.equal(coordinate, data2).all()
+
+
+def test_coordinate_diff_iteration_methods():
+    data = np.array([1, 2, 3])
+    coordinateDiff = CoordinateDiff(data)
+
+    assert len(coordinateDiff) == data.size
+    assert np.equal(coordinateDiff, data).all()
+    assert np.equal([coordinateDiff[i] for i in range(data.size)], data).all()
+
+    data2 = np.array([5, 6, 7])
+    for i in range(data2.size):
+        coordinateDiff[i] = data2[i]
+
+    assert np.equal(coordinateDiff, data2).all()
 
 
 def test_layout():
