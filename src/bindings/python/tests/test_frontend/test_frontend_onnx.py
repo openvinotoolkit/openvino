@@ -27,26 +27,26 @@ def create_onnx_model():
 
 
 def create_onnx_model_with_subgraphs():
-    A = onnx.helper.make_tensor_value_info('A', onnx.TensorProto.FLOAT, [3])
-    B = onnx.helper.make_tensor_value_info('B', onnx.TensorProto.FLOAT, [3])
-    add_out = onnx.helper.make_tensor_value_info('add_out', onnx.TensorProto.FLOAT, [3])
-    sub_out = onnx.helper.make_tensor_value_info('sub_out', onnx.TensorProto.FLOAT, [3])
+    A = onnx.helper.make_tensor_value_info("A", onnx.TensorProto.FLOAT, [3])
+    B = onnx.helper.make_tensor_value_info("B", onnx.TensorProto.FLOAT, [3])
+    add_out = onnx.helper.make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, [3])
+    sub_out = onnx.helper.make_tensor_value_info("sub_out", onnx.TensorProto.FLOAT, [3])
 
-    add = onnx.helper.make_node('Add', inputs=['A', 'B'], outputs=['add_out'])
-    sub = onnx.helper.make_node('Sub', inputs=['A', 'B'], outputs=['sub_out'])
+    add = onnx.helper.make_node("Add", inputs=["A", "B"], outputs=["add_out"])
+    sub = onnx.helper.make_node("Sub", inputs=["A", "B"], outputs=["sub_out"])
 
-    then_body = make_graph([add], 'then_body', [], [add_out])
-    else_body = make_graph([sub], 'else_body', [], [sub_out])
+    then_body = make_graph([add], "then_body", [], [add_out])
+    else_body = make_graph([sub], "else_body", [], [sub_out])
 
     if_node = onnx.helper.make_node(
-        'If',
-        inputs=['cond'],
-        outputs=['res'],
+        "If",
+        inputs=["cond"],
+        outputs=["res"],
         then_branch=then_body,
         else_branch=else_body
     )
-    cond = onnx.helper.make_tensor_value_info('cond', onnx.TensorProto.BOOL, [])
-    res = onnx.helper.make_tensor_value_info('res', onnx.TensorProto.FLOAT, [3])
+    cond = onnx.helper.make_tensor_value_info("cond", onnx.TensorProto.BOOL, [])
+    res = onnx.helper.make_tensor_value_info("res", onnx.TensorProto.FLOAT, [3])
 
     graph = make_graph([if_node], "graph", [cond, A, B], [res])
     return make_model(graph, producer_name="ngraph ONNX Importer")
