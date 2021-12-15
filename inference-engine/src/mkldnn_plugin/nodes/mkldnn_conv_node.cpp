@@ -988,7 +988,8 @@ void MKLDNNConvolutionNode::prepareParams() {
 
         if (impl_type == selected_pd->getImplementationType()) {
             prim_desc = convolution_forward::primitive_desc(itpd.get());
-            execPtr = std::make_shared<ConvolutionExecutor>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, getEngine(), biasMemPtr);
+            execPtr = std::make_shared<ConvolutionExecutor>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, *pAttrLocal,
+                                                            binaryPostOpsArgs, getEngine(), biasMemPtr);
             return;
         }
 
@@ -1005,14 +1006,10 @@ void MKLDNNConvolutionNode::prepareParams() {
 
             std::shared_ptr<MKLDNNDescriptor> reorderConvDesc = createMkldnnConvDesc(inDesc, wghDesc, outDesc, biasDesc);
             auto reordItpd = reorderConvDesc->createPrimitiveDescriptorIterator(getEngine(), *pAttrLocal);
-            while (static_cast<bool>(reordItpd)) {
+            if (static_cast<bool>(reordItpd)) {
                 auto prim_desc = convolution_forward::primitive_desc(reordItpd.get());
-                execPtr = std::make_shared<ConvolutionExecutor>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, getEngine(), biasMemPtr);
-                return;
-
-                if (!reordItpd.next_impl()) {
-                    IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
-                }
+                execPtr = std::make_shared<ConvolutionExecutor>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, *pAttrLocal,
+                                                                binaryPostOpsArgs, getEngine(), biasMemPtr);
             }
         }
     }
