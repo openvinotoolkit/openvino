@@ -94,9 +94,8 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank) {
         auto G = make_shared<op::v1::Gather>(params, indices, axis);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect element of axis input";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Normalized axis must be >= 0 and < data_rank. But instead got axis"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -329,9 +328,8 @@ TEST(type_prop, gather_7_axis_out_of_input_rank) {
         auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
         // Should have thrown, so fail if it didn't
         FAIL() << "axis check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -663,9 +661,8 @@ TEST(type_prop, gather_v8_axis_out_of_input_rank) {
         auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
         // Should have thrown, so fail if it didn't
         FAIL() << "axis check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
