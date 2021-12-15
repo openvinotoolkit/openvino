@@ -43,7 +43,10 @@ Framework-agnostic parameters:
                         shape to the layout required by Inference Engine
                         (N,C,H,W). The shape should not contain undefined
                         dimensions (? or -1) and should fit the dimensions
-                        defined in the input operation of the graph. If there
+                        defined in the input operation of the graph. Boundaries 
+                        of undefined dimension can be specified with ellipsis, 
+                        for example [1,1..10,128,128]. One boundary can be undefined, 
+                        for example [1,..100] or [1,3,1..,1..]. If there
                         are multiple inputs in the model, --input_shape should
                         contain definition of shape for each input separated
                         by a comma, for example: [1,3,227,227],[2,4] for a
