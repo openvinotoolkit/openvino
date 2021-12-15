@@ -29,19 +29,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                  ::testing::ValuesIn(configs)),
                          OVExecGraphImportExportTest::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-//          OVExecGraphImportExportTest,
-//         ::testing::Combine(
-//                 ::testing::ValuesIn(netPrecisions),
-//                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-//                 ::testing::ValuesIn(multiConfigs)),
-//         OVExecGraphImportExportTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+         OVExecGraphImportExportTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::ValuesIn(multiConfigs)),
+        OVExecGraphImportExportTest::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-//          OVExecGraphImportExportTest,
-//         ::testing::Combine(::testing::ValuesIn(netPrecisions),
-//                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-//                            ::testing::ValuesIn(heteroConfigs)),
-//         OVExecGraphImportExportTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
+         OVExecGraphImportExportTest,
+        ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                           ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                           ::testing::ValuesIn(heteroConfigs)),
+        OVExecGraphImportExportTest::getTestCaseName);
 
 }  // namespace
