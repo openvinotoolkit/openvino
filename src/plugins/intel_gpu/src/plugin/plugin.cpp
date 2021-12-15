@@ -723,6 +723,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto network = options.find("MODEL_PTR")->second.as<InferenceEngine::CNNNetwork const*>();
         Config config = _impl->m_configs.GetConfig(device_id);
         auto networkCloned = CloneAndTransformNetwork(*network, config);
+
         std::cout << "DEVICE_INFO:"
                   << "gfx_version.major " << device_info.gfx_ver.major
                   << ", gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;
@@ -734,7 +735,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         };
         size_t L3_cache_size = device_info.gfx_ver.major && (device_info.gfx_ver.major <= 9)
                 ? 768 * 1024 // Gen9
-                : 2 * 768 * 1024 *1024;  //reasonable default when no arch has been detected (e.g. due to old driver ver)
+                : 2 * 768 * 1024;  //reasonable default when no arch has been detected (e.g. due to old driver ver)
         cldnn::gfx_version gen = {device_info.gfx_ver.major, device_info.gfx_ver.minor, 0 /*ignore the revision*/};
         auto val = gen_kbytes_per_bank.find(gen);
         if (gen_kbytes_per_bank.end() != val) {
@@ -937,7 +938,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             TransformationsPipeline transformations(config, device_info);
             transformations.apply(nGraphFunc);
             program = std::make_shared<Program>(cloned_network, engine, config, false, true);
-            std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
+            std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
             int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
                     static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
             int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
