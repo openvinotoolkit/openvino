@@ -14,12 +14,12 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertConvolutions);
+class ConvertConvolutions;
 
-class INFERENCE_ENGINE_API_CLASS(ConvertConvolution);
-class INFERENCE_ENGINE_API_CLASS(ConvertGroupConvolution);
-class INFERENCE_ENGINE_API_CLASS(ConvertDeconvolution);
-class INFERENCE_ENGINE_API_CLASS(ConvertGroupDeconvolution);
+class ConvertConvolution;
+class ConvertGroupConvolution;
+class ConvertDeconvolution;
+class ConvertGroupDeconvolution;
 
 }  // namespace pass
 }  // namespace ngraph

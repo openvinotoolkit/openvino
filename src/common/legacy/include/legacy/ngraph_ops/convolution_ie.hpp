@@ -8,15 +8,13 @@
 #include <vector>
 #include <algorithm>
 
-#include <ie_api.h>
-
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(ConvolutionIE) : public Op {
+class ConvolutionIE : public Op {
 public:
     OPENVINO_OP("ConvolutionIE", "util");
     BWDCMP_RTTI_DECLARATION;

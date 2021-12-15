@@ -7,8 +7,6 @@
 #include <memory>
 #include <functional>
 
-#include <ie_api.h>
-
 #include <ngraph/ngraph.hpp>
 
 #include "ngraph/pattern/matcher.hpp"
@@ -26,10 +24,10 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvFusion);
-class INFERENCE_ENGINE_API_CLASS(ConvAddFusion);
-class INFERENCE_ENGINE_API_CLASS(ConvMultiplyFusion);
-class INFERENCE_ENGINE_API_CLASS(DeconvAddFusion);
+class ConvFusion;
+class ConvAddFusion;
+class ConvMultiplyFusion;
+class DeconvAddFusion;
 
 }  // namespace pass
 }  // namespace ngraph
