@@ -268,6 +268,21 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     }
 
     WaitFirstNetworkReady();
+    auto recycleTask = [this]() mutable {
+        size_t destroynum = 0;
+        while (!_exitFlag) {
+            if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
+                WorkerInferRequest *workerRequestPtr = nullptr;
+                if (_idleWorkerRequests[_loadContext[CPU].workName].try_pop(workerRequestPtr))
+                    destroynum++;
+                if (destroynum == _workerRequests[_loadContext[CPU].workName].size()) {
+                    _workerRequests[_loadContext[CPU].workName].clear();
+                    _exitFlag = true;
+                }
+            }
+        }
+    };
+    _recycleThread = std::thread(recycleTask);
 }
 void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
                                                     const std::string& modelPath,
@@ -460,6 +475,10 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 }
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
+    _exitFlag = true;
+    if (_recycleThread.joinable()) {
+        _recycleThread.join();
+    }
     // this is necessary to guarantee member destroyed after getting future
     if (_workModeIsAUTO && _loadContext[CPU].isEnabled) {
         _loadContext[CPU].future.get();

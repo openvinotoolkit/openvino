@@ -209,6 +209,8 @@ private:
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
+    std::thread                                                         _recycleThread;
+    bool                                                                _exitFlag = {false};
 };
 
 }  // namespace MultiDevicePlugin
