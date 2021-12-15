@@ -347,10 +347,10 @@ const std::vector<std::vector<InputShape>> dynShapeChainRef = {
         {
             // gr == 2, dg == 1, in_ch_per_gr == 3, out_ch_per_gr == 3
             // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, 6, -1, -1}, {{1, 6, 3, 2}, {1, 6, 4, 3}, {1, 6, 5, 4}}},  // input 0
-            {{-1, 8, -1, -1}, {{1, 8, 2, 1}, {1, 8, 3, 2}, {1, 8, 4, 3}}},  // input 1
+            {{-1, -1, -1, -1}, {{1, 6, 3, 2}, {1, 6, 4, 3}, {1, 6, 5, 4}}},  // input 0
+            {{-1, -1, -1, -1}, {{1, 8, 2, 1}, {1, 8, 3, 2}, {1, 8, 4, 3}}},  // input 1
             {{6, 3, 2, 2}, {{6, 3, 2, 2}, {6, 3, 2, 2}, {6, 3, 2, 2}}},     // input 2
-            {{-1, 4, -1, -1}, {{1, 4, 2, 1}, {1, 4, 3, 2}, {1, 4, 4, 3}}}   // input 3
+            {{-1, -1, -1, -1}, {{1, 4, 2, 1}, {1, 4, 3, 2}, {1, 4, 4, 3}}}   // input 3
         },
         {
             {{{1, 5}, 6, {1, 10}, {1, 8}}, {{2, 6, 3, 2}, {1, 6, 4, 3}, {3, 6, 5, 4}}},
@@ -369,7 +369,7 @@ const std::vector<std::vector<InputShape>> dynShapeChainJIT = {
         {
             // gr == 1, dg == 1, in_ch_per_gr == 16, out_ch_per_gr == 16
             // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, 16, -1, -1}, {{1, 16, 3, 2}, {1, 16, 4, 3}, {1, 16, 5, 4}}},  // input 0
+            {{-1, -1, -1, -1}, {{1, 16, 3, 2}, {1, 16, 4, 3}, {1, 16, 5, 4}}},  // input 0
             {{-1, 8, -1, -1}, {{1, 8, 2, 1}, {1, 8, 3, 2}, {1, 8, 4, 3}}},  // input 1
             {{16, 16, 2, 2}, {{16, 16, 2, 2}, {16, 16, 2, 2}, {16, 16, 2, 2}}},     // input 2
             {{-1, 4, -1, -1}, {{1, 4, 2, 1}, {1, 4, 3, 2}, {1, 4, 4, 3}}}   // input 3
@@ -387,6 +387,36 @@ const std::vector<std::vector<InputShape>> dynShapeChainJIT = {
             {{{1, 5}, {1, 5}, {1, 10}, {1, 8}}, {{1, 4, 2, 1}, {1, 4, 3, 2}, {1, 4, 4, 3}}}   // input 3
         },
 };
+
+// autopad params
+const std::vector<std::vector<InputShape>> dynShapeChainJITAutoPad = {
+        {
+            {{{1, 5}, {1, 16}, {1, 10}, {1, 10}}, {{1, 16, 3, 2}, {1, 16, 10, 10}, {1, 16, 3, 2}}},  // input 0
+            {{{1, 5}, 8, {1, 10}, {1, 10}}, {{1, 8, 3, 2}, {1, 8, 10, 10}, {1, 8, 3, 2}}},  // input 1
+            {{16, 16, 2, 2}, {{16, 16, 2, 2}, {16, 16, 2, 2}, {16, 16, 2, 2}}},     // input 2
+            {{{1, 5}, 4, {1, 10}, {1, 10}}, {{1, 4, 3, 2}, {1, 4, 10, 10}, {1, 4, 3, 2}}}   // input 3
+        }
+};
+const std::vector<std::vector<size_t>> autoPadSpatParams = {
+    {1}, // batch
+    {3, 2}, // in. spat. shape
+    {3, 2}, // off. spat. shape
+    {2, 2} // ker. spat. shape
+};
+
+std::vector<ngraph::op::PadType> padTypesAutoPad = {
+    ngraph::op::PadType::SAME_LOWER,
+    ngraph::op::PadType::SAME_UPPER
+};
+
+const auto autoPadAddSpParams = ::testing::Combine(
+        ::testing::ValuesIn(padTypesAutoPad),  // pad. type
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin - ignored
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end - ignored
+        ::testing::Values(std::vector<size_t> {1, 1}),  // strides
+        ::testing::Values(std::vector<size_t> {1, 1})  // dilations
+);
+
 const auto params1_Smoke = ::testing::Combine(
                          ::testing::Combine(
                             addSpParams,
@@ -443,6 +473,22 @@ const auto params7_Smoke = ::testing::Combine(
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
+const auto params8_Smoke = ::testing::Combine(
+                         ::testing::Combine(
+                            autoPadAddSpParams,
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(autoPadSpatParams, channelParamsSingleGr))),
+                            defConvSpecificParams_Smoke,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+const auto params9_Smoke = ::testing::Combine(
+                         ::testing::Combine(
+                            autoPadAddSpParams,
+                            ::testing::ValuesIn(dynShapeChainJITAutoPad),
+                            defConvSpecificParams_Smoke,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest1, DefConvLayerCPUTest, params1_Smoke, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest2, DefConvLayerCPUTest, params2_Smoke, DefConvLayerCPUTest::getTestCaseName);
@@ -451,6 +497,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest4, DefConvLayerCPUTest, params4_
 INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest5, DefConvLayerCPUTest, params5_Smoke, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest6, DefConvLayerCPUTest, params6_Smoke, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest7, DefConvLayerCPUTest, params7_Smoke, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest8, DefConvLayerCPUTest, params8_Smoke, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest9, DefConvLayerCPUTest, params9_Smoke, DefConvLayerCPUTest::getTestCaseName);
 
 const auto params1 = ::testing::Combine(
                          ::testing::Combine(
@@ -508,6 +556,24 @@ const auto params7 = ::testing::Combine(
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
+// autopad cases
+const auto params8 = ::testing::Combine(
+                         ::testing::Combine(
+                            autoPadAddSpParams,
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(autoPadSpatParams, channelParamsSingleGr))),
+                            defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+const auto params9 = ::testing::Combine(
+                         ::testing::Combine(
+                            autoPadAddSpParams,
+                            ::testing::ValuesIn(dynShapeChainJITAutoPad),
+                            defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice(false)));
+
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest1, DefConvLayerCPUTest, params1, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest2, DefConvLayerCPUTest, params2, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest3, DefConvLayerCPUTest, params3, DefConvLayerCPUTest::getTestCaseName);
@@ -515,5 +581,7 @@ INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest4, DefConvLayerCPUTest, params4, DefCo
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest5, DefConvLayerCPUTest, params5, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest6, DefConvLayerCPUTest, params6, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest7, DefConvLayerCPUTest, params7, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest8, DefConvLayerCPUTest, params8, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest9, DefConvLayerCPUTest, params9, DefConvLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
