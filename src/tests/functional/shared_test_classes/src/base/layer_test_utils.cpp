@@ -415,11 +415,11 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     const auto &&outputsInfo = executableNetwork.GetOutputsInfo();
     std::vector<ngraph::element::Type_t> convertType;
     convertType.reserve(outputsInfo.size());
-        for (const auto &output : outputsInfo) {
-                convertType.push_back(
-                    FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
-                        output.second->getTensorDesc().getPrecision()));
-        }
+    for (const auto &output : outputsInfo) {
+        convertType.push_back(
+            FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
+                output.second->getTensorDesc().getPrecision()));
+    }
 
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
     switch (refMode) {

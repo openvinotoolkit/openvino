@@ -22,8 +22,13 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
-    for (const auto& elem : param.constantValues) {
+        param.fakeQuantize <<
+        param.convert <<
+        param.dequantizationBefore <<
+        (param.reduceMean.keepDims ? "_keepDims_" : "");
+
+    result << "_reduce_axis_";
+    for (const auto& elem : param.reduceMean.constantValues) {
         result << elem << "_";
     }
 
@@ -37,12 +42,15 @@ void ReduceMeanTransformation::SetUp() {
     ReduceMeanTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::opset1::ReduceMean>(
+    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMean>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
-        param.constantValues,
-        param.keepDims);
+        param.convert,
+        param.dequantizationBefore,
+        param.reduceMean.constantValues,
+        param.reduceMean.keepDims,
+        param.dequantizationAfter);
 }
 
 void ReduceMeanTransformation::Run() {
