@@ -1223,3 +1223,15 @@ def test_set_input_partial_shape_using_input_edge():
     assert ov_model.input("in2").get_partial_shape() == PartialShape([1])
 
     assert ov_model.output("out4").get_partial_shape() == PartialShape([10, 10])
+
+
+def test_get_input_partial_shape_using_input_edge():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_operator = model.get_place_by_operation_name("onnx_add_op")
+    add_input_edge = add_operator.get_input_port(inputPortIndex=0)
+
+    pshape = model.get_partial_shape(add_input_edge)
+    assert pshape == PartialShape([2, 2])
