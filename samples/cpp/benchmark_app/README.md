@@ -160,12 +160,9 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+2. Convert the model to the Inference Engine IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
-   cd <INSTALL_DIR>/tools/model_optimizer
-   ```
-   ```sh
-   python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
 3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 

@@ -3,8 +3,8 @@
 
 import numpy as np
 
-import openvino.opset8 as ov
-from openvino.impl import Dimension, Function, PartialShape, Shape
+import openvino.runtime.opset8 as ov
+from openvino.runtime import Dimension, Model, PartialShape, Shape
 
 
 def test_dimension():
@@ -227,9 +227,9 @@ def test_repr_dynamic_shape():
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     model = parameter_a + parameter_b
-    function = Function(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
+    function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
-    assert repr(function) == "<Function: 'simple_dyn_shapes_graph' ({?,2})>"
+    assert repr(function) == "<Model: 'simple_dyn_shapes_graph' ({?,2})>"
 
     ops = function.get_ordered_ops()
     for op in ops:

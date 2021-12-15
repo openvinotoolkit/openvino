@@ -55,21 +55,10 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 ## Convert an MXNet* Model <a name="ConvertMxNet"></a>
 
 To convert an MXNet\* model, run Model Optimizer with a path to the input model `.params` file and to an output directory where you have write permissions:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
 
-   .. code-block:: sh
-
-      cd <INSTALL_DIR>/tools/model_optimizer/
-      python3 mo.py --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+ mo --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Two groups of parameters are available to convert your model:
 

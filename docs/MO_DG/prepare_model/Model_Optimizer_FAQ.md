@@ -28,7 +28,7 @@ For example, to add the description of the `CustomReshape` layer, which is an ar
     
 2.  Generate a new parser:
 ```shell
-cd <INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto
+cd <SITE_PACKAGES_WITH_INSTALLED_OPENVINO>/openvino/tools/mo/front/caffe/proto
 python3 generate_caffe_pb2.py --input_proto <PATH_TO_CUSTOM_CAFFE>/src/caffe/proto/caffe.proto
 ```
 where `PATH_TO_CUSTOM_CAFFE` is the path to the root directory of custom Caffe\*.
@@ -66,7 +66,7 @@ The mean file that you provide for the Model Optimizer must be in a `.binaryprot
 
 #### 7. What does the message "Invalid proto file: there is neither 'layer' nor 'layers' top-level messages" mean? <a name="question-7"></a>
 
-The structure of any Caffe\* topology is described in the `caffe.proto` file of any Caffe version. For example, in the Model Optimizer, you can find the following proto file, used by default: `<INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
+The structure of any Caffe\* topology is described in the `caffe.proto` file of any Caffe version. For example, in the Model Optimizer, you can find the following proto file, used by default: `mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
 ```
 message NetParameter {
   // ... some other parameters
@@ -81,7 +81,7 @@ This means that any topology should contain layers as top-level structures in `p
 
 #### 8. What does the message "Old-style inputs (via 'input_dims') are not supported. Please specify inputs via 'input_shape'" mean? <a name="question-8"></a>
 
-The structure of any Caffe\* topology is described in the `caffe.proto` file for any Caffe version. For example, in the Model Optimizer you can find the following `.proto` file, used by default: `<INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
+The structure of any Caffe\* topology is described in the `caffe.proto` file for any Caffe version. For example, in the Model Optimizer you can find the following `.proto` file, used by default: `mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
 ```sh
 message NetParameter {
 
@@ -348,53 +348,18 @@ You cannot specify the batch and the input shape at the same time. You should sp
 
 The specified input shape cannot be parsed. Please, define it in one of the following ways:
 
-* 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
-
-@endsphinxdirective  
-
+*   
+```shell
+ mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
+```
 *
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
-
-@endsphinxdirective
-
+```shell
+ mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+```
 *   In case of multi input topology you should also specify inputs:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
-
-@endsphinxdirective
+```shell
+ mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+```
 
 Keep in mind that there is no space between and inside the brackets for input shapes.
 

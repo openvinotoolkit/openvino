@@ -53,6 +53,9 @@ void extract_operation_name_and_port(const std::string& port_name,
 class InputModelTF::InputModelTFImpl {
 public:
     InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::InputModel& input_model);
+    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
+                     const ov::frontend::InputModel& input_model,
+                     const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<ov::frontend::Place::Ptr> getInputs() const;
     std::vector<ov::frontend::Place::Ptr> getOutputs() const;
     ov::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
@@ -87,6 +90,8 @@ private:
     std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
 
+    std::shared_ptr<TelemetryExtension> m_telemetry;
+
     // shows if some nodes might be deleted from graph
     bool m_graph_changed = false;
 };
@@ -94,23 +99,27 @@ private:
 void InputModelTF::InputModelTFImpl::loadPlaces() {
     std::set<std::string> all_op_names;
     std::set<std::string> op_names_with_consumers;
+    std::map<std::string, uint64_t> op_statistics;
 
     m_inputs.clear();
     for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
         auto node_decoder = m_graph_iterator->get_decoder();
         auto op_name = node_decoder->get_op_name();
         auto op_type = node_decoder->get_op_type();
+
+        if (m_telemetry) {
+            op_statistics[op_type]++;
+        }
+
         auto op_place = std::make_shared<OpPlaceTF>(m_input_model, node_decoder);
         all_op_names.insert(op_name);
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
-            auto pshape = std::dynamic_pointer_cast<VariantWrapper<ov::PartialShape>>(
-                node_decoder->get_attribute("shape", VariantWrapper<ov::PartialShape>::get_type_info_static()));
-            auto type = std::dynamic_pointer_cast<VariantWrapper<ov::element::Type>>(
-                node_decoder->get_attribute("dtype", VariantWrapper<ov::element::Type>::get_type_info_static()));
+            auto pshape = node_decoder->get_attribute("shape", typeid(ov::PartialShape)).as<ov::PartialShape>();
+            auto type = node_decoder->get_attribute("dtype", typeid(ov::element::Type)).as<ov::element::Type>();
             std::vector<std::string> names = {op_name};
-            auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape->get(), type->get(), names);
+            auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape, type, names);
             m_tensor_places[op_name] = tensor_place;
             m_inputs.push_back(tensor_place);
         }
@@ -128,6 +137,13 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
             }
         }
     }
+
+    if (m_telemetry) {
+        for (const auto& op : op_statistics) {
+            m_telemetry->send_event("op_count", "tf_" + op.first, op.second);
+        }
+    }
+
     std::set<std::string> op_names_without_consumers;
     std::set_difference(all_op_names.begin(),
                         all_op_names.end(),
@@ -240,6 +256,16 @@ InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph
     loadPlaces();
 }
 
+InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
+                                                 const InputModel& input_model,
+                                                 const std::shared_ptr<TelemetryExtension>& telemetry)
+    : m_input_model(input_model),
+      m_graph_iterator(graph_iterator),
+      m_telemetry(telemetry) {
+    FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
+    loadPlaces();
+}
+
 std::vector<ov::frontend::Place::Ptr> InputModelTF::InputModelTFImpl::getInputs() const {
     return m_inputs;
 }
@@ -325,8 +351,9 @@ void InputModelTF::InputModelTFImpl::setTensorValue(ov::frontend::Place::Ptr pla
     m_tensor_values[name] = constant;
 }
 
-InputModelTF::InputModelTF(const GraphIterator::Ptr& graph_iterator)
-    : _impl{std::make_shared<InputModelTFImpl>(graph_iterator, *this)} {}
+InputModelTF::InputModelTF(const GraphIterator::Ptr& graph_iterator,
+                           const std::shared_ptr<TelemetryExtension>& telemetry)
+    : _impl{std::make_shared<InputModelTFImpl>(graph_iterator, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::get_op_places() const {
     return _impl->get_op_places();

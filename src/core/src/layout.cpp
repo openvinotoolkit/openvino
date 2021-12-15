@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 
+#include "layout_utils.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/util.hpp"
 
@@ -238,9 +239,15 @@ std::string Layout::to_string() const {
     return res.str();
 }
 
-namespace layout {
+class LayoutUtils {
+public:
+    static Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
+    static std::vector<int64_t> find_permutation(const Layout& src_layout,
+                                                 const PartialShape& src_shape,
+                                                 const Layout& dst_layout);
+};
 
-Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
+Layout LayoutUtils::apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
     {  // Validate dims
         std::vector<bool> used(dims.size(), false);
         for (size_t i = 0; i < dims.size(); i++) {
@@ -274,7 +281,49 @@ Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& 
     return res;
 }
 
-std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank, const Layout& dst) {
+std::vector<int64_t> LayoutUtils::find_permutation(const Layout& src_layout,
+                                                   const PartialShape& src_shape,
+                                                   const Layout& dst) {
+    auto rank = src_shape.rank();
+    auto check_trivial = [](std::vector<int64_t>& res) -> std::vector<int64_t>& {
+        size_t i = 0;
+        while (i < res.size() && res[i] == i) {
+            i++;
+        }
+        if (i == res.size()) {
+            // Array is [0,1,2,...,n], so permutation is not needed at all
+            res = {};
+        }
+        return res;
+    };
+    auto to_static = [](const Layout& layout, const Rank& rank) -> Layout {
+        OPENVINO_ASSERT(!layout.m_dynamic || !rank.is_dynamic(),
+                        "Conversion is not supported for dynamic layouts with fully dynamic shapes");
+
+        if (!layout.m_dynamic) {
+            return layout;
+        }
+        Layout res = layout;
+        auto len = rank.get_length();
+        res.m_dynamic = false;
+        res.m_left_size = rank.get_length();
+        res.m_right_size = 0;
+        for (auto& item : res.m_names) {
+            if (item.second < 0) {
+                item.second += len;
+            }
+        }
+        std::unordered_map<std::int64_t, std::string> new_index_map;
+        for (const auto& item : res.m_index_map) {
+            auto new_ind = item.first;
+            if (new_ind < 0) {
+                new_ind += len;
+            }
+            new_index_map[new_ind] = item.second;
+        }
+        res.m_index_map = new_index_map;
+        return res;
+    };
     // Basic implementation so far, can support partially-specified layouts later (shape rank will be needed for dynamic
     // layouts)
     if (src_layout == dst) {
@@ -283,25 +332,79 @@ std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank
     if (src_layout.empty() || dst.empty()) {
         return {};
     }
-    OPENVINO_ASSERT(!src_layout.m_dynamic && !dst.m_dynamic, "Conversion is not supported for dynamic layouts");
-    OPENVINO_ASSERT(src_layout.m_left_size == src_layout.m_left_size,
+    auto src_static = to_static(src_layout, rank);
+    auto dst_static = to_static(dst, rank);
+    OPENVINO_ASSERT(src_static.m_left_size == dst_static.m_left_size,
                     "Conversion is not supported for layouts with different sizes");
-    std::vector<int64_t> res(src_layout.m_left_size);
-    for (int64_t i = 0; i < src_layout.m_left_size; i++) {
-        auto it = src_layout.m_index_map.find(i);
-        OPENVINO_ASSERT(it != src_layout.m_index_map.end(),
-                        "Conversion is not supported for partially specified source layout: ",
-                        src_layout.to_string());
-        auto name = it->second;
-        OPENVINO_ASSERT(dst.has_name(name),
-                        "Source dimension name '",
-                        name,
-                        "' is not found in destination layout: ",
-                        dst.to_string());
-        res[dst.get_index_by_name(name)] = i;
+    OPENVINO_ASSERT(rank.is_dynamic() || src_static.m_left_size == rank.get_length(),
+                    "Conversion layout ",
+                    src_layout.to_string(),
+                    " <-> ",
+                    dst.to_string(),
+                    " failure. Layout is not consistent with input shape ",
+                    src_shape,
+                    ". Layout length ",
+                    src_static.m_left_size,
+                    " shall match with input shape rank ",
+                    rank.get_length());
+    std::vector<int64_t> res(src_static.m_left_size, -1);
+    if (src_static.m_names.size() > dst_static.m_names.size()) {
+        // find inverted permutation from least specified layout to most one
+        auto inverted = find_permutation(dst_static, src_shape, src_static);
+        if (inverted.empty()) {
+            return {};
+        }
+        for (size_t i = 0; i < inverted.size(); i++) {
+            res[inverted[i]] = static_cast<int64_t>(i);
+        }
+        return check_trivial(res);
     }
-    return res;
+    std::vector<bool> mapped(src_static.m_left_size, false);
+    // Fill known names (??c? -> nc??) will produce res=[-1,2,-1,-1], mapped=[false,false,true,false]
+    for (const auto& src_item : src_static.m_index_map) {
+        OPENVINO_ASSERT(dst.has_name(src_item.second),
+                        "Dimension name '",
+                        src_item.second,
+                        "' is not found in layout: ",
+                        dst_static.to_string());
+        auto dst_ind = dst_static.get_index_by_name(src_item.second);
+        res[dst_ind] = src_item.first;
+        mapped[src_item.first] = true;
+    }
+    // Fill the rest
+    int dst_pos = 0;
+    auto find_free_pos = [&]() {
+        while (mapped[dst_pos] && dst_pos < src_static.m_left_size) {
+            dst_pos++;
+        }
+        OPENVINO_ASSERT(dst_pos < src_static.m_left_size,
+                        "Internal unexpected error: can't map layout ",
+                        src_static.to_string(),
+                        " to ",
+                        dst_static.to_string());
+        mapped[dst_pos] = true;
+        return dst_pos;
+    };
+    for (int64_t i = 0; i < src_static.m_left_size; i++) {
+        if (res[i] < 0) {
+            res[i] = find_free_pos();
+        }
+    }
+    return check_trivial(res);
 }
+
+namespace layout {
+namespace utils {
+Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
+    return LayoutUtils::apply_permutation(src_layout, dims);
+}
+
+std::vector<int64_t> find_permutation(const Layout& src_layout,
+                                      const PartialShape& src_shape,
+                                      const Layout& dst_layout) {
+    return LayoutUtils::find_permutation(src_layout, src_shape, dst_layout);
+}
+}  // namespace utils
 
 // Helper functions
 bool has_batch(const Layout& layout) {
@@ -356,10 +459,14 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
 }
 
 bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
-    std::string layout_str = m_value.to_string();
+    std::string layout_str = value.to_string();
     visitor.on_attribute("layout", layout_str);
-    m_value = Layout(layout_str);
+    value = Layout(layout_str);
     return true;
+}
+
+std::string LayoutAttribute::to_string() const {
+    return value.to_string();
 }
 
 }  // namespace ov

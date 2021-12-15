@@ -68,14 +68,12 @@ Examples are networks having activation layers that are not supported on the pri
 If transmitting data from one part of a network to another part in heterogeneous mode takes more time than in normal mode, it may not make sense to execute them in heterogeneous mode.
 In this case, you can define the heaviest part manually and set the affinity to avoid sending data back and forth many times during one inference.
 
-
 ### Execution Precision
-Precision for inference in heterogeneous plugin is defined by
-* Precision of IR.
+Precision for inference in heterogeneous plugin is defined by:
+* Precision of IR
 * Ability of final plugins to execute in precision defined in IR
 
-Example:
-* If you want to execute GPU with CPU fallback with FP16 on GPU, you need to use only FP16 IR.
+For example, if you want to execute GPU with CPU fallback with FP16 on GPU, you need to use only FP16 IR.
 
 ### Analyzing Performance Heterogeneous Execution
 After enabling the <code>KEY_HETERO_DUMP_GRAPH_DOT</code> config key (shown in code snippet below), you can dump GraphViz* `.dot` files with annotations of devices per layer.
@@ -202,20 +200,17 @@ During the loading of the network to the heterogeneous plugin, the network is di
 ### Execution Precision
 
 The precision for inference in the heterogeneous plugin is defined by:
-
 * Precision of IR
 * Ability of final plugins to execute in precision defined in IR
 
-Example:
-
-* If you want to execute GPU with CPU fallback with FP16 on GPU, you need to use only FP16 IR.
+For example, if you want to execute GPU with CPU fallback with FP16 on GPU, you need to use only FP16 IR.
 
 OpenVINO samples can be used with the following command:
 ```sh
-./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:MYRIAD,CPU
+./hello_classification <path_to_model>/squeezenet1.1.xml <path_to_pictures>/picture.jpg HETERO:GPU,CPU
 ```
 
-where HETERO stands for the heterogeneous plugin
+where `HETERO` stands for the heterogeneous plugin.
 
 You can point to more than two devices, for example: `-d HETERO:MYRIAD,GPU,CPU`
 

@@ -49,6 +49,7 @@ foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
     unset(${component} CACHE)
 endforeach()
+unset(openvino_export_components CACHE)
 
 #
 # Build
@@ -86,9 +87,6 @@ function(openvino_developer_export_targets)
         "A list of OpenVINO exported components" FORCE)
 endfunction()
 
-ie_cpack_add_component(ngraph REQUIRED)
-ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
 # add target with processed tests model zoo
 include(cmake/test_model_zoo.cmake)
 
@@ -98,11 +96,16 @@ add_subdirectory(inference-engine/src)
 add_subdirectory(src)
 add_subdirectory(samples)
 add_subdirectory(inference-engine)
+
+# Enable interpreter backend
+if (ENABLE_TESTS OR ENABLE_TEMPLATE)
+    add_subdirectory(docs/template_plugin/backend)
+endif()
 include(cmake/extra_modules.cmake)
-add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
+add_subdirectory(licensing)
 
 #
 # CPack

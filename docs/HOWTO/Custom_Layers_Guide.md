@@ -134,19 +134,9 @@ the batch dimension equal to 1. The actual batch size dimension can be changed a
 described in the [Using Shape Inference](../IE_DG/ShapeInference.md). Also refer to the General Conversion Parameters section in [Converting a Model to Intermediate Representation (IR)](../MO_DG/prepare_model/convert_model/Converting_Model.md) and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 for more details and command line parameters used for the model conversion.
 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      cd <INSTALL_DIR>/deployment_tools/model_optimizer/
-      python3 mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
+```sh
+mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
+```
 
 @endsphinxdirective
 
@@ -268,19 +258,9 @@ The implementation should be saved to the file `mo_extensions/front/tf/ComplexAb
 @snippet ComplexAbs.py complex_abs:transformation
 
 Now it is possible to convert the model using the following command line:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      cd <INSTALL_DIR>/deployment_tools/model_optimizer/
-      python3 mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
+```sh
+mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
+```
 
 @endsphinxdirective
 
@@ -288,7 +268,7 @@ The sub-graph corresponding to the originally non-supported one is depicted in t
 
 ![Converted sub-graph](img/converted_subgraph.png)
 
-> **NOTE:** Model Optimizer performed conversion of the model from NHWC to NCHW layout that is why the dimension with
+> **NOTE**: Model Optimizer performed conversion of the model from NHWC to NCHW layout that is why the dimension with
 > the value 2 moved to another position.
 
 ### Inference Engine Extension Implementation
@@ -302,7 +282,7 @@ file is the following:
 @snippet ../template_extension/CMakeLists.txt cmake:extension
 
 The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the extension library is linked with
-"opencv_core" which comes with the OpenVINO.
+`opencv_core` which comes with the OpenVINO.
 
 #### Custom nGraph Operation "FFT" Implementation
 The next step is to create the nGraph operation FFT. The header file "fft_op.hpp" has the following content:
@@ -310,7 +290,7 @@ The next step is to create the nGraph operation FFT. The header file "fft_op.hpp
 @snippet ../template_extension/fft_op.hpp fft_op:header
 
 The operation has just one boolean attribute `inverse`. Implementation of the necessary nGraph operation functions are
-in the "fft_op.cpp" file with the following content:
+in the `fft_op.cpp` file with the following content:
 
 @snippet ../template_extension/fft_op.cpp fft_op:implementation
 
@@ -345,7 +325,7 @@ The result of this command is a compiled shared library (`.so` or `.dll`). It sh
 application using `Core` class instance method `AddExtension` like this
 `core.AddExtension(std::make_shared<Extension>(compiled_library_file_name), "CPU");`.
 
-To test that the extension is implemented correctly we can run the "mri_reconstruction_demo.py" with the following content:
+To test that the extension is implemented correctly we can run the "mri_reconstruction_demo" with the following content:
 
 @snippet mri_reconstruction_demo.py mri_demo:demo
 

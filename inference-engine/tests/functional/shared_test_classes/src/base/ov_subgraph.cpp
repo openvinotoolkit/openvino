@@ -58,12 +58,12 @@ void SubgraphBaseTest::run() {
                     init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
-                infer();
-                validate();
             } catch (const std::exception& ex) {
                 throw std::runtime_error("Incorrect target static shape: " +
                                          CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
             }
+            infer();
+            validate();
         }
         status = LayerTestsUtils::PassRate::Statuses::PASSED;
     } catch (const std::exception& ex) {
@@ -140,8 +140,7 @@ void SubgraphBaseTest::configure_model() {
         auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
             if (inType != ov::element::Type_t::undefined) {
-                p.input(ov::preprocess::InputInfo(i)
-                        .tensor(ov::preprocess::InputTensorInfo().set_element_type(inType)));
+                p.input(i).tensor().set_element_type(inType);
             }
         }
     }
@@ -151,8 +150,7 @@ void SubgraphBaseTest::configure_model() {
         auto results = function->get_results();
         for (size_t i = 0; i < results.size(); i++) {
             if (outType != ov::element::Type_t::undefined) {
-                p.output(ov::preprocess::OutputInfo(i)
-                             .tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+                p.output(i).tensor().set_element_type(outType);
             }
         }
     }
@@ -162,12 +160,12 @@ void SubgraphBaseTest::configure_model() {
 void SubgraphBaseTest::compile_model() {
     configure_model();
     if (functionRefs == nullptr) {
-        functionRefs = ov::clone_function(*function);
+        functionRefs = ov::clone_model(*function);
     }
     executableNetwork = core->compile_model(function, targetDevice, configuration);
 }
 
-void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
+void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
     ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
 }
 
@@ -198,7 +196,7 @@ void SubgraphBaseTest::infer() {
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
 
-    auto functionToProcess = ov::clone_function(*functionRefs);
+    auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
     static const precisions_array precisions = {
             { ngraph::element::bf16, ngraph::element::f32 },
@@ -220,7 +218,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
         if (itr != inputs.end()) {
             auto elementType = itr->second.get_element_type();
             if (inputNodes[i].get_element_type() != elementType) {
-                p.input(ov::preprocess::InputInfo(i).tensor(ov::preprocess::InputTensorInfo().set_element_type(elementType)));
+                p.input(i).tensor().set_element_type(elementType);
             }
         } else {
             std::stringstream errMsg;
@@ -233,7 +231,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     const auto& outputs = functionToProcess->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
-            p.output(ov::preprocess::OutputInfo(i).tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+            p.output(i).tensor().set_element_type(outType);
         }
     }
 

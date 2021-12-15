@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "inputs_filling.hpp"
-
-#include <format_reader_ptr.h>
-
 #include <algorithm>
 #include <memory>
-#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
+
+// clang-format off
+#include "samples/slog.hpp"
+#include "format_reader_ptr.h"
+
+#include "inputs_filling.hpp"
+// clang-format on
 
 using namespace InferenceEngine;
 
@@ -117,6 +119,20 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
                     const size_t& inputId,
                     const size_t& inputSize) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+    auto adjBatchSize = batchSize;
+
+    // Check layout
+    std::stringstream ss;
+    auto tensorDesc = inputBlob->getTensorDesc();
+    ss << tensorDesc.getLayout();
+    auto layout = ss.str();
+    std::size_t batchIndex = layout.find("N");
+    if (batchIndex == std::string::npos) {
+        adjBatchSize = 1;
+    } else if (tensorDesc.getDims().at(batchIndex) != batchSize) {
+        adjBatchSize = tensorDesc.getDims().at(batchIndex);
+    }
+
     if (!minput) {
         IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in "
                       "fillBlobBinary, "
@@ -127,7 +143,7 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
     auto minputHolder = minput->wmap();
 
     auto inputBlobData = minputHolder.as<char*>();
-    for (size_t i = 0ULL, inputIndex = requestId * batchSize * inputSize + inputId; i < batchSize;
+    for (size_t i = 0ULL, inputIndex = requestId * adjBatchSize * inputSize + inputId; i < adjBatchSize;
          i++, inputIndex += inputSize) {
         inputIndex %= filePaths.size();
 
@@ -142,7 +158,7 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
         if (!binaryFile.good()) {
             IE_THROW() << "Can not read " << filePaths[inputIndex];
         }
-        auto inputSize = inputBlob->size() * sizeof(T) / batchSize;
+        auto inputSize = inputBlob->size() * sizeof(T) / adjBatchSize;
         if (fileSize != inputSize) {
             IE_THROW() << "File " << filePaths[inputIndex] << " contains " << std::to_string(fileSize)
                        << " bytes "

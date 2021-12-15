@@ -42,21 +42,9 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 ## Convert a Kaldi* Model <a name="Convert_From_Kaldi"></a>
 
 To convert a Kaldi\* model, run Model Optimizer with the path to the input model `.nnet` or `.mdl` file and to an output directory where you have write permissions:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      cd <INSTALL_DIR>/tools/model_optimizer/
-      python3 mo.py --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective 
+```sh
+mo --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Two groups of parameters are available to convert your model:
 
@@ -78,36 +66,15 @@ Kaldi-specific parameters:
 ### Examples of CLI Commands
 
 * To launch the Model Optimizer for the wsj_dnn5b_smbr model with the specified `.nnet` file and an output directory where you have write permissions:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model wsj_dnn5b_smbr.nnet --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model wsj_dnn5b_smbr.nnet --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+   ```sh
+   mo --input_model wsj_dnn5b_smbr.nnet --output_dir <OUTPUT_MODEL_DIR>
+   ```
 
 * To launch the Model Optimizer for the wsj_dnn5b_smbr model with existing file that contains counts for the last layer with biases and a writable output directory:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
+   ```sh
+   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --output_dir <OUTPUT_MODEL_DIR>
+   ```
 
-   .. code-block:: sh
-
-      python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --output_dir <OUTPUT_MODEL_DIR>_
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --output_dir <OUTPUT_MODEL_DIR>_
-
-@endsphinxdirective
   * The Model Optimizer normalizes сounts in the following way:
 	\f[
 	S = \frac{1}{\sum_{j = 0}^{|C|}C_{j}}
@@ -123,26 +90,15 @@ Kaldi-specific parameters:
 
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the
 `--remove_output_softmax` flag:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>_
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>_
-
-@endsphinxdirective
+   ```sh
+   mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>_
+   ```
 
 The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
-  > **NOTE:** Model Optimizer can remove SoftMax layer only if the topology has one output.
+> **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
  
-  > **NOTE:** For sample inference of Kaldi models, you can use the Inference Engine Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
+> **NOTE**: For sample inference of Kaldi models, you can use the Inference Engine Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
   
  If you want to convert a model for inference on Intel® Movidius™ Myriad™, use the `--remove_memory` option. 
 It removes Memory layers from the IR. Instead of it, additional inputs and outputs appear in the IR. 

@@ -7,24 +7,10 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
 endif()
 
-add_subdirectory(offline_transformations)
-
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
 endif()
 
-if(ENABLE_CLDNN)
-    add_subdirectory(cldnn_engine)
-endif()
-
 if(ENABLE_VPU)
     add_subdirectory(vpu)
-endif()
-
-if(ENABLE_GNA)
-    add_subdirectory(gna_plugin)
-endif()
-
-if(ENABLE_MULTI)
-    add_subdirectory(multi_device)
 endif()

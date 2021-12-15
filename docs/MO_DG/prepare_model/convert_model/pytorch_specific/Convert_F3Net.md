@@ -7,7 +7,7 @@
 To clone the repository, run the following command:
 
 ```sh
-git clone http://github.com/weijun88/F3Net.git" 
+git clone http://github.com/weijun88/F3Net.git 
 ```
 
 ## Download and Convert the Model to ONNX*
@@ -28,17 +28,6 @@ The script generates the ONNX\* model file f3net.onnx. This model conversion was
 
 ## Convert ONNX* F3Net Model to IR
 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model <MODEL_DIR>/f3net.onnx
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <MODEL_DIR>/f3net.onnx
-
-@endsphinxdirective
+```sh
+mo --input_model <MODEL_DIR>/f3net.onnx
+```

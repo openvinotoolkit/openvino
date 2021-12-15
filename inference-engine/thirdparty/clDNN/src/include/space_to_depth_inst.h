@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/space_to_depth.hpp"
+#include "intel_gpu/primitives/space_to_depth.hpp"
 #include "primitive_inst.h"
 
 #include <string>

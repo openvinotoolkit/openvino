@@ -628,22 +628,11 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
 
 ## Run Model Optimizer
 
-To convert the model to the Intermediate Representation (IR), run Model Optimizer using the command for your type of OpenVINO™ installation:
+To convert the model to the Intermediate Representation (IR), run Model Optimizer:
 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 <INSTALL_DIR>/deployment_tools/model_optimizer/mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+```
 
 You need to have have write permissions for an output directory.
 

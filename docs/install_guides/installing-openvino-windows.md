@@ -121,8 +121,7 @@ The environment variables are set. Next, you will configure the Model Optimizer.
 
 ## <a name="model-optimizer">Step 4: Configure the Model Optimizer
 
-The Model Optimizer is a Python\*-based command line tool for importing
-trained models from popular deep learning frameworks such as Caffe\*,
+The Model Optimizer is a Python\*-based command line tool for importing trained models from popular deep learning frameworks such as Caffe\*,
 TensorFlow\*, Apache MXNet\*, ONNX\* and Kaldi\*.
 
 The Model Optimizer is a key component of the Intel Distribution of OpenVINO toolkit. Performing inference on a model 

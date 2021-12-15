@@ -20,23 +20,11 @@
 
 @endsphinxdirective
 
-To convert the model to the Intermediate Representation (IR), run Model Optimizer using the command for your type of OpenVINO™ installation:
+To convert the model to the Intermediate Representation (IR), run Model Optimizer using the following command:
 
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 <INSTALL_DIR>/tools/model_optimizer/mo.py \
-         --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+```
 
 The output directory must have write permissions, so you can run Model Optimizer from the output directory or specify an output path with the `--output_dir` option.
 
@@ -217,188 +205,65 @@ Resulting Intermediate Representation will not be resizable with the help of Inf
 ## Examples of CLI Commands
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with debug log level:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --log_level DEBUG --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --log_level DEBUG --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model bvlc_alexnet.caffemodel --log_level DEBUG --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with the output IR called `result.*` in the specified `output_dir`:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/
-
-@endsphinxdirective
+```sh
+mo --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/
+```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with one input with scale values:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59] --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59] --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59] --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale values:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale and mean values specified for the particular nodes:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with specified input layer, overridden input shape, scale 5, batch 8 and specified name of an output operation:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
-
+```sh
+mo --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
+```
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with disabled fusing for linear operations to Convolution and grouped convolutions:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with reversed input channels order between RGB and BGR, specified mean values to be used for the input image per channel and specified data type for input tensor values:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto.
  file For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
+```
 
 Launch the Model Optimizer for TensorFlow* FaceNet* model with a placeholder freezing value. 
 It replaces the placeholder with a constant layer that contains the passed value.
 For more information about FaceNet conversion, please refer to [this](tf_specific/Convert_FaceNet_From_Tensorflow.md) page.
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model FaceNet.pb --input "phase_train->False" --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model FaceNet.pb --input "phase_train->False" --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
-
+```sh
+mo --input_model FaceNet.pb --input "phase_train->False" --output_dir <OUTPUT_MODEL_DIR>
+```
 Launch the Model Optimizer for any model with a placeholder freezing tensor of values. 
 It replaces the placeholder with a constant layer that contains the passed values.
 
 Tensor here is represented in square brackets with each value separated from another by a whitespace. 
 If data type is set in the model, this tensor will be reshaped to a placeholder shape and casted to placeholder data type.
 Otherwise, it will be casted to data type passed to `--data_type` parameter (by default, it is FP32).
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
+```sh
+mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --output_dir <OUTPUT_MODEL_DIR>
+```
 
 
 ## See Also

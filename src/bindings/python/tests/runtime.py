@@ -8,11 +8,11 @@ from typing import Dict, List, Union
 
 import numpy as np
 
-from openvino import Core
+from openvino.runtime import Core
 
-from openvino.exceptions import UserInputError
-from openvino.impl import Function, Node, PartialShape, Type
-from openvino.utils.types import NumericData, get_shape, get_dtype
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime import Model, Node, PartialShape, Type
+from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
 
 import tests
 
@@ -50,17 +50,17 @@ class Runtime(object):
     def __repr__(self) -> str:
         return "<Runtime: Backend='{}'>".format(self.backend_name)
 
-    def computation(self, node_or_function: Union[Node, Function], *inputs: Node) -> "Computation":
+    def computation(self, node_or_function: Union[Node, Model], *inputs: Node) -> "Computation":
         """Return a callable Computation object."""
         if isinstance(node_or_function, Node):
-            ng_function = Function(node_or_function, inputs, node_or_function.name)
+            ng_function = Model(node_or_function, inputs, node_or_function.name)
             return Computation(self, ng_function)
-        elif isinstance(node_or_function, Function):
+        elif isinstance(node_or_function, Model):
             return Computation(self, node_or_function)
         else:
             raise TypeError(
-                "Runtime.computation must be called with an nGraph Function object "
-                "or an nGraph node object an optionally Parameter node objects. "
+                "Runtime.computation must be called with an OpenVINO Model object "
+                "or an OpenVINO node object an optionally Parameter node objects. "
                 "Called with: %s",
                 node_or_function,
             )
@@ -69,7 +69,7 @@ class Runtime(object):
 class Computation(object):
     """nGraph callable computation object."""
 
-    def __init__(self, runtime: Runtime, ng_function: Function) -> None:
+    def __init__(self, runtime: Runtime, ng_function: Model) -> None:
         self.runtime = runtime
         self.function = ng_function
         self.parameters = ng_function.get_parameters()
@@ -83,12 +83,13 @@ class Computation(object):
     def convert_buffers(self, source_buffers, target_dtypes):
         converted_buffers = []
         for i in range(len(source_buffers)):
+            k = list(source_buffers)[i]
             target_dtype = target_dtypes[i]
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:
-                converted_buffers.append((source_buffers[i].view(np.uint32) >> 16).astype(np.uint16))
+                converted_buffers.append((source_buffers[k].view(np.uint32) >> 16).astype(np.uint16))
             else:
-                converted_buffers.append(source_buffers[i].astype(target_dtype))
+                converted_buffers.append(source_buffers[k].astype(target_dtype))
         return converted_buffers
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:

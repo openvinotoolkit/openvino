@@ -16,9 +16,9 @@ set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 add_subdirectory(src)
 
-if(NGRAPH_UNIT_TEST_ENABLE)
+if(ENABLE_OV_CORE_UNIT_TESTS)
     add_subdirectory(tests/mock/mock_py_ov_frontend)
-    add_dependencies(_pyngraph mock_py_ov_frontend)
+    add_dependencies(pyopenvino mock_py_ov_frontend)
     set_target_properties(mock_py_ov_frontend PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
@@ -26,7 +26,7 @@ if(NGRAPH_UNIT_TEST_ENABLE)
             PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
 
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
-    add_dependencies(_pyngraph pybind_mock_frontend)
+    add_dependencies(pyopenvino pybind_mock_frontend)
 endif()
 
 if(InferenceEngineDeveloperPackage_FOUND)

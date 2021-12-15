@@ -72,23 +72,9 @@ The list of supported topologies from the [models v1.5](https://github.com/Paddl
 The Model Optimizer process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
 To convert an ONNX\* model, run Model Optimizer with the path to the input model `.nnet` file and an output directory where you have write permissions:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      cd <INSTALL_DIR>/tools/model_optimizer/
-      python3 mo.py --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
-
-@endsphinxdirective
-
-
+```sh
+ mo --input_model <INPUT_MODEL>.onnx --output_dir <OUTPUT_MODEL_DIR>
+```
 There are no ONNX\* specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 
 ## Supported ONNX\* Layers

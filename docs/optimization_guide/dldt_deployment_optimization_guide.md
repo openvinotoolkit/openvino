@@ -58,7 +58,7 @@ You can compare the pseudo-codes for the regular and async-based approaches:
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
 
-There are important performance caveats though: for example, the tasks that run in parallel should try to avoid oversubscribing the shared compute resources. If the inference is performed on the FPGA and the CPU is essentially idle, it makes sense to do things on the CPU in parallel. However, multiple infer requests can oversubscribe that. Notice that heterogeneous execution can implicitly use the CPU, refer to <a href="#heterogeneity">Heterogeneity</a>.
+There are important performance caveats though: for example, the tasks that run in parallel should try to avoid oversubscribing the shared compute resources. If the inference is performed on the HDDL and the CPU is essentially idle, it makes sense to do things on the CPU in parallel. However, multiple infer requests can oversubscribe that. Notice that heterogeneous execution can implicitly use the CPU, refer to <a href="#heterogeneity">Heterogeneity</a>.
 
 Also, if the inference is performed on the graphics processing unit (GPU), it can take little gain to do the encoding, for instance, of the resulting video, on the same GPU in parallel, because the device is already busy.
 
@@ -92,7 +92,7 @@ If your application simultaneously executes multiple infer requests:
 
 	-	`KEY_EXCLUSIVE_ASYNC_REQUESTS` option affects only device queues of the individual application.
 
--	For FPGA and GPU, the actual work is serialized by a plugin and/or a driver anyway.
+-	For GPU, the actual work is serialized by a plugin and/or a driver anyway.
 
 - 	Finally, for <a href="#myriad">any VPU flavor</a>, using multiple requests is a must for achieving good throughput. 
 
@@ -126,7 +126,7 @@ Refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentati
 
 ## Device Optimizations
 
-The Inference Engine supports several target devices (CPU, GPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, Intel® Vision Accelerator Design with Intel® Movidius™ Vision Processing Units (VPU) and FPGA), and each of them has a corresponding plugin. If you want to optimize a specific device, you must keep in mind the following tips to increase the performance.
+The Inference Engine supports several target devices (CPU, GPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, Intel® Vision Accelerator Design with Intel® Movidius™ Vision Processing Units (VPU)), and each of them has a corresponding plugin. If you want to optimize a specific device, you must keep in mind the following tips to increase the performance.
 
 ### CPU Checklist <a name="cpu-checklist"></a>
 
@@ -230,15 +230,15 @@ Every Inference Engine sample supports the `-d` (device) option.
 For example, here is a command to run an [Object Detection Sample SSD Sample](../../inference-engine/samples/object_detection_sample_ssd/README.md):
 
 ```sh
-./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:FPGA,CPU
+./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:GPU,CPU
 ```
 
 where:
 
 -	`HETERO` stands for Heterogeneous plugin.
--	`FPGA,CPU` points to fallback policy with first priority on FPGA and further fallback to CPU.
+-	`GPU,CPU` points to fallback policy with first priority on GPU and further fallback to CPU.
 
-You can point more than two devices: `-d HETERO:FPGA,GPU,CPU`.
+You can point more than two devices: `-d HETERO:HDDL,GPU,CPU`.
 
 ### General Tips on GPU/CPU Execution <a name="tips-on-gpu-cpu-execution"></a>
 
@@ -267,9 +267,7 @@ After enabling the configuration key, the heterogeneous plugin generates two fil
 -	`hetero_affinity.dot` - per-layer affinities. This file is generated only if default fallback policy was executed (as otherwise you have set the affinities by yourself, so you know them).
 -	`hetero_subgraphs.dot` - affinities per sub-graph. This file is written to the disk during execution of `Core::LoadNetwork` for the heterogeneous flow.
 
-You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `.pdf`), like xdot\*, available on Linux\* OS with `sudo apt-get install xdot`. Below is an example of the output trimmed to the two last layers (one executed on the FPGA and another on the CPU):
-
-![](../img/output_trimmed.png)
+You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `.pdf`), like xdot\*, available on Linux\* OS with `sudo apt-get install xdot`. 
 
 You can also use performance data (in the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
 

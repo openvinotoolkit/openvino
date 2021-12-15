@@ -28,37 +28,13 @@ They are `decoder`, `encoder` and a combined `decoder(encoder(x))` models, respe
 ## Convert ONNX* QuartzNet model to IR
 
 If using a combined model:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model <MODEL_DIR>/qt.onnx --input_shape [B,64,X]
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo --input_model <MODEL_DIR>/qt.onnx --input_shape [B,64,X]
-
-@endsphinxdirective
-
+```sh
+mo --input_model <MODEL_DIR>/qt.onnx --input_shape [B,64,X]
+```
 If using separate models:
-@sphinxdirective
-.. tab:: Package, Docker, open-source installation
-
-   .. code-block:: sh
-
-      python3 mo.py --input_model <MODEL_DIR>/encoder_qt.onnx --input_shape [B,64,X]
-      python3 mo.py --input_model <MODEL_DIR>/decoder_qt.onnx --input_shape [B,1024,Y]
-
-.. tab:: pip installation
-
-    .. code-block:: sh
-
-      mo ---input_model <MODEL_DIR>/encoder_qt.onnx --input_shape [B,64,X]
-      mo --input_model <MODEL_DIR>/decoder_qt.onnx --input_shape [B,1024,Y]
-
-@endsphinxdirective
+```sh
+mo --input_model <MODEL_DIR>/encoder_qt.onnx --input_shape [B,64,X]
+mo --input_model <MODEL_DIR>/decoder_qt.onnx --input_shape [B,1024,Y]
+```
 
 Where shape is determined by the audio file Mel-Spectrogram length: B - batch dimension, X - dimension based on the input length, Y - determined by encoder output, usually `X / 2`.

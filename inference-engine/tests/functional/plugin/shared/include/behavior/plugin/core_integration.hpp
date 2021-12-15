@@ -53,6 +53,7 @@ public:
 };
 
 using IEClassNetworkTestP = BehaviorTestsUtils::IEClassBaseTestP;
+using IEClassLoadNetworkTestWithThrow = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetMetricTest = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassQueryNetworkTest = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassGetMetricTest_SUPPORTED_METRICS = BehaviorTestsUtils::IEClassBaseTestP;
@@ -468,7 +469,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
         }
         for (const auto & op : net.getFunction()->get_ops()) {
             std::string affinity = rl_map[op->get_friendly_name()];
-            op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            op->get_rt_info()["affinity"] = affinity;
         }
         InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork, deviceName);
     } catch (const InferenceEngine::NotImplemented & ex) {
@@ -491,7 +492,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
         }
         for (const auto & op : ksoCnnNetwork.getFunction()->get_ops()) {
             std::string affinity = rl_map[op->get_friendly_name()];
-            op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            op->get_rt_info()["affinity"] = affinity;
         }
         InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoCnnNetwork, deviceName);
     } catch (const InferenceEngine::Exception& ex) {
@@ -928,6 +929,12 @@ TEST_P(IEClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
         auto actual_shape = actual_results[i]->get_input_shape(0);
         ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
     }
+}
+
+TEST_P(IEClassLoadNetworkTestWithThrow, LoadNetworkActualWithThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, deviceName), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoThrow) {
