@@ -13,7 +13,7 @@ def create_data_loader(config, model):
     :return: instance of DataLoader descendant class
     """
 
-    inputs = get_nodes_by_type(model, ['Parameter'])
+    inputs = get_nodes_by_type(model, ['Parameter'], recursively=False)
 
     if len(inputs) > 1 and\
             not any([tuple(i.shape) == (1, 3) for i in inputs]):
@@ -26,6 +26,7 @@ def create_data_loader(config, model):
         if tuple(in_node.shape) != (1, 3):
             data_loader = ImageLoader(config)
             data_loader.shape = in_node.shape
+            data_loader.get_layout(in_node)
             return data_loader
 
     if data_loader is None:

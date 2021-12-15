@@ -8,7 +8,7 @@
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "program_node.h"
-#include "cldnn/runtime/engine.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include "runtime/cldnn_itt.hpp"
 #include <iostream>
 #include <cmath>
@@ -54,5 +54,9 @@ void compile_graph::run(program& p) {
 
         task_executor->runAndWait(tasks);
         tasks.clear();
+
+        if (exception) {
+            std::rethrow_exception(exception);
+        }
     }
 }

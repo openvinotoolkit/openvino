@@ -3,7 +3,7 @@
 
 import pytest
 import tensorflow as tf
-from mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
     shaped_data, connect_front
 
@@ -26,7 +26,7 @@ class TestTFRandomUniform(CommonTFLayerTest):
             x = tf.compat.v1.placeholder(input_type, tf_x_shape, 'Input')
             if global_seed is not None:
                 tf.compat.v1.random.set_random_seed(global_seed)
-            random_uniform = tf.random.uniform(x_shape, seed=op_seed, dtype=input_type, minval=min_val,
+            random_uniform = tf.random.uniform(tf_x_shape, seed=op_seed, dtype=input_type, minval=min_val,
                                                maxval=max_val) + x
 
             tf.compat.v1.global_variables_initializer()
@@ -80,6 +80,7 @@ class TestTFRandomUniform(CommonTFLayerTest):
         dict(global_seed=32465, op_seed=48971, min_val=0.0, max_val=1.0, x_shape=[3, 7], input_type=tf.float32),
         marks=pytest.mark.precommit),
         dict(global_seed=None, op_seed=56197, min_val=-100, max_val=100, x_shape=[6], input_type=tf.float32),
+        dict(global_seed=None, op_seed=56197, min_val=-100, max_val=100, x_shape=[1, 2, 1, 1], input_type=tf.float32),
         dict(global_seed=78132, op_seed=None, min_val=-200, max_val=-50, x_shape=[5, 8], input_type=tf.int32),
         dict(global_seed=4571, op_seed=48971, min_val=1.5, max_val=2.3, x_shape=[7], input_type=tf.float32),
         dict(global_seed=32465, op_seed=12335, min_val=-150, max_val=-100, x_shape=[18], input_type=tf.int32)]

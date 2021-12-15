@@ -56,12 +56,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const element::Type& data_type, const op::AutoBroadcastSpec& broadcast,
+    static std::shared_ptr<Model> CreateFunction(const element::Type& data_type, const op::AutoBroadcastSpec& broadcast,
                                                     const PartialShape& select_pshape, const PartialShape& if_pshape, const PartialShape& else_pshape) {
         auto A = std::make_shared<op::v0::Parameter>(element::boolean, select_pshape);
         auto B = std::make_shared<op::v0::Parameter>(data_type, if_pshape);
         auto C = std::make_shared<op::v0::Parameter>(data_type, else_pshape);
-        return std::make_shared<ov::Function>(std::make_shared<op::v1::Select>(A, B, C, broadcast), ParameterVector {A, B, C});
+        return std::make_shared<ov::Model>(std::make_shared<op::v1::Select>(A, B, C, broadcast), ParameterVector {A, B, C});
     }
 };
 

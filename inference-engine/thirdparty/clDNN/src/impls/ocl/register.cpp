@@ -28,6 +28,7 @@ void register_implementations() {
     REGISTER_OCL(depth_to_space);
     REGISTER_OCL(detection_output);
     REGISTER_OCL(batch_to_space);
+    REGISTER_OCL(experimental_detectron_roi_feature_extractor);
     REGISTER_OCL(eltwise);
     REGISTER_OCL(fully_connected);
     REGISTER_OCL(gather);
@@ -53,6 +54,7 @@ void register_implementations() {
     REGISTER_OCL(reorg_yolo);
     REGISTER_OCL(reshape);
     REGISTER_OCL(reverse_sequence);
+    REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(scale);
     REGISTER_OCL(scatter_update);
@@ -75,6 +77,7 @@ void register_implementations() {
     REGISTER_OCL(cum_sum);
     REGISTER_OCL(embedding_bag);
     REGISTER_OCL(extract_image_patches);
+    REGISTER_OCL(convert_color);
 }
 
 }  // namespace ocl
