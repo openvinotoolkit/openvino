@@ -22,7 +22,6 @@ public:
     bool created() const override;
 
     void executeDynamicImpl(mkldnn::stream strm) override;
-    bool needPrepareParams() const override;
     void prepareParams() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;

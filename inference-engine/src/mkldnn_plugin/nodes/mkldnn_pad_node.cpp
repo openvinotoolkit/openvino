@@ -231,10 +231,6 @@ bool MKLDNNPadNode::isExecutable() const {
     return !isOutputTensorAtPortEmpty(0);
 }
 
-bool MKLDNNPadNode::needPrepareParams() const {
-    return inputShapesModified();
-}
-
 void MKLDNNPadNode::prepareParams() {
     execPtr = std::make_shared<PadExecutor>(attrs,
                                             getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),

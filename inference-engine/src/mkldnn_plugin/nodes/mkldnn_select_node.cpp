@@ -152,10 +152,6 @@ void MKLDNNSelectNode::prepareParams() {
     }
 }
 
-bool MKLDNNSelectNode::needPrepareParams() const {
-    return inputShapesModified();
-}
-
 void MKLDNNSelectNode::calcOutOffset(VectorDims& offset, const VectorDims& dims) {
     int k = 1;
     for (int i = dims.size() - 1; i >= 0; i--) {

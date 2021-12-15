@@ -372,10 +372,6 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts(const MKLDNNMemoryPtr& src
     }
 }
 
-bool MKLDNNStridedSliceNode::needPrepareParams() const {
-    return inputShapesModified();
-}
-
 void MKLDNNStridedSliceNode::prepareParams() {
     execPtr = std::make_shared<StridedSliceExecutor>(attrs,
                                                      getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),

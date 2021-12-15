@@ -86,7 +86,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    bool needPrepareParams() const override;
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;

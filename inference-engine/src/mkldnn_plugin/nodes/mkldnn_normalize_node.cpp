@@ -858,10 +858,6 @@ bool MKLDNNNormalizeL2Node::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-bool MKLDNNNormalizeL2Node::needPrepareParams() const {
-    return inputShapesModified();
-}
-
 void MKLDNNNormalizeL2Node::prepareParams() {
     const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
     setPostOps(kernel_attrs, dims, true);

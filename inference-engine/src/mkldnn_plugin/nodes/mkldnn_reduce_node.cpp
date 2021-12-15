@@ -1831,10 +1831,6 @@ bool MKLDNNReduceNode::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }
 
-bool MKLDNNReduceNode::needPrepareParams() const {
-    return inputShapesModified();
-}
-
 void MKLDNNReduceNode::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;

@@ -21,7 +21,6 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    bool needPrepareParams() const override;
     void prepareParams() override;
 
     bool isExecutable() const override;
