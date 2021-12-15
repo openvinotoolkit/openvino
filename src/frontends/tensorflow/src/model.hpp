@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "common/extensions/telemetry_extension.hpp"
+#include "common/extension/telemetry.hpp"
 #include "common/input_model.hpp"
 #include "common/place.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"

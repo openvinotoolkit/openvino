@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "common/extensions/telemetry_extension.hpp"
+#include "common/extension/telemetry.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
 #include "ngraph/function.hpp"

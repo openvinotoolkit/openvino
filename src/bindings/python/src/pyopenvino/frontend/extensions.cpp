@@ -7,10 +7,10 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/extensions/decoder_transformation_extension.hpp"
-#include "common/extensions/telemetry_extension.hpp"
+#include "common/extension/decoder_transformation.hpp"
+#include "common/extension/telemetry.hpp"
 #include "common/frontend_exceptions.hpp"
-#include "json_extension/json_config_extension.hpp"
+#include "extension/json_config.hpp"
 #include "manager.hpp"
 #include "pyopenvino/graph/function.hpp"
 

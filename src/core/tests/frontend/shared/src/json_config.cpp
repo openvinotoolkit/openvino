@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "json_config_extension.hpp"
+#include "json_config.hpp"
 
-#include <json_extension/json_config_extension.hpp>
-#include <json_extension/json_transformation_extension.hpp>
+#include <extension/json_config.hpp>
+#include <extension/json_transformation.hpp>
 #include <nlohmann/json-schema.hpp>
 #include <ostream>
 #include <util/graph_comparator.hpp>

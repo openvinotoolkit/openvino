@@ -16,7 +16,7 @@ target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_common engines_test_util
         offline_transformations ngraph cnpy commonTestUtils ngraph_test_util openvino::util
-        test_builtin_extensions_1 test_builtin_extensions_2)
+        nlohmann_json_schema_validator test_builtin_extensions_1 test_builtin_extensions_2)
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE

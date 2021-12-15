@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <json_extension/json_transformation_extension.hpp>
+#include <extension/json_transformation.hpp>
 #include <nlohmann/json.hpp>
 
 class TestExtension1 : public ov::frontend::JsonTransformationExtension {

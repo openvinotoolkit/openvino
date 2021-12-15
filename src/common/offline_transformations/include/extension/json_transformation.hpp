@@ -8,9 +8,8 @@
 #include <iostream>
 #include <type_traits>
 
-#include "common/extensions/decoder_transformation_extension.hpp"
+#include "common/extension/decoder_transformation.hpp"
 #include "common/frontend_defs.hpp"
-#include "nlohmann/json.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -19,8 +18,8 @@
 namespace ov {
 namespace frontend {
 
-/// \brief Describes transformation that JsonConfigExtension can use as a target transformation spedified by ID.
-/// JsonTransformationExtension passes JSON parsed object and mathed points in the graph to JsonTransformationExtension
+/// \brief Describes transformation that JsonConfigExtension can use as a target transformation specified by ID.
+/// JsonTransformationExtension passes JSON parsed object and matched points in the graph to JsonTransformationExtension
 /// instance, which is derived from DecoderTransformationExtension. DecoderTransformationExtension itself cannot be
 /// used for this purpose because we need to pass those additional objects which are the result of JSON parsing and
 /// graph matching that JsonTransformationExtension performs.
@@ -42,6 +41,10 @@ public:
         return m_id;
     }
 
+    /// \brief Modifies OV Model according to the provided rules.
+    ///
+    /// \param[in]  function                   The OV Model object.
+    /// \param[in]  replacement_descriptions   The rules to modify the model in .json format.
     virtual bool transform(const std::shared_ptr<ov::Model>& function,
                            const std::string& replacement_descriptions) const = 0;
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <common/extensions/telemetry_extension.hpp>
+#include <common/extension/telemetry.hpp>
 #include <manager.hpp>
 
 #include "paddlepaddle_frontend/utility.hpp"

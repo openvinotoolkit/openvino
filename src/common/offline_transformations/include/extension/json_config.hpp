@@ -8,7 +8,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include "common/extensions/decoder_transformation_extension.hpp"
+#include "common/extension/decoder_transformation.hpp"
 #include "common/frontend_defs.hpp"
 
 namespace ov {

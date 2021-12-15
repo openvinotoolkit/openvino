@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "common/extensions/telemetry_extension.hpp"
+#include "common/extension/telemetry.hpp"
 #include "ngraph/function.hpp"
 
 namespace ONNX_NAMESPACE {

@@ -4,7 +4,7 @@
 
 #include "telemetry.hpp"
 
-#include <common/extensions/telemetry_extension.hpp>
+#include <common/extension/telemetry.hpp>
 
 #include "utils.hpp"
 

@@ -7,8 +7,8 @@
 #include <functional>
 #include <map>
 
-#include "common/extensions/decoder_transformation_extension.hpp"
-#include "common/extensions/telemetry_extension.hpp"
+#include "common/extension/decoder_transformation.hpp"
+#include "common/extension/telemetry.hpp"
 #include "common/frontend.hpp"
 #include "common/input_model.hpp"
 #include "openvino/core/any.hpp"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "json_config_extension.hpp"
+#include "json_config.hpp"
 
 #include "paddle_utils.hpp"
 

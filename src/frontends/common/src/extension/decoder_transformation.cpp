@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common/extensions/decoder_transformation_extension.hpp"
+#include "common/extension/decoder_transformation.hpp"
 
 #include <utility>
 

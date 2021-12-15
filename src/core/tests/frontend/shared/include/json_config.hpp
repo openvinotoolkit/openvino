@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <json_extension/json_config_extension.hpp>
+#include <extension/json_config.hpp>
 #include <manager.hpp>
 
 class JsonConfigExtensionWrapper : public ov::frontend::JsonConfigExtension {

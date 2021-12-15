@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <common/extensions/decoder_transformation_extension.hpp>
-#include <common/extensions/telemetry_extension.hpp>
+#include <common/extension/decoder_transformation.hpp>
+#include <common/extension/telemetry.hpp>
 #include <common/frontend.hpp>
 
 #ifdef OPENVINO_STATIC_LIBRARY

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "json_extension/json_config_extension.hpp"
+#include "extension/json_config.hpp"
 
 #include "nlohmann/json-schema.hpp"
-#include "common/extensions/decoder_transformation_extension.hpp"
-#include "json_extension/json_transformation_extension.hpp"
+#include "common/extension/decoder_transformation.hpp"
+#include "extension/json_transformation.hpp"
 #include "so_extension.hpp"
 
 namespace {

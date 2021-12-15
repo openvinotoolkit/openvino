@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common/extensions/telemetry_extension.hpp"
+#include "common/extension/telemetry.hpp"
 
 using namespace ov::frontend;
 
