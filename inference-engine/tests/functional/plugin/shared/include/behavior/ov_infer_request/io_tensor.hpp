@@ -34,8 +34,8 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
     void SetUp() override;
     void TearDown() override;
     std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
-    std::shared_ptr<ov::Function> function;
-    runtime::ExecutableNetwork execNet;
+    std::shared_ptr<ov::Model> function;
+    runtime::CompiledModel execNet;
     runtime::InferRequest req;
     std::string         target_device;
     runtime::ConfigMap  config;

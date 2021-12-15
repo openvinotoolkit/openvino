@@ -110,7 +110,7 @@ public:
         adapter.set(stringToType<int64_t>(val));
     }
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override;
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override;
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {
         std::vector<int32_t> value;
@@ -165,8 +165,8 @@ private:
     /// \param node xml node representation
     /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
-    std::shared_ptr<ov::Function> parse_function(const pugi::xml_node& root,
-                                                 const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
+    std::shared_ptr<ov::Model> parse_function(const pugi::xml_node& root,
+                                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute

@@ -73,7 +73,7 @@ protected:
     std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
 };
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
@@ -92,7 +92,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreat
 
 TEST_P(OVExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    auto execGraph = execNet.get_runtime_function();
+    auto execGraph = execNet.get_runtime_model();
     EXPECT_NE(execGraph, nullptr);
 }
 
@@ -146,7 +146,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck)
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
-    std::vector<ov::runtime::ExecutableNetwork> vec;
+    std::vector<ov::runtime::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
         EXPECT_NE(nullptr, function);
@@ -154,11 +154,11 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworks) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
-    std::vector<ov::runtime::ExecutableNetwork> vec;
+    std::vector<ov::runtime::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, targetDevice, configuration)));
-        EXPECT_NE(nullptr, vec[i].get_runtime_function());
-        EXPECT_NE(vec.begin()->get_runtime_function(), vec[i].get_runtime_function());
+        EXPECT_NE(nullptr, vec[i].get_runtime_model());
+        EXPECT_NE(vec.begin()->get_runtime_model(), vec[i].get_runtime_model());
     }
 }
 
@@ -201,10 +201,10 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
-    std::shared_ptr<const ov::Function> execGraph;
+    std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    EXPECT_NO_THROW(execGraph = execNet.get_runtime_function());
+    EXPECT_NO_THROW(execGraph = execNet.get_runtime_model());
     std::map<std::string, int> originalLayersMap;
     for (const auto& layer : function->get_ops()) {
         originalLayersMap[layer->get_friendly_name()] = 0;
@@ -220,10 +220,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-
-            return value->get();
+            return it->second.as<std::string>();
         };
 
         // Each layer from the execGraphInfo network must have PM data option set
@@ -254,10 +251,10 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
-    std::shared_ptr<const ov::Function> execGraph;
+    std::shared_ptr<const ov::Model> execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    EXPECT_NO_THROW(execGraph = execNet.get_runtime_function());
+    EXPECT_NO_THROW(execGraph = execNet.get_runtime_model());
     std::map<std::string, int> originalLayersMap;
     for (const auto& layer : function->get_ops()) {
         originalLayersMap[layer->get_friendly_name()] = 0;
@@ -274,10 +271,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
-            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            IE_ASSERT(nullptr != value);
-
-            return value->get();
+            return it->second.as<std::string>();
         };
 
         // At least one layer in the topology should be executed and have valid perf counter value
@@ -337,7 +331,7 @@ TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
 TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
@@ -364,7 +358,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(function->outputs().size(), 1);
@@ -390,7 +384,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
 TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     // Create simple function
     {
@@ -461,7 +455,7 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     // Create simple function
     {
@@ -532,7 +526,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
 
     // Create simple function
     {
@@ -598,7 +592,7 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
 
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(function, targetDevice, configuration));
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
@@ -622,7 +616,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
-    ov::runtime::ExecutableNetwork execNet;
+    ov::runtime::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, targetDevice, configuration));
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
@@ -638,6 +632,23 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     EXPECT_EQ(ref_result->get_element_type(), actual_result->get_element_type());
     EXPECT_EQ(ref_result->get_shape(), actual_result->get_shape());
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());
+}
+
+TEST_P(OVExecutableNetworkBaseTest, getCompiledModelFromInferRequest) {
+    ov::runtime::InferRequest req;
+    {
+        ov::runtime::CompiledModel compiled_model;
+        ASSERT_NO_THROW(compiled_model = core->compile_model(function, targetDevice, configuration));
+        ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+        ASSERT_NO_THROW(req.infer());
+    }
+    {
+        ov::runtime::CompiledModel restored_compiled_model;
+        ov::runtime::InferRequest another_req;
+        ASSERT_NO_THROW(restored_compiled_model = req.get_compiled_model());
+        ASSERT_NO_THROW(another_req = restored_compiled_model.create_infer_request());
+        ASSERT_NO_THROW(another_req.infer());
+    }
 }
 }  // namespace behavior
 }  // namespace test
