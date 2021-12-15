@@ -210,6 +210,8 @@ private:
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
     std::thread                                                         _recycleThread;
+    std::mutex                                                          _recycleMutex;
+    std::condition_variable                                             _recycleCond;
     bool                                                                _exitFlag = {false};
 };
 

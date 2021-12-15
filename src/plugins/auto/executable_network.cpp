@@ -270,8 +270,15 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     WaitFirstNetworkReady();
     auto recycleTask = [this]() mutable {
         size_t destroynum = 0;
+        std::unique_lock<std::mutex> lock(_recycleMutex);
+        _recycleCond.wait(lock);
         while (!_exitFlag) {
-            if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
+            // in AUTO:CPU/AUTO:GPU case, no need to do extra recycle
+            // leave it to destructor
+            if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
+                _exitFlag = true;
+            } else {
+                // clean up helper heap
                 WorkerInferRequest *workerRequestPtr = nullptr;
                 if (_idleWorkerRequests[_loadContext[CPU].workName].try_pop(workerRequestPtr))
                     destroynum++;
@@ -424,6 +431,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
             if (_loadContext[ACTUALDEVICE].isAlready) {
                 devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
+                _recycleCond.notify_one();
             } else {
                 // replace deviceName with workName, so schedule can select correct
                 // idleWorkerQueue
@@ -477,6 +485,7 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     _exitFlag = true;
     if (_recycleThread.joinable()) {
+        _recycleCond.notify_one();
         _recycleThread.join();
     }
     // this is necessary to guarantee member destroyed after getting future
