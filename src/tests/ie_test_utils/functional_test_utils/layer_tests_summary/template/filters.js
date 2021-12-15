@@ -99,15 +99,15 @@ function filterTable() {
     if (implementation != 0) {
         if (implementation == 'ni') {
             $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('td').hasClass("not_impl"))
+                $(this).toggle($(this).find('td').hasClass("value " + device + " not_impl"))
             });
         } else if (implementation == 'i') {
             $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle($(this).find('td').hasClass("impl"));
+                $(this).toggle($(this).find('td').hasClass("value " + device + " impl"));
             });
         } else {
             $("#report #data tr:not(:hidden)").filter(function () {
-                $(this).toggle(!$(this).find('td').hasClass("not_impl") && !$(this).find('td').hasClass("impl"));
+                $(this).toggle(!$(this).find('td').hasClass("value"));
             });
         }
     }
@@ -116,19 +116,19 @@ function filterTable() {
         selector = [];
         select.forEach(item => {
             if (item == '100p') {
-               selector.push('.value:visible[crashed="0"][failed="0"][skipped="0"]');
+               selector.push('.value:visible[crashed="0"][failed="0"][skipped="0"][value!="---"]');
             }
             if (item == '100f') {
-               selector.push('.value:visible[passed="0"]');
+               selector.push('.value:visible[passed="0"][value!="---"]');
             }
             if (item == 'p') {
-                selector.push('.value:visible[passed!="0"]');
+                selector.push('.value:visible[passed!="0"][value!="---"]');
             }
             if (item == 'f') {
-                selector.push('.value:visible[failed!="0"]');
+                selector.push('.value:visible[failed!="0"][value!="---"]');
             }
             if (item == 'c') {
-                selector.push('.value:visible[crashed!="0"]');
+                selector.push('.value:visible[crashed!="0"][value!="---"]');
             }
             if (item == 's') {
                 selector.push('.value:visible[value!="---"][skipped!="0"]');
