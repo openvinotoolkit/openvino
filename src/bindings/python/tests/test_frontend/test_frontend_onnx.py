@@ -102,10 +102,15 @@ def test_convert():
 
 
 @pytest.mark.parametrize("model_filename, inputs, expected", [
-    [onnx_model_filename, [np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([[2, 3], [4, 5]], dtype=np.float32)],
-        np.array([[1.5, 5], [10.5, 18]], dtype=np.float32)],
-    [onnx_model_with_subgraphs_filename, [np.array(False, dtype=bool), np.array([1, 2, 3], dtype=np.float32), np.array([2, 3, 5], dtype=np.float32)],
-        np.array([-1, -1, -2], dtype=np.float32)],
+    [onnx_model_filename,
+     [np.array([[1, 2], [3, 4]], dtype=np.float32),
+      np.array([[2, 3], [4, 5]], dtype=np.float32)],
+     np.array([[1.5, 5], [10.5, 18]], dtype=np.float32)],
+    [onnx_model_with_subgraphs_filename,
+     [np.array(False, dtype=bool),
+      np.array([1, 2, 3], dtype=np.float32),
+      np.array([2, 3, 5], dtype=np.float32)],
+     np.array([-1, -1, -2], dtype=np.float32)],
 ])
 def test_decode_and_convert(model_filename, inputs, expected):
     skip_if_onnx_frontend_is_disabled()
