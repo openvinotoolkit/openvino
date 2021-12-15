@@ -3,12 +3,12 @@
 //
 
 #include <fstream>
+#include <input_model.hpp>
 #include <onnx_import/onnx.hpp>
-#include <openvino/frontend/common/frontend_exceptions.hpp>
-#include <openvino/frontend/common/frontend_manager.hpp>
+#include <openvino/frontend/common/exceptions.hpp>
+#include <openvino/frontend/common/manager.hpp>
 #include <openvino/frontend/common/telemetry_extension.hpp>
 #include <openvino/frontend/onnx/frontend.hpp>
-#include <openvino/frontend/onnx/input_model.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 

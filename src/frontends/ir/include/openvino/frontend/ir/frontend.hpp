@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "openvino/frontend/common/defs.hpp"
+#include "openvino/frontend/common/exceptions.hpp"
 #include "openvino/frontend/common/frontend.hpp"
-#include "openvino/frontend/common/frontend_defs.hpp"
-#include "openvino/frontend/common/frontend_exceptions.hpp"
 #include "openvino/frontend/common/telemetry_extension.hpp"
 #include "openvino/openvino.hpp"
 

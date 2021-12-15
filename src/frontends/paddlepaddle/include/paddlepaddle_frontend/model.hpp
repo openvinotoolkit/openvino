@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/frontend/common/frontend_manager.hpp>
+#include <openvino/frontend/common/manager.hpp>
 #include <openvino/frontend/common/telemetry_extension.hpp>
 
 #include "paddlepaddle_frontend/utility.hpp"

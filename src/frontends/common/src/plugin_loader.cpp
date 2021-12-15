@@ -61,7 +61,6 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
 
 // TODO: change to std::filesystem for C++17
 static std::vector<std::string> list_files(const std::string& path) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
         const auto prefix = std::string(FRONTEND_LIB_PREFIX);
@@ -82,7 +81,6 @@ static std::vector<std::string> list_files(const std::string& path) {
         // Ignore exceptions
     }
     return res;
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginInfo>& res) {

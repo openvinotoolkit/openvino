@@ -4,7 +4,7 @@
 
 #include "utils.hpp"
 
-#include "openvino/frontend/common/frontend_exceptions.hpp"
+#include "openvino/frontend/common/exceptions.hpp"
 #include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"
 

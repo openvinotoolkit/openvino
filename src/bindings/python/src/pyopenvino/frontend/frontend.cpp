@@ -7,8 +7,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "openvino/frontend/common/frontend_exceptions.hpp"
-#include "openvino/frontend/common/frontend_manager.hpp"
+#include "openvino/frontend/common/exceptions.hpp"
+#include "openvino/frontend/common/manager.hpp"
 #include "openvino/frontend/common/telemetry_extension.hpp"
 #include "pyopenvino/graph/function.hpp"
 

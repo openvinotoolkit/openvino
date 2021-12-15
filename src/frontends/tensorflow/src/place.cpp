@@ -6,7 +6,7 @@
 
 #include "node_context.hpp"
 #include "op_def.pb.h"
-#include "openvino/frontend/common/frontend_exceptions.hpp"
+#include "openvino/frontend/common/exceptions.hpp"
 #include "tensor.pb.h"
 #include "types.pb.h"
 

@@ -25,7 +25,6 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 # create library
 
 add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
-add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -37,10 +36,10 @@ target_include_directories(${TARGET_NAME}
         "${CMAKE_CURRENT_BINARY_DIR}/src")
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC openvino::core)
 set_property(SOURCE
             ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_manager.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/manager.cpp
         APPEND PROPERTY COMPILE_DEFINITIONS
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
@@ -48,9 +47,7 @@ set_property(SOURCE
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    INCLUDE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
-                    ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+                    INCLUDE_DIRECTORY "${FRONTEND_INCLUDE_DIR}")
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Manager of OpenVINO Frontends")
@@ -61,7 +58,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_static STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME}_static)
-    target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
+    target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC openvino::core)
     target_include_directories(${TARGET_NAME}_static PUBLIC
         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>)
     target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

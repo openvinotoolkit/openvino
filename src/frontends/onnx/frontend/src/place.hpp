@@ -13,7 +13,7 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
-class FRONTEND_API PlaceInputEdge : public Place {
+class PlaceInputEdge : public Place {
 public:
     PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
     PlaceInputEdge(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);

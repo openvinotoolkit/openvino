@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "frontend_defs.hpp"
+#include "defs.hpp"
 #include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
@@ -70,18 +70,18 @@ public:
     /// function or another form of convert function should be called to finalize the
     /// conversion process.
     /// \param model Input model
-    /// \return partially converted nGraph function
+    /// \return partially converted OV Model
     virtual std::shared_ptr<ov::Model> convert_partially(InputModel::Ptr model) const;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
-    /// Each decoding node is an nGraph node representing a single FW operation node with
+    /// Each decoding node is an OV node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
-    /// \return nGraph function after decoding
+    /// \return OV function after decoding
     virtual std::shared_ptr<ov::Model> decode(InputModel::Ptr model) const;
 
     /// \brief Runs normalization passes on function that was loaded with partial conversion
-    /// \param function partially converted nGraph function
+    /// \param function partially converted OV function
     virtual void normalize(std::shared_ptr<ov::Model> function) const;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients

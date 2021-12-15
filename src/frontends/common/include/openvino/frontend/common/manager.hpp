@@ -9,8 +9,8 @@
 #include <string>
 
 #include "openvino/core/any.hpp"
+#include "openvino/frontend/common/defs.hpp"
 #include "openvino/frontend/common/frontend.hpp"
-#include "openvino/frontend/common/frontend_defs.hpp"
 
 namespace ov {
 namespace frontend {

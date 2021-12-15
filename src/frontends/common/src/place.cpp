@@ -6,7 +6,7 @@
 
 #include <openvino/util/env_util.hpp>
 
-#include "openvino/frontend/common/frontend_exceptions.hpp"
+#include "openvino/frontend/common/exceptions.hpp"
 #include "utils.hpp"
 
 using namespace ov;
