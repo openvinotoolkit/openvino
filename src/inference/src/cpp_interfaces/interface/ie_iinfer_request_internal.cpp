@@ -134,6 +134,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
             _inputs[name] = userBlob;
             devBlob = userBlob;
         }
+        _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
@@ -159,11 +160,6 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
 }
 
 void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
-    OPENVINO_ASSERT(!blobs.empty(),
-                    "set_input_tensors/set_tensors can't be called with empty blobs for input '",
-                    name,
-                    "'");
-
     bool all_memory = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& item) {
         return item && item->is<MemoryBlob>() && !item->is<RemoteBlob>();
     });
@@ -174,6 +170,22 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
         SetBlob(name, blobs[0]);
         return;
     }
+
+    checkBatchedBlobs(name, blobs);
+
+    SetBlobsImpl(name, std::make_shared<BatchedBlob>(blobs));
+}
+
+void IInferRequestInternal::SetBlobsImpl(const std::string& name, const BatchedBlob::Ptr& batched_blob) {
+    IE_THROW(NotImplemented) << "set_input_tensors/set_tensors are not supported by this plugin";
+}
+
+void IInferRequestInternal::checkBatchedBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
+    OPENVINO_ASSERT(!blobs.empty(),
+                    "set_input_tensors/set_tensors can't be called with empty blobs for input '",
+                    name,
+                    "'");
+
     std::shared_ptr<const ov::op::v0::Parameter> param;
     const auto& inputs = GetInputs();
     for (const auto& input : inputs) {
@@ -224,8 +236,8 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
                     "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
                     batch_idx,
                     " != 0");
-    // Initial implementation always performs creation of new Blob and 'memcpy'
-    // In future consider checking if blobs point to contiguous range of memory
+
+    // In future consider checking if blobs point to contiguous range of memory and use single 'SetBlob' instead
     auto tmp_desc = blobs[0]->getTensorDesc();
     tmp_desc.getDims()[batch_idx] = input_size;
     auto blockingDims = tmp_desc.getBlockingDesc().getBlockDims();
@@ -246,49 +258,58 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
         auto item_desc = item->getTensorDesc();
         item_desc.getDims()[batch_idx] = batched_desc.getDims()[batch_idx];
         OPENVINO_ASSERT(item_desc.getDims() == batched_desc.getDims() &&
-                            item_desc.getLayout() == batched_desc.getLayout() &&
-                            item_desc.getPrecision() == batched_desc.getPrecision() &&
-                            item_desc.getBlockingDesc().getOrder() == batched_desc.getBlockingDesc().getOrder(),
+                        item_desc.getLayout() == batched_desc.getLayout() &&
+                        item_desc.getPrecision() == batched_desc.getPrecision() &&
+                        item_desc.getBlockingDesc().getOrder() == batched_desc.getBlockingDesc().getOrder(),
                         "set_input_tensors/set_tensors error. Blob ",
                         desc_to_string(item_desc),
                         " is not compatible with batched blob ",
                         desc_to_string(batched_desc));
     });
-    _batched_blobs[name] = blobs;
-    _batched_descs[name] = batched_desc;
-
-    // Create batched blob. TODO: no API to get allocator of original blobs, use default one
-    auto batched_blob = make_blob_with_precision(_batched_descs[name]);
-    batched_blob->allocate();
-    SetBlob(name, batched_blob);
-
-    // This is to allow user to 'get_input_tensor' and verify input data. TODO: may not be needed
-    applyBatchedBlob(name, blobs, batched_desc);
 }
 
-void IInferRequestInternal::applyBatchedBlob(const std::string& name,
-                                             const std::vector<Blob::Ptr>& blobs,
-                                             const TensorDesc& desc) {
-    auto batched_mem_blob = as<MemoryBlob>(GetBlob(name));
-    OPENVINO_ASSERT(batched_mem_blob, "Internal error - can't cast batched blob to MemoryBlob");
-    auto ptr = batched_mem_blob->wmap();
-    auto u8_ptr = ptr.as<uint8_t*>();
+void IInferRequestInternal::convertBatchedBlob(const std::string& name,
+                                               const BatchedBlob::Ptr& batched_blob) {
+    auto tmp_desc = batched_blob->getBlob(0)->getTensorDesc();
+    tmp_desc.getDims()[0] = batched_blob->size();
+    auto blockingDims = tmp_desc.getBlockingDesc().getBlockDims();
+    blockingDims[0] = batched_blob->size();
+    auto blockingDesc = BlockingDesc(blockingDims, tmp_desc.getBlockingDesc().getOrder());
+    auto batched_desc = InferenceEngine::TensorDesc(tmp_desc.getPrecision(), tmp_desc.getDims(), blockingDesc);
+    std::shared_ptr<RemoteContext> remote_context;
+    MemoryBlob::Ptr mem_blob;
+    try {
+        auto net = getPointerToExecutableNetworkInternal();
+        if (net) {
+            remote_context = net->GetContext();
+        }
+    } catch(...) {}
+    if (remote_context) {
+        mem_blob = remote_context->CreateHostBlob(batched_desc);
+    } else {
+        mem_blob = std::dynamic_pointer_cast<MemoryBlob>(make_blob_with_precision(batched_desc));
+    }
+    mem_blob->allocate();
+    OPENVINO_ASSERT(mem_blob, "Internal error - can't create remote blob");
+    auto ptr = mem_blob->wmap();
 
     // Perform memory copy
-    for (size_t i = 0; i < blobs.size(); i++) {
-        const auto& blob = as<MemoryBlob>(blobs[i]);
-        OPENVINO_ASSERT(batched_mem_blob, "Internal error - can't cast blob ", i, " to MemoryBlob");
-        memcpy(u8_ptr + i * blob->byteSize(), blob->rmap().as<void*>(), blob->byteSize());
+    for (size_t i = 0; i < batched_blob->size(); i++) {
+        const auto& blob = as<MemoryBlob>(batched_blob->getBlob(i));
+        OPENVINO_ASSERT(mem_blob, "Internal error - can't cast blob ", i, " to MemoryBlob");
+        memcpy(ptr.as<uint8_t*>() + i * blob->byteSize(),
+               blob->rmap().as<uint8_t*>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding(),
+               blob->byteSize());
     }
+    SetBlob(name, mem_blob);
 }
 
-void IInferRequestInternal::applyBatchedBlobs() {
-    for (const auto& item : _batched_blobs) {
-        const auto& name = item.first;
-        const auto& blobs = item.second;
-        OPENVINO_ASSERT(blobs.size() > 1, "Internal error. Batched blob shall have size > 1, got ", blobs.size());
-        applyBatchedBlob(name, blobs, _batched_descs[name]);
+void IInferRequestInternal::convertBatchedBlobs() {
+    auto batched_copy = _batched_inputs;
+    for (const auto& item : batched_copy) {
+        convertBatchedBlob(item.first, item.second);
     }
+    _batched_inputs = batched_copy;
 }
 
 Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {

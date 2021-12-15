@@ -150,6 +150,8 @@ void TemplateInferRequest::allocateBlobs() {
 
 // ! [infer_request:infer_impl]
 void TemplateInferRequest::InferImpl() {
+    // Convert batched blobs (if set) set by set_tensors/set_input_tensors into a single large-size blob
+    convertBatchedBlobs();
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     inferPreprocess();
     startPipeline();
@@ -480,6 +482,7 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             _inputs[name] = userBlob;
             devBlob = userBlob;
         }
+        _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
@@ -512,6 +515,12 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
     }
 }
 // ! [infer_request:set_blob]
+
+// ! [infer_request:set_blobs_impl]
+void TemplateInferRequest::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batchedBlob) {
+    _batched_inputs[name] = batchedBlob;
+}
+// ! [infer_request:set_blobs_impl]
 
 // ! [infer_request:get_performance_counts]
 std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {

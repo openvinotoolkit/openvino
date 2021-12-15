@@ -9,7 +9,7 @@
 #include <string>
 
 #include "cpp/ie_infer_request.hpp"
-#include "ie_blob.h"
+#include "ie_compound_blob.h"
 #include "ie_common.h"
 #include "ie_input_info.hpp"
 #include "ie_preprocess_data.hpp"
@@ -88,15 +88,25 @@ public:
     virtual void SetBlob(const std::string& name, const Blob::Ptr& data);
 
     /**
-     * @brief Set batch of input data to infer
-     * @note Default implementation may allocate new blob with concatenated input blobs into a single batch,
-     * thus memory allocation may occur.
+     * @brief Set batch of input data to infer. Default implementation performs basic validation and checks that all tensors are not remote
      * Plugin-specific implementations may override this behavior to handle remote tensors case
      * @param name - a name of input or output blob.
      * @param blobs - input blobs. The type of Blob must correspond to the network input
      * precision and size.
      */
     virtual void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs);
+
+    /**
+     * @brief Set batch of input data to infer. Default implementation throws "Not implemented" exception
+     * To support 'set_input_tensors'/'set_tensors' plugin-specific implementations shall:
+     *  - Inside SetBlobsImpl: update '_batched_inputs' map
+     *  - Inside 'InferImpl': call 'convertBatchedBlobs' to perform necessary 'memcpy' on inference stage
+     *  - Inside 'SetBlob': erase appropriate '_batched_inputs[name]' item
+     * @param name - a name of input or output blob.
+     * @param batched_blob - input blobs combined in batched blob. Called only if number of blobs > 1
+     * precision and size.
+     */
+    virtual void SetBlobsImpl(const std::string& name, const BatchedBlob::Ptr& batched_blob);
 
     /**
      * @brief Get input/output data to infer
@@ -225,7 +235,7 @@ public:
      * Destination tensor descriptors are calculated on 'SetBlobs' stage and are stored in _batched_descs map
      * @throws Exception if error occurs
      */
-    void applyBatchedBlobs();
+    void convertBatchedBlobs();
 
 protected:
     /**
@@ -265,12 +275,22 @@ protected:
     void addInputPreProcessingFor(const std::string& name, const Blob::Ptr& from, const Blob::Ptr& to);
 
     /**
-     * @brief Performs actual concatenation of  blobs into single tensor
+     * @brief Performs actual concatenation of blobs into single tensor
      * Default implementation may allocate memory for new blob containing user's input data
      * Plugin is allowed to override this behavior
      * @throws Exception if error occurs
      */
-    virtual void applyBatchedBlob(const std::string& name, const std::vector<Blob::Ptr>& blob, const TensorDesc& desc);
+    virtual void convertBatchedBlob(const std::string& name,
+                                    const InferenceEngine::BatchedBlob::Ptr& blob);
+
+    /**
+     * @brief Performs basic validation of user's blobs set via ov::runtime::InferRequest 'set_tensors/set_input_tensors'
+     * @note Plugin-specific implementations may call this function to performs basic validation inside 'SetBlobs'
+     * @param name - input name.
+     * @param blobs - input blobs. The type of Blob must correspond to the network input
+     * precision and size.
+     */
+    virtual void checkBatchedBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs);
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
@@ -280,8 +300,8 @@ protected:
     std::vector<std::shared_ptr<const ov::Node>> _parameters;      //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;         //!< A vector of function outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;         //!< A map of pre-process data per input
-    std::map<std::string, std::vector<Blob::Ptr>> _batched_blobs;  //!< A map of associated batched blobs per input
-    std::map<std::string, TensorDesc> _batched_descs;  //!< A map of associated batched descriptors per input
+    //!< A map of user passed blobs via ov::runtime::InferRequest::set_tensors/set_input_tensors for network inputs
+    std::map<std::string, BatchedBlob::Ptr> _batched_inputs;
     int m_curBatch = -1;                               //!< Current batch value used in dynamic batching
 
     /**

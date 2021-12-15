@@ -24,8 +24,8 @@ protected:
     void TearDown() override;
 
     static std::string generateCacheDirName(const std::string& test_name);
-    std::shared_ptr<Model> create_n_inputs(size_t num, element::Type type,
-                                           const PartialShape& shape, const ov::Layout& layout);
+    static std::shared_ptr<Model> create_n_inputs(size_t num, element::Type type,
+                                                  const PartialShape& shape, const ov::Layout& layout);
 
     std::shared_ptr<runtime::Core> ie = utils::PluginCache::get().core();
     std::string targetDevice;

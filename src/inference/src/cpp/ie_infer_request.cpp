@@ -353,6 +353,8 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& name = get_legacy_name_from_port(port);
         auto blob = _impl->GetBlob(name);
+        OPENVINO_ASSERT(!blob->is<InferenceEngine::BatchedBlob>(),
+                "get_tensor shall not be used together with batched set_tensors/set_input_tensors");
         return {_so, blob};
     });
 }
@@ -399,10 +401,7 @@ Tensor InferRequest::get_output_tensor() {
 }
 
 void InferRequest::infer() {
-    OV_INFER_REQ_CALL_STATEMENT({
-        _impl->applyBatchedBlobs();
-        _impl->Infer();
-    })
+    OV_INFER_REQ_CALL_STATEMENT(_impl->Infer();)
 }
 
 void InferRequest::cancel() {
