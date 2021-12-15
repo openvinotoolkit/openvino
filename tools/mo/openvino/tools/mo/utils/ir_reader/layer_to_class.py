@@ -189,7 +189,8 @@ def groupconv_to_conv(op: Node):
         # We use add_destination method here to support case with multiple destinations of source port
         weights_node.in_port(0).get_source().get_connection().add_destination(op.in_port(1))
         weights_node.in_port(0).disconnect()
-    elif weights_node.type == 'Convert':
+    elif weights_node.type == 'Convert' and weights_node.destination_type == 'f32'\
+            and weights_node.in_port(0).get_source().node.type == 'Const':
         # Support new FP16 IRs
         const_node = weights_node.in_port(0).get_source().node
         assert const_node.has_valid('value'), \
