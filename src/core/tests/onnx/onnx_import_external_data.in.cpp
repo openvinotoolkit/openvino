@@ -17,15 +17,16 @@ using namespace ngraph;
 using namespace ngraph::onnx_import;
 using namespace ngraph::test;
 
-static std::string s_manifest = "${MANIFEST}";
+OPENVINO_SUPPRESS_DEPRECATED_START
 
-using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+static std::string s_manifest = "${MANIFEST}";
+static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -38,7 +39,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_from_stream) {
     ASSERT_TRUE(stream.is_open());
     const auto function = onnx_import::import_onnx_model(stream, path);
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -51,7 +52,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_optional_fields) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data_optional_fields.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -62,7 +63,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_in_different_paths) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data_different_paths.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // first input: {3.f}, second: {1.f, 2.f, 5.f} read from external files
     test_case.add_input<float>({2.f, 7.f, 7.f});
 
@@ -75,7 +76,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_two_tensors_data_in_the_same_file) {
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/external_data/external_data_two_tensors_data_in_the_same_file.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // first input: {3, 2, 1}, second: {1, 2, 3} read from external file
     test_case.add_input<int32_t>({2, 3, 1});
 
@@ -116,7 +117,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_sanitize_path) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data_sanitize_test.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 

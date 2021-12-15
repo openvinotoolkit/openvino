@@ -272,7 +272,7 @@ class LayerInfo {
         return isOfType("permute");
     }
     // @brief this not only mathematically trivial, has some WA for kaldi case
-    bool isTrivialPermute() const {
+    bool isTrivialPermute() const noexcept {
         if (!isPermute()) return false;
 
         auto layerOrder = layer->GetParamAsInts("order");
@@ -280,7 +280,9 @@ class LayerInfo {
         if (layerOrder == std::vector<int>({ 0, 3, 2, 1 })) {
             return true;  // supported case
         }
-        IE_ASSERT(!layer->insData.empty());
+        if (layer->insData.empty()) {
+            return false;  // unsupported case
+        }
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 
