@@ -95,7 +95,7 @@ void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
     if (inputShapes.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
-    OV_SWITCH(MKLDNNPlugin, CumSumEmitter, this, dataPrecision,
+    OV_SWITCH(MKLDNNPlugin, CumSumExecute, this, dataPrecision,
               OV_CASE(Precision::I8, int8_t),
               OV_CASE(Precision::U8, uint8_t),
               OV_CASE(Precision::I16, int16_t),

@@ -49,7 +49,7 @@ private:
     std::string errorPrefix;
 
     template<typename T>
-    struct CumSumEmitter {
+    struct CumSumExecute {
         void operator()(MKLDNNCumSumNode* node) {
             node->exec<T>();
         }
