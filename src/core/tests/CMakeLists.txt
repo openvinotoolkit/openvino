@@ -10,8 +10,6 @@ endif()
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 set(OV_ONNX_NAMESPACE ngraph_onnx)
 
-add_subdirectory(runtime)
-
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
     add_subdirectory(util)
@@ -69,28 +67,6 @@ set(SRC
     rtti.cpp
     op.cpp
     opset.cpp
-    op_eval/binary_convolution.cpp
-    op_eval/bucketize.cpp
-    op_eval/clamp.cpp
-    op_eval/einsum.cpp
-    op_eval/floor_mod.cpp
-    op_eval/gelu.cpp
-    op_eval/hsigmoid.cpp
-    op_eval/hswish.cpp
-    op_eval/interpolate.cpp
-    op_eval/matmul.cpp
-    op_eval/memory.cpp
-    op_eval/mish.cpp
-    op_eval/non_zero.cpp
-    op_eval/roi_align.cpp
-    op_eval/roi_pooling.cpp
-    op_eval/round.cpp
-    op_eval/softplus.cpp
-    op_eval/split.cpp
-    op_eval/swish.cpp
-    op_eval/strided_slice.cpp
-    op_eval/transpose.cpp
-    op_eval/variadic_split.cpp
     opset1.cpp
     ov_default_allocator_test.cpp
     ov_tensor_test.cpp
@@ -271,6 +247,7 @@ set(SRC
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
     visitors/partial_shape.cpp
+    visitors/dimension.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
     visitors/op/acos.cpp
@@ -428,7 +405,6 @@ set(SRC
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
-    util.cpp
 )
 
 # For type relaxed types
@@ -467,10 +443,11 @@ if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
 endif()
 
 if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
-    list(APPEND SRC
-        builder.cpp
-        backend_api.cpp)
+    message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
+    if (ENABLE_STRICT_DEPENDENCIES)
+        list(APPEND UNIT_TESTS_DEPENDENCIES templatePlugin)
+    endif()
 endif()
 
 # backend specific test files must meet the following requirements:
@@ -482,25 +459,38 @@ endif()
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 
+# TODO: Enable these tests in new infrastructure
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/aliased_output.in.cpp
-    backend/api.in.cpp
-    backend/auto_broadcast.in.cpp
-    backend/builder_reduce_ops_opset1.in.cpp
-    backend/dyn_reshape.in.cpp
-    backend/dynamic.in.cpp
-    backend/function_name.in.cpp
     backend/interpolate.in.cpp
-    backend/multiple_backends.in.cpp
-    backend/multiple_result.in.cpp
-    backend/node_name.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
-    backend/unhandled_op.in.cpp
-    backend/validate_call.in.cpp
-    backend/zero_sized.in.cpp
 )
+
+set(OP_EVAL_TEST_SRC 
+    # It should be a part of template plugin
+    op_eval/binary_convolution.cpp
+    op_eval/bucketize.cpp
+    op_eval/clamp.cpp
+    op_eval/einsum.cpp
+    op_eval/floor_mod.cpp
+    op_eval/gelu.cpp
+    op_eval/hsigmoid.cpp
+    op_eval/hswish.cpp
+    op_eval/interpolate.cpp
+    op_eval/matmul.cpp
+    op_eval/memory.cpp
+    op_eval/mish.cpp
+    op_eval/non_zero.cpp
+    op_eval/roi_align.cpp
+    op_eval/roi_pooling.cpp
+    op_eval/round.cpp
+    op_eval/softplus.cpp
+    op_eval/split.cpp
+    op_eval/swish.cpp
+    op_eval/strided_slice.cpp
+    op_eval/transpose.cpp
+    op_eval/variadic_split.cpp)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND MULTI_TEST_SRC
@@ -515,26 +505,22 @@ if (ENABLE_OV_ONNX_FRONTEND)
             onnx/onnx_import_org_openvino.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
-            onnx/onnx_import_quant.in.cpp)
+            onnx/onnx_import_quant.in.cpp
+            onnx/onnx_test_utils.in.cpp
+            onnx/onnx_import_with_editor.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
             onnx/onnx_tensor_names.cpp
-            onnx/onnx_transformations.cpp)
-endif()
-
-if (ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND SRC onnx/onnx_editor.cpp)
-    list(APPEND MULTI_TEST_SRC
-        onnx/onnx_test_utils.in.cpp
-        onnx/onnx_import_with_editor.in.cpp)
+            onnx/onnx_transformations.cpp
+            onnx/onnx_editor.cpp)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-foreach(src IN LISTS SRC MULTI_TEST_SRC)
+foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
         list(APPEND full_src_names ${src})
     else()
@@ -558,6 +544,13 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
+set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+
+foreach(TEST_SRC ${OP_EVAL_TEST_SRC})
+    configure_file(${TEST_SRC} ${TEST_SRC})
+    set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TEST_SRC} ${SRC})
+endforeach()
+
 add_executable(ov_core_unit_tests ${SRC})
 
 add_dependencies(ov_core_unit_tests template_extension)
@@ -579,12 +572,11 @@ endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
+                                        ngraph_reference
                                         ngraph::builder
                                         openvino::util
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
-                                        ie_backend
-                                        interpreter_backend
                                         Threads::Threads
                                         openvino::conditional_compilation
                                         openvino::util

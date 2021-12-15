@@ -155,19 +155,9 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
             temp_body.inputs[counter++] = info->getInputData();
         }
 
-        auto map_ng_result_to_ie_name = [] (std::shared_ptr<ngraph::op::v0::Result> res_op) {
-            auto result = res_op->input(0).get_source_output();
-
-            std::string name = result.get_node()->get_friendly_name();
-            if (result.get_node()->get_output_size() > 1) {
-                name += "." + std::to_string(result.get_index());
-            }
-            return name;
-        };
-
         counter = 0;
         for (const auto& result : results) {
-            auto data = out_info_map.at(map_ng_result_to_ie_name(result));
+            auto data = out_info_map.at(ngraph::op::util::get_ie_output_name(result->input_value(0)));
             temp_body.outputs[counter++] = data;
         }
 
@@ -401,8 +391,13 @@ void CNNLayerCreator::on_adapter(const std::string& name,
         params[name] = details::convertPrecision(type).name();
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::PartialShape>>(&adapter)) {
         std::string dims;
-        auto shape = static_cast<::ngraph::PartialShape&>(*a);
+        auto shape = a->get();
+        if (shape.rank().is_dynamic()) {
+            IE_THROW() << "Error converting ngraph to CNN network. Dynamic rank is not supported.";
+        }
         for (int64_t i = 0; i < shape.rank().get_length(); i++) {
+            if (shape[i].is_dynamic())
+                IE_THROW() << "Error converting ngraph to CNN network. Dynamic dimension is not supported.";
             if (!dims.empty()) dims += ",";
             dims += std::to_string(shape[i].get_length());
         }
@@ -1463,10 +1458,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
         res->params = params;
 
         auto && rt_info = node->get_rt_info();
-        bool keep_constants(false);
-        if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
-            keep_constants = attr->get();
-        }
+        bool keep_constants = rt_info["keep_constants"].as<bool>();
 
         // Restore output and kernel size
         auto shape = node->get_input_shape(1);
@@ -1629,25 +1621,17 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
                 << " attribute is set in " << node->get_friendly_name() << " node";
         }
 
-        auto getStringValue = [] (const ov::Any& variant) {
-            auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(variant);
-            IE_ASSERT(castedVariant != nullptr);
-            return castedVariant->get();
-        };
-
         LayerParams attrs = {node->get_friendly_name(),
-                            getStringValue(rtInfo[ExecGraphInfoSerialization::LAYER_TYPE]),
-                            details::convertPrecision(node->get_output_element_type(0))};
+                             rtInfo[ExecGraphInfoSerialization::LAYER_TYPE].as<std::string>(),
+                             details::convertPrecision(node->get_output_element_type(0))};
         rtInfo.erase(ExecGraphInfoSerialization::LAYER_TYPE);
 
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
 
         for (const auto & kvp : rtInfo) {
-            auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(kvp.second);
-            // skip RT info which holds fusedNames, etc
-            if (castedVariant)
-                res->params[kvp.first] = getStringValue(castedVariant);
+            if (kvp.second.is<std::string>())
+                res->params[kvp.first] = kvp.second.as<std::string>();
         }
 
         return res;
@@ -1679,10 +1663,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
         res->params = params;
 
         auto & rt_info = node->get_rt_info();
-        bool keep_constants(false);
-        if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
-            keep_constants = attr->get();
-        }
+        bool keep_constants = rt_info["keep_constants"].as<bool>();
         const auto weightsNode = node->input_value(1).get_node_shared_ptr();
         if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             const auto biasNode = node->input_value(2).get_node_shared_ptr();
@@ -1916,7 +1897,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         // TODO: remove this rt info when all blobs will be inputs
         auto &rt_info = layer->get_rt_info();
-        rt_info["keep_constants"] = std::make_shared<::ngraph::VariantWrapper<int64_t>> (keep_constants);
+        rt_info["keep_constants"] = keep_constants;
 
         CNNLayerPtr cnnLayer = createCNNLayer(layer);
 
@@ -1931,7 +1912,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             cnnLayer->params["PrimitivesPriority"] = primitivesPriority;
         }
 
-        // Copy runtime info attributes from Nodes to CNNLayers if they have VariantWrapper<std::string> type
+        // Copy runtime info attributes from Nodes to CNNLayers if they have std::string type
         for (const auto &rt : rt_info) {
             if (rt.second.is<std::string>()) {
                 auto str_attr = rt.second.as<std::string>();
