@@ -121,6 +121,8 @@ inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
     return (outs << "<Graph: " << graph.get_name() << ">");
 }
 
+static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
+
 }  // namespace onnx_import
 
 }  // namespace ngraph
