@@ -501,15 +501,12 @@ bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
 }
 
 size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
-    if (shape.isStatic()) {
+    if (shape.isStatic() || shape.hasZeroDims()) {
         return getCurrentMemSize();
     }
 
-    auto maxDims = shape.getMaxDims();
-    if (shape.hasZeroDims()) {
-        // in getCurrentMemSize we check that desc is defined otherwise return UNDEFINED SIZE
-        std::replace(maxDims.begin(), maxDims.end(), static_cast<Dim>(Shape::UNDEFINED_DIM), static_cast<Dim>(0));
-    } else if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
+    const auto& maxDims = shape.getMaxDims();
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
                                                                          // WA: for some nodes ngraph compute upper bound depending on precision max value
                                                                          x >= std::numeric_limits<int32_t>::max(); })) {
         return UNDEFINED_SIZE;

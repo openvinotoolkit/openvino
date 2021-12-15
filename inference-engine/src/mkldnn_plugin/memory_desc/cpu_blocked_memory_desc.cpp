@@ -16,6 +16,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
     offsetPadding = 0;
     offsetPaddingToData.resize(dims.size(), 0);
     strides.resize(order.size());
+    // for empty tensor case we fill all strides with 0 values
     strides[strides.size() - 1] = shape.hasZeroDims() ? 0 : 1;
     for (size_t i = 2; i <= order.size(); i++) {
         strides[strides.size() - i] = strides[strides.size() - (i - 1)] * blockedDims[blockedDims.size() - (i - 1)];
@@ -106,11 +107,16 @@ bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc &rhs) const 
     return rhs.isCompatible(*this);
 }
 
+bool CpuBlockedMemoryDesc::canComputeMemSizeZeroDims() const {
+    return getShape().hasZeroDims() && getOffsetPadding() != Shape::UNDEFINED_DIM;
+}
+
 size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
     int64_t e_size = getOffsetPadding() + 1;  // size in bytes (from begin of data to last element)
-    for (int j = 0; j < getBlockDims().size(); j++)
-        e_size += (getBlockDims()[j] - 1) * getStrides()[j];
-
+    if (!getShape().hasZeroDims()) {
+        for (int j = 0; j < getBlockDims().size(); j++)
+            e_size += (getBlockDims()[j] - 1) * getStrides()[j];
+    }
 
     e_size *= getPrecision() == InferenceEngine::Precision::BIN ? 1 : getPrecision().size();
 
@@ -118,15 +124,12 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
 }
 
 size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
-    if (shape.isStatic()) {
+    if (shape.isStatic() || shape.hasZeroDims()) {
         return getCurrentMemSize();
     }
 
-    auto maxDims = shape.getMaxDims();
-    if (shape.hasZeroDims()) {
-        // in getCurrentMemSize we check that desc is defined otherwise return UNDEFINED SIZE
-        std::replace(maxDims.begin(), maxDims.end(), static_cast<Dim>(Shape::UNDEFINED_DIM), static_cast<Dim>(0));
-    } else if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
+    const auto& maxDims = shape.getMaxDims();
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
                                                                          // WA: for some nodes ngraph compute upper bound depending on precision max value
                                                                          x >= std::numeric_limits<int32_t>::max(); })) {
         return UNDEFINED_SIZE;

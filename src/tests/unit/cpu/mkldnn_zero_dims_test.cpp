@@ -52,6 +52,7 @@ protected:
 
         ASSERT_EQ(0, desc.getPaddedElementsCount());
         ASSERT_EQ(maxMemSize, desc.getMaxMemSize());
+        ASSERT_EQ(maxMemSize, desc.getCurrentMemSize());
 
         ASSERT_EQ(offsetSize, desc.getOffsetPadding());
         ASSERT_EQ(VectorDims(expectedBlkDims.size(), offsetPaddingSize), desc.getOffsetPaddingToData());

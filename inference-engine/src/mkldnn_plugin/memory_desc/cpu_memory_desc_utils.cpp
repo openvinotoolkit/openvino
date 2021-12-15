@@ -53,6 +53,8 @@ CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const Infere
     const auto& dims = desc.getDims();
 
     auto strides = blkDesc.getStrides();
+    // for empty tensor case InferenceEngine::TensorDesc fill strides with non zero values before first 0 dims
+    // i.e. dims[1, 0, 2, 3] -> strides [0, 6, 3, 1]
     if (std::any_of(dims.begin(), dims.end(), [](size_t dim){ return dim == 0; })) {
         std::fill(strides.begin(), strides.end(), 0);
     }
@@ -69,6 +71,8 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Infe
     const auto& dims = desc.getDims();
 
     auto strides = blkDesc.getStrides();
+    // for empty tensor case InferenceEngine::TensorDesc fill strides with non zero values before first 0 dims
+    // i.e. dims[1, 0, 2, 3] -> strides [0, 6, 3, 1]
     if (std::any_of(dims.begin(), dims.end(), [](size_t dim){ return dim == 0; })) {
         std::fill(strides.begin(), strides.end(), 0);
     }
