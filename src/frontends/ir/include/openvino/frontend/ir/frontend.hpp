@@ -4,17 +4,17 @@
 
 #pragma once
 
-#include "openvino/frontend/common/defs.hpp"
 #include "openvino/frontend/common/exceptions.hpp"
 #include "openvino/frontend/common/frontend.hpp"
 #include "openvino/frontend/common/telemetry_extension.hpp"
+#include "openvino/frontend/ir/utility.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
 namespace frontend {
 namespace ir {
 
-class FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
+class IR_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     FrontEnd() = default;
 

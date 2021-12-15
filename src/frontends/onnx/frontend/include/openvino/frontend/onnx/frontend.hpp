@@ -7,11 +7,24 @@
 #include <openvino/frontend/common/frontend.hpp>
 #include <openvino/frontend/common/telemetry_extension.hpp>
 
+#ifdef OPENVINO_STATIC_LIBRARY
+#    define ONNX_FRONTEND_API
+#    define ONNX_FRONTEND_C_API
+#else
+#    ifdef onnx_ov_frontend_EXPORTS
+#        define ONNX_FRONTEND_API   OPENVINO_CORE_EXPORTS
+#        define ONNX_FRONTEND_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
+#    else
+#        define ONNX_FRONTEND_API   OPENVINO_CORE_IMPORTS
+#        define ONNX_FRONTEND_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
+#    endif  // onnx_ov_frontend_EXPORTS
+#endif      // OPENVINO_STATIC_LIBRARY
+
 namespace ov {
 namespace frontend {
 namespace onnx {
 
-class FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
+class ONNX_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override;
     void convert(std::shared_ptr<ov::Model> partially_converted) const override;
