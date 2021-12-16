@@ -79,6 +79,7 @@ namespace SubgraphTestsDefinitions {
     void ConvReshapeAct::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+        ExternalOptimization();
         LoadNetwork();
 
         inferRequest = executableNetwork.CreateInferRequest();
@@ -99,6 +100,10 @@ namespace SubgraphTestsDefinitions {
             auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
             inferRequest.SetBatch(batchSize);
         }
+
+        DumpInputs();
+        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
+
         inferRequest.Infer();
 
         threshold = 0.1;

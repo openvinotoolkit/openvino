@@ -32,10 +32,12 @@ namespace SubgraphTestsDefinitions {
 
     void DelayedCopyTestBase::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+        ExternalOptimization();
         LoadNetwork();
         InitMemory();
         GenerateInputs();
+        DumpInputs();
+        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();

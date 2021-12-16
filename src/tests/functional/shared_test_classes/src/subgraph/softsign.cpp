@@ -52,8 +52,11 @@ void SoftsignTest::SetUp() {
 void SoftsignTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ExternalOptimization();
     LoadNetwork();
     GenerateInputs();
+    DumpInputs();
+    SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
     Infer();
 
     function = GenerateNgraphFriendlySoftSign();

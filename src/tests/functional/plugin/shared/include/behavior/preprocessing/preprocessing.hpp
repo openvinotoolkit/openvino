@@ -121,8 +121,11 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         functionRefs = ngraph::clone_function(*function);
         try {
+            ExternalOptimization();
             LoadNetwork();
             GenerateInputs();
+            DumpInputs();
+            SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
             Infer();
             Validate();
         }

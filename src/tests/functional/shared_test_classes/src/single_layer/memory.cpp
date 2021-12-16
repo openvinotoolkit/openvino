@@ -75,6 +75,7 @@ namespace LayerTestsDefinitions {
         }
 
         try {
+            ExternalOptimization();
             if (transformation != ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
                 LoadNetwork();
             } else {
@@ -83,6 +84,8 @@ namespace LayerTestsDefinitions {
                 executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
             }
             GenerateInputs();
+            DumpInputs();
+            SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
             for (int64_t i = 0; i < iteration_count; ++i) {
                 Infer();
                 Validate();

@@ -30,6 +30,6 @@ const auto testCase_values = ::testing::Combine(
 );
 
 
-GNA_UNSUPPPORTED_LAYER_NEG_TEST(ConvertColorI420LayerTest, "The plugin does not support layer", testCase_values)
+GNA_UNSUPPPORTED_LAYER_NEG_TEST_EXTOPT(ConvertColorI420LayerTest, "The plugin does not support layer", testCase_values)
 
 }  // namespace

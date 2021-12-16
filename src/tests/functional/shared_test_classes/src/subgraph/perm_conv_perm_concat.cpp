@@ -83,6 +83,7 @@ void PermConvPermConcat::SetUp() {
 void PermConvPermConcat::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+    ExternalOptimization();
     LoadNetwork();
 
     inferRequest = executableNetwork.CreateInferRequest();
@@ -103,6 +104,10 @@ void PermConvPermConcat::Run() {
         auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
         inferRequest.SetBatch(batchSize);
     }
+
+    DumpInputs();
+    SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
+
     inferRequest.Infer();
 
     Validate();

@@ -112,6 +112,7 @@ namespace SubgraphTestsDefinitions {
     void ConcatQuantDuringMemoryRequantTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+        ExternalOptimization();
         LoadNetwork();
 
         auto states = inferRequest.QueryState();
@@ -130,6 +131,8 @@ namespace SubgraphTestsDefinitions {
             }
         }
         GenerateInputs();
+        DumpInputs();
+        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();

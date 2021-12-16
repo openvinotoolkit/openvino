@@ -125,6 +125,7 @@ void MemoryEltwiseReshapeConcatTest::Infer() {
 void MemoryEltwiseReshapeConcatTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     initTestModel();
+    ExternalOptimization();
     LoadNetwork();
 
     InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
@@ -138,6 +139,8 @@ void MemoryEltwiseReshapeConcatTest::Run() {
     states[0].SetState(state_values_blob);
     IE_SUPPRESS_DEPRECATED_END
     GenerateInputs();
+    DumpInputs();
+    SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
     Infer();
     initNgraphFriendlyModel();
     Validate();

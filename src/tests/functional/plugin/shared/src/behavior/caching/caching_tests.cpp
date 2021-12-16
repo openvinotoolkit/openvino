@@ -177,11 +177,14 @@ void LoadNetworkCacheTestBase::Run() {
         GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
         GTEST_SKIP();
     }
+    ExternalOptimization();
     cnnNetwork = CNNNetwork{function};
     ConfigureNetwork();
     try {
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         GenerateInputs();
+        DumpInputs();
+        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
     } catch (const Exception &ex) {
         GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;

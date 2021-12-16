@@ -52,8 +52,11 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
+        ExternalOptimization();
         LoadNetwork();
         GenerateInputs();
+        DumpInputs();
+        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
         executableNetwork.Export("exported_model.blob");
         for (auto const &configItem : importConfiguration) {

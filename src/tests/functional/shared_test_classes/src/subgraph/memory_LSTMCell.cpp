@@ -266,6 +266,7 @@ namespace SubgraphTestsDefinitions {
 
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        ExternalOptimization();
         if (transformation != ngraph::helpers::MemoryTransformation::NONE) {
             ApplyLowLatency();
         } else {
@@ -274,6 +275,8 @@ namespace SubgraphTestsDefinitions {
 
         InitMemory();
         GenerateInputs();
+        DumpInputs();
+        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
 
         // Calculate ref values

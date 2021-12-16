@@ -94,8 +94,11 @@ void ProposalBehTest::SetUp() {
 }
 
 void ProposalBehTest::Run() {
+    ExternalOptimization();
     LoadNetwork();
     GenerateInputs();
+    DumpInputs();
+    SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
     Infer();
 }
 

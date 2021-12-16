@@ -167,6 +167,7 @@ protected:
 
         if (!GnaLayerTestCheck::skipTest) {
             try {
+                ConvolutionLayerTest::ExternalOptimization();
                 ConvolutionLayerTest::LoadNetwork();
                 FAIL() << "GNA's unsupported configuration of Convolution2D was not detected in ConvolutionLayerTest::LoadNetwork()";
             }

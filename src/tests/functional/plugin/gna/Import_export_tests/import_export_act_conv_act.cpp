@@ -56,8 +56,11 @@ public:
         functionRefs = ngraph::clone_function(*function);
 
         configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
+        ExternalOptimization();
         LoadNetwork();
         GenerateInputs();
+        DumpInputs();
+        SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP();
         Infer();
 
         executableNetwork.Export("exported_model.blob");
