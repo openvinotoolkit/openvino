@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
 #include "ngraph/op/embeddingbag_packedsum.hpp"
 
-#include "cldnn/primitives/embedding_bag.hpp"
-#include "cldnn/primitives/reorder.hpp"
+#include "intel_gpu/primitives/embedding_bag.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
 #include "transformations/utils/utils.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::op::v3::EmbeddingBagOffsetsSum>& op) {
     p.ValidateInputs(op, {3, 4, 5});
@@ -42,7 +44,7 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
-            // clDNN primitive supports only i32 data type for indices inputs,
+            // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -64,7 +66,7 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::offsets_sum,
-                                                 CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                 tensor_from_dims(op->get_output_shape(0)),
                                                  defaultIndex,
                                                  op->get_friendly_name());
 
@@ -83,7 +85,7 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if ((portIndex == 1) && (inputDataType == cldnn::data_types::i64)) {
-            // clDNN primitive supports only i32 data type for indices input,
+            // GPU primitive supports only i32 data type for indices input,
             // so we need additional reorder if it's provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -105,7 +107,7 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::packed_sum,
-                                                 CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                 tensor_from_dims(op->get_output_shape(0)),
                                                  -1,
                                                  op->get_friendly_name());
 
@@ -142,7 +144,7 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
-            // clDNN primitive supports only i32 data type for indices inputs,
+            // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
@@ -164,7 +166,7 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::segments_sum,
-                                                 CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                 tensor_from_dims(op->get_output_shape(0)),
                                                  defaultIndex,
                                                  op->get_friendly_name());
 
@@ -176,4 +178,6 @@ REGISTER_FACTORY_IMPL(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY_IMPL(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY_IMPL(v3, EmbeddingSegmentsSum);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

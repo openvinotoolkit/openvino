@@ -41,7 +41,7 @@ public:
 
 TEST_P(SerializationTest, CompareFunctions) {
     auto expected = ov::test::readModel(m_model_path, m_binary_path);
-    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(expected);
+    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(expected);
     auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
 
     const auto fc = FunctionsComparator::with_default()
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple("if_diff_case.xml", "if_diff_case.bin"),
                     std::make_tuple("if_body_without_parameters.xml", "if_body_without_parameters.bin")));
 
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLE
+#ifdef ENABLE_OV_ONNX_FRONTEND
 
 INSTANTIATE_TEST_SUITE_P(ONNXSerialization,
                          SerializationTest,

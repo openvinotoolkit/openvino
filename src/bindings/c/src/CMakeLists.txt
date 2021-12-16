@@ -34,6 +34,8 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+
 # install
 
 ie_cpack_add_component(core_c DEPENDS core)

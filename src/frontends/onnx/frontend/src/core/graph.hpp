@@ -54,7 +54,7 @@ protected:
           std::unique_ptr<GraphCache>&& cache,
           const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 
-    void set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const;
+    void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
 
 protected:
     virtual void decode_to_framework_nodes();
@@ -120,6 +120,8 @@ private:
 inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
     return (outs << "<Graph: " << graph.get_name() << ">");
 }
+
+static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
 
 }  // namespace onnx_import
 

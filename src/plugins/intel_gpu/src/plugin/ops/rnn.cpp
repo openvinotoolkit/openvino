@@ -2,20 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
 
-#include "cldnn/primitives/reshape.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/fully_connected.hpp"
-#include "cldnn/primitives/lstm.hpp"
-#include "cldnn/primitives/crop.hpp"
-#include "cldnn/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/lstm.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 static cldnn::activation_func GetActivationFunc(std::string name) {
     static const std::map<std::string, cldnn::activation_func> name_mapping = {
         {"sigmoid", cldnn::activation_func::logistic},
@@ -276,7 +278,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
     std::vector<size_t> WRreshapeSize = { 4 * size_t(lstm_hidden_size), size_t(lstm_input_size + lstm_hidden_size) };
     cldnn::primitive_id WRreshapeID = WRconcatID + "_reshape";
-    auto reshapeInPrim = cldnn::reshape(WRreshapeID, WRconcatID, CldnnTensorFromIEDims(WRreshapeSize), op->get_friendly_name());
+    auto reshapeInPrim = cldnn::reshape(WRreshapeID, WRconcatID, tensor_from_dims(WRreshapeSize), op->get_friendly_name());
     p.AddPrimitive(reshapeInPrim);
     p.AddInnerPrimitiveToProfiler(WRreshapeID, op->get_friendly_name(), op);
 
@@ -353,4 +355,6 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
 REGISTER_FACTORY_IMPL(v4, LSTMCell);
 REGISTER_FACTORY_IMPL(v5, LSTMSequence);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

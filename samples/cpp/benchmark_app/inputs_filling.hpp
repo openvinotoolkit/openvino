@@ -4,12 +4,15 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
 #include <string>
 #include <vector>
 
+// clang-format off
+#include "inference_engine.hpp"
+
 #include "infer_request_wrap.hpp"
 #include "utils.hpp"
+// clang-format on
 
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,

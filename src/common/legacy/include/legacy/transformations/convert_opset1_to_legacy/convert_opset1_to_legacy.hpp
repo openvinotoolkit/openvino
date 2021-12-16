@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertOpSet1ToLegacy);
+class ConvertOpSet1ToLegacy;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -23,5 +23,5 @@ class INFERENCE_ENGINE_API_CLASS(ConvertOpSet1ToLegacy);
 class ngraph::pass::ConvertOpSet1ToLegacy: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

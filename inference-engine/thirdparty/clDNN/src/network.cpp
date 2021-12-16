@@ -4,19 +4,19 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "cldnn/graph/program.hpp"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/network.hpp"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -514,15 +514,17 @@ void network::allocate_primitives() {
                         can_reuse_eltwise_mem = true;
                     }
 
-                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                        auto& eltw_inst = _primitives.at(eltw_in.id());
-                        auto& prim_inst = _primitives.at(node->id());
-                        auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
-                        auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
+                    if (!can_reuse_eltwise_mem) {
+                        if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                            auto& eltw_inst = _primitives.at(eltw_in.id());
+                            auto& prim_inst = _primitives.at(node->id());
+                            auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
+                            auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
 
-                        // Keep lockable memory type for `prim_inst` output if needed
-                        if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
-                            can_reuse_eltwise_mem = false;
+                            // Keep lockable memory type for `prim_inst` output if needed
+                            if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
+                                can_reuse_eltwise_mem = false;
+                        }
                     }
 
                     if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout) && !can_reuse_eltwise_mem) {

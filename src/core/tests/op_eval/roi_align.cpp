@@ -11,7 +11,6 @@
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
-#include "runtime/backend.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
