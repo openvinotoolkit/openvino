@@ -71,7 +71,6 @@
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/convert_precision.hpp>
-#include <transformations/serialize.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
@@ -442,7 +441,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !config.enable_loop_unrolling;
             });
 
-        manager.register_pass<ngraph::pass::Serialize>("dump_gpu.xml", "dump_gpu.bin");
         manager.run_passes(func);
     }
 }
