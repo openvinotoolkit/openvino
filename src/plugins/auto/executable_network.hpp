@@ -144,6 +144,7 @@ private:
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
+    const InferenceEngine::CNNNetwork                                   _network;
 };
 
 }  // namespace MultiDevicePlugin
