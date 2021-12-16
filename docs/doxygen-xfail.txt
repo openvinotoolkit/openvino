@@ -162,3 +162,4 @@ openvino/docs/IE_DG/InferenceEngine_QueryAPI.md
 openvino/docs/IE_DG/Integrate_with_customer_application_new_API.md
 openvino/docs/IE_DG/Model_caching_overview.md
 openvino/docs/IE_DG/PythonPackage_Overview.md
+openvino/docs/nGraph_DG/nGraphTransformation.md
