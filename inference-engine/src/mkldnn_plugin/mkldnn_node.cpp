@@ -718,6 +718,7 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
 }
 
 void MKLDNNNode::prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd) {
+std::cout << "MKLDNNNode::prepareMemory+" << std::endl;
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())

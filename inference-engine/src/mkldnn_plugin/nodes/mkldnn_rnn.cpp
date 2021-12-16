@@ -609,6 +609,7 @@ void MKLDNNRNN::copyWeightsData() {
 
 void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                  const std::vector<MemoryDescPtr> &outputDesc) {
+std::cout << "MKLDNNRNN::createDescriptor() +" << std::endl;
     if (!descs.empty())
         return;
     wDescs.resize(3);
@@ -695,9 +696,11 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     }
 
     supportedPrimitiveDescriptors.emplace_back(config, ref_any);
+std::cout << "MKLDNNRNN::createDescriptor() -" << std::endl;
 }
 
 void MKLDNNRNN::createPrimitive() {
+std::cout << "MKLDNNRNN::createPrimitive() +" << std::endl;
     if (!isDynamicNode()) {
         if (cell_type == mkldnn::algorithm::vanilla_rnn) {
             auto prim_desc = createPrimitiveDescriptor<vanilla_rnn_forward::primitive_desc, vanilla_rnn_forward::desc>();
@@ -721,9 +724,11 @@ void MKLDNNRNN::createPrimitive() {
             prepareParams();
         updateLastInputDims();
     }
+std::cout << "MKLDNNRNN::createPrimitive() -" << std::endl;
 }
 
 void MKLDNNRNN::prepareParams() {
+std::cout << "MKLDNNRNN::prepareParams() +" << std::endl;
     const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
     const size_t B = getParentEdgesAtPort(0).front()->getMemory().GetShape().getStaticDims()[0];
@@ -831,6 +836,7 @@ void MKLDNNRNN::prepareParams() {
 
         prepareMemory(selectedPd, itpd);
     }
+std::cout << "MKLDNNRNN::prepareParams() -" << std::endl;
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
@@ -844,15 +850,19 @@ std::shared_ptr<MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iter
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
+std::cout << "MKLDNNRNN::execute() +" << std::endl;
     if (!prim)
         THROW_ERROR << "does not have initialized primitive to execute.";
 
     const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
     const auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
+std::cout << "MKLDNNRNN::execute() 1" << std::endl;
 
     const auto &wgh_data_mem = internalBlobMemory[0];
     const auto &wgh_stat_mem = internalBlobMemory[1];
     const auto &wgh_bias_mem = internalBlobMemory[2];
+std::cout << "MKLDNNRNN::execute() 2; src_data_mem: " << src_data_mem << "; wgh_data_mem: " << wgh_data_mem <<
+        "; wgh_stat_mem: " << wgh_stat_mem << "; wgh_bias_mem: " << wgh_bias_mem << "; dst_data_mem: " << dst_data_mem << std::endl;
 
     std::unordered_map<int, memory> args {
         {DNNL_ARG_SRC_LAYER,     src_data_mem->GetPrimitive()},
@@ -861,12 +871,14 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
         {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
     };
+std::cout << "MKLDNNRNN::execute() 3" << std::endl;
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
     for (size_t s = 0; s < S; s++) {
         args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->GetPrimitive();
     }
+std::cout << "MKLDNNRNN::execute() 4" << std::endl;
 
     if (is_cell) {
         for (size_t s = 0; s < S; s++) {
@@ -881,7 +893,9 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         }
     }
 
+std::cout << "MKLDNNRNN::execute() 5" << std::endl;
     (*prim).execute(strm, args);
+std::cout << "MKLDNNRNN::execute() -" << std::endl;
 }
 
 void MKLDNNRNN::executeDynamicImpl(mkldnn::stream strm) {

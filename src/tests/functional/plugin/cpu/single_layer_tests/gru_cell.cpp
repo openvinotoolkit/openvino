@@ -85,14 +85,14 @@ protected:
         size_t hiddenSize = inputDynamicShapes[1][1].get_length();
         size_t inputSize = inputDynamicShapes.front()[1].get_length();
 
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+//        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType = ElementType::bf16;
-        } else {
-            inType = outType = netPrecision;
-        }
-        selectedType = makeSelectedTypeStr(selectedType, outType);
+//        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+//            inType = outType = ElementType::bf16;
+//        } else {
+//            inType = outType = netPrecision;
+//        }
+        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         std::vector<ngraph::Shape> WRB = {{3 * hiddenSize, inputSize}, {3 * hiddenSize, hiddenSize}, {(linearBeforeReset ? 4 : 3) * hiddenSize}};
@@ -135,6 +135,8 @@ const std::vector<std::vector<ov::test::InputShape>> staticShapes = {
       { {}, { {1, 10} } } },
     { { {}, { {1, 30} } }, // Static shapes
       { {}, { {1, 1} } } },
+    { { {}, { {3, 1} } }, // Static shapes
+      { {}, { {3, 1} } } },
     { { {}, { {5, 1} } }, // Static shapes
       { {}, { {5, 1} } } },
     { { {}, { {5, 30} } }, // Static shapes

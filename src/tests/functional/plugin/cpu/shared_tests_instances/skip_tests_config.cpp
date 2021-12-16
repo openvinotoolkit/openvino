@@ -67,6 +67,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
+        R"(.*dynamic.*GRUCellCPUTest.*)",
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
         // TODO: 69084 Not constant Axis input produces dynamic output shape.

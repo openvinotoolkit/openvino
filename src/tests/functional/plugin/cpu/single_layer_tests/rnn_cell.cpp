@@ -80,13 +80,13 @@ protected:
         size_t hiddenSize = inputDynamicShapes[1][1].get_length();
         size_t inputSize = inputDynamicShapes.front()[1].get_length();
 
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+//        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType = ElementType::bf16;
-        } else {
-            inType = outType = netPrecision;
-        }
+//        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+//            inType = outType = ElementType::bf16;
+//        } else {
+//            inType = outType = netPrecision;
+//        }
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
