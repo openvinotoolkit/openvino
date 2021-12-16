@@ -135,7 +135,7 @@ jobs:
   - script: |
       set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
-    displayName: 'IE UT old - IB'
+    displayName: 'IE UT old'
 
   - script: |
       set PATH=$(TEST_ENV_PATH)
