@@ -545,7 +545,7 @@ TEST(pre_post_process, set_model_layout_when_already_exists) {
     {
         auto p = PrePostProcessor(m);
         p.input().tensor().set_layout("NHWC");
-        p.input().model().set_layout("NCHW"); // Expect "N???" will be overwritten by "NCHW"
+        p.input().model().set_layout("NCHW");  // Expect "N???" will be overwritten by "NCHW"
         m = p.build();
     }
     EXPECT_EQ(m->input().get_partial_shape(), (PartialShape{Dimension::dynamic(), 2, 1, 3}));
@@ -1173,7 +1173,7 @@ TEST(pre_post_process, postprocess_set_model_layout_when_already_exists) {
     EXPECT_EQ(m->output().get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
     {
         auto p = PrePostProcessor(m);
-        p.output().model().set_layout("NCHW"); // Expect "N???" will be overwritten by "NCHW"
+        p.output().model().set_layout("NCHW");  // Expect "N???" will be overwritten by "NCHW"
         p.output().tensor().set_layout("NHWC");
         m = p.build();
     }
