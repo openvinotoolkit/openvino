@@ -117,9 +117,9 @@ jobs:
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
       rem Speed up build
-      curl -O https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip
+      powershell -command "Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip -OutFile cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
       powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
-      curl -O https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip
+      powershell -command "Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip -OutFile ninja-win.zip"
       powershell -command "Expand-Archive -Force ninja-win.zip"
       git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
