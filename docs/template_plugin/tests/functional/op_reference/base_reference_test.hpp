@@ -58,8 +58,8 @@ ov::runtime::Tensor CreateTensor(const ov::Shape& shape,
                                  const ov::element::Type& element_type,
                                  const std::vector<T>& values) {
     ov::runtime::Tensor tensor{element_type, shape};
-    std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
-
+    OPENVINO_ASSERT(tensor.get_byte_size() == (values.size() * sizeof(T)));
+    std::copy_n(values.begin(), tensor.get_size(), tensor.data<T>());
     return tensor;
 }
 
