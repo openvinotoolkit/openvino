@@ -266,7 +266,8 @@ class IEEngine(Engine):
         input_info = model.inputs
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
-            return {input_blob.get_any_name(): np.stack(image_batch, axis=0)}
+            input_blob_name = self._get_input_any_name(input_blob)
+            return {input_blob_name: np.stack(image_batch, axis=0)}
 
         if len(input_info) == 2:
             image_info_nodes = list(filter(
@@ -276,12 +277,7 @@ class IEEngine(Engine):
                 raise Exception('Two inputs networks must contain exactly one ImageInfo node')
 
             image_info_node = image_info_nodes[0]
-            try:
-                image_info_name = image_info_node.get_any_name()
-            except RuntimeError:
-                image_info_name = image_info_node.get_tensor().set_names(set([image_info_node.node.friendly_name]))
-                image_info_name = image_info_node.get_any_name()
-
+            image_info_name = self._get_input_any_name(image_info_node)
             image_tensor_node = next(iter(filter(
                 lambda x: x.get_any_name() != image_info_name, input_info)))
             image_tensor_name = image_tensor_node.get_any_name()
@@ -452,3 +448,16 @@ class IEEngine(Engine):
         stats_layout_ie_style = {convert_output_key(key): value
                                  for key, value in stats_layout.items()}
         return stats_layout_ie_style, stat_names_aliases
+
+    @staticmethod
+    def _get_input_any_name(input):
+        """Returns any_name for nGraph input const node
+            If any_name not exists, sets this name as friendly_name
+        """
+        try:
+            input_name = input.get_any_name()
+        except RuntimeError:
+            name_set = set([input.node.friendly_name])
+            input_name = input.get_tensor().set_names(name_set)
+            input_name = input.get_any_name()
+        return input_name

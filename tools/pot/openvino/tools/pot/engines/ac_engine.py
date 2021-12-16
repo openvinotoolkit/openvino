@@ -127,10 +127,14 @@ class ACEngine(Engine):
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
-            add_outputs(self._model, list(nodes_names_map.values()))
+            outputs_list = add_outputs(self._model, list(nodes_names_map.values()))
             self._model_evaluator.load_network(self._model)
+            for outputs_data in outputs_list:
+                for output_node, node_name in zip(outputs_data['outputs'], outputs_data['node_names']):
+                    node_name = convert_output_key(node_name) + '/sink_port_0'
+                    output_node.get_node().set_friendly_name(node_name)
 
-            model_output_names = [out for m_dict in self._model for out in m_dict['model'].outputs.keys()]
+            model_output_names = [out.get_node().friendly_name for m_dict in self._model for out in m_dict['model'].outputs]
             align_stat_names_with_results(model_output_names,
                                           nodes_names_map,
                                           output_to_node_names,

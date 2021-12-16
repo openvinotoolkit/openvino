@@ -40,11 +40,16 @@ def add_outputs(models, node_names):
     'name': model name (for cascaded models only)
     'model': IE model instance
     """
+    outputs_list = []
     for model_dict in models:
         node_names_ = node_names if len(models) == 1 \
             else [node_name for node_name in node_names
                   if convert_output_key(node_name).startswith(model_dict['name'])]
-        model_dict['model'].add_outputs(node_names_)
+        outputs_list.append({
+            'outputs': model_dict['model'].add_outputs(node_names_),
+            'node_names': node_names_
+        })
+    return outputs_list
 
 
 def compress_model_weights(model: NXModel):
