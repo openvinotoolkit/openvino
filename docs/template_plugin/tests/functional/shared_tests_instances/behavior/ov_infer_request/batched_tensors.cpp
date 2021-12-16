@@ -47,7 +47,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Strides) {
     auto one_shape_stride = Shape{1, 4, 4, 4};
     auto batch_shape = Shape{batch, 2, 2, 2};
     auto one_shape_size_stride = ov::shape_size(one_shape_stride);
-    auto model = create_n_inputs(2, element::f32, batch_shape, "N...");
+    auto model = create_n_inputs(2, element::f32, batch_shape, "NCHW");
     std::vector<float> buffer1(one_shape_size_stride, 10);
     std::vector<float> buffer2(one_shape_size_stride, 20);
     auto execNet = ie->compile_model(model, targetDevice);
