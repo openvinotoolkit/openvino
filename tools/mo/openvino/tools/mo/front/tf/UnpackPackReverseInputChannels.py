@@ -48,7 +48,7 @@ class UnpackPackReverseInputChannels(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         unpack = match['unpack']
         pack = match['pack']
-
+        raise Exception("Transformation was triggered")
         if unpack.soft_get('axis', None) is None or unpack.axis != pack.soft_get('axis', None):
             # axes doesn't match - not ReverseChannels case
             return
