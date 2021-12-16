@@ -25,8 +25,8 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node
                                                        const std::vector<float> &filterWeights,
                                                        const std::vector<float> &biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
-    auto shape = in.get_shape();
-    std::vector<size_t> filterWeightsShape = {shape[1], numOutChannels};
+    auto shape = in.get_partial_shape();
+    std::vector<size_t> filterWeightsShape = {static_cast<size_t>(shape[1].get_length()), numOutChannels};
     if (filterWeightsShape[0] % numGroups || filterWeightsShape[1] % numGroups)
         throw std::runtime_error("incorrect shape for GroupConvolutionBackpropData");
     filterWeightsShape[0] /= numGroups;
@@ -81,8 +81,8 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node
                                                        const std::vector<float> &filterWeights,
                                                        const std::vector<float> &biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
-    auto shape = in.get_shape();
-    std::vector<size_t> filterWeightsShape = {shape[1], numOutChannels};
+    auto shape = in.get_partial_shape();
+    std::vector<size_t> filterWeightsShape = {static_cast<size_t>(shape[1].get_length()), numOutChannels};
     if (filterWeightsShape[0] % numGroups || filterWeightsShape[1] % numGroups)
         throw std::runtime_error("incorrect shape for GroupConvolutionBackpropData");
     filterWeightsShape[0] /= numGroups;
