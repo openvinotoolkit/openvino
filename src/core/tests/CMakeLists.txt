@@ -467,7 +467,7 @@ set(MULTI_TEST_SRC
     backend/sqrt.in.cpp
 )
 
-set(OP_EVAL_TEST_SRC 
+set(OP_EVAL_TEST_SRC
     # It should be a part of template plugin
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
@@ -517,7 +517,8 @@ if (ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/progress_reporter.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
@@ -580,7 +581,8 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         Threads::Threads
                                         openvino::conditional_compilation
                                         openvino::util
-                                        frontend_common)
+                                        frontend_common
+                                        offline_transformations)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
