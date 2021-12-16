@@ -56,8 +56,10 @@ public:
             ASSERT_NO_THROW(check_rt_info(function));
         }
 
-        auto res = comparator.compare(function, function_ref);
-        ASSERT_TRUE(res.valid) << res.message;
+        if (!m_disable_function_comparison) {
+            auto res = comparator.compare(function, function_ref);
+            ASSERT_TRUE(res.valid) << res.message;
+        }
 
         if (m_enable_accuracy_check) {
             accuracy_check(cloned_function, function);
@@ -78,6 +80,10 @@ public:
         m_enable_accuracy_check = true;
     }
 
+    void disable_function_comparison() {
+        m_disable_function_comparison = true;
+    }
+
     void accuracy_check(std::shared_ptr<ov::Model> ref_function, std::shared_ptr<ov::Model> cur_function);
 
     std::shared_ptr<ov::Model> function, function_ref;
@@ -89,4 +95,5 @@ private:
     bool m_disable_rt_info_check{false};
     bool m_soft_names_comparison{true};
     bool m_enable_accuracy_check{false};
+    bool m_disable_function_comparison{false};
 };
