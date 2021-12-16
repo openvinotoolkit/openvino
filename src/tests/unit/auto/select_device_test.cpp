@@ -50,10 +50,7 @@ const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, 
 const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  int8DeviceVector = {KEEMBAY_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
-// if CPU support BATCHED_BLOB ?
-// currently if there are CPU in metaDevices, the selectDevice will select CPU if on other device support
-//const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
-const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
+const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
 std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32", fp32DeviceVector},
                                                                            {"FP16", fp16DeviceVector},
                                                                            {"INT8", int8DeviceVector},
