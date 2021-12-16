@@ -354,7 +354,8 @@ void TemplateInferRequest::inferPostprocess() {
             }
             std::cout << std::endl << std::endl;
         }
-        if (result->get_output_partial_shape(0).is_dynamic() && outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
+        if (result->get_output_partial_shape(0).is_dynamic() && networkOutput->getTensorDesc().getPrecision() != outputBlob->getTensorDesc().getPrecision()
+        && networkOutput->getTensorDesc().getPrecision() == Precision::I64 && outputBlob->getTensorDesc().getPrecision() == Precision::I32) {
             auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
             auto* data = new std::int64_t [tensor->get_size_in_bytes() / 8];
             tensor->read(data,tensor->get_size_in_bytes());
