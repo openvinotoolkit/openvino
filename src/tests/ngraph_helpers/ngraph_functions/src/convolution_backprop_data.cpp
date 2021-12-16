@@ -24,8 +24,8 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in
                                                   const std::vector<float> &filterWeights,
                                                   const std::vector<float> &biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
-    auto shape = in.get_shape();
-    std::vector<size_t> filterWeightsShape = {shape[1], numOutChannels};
+    auto shape = in.get_partial_shape();
+    std::vector<size_t> filterWeightsShape = {static_cast<size_t>(shape[1].get_length()), numOutChannels};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
@@ -74,8 +74,8 @@ std::shared_ptr<Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in
                                                   const std::vector<float> &filterWeights,
                                                   const std::vector<float> &biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
-    auto shape = in.get_shape();
-    std::vector<size_t> filterWeightsShape = {shape[1], numOutChannels};
+    auto shape = in.get_partial_shape();
+    std::vector<size_t> filterWeightsShape = {static_cast<size_t>(shape[1].get_length()), numOutChannels};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 

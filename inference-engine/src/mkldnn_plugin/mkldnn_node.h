@@ -208,7 +208,9 @@ public:
         return 1;
     }
 
-    void appendPostOpArgs(const mkldnn::primitive_attr& attr);
+    static void appendPostOpArgs(const mkldnn::primitive_attr& attr,
+                                 std::unordered_map<int, mkldnn::memory>& primArgs,
+                                 const std::vector<MKLDNNMemoryPtr>& binaryPostOpsArgs);
 
     bool isFusedWith(Type type) const;
 
@@ -425,7 +427,7 @@ public:
                 if (impl_type == selected_pd->getImplementationType() &&
                     descsCompatible(srcDescs, selected_pd->getConfig().inConfs) &&
                     descsCompatible(dstDescs, selected_pd->getConfig().outConfs)) {
-                    prepareMemory(selected_pd, itpd);
+                    prepareMemory(itpd);
                     PD prim_desc = createPd<PD, D, FPD>(desc);
                     return {itpd.get()};
                 }
@@ -722,6 +724,8 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
+    void prepareMemory(mkldnn::primitive_desc_iterator& itpd);
+
     bool isDynamic = false;
 
     bool inputShapesDefined() const;
@@ -746,6 +750,7 @@ protected:
     }
 
     std::vector<VectorDims> lastInputDims = {};
+
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
 private:
@@ -788,7 +793,6 @@ private:
         return PD(*selected_desc_ptr, engine);
     }
 
-    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 

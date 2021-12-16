@@ -55,6 +55,8 @@ void SubgraphBaseTest::run() {
             try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
+                    // Note: output shapes of some nodes depend on the input data
+                    // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
                     init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);

@@ -421,7 +421,7 @@ void MKLDNNMatMulNode::prepareParams() {
     if (withBiases)
         primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
 
-    appendPostOpArgs(*attr);
+    appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
 }
 
 void MKLDNNMatMulNode::executeDynamicImpl(dnnl::stream strm) {
