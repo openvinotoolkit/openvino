@@ -19,9 +19,8 @@ class PlaceholderFrontExtractor(FrontExtractorOp):
         shape = shape_array([])
         # Extract output shape from `shape` attribute
         extracted_shape = tf_tensor_shape(node.pb.attr["shape"].shape)
-        if len(extracted_shape) != 0 and not node.pb.attr["shape"].shape.unknown_rank:
+        if len(extracted_shape) != 0:
             shape = extracted_shape
-
         else:
             # Extract output shape from `_output_shapes` attribute if it is possible
             extracted_output_shapes = node.pb.attr["_output_shapes"].list.shape
@@ -34,7 +33,7 @@ class PlaceholderFrontExtractor(FrontExtractorOp):
                     log.warning('Extracted shapes for Placeholder operation {} have different lengths: `shape` {} and '
                                 '`_output_shapes` {}. Please, check if model is consistent'.format(
                         node.pb.name, extracted_shape, extracted_output_shapes))
-                    if len(extracted_output_shapes) != 0 and not node.pb.attr["shape"].shape.unknown_rank:
+                    if len(extracted_output_shapes) != 0:
                         shape = extracted_output_shapes
 
         attrs = {
