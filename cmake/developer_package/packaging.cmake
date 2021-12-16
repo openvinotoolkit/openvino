@@ -65,6 +65,8 @@ set(OV_COMP_PYTHON_IE_API "pyie")
 set(OV_COMP_PYTHON_NGRAPH "pyngraph")
 set(OV_COMP_PYTHON_OPENVINO "pyopenvino")
 set(OV_COMP_DEV_REQ_FILES "openvino_dev_req_files")
+set(OV_COMP_LICENSING "licensing")
+set(OV_COMP_INSTALL_DEPENDENCIES "install_dependencies")
 
 # override cpack components name for DEB cpack generator
 if(CPACK_GENERATOR STREQUAL "DEB")

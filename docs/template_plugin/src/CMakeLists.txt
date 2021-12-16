@@ -37,4 +37,3 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 # ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
 #                     POSSIBLE_PLUGINS ${TARGET_NAME})
 # [cmake:plugin]
-ov_install_static_lib(interpreter_backend tests)

@@ -234,6 +234,17 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                                     << (is_input ? "input" : "output") << " precision";
     }
 
+    size_t dataBinSize = dataSize * data->element_size();
+    size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
+                                           desc.getPrecision().size(),
+                                           std::multiplies<size_t>());
+
+    if (dataBinSize != netReqBinSize && !compoundBlobPassed) {
+        IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
+                      " blob with name: \'" << name <<  "\' " <<
+                      "Current: " << dataBinSize << " Required: " << netReqBinSize;
+    }
+
     auto remote_ptr = data->as<gpu::ClBlob>();
     bool is_remote = remote_ptr != nullptr;
     if (is_remote) {
@@ -942,6 +953,13 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                 IE_THROW() << str_input_not_allocated;
             }
             auto inputMem = impl->getMemory();
+
+            auto input_layout = m_graph->GetInputLayouts().find(inputName);
+            if (input_layout != m_graph->GetInputLayouts().end()) {
+                if (input_layout->second.format != inputMem->get_layout().format) {
+                    inputMem = m_graph->GetNetwork()->get_engine().reinterpret_buffer(*inputMem, input_layout->second);
+                }
+            }
 
             if (!is_dev_input) {
                 if (prec == Precision::I16 || prec == Precision::U16) {
