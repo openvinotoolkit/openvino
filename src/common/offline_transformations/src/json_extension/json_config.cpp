@@ -176,7 +176,7 @@ JsonConfigExtension::JsonConfigExtension(const std::string& config_path)
     // Parse JSON Extensions
 
     // Group sections describing transformations by library.
-    std::map<std::string, nlohmann::json> lib_to_sections;
+    std::unordered_map<std::string, nlohmann::json> lib_to_sections;
     for (const auto& section : config_json) {
         lib_to_sections[section["library"]].push_back(section);
     }
