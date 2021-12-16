@@ -7,6 +7,7 @@ import numpy as np
 from ..statistics.statistics import compute_statistic, Statistic, TensorStatistic
 from ..statistics.function_selector import get_stats_function, ACTIVATIONS
 from ..utils.logger import get_logger
+from ..utils.utils import convert_output_key
 
 logger = get_logger(__name__)
 
@@ -135,7 +136,7 @@ def align_stat_names_with_results(result_names, nodes_name, output2node, stats_l
                 output2node[out_name_with_port] = original_out_name
 
 def process_raw_output(raw_output):
-    """Processes raw output into the POT friendly format"""
+    """ Processes raw output into the POT friendly format """
     result = {}
     for result_node, result_data in raw_output.items():
         if isinstance(result_node, str):
@@ -144,3 +145,9 @@ def process_raw_output(raw_output):
             result_name = result_node.get_node().friendly_name.replace('/sink_port_0', '')
         result[result_name] = result_data
     return result
+
+def set_friendly_node_names(nodes_and_names):
+    """ Processes nGraph output_node's and sets POT-friendly name """
+    for output_node, node_name in nodes_and_names:
+        node_name = convert_output_key(node_name) + '/sink_port_0'
+        output_node.get_node().set_friendly_name(node_name)

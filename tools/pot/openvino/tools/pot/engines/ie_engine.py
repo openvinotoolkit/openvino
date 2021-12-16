@@ -11,7 +11,7 @@ from openvino.runtime import Core   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    process_raw_output
+    process_raw_output, set_friendly_node_names
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -96,9 +96,7 @@ class IEEngine(Engine):
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
             outputs = self._add_outputs(list(nodes_names_map.values()))
-            for output_node, node_name in zip(outputs, nodes_names_map.keys()):
-                node_name = convert_output_key(node_name) + '/sink_port_0'
-                output_node.get_node().set_friendly_name(node_name)
+            set_friendly_node_names(zip(outputs, nodes_names_map.keys()))
 
             model_output_names = [o.get_node().friendly_name for o in self._model.outputs]
             align_stat_names_with_results(model_output_names,
@@ -450,14 +448,16 @@ class IEEngine(Engine):
         return stats_layout_ie_style, stat_names_aliases
 
     @staticmethod
-    def _get_input_any_name(input):
-        """Returns any_name for nGraph input const node
+    def _get_input_any_name(input_node):
+        """ Returns any_name for nGraph input const node
             If any_name not exists, sets this name as friendly_name
+            :param input_node - nGraph ConstOutput object
+            :returns - a string tensor name
         """
         try:
-            input_name = input.get_any_name()
+            input_name = input_node.get_any_name()
         except RuntimeError:
-            name_set = set([input.node.friendly_name])
-            input_name = input.get_tensor().set_names(name_set)
-            input_name = input.get_any_name()
+            name_set = set([input_node.node.friendly_name])
+            input_name = input_node.get_tensor().set_names(name_set)
+            input_name = input_node.get_any_name()
         return input_name
