@@ -174,7 +174,7 @@ endif()
 
 _ov_find_dependency(Threads)
 
-if(NOT TARGET inference_engine)
+if(NOT TARGET openvino::runtime)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 endif()
