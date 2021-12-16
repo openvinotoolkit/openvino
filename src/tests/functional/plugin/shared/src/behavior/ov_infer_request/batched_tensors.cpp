@@ -37,8 +37,13 @@ void OVInferRequestBatchedTests::SetUp() {
 }
 
 void OVInferRequestBatchedTests::TearDown() {
-    CommonTestUtils::removeFilesWithExt(m_cache_dir, "blob");
-    CommonTestUtils::removeDir(m_cache_dir);
+    if (m_need_reset_core) {
+        ie->set_config({{CONFIG_KEY(CACHE_DIR), {}}});
+        ie.reset();
+        PluginCache::get().reset();
+        CommonTestUtils::removeFilesWithExt(m_cache_dir, "blob");
+        CommonTestUtils::removeDir(m_cache_dir);
+    }
 }
 
 std::shared_ptr<Model> OVInferRequestBatchedTests::create_n_inputs(size_t n, element::Type type,
@@ -172,6 +177,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_override_with_set) {
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase_Caching) {
+    m_need_reset_core = true;
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
     auto batch_shape = Shape{batch, 2, 2, 2};
@@ -208,7 +214,6 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase_Caching) {
                                                << ", actual=" << actual[j] << " for index " << j;
         }
     }
-    PluginCache::get().reset();
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Multiple_Infer) {
@@ -461,6 +466,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Correct_all) {
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
+    m_need_reset_core = true;
     auto one_shape = Shape{1, 3, 3, 3};
     auto batch_shape = Shape{2, 3, 3, 3};
     std::vector<float> buffer(ov::shape_size(batch_shape), 1);
@@ -481,7 +487,6 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
     // Verify that infer request still has its own copy of input/output, user can use old names
     ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors));
     ASSERT_NO_THROW(req.set_tensor("tensor_output0", out_tensor));
-    PluginCache::get().reset();
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Incorrect_tensor_element_type) {

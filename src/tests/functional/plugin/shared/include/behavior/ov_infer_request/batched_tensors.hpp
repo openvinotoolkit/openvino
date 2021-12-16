@@ -30,6 +30,7 @@ protected:
     std::shared_ptr<runtime::Core> ie = utils::PluginCache::get().core();
     std::string targetDevice;
     std::string m_cache_dir; // internal member
+    bool m_need_reset_core = false;
 };
 
 }  // namespace behavior
