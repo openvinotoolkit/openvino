@@ -1388,8 +1388,15 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     std::vector<ov::StaticShape> input_shapes;
     if (shapes.empty()) {
         // from graph runtime
-        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++)
-            input_shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getStaticDims());
+        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+            ov::StaticShape shape(getParentEdgesAtPort(i)[0]->getMemory().getStaticDims());
+
+            // convert to scalar for length-1 1D if required by ngraph
+            if (shape.size() == 1 && shape[0] == 1 && opToShapeInfer->get_input_partial_shape(i).rank().compatible(0))
+                shape = ov::StaticShape();
+
+            input_shapes.push_back(shape);
+        }
     } else {
         // from parameter given
         for (size_t i = 0; i < shapes.size(); i++)
@@ -1403,9 +1410,16 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
             if (input_value_port_mask & (1 << i)) {
                 const auto& memPtr = getParentEdgesAtPort(i)[0]->getMemory();
 
+                ov::Shape shape(memPtr.getStaticDims());
+
+                // convert to scalar for length-1 1D if required by ngraph
+                if (shape.size() == 1 && shape[0] == 1 &&
+                    opToShapeInfer->get_input_partial_shape(i).rank().compatible(0))
+                    shape = ov::Shape();
+
                 input_values[i] = std::make_shared<ngraph::runtime::HostTensor>(
                     InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
-                    memPtr.getStaticDims(),
+                    shape,
                     memPtr.GetPtr());
             }
         }
