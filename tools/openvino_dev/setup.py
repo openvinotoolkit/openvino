@@ -195,7 +195,7 @@ setup(
     author_email='openvino_pushbot@intel.com',
     url='https://docs.openvinotoolkit.org/latest/index.html',
     download_url='https://github.com/openvinotoolkit/openvino/tags',
-    description='OpenVINO(TM) Development Tools',
+    description='OpenVINO™ Developer Package',
     long_description=get_description(SCRIPT_DIR.parents[1] / 'docs/install_guides/pypi-openvino-dev.md'),
     long_description_content_type='text/markdown',
     classifiers=[
