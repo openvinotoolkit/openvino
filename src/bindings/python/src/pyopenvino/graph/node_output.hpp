@@ -11,6 +11,10 @@
 
 namespace py = pybind11;
 
+using PyRTMap = ov::Node::RTMap;
+
+PYBIND11_MAKE_OPAQUE(PyRTMap);
+
 template <typename VT>
 void regclass_graph_Output(py::module m, std::string typestring)
 {
@@ -126,6 +130,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 get_rt_info : RTMap
                     A dictionary of user defined data.
              )");
+
 
     output.def_property_readonly("node", &ov::Output<VT>::get_node);
     output.def_property_readonly("index", &ov::Output<VT>::get_index);

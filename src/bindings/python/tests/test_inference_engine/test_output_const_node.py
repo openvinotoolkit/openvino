@@ -4,7 +4,9 @@
 import os
 
 from ..conftest import model_path
-from openvino.runtime import ConstOutput, Shape, PartialShape, Type
+import openvino.runtime.opset8 as ops
+from openvino.runtime import ConstOutput, Shape, PartialShape, Type, \
+    Output, Parameter, PyRTMap
 
 from openvino.runtime import Core
 
@@ -108,8 +110,7 @@ def test_const_get_rf_info(device):
     exec_net = core.compile_model(func, device)
     output_node = exec_net.output(0)
     rt_info = output_node.get_rt_info()
-    assert isinstance(rt_info, dict)
-    assert rt_info == {}
+    assert isinstance(rt_info, PyRTMap)
 
 
 def test_const_output_runtime_info(device):
@@ -119,5 +120,14 @@ def test_const_output_runtime_info(device):
     input_name = "data"
     output_node = exec_net.input(input_name)
     rt_info = output_node.rt_info
-    assert isinstance(rt_info, dict)
-    assert rt_info == {}
+    assert isinstance(rt_info, PyRTMap)
+
+
+def test_update_rt_info(device):
+    relu = ops.relu(5)
+    output_node = Output._from_node(relu)
+    rt = output_node.get_rt_info()
+    rt["test12345"] = "test"
+    for k, v in output_node.get_rt_info().items():
+        assert k == "test12345"
+        assert isinstance(v, Parameter)

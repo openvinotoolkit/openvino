@@ -4,7 +4,9 @@
 import os
 
 from ..conftest import model_path
-from openvino.runtime import Input, Shape, PartialShape, Type
+import openvino.runtime.opset8 as ops
+from openvino.runtime import Input, Shape, PartialShape, Type, Parameter, \
+    PyRTMap
 
 from openvino.runtime import Core
 
@@ -66,7 +68,6 @@ def test_input_get_shape(device):
     exec_net = core.compile_model(func, device)
     input = exec_net.output(0)
     input_node = input.get_node().inputs()[0]
-    # expected_shape = [1, 10]
     assert str(input_node.get_shape()) == str(Shape([1, 10]))
 
 
@@ -97,8 +98,7 @@ def test_input_get_rt_info(device):
     input = exec_net.output(0)
     input_node = input.get_node().inputs()[0]
     rt_info = input_node.get_rt_info()
-    assert isinstance(rt_info, dict)
-    assert rt_info == {}
+    assert isinstance(rt_info, PyRTMap)
 
 
 def test_input_rt_info(device):
@@ -108,5 +108,17 @@ def test_input_rt_info(device):
     input = exec_net.output(0)
     input_node = input.get_node().inputs()[0]
     rt_info = input_node.rt_info
-    assert isinstance(rt_info, dict)
-    assert rt_info == {}
+    assert isinstance(rt_info, PyRTMap)
+
+
+def test_input_update_rt_info(device):
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, device)
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    rt = input_node.get_rt_info()
+    rt["test12345"] = "test"
+    for k, v in input_node.get_rt_info().items():
+        assert k == "test12345"
+        assert isinstance(v, Parameter)
