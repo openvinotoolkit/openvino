@@ -48,11 +48,13 @@ KernelsData SliceKernelRef::GetKernelsData(const Params &params,
 
 KernelsPriority SliceKernelRef::GetKernelsPriority(const Params&/*params*/,
         const optional_params&/*options*/) const {
-    return FORCE_PRIORITY_1;
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 ParamsKey SliceKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
@@ -61,8 +63,10 @@ ParamsKey SliceKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
-    k.EnableAllInputLayout();
-    k.EnableAllOutputLayout();
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
