@@ -62,7 +62,7 @@ protected:
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<deconvolution>& arg) {
-        auto attrs = parent::get_primitive_attributes(arg);
+        auto attrs = arg.get_onednn_primitive_attributes();
 
         return attrs;
     }
@@ -109,8 +109,8 @@ protected:
 
         auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
         auto dilation = onednn::convert_spatials(cldnn::tensor{1}, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->input_offset, spatials_rank);
-        auto pad_r = onednn::convert_spatials(prim->input_offset, spatials_rank);
+        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
+        auto pad_r = onednn::convert_spatials(prim->pad, spatials_rank);
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
         auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
@@ -119,7 +119,6 @@ protected:
 
         for (size_t i = 0; i < dilation.size(); i++) {
             dilation[i]--;
-            pad_l[i] = -pad_l[i];
             int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
             auto os = output_md.dims()[2 + i];
             auto is = input_md.dims()[2 + i];
@@ -199,6 +198,11 @@ attach_deconvolution_onednn::attach_deconvolution_onednn() {
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),

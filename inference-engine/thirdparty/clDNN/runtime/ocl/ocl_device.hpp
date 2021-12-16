@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/device.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/device.hpp"
 #include "ocl_common.hpp"
 
 #include <map>
@@ -27,6 +27,8 @@ public:
     cl::Device& get_device() { return _device; }
     const cl::Context& get_context() const { return _context; }
     cl_platform_id get_platform() const { return _platform; }
+
+    bool is_same(const device::ptr other) override;
 
     ~ocl_device() = default;
 

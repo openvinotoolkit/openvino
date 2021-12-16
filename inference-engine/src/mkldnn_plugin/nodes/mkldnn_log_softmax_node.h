@@ -16,14 +16,18 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); };
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    size_t reducedAxisSize;
+    int axis;
+    size_t reducedAxisSize = 0;
     size_t reducedAxisStride = 1;
     size_t axisStep = 1;
     bool isLastDim = false;

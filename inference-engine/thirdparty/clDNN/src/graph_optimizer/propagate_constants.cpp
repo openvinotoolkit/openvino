@@ -6,9 +6,9 @@
 
 #include "pass_manager.h"
 #include "program_node.h"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/graph/program.hpp"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/network.hpp"
 #include "data_inst.h"
 #include "runtime/cldnn_itt.hpp"
 #include <vector>

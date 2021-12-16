@@ -524,6 +524,7 @@ public:
             _enqueue_memcpy_fn             = try_load_entrypoint<clEnqueueMemcpyINTEL_fn>(_ctx.get(), "clEnqueueMemcpyINTEL");
             _enqueue_mem_fill_fn           = try_load_entrypoint<clEnqueueMemFillINTEL_fn>(_ctx.get(), "clEnqueueMemFillINTEL");
             _enqueue_memset_fn             = try_load_entrypoint<clEnqueueMemsetINTEL_fn>(_ctx.get(), "clEnqueueMemsetINTEL");
+            _get_mem_alloc_info_fn         = try_load_entrypoint<clGetMemAllocInfoINTEL_fn>(_ctx.get(), "clGetMemAllocInfoINTEL");
         }
     }
 
@@ -621,6 +622,17 @@ public:
         return err;
     }
 
+    cl_unified_shared_memory_type_intel get_usm_allocation_type(const void* usm_ptr) const {
+        if (!_get_mem_alloc_info_fn) {
+            throw std::runtime_error("[GPU] clGetMemAllocInfoINTEL is nullptr");
+        }
+
+        cl_unified_shared_memory_type_intel ret_val;
+        size_t ret_val_size;
+        _get_mem_alloc_info_fn(_ctx.get(), usm_ptr, CL_MEM_ALLOC_TYPE_INTEL, sizeof(cl_unified_shared_memory_type_intel), &ret_val, &ret_val_size);
+        return ret_val;
+    }
+
 private:
     cl::Context _ctx;
     cl::Device _device;
@@ -632,6 +644,7 @@ private:
     clEnqueueMemcpyINTEL_fn _enqueue_memcpy_fn = nullptr;
     clEnqueueMemFillINTEL_fn _enqueue_mem_fill_fn = nullptr;
     clEnqueueMemsetINTEL_fn _enqueue_memset_fn = nullptr;
+    clGetMemAllocInfoINTEL_fn _get_mem_alloc_info_fn = nullptr;
 };
 
 /*
@@ -640,14 +653,28 @@ private:
 */
 class UsmHolder {
 public:
-    UsmHolder(const cl::UsmHelper& usmHelper, void* ptr) : _usmHelper(usmHelper), _ptr(ptr) { }
+    UsmHolder(const cl::UsmHelper& usmHelper, void* ptr, bool shared_memory = false)
+    : _usmHelper(usmHelper)
+    , _ptr(ptr)
+    , _shared_memory(shared_memory) { }
+
     void* ptr() { return _ptr; }
+    void memFree() {
+        try {
+            if (!_shared_memory)
+                _usmHelper.free_mem(_ptr);
+        } catch (...) {
+            // Exception may happen only when clMemFreeINTEL function is unavailable, thus can't free memory properly
+        }
+        _ptr = nullptr;
+    }
     ~UsmHolder() {
-        _usmHelper.free_mem(_ptr);
+        memFree();
     }
 private:
     const cl::UsmHelper& _usmHelper;
     void* _ptr;
+    bool _shared_memory = false;
 };
 /*
     USM base class. Different usm types should derive from this class.
@@ -655,6 +682,13 @@ private:
 class UsmMemory {
 public:
     explicit UsmMemory(const cl::UsmHelper& usmHelper) : _usmHelper(usmHelper) { }
+    UsmMemory(const cl::UsmHelper& usmHelper, void* usm_ptr)
+    : _usmHelper(usmHelper)
+    , _usm_pointer(std::make_shared<UsmHolder>(_usmHelper, usm_ptr, true)) {
+        if (!usm_ptr) {
+            throw std::runtime_error("[GPU] Can't share null usm pointer");
+        }
+    }
 
     // Get methods returns original pointer allocated by openCL.
     void* get() const { return _usm_pointer->ptr(); }
@@ -678,6 +712,12 @@ public:
         _allocate(_usmHelper.allocate_device(nullptr, size, 0, &error));
         if (error != CL_SUCCESS)
             detail::errHandler(error, "[CL_EXT] UsmDevice in cl extensions constructor failed");
+    }
+
+    void freeMem() {
+        if (!_usm_pointer)
+            throw std::runtime_error("[CL ext] Can not free memory of empty UsmHolder");
+        _usm_pointer->memFree();
     }
 
     virtual ~UsmMemory() = default;

@@ -6,10 +6,10 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/reorder.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -418,7 +418,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                                     "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", "concat", {"weights"}, {1, 1, 1, 1}, {0, 0, -1, 0}),
+                      convolution("conv", "concat", {"weights"}, {1, 1, 1, 1}, tensor{{0, 0, 1, 0}, 0}),
                       reorder("output", "conv", reorder_layout) );
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));

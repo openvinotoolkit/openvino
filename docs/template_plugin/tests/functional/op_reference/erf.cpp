@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include "openvino/op/erf.hpp"
 #include "base_reference_test.hpp"
@@ -43,6 +44,7 @@ struct ErfParams {
 class ReferenceErfLayerTest : public testing::TestWithParam<ErfParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         auto params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType);
         inputData = {params.inputData};
@@ -58,11 +60,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto erf = std::make_shared<op::v0::Erf>(in);
-        return std::make_shared<ov::Function>(NodeVector {erf}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {erf}, ParameterVector {in});
     }
 };
 

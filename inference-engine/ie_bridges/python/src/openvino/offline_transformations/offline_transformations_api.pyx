@@ -35,6 +35,10 @@ def ApplyLowLatencyTransformation(IENetwork network, bool use_const_initializer 
     C.ApplyLowLatencyTransformation(network.impl, use_const_initializer)
 
 
+def CompressModelTransformation(IENetwork network):
+    C.CompressModelTransformation(network.impl)
+
+
 def ApplyPruningTransformation(IENetwork network):
     C.ApplyPruningTransformation(network.impl)
 

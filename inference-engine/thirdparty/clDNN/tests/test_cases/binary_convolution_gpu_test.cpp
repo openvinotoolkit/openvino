@@ -4,10 +4,10 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/binary_convolution.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/binary_convolution.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <iostream>
 
@@ -190,7 +190,7 @@ TEST_P(binary_convolution_test, conv) {
     TestParams p = GetParam();
 
     cldnn::tensor stride = cldnn::tensor{cldnn::batch(1), cldnn::feature(1), cldnn::spatial(p.sw, p.sh)};
-    cldnn::tensor pad = cldnn::tensor{cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-p.pw, -p.ph)};
+    cldnn::tensor pad = cldnn::tensor{cldnn::batch(0), cldnn::feature(0), cldnn::spatial(p.pw, p.ph)};
     cldnn::tensor dilation = {1,1,1,1};
 
     cldnn::tensor is_size{ cldnn::batch(p.b),

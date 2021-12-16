@@ -118,8 +118,10 @@ void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
     };
 
     // Serialize to old representation in case of old API
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
-    serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
 }
 
 CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream & istream, cnn_network_builder fn)

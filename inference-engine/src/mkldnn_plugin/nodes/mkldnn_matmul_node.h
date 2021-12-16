@@ -32,16 +32,26 @@ public:
         return getOriginalInputsNumber();
     }
 
+    size_t getFusingAxis() const override {
+        return getOutputShapeAtPort(0).getRank() - 1;
+    }
+
     void prepareParams() override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
 protected:
-    AttrPtr initPrimitiveAttr() const override;
+    AttrPtr initPrimitiveAttr() override;
+    AttrPtr initPrimitiveAttr(const VectorDims& dims);
 
 private:
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const;
+    mkldnn::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
+
+    bool withBiases;
+
+    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights);
 
     std::string errorPrefix;
 

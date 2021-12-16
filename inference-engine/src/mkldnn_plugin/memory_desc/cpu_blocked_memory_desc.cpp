@@ -109,7 +109,9 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
     }
 
     auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
+                                                                         // WA: for some nodes ngraph compute upper bound depending on precision max value
+                                                                         std::numeric_limits<int32_t>::max() == x; })) {
         return UNDEFINED_SIZE;
     }
 
@@ -210,29 +212,6 @@ bool CpuBlockedMemoryDesc::isTailCFormat() const {
         return false;
     }
     return true;
-}
-
-std::string CpuBlockedMemoryDesc::serializeFormat() const {
-    std::stringstream result;
-    char startLetter = 'a';
-    std::unordered_map<size_t, size_t> mapAxisBlockSize;
-    for (size_t i = shape.getRank(); i < order.size(); ++i) {
-        mapAxisBlockSize.insert({order[i], blockedDims[i]});
-    }
-
-    for (size_t i = 0; i < shape.getRank(); ++i) {
-        char nextLetter = startLetter + order[i];
-        if (mapAxisBlockSize.count(i)) {
-            nextLetter = toupper(nextLetter);
-        }
-        result << nextLetter;
-    }
-
-    for (auto& item : mapAxisBlockSize) {
-        result << item.second << char(startLetter + item.first);
-    }
-
-    return result.str();
 }
 
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {

@@ -23,10 +23,6 @@ using namespace mkldnn::impl::cpu::x64;
 
 bool MKLDNNAdaptivePoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveAvgPool::get_type_info_static())) {
             auto adaPool = std::dynamic_pointer_cast<const ngraph::opset8::AdaptiveAvgPool>(op);
             if (!adaPool) {
@@ -62,6 +58,8 @@ MKLDNNAdaptivePoolingNode::MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngrap
     } else if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveMaxPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingMax;
     }
+    spatialDimsCount = getInputShapeAtPort(0).getRank() - 2;
+    spatialDimsValue.resize(spatialDimsCount);
 }
 
 void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
@@ -73,12 +71,9 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
     if (getChildEdges().size() != (algorithm == AdaptivePoolingMax ? 2 : 1))
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getParentEdges().size();
 
-    auto parentDims = getInputShapeAtPort(0).getStaticDims();
-    auto childDims = getOutputShapeAtPort(0).getStaticDims();
-
-    spatialDimsCount = parentDims.size() - 2;
+    auto srcRank = getInputShapeAtPort(0).getRank();
     if (!one_of(spatialDimsCount, 1, 2, 3)) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << srcRank;
     }
 
     if (getInputShapeAtPort(1).getRank() != 1) {
@@ -88,6 +83,34 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
     if (getOutputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
         IE_THROW() << errorPrefix << "must keep data rank";
     }
+}
+
+bool MKLDNNAdaptivePoolingNode::needShapeInfer() const {
+    const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
+    for (size_t i = 0; i < spatialDimsCount; i++) {
+        if (spatialDimsValue[i] != newSpatialDimsPtr[i])
+            return true;
+    }
+    return MKLDNNNode::needShapeInfer();
+}
+
+std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
+    const auto inputDims = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims();
+    const auto spatialDims = getParentEdgesAtPort(1)[0]->getMemory().GetShape().getStaticDims();
+    const auto inputRank = inputDims.size();
+    const auto spatialDimsSize = spatialDims[0];
+
+    VectorDims outputDims(inputRank);
+    outputDims[0] = inputDims[0];
+    outputDims[1] = inputDims[1];
+    auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
+    for (size_t i = 0; i < spatialDimsSize; i++) {
+        outputDims[i + 2] = newSpatialDimsPtr[i];
+        spatialDimsValue[i] = newSpatialDimsPtr[i];
+    }
+
+    std::vector<VectorDims> result(outputShapes.size(), outputDims);
+    return result;
 }
 
 void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
@@ -103,7 +126,8 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 
     std::vector<LayoutType> dataFormats{ LayoutType::ncsp };
-    if (getInputShapeAtPort(0).getStaticDims()[1] != 1) {
+    const auto &inDims = getInputShapeAtPort(0).getDims();
+    if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] != 1) {
         dataFormats.push_back(LayoutType::nspc);
         dataFormats.push_back(LayoutType::nCsp16c);
         dataFormats.push_back(LayoutType::nCsp8c);

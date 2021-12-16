@@ -47,6 +47,7 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
+        auto attrs = instance.get_node().get_onednn_primitive_attributes();
 
         {
             auto weights = instance.weights_memory(0);
@@ -58,13 +59,13 @@ protected:
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
 
-        if (has_zero_points(DNNL_ARG_SRC, _attrs)) {
+        if (has_zero_points(DNNL_ARG_SRC, attrs)) {
             auto a_zp = instance.activations_zero_points_memory(0);
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
         }
 
-        if (has_zero_points(DNNL_ARG_WEIGHTS, _attrs)) {
+        if (has_zero_points(DNNL_ARG_WEIGHTS, attrs)) {
             auto w_zp = instance.weights_zero_points_memory(0);
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
@@ -74,7 +75,7 @@ protected:
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg) {
-        auto attrs = parent::get_primitive_attributes(arg);
+        auto attrs = arg.get_onednn_primitive_attributes();
 
         if (arg.activations_zero_points_term()) {
             auto& a_zp = arg.activations_zero_points();
@@ -150,8 +151,8 @@ protected:
 
         auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
         auto dilation = onednn::convert_spatials(prim->dilation, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->input_offset, spatials_rank);
-        auto pad_r = onednn::convert_spatials(prim->input_offset, spatials_rank);
+        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
+        auto pad_r = onednn::convert_spatials(prim->pad, spatials_rank);
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
         auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
@@ -160,7 +161,6 @@ protected:
 
         for (size_t i = 0; i < dilation.size(); i++) {
             dilation[i]--;
-            pad_l[i] = -pad_l[i];
             int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
             auto os = output_md.dims()[2 + i];
             auto is = input_md.dims()[2 + i];
@@ -255,6 +255,11 @@ attach_convolution_onednn::attach_convolution_onednn() {
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),

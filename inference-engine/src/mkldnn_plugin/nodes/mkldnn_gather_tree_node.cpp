@@ -85,7 +85,7 @@ void MKLDNNGatherTreeNode::execute(mkldnn::stream strm) {
 }
 
 template<typename DATA_T>
-void MKLDNNGatherTreeNode::gatherTreeKernel() noexcept {
+void MKLDNNGatherTreeNode::gatherTreeKernel() {
     const auto *step_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr()->GetPtr());
     const auto * const parent_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr()->GetPtr());
     const size_t parent_idx_size = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetShape().getElementsCount()

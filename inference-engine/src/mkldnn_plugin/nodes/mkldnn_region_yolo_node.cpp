@@ -202,10 +202,10 @@ private:
     inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address &op, InferenceEngine::Precision src_dt) {
         switch (src_dt) {
             case InferenceEngine::Precision::FP32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case InferenceEngine::Precision::BF16:
-                pinsrw(xmm_src, op, 0x0);
+                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             default:
@@ -215,11 +215,11 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Xbyak::Xmm xmm_dst, InferenceEngine::Precision dst_dt) {
         switch (dst_dt) {
             case InferenceEngine::Precision::FP32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case InferenceEngine::Precision::BF16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
+                uni_vpextrw(op, xmm_dst, 0x0);
                 break;
            default:
                 assert(!"unknown dst_dt");
@@ -229,10 +229,6 @@ private:
 
 bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
         if (!regionYolo) {
             errorMessage = "Only opset1 RegionYolo operation is supported";
@@ -242,6 +238,10 @@ bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngra
         return false;
     }
     return true;
+}
+
+bool MKLDNNRegionYoloNode::needPrepareParams() const {
+    return false;
 }
 
 MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
@@ -261,6 +261,7 @@ MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& 
     num = regionYolo->get_num_regions();
     do_softmax = regionYolo->get_do_softmax();
     mask = regionYolo->get_mask();
+    block_size = 1;
 }
 
 void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {
@@ -301,6 +302,10 @@ void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNRegionYoloNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
+
     jit_logistic_config_params jcp;
     jcp.src_dt = jcp.dst_dt = output_prec;
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();

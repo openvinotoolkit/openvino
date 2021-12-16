@@ -4,6 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
+#include <numeric>
+#include <vector>
+
+#include "ie_common.h"
+#include "ie_layouts.h"
+
 namespace MKLDNNPlugin {
 
 /**
@@ -36,9 +43,12 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 * flag which specify how we compare C dims if value is undefined (weak or strong)
 * @return true if broadcastable, false otherwise.
 */
-inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims,
+inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims,
+                                                 const InferenceEngine::SizeVector& secondInputDims,
+                                                 size_t channelAxis,
                                                  bool weakComparison = false) {
-    bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) : dimsEqualStrong;
+    bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) :
+                                                         static_cast<bool (*)(size_t, size_t)>(dimsEqualStrong);
     if (secondInputDims.size() > firstInputDims.size())
         return false;
     if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
@@ -46,7 +56,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVect
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
     for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-        if ((i == 1 && !dimsEqual(normalizedSecondInputDims[i], firstInputDims[1])) || (i != 1 && normalizedSecondInputDims[i] != 1))
+        if ((i == channelAxis && !dimsEqual(normalizedSecondInputDims[i], firstInputDims[i])) || (i != channelAxis && normalizedSecondInputDims[i] != 1))
             return false;
     }
     return true;
@@ -72,12 +82,17 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
         case InferenceEngine::Precision::FP32: {
             break;
         }
+        case InferenceEngine::Precision::FP64: {
+            precision = InferenceEngine::Precision::FP32;
+            break;
+        }
         case InferenceEngine::Precision::BOOL: {
             precision = InferenceEngine::Precision::U8;
             break;
         }
         case InferenceEngine::Precision::U16:
         case InferenceEngine::Precision::I16:
+        case InferenceEngine::Precision::U32:
         case InferenceEngine::Precision::I64:
         case InferenceEngine::Precision::U64: {
             precision = InferenceEngine::Precision::I32;

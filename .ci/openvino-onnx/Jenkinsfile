@@ -6,9 +6,8 @@ DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 ONNX_MODEL_ZOO_SHA = "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
 
 BACKEND_CONFIGURATIONS = [
-    [ name: "Release", build_type: "Release", protobuf_lite : "OFF" ],
-    [ name: "Debug", build_type: "Debug", protobuf_lite : "OFF" ],
-    [ name: "Rel_Lite", build_type: "Release", protobuf_lite : "ON" ],
+    [ name: "Release", build_type: "Release" ],
+    [ name: "Debug", build_type: "Debug" ],
 ]
 
 // workaround for aborting previous builds on PR update
@@ -94,7 +93,7 @@ def prepare_repository(String workdir) {
 
 def updateModels() {
     sh """
-        ./runtime/bindings/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/models_data -o -s ${ONNX_MODEL_ZOO_SHA}
+        ./src/bindings/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/models_data -o -s ${ONNX_MODEL_ZOO_SHA}
     """
 }
 
@@ -111,7 +110,6 @@ def buildDockerImage(Map configuration, String workdir) {
     sh """
         docker build --tag=${docker_image_tag} \
         --build-arg BUILD_TYPE=${configuration.build_type} \
-        --build-arg PROTOBUF_LITE=${configuration.protobuf_lite} \
         --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=${HTTP_PROXY}  \
         --build-arg https_proxy=${HTTPS_PROXY} .
