@@ -147,7 +147,7 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
     else
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getParentEdgeAt(WEIGHTS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
 
-    appendPostOpArgs(*attr);
+    appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
