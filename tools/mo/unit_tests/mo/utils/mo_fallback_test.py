@@ -186,6 +186,7 @@ class TestMoFallback(unittest.TestCase):
             args.transformations_config = trans_config
 
         prepare_ir(args)
+
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
         if fallback_reason:
             tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
@@ -197,7 +198,7 @@ class TestMoFallback(unittest.TestCase):
             os.remove(args.transformations_config) # clean-up
 
 
-    @generate(*[(True, False, 'mo_legacy', 'nGraph does not support the following ONNX operations: FakeElu'),
+    @generate(*[(True, False, 'mo_legacy', 'frontend failure with exception: nGraph does not support the following ONNX operations: FakeElu\n'),
                 (False, False, 'mo_legacy', None),
     ])
     def test_fallback_if_frontend_path_failed(self, use_new_fe, use_legacy, expected_path, fallback_reason):
@@ -215,4 +216,4 @@ class TestMoFallback(unittest.TestCase):
         if fallback_reason is None:
             assert not 'fallback_reason' in call_args_dict
         else:
-            assert fallback_reason in call_args_dict['fallback_reason'] # do not check callstack in a exception
+            assert fallback_reason == call_args_dict['fallback_reason']
