@@ -9,6 +9,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -197,6 +198,68 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
         auto gather = create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {0.1, 0.2, 0.3}), {2, 1, 0}, 0);
         auto add = std::make_shared<Add>(input, gather);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwise1_use_shapes_false) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add_const =  Constant::create(element::f32, Shape{3, 1, 1}, {0.1, 0.2, 0.3});
+        auto add = std::make_shared<Add>(input, add_const);
+        auto conv_weights = Constant::create(element::f32, Shape{1, 3, 2, 2},
+                                             {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2});
+        auto conv = create_conv(add, conv_weights);
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::MOCTransformations>(false, false);
+    }
+
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto reversed_add_const =  Constant::create(element::f32, Shape{3, 1, 1}, {0.3, 0.2, 0.1});
+        auto add = std::make_shared<Add>(input, reversed_add_const);
+        auto reversed_weights = Constant::create(element::f32, Shape{1, 3, 2, 2},
+                                                 {0.9, 1.0, 1.1, 1.2, 0.5, 0.6, 0.7, 0.8, 0.1, 0.2, 0.3, 0.4});
+        auto conv = create_conv(add, reversed_weights);
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionEltwise1_use_shapes_true) {
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto add_const =  Constant::create(element::f32, Shape{3, 1, 1}, {0.1, 0.2, 0.3});
+        auto add = std::make_shared<Add>(input, add_const);
+        auto conv_weights = Constant::create(element::f32, Shape{1, 3, 2, 2},
+                                             {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2});
+        auto conv = create_conv(add, conv_weights);
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::MOCTransformations>(false, true);
+    }
+
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto reversed_add_const =  Constant::create(element::f32, Shape{3, 1, 1}, {0.3, 0.2, 0.1});
+        auto add = std::make_shared<Add>(input, reversed_add_const);
+        auto reversed_weights = Constant::create(element::f32, Shape{1, 3, 2, 2},
+                                                 {0.9, 1.0, 1.1, 1.2, 0.5, 0.6, 0.7, 0.8, 0.1, 0.2, 0.3, 0.4});
+        auto conv = create_conv(add, reversed_weights);
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
     }
 
