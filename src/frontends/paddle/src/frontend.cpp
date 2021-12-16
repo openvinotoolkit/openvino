@@ -11,14 +11,13 @@
 
 #include "decoder.hpp"
 #include "framework.pb.h"
+#include "input_model.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
-#include "input_model.hpp"
-#include "input_model.hpp"
-#include "place.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
+#include "place.hpp"
 
 using namespace ov::opset7;
 using namespace ov;
@@ -290,7 +289,7 @@ void FrontEnd::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
             paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node),
-                                                   paddle::get_supported_ops());
+                                             paddle::get_supported_ops());
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {

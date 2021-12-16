@@ -37,9 +37,10 @@ ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
     ov::mark_as_precision_sensitive(input(1));
 }
 
-ov::PartialShape ov::op::util::BroadcastBase::get_result_shape_paddle(const PartialShape& arg0_shape,
-                                                                    const PartialShape& target_pshape,
-                                                                    const op::BroadcastModeSpec& broadcast_spec) const {
+ov::PartialShape ov::op::util::BroadcastBase::get_result_shape_paddle(
+    const PartialShape& arg0_shape,
+    const PartialShape& target_pshape,
+    const op::BroadcastModeSpec& broadcast_spec) const {
     if (target_pshape.is_dynamic())
         return PartialShape::dynamic(target_pshape.rank());
     Shape target_shape = target_pshape.to_shape();
@@ -260,7 +261,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_num
     AxisSet broadcast_axes;
     bool axes_known = false;
     auto start_axis = (broadcast_spec.m_type == op::BroadcastType::PADDLE) ? broadcast_spec.m_axis
-                                                                         : result_shape.size() - arg_shape.size();
+                                                                           : result_shape.size() - arg_shape.size();
     NGRAPH_CHECK(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
         if (i < start_axis || result_shape[i] != arg_shape[i - start_axis]) {

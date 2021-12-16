@@ -31,8 +31,8 @@ NamedOutputs fill_constant(const NodeContext& node) {
     }
 
     paddle_OP_CHECK(node,
-                          shape.size() > 0 || node.has_ng_input("ShapeTensor") || node.has_ng_input("ShapeTensorList"),
-                          "fill_constant shape not set");
+                    shape.size() > 0 || node.has_ng_input("ShapeTensor") || node.has_ng_input("ShapeTensorList"),
+                    "fill_constant shape not set");
 
     if (node.has_ng_input("ShapeTensor")) {
         shape_node = node.get_ng_input("ShapeTensor");

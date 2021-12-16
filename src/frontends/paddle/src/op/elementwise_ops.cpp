@@ -32,8 +32,7 @@ NamedOutputs elementwise_ops(const NodeContext& node) {
         for (int64_t i = y_rank + axis; i < x_rank; i++)
             indices.push_back(i);
 
-        auto indices_node =
-            default_opset::Constant::create(ov::element::i64, ov::Shape{indices.size()}, indices);
+        auto indices_node = default_opset::Constant::create(ov::element::i64, ov::Shape{indices.size()}, indices);
         auto y_node = std::make_shared<default_opset::Unsqueeze>(y, indices_node);
         return node.default_single_output_mapping({std::make_shared<T>(x, y_node)}, {"Out"});
     }

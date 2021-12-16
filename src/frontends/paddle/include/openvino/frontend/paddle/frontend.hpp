@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "openvino/frontend/paddle/visibility.hpp"
 #include <common/telemetry_extension.hpp>
 #include <manager.hpp>
 
 #include "exceptions.hpp"
 #include "input_model.hpp"
+#include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
 namespace frontend {

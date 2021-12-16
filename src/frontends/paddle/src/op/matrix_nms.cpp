@@ -31,8 +31,8 @@ NamedOutputs matrix_nms(const NodeContext& node) {
 
     auto out_names = node.get_output_names();
     paddle_OP_CHECK(node,
-                          out_names.size() == 3 || out_names.size() == 2,
-                          "Unexpected number of outputs of MatrixNMS: " + std::to_string(out_names.size()));
+                    out_names.size() == 3 || out_names.size() == 2,
+                    "Unexpected number of outputs of MatrixNMS: " + std::to_string(out_names.size()));
 
     element::Type type_num = i32;
     bool return_rois_num = true;
@@ -45,8 +45,8 @@ NamedOutputs matrix_nms(const NodeContext& node) {
 
     auto type_index = node.get_out_port_type("Index");
     paddle_OP_CHECK(node,
-                          (type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
-                          "Unexpected data type of outputs of MatrixNMS");
+                    (type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
+                    "Unexpected data type of outputs of MatrixNMS");
 
     auto normalized = node.get_attribute<bool>("normalized");
 

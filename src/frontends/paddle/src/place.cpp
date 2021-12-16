@@ -45,7 +45,8 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& OpPlace:
     return m_input_ports;
 }
 
-std::shared_ptr<OutPortPlace> OpPlace::get_output_port_paddle(const std::string& outputName, int outputPortIndex) const {
+std::shared_ptr<OutPortPlace> OpPlace::get_output_port_paddle(const std::string& outputName,
+                                                              int outputPortIndex) const {
     FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
                             "outputPortIndex is out of bounds.");
     return m_output_ports.at(outputName)[outputPortIndex];
@@ -207,7 +208,8 @@ TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
     }
 }
 
-TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model, const ::paddle::framework::proto::VarDesc& var_desc)
+TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
+                         const ::paddle::framework::proto::VarDesc& var_desc)
     : TensorPlace(input_model, {var_desc.name()}, var_desc) {}
 
 std::vector<Place::Ptr> TensorPlace::get_consuming_ports() const {

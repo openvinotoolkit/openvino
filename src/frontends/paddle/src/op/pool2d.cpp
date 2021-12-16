@@ -73,9 +73,7 @@ NamedOutputs pool2d(const NodeContext& node) {
         pooling_type = "max";
     }
 
-    paddle_OP_CHECK(node,
-                          (pooling_type == "max") || (pooling_type == "avg"),
-                          "pool2d: not supported pooling type !");
+    paddle_OP_CHECK(node, (pooling_type == "max") || (pooling_type == "avg"), "pool2d: not supported pooling type !");
     paddle_OP_CHECK(node, kernel_shape.size() == 1 || kernel_shape.size() == 2, "pool2d: ksize must be 1 or 2!");
 
     PartialShape input_shape = data.get_partial_shape();

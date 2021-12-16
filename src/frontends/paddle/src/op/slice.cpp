@@ -81,8 +81,8 @@ NamedOutputs slice(const NodeContext& node) {
         // Ref: paddle/fluid/operators/slice_op.h
         PartialShape input_shape = data.get_partial_shape();
         paddle_OP_CHECK(node,
-                              input_shape.rank().is_static(),
-                              "input rank of slice must be static when decrease_axis is set.");
+                        input_shape.rank().is_static(),
+                        "input rank of slice must be static when decrease_axis is set.");
 
         auto squeeze_index_node = Constant::create(element::i32, {decrease_axis.size()}, decrease_axis);
         auto decreased_node = std::make_shared<Squeeze>(stride_slice_node, squeeze_index_node);

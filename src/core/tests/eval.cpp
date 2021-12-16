@@ -362,7 +362,8 @@ TEST(eval, evaluate_broadcast_v3_paddle) {
     Shape shape_a{3, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 6});
-    auto bcast_v3 = make_shared<op::v3::Broadcast>(A, target_shape, op::BroadcastModeSpec(op::BroadcastType::PADDLE, 1));
+    auto bcast_v3 =
+        make_shared<op::v3::Broadcast>(A, target_shape, op::BroadcastModeSpec(op::BroadcastType::PADDLE, 1));
     auto fun = make_shared<Function>(OutputVector{bcast_v3}, ParameterVector{A});
 
     auto result = make_shared<HostTensor>();
@@ -380,7 +381,8 @@ TEST(eval, evaluate_broadcast_v3_paddle_dyn) {
     Shape shape_a{3, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto target_shape = make_shared<op::Parameter>(element::i32, Shape{3});
-    auto bcast_v3 = make_shared<op::v3::Broadcast>(A, target_shape, op::BroadcastModeSpec(op::BroadcastType::PADDLE, 1));
+    auto bcast_v3 =
+        make_shared<op::v3::Broadcast>(A, target_shape, op::BroadcastModeSpec(op::BroadcastType::PADDLE, 1));
     auto fun = make_shared<Function>(OutputVector{bcast_v3}, ParameterVector{A, target_shape});
 
     auto result = make_shared<HostTensor>();

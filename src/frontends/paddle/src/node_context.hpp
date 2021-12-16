@@ -3,9 +3,9 @@
 //
 
 #pragma once
+#include "exceptions.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
-#include "exceptions.hpp"
 
 namespace ov {
 namespace frontend {

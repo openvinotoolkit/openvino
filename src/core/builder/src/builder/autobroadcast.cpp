@@ -159,7 +159,9 @@ static shared_ptr<Node> numpy_broadcast_node(const Output<Node>& value,
 ///
 /// \return     The broadcasted Node.
 ///
-static shared_ptr<Node> broadcast_value_paddle_style(const Output<Node>& value, const Shape& output_shape, int64_t axis) {
+static shared_ptr<Node> broadcast_value_paddle_style(const Output<Node>& value,
+                                                     const Shape& output_shape,
+                                                     int64_t axis) {
     auto value_shape = value.get_shape();
 
     // If node already has the required shape, return original node

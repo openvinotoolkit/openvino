@@ -13,10 +13,9 @@ namespace op {
 NamedOutputs dropout(const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto dropout_implementation = node.get_attribute<std::string>("dropout_implementation");
-    paddle_OP_CHECK(
-        node,
-        (dropout_implementation == "downgrade_in_infer" || dropout_implementation == "upscale_in_train"),
-        "Unsupported dropout mode!");
+    paddle_OP_CHECK(node,
+                    (dropout_implementation == "downgrade_in_infer" || dropout_implementation == "upscale_in_train"),
+                    "Unsupported dropout mode!");
     if (dropout_implementation == "downgrade_in_infer") {
         auto dropout_prob =
             ov::opset6::Constant::create(ov::element::f32, {1}, {1 - node.get_attribute<float>("dropout_prob")});
