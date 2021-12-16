@@ -57,9 +57,6 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::initSupportedPrimitiveDe
 }
 
 void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream strm) {
-    if (hasEmptyInputTensors()) {
-        return;
-    }
     const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
     assert(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[1] == 4);
 

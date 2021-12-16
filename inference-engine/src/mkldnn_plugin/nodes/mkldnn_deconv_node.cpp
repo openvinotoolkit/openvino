@@ -761,7 +761,6 @@ MKLDNNDeconvolutionNode::DeconvExecutorDefault::DeconvExecutorDefault(const mkld
     auto weightDesc = weightMem->GetPrimitive().get_desc();
     if (weightDesc != pd.weights_desc()) {
         inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightDesc, pd.weights_desc(), engine)});
-
     }
 
     auto outDesc = outMem->GetPrimitive().get_desc();

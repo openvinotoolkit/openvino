@@ -220,7 +220,7 @@ bool MKLDNNScatterUpdateNode::needPrepareParams() const {
 }
 
 void MKLDNNScatterUpdateNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    execute(strm);
 }
 
 int64_t MKLDNNScatterUpdateNode::getIndicesValue(uint8_t *indices, size_t offset) {

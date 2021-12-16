@@ -246,7 +246,7 @@ void MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::exec(const uint8_t* src
 }
 
 void MKLDNNShuffleChannelsNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    execute(strm);
 }
 
 void MKLDNNShuffleChannelsNode::execute(mkldnn::stream strm) {

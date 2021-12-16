@@ -148,7 +148,7 @@ void MKLDNNNonMaxSuppressionNode::prepareParams() {
 }
 
 bool MKLDNNNonMaxSuppressionNode::isExecutable() const {
-    return isDynamicNode() || !hasEmptyInputTensors();
+    return isDynamicNode() || MKLDNNNode::isExecutable();
 }
 
 void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {

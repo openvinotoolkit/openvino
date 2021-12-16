@@ -990,7 +990,7 @@ std::vector<InputShape> inputShapes_Reorder_2D = {
             // dynamic shape
             { -1, 32, -1, -1 },
             // target static shapes
-            { 
+            {
                 { 1, 32, 39, 40 },
                 { 2, 32, 20, 20}
             }

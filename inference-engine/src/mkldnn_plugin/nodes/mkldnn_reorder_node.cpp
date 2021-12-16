@@ -20,7 +20,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 bool MKLDNNReorderNode::isExecutable() const {
-    return !isOptimized && !hasEmptyInputTensors();
+    return MKLDNNNode::isExecutable() && !isOptimized;
 }
 
 MKLDNNReorderNode::MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :

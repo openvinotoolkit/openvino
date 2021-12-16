@@ -63,14 +63,14 @@ public:
      * @param desc MKLDNNMemory from which will be created InferenceEngine::Blob
      * @return pointer to InferenceEngine::Blob
      */
-    static InferenceEngine::Blob::Ptr interpretAsBlob(const MKLDNNMemory& mem, bool withDefaulStrides = false);
+    static InferenceEngine::Blob::Ptr interpretAsBlob(const MKLDNNMemory& mem);
 
     /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
      * @param desc MemoryDesc to be converted
      * @return converted InferenceEngine::TensorDesc
      */
-    static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc, bool withDefaulStrides = false);
+    static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
 
     /**
      * @brief Makes a dummy descriptor where all undefined values are replaced with the smallest value between the parameter and the upper bound dim

@@ -993,7 +993,7 @@ void MKLDNNConvolutionNode::prepareParams() {
             execPtr = std::make_shared<ConvolutionExecutor>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, getEngine());
             break;
         }
- 
+
         if (!itpd.next_impl()) {
             auto inDesc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(srcMemPtr->getStaticDims()),
                                                                                        srcMemPtr->GetDataType(),
@@ -1026,7 +1026,7 @@ void MKLDNNConvolutionNode::prepareParams() {
         MKLDNNNode::appendPostOpArgs(*pAttrLocal, primArgs, binaryPostOpsArgs);
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
-    }   
+    }
 }
 
 MKLDNNConvolutionNode::ConvolutionExecutor::ConvolutionExecutor(const mkldnn::convolution_forward::primitive_desc& pd,

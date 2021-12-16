@@ -369,7 +369,7 @@ bool MKLDNNROIAlignNode::needPrepareParams() const {
 }
 
 void MKLDNNROIAlignNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    execute(strm);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNROIAlignNode, ROIAlign)

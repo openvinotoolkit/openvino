@@ -230,7 +230,7 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
 }
 
 void MKLDNNSpaceToBatchNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    execute(strm);
 }
 
 void MKLDNNSpaceToBatchNode::execute(mkldnn::stream strm) {

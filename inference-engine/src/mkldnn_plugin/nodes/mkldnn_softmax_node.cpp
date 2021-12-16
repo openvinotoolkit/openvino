@@ -141,7 +141,7 @@ void MKLDNNSoftMaxNode::prepareParams() {
 }
 
 void MKLDNNSoftMaxNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    execute(strm);
 }
 
 std::vector<VectorDims> MKLDNNSoftMaxNode::shapeInfer() const {

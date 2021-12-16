@@ -139,7 +139,7 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
 }
 
 bool MKLDNNMultiClassNmsNode::isExecutable() const {
-    return isDynamicNode() || !hasEmptyInputTensors();
+    return isDynamicNode() || MKLDNNNode::isExecutable();
 }
 
 void MKLDNNMultiClassNmsNode::executeDynamicImpl(mkldnn::stream strm) {

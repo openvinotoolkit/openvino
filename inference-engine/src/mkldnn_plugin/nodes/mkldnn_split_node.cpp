@@ -275,7 +275,7 @@ void MKLDNNSplitNode::prepareParams() {
 }
 
 bool MKLDNNSplitNode::isExecutable() const {
-    return !isOptimized() && !isInputTensorAtPortEmpty(0);
+    return !isInputTensorAtPortEmpty(0) && !isOptimized();
 }
 
 void MKLDNNSplitNode::execute(mkldnn::stream strm) {

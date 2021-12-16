@@ -282,7 +282,7 @@ void MKLDNNMatrixNmsNode::prepareParams() {
 }
 
 bool MKLDNNMatrixNmsNode::isExecutable() const {
-    return isDynamicNode() || !hasEmptyInputTensors();
+    return isDynamicNode() || MKLDNNNode::isExecutable();
 }
 
 void MKLDNNMatrixNmsNode::executeDynamicImpl(mkldnn::stream strm) {

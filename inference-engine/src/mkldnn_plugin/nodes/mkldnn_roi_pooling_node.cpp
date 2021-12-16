@@ -437,7 +437,7 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNROIPoolingNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    execute(strm);
 }
 
 void MKLDNNROIPoolingNode::prepareParams() {
