@@ -267,10 +267,9 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // create task for resource recyle
         auto recycleTask = [this]() mutable {
             size_t destroynum = 0;
-            if (!_loadContext[ACTUALDEVICE].isAlready) {
-                std::unique_lock<std::mutex> lock(_recycleMutex);
+            std::unique_lock<std::mutex> lock(_recycleMutex);
+            while (!_exitFlag && !_loadContext[ACTUALDEVICE].isAlready)
                 _recycleCond.wait(lock);
-            }
             while (!_exitFlag) {
                 // clean up helper heap
                 WorkerInferRequest *workerRequestPtr = nullptr;
@@ -481,11 +480,13 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 }
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
-    _exitFlag = true;
-    _recycleCond.notify_one();
-
     // this is necessary to guarantee member destroyed after getting future
     if (_workModeIsAUTO && _loadContext[CPU].isEnabled) {
+        {
+            std::unique_lock<std::mutex> lock(_recycleMutex);
+            _exitFlag = true;
+            _recycleCond.notify_one();
+        }
         _loadContext[CPU].future.get();
         WaitActualNetworkReady();
         // it's necessary to wait the loading network threads to stop here.
