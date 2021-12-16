@@ -9,57 +9,55 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ov;
+using namespace test;
 
 namespace CPULayerTestsDefinitions {
 
-using cumSumShape = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
 using cumSumParams = std::tuple<
     ngraph::element::Type, // data precision
-    cumSumShape, // input shape
+    InputShape, // input shape
     std::int64_t, // axis
     bool, // exclusive
     bool>; // reverse
 
-class CumSumLayerCPUTest : public testing::WithParamInterface<cumSumParams>, public ov::test::SubgraphBaseTest, public CPUTestsBase {
+class CumSumLayerCPUTest : public testing::WithParamInterface<cumSumParams>,
+                           public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<cumSumParams> obj) {
         ngraph::element::Type inputPrecision;
-        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> shapes;
+        InputShape shapes;
         std::int64_t axis;
         bool exclusive;
         bool reverse;
         std::tie(inputPrecision, shapes, axis, exclusive, reverse) = obj.param;
 
-        std::ostringstream result;
-        result << inputPrecision << "_" << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_" << "TS=";
-        for (const auto& shape : shapes.second) {
-            result << "(";
-            for (const auto& item : shape) {
-                result << CommonTestUtils::vec2str(item) << "_";
-            }
-            result << ")_";
+        std::ostringstream results;
+        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "TS=";
+        for (const auto& item : shapes.second) {
+            results << CommonTestUtils::vec2str(item) << "_";
         }
-
-        result << "Axis=" << axis << "_" << (exclusive ? "exclusive" : "") << "_" << (reverse ? "reverse" : "");
-        return result.str();
+        results << "Prc=" << inputPrecision << "_";
+        results << "Axis=" << axis << "_" << (exclusive ? "exclusive" : "") << "_" << (reverse ? "reverse" : "");
+        return results.str();
     }
 
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        ngraph::element::Type inputPrecision;
-        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> shapes;
+        InputShape shapes;
         std::int64_t axis;
         bool exclusive;
         bool reverse;
-        std::tie(inputPrecision, shapes, axis, exclusive, reverse) = this->GetParam();
+        std::tie(inType, shapes, axis, exclusive, reverse) = this->GetParam();
+        if (inType == ElementType::bf16)
+            rel_threshold = 0.05f;
 
-        for (size_t i = 0; i < shapes.second.size(); i++) {
-            targetStaticShapes.push_back(shapes.second[i]);
-        }
-        inputDynamicShapes = shapes.first;
+        selectedType = makeSelectedTypeStr("ref_any", inType);
+        init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes.front() });
+        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto axisNode = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
         auto cumSum = ngraph::builder::makeCumSum(params[0], axisNode, exclusive, reverse);
 
@@ -72,15 +70,12 @@ TEST_P(CumSumLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    //CheckPluginRelatedResults(executableNetwork, "CumSum");
+    CheckPluginRelatedResults(executableNetwork, "CumSum");
 }
 
 const ngraph::element::TypeVector inputPrecision = {
     ngraph::element::i8,
-    ngraph::element::u8,
-    ngraph::element::i16,
-    ngraph::element::i32,
+    ngraph::element::bf16,
     ngraph::element::f32
 };
 
@@ -90,97 +85,33 @@ const std::vector<int64_t> negativeAxes = { -1, -2, -3, -4, -5, -6 };
 const std::vector<bool> exclusive = { true, false };
 const std::vector<bool> reverse = { true, false };
 
-const std::vector<cumSumShape> inShapes = {
-    {
-        // dynamic
-        {
-            {-1}
-        },
-        // target
-        {
-            {{16}, {18}, {12}}
-        }
-    },
-    {
-        // dynamic
-        {
-            {-1, -1}
-        },
-        // target
-        {
-            {{9, 15}, {18, 12}, {12, 12}}
-        }
-    },
-    {
-        // dynamic
-        {
-            {-1, -1, -1}
-        },
-        // target
-        {
-            {{16, 10, 12}, {18, 12, 10}, {12, 18, 10}}
-        }
-    },
-    {
-        // dynamic
-        {
-            {-1, -1, -1, -1}
-        },
-        // target
-        {
-            {{18, 20, 14, 12}, {19, 20, 14, 12}, {20, 22, 23, 25}}
-        }
-    },
-    {
-        // dynamic
-        {
-            {-1, -1, -1, -1, -1}
-        },
-        // target
-        {
-            {{2, 4, 6, 2, 4}, {3, 5, 6, 3, 5}, {1, 4, 2, 6, 8}}
-        }
-    },
-    {
-        // dynamic
-        {
-            {-1, -1, -1, -1, -1, -1}
-        },
-        // target
-        {
-            {{2, 4, 6, 2, 4, 2}, {3, 5, 6, 3, 5, 3}, {1, 4, 2, 6, 8, 1}}
-        }
-    },
-    {
-        // dynamic
-        {
-            {-1, -1, -1, -1, -1, -1, -1}
-        },
-        // target
-        {
-            {{2, 4, 6, 2, 4, 2, 4}, {3, 5, 6, 3, 5, 3, 5}, {1, 4, 2, 6, 8, 1, 4}}
-        }
-    },
-    {
-        // dynamic
-        {
-            {{2, 5}, {3, 7}, {4, 8}, {5, 7}, {2, 5}, {3, 7}, {1, 2}}
-        },
-        // target
-        {
-            {{2, 4, 6, 5, 4, 3, 1}, {3, 5, 6, 6, 5, 3, 1}, {5, 7, 4, 6, 3, 7, 2}}
-        }
-    },
-    {
-        // dynamic
-        {
-            {{2, 5}, -1, {4, 8}, -1, -1, {3, 7}, -1}
-        },
-        // target
-        {
-            {{2, 4, 6, 5, 4, 3, 1}, {3, 5, 6, 6, 5, 3, 1}, {5, 7, 4, 6, 3, 7, 2}}
-        }
-    },
+const std::vector<InputShape> inShapes = {
+    {{-1},
+     {{16}, {18}, {12}}},
+
+    {{-1, -1},
+     {{9, 15}, {18, 12}, {12, 12}}},
+
+    {{-1, -1, -1},
+     {{16, 10, 12}, {18, 12, 10}, {12, 18, 10}}},
+
+    {{-1, -1, -1, -1},
+     {{18, 20, 14, 12}, {19, 20, 14, 12}, {20, 22, 23, 25}}},
+
+    {{-1, -1, -1, -1, -1},
+     {{2, 4, 6, 2, 4}, {3, 5, 6, 3, 5}, {1, 4, 2, 6, 8}}},
+
+    {{-1, -1, -1, -1, -1, -1},
+     {{2, 4, 6, 2, 4, 2}, {3, 5, 6, 3, 5, 3}, {1, 4, 2, 6, 8, 1}}},
+
+    {{{-1, -1, -1, -1, -1, -1, -1}},
+     {{2, 4, 6, 2, 4, 2, 4}, {3, 5, 6, 3, 5, 3, 5}, {1, 4, 2, 6, 8, 1, 4}}},
+
+    {{{2, 5}, {3, 7}, {4, 8}, {5, 7}, {2, 5}, {3, 7}, {1, 2}},
+     {{2, 4, 6, 5, 4, 3, 1}, {3, 5, 6, 6, 5, 3, 1}, {5, 7, 4, 6, 3, 7, 2}}},
+
+     {{{2, 5}, -1, {4, 8}, -1, -1, {3, 7}, -1},
+      {{2, 4, 6, 5, 4, 3, 1}, {3, 5, 6, 6, 5, 3, 1}, {5, 7, 4, 6, 3, 7, 2}}}
 };
 
 const auto testCasesAxis_0 = ::testing::Combine(
@@ -193,7 +124,7 @@ const auto testCasesAxis_0 = ::testing::Combine(
 
 const auto testCasesAxis_1 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 1, inShapes.end())),
+    ::testing::ValuesIn(std::vector<InputShape>(inShapes.begin() + 1, inShapes.end())),
     ::testing::Values(axes[1]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -201,7 +132,7 @@ const auto testCasesAxis_1 = ::testing::Combine(
 
 const auto testCasesAxis_2 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 2, inShapes.end())),
+    ::testing::ValuesIn(std::vector<InputShape>(inShapes.begin() + 2, inShapes.end())),
     ::testing::Values(axes[2]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -209,7 +140,7 @@ const auto testCasesAxis_2 = ::testing::Combine(
 
 const auto testCasesAxis_3 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 3, inShapes.end())),
+    ::testing::ValuesIn(std::vector<InputShape>(inShapes.begin() + 3, inShapes.end())),
     ::testing::Values(axes[3]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -217,7 +148,7 @@ const auto testCasesAxis_3 = ::testing::Combine(
 
 const auto testCasesAxis_4 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 4, inShapes.end())),
+    ::testing::ValuesIn(std::vector<InputShape>(inShapes.begin() + 4, inShapes.end())),
     ::testing::Values(axes[4]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -225,7 +156,7 @@ const auto testCasesAxis_4 = ::testing::Combine(
 
 const auto testCasesAxis_5 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 5, inShapes.end())),
+    ::testing::ValuesIn(std::vector<InputShape>(inShapes.begin() + 5, inShapes.end())),
     ::testing::Values(axes[5]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -233,7 +164,7 @@ const auto testCasesAxis_5 = ::testing::Combine(
 
 const auto testCasesAxis_6 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 6, inShapes.end())),
+    ::testing::ValuesIn(std::vector<InputShape>(inShapes.begin() + 6, inShapes.end())),
     ::testing::Values(axes[6]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -241,7 +172,7 @@ const auto testCasesAxis_6 = ::testing::Combine(
 
 const auto testCasesAxis_negative = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 6, inShapes.end())),
+    ::testing::ValuesIn(std::vector<InputShape>(inShapes.begin() + 6, inShapes.end())),
     ::testing::ValuesIn(negativeAxes),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
