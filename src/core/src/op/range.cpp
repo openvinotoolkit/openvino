@@ -314,7 +314,8 @@ void static check_step(const op::v0::Range* node, T step) {
 
 template <typename T>
 static typename std::enable_if<std::is_integral<T>::value, T>::type adjust_for_step_and_sign(T span, T step) {
-    return ceil_div(span < 0 ? -span : span, step < 0 ? -step : step);
+    return ceil_div(span < 0 ? -static_cast<typename std::make_signed<T>::type>(span) : span,
+                    step < 0 ? -static_cast<typename std::make_signed<T>::type>(step) : step);
 }
 
 template <typename T>

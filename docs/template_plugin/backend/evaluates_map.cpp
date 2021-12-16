@@ -1707,7 +1707,24 @@ bool evaluate(const shared_ptr<op::v0::Log>& op, const HostTensorVector& outputs
 }
 
 namespace ctc_loss_v4 {
-template <element::Type_t t1, element::Type_t t2>
+template <element::Type_t t1,
+          element::Type_t t2,
+          typename std::enable_if<!std::is_floating_point<typename element_type_traits<t1>::value_type>::value &&
+                                      !std::is_same<typename element_type_traits<t1>::value_type, bfloat16>::value &&
+                                      !std::is_same<typename element_type_traits<t1>::value_type, float16>::value,
+                                  bool>::type = true>
+inline void evaluate(const shared_ptr<op::v4::CTCLoss>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    OPENVINO_ASSERT(false, "The data type for logits is expected to be a floating point type. Got:", element::Type(t1));
+}
+
+template <element::Type_t t1,
+          element::Type_t t2,
+          typename std::enable_if<std::is_floating_point<typename element_type_traits<t1>::value_type>::value ||
+                                      std::is_same<typename element_type_traits<t1>::value_type, bfloat16>::value ||
+                                      std::is_same<typename element_type_traits<t1>::value_type, float16>::value,
+                                  bool>::type = true>
 inline void evaluate(const shared_ptr<op::v4::CTCLoss>& op,
                      const HostTensorVector& outputs,
                      const HostTensorVector& inputs) {
