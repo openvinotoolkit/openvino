@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/unit_type.cl"
+#include "include/batch_headers/data_types.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
@@ -14,17 +14,17 @@
 #endif // INPUT0_TYPE_SIZE == 4
 
 #if TILE_K > SIMD_WIDTH
-    #define BLOCK_READ_A(ptr, offset) CAT(UNIT_BLOCK_READ, A_VEC_SIZE)(ptr, offset)
+    #define BLOCK_READ_A(ptr, offset) BLOCK_READN(INPUT0_TYPE, A_VEC_SIZE, ptr, offset)
 #else // TILE_K > SIMD_WIDTH
-    #define BLOCK_READ_A(ptr, offset) UNIT_BLOCK_READ(ptr, offset)
+    #define BLOCK_READ_A(ptr, offset) BLOCK_READN(INPUT0_TYPE, 1, ptr, offset)
 #endif // TILE_K > SIMD_WIDTH
 
 #if TILE_N > SIMD_WIDTH
-    #define BLOCK_READ_B(ptr, offset) CAT(UNIT_BLOCK_READ, B_VEC_SIZE)(ptr, offset)
-    #define BLOCK_WRITE_C(ptr, offset, data) CAT(UNIT_BLOCK_WRITE, B_VEC_SIZE)(ptr, offset, data)
+    #define BLOCK_READ_B(ptr, offset) BLOCK_READN(INPUT1_TYPE, B_VEC_SIZE, ptr, offset)
+    #define BLOCK_WRITE_C(ptr, offset, data) BLOCK_WRITEN(OUTPUT_TYPE, B_VEC_SIZE, ptr, offset, data)
 #else // TILE_N > SIMD_WIDTH
-    #define BLOCK_READ_B(ptr, offset) UNIT_BLOCK_READ(ptr, offset)
-    #define BLOCK_WRITE_C(ptr, offset, data) UNIT_BLOCK_WRITE(ptr, offset, data)
+    #define BLOCK_READ_B(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
+    #define BLOCK_WRITE_C(ptr, offset, data) BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, data)
 #endif // TILE_N > SIMD_WIDTH
 
 inline uint FUNC(get_input0_batch_offset)(uint b, uint f, uint w, uint z) {
@@ -294,9 +294,9 @@ KERNEL(gemm_tiled_opt)(
 #if TILE_N_NOT_DIVISIBLE
         if (b_raw_global_id < N) {
 #ifdef INPUT2_TYPE
-            OUTPUT_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
+            ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
 #else // INPUT2_TYPE
-            OUTPUT_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
+            ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
 #endif // INPUT2_TYPE
 
 #if HAS_FUSED_OPS
@@ -316,9 +316,9 @@ KERNEL(gemm_tiled_opt)(
 
 #ifdef INPUT2_TYPE
         B_FLOATN c_val = BLOCK_READ_B(c_ptr, 0);
-        B_FLOATN dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_val;
+        ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_val;
 #else // INPUT2_TYPE
-        B_FLOATN dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
+        ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
 #endif // INPUT2_TYPE
 
 #if HAS_FUSED_OPS
@@ -327,7 +327,7 @@ KERNEL(gemm_tiled_opt)(
 #else // FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS_VEC;
 #endif // FUSED_OPS_CAN_USE_PRELOAD
-        B_FLOATN res = FUSED_OPS_RESULT_VEC;
+        OUTPUT_TYPE_VEC res = FUSED_OPS_RESULT_VEC;
         BLOCK_WRITE_C(d_ptr, 0, res);
 #else // HAS_FUSED_OPS
         BLOCK_WRITE_C(d_ptr, 0, dequantized);

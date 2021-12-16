@@ -3264,6 +3264,35 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_quantize_u8,
                       //gemm_test_params{ CASE_GEMM_2IN_FP32_1, 3, 4 },
 }));
 
+class gemm_2in_quantize_float_in : public GemmFusingTest {};
+TEST_P(gemm_2in_quantize_float_in, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input0", get_input_layout(p, 0)),
+        input_layout("input1", get_input_layout(p, 1)),
+        data("in_lo", get_mem(get_per_channel_layout(p), 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi", get_mem(get_single_element_layout(p), 255)),
+        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
+        quantize("quantize", "gemm_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
+        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    implementation_desc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
+    bo_fused.set_option(build_option::force_implementations({ {"gemm_prim", gemm_impl} }));
+
+    tolerance = 1.0f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_quantize_float_in,
+    ::testing::ValuesIn(std::vector<gemm_test_params>{
+                        gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 4 },
+                        gemm_test_params{ CASE_GEMM_2IN_FP32_1, 3, 4 },
+                        gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_1, 3, 4 },
+                        gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP32_1, 3, 4 },
+}));
+
 class gemm_2in_scale : public GemmFusingTest {};
 TEST_P(gemm_2in_scale, basic) {
     auto p = GetParam();
