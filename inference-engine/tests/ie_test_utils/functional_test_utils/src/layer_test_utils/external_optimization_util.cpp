@@ -184,7 +184,7 @@ std::string ExternalOptimizationUtil::processTestName(const std::string &network
     return new_network_name;
 }
 
-void ExternalOptimizationUtil::updateFunctionNames(std::shared_ptr<ngraph::Function> network) {
+void ExternalOptimizationUtil::updateModelNames(std::shared_ptr<ov::Model> network) {
     auto rename = [](std::shared_ptr<ov::Node> node) {
         std::string id   {std::to_string(node->get_instance_id())};
         std::string type {node->get_type_name()};
@@ -199,7 +199,7 @@ void ExternalOptimizationUtil::updateFunctionNames(std::shared_ptr<ngraph::Funct
     }
 }
 
-void ExternalOptimizationUtil::unifyFunctionNames(std::shared_ptr<ngraph::Function> network) {
+void ExternalOptimizationUtil::unifyModelNames(std::shared_ptr<ov::Model> network) {
     auto rename = [](std::shared_ptr<ov::Node> node, size_t index) {
         std::string id   {std::to_string(index)};
         std::string type {node->get_type_name()};
@@ -300,8 +300,8 @@ void ExternalOptimizationUtil::saveInputFile(const std::string &network_name,
         }
     }
 
-void ExternalOptimizationUtil::dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
-                                            const std::string &network_name) {
+void ExternalOptimizationUtil::dumpNetworkToFile(const std::shared_ptr<ov::Model> network,
+                                                 const std::string &network_name) {
     const auto exportPathString = getModelsPath();
     auto new_network_name = processTestName(network_name);
 
@@ -312,8 +312,8 @@ void ExternalOptimizationUtil::dumpNetworkToFile(const std::shared_ptr<ngraph::F
                                 + (exportPathString.empty() ? "" : path_delimiter)
                                 + new_network_name + ".bin";
 
-    auto network_copy = ngraph::clone_function(*network);
-    unifyFunctionNames(network_copy);
+    auto network_copy = ov::clone_model(*network);
+    unifyModelNames(network_copy);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path, ngraph::pass::Serialize::Version::IR_V10);
@@ -327,7 +327,7 @@ static ov::frontend::FrontEndManager& get_frontend_manager() {
     return manager;
 }
 
-std::shared_ptr<ngraph::Function> ExternalOptimizationUtil::loadNetworkFromFile(const std::string &network_name) {
+std::shared_ptr<ov::Model> ExternalOptimizationUtil::loadNetworkFromFile(const std::string &network_name) {
     const auto importPathString = getModelsPath();
     auto new_network_name = processTestName(network_name);
 
@@ -349,10 +349,10 @@ std::shared_ptr<ngraph::Function> ExternalOptimizationUtil::loadNetworkFromFile(
     if (!inputModel) {
         IE_THROW(NetworkNotRead) << "Unable to read the model " << out_xml_path;
     }
-    auto function = FE->convert(inputModel);
-    updateFunctionNames(function);
+    auto model = FE->convert(inputModel);
+    updateModelNames(model);
     printf("Network loaded from %s\n", out_xml_path.c_str());
-    return function;
+    return model;
 }
 
 InferenceEngine::CNNNetwork ExternalOptimizationUtil::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,

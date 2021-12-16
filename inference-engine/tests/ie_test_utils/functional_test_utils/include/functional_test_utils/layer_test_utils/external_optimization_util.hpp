@@ -20,12 +20,13 @@
 #include "transformations/serialize.hpp"
 #include "cpp/ie_cnn_network.h"
 
-namespace LayerTestsUtils {
-
 #define SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP()                  \
-if (ExtOptUtil::toDumpModel() || ExtOptUtil::toDumpInput()) {           \
+if (LayerTestsUtils::ExternalOptimizationUtil::toDumpModel()                             \
+    || LayerTestsUtils::ExternalOptimizationUtil::toDumpInput()) {                       \
     return;                                                             \
-}                                                                       \
+}
+
+namespace LayerTestsUtils {
 
 class ExternalOptimizationUtil;
 enum class ExternalOptimizationMode;
@@ -113,17 +114,17 @@ protected:
     ~ExternalOptimizationUtil() = delete;
 
 public:
-    static void dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
-                           const std::string &network_name);
+    static void dumpNetworkToFile(const std::shared_ptr<ov::Model> network,
+                                  const std::string &network_name);
 
     static InferenceEngine::CNNNetwork loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
-                                                    const std::string &network_name);
+                                                           const std::string &network_name);
 
-    static std::shared_ptr<ngraph::Function> loadNetworkFromFile(const std::string &network_name);
+    static std::shared_ptr<ov::Model> loadNetworkFromFile(const std::string &network_name);
 
-    static void updateFunctionNames(std::shared_ptr<ngraph::Function> network);
+    static void updateModelNames(std::shared_ptr<ov::Model> network);
 
-    static void unifyFunctionNames(std::shared_ptr<ngraph::Function> network);
+    static void unifyModelNames(std::shared_ptr<ov::Model> network);
 
     static void saveInputFile(const std::string &network_name,
                               const InferenceEngine::InputInfo::CPtr &input_info,
