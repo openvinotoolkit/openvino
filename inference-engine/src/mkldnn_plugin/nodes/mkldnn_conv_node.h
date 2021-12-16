@@ -71,9 +71,9 @@ private:
     class ConvolutionExecutor : public DnnlExecutor {
         public:
             ConvolutionExecutor(const mkldnn::convolution_forward::primitive_desc& pd,
-                                MKLDNNMemoryPtr inMem,
-                                MKLDNNMemoryPtr weightMem,
-                                MKLDNNMemoryPtr outMem,
+                                const mkldnn::memory::desc& inMemDesc,
+                                const mkldnn::memory::desc& weightMemDesc,
+                                const mkldnn::memory::desc& outMemDesc,
                                 const mkldnn::engine& engine);
     };
 

@@ -60,18 +60,18 @@ private:
     class DeconvExecutorDefault : public DnnlExecutor {
         public:
             DeconvExecutorDefault(const mkldnn::convolution_backward_data::primitive_desc& pd,
-                                  MKLDNNMemoryPtr inMem,
-                                  MKLDNNMemoryPtr weightMem,
-                                  MKLDNNMemoryPtr outMem,
+                                  const mkldnn::memory::desc& inMemDesc,
+                                  const mkldnn::memory::desc& weightMemDesc,
+                                  const mkldnn::memory::desc& outMemDesc,
                                   const mkldnn::engine& engine);
     };
 
     class DeconvExecutorInt8 : public DnnlExecutor {
         public:
             DeconvExecutorInt8(const mkldnn::deconvolution_forward::primitive_desc& pd,
-                               MKLDNNMemoryPtr inMem,
-                               MKLDNNMemoryPtr weightMem,
-                               MKLDNNMemoryPtr outMem,
+                               const mkldnn::memory::desc& inMemDesc,
+                               const mkldnn::memory::desc& weightMemDesc,
+                               const mkldnn::memory::desc& outMemDesc,
                                const mkldnn::engine& engine);
     };
 

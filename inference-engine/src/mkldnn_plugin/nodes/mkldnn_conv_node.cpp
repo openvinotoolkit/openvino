@@ -990,7 +990,11 @@ void MKLDNNConvolutionNode::prepareParams() {
 
         if (impl_type == selected_pd->getImplementationType()) {
             prim_desc = convolution_forward::primitive_desc(itpd.get());
-            execPtr = std::make_shared<ConvolutionExecutor>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, getEngine());
+            execPtr = std::make_shared<ConvolutionExecutor>(prim_desc,
+                                                            srcMemPtr->GetPrimitive().get_desc(),
+                                                            wghMemPtr->GetPrimitive().get_desc(),
+                                                            dstMemPtr->GetPrimitive().get_desc(),
+                                                            getEngine());
             break;
         }
 
@@ -1009,18 +1013,21 @@ void MKLDNNConvolutionNode::prepareParams() {
             auto reordItpd = reorderConvDesc->createPrimitiveDescriptorIterator(getEngine(), *pAttrLocal);
             if (static_cast<bool>(reordItpd)) {
                 auto prim_desc = convolution_forward::primitive_desc(reordItpd.get());
-                execPtr = std::make_shared<ConvolutionExecutor>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, getEngine());
+                execPtr = std::make_shared<ConvolutionExecutor>(prim_desc, srcMemPtr->GetPrimitive().get_desc(),
+                                                                wghMemPtr->GetPrimitive().get_desc(),
+                                                                dstMemPtr->GetPrimitive().get_desc(),
+                                                                getEngine());
                 break;
             }
         }
     }
     if (execPtr) {
-        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-        primArgs[DNNL_ARG_WEIGHTS] = getWeights();
-        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+        primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
+        primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
 
         if (withBiases) {
-            primArgs[DNNL_ARG_BIAS] = getBias();
+            primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
 
         MKLDNNNode::appendPostOpArgs(*pAttrLocal, primArgs, binaryPostOpsArgs);
@@ -1030,25 +1037,22 @@ void MKLDNNConvolutionNode::prepareParams() {
 }
 
 MKLDNNConvolutionNode::ConvolutionExecutor::ConvolutionExecutor(const mkldnn::convolution_forward::primitive_desc& pd,
-                                                                MKLDNNMemoryPtr inMem,
-                                                                MKLDNNMemoryPtr weightMem,
-                                                                MKLDNNMemoryPtr outMem,
+                                                                const mkldnn::memory::desc& inMemDesc,
+                                                                const mkldnn::memory::desc& weightMemDesc,
+                                                                const mkldnn::memory::desc& outMemDesc,
                                                                 const mkldnn::engine& engine) {
     execPrim.reset(new mkldnn::convolution_forward(pd));
 
-    auto inDesc = inMem->GetPrimitive().get_desc();
-    if (inDesc != pd.src_desc()) {
-        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inDesc, pd.src_desc(), engine)});
+    if (inMemDesc != pd.src_desc()) {
+        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});
     }
 
-    auto weightDesc = weightMem->GetPrimitive().get_desc();
-    if (weightDesc != pd.weights_desc()) {
-        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightDesc, pd.weights_desc(), engine)});
+    if (weightMemDesc != pd.weights_desc()) {
+        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
     }
 
-    auto outDesc = outMem->GetPrimitive().get_desc();
-    if (outDesc != pd.dst_desc()) {
-        outputReorders.insert({DNNL_ARG_DST, IntermReorder(pd.dst_desc(), outDesc, engine)});
+    if (outMemDesc != pd.dst_desc()) {
+        outputReorders.insert({DNNL_ARG_DST, IntermReorder(pd.dst_desc(), outMemDesc, engine)});
     }
 }
 
