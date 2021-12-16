@@ -7,7 +7,6 @@
 #include <map>
 
 #include <ngraph/ngraph.hpp>
-#include <low_precision/assign_and_read_value.hpp>
 
 #include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"

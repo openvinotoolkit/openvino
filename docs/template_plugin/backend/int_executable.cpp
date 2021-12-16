@@ -90,7 +90,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
 
     EvaluationContext eval_context;
     ov::op::util::VariableContext variable_context;
-    eval_context["VariableContext"] = std::make_shared<VariantWrapper<ov::op::util::VariableContext>>(variable_context);
+    eval_context.emplace("VariableContext", variable_context);
 
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {

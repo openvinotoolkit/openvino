@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <openvino/op/util/assign_base.hpp>
-#include <queue>
+#include "low_precision/fake_quantize.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -30,18 +30,9 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
         if (assignIt == opsMap.end()) {
             assignIt = opsMap.find(assign6);
         }
-        const auto assign = assignIt->second.get_node()->shared_from_this();
+        const auto assign = assignIt->second.get_node_shared_ptr();
         // check that we have ReadValue as the first dependency
         if (assign->get_control_dependencies().empty()) {
-            return false;
-        }
-        const auto readValue = std::dynamic_pointer_cast<op::ReadValueBase>(assign->get_control_dependencies()[0]);
-        if (!readValue) {
-            return false;
-        }
-
-        // TODO: remove this limitation and change the transformation when this constant will be accepted to be non-zero
-        if (!NetworkHelper::isZeroConst(readValue->get_input_node_shared_ptr(0))) {
             return false;
         }
 
@@ -70,8 +61,9 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     const auto dequantization = NetworkHelper::getDequantization(assign);
 
     auto oldVar = ov::as_type_ptr<op::ReadValueBase>(readValue)->get_variable();
-    auto variable_info = oldVar->get_info();
-    oldVar->update({variable_info.data_shape, dequantization.data.get_element_type(), variable_info.variable_id});
+    auto variableInfo = oldVar->get_info();
+    // set new precision for oldVar to update precision in newReadValue
+    oldVar->update({variableInfo.data_shape, dequantization.data.get_element_type(), variableInfo.variable_id});
     // transform ReadValue part
     const auto newConstant = foldConvert(readValue->get_input_node_shared_ptr(0), dequantization.data.get_element_type());
     const auto newReadValue = readValue->copy_with_new_inputs({newConstant});
@@ -107,25 +99,23 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
         return true;
     }
 
-    fakeQuantizeInputs[0] = newReadValue;
-    fakeQuantizeInputs[1] = op::util::make_try_fold<opset1::Divide>(inputLow, dequantization.multiplyConstant);
-    fakeQuantizeInputs[2] = op::util::make_try_fold<opset1::Divide>(inputHigh, dequantization.multiplyConstant);
-    const auto resultLow = ov::as_type<opset1::Constant>(fakeQuantizeInputs[1].get_node())->cast_vector<float>();
-    const auto resultHigh = ov::as_type<opset1::Constant>(fakeQuantizeInputs[2].get_node())->cast_vector<float>();
-    if (std::any_of(resultLow.begin(), resultLow.end(), [](const float value){ return std::isinf(value); }) ||
-        std::any_of(resultHigh.begin(), resultHigh.end(), [](const float value){ return std::isinf(value); })) {
-        return true;
-    }
-
-    const auto newFakeQuantize = fakeQuantize->copy_with_new_inputs(fakeQuantizeInputs);
-    NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
-    replace_node(fakeQuantize, newFakeQuantize);
+    FakeQuantizeTransformation::fuseElementwise(context, this, fakeQuantize);
 
     return true;
 }
 
 bool AssignAndReadValueTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     if (!LayerTransformation::canBeTransformed(context, op)) {
+        return false;
+    }
+
+    const auto readValue = std::dynamic_pointer_cast<op::ReadValueBase>(op->get_control_dependencies()[0]);
+    if (!readValue) {
+        return false;
+    }
+
+    // TODO: remove this limitation and change the transformation when this constant will be accepted to be non-zero
+    if (!NetworkHelper::isZeroConst(readValue->get_input_node_shared_ptr(0))) {
         return false;
     }
 

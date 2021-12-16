@@ -44,13 +44,13 @@ std::shared_ptr<ngraph::Function> AssignAndReadValueFunction::getOriginal(
         lastNode = builder::subgraph::makeFakeQuantize(
                 lastNode,
                 element::f32,
-                FakeQuantizeOnData{256ul, Shape{}, {0}, {255}, {0}, {255}});
+                FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}});
     }
     const auto add = std::make_shared<opset1::Add>(lastNode, input);
     const auto FQAfterAdd = builder::subgraph::makeFakeQuantizeTypeRelaxed(
             add,
             element::f32,
-            FakeQuantizeOnData{256ul, Shape{}, {0}, {255}, {0}, {255}, precisionBeforeDequantization});
+            FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}, precisionBeforeDequantization});
     auto deqStructure = dequantization;
     deqStructure.multiply.outPrecision = inputPrecision;
     const auto dequantizationOp = makeDequantization(FQAfterAdd, deqStructure);
@@ -88,7 +88,7 @@ std::shared_ptr<ngraph::Function> AssignAndReadValueFunction::getOriginal(
     lastNode = builder::subgraph::makeFakeQuantize(
             lastNode,
             element::f32,
-            FakeQuantizeOnData{256ul, Shape{}, {0}, {255}, {0}, {255}});
+            FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}});
     const auto add = std::make_shared<opset1::Add>(lastNode, input);
     const auto FQAfterAdd = fakeQuantize.empty() ? nullptr :
                               ngraph::builder::makeFakeQuantize(
@@ -143,7 +143,7 @@ std::shared_ptr<ngraph::Function> AssignAndReadValueFunction::getReference(
         lastNode = builder::subgraph::makeFakeQuantizeTypeRelaxed(
                 lastNode,
                 element::f32,
-                FakeQuantizeOnData{256ul, Shape{}, {0}, {255 / dequantizationAfter.multiply.values[0]}, {0}, {255}, inputPrecision});
+                FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f / dequantizationAfter.multiply.values[0]}, {0}, {2.55f}, inputPrecision});
     } else {
         auto deqStructureAfter = dequantizationAfter;
         deqStructureAfter.multiply.outPrecision = inputPrecision;
@@ -153,7 +153,7 @@ std::shared_ptr<ngraph::Function> AssignAndReadValueFunction::getReference(
     const auto FQAfterAdd = builder::subgraph::makeFakeQuantizeTypeRelaxed(
             add,
             element::f32,
-            FakeQuantizeOnData{256ul, Shape{}, {0}, {255}, {0}, {255}, precisionBeforeDequantization});
+            FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}, precisionBeforeDequantization});
 
     auto deqStructureBefore = dequantizationBefore;
     deqStructureBefore.multiply.outPrecision = inputPrecision;

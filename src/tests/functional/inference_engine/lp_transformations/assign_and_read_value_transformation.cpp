@@ -68,12 +68,10 @@ public:
             testValues.FQAfterReadValue,
             testValues.actual.constantValue,
             testValues.actual.dequantization);
-#include "ngraph/pass/visualize_tree.hpp"
-        ngraph::pass::VisualizeTree("/home/vzinovie/work/model_dumps/actual.dot").run_on_function(actualFunction);
+
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::AssignAndReadValueTransformation, ngraph::opset6::Assign>(actualFunction, testValues.params);
         transformer.transform(actualFunction);
-        ngraph::pass::VisualizeTree("/home/vzinovie/work/model_dumps/transformed.dot").run_on_function(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::AssignAndReadValueFunction::getReference(
                 inputShape,
@@ -84,7 +82,6 @@ public:
                 testValues.expected.constantValue,
                 testValues.expected.dequantizationBefore,
                 testValues.expected.dequantizationAfter);
-        ngraph::pass::VisualizeTree("/home/vzinovie/work/model_dumps/reference.dot").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AssignTransformationParams> obj) {
