@@ -247,22 +247,37 @@ class AccuracyCheckFP32Test(unittest.TestCase):
     eps = np.finfo(np.float32).eps
 
     @generate(*[
-        ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256),
-        ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256),
-        ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256),
-        ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256),
+        ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, False),
+        ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, False),
+        ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256, False),
+        ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256, False),
+        ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, True),
+        ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, True),
+        ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256, True),
+        ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256, True),
     ])
-    def test_accuracy(self, data, in_low, in_high, out_low, out_high, levels):
-        nodes = nodes_dict(np.float32, None, levels, data, in_low, in_high, out_low, out_high)
-
-        graph = build_graph(nodes, [
-            *connect('weights:0', '0:FQ'),
-            *connect('il:0', '1:FQ'),
-            *connect('ih:0', '2:FQ'),
-            *connect('ol:0', '3:FQ'),
-            *connect('oh:0', '4:FQ'),
-            *connect('FQ:0', 'output'),
-        ], nodes_with_edges_only=True)
+    def test_accuracy(self, data, in_low, in_high, out_low, out_high, levels, add_cast):
+        if not add_cast:
+            nodes = nodes_dict(np.float32, None, levels, data, in_low, in_high, out_low, out_high)
+            graph = build_graph(nodes, [
+                *connect('weights:0', '0:FQ'),
+                *connect('il:0', '1:FQ'),
+                *connect('ih:0', '2:FQ'),
+                *connect('ol:0', '3:FQ'),
+                *connect('oh:0', '4:FQ'),
+                *connect('FQ:0', 'output'),
+            ], nodes_with_edges_only=True)
+        else:
+            nodes = nodes_dict(np.float16, None, levels, data, in_low, in_high, out_low, out_high)
+            graph = build_graph(nodes, [
+                *connect('weights:0', '0:weights_cast'),
+                *connect('weights_cast:0', '0:FQ'),
+                *connect('il:0', '1:FQ'),
+                *connect('ih:0', '2:FQ'),
+                *connect('ol:0', '3:FQ'),
+                *connect('oh:0', '4:FQ'),
+                *connect('FQ:0', 'output'),
+            ], nodes_with_edges_only=True)
         graph_ref = graph.copy()
 
         CompressQuantizeWeights().find_and_replace_pattern(graph)

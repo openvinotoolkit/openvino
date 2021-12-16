@@ -106,7 +106,7 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
 
     # Broadcast weights if they are scalar
     if weights.value.ndim == 0 and bias.value.ndim == 1:
-        weights.value = np.full(bias.shape, weights.value.item())
+        weights.value = np.full(bias.shape, weights.value.item(), dtype=weights.value.dtype)
         weights.shape = int64_array(weights.value.shape)
 
     if bias.shape != weights.shape:
