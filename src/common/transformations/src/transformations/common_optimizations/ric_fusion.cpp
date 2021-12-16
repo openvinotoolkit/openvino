@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/pass/visualize_tree.hpp>
-
 #include "transformations/common_optimizations/ric_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -636,9 +634,6 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     Manager m;
     m.set_per_pass_validation(false);
 
-    std::cout << "\n\nRIC FUSION !!!\n\n" << std::endl;
-    m.register_pass<ov::pass::VisualizeTree>("before_ric.png");
-
     // First we need to initialize and propagate RIC attributes through entire graph
     auto ric_prop = m.register_pass<GraphRewrite>();
     ric_prop->add_matcher<init::SplitConcat>();
@@ -651,8 +646,6 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     ric_prop->add_matcher<prop::PassThrough>();
     ric_prop->add_matcher<prop::Unsupported>();
 
-    m.register_pass<ov::pass::VisualizeTree>("mid_ric.png");
-
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
@@ -660,8 +653,6 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     ric_fuse->add_matcher<fuse::InsertReverseInputChannel>();
     ric_fuse->add_matcher<fuse::EraseSplitConcat>();
     ric_fuse->add_matcher<fuse::EraseGather>();
-
-    m.register_pass<ov::pass::VisualizeTree>("after_ric.png");
 
     m.run_passes(model);
     return false;
