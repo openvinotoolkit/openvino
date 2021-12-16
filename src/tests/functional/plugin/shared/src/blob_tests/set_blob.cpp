@@ -43,15 +43,19 @@ std::string SetBlobTest::getTestCaseName(testing::TestParamInfo<SetBlobParams> o
 inline void fillBlob(Blob::Ptr &blob) {
     switch (blob->getTensorDesc().getPrecision()) {
 #define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob); break;
-        CASE(InferenceEngine::Precision::FP32)
-        CASE(InferenceEngine::Precision::U8)
-        CASE(InferenceEngine::Precision::U16)
-        CASE(InferenceEngine::Precision::I8)
-        CASE(InferenceEngine::Precision::I16)
-        CASE(InferenceEngine::Precision::I64)
-        CASE(InferenceEngine::Precision::U64)
-        CASE(InferenceEngine::Precision::I32)
-        CASE(InferenceEngine::Precision::BOOL)
+    CASE(Precision::U8)
+    CASE(Precision::I8)
+    CASE(Precision::U16)
+    CASE(Precision::I16)
+    CASE(Precision::U32)
+    CASE(Precision::I32)
+    CASE(Precision::U64)
+    CASE(Precision::I64)
+    CASE(Precision::BF16)
+    CASE(Precision::FP16)
+    CASE(Precision::FP32)
+    CASE(Precision::FP64)
+    CASE(Precision::BOOL)
 #undef CASE
         default:
             IE_THROW() << "Can't fill blob with precision: " << blob->getTensorDesc().getPrecision();
