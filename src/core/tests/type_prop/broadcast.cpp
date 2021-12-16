@@ -306,7 +306,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
         auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
         FAIL() << "Broadcast: Broadcast axes_mapping shape doesn't match rank of input tensor";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Broadcast axes_mapping shape {4} doesn't match rank of input tensor 3"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Broadcast axes_mapping shape {4} doesn't match rank of input tensor 3"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
