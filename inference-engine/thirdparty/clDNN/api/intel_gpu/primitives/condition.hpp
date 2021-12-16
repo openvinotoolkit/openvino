@@ -38,7 +38,7 @@ struct condition : public primitive_base<condition> {
     ///                           false..
     /// @param compare_Data       An identifier of primitive which contains compare values
     /// @param func               Used function during comparison.
-    /// @param offseg             Offset for compare data.
+    /// @param offset             Offset for compare data.
     /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
               const primitive_id& input,
