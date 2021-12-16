@@ -189,7 +189,7 @@ int main(int argc, char* argv[]) {
         next_step();
 
         Core ie;
-        if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
+        if (FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
             // pointer to base extension
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
