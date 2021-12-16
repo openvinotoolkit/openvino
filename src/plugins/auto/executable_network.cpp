@@ -670,11 +670,15 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
                          std::map<std::string, InferenceEngine::Parameter> options;
                          options["MODEL_PTR"] = &_network; // CNNntework
-                         auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
-                                 METRIC_KEY(OPTIMAL_BATCH), options).as<unsigned int>();
-                         auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
-                                 METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                         real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
+                         try {
+                             auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
+                                     METRIC_KEY(OPTIMAL_BATCH), options).as<unsigned int>();
+                             auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                                     METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                             real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
+                         } catch (const InferenceEngine::Exception &iie) {
+                             LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
+                         }
                     }
                 }
             }
