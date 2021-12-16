@@ -51,7 +51,7 @@ using namespace std::placeholders;
 namespace ov {
 
 // Specify the default device when no device name is provided.
-static const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
+const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
 namespace runtime {
 
