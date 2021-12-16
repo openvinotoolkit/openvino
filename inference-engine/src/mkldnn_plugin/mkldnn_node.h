@@ -753,8 +753,6 @@ protected:
 
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
-    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
-
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;

@@ -81,7 +81,7 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+//        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         size_t hiddenSize = inputDynamicShapes[1][1].get_length();
         size_t inputSize = inputDynamicShapes.front()[1].get_length();

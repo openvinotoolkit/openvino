@@ -29,12 +29,15 @@ using namespace mkldnn;
 namespace MKLDNNPlugin {
 namespace {
     inline void setSubnormalsToZero(float *data, size_t size) {
+std::cout << "setSubnormalsToZero size: " << size << "; data: " << data << std::endl;
         uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
         for (size_t i = 0; i < size; ++i) {
+//std::cout << std::to_string(u32data[i]) << ";";
             if ((u32data[i] & (0xFF << 23)) == 0) {
                 u32data[i] = 0;
             }
         }
+std::cout << "setSubnormalsToZero-" << std::endl;
     }
 }   // namespace
 
@@ -116,6 +119,7 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
 }
 
 void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const {
+std::cout << "MKLDNNMemory::SetData" << std::endl;
     MKLDNNReorderNode::reorderData(src, *this, size);
 
     if (ftz

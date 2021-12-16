@@ -718,6 +718,7 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
 }
 
 void MKLDNNNode::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
+std::cout << "MKLDNNNode::prepareMemory+" << std::endl;
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
@@ -849,6 +850,7 @@ void MKLDNNNode::addOriginalLayer(const std::string& layerName) {
 }
 
 void MKLDNNNode::cleanup() {
+std::cout << "MKLDNNNode::cleanup" << std::endl;
     internalBlobs.clear();
 
     for (auto it : fusedWith) {

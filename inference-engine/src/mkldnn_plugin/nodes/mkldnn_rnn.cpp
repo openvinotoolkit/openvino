@@ -313,7 +313,7 @@ void MKLDNNRNN::fillCellDesc() {
     copyWeightsData();
 
     // Expected shapes
-    Shape shapeD{N, DC}, shapeS{N, SC}, WShape(VectorDims{SC * G, DC}), RShape(VectorDims{SC * G, SC}), BShape(VectorDims{SC * Gb});
+    Shape shapeD{N, DC}, shapeS{N, SC}, WShape{SC * G, DC}, RShape{SC * G, SC}, BShape{SC * Gb};
     std::vector<MemoryDescPtr> inCandidate, outCandidate;
     inCandidate.reserve(6);
 
@@ -609,6 +609,7 @@ void MKLDNNRNN::copyWeightsData() {
 
 void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                  const std::vector<MemoryDescPtr> &outputDesc) {
+std::cout << "MKLDNNRNN::createDescriptor() +" << std::endl;
     if (!descs.empty())
         return;
     wDescs.resize(3);
@@ -695,10 +696,12 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     }
 
     supportedPrimitiveDescriptors.emplace_back(config, ref_any);
+std::cout << "MKLDNNRNN::createDescriptor() -" << std::endl;
 }
 
 void MKLDNNRNN::createPrimitive() {
-    if (!isDynamicNode()) {
+std::cout << "MKLDNNRNN::createPrimitive() +" << std::endl;
+//    if (!isDynamicNode()) {
         if (cell_type == mkldnn::algorithm::vanilla_rnn) {
             auto prim_desc = createPrimitiveDescriptor<vanilla_rnn_forward::primitive_desc, vanilla_rnn_forward::desc>();
             prim.reset(new vanilla_rnn_forward(prim_desc));
@@ -714,16 +717,24 @@ void MKLDNNRNN::createPrimitive() {
         } else {
             THROW_ERROR << "has unknown cell type.";
         }
-    }
+//    } else {
+//        auto selectedPd = getSelectedPrimitiveDescriptor();
+//        if (selectedPd == nullptr)
+//            THROW_ERROR << "does not have preferable primitive descriptor.";
+//
+//        prepareMemory(selectedPd, itpd);
+//    }
 
     if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();
     }
+std::cout << "MKLDNNRNN::createPrimitive() -" << std::endl;
 }
 
 void MKLDNNRNN::prepareParams() {
+std::cout << "MKLDNNRNN::prepareParams() +" << std::endl;
     const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
     const size_t B = getParentEdgesAtPort(0).front()->getMemory().GetShape().getStaticDims()[0];
@@ -745,25 +756,30 @@ void MKLDNNRNN::prepareParams() {
         outDataD.emplace_back(shapeS_4D, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    bool wFormatWasChanged = false;
+    wFormat = mkldnn::memory::format_tag::any;
+    if (SL != 1 || B < optimalBatchSize)
+        wFormat = mkldnn::memory::format_tag::ldigo;
+//    bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
-    if (runtimePrecision == Precision::FP32) {
-        if (SL != 1 || B < optimalBatchSize) {
-            if (wFormat != mkldnn::memory::format_tag::ldigo) {
-                wFormat = mkldnn::memory::format_tag::ldigo;
-                wFormatWasChanged = true;
-            }
-        } else if (wFormat != mkldnn::memory::format_tag::any) {
-            wFormat = mkldnn::memory::format_tag::any;
-            wFormatWasChanged = true;
-        }
-    }
-    if (wFormatWasChanged) {
+//    if (runtimePrecision == Precision::FP32) {
+//        if (SL != 1 || B < optimalBatchSize) {
+//            if (wFormat != mkldnn::memory::format_tag::ldigo) {
+//                wFormat = mkldnn::memory::format_tag::ldigo;
+//                wFormatWasChanged = true;
+//            }
+//        } else if (wFormat != mkldnn::memory::format_tag::any) {
+//            wFormat = mkldnn::memory::format_tag::any;
+//            wFormatWasChanged = true;
+//        }
+//    }
+//    if (wFormatWasChanged) {
         auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
         wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
         auto statesDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
         wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
-    }
+        auto biasDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
+        wDescs[2] = mkldnn::memory::desc(biasDims, memory::data_type::f32, memory::format_tag::ldgo);
+//    }
 
     primitive_desc_iterator itpd;
     const mkldnn::primitive_attr attr = mkldnn::primitive_attr();
@@ -824,13 +840,14 @@ void MKLDNNRNN::prepareParams() {
         itpd = mkldnn::primitive_desc_iterator(&desc->data, &attr, getEngine(), nullptr, true);
     }
 
-    if (wFormatWasChanged) {
-        const NodeDesc* selectedPd = getSelectedPrimitiveDescriptor();
-        if (selectedPd == nullptr)
-            THROW_ERROR << "does not have preferable primitive descriptor.";
+//    if (wFormatWasChanged) {
+//        const NodeDesc* selectedPd = getSelectedPrimitiveDescriptor();
+//        if (selectedPd == nullptr)
+//            THROW_ERROR << "does not have preferable primitive descriptor.";
 
-        prepareMemory(selectedPd, itpd);
-    }
+        prepareMemory(itpd);
+//    }
+std::cout << "MKLDNNRNN::prepareParams() -" << std::endl;
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
@@ -844,15 +861,19 @@ std::shared_ptr<MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iter
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
+std::cout << "MKLDNNRNN::execute() +" << std::endl;
     if (!prim)
         THROW_ERROR << "does not have initialized primitive to execute.";
 
     const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
     const auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
+std::cout << "MKLDNNRNN::execute() 1" << std::endl;
 
     const auto &wgh_data_mem = internalBlobMemory[0];
     const auto &wgh_stat_mem = internalBlobMemory[1];
     const auto &wgh_bias_mem = internalBlobMemory[2];
+std::cout << "MKLDNNRNN::execute() 2; src_data_mem: " << src_data_mem << "; wgh_data_mem: " << wgh_data_mem <<
+        "; wgh_stat_mem: " << wgh_stat_mem << "; wgh_bias_mem: " << wgh_bias_mem << "; dst_data_mem: " << dst_data_mem << std::endl;
 
     std::unordered_map<int, memory> args {
         {DNNL_ARG_SRC_LAYER,     src_data_mem->GetPrimitive()},
@@ -861,12 +882,14 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
         {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
     };
+std::cout << "MKLDNNRNN::execute() 3" << std::endl;
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
     for (size_t s = 0; s < S; s++) {
         args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->GetPrimitive();
     }
+std::cout << "MKLDNNRNN::execute() 4" << std::endl;
 
     if (is_cell) {
         for (size_t s = 0; s < S; s++) {
@@ -881,7 +904,9 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         }
     }
 
+std::cout << "MKLDNNRNN::execute() 5" << std::endl;
     (*prim).execute(strm, args);
+std::cout << "MKLDNNRNN::execute() -" << std::endl;
 }
 
 void MKLDNNRNN::executeDynamicImpl(mkldnn::stream strm) {
