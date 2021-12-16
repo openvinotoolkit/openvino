@@ -216,6 +216,8 @@ REGISTER_FACTORY(v8, GatherND);
 REGISTER_FACTORY(v8, DeformableConvolution);
 REGISTER_FACTORY(v8, NV12toRGB);
 REGISTER_FACTORY(v8, NV12toBGR);
+REGISTER_FACTORY(v8, I420toRGB);
+REGISTER_FACTORY(v8, I420toBGR);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

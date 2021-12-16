@@ -5,11 +5,14 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/data_types.cl"
 
-#ifdef CONVERT_FROM_NV12
+#if defined(CONVERT_FROM_NV12) || defined(CONVERT_FROM_I420)
 #ifdef BUFFER_MEM
-KERNEL(convert_color_ref)(const __global INPUT0_TYPE* input_y,
-#if INPUTS_COUNT == 2
-                          const __global INPUT1_TYPE* input_uv,
+KERNEL(convert_color_ref)(const __global INPUT0_TYPE* input1,
+#if INPUTS_COUNT > 1
+                          const __global INPUT1_TYPE* input2,
+#if INPUTS_COUNT == 3
+                          const __global INPUT2_TYPE* input3,
+#endif
 #endif
                           __global OUTPUT_TYPE* output) {
 
@@ -17,16 +20,19 @@ KERNEL(convert_color_ref)(const __global INPUT0_TYPE* input_y,
     const uint y = get_global_id(1);
     const uint x = get_global_id(2);
 
-    float Y = input_y[GET_DATA_INDEX(INPUT0, b, 0, y, x)];
+    float Y = input1[GET_DATA_INDEX(INPUT0, b, 0, y, x)];
 
-#if INPUTS_COUNT == 2
-    float U = input_uv[GET_DATA_INDEX(INPUT1, b, 0, y / 2, x / 2)];
-    float V = input_uv[GET_DATA_INDEX(INPUT1, b, 1, y / 2, x / 2)];
+#if INPUTS_COUNT == 3
+    float U = input2[GET_DATA_INDEX(INPUT1, b, 0, y / 2, x / 2)];
+    float V = input3[GET_DATA_INDEX(INPUT2, b, 0, y / 2, x / 2)];
+#elif INPUTS_COUNT == 2
+    float U = input2[GET_DATA_INDEX(INPUT1, b, 0, y / 2, x / 2)];
+    float V = input2[GET_DATA_INDEX(INPUT1, b, 1, y / 2, x / 2)];
 #else // Single plane
     uint input_uv_offset = INPUT0_SIZE_X * INPUT0_SIZE_Y / 3 * 2;
 
-    float U = input_y[GET_DATA_INDEX(INPUT0, b, 0, y / 2, (x / 2) * 2) + input_uv_offset];
-    float V = input_y[GET_DATA_INDEX(INPUT0, b, 1, y / 2, (x / 2) * 2) + input_uv_offset];
+    float U = input1[GET_DATA_INDEX(INPUT0, b, 0, y / 2, (x / 2) * 2) + input_uv_offset];
+    float V = input1[GET_DATA_INDEX(INPUT0, b, 1, y / 2, (x / 2) * 2) + input_uv_offset];
 #endif
 
     float Ycomponent = mad(Y, 1.164f, -18.624f);
@@ -57,9 +63,12 @@ KERNEL(convert_color_ref)(const __global INPUT0_TYPE* input_y,
 
 
 #ifdef SURFACE_MEM
-KERNEL(convert_color_ref)(read_only image2d_t input_y,
-#if INPUTS_COUNT == 2
-                          read_only image2d_t input_uv,
+KERNEL(convert_color_ref)(read_only image2d_t input1,
+#if INPUTS_COUNT > 1
+                          read_only image2d_t input2,
+#if INPUTS_COUNT == 3
+                          read_only image2d_t input3,
+#endif
 #endif
                           __global OUTPUT_TYPE* output) {
 
@@ -67,17 +76,22 @@ KERNEL(convert_color_ref)(read_only image2d_t input_y,
     const uint y = get_global_id(1);
     const uint x = get_global_id(2);
 
-    float4 Y = read_imagef(input_y, (int2)(x, y));
+    float4 Y = read_imagef(input1, (int2)(x, y));
     float Ycomponent = mad(Y.x, 296.82f, -18.624f);
 
-#if INPUTS_COUNT == 2
-    float4 UV = read_imagef(input_uv, (int2)(x / 2, y / 2));
+#if INPUTS_COUNT == 3
+    float4 U = read_imagef(input2, (int2)(x / 2, y / 2));
+    float4 V = read_imagef(input3, (int2)(x / 2, y / 2));
+    float Ucomponent = mad(U.x, 255.0f, -128.f);
+    float Vcomponent = mad(V.x, 255.0f, -128.f);
+#elif INPUTS_COUNT == 2
+    float4 UV = read_imagef(input2, (int2)(x / 2, y / 2));
     float Ucomponent = mad(UV.x, 255.0f, -128.f);
     float Vcomponent = mad(UV.y, 255.0f, -128.f);
 #else // Single plane
     uint input_y_offset = INPUT0_SIZE_Y / 3 * 2;
-    float4 U = read_imagef(input_y, (int2)((x / 2) * 2,     y / 2 + input_y_offset));
-    float4 V = read_imagef(input_y, (int2)((x / 2) * 2 + 1, y / 2 + input_y_offset));
+    float4 U = read_imagef(input1, (int2)((x / 2) * 2,     y / 2 + input_y_offset));
+    float4 V = read_imagef(input1, (int2)((x / 2) * 2 + 1, y / 2 + input_y_offset));
     float Ucomponent = mad(U.x, 255.0f, -128.f);
     float Vcomponent = mad(V.x, 255.0f, -128.f);
 #endif

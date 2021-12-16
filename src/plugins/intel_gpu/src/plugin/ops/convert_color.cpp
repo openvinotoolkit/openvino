@@ -44,16 +44,28 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
 
 static void CreateNV12toRGBOp(Program& p, const std::shared_ptr<ngraph::op::v8::NV12toRGB>& op) {
     p.ValidateInputs(op, {1, 2});
-    CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::NV12,  cldnn::convert_color::color_format::RGB);
+    CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB);
 }
 
 static void CreateNV12toBGROp(Program& p, const std::shared_ptr<ngraph::op::v8::NV12toBGR>& op) {
     p.ValidateInputs(op, {1, 2});
-    CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::NV12,  cldnn::convert_color::color_format::BGR);
+    CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::BGR);
+}
+
+static void CreateI420toRGBOp(Program& p, const std::shared_ptr<ngraph::op::v8::I420toRGB>& op) {
+    p.ValidateInputs(op, {1, 3});
+    CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB);
+}
+
+static void CreateI420toBGROp(Program& p, const std::shared_ptr<ngraph::op::v8::I420toBGR>& op) {
+    p.ValidateInputs(op, {1, 3});
+    CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::BGR);
 }
 
 REGISTER_FACTORY_IMPL(v8, NV12toRGB);
 REGISTER_FACTORY_IMPL(v8, NV12toBGR);
+REGISTER_FACTORY_IMPL(v8, I420toRGB);
+REGISTER_FACTORY_IMPL(v8, I420toBGR);
 
 }  // namespace intel_gpu
 }  // namespace runtime
