@@ -26,7 +26,7 @@
         "runtime/bin/intel64/Release/frontend_common.dll",
         "runtime/bin/intel64/Release/ir_ov_frontend.dll",
         "runtime/bin/intel64/Release/onnx_ov_frontend.dll",
-        "runtime/bin/intel64/Release/paddlepaddle_ov_frontend.dll",
+        "runtime/bin/intel64/Release/paddle_ov_frontend.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]

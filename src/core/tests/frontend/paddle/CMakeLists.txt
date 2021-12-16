@@ -18,16 +18,16 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ie_check_pip_package(paddlepaddle WARNING)
+ie_check_pip_package(paddlepaddle WARNING paddle)
 
 set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
 
-# If 'paddle' is not found, code will still be compiled
+# If 'paddlepaddle' is not found, code will still be compiled
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
-# 'paddle' installed to check code style
-if (paddle_FOUND)
+# 'paddlepaddle' installed to check code style
+if (paddlepaddle_FOUND)
     set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_PADDLE_MODELS_DIRNAME}/)
 
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)

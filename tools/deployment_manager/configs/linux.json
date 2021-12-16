@@ -32,7 +32,7 @@
         "runtime/lib/intel64/libfrontend_common.so",
         "runtime/lib/intel64/libir_ov_frontend.so",
         "runtime/lib/intel64/libonnx_ov_frontend.so",
-        "runtime/lib/intel64/libpaddlepaddle_ov_frontend.so",
+        "runtime/lib/intel64/libpaddle_ov_frontend.so",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]

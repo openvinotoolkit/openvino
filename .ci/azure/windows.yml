@@ -207,7 +207,7 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-PaddlePaddle.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 

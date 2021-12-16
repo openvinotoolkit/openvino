@@ -13,7 +13,7 @@ namespace paddle {
 
 class OpPlace;
 class TensorPlace;
-class FRONTEND_API InputModel : public ov::frontend::InputModel {
+class InputModel : public ov::frontend::InputModel {
     friend class FrontEnd;
     class InputModelpaddleImpl;
     std::shared_ptr<InputModelpaddleImpl> _impl;
