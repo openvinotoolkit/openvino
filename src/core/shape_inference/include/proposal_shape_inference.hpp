@@ -36,8 +36,7 @@ void infer_prop_shape(const OpType* op,
                           image_shape_ps,
                           ").");
     if (bbox_deltas_ps.rank().is_static() && class_probs_ps.rank().is_static()) {
-        // class probs and bbox deltas shapes are static, check anchor count and batch number
-        // consistency
+        // check anchor count and batch number consistency
         NODE_VALIDATION_CHECK(op,
                               bbox_deltas_ps[1].compatible(class_probs_ps[1] * 2),
                               "Anchor number inconsistent between class_probs (",
@@ -56,8 +55,9 @@ void infer_prop_shape(const OpType* op,
     }
 
     if (image_shape_ps.is_static()) {
+        const auto image_shape_elem = image_shape_ps[0].get_length();
         NODE_VALIDATION_CHECK(op,
-                              image_shape_ps[0].get_length() >= 3 && image_shape_ps[0].get_length() <= 4,
+                              image_shape_elem >= 3 && image_shape_elem <= 4,
                               "Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]",
                               image_shape_ps[0],
                               ").");
