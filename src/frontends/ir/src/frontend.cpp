@@ -203,9 +203,9 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         bin_stream.open(weights_path, std::ios::binary);
         if (!bin_stream.is_open())
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            FRONTEND_THROW("Weights file " + ov::util::wstring_to_string(weights_path) + " cannot be opened!");
+            IE_THROW() << "Weights file " + ov::util::wstring_to_string(weights_path) + " cannot be opened!";
 #else
-            FRONT_END_THROW("Weights file " + weights_path + " cannot be opened!");
+            IE_THROW() << "Weights file " + weights_path + " cannot be opened!";
 #endif
 
         bin_stream.seekg(0, std::ios::end);

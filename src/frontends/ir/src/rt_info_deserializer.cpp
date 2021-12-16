@@ -20,6 +20,6 @@ void RTInfoDeserializer::on_adapter(const std::string& name, ValueAccessor<void>
         str_to_container(val, ss);
         a->set(ss);
     } else {
-        FRONT_END_THROW("Not implemented");
+        IE_THROW() << "Not implemented";
     }
 }
