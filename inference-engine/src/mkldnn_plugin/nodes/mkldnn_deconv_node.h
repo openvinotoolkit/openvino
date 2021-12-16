@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "common/dnnl_executor.h"
 
 namespace MKLDNNPlugin {
 
@@ -53,56 +54,24 @@ public:
     std::vector<VectorDims> shapeInfer() const override;
 
 private:
-    class DeconvExecutor {
-        protected:
-            class IntermReorder {
-                public:
-                    IntermReorder(MKLDNNMemoryPtr memFrom, const mkldnn::memory::desc& descTo, const mkldnn::engine& engine);
-                    IntermReorder(const mkldnn::memory::desc& descFrom, MKLDNNMemoryPtr memTo, const mkldnn::engine& engine);
-                    MKLDNNMemoryPtr getFromMem() const { return m_memFrom; }
-                    MKLDNNMemoryPtr getToMem() const { return m_memTo; }
-                    void exec(mkldnn::stream strm);
-
-                private:
-                    MKLDNNMemoryPtr m_memFrom;
-                    MKLDNNMemoryPtr m_memTo;
-                    mkldnn::reorder m_reorder;
-            };
-
-        public:
-            void exec(mkldnn::stream strm);
-            virtual ~DeconvExecutor() = default;
-
-        protected:
-            DeconvExecutor() = default;
-            std::vector<IntermReorder> inputReorders;
-            MKLDNNPrimitive execPrim;
-            std::vector<IntermReorder> outputReorders;
-            std::unordered_map<int, mkldnn::memory> primArgs;
-    };
-
-    using executorPtr = std::shared_ptr<DeconvExecutor>;
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
 
-    class DeconvExecutorDefault : public DeconvExecutor {
+    class DeconvExecutorDefault : public DnnlExecutor {
         public:
             DeconvExecutorDefault(const mkldnn::convolution_backward_data::primitive_desc& pd,
                                   MKLDNNMemoryPtr inMem,
                                   MKLDNNMemoryPtr weightMem,
                                   MKLDNNMemoryPtr outMem,
-                                  const mkldnn::primitive_attr &attr,
-                                  const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
                                   const mkldnn::engine& engine);
     };
 
-    class DeconvExecutorInt8 : public DeconvExecutor {
+    class DeconvExecutorInt8 : public DnnlExecutor {
         public:
             DeconvExecutorInt8(const mkldnn::deconvolution_forward::primitive_desc& pd,
                                MKLDNNMemoryPtr inMem,
                                MKLDNNMemoryPtr weightMem,
                                MKLDNNMemoryPtr outMem,
-                               const mkldnn::primitive_attr &attr,
-                               const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
                                const mkldnn::engine& engine);
     };
 

@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "common/dnnl_executor.h"
 
 namespace MKLDNNPlugin {
 
@@ -64,33 +65,6 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
 private:
-    class DnnlExecutor {
-        protected:
-            class IntermReorder {
-                public:
-                    static IntermReorder createFromReorder(MKLDNNMemoryPtr mem, const mkldnn::memory::desc& desc, const mkldnn::engine& engine);
-                    static IntermReorder createToReorder(MKLDNNMemoryPtr mem, const mkldnn::memory::desc& desc, const mkldnn::engine& engine);
-                    MKLDNNMemoryPtr getFromMem() const { return memFrom; }
-                    MKLDNNMemoryPtr getToMem() const { return memTo; }
-                    void exec(mkldnn::stream strm);
-
-                private:
-                    MKLDNNMemoryPtr memFrom;
-                    MKLDNNMemoryPtr memTo;
-                    mkldnn::reorder reorder;
-            };
-
-        public:
-            void exec(mkldnn::stream strm);
-            virtual ~DnnlExecutor() = 0;
-
-        protected:
-            std::vector<IntermReorder> inputReorders;
-            MKLDNNPrimitive execPrim;
-            std::vector<IntermReorder> outputReorders;
-            std::unordered_map<int, mkldnn::memory> primArgs;
-    };
-
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
 
@@ -100,10 +74,7 @@ private:
                                 MKLDNNMemoryPtr inMem,
                                 MKLDNNMemoryPtr weightMem,
                                 MKLDNNMemoryPtr outMem,
-                                const mkldnn::primitive_attr &attr,
-                                const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
-                                const mkldnn::engine& engine,
-                                MKLDNNMemoryPtr biasMem = nullptr);
+                                const mkldnn::engine& engine);
     };
 
     std::shared_ptr<MKLDNNDescriptor> createMkldnnConvDesc(const mkldnn::memory::desc& srcDesc,
