@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "shape_inference.hpp"
 
 #include <ngraph/runtime/host_tensor.hpp>
@@ -17,12 +16,16 @@
 #include "convolution_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 #include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
+#include "experimental_detectron_topkrois_shape_inference.hpp"
 #include "fake_quantize.hpp"
+#include "gather_elements_shape_inference.hpp"
+#include "gather_shape_inference.hpp"
+#include "gather_tree_shape_inference.hpp"
+#include "interpolate_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
+#include "one_hot_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
-#include "experimental_detectron_topkrois_shape_inference.hpp"
-#include "interpolate_shape_inference.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
 #include "shape_inference.hpp"
@@ -129,6 +132,14 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::opset4::ScatterNDUpdate>(op)) {
         shape_infer(node, input_shapes, output_shapes);
+        } else if (auto node = ov::as_type<ov::opset6::GatherElements>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::op::util::GatherBase>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::GatherTree>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::OneHot>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
