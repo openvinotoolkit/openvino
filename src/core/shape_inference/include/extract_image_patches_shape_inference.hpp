@@ -40,13 +40,13 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
         op,
         op->m_padding == PadType::VALID || op->m_padding == PadType::SAME_LOWER || op->m_padding == PadType::SAME_UPPER,
         "Attribute padding should be in either valid or same_lower or same_upper.");
-    
-    if(input_shape.rank().is_static()) {
-        if (input_shape[1].is_dynamic() || input_shape[2].is_dynamic() || input_shape[3].is_dynamic()) {
-            // Determine Batch
-            output_shape[0] = input_shape[0];
-            return;
-        } else {
+
+    if (input_shape.rank().is_static()) {
+        // Determine batch & output_depth
+        output_shape[0] = input_shape[0];
+        output_shape[1] = input_shape[1] * op->m_patch_sizes[0] * op->m_patch_sizes[1];
+        // Determine spatial shape
+        if (input_shape[2].is_static() && input_shape[3].is_static()) {
             int32_t input_rows = input_shape[2].get_length();
             int32_t input_cols = input_shape[3].get_length();
             int32_t out_rows(0);
@@ -56,17 +56,17 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
                 return;
             } else if (op->m_padding == PadType::VALID) {
                 out_rows = (((input_rows) -
-                            static_cast<int32_t>(op->m_patch_selection_rates[0]) *
-                                (static_cast<int32_t>(op->m_patch_sizes[0]) - 1) -
-                            1) /
+                             static_cast<int32_t>(op->m_patch_selection_rates[0]) *
+                                 (static_cast<int32_t>(op->m_patch_sizes[0]) - 1) -
+                             1) /
                             op->m_patch_movement_strides[0]) +
-                        1;
+                           1;
                 out_cols = (((input_cols) -
-                            static_cast<int32_t>(op->m_patch_selection_rates[1]) *
-                                (static_cast<int32_t>(op->m_patch_sizes[1]) - 1) -
-                            1) /
+                             static_cast<int32_t>(op->m_patch_selection_rates[1]) *
+                                 (static_cast<int32_t>(op->m_patch_sizes[1]) - 1) -
+                             1) /
                             op->m_patch_movement_strides[1]) +
-                        1;
+                           1;
             } else {
                 out_rows = 1 + (((input_rows)-1) / op->m_patch_movement_strides[0]);
                 out_cols = 1 + (((input_cols)-1) / op->m_patch_movement_strides[1]);
@@ -79,15 +79,11 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
 
             auto out_rows_cast = static_cast<typename DimType::value_type>(out_rows);
             auto out_cols_cast = static_cast<typename DimType::value_type>(out_cols);
-            // Determine depth
-            auto out_depth = input_shape[1] * op->m_patch_sizes[0] * op->m_patch_sizes[1];
-            output_shape[0] = input_shape[0];
-            output_shape[1] = out_depth;
+
             output_shape[2] = out_rows_cast;
             output_shape[3] = out_cols_cast;
         }
     }
-
 }
 }  // namespace v3
 }  // namespace op
