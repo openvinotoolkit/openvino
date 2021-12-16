@@ -261,11 +261,11 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
 }
 
 
-// ConfigParams {unsigned int, int, bool,
+// ConfigParams {bool, unsigned int, int, bool,
 //               unsigned int, int, bool, unsigned int}
 //
 // every element for ConfigParams
-// {cpuOptimalNum, customer hope for cpu infer requset num, if cpu sleep when load,
+// {is throughput mode, cpuOptimalNum, customer hope for cpu infer requset num, if cpu sleep when load,
 //  gpuOptimalNum, customer hope for gpu infer requset num, if gpu sleep when load,
 //  expectOptimalNum of Auto ExecNetwork}
 //
