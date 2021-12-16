@@ -3,9 +3,9 @@
 //
 
 #include "mock_mo_frontend.hpp"
-#include "common/defs.hpp"
-#include "manager.hpp"
 #include "ngraph/visibility.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;
