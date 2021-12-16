@@ -14,7 +14,8 @@ Depending on a YOLO model version, the Model Optimizer converts it differently:
 
 This section explains how to convert the YOLOv4 Keras\* model from the [https://github.com/david8862/keras-YOLOv3-model-set](https://github.com/david8862/keras-YOLOv3-model-set) repository to an IR. To convert the YOLOv4 model, follow the instructions below:
 
-1. Download YOLOv4 weights and cfg file (for example [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT), [yolov4.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4.cfg) ).
+1. Download YOLOv4 weights and cfg file (for example [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT), [yolov4.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4.cfg) ). 
+You can find other weights and cfg files in this [public repository](https://github.com/AlexeyAB/darknet).
 
 2. Clone the repository with the YOLOv4 model.
 ```sh
