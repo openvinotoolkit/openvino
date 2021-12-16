@@ -35,7 +35,7 @@ jobs:
 
   - checkout: none
 
-  - script: git -C ~/work/openvino checkout -m --recurse-submodules $(Build.SourceVersion)
+  - script: git -C ~/work/openvino checkout -m $(Build.SourceVersion) && git -C ~/work/openvino submodule update --init --recursive
     displayName: checkout
 
     # Should be after 'Install dependencies' because Git lfs is not installed
