@@ -10,7 +10,7 @@ from functools import partial
 import numpy as np
 
 from .utils import append_stats, process_accumulated_stats, \
-    restore_original_node_names, align_stat_names_with_results
+    restore_original_node_names, align_stat_names_with_results, process_raw_output
 from ..api.engine import Engine
 from ..data_loaders.ac_data_loader import ACDataLoader
 from ..graph.model_utils import save_model, add_outputs
@@ -236,7 +236,8 @@ class ACEngine(Engine):
         if not stats_layout:
             return
         dataset_index = kwargs['dataset_indices'][0]
-        append_stats(self._accumulated_layer_stats, stats_layout, value, dataset_index)
+        output = process_raw_output(value)
+        append_stats(self._accumulated_layer_stats, stats_layout, output, dataset_index)
 
     @staticmethod
     def _set_requests_number(params, requests_number):

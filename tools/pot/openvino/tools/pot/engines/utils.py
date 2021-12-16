@@ -138,6 +138,9 @@ def process_raw_output(raw_output):
     """Processes raw output into the POT friendly format"""
     result = {}
     for result_node, result_data in raw_output.items():
-        result_name = result_node.get_node().friendly_name.replace('/sink_port_0', '')
+        if isinstance(result_node, str):
+            result_name = result_node.replace('/sink_port_0', '')
+        else:
+            result_name = result_node.get_node().friendly_name.replace('/sink_port_0', '')
         result[result_name] = result_data
     return result
