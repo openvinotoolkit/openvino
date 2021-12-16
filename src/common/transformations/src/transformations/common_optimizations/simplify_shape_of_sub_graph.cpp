@@ -62,11 +62,6 @@ bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Fun
                 if (root_ss->get_instance_id() != child_ss->get_instance_id() && root_ss->get_output_element_type(0) == root_ss->get_output_element_type(0))
                     graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
         }
-
-        // const auto& root_ss = pair.second[0];
-        // for (const auto& child_ss : pair.second)
-        //     if (root_ss->get_instance_id() != child_ss->get_instance_id() && root_ss->get_output_element_type(0) == root_ss->get_output_element_type(0))
-        //         graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
     }
     return graph_rewritten;
 }
