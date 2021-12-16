@@ -535,24 +535,42 @@ public:
             return;
         try {
             // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
+            // the below code is a placeholder for the WIP (22.1) functionality
+            // that will check the reshaping by the batch is robust (CVS-51744)
             const InputsDataMap inputInfo = network.getInputsInfo();
-            ICNNNetwork::InputShapes shapes = network.getInputShapes();
             bool atLeastOneInputIsBatched = false;
             for (const InputsDataMap::value_type& item : inputInfo) {
                 auto layout = item.second->getTensorDesc().getLayout();
                 if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
                     layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
                     layout == InferenceEngine::Layout::NDHWC) {
-                    if (1 != shapes[item.first][0])  // do not reshape/re-batch originally batched networks
+                    if (item.first == "im_info"  // WA for faster-rcnn* and alikes (pls see the note above)
+                        || 1 != item.second->getTensorDesc()
+                                    .getDims()[0])  // do not reshape/re-batch originally batched networks
                         IE_THROW(NotImplemented)
                             << "Auto-batching does not reshape/re-batch originally batched networks!";
                     else
                         atLeastOneInputIsBatched = true;
                 }
             }
-            if (!atLeastOneInputIsBatched)
+            bool atLeastOneOutputIsBatched = false;
+            const OutputsDataMap outputInfo = network.getOutputsInfo();
+            for (const OutputsDataMap::value_type& item : outputInfo) {
+                auto layout = item.second->getTensorDesc().getLayout();
+                if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
+                    layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+                    layout == InferenceEngine::Layout::NDHWC) {
+                    if (1 != item.second->getTensorDesc()
+                                 .getDims()[0])  // do not reshape/re-batch originally batched networks
+                        IE_THROW(NotImplemented)
+                            << "Auto-batching does not reshape/re-batch originally batched networks!";
+                    else
+                        atLeastOneOutputIsBatched = true;
+                }
+            }
+            if (!atLeastOneInputIsBatched || !atLeastOneOutputIsBatched)
                 IE_THROW(NotImplemented)
-                    << "Auto-batching supports only networks featuring inputs with the batched layouts !";
+                    << "Auto-batching supports only networks featuring inputs/outputs with the batched layouts !";
 
             auto deviceNameWithoutBatch =
                 !deviceNameWithBatchSize.empty() ? DeviceIDParser::getBatchDevice(deviceNameWithBatchSize) : deviceName;
@@ -610,7 +628,9 @@ public:
                     deviceName = "BATCH:" + batchConfig;
                 }
             }
-        } catch (...) {
+        } catch (std::exception& e) {
+            // TODO: remove debug printf
+            std::cout << "Auto-Batching doesn't apply: " << e.what() << std::endl;
         }
     }
 
