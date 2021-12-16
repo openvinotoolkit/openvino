@@ -313,7 +313,8 @@ void IInferRequestInternal::convertBatchedBlob(const std::string& name, const Ba
                         "set_tensors/set_input_tensors - default combining is not supported for "
                         "ROI tensors. Input blobs shall have default strides set");
         memcpy(ptr.as<uint8_t*>() + i * blob->byteSize(),
-               blob->rmap().as<uint8_t*>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding(),
+               blob->rmap().as<uint8_t*>() +
+                   blob->getTensorDesc().getBlockingDesc().getOffsetPadding() * blob->element_size(),
                blob->byteSize());
     }
     SetBlob(name, mem_blob);
