@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "extension/progress_reporter.hpp"
+#include "common/progress_reporter_extension.hpp"
 
 #include <algorithm>
 

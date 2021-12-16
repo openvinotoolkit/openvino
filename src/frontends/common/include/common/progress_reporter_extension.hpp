@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include "frontend_defs.hpp"
 #include "openvino/core/extension.hpp"
 
 namespace ov {
 namespace frontend {
-struct ProgressCounter {
+struct FRONTEND_API ProgressCounter {
     explicit ProgressCounter(unsigned int steps);
 
     unsigned int completed_steps() const {
@@ -28,7 +29,7 @@ private:
     unsigned int m_completed_steps = 0u;
 };
 
-class ProgressReporterExtension : public ov::Extension {
+class FRONTEND_API ProgressReporterExtension : public ov::Extension {
 public:
     ProgressReporterExtension();
 };

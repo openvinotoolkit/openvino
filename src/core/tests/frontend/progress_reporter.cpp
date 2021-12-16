@@ -4,7 +4,7 @@
 
 #include "gtest/gtest.h"
 
-#include <extension/progress_reporter.hpp>
+#include <common/progress_reporter_extension.hpp>
 
 using namespace ov::frontend;
 

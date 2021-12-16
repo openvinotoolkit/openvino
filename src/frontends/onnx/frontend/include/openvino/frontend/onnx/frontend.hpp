@@ -38,6 +38,7 @@ protected:
 
 private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    //std::shared_ptr<ProgressReporterExtension> m_progress_reporter;
 };
 
 }  // namespace onnx
