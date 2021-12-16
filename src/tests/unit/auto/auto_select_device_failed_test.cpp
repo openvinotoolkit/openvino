@@ -207,7 +207,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         // set the return value of SelectDevice
         // for example if there are three device, if will return GPU on the first call, and then MYRIAD
         // at last CPU
-        ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize)), _))
+        ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize)), _, _))
             .WillByDefault(Return(metaDevices[deviceConfigs.size() - selDevsSize]));
         devicesStr += deviceName;
         devicesStr += ((++iter) == deviceConfigs.end()) ? "" : ",";
@@ -219,16 +219,16 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     if (thrExcWheSelect) {
         selDevsSize = deviceConfigs.size();
         if (selDevsSize > 1) {
-            ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize - 1)), _))
+            ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize - 1)), _, _))
                 .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
         } else {
-            ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(1)), _))
+            ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _))
                 .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
         }
     }
 
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(AtLeast(1));
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(selectCount);
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(selectCount);
     EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(_),
                 ::testing::Matcher<const Config&>(_))).Times(loadCount);

@@ -43,6 +43,12 @@ struct DeviceInformation {
     std::map<std::string, std::string> config;
     int numRequestsPerDevices;
     std::string defaultDeviceID;
+    DeviceName uniqueName;
+};
+
+struct AutoContext {
+    bool           needPerfCounters = {false};
+    unsigned int   modelPriority = 0;
 };
 
 struct AutoLoadContext {
@@ -153,6 +159,7 @@ public:
                                  const std::vector<DeviceInformation>&        metaDevices,
                                  const std::string&                           strDevices,
                                  MultiDeviceInferencePlugin*                  plugin,
+                                 const AutoContext&                           context,
                                  const bool                                   needPerfCounters = false);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
@@ -202,6 +209,7 @@ private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
     InferenceEngine::IStreamsExecutor::Ptr                              _executor;
     MultiDeviceInferencePlugin*                                         _multiPlugin;
+    AutoContext                                                         _context;
     bool                                                                _workModeIsAUTO = {false};
     mutable std::once_flag                                              _oc;
     std::once_flag                                                      _firstLoadOC;
