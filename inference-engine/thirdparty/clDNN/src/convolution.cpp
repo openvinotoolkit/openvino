@@ -97,7 +97,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         input_layout.format == format::image_2d_weights_winograd_6x3_s1_xfbyb)
         CLDNN_ERROR_MESSAGE(
             node.id(),
-            "Input for convolution should not be in windograd weights format - it is reserved for weights only");
+            "Input for convolution should not be in winograd weights format - it is reserved for weights only");
 
     if (input_layout.format == format::winograd_2x3_s1_data) {
         CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -369,10 +369,19 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               "Only one-dimensional batch size are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              (input_inst.size.feature[0] + pad.feature[0]) / split,
+                              input_inst.size.feature[0],
                               "input feature maps number",
                               weights_ifm,
                               "Weights/ifm mismatch");
+
+        if (!argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                  "Weights feature maps number",
+                                  input_inst.size.feature[0],
+                                  "input feature maps number",
+                                  weights_ifm,
+                                  "Weights/ifm mismatch");
+        }
     }
 }
 }  // namespace cldnn

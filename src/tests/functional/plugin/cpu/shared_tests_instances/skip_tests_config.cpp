@@ -154,6 +154,7 @@ std::vector<std::string> disabledTestPatterns() {
         // bad accuracy
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
+
         // Issue: 71121
         R"(.*smoke_Proposal*.*TS=\(2.*)",
         // TODO : CVS-69533
@@ -167,6 +168,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Failure happened on win and macos for current seeds.
         R"(.*CTCLossLayerTest.*CMR=1.*)",
         R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
+        // Issue: 71756
+        R"(.*Deconv_.*D_(Blocked|DW|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw16c|nCdhw16c)_outFmts=(nChw16c|nCdhw16c)_primitive=jit_avx512_.*Fused=Multiply\(PerChannel\)\.Add\(PerChannel\).*)",
+        R"(.*smoke_GroupDeconv_(2|3)D_Blocked_BF16.*S=(\(2\.2\)|\(2\.2\.2\))_PB=(\(0\.0\)|\(0\.0\.0\))_PE=(\(0\.0\)|\(0\.0\.0\))_D=(\(1\.1\)|\(1\.1\.1\))_.*_O=64_G=4.*)"
     };
 
 #define FIX_62820 0

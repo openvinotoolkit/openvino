@@ -60,9 +60,14 @@ namespace {
                     res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
                     res.push_back(PluginConfigParams::KEY_PERF_COUNT);
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
+                    res.push_back(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY);
                     return res;
                 }();
 }  // namespace
+
+
+std::mutex MultiDeviceInferencePlugin::_mtx;
+std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
 
 std::map<std::string, std::string> MultiDeviceInferencePlugin::GetSupportedConfig(
     const std::map<std::string, std::string> & config, const std::string & deviceName) const {
@@ -137,11 +142,31 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         std::string defaultDeviceID = "";
         DeviceIDParser parsed{deviceName};
-        if (parsed.getDeviceID().empty())
+        std::string deviceid = parsed.getDeviceID();
+        if (deviceid.empty()) {
             defaultDeviceID = getDefaultDeviceID(deviceName);
+            deviceid = defaultDeviceID;
+        }
 
+        std::string fullDeviceName = "";
+        std::string uniqueName = "";
+        if (parsed.getDeviceName() == "GPU") {
+            std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+            if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
+                fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+            }
+        }
+
+        if (fullDeviceName.empty()) {
+            uniqueName = parsed.getDeviceName() + "_" + deviceid;
+        } else {
+            uniqueName = fullDeviceName + "_" + deviceid;
+        }
+
+        LOG_DEBUG("deviceName:%s, defaultDeviceID:%s, uniqueName:%s",
+              deviceName.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
         // create meta device
-        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID });
+        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
     }
 
     return metaDevices;
@@ -162,10 +187,9 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
-    bool needPerfCounters = false;
+    AutoContext context;
     std::map<std::string, std::string> filterConfig;
-    CheckConfig(config, needPerfCounters, filterConfig);
-
+    CheckConfig(config, context, filterConfig);
     for (auto && kvp : config) {
         const auto& name = kvp.first;
         _config[name] = kvp.second;
@@ -237,10 +261,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (workModeAuto) {
         // check the configure and check if need to set PerfCounters configure to device
         // and set filter configure
+
         OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
-        bool needPerfCounters = false;
+        AutoContext context;
         std::map<std::string, std::string> filterConfig;
-        CheckConfig(fullConfig, needPerfCounters, filterConfig);
+        CheckConfig(fullConfig, context, filterConfig);
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
@@ -270,7 +295,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
         }
 
-        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, needPerfCounters);
+        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
@@ -378,20 +403,18 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     return queryResult;
 }
 
-DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision) {
+DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices,
+        const std::string& networkPrecision, unsigned int priority) {
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::SelectDevice");
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to select in " << GetName() <<  " plugin";
     }
-    if (metaDevices.size() == 1) {
-        return metaDevices.at(0);
-    }
 
-    std::vector<DeviceInformation> CPU;
-    std::vector<DeviceInformation> dGPU;
-    std::vector<DeviceInformation> iGPU;
-    std::vector<DeviceInformation> MYRIAD;
-    std::vector<DeviceInformation> VPUX;
+    std::list<DeviceInformation> CPU;
+    std::list<DeviceInformation> dGPU;
+    std::list<DeviceInformation> iGPU;
+    std::list<DeviceInformation> MYRIAD;
+    std::list<DeviceInformation> VPUX;
 
     for (auto& item : metaDevices) {
         if (item.deviceName.find("CPU") == 0) {
@@ -407,96 +430,103 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
             continue;
         }
         if (item.deviceName.find("GPU") == 0) {
-            auto gpuFullDeviceName = GetCore()->GetMetric(item.deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
-            if (gpuFullDeviceName.find("iGPU") != std::string::npos) {
+            auto& gpuUniqueName = item.uniqueName;
+            if (gpuUniqueName.find("iGPU") != std::string::npos) {
                 iGPU.push_back(item);
-            } else if (gpuFullDeviceName.find("dGPU") != std::string::npos) {
+            } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
                 dGPU.push_back(item);
             }
             continue;
         }
     }
 
-    if (CPU.empty() && dGPU.empty() && iGPU.empty() && MYRIAD.empty() && VPUX.empty()) {
-        IE_THROW(NotFound) << "No available device found";
-    }
-
     // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
-    if (!dGPU.empty()) {
-        for (auto&& item : dGPU) {
-            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
-            if (supportNetwork != capability.end()) {
-                return item;
-            }
-        }
-    } else if (!VPUX.empty()) {
-        for (auto&& item : VPUX) {
-            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
-            if (supportNetwork != capability.end()) {
-                return item;
-            }
-        }
-    } else if (!iGPU.empty()) {
-        for (auto&& item : iGPU) {
-            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
-            if (supportNetwork != capability.end()) {
-                return item;
-            }
-        }
-    } else if (!MYRIAD.empty()) {
-        for (auto&& item : MYRIAD) {
-            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
-            if (supportNetwork != capability.end()) {
-                return item;
-            }
-        }
-    }
+    std::list<DeviceInformation>  devices;
+    devices.splice(devices.end(), dGPU);
+    devices.splice(devices.end(), VPUX);
+    devices.splice(devices.end(), iGPU);
+    devices.splice(devices.end(), MYRIAD);
 
-    // If network is FP32 but there is no device support FP32, offload FP32 network to device support FP16.
+    std::list<DeviceInformation> validDevices;
+
+    auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
+        for (auto iter = devices.begin(); iter != devices.end();) {
+            std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
+            if (supportNetwork != capability.end()) {
+                validDevices.push_back(std::move(*iter));
+                devices.erase(iter++);
+                continue;
+            }
+            iter++;
+        }
+    };
+    selectSupportDev(networkPrecision);
+    // If network is FP32, continue to collect the device support FP16 but not support FP32.
     if (networkPrecision == "FP32") {
-        if (!dGPU.empty()) {
-            for (auto&& item : dGPU) {
-                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
-                if (supportNetwork != capability.end()) {
-                    return item;
-                }
+       const std::string f16 = "FP16";
+       selectSupportDev(f16);
+    }
+    // add cpu devices if exist.
+    validDevices.splice(validDevices.end(), CPU);
+
+    if (validDevices.empty()) {
+         IE_THROW() << "Cannot select any device";
+    }
+    // all available Devices are in validDevices now
+    // need to remove higher priority devices
+    // save the last device first
+    DeviceInformation lastDevice = validDevices.back();
+    {
+        // begin to filter devices
+        std::lock_guard<std::mutex> lck(_mtx);
+        for (auto && kvp : _priorityMap) {
+            if (kvp.first >= priority) {
+                continue;
             }
-        } else if (!VPUX.empty()) {
-            for (auto&& item : VPUX) {
-                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
-                if (supportNetwork != capability.end()) {
-                    return item;
-                }
-            }
-        } else if (!iGPU.empty()) {
-            for (auto&& item : iGPU) {
-                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
-                if (supportNetwork != capability.end()) {
-                    return item;
-                }
-            }
-        } else if (!MYRIAD.empty()) {
-            for (auto&& item : MYRIAD) {
-                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
-                if (supportNetwork != capability.end()) {
-                    return item;
-                }
-            }
+            auto& filterDevices = kvp.second;
+            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](DeviceInformation device) {
+                    auto iter = std::find_if(filterDevices.begin(), filterDevices.end(), [&device](std::string uniqueName) {
+                            return (uniqueName == device.uniqueName);
+                            });
+                    return iter != filterDevices.end() ? true : false;
+                    });
+            validDevices.erase(sd, validDevices.end());
         }
     }
 
-    if (CPU.empty()) {
-        IE_THROW() << "Cannot select any device";
+    DeviceInformation* ptrSelectDevice =  NULL;
+    if (validDevices.empty()) {
+        // after remove higher priority device,but the available devices is null,
+        // so select the last device of all available Devices.
+        ptrSelectDevice = &lastDevice;
+    } else {
+        // select the first device in the rest of available devices.
+        ptrSelectDevice = &validDevices.front();
     }
-    return CPU[0];
+    //recode the device priority
+    RegisterPriority(priority, ptrSelectDevice->uniqueName);
+    return *ptrSelectDevice;
+}
+
+void MultiDeviceInferencePlugin::UnregisterPriority(const unsigned int& priority,
+        const std::string& deviceName) {
+    std::lock_guard<std::mutex> lck(_mtx);
+    auto& priorityDevices = _priorityMap[priority];
+    for (auto iter = priorityDevices.begin(); iter != priorityDevices.end();) {
+        if (*iter == deviceName) {
+            priorityDevices.erase(iter);
+            break;
+        }
+        iter++;
+    }
+}
+
+void MultiDeviceInferencePlugin::RegisterPriority(const unsigned int& priority,
+        const std::string& deviceName) {
+    std::lock_guard<std::mutex> lck(_mtx);
+    auto& priorityDevices = _priorityMap[priority];
+    priorityDevices.push_back(deviceName);
 }
 
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
@@ -521,19 +551,17 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 }
 
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
-        bool& needPerfCounters, std::map<std::string, std::string>& filterConfig) {
+        AutoContext& context, std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
 
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
-        if (kvp.first.find("AUTO_") == 0) {
-            continue;
-        } else if (kvp.first == PluginConfigParams::KEY_PERF_COUNT) {
+        if (kvp.first == PluginConfigParams::KEY_PERF_COUNT) {
             if (kvp.second == PluginConfigParams::YES) {
-                needPerfCounters = true;
+                context.needPerfCounters = true;
                 filterConfig.insert({kvp.first, kvp.second});
             } else if (kvp.second == PluginConfigParams::NO) {
-                needPerfCounters = false;
+                context.needPerfCounters = false;
             } else {
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
@@ -552,10 +580,24 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                    IE_THROW() << "Unsupported config value: " << kvp.second
                               << " for key: " << kvp.first;
                }
+        } else if (kvp.first == MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY) {
+            try {
+                int priority = std::stoi(kvp.second);
+                if (priority < 0) {
+                    IE_THROW() << "Unsupported config value: " << kvp.second
+                        << " for key: " << kvp.first;
+                }
+                context.modelPriority = priority;
+            } catch(...) {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
+            }
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);
         } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
+        } else if (kvp.first.find("AUTO_") == 0) {
+            continue;
         }
     }
 }
