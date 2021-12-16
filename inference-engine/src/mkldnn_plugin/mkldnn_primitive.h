@@ -18,7 +18,6 @@ public:
     operator bool() const;
     MKLDNNPrimitive& operator=(const std::shared_ptr<mkldnn::primitive>& primitive);
     mkldnn::primitive operator*();
-
     void reset(mkldnn::primitive* primitive);
 
 private:
