@@ -6,6 +6,7 @@
 
 #include <common/telemetry_extension.hpp>
 #include <manager.hpp>
+#include <openvino/frontend/paddle/frontend.hpp>
 
 namespace ov {
 namespace frontend {
@@ -14,7 +15,7 @@ namespace paddle {
 class OpPlace;
 class TensorPlace;
 class InputModel : public ov::frontend::InputModel {
-    friend class FrontEnd;
+    friend class ov::frontend::paddle::FrontEnd;
     class InputModelpaddleImpl;
     std::shared_ptr<InputModelpaddleImpl> _impl;
 
