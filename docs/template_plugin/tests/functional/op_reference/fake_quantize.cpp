@@ -183,7 +183,7 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
                            op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
                            op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
                            5,
-                           op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1)),
+                           op::AutoBroadcastSpec(op::AutoBroadcastType::PADDLE, 1)),
         FakeQuantizeParams(ov::Shape{1, 2, 5, 5},
                            ov::Shape{1, 2, 5, 5},
                            IN_ET,
@@ -198,7 +198,7 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
                            op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
                            op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
                            5,
-                           op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -1))
+                           op::AutoBroadcastSpec(op::AutoBroadcastType::PADDLE, -1))
     };
     return params;
 }

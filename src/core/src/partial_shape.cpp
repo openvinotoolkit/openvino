@@ -291,7 +291,7 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
             return success;
         }
     }
-    case op::AutoBroadcastType::PDPD: {
+    case op::AutoBroadcastType::PADDLE: {
         if (dst.rank().is_dynamic() || src.rank().is_dynamic()) {
             return true;
         } else {

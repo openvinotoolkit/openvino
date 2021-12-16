@@ -23,7 +23,7 @@ std::tuple<ov::element::Type, ov::PartialShape> ov::op::util::validate_and_infer
                 NODE_VALIDATION_CHECK(node,
                                       PartialShape::merge_into(pshape, node->get_input_partial_shape(i)),
                                       "Argument shapes are inconsistent.");
-            } else if (autob.m_type == op::AutoBroadcastType::NUMPY || autob.m_type == op::AutoBroadcastType::PDPD) {
+            } else if (autob.m_type == op::AutoBroadcastType::NUMPY || autob.m_type == op::AutoBroadcastType::PADDLE) {
                 NODE_VALIDATION_CHECK(
                     node,
                     PartialShape::broadcast_merge_into(pshape, node->get_input_partial_shape(i), autob),

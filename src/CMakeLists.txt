@@ -40,8 +40,8 @@ if(ENABLE_OV_ONNX_FRONTEND)
     add_dependencies(inference_engine onnx_ov_frontend)
 endif()
 
-if(ENABLE_OV_PDPD_FRONTEND)
-    add_dependencies(inference_engine paddlepaddle_ov_frontend)
+if(ENABLE_OV_PADDLE_FRONTEND)
+    add_dependencies(inference_engine paddle_ov_frontend)
 endif()
 
 if(ENABLE_OV_TF_FRONTEND)

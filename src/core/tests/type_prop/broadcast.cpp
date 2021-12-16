@@ -552,22 +552,22 @@ typedef ::testing::Types<op::v1::Broadcast, op::v3::Broadcast> BroadcastTypes;
 // `must specify at least one argument for '...'` (variadic macro)
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, BroadcastTests, BroadcastTypes, );
 
-// changing AutoBroadcastSpec to BroadcastModeSpec forces runing pdpd tests separately
-TEST(type_prop, broadcast_v1_pdpd) {
+// changing AutoBroadcastSpec to BroadcastModeSpec forces runing paddle tests separately
+TEST(type_prop, broadcast_v1_paddle) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 6});
 
     auto bc =
-        make_shared<op::v1::Broadcast>(param, target_shape, op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1));
+        make_shared<op::v1::Broadcast>(param, target_shape, op::AutoBroadcastSpec(op::AutoBroadcastType::PADDLE, 1));
     ASSERT_EQ(bc->get_element_type(), element::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 3, 6}));
 }
 
-TEST(type_prop, broadcast_v3_pdpd) {
+TEST(type_prop, broadcast_v3_paddle) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 6});
 
-    auto bc = make_shared<op::v3::Broadcast>(param, target_shape, op::BroadcastModeSpec(op::BroadcastType::PDPD, 1));
+    auto bc = make_shared<op::v3::Broadcast>(param, target_shape, op::BroadcastModeSpec(op::BroadcastType::PADDLE, 1));
     ASSERT_EQ(bc->get_element_type(), element::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 3, 6}));
 }

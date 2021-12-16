@@ -107,8 +107,8 @@ OutputVector numpy_broadcast_for_matmul_operation(const Output<Node>& left, cons
 /// \param inputs Original list of inputs
 /// \param axis Index starting to align
 ///
-/// \return pdpd-style broadcasted list of nodes.
-OutputVector pdpd_broadcast(const OutputVector& inputs, int64_t axis);
+/// \return paddle-style broadcasted list of nodes.
+OutputVector paddle_broadcast(const OutputVector& inputs, int64_t axis);
 
 /// \brief Generate a list of broadcast axes.
 ///

@@ -60,7 +60,7 @@ inline Shape align_shape_sizes(const Shape& shape, const Shape& target_shape, co
         std::copy(begin(shape), end(shape), prev(end(s), shape.size()));
         break;
     }
-    case op::AutoBroadcastType::PDPD: {
+    case op::AutoBroadcastType::PADDLE: {
         const size_t axis =
             broadcast.m_axis == -1 ? target_shape.size() - shape.size() : static_cast<size_t>(broadcast.m_axis);
 

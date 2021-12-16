@@ -469,12 +469,12 @@ TEST(TransformationTests, GreaterNegativeDifferentMax) {
     };
 
     const auto& f1 = createGreaterFunc(ngraph::op::AutoBroadcastType::NUMPY);
-    const auto& f2 = createGreaterFunc(ngraph::op::AutoBroadcastType::PDPD);
+    const auto& f2 = createGreaterFunc(ngraph::op::AutoBroadcastType::PADDLE);
 
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const auto res = fc.compare(f1, f2);
     EXPECT_FALSE(res.valid);
-    EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'auto_broadcast' : [numpy] vs [pdpd]"));
+    EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'auto_broadcast' : [numpy] vs [paddle]"));
 }
 
 TEST(TransformationTests, ReadValueNegativeDifferentMax) {

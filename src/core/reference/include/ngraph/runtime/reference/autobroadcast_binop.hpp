@@ -225,7 +225,7 @@ void autobroadcast_binop(const T* arg0,
 #endif
         }
         break;
-    case op::AutoBroadcastType::PDPD:
+    case op::AutoBroadcastType::PADDLE:
         // We'll be using CoordinateTransform to handle the broadcasting. No need to
         // process arg0 and output shape will be the same as arg0. We need to process
         // arg1 and the general procedure is as follows:
@@ -412,7 +412,7 @@ void autobroadcast_select(const U* arg0,
             }
         }
         break;
-    case op::AutoBroadcastType::PDPD: {
+    case op::AutoBroadcastType::PADDLE: {
         // arg0 and arg2 are broadcast to arg1 shape
         int64_t axis = broadcast_spec.m_axis;
         if (axis == -1) {

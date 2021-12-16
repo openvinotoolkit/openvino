@@ -21,7 +21,7 @@ void shape_infer(const ov::op::v0::FakeQuantize* op,
                                   T::merge_into(data_pshape, input_shapes[i]),
                                   "Argument shapes are inconsistent.");
         } else if (auto_broadcast.m_type == ov::op::AutoBroadcastType::NUMPY ||
-                   auto_broadcast.m_type == ov::op::AutoBroadcastType::PDPD) {
+                   auto_broadcast.m_type == ov::op::AutoBroadcastType::PADDLE) {
             NODE_VALIDATION_CHECK(
                     op,
                     T::broadcast_merge_into(data_pshape, input_shapes[i], auto_broadcast),

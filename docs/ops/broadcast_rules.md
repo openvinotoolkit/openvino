@@ -4,7 +4,7 @@ The purpose of this document is to provide a set of common rules which are appli
 
 ## Description
 
-Broadcast allows to perform element-wise operation for inputs of arbitrary number of dimensions. There are 2 types of broadcasts supported: Numpy and PDPD.
+Broadcast allows to perform element-wise operation for inputs of arbitrary number of dimensions. There are 2 types of broadcasts supported: Numpy and paddle.
 
 ## Rules
 
@@ -19,7 +19,7 @@ Broadcast allows to perform element-wise operation for inputs of arbitrary numbe
 4. Tensor with dimension of size 1 will be implicitly broadcasted to match the size of the second tensor.
 5. When both inputs are of rank = 0 the result is a scalar.
 
-**PDPD broadcast**:
+**paddle broadcast**:
 1. First input tensor A is of any rank, second input B has rank smaller or equal to the first input.
 2. Input tensor B is a continuous subsequence of input A.
 3. Apply broadcast B to match the shape of A, where provided *axis* is the start dimension index
@@ -74,7 +74,7 @@ Broadcast allows to perform element-wise operation for inputs of arbitrary numbe
        `B: Shape(4, 4, 5)` <br>
   `Result: broadcast won't happen due to dimensions mismatch on the leftmost axis`
 
-## PDPD examples
+## paddle examples
 
 *      `A: Shape(2, 3, 4, 5)` <br>
        `B: Shape(   3, 4   ) with axis = 1` <br>

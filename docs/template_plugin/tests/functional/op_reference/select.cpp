@@ -111,9 +111,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Select_With_Hardcoded_Refs, ReferenceSelectLayerT
                                           PartialShape {2, 4},                          // else shape
                                           std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},  // else data
                                           std::vector<float> {11, 2, 3, 14, 15, 2, 3, 18}),     // expected output data
-                             // fp32, pdpd brodcasting
+                             // fp32, paddle brodcasting
                              SelectParams(element::f32,                                       // if/else/output data type
-                                          {op::AutoBroadcastType::PDPD, -1},                  // broadcasting type
+                                          {op::AutoBroadcastType::PADDLE, -1},                  // broadcasting type
                                           PartialShape {2, 4},                        // select shape
                                           std::vector<char> {0, 0, 0, 0, 0, 1, 1, 1},         // select data
                                           PartialShape {2, 4},                        // if shape
@@ -121,9 +121,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Select_With_Hardcoded_Refs, ReferenceSelectLayerT
                                           PartialShape {4},                           // else shape
                                           std::vector<float> {11, 12, 13, 14},                // else data
                                           std::vector<float> {11, 12, 13, 14, 11, 6, 7, 8}),  // expected output data
-                             // i32, pdpd brodcasting
+                             // i32, paddle brodcasting
                              SelectParams(element::i32,                                        // if/else/output data type
-                                          {op::AutoBroadcastType::PDPD, -1},                   // broadcasting type
+                                          {op::AutoBroadcastType::PADDLE, -1},                   // broadcasting type
                                           PartialShape {2, 4},                         // select shape
                                           std::vector<char> {0, 0, 0, 0, 0, 1, 1, 1},          // select data
                                           PartialShape {2, 4},                         // if shape

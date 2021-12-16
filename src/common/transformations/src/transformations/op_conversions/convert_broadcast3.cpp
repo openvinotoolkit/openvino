@@ -76,8 +76,8 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
 
         if (broadcast_type == op::BroadcastType::NUMPY) {
             input = std::make_shared<opset1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::NUMPY);
-        } else if (broadcast_type == op::BroadcastType::PDPD) {
-            input = std::make_shared<opset1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::PDPD);
+        } else if (broadcast_type == op::BroadcastType::PADDLE) {
+            input = std::make_shared<opset1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::PADDLE);
         } else if (broadcast_type == op::BroadcastType::NONE) {
             input = std::make_shared<opset1::Broadcast>(input, target_shape_input, broadcast->input_value(2), op::AutoBroadcastType::NONE);
         } else if (broadcast_type == op::BroadcastType::BIDIRECTIONAL) {

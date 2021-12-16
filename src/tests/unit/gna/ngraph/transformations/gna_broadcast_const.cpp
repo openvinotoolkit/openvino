@@ -68,7 +68,7 @@ std::unordered_map<ov::op::AutoBroadcastType, ShapeInfo> ShapesRightConst = {
                                                   /* const_shape_dims_in */ {2},
                                                   /* const_shape_values_in */ {1, 2},
                                                   /* const_shape_values_out */ {1, 2, 1, 2, 1, 2}) },
-    { ov::op::AutoBroadcastType::PDPD, ShapeInfo(/* data_shape */ {3, 2},
+    { ov::op::AutoBroadcastType::PADDLE, ShapeInfo(/* data_shape */ {3, 2},
                                                  /* const_shape_dims_in */ {3, 1},
                                                  /* const_shape_values_in */ {1, 2, 3},
                                                  /* const_shape_values_out */ {1, 1, 2, 2, 3, 3}) }
@@ -263,12 +263,12 @@ INSTANTIATE_TEST_SUITE_P(BroadcastConstTestNumpySuite, BroadcastConstTestFixture
                                             ::testing::Bool(),
                                             ::testing::Values(ov::op::AutoBroadcastType::NUMPY)));
 
-INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPDPDSuite, BroadcastConstTestFixture,
+INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPaddleSuite, BroadcastConstTestFixture,
                          ::testing::Combine(::testing::ValuesIn(opset8_eltwise_factories),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Values(false),
-                                            ::testing::Values(ov::op::AutoBroadcastType::PDPD)));
+                                            ::testing::Values(ov::op::AutoBroadcastType::PADDLE)));
 
 // ------------------------------------------------------------------------------------------------
 

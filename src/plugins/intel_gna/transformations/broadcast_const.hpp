@@ -23,7 +23,7 @@ namespace GNAPluginNS {
  *            Eltwise
  *
  * Where Eltwise node is one of the: Multiply, Substract and Add
- * There are different types of broadcasting: NONE/EXPLICIT, NUMPY and PDPD
+ * There are different types of broadcasting: NONE/EXPLICIT, NUMPY and PADDLE
  *
  * If eltwise node inputs have different shapes and one the inputs is Constant node
  * we can update (broadcast) Constant to have the same shape as another input.
@@ -35,7 +35,7 @@ namespace GNAPluginNS {
  *         {3,2}                       {2}/{1,2}             {3,2}/{1, 2, 1, 2, 1, 2}
  *         {2,3}                       {2,1}/{1,2}           {2,3}/{1, 1, 1, 2, 2, 2}
  *
- * PDPD broadcasting
+ * PADDLE broadcasting
  * Eltwise non-constant shape | Constant prev shape/values | Constant new shape/values
  *         {3,2}                       {3, 1}/{1,2,3}             {3,2}/{1, 1, 2, 2, 3, 3}
  *

@@ -171,7 +171,7 @@ void runtime::HostTensor::set_broadcast(const op::AutoBroadcastSpec& autob,
     PartialShape pshape = arg0->get_partial_shape();
     if (autob.m_type == op::AutoBroadcastType::NONE) {
         NGRAPH_CHECK(PartialShape::merge_into(pshape, arg1->get_partial_shape()), "Argument shapes are inconsistent.");
-    } else if (autob.m_type == op::AutoBroadcastType::NUMPY || autob.m_type == op::AutoBroadcastType::PDPD) {
+    } else if (autob.m_type == op::AutoBroadcastType::NUMPY || autob.m_type == op::AutoBroadcastType::PADDLE) {
         NGRAPH_CHECK(PartialShape::broadcast_merge_into(pshape, arg1->get_partial_shape(), autob),
                      "Argument shapes are inconsistent.");
     } else {

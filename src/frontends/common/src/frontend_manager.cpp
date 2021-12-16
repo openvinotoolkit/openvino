@@ -35,7 +35,7 @@ public:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         auto it = predefined_frontends.find(framework);
         std::lock_guard<std::mutex> guard(m_loading_mutex);
@@ -122,7 +122,7 @@ private:
             {".xml", {"ir", "ir"}},
             {".onnx", {"onnx", "onnx"}},
             {".pb", {"tf", "tensorflow"}},
-            {".pdmodel", {"paddle", "paddlepaddle"}},
+            {".pdmodel", {"paddle", "paddle"}},
         };
 
         // List of prioritized frontends.
@@ -130,7 +130,7 @@ private:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         if (variants.empty()) {
             return nullptr;

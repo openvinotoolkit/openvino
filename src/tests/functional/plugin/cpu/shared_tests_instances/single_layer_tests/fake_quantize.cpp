@@ -17,7 +17,7 @@ const ngraph::op::AutoBroadcastSpec noneBroadcast = ngraph::op::AutoBroadcastTyp
 
 const std::vector<ngraph::op::AutoBroadcastSpec> broadcasts = {
     {ngraph::op::AutoBroadcastType::NUMPY},
-    {ngraph::op::AutoBroadcastType::PDPD, -1},
+    {ngraph::op::AutoBroadcastType::PADDLE, -1},
 };
 
 const std::vector<InferenceEngine::Precision>

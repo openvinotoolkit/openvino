@@ -43,7 +43,7 @@ void op::v1::Select::validate_and_infer_types() {
                           "Argument 1 and 2 element types must match.");
 
     ov::PartialShape result_shape;
-    if (get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD) {
+    if (get_auto_broadcast().m_type == op::AutoBroadcastType::PADDLE) {
         result_shape = get_input_partial_shape(1);  // 'then' tensor
         NODE_VALIDATION_CHECK(
             this,

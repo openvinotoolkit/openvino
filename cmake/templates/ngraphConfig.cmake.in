@@ -31,8 +31,8 @@
 #   ngraph_onnx_ov_frontend_FOUND          - True if the system has onnx_ov_frontend library
 #   ngraph::onnx_ov_frontend               - ONNX FrontEnd target (optional)
 #
-#   ngraph_paddlepaddle_frontend_FOUND     - True if the system has PDPD frontend
-#   ngraph::paddlepaddle_ov_frontend       - nGraph PDPD frontend (optional)
+#   ngraph_paddle_frontend_FOUND     - True if the system has paddle frontend
+#   ngraph::paddle_ov_frontend       - nGraph paddle frontend (optional)
 #
 
 @PACKAGE_INIT@

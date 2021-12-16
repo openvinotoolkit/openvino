@@ -65,13 +65,13 @@ protected:
     bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    PartialShape get_result_shape_pdpd(const PartialShape& arg0_shape,
+    PartialShape get_result_shape_paddle(const PartialShape& arg0_shape,
                                        const PartialShape& target_shape,
                                        const op::BroadcastModeSpec& broadcast_spec) const;
 
     void validate_target_shape_numpy(const PartialShape& arg_shape, const PartialShape& target_shape) const;
 
-    static std::pair<bool, AxisSet> get_broadcast_axes_numpy_pdpd(const Shape& arg_shape,
+    static std::pair<bool, AxisSet> get_broadcast_axes_numpy_paddle(const Shape& arg_shape,
                                                                   const Shape& result_shape,
                                                                   const op::BroadcastModeSpec& broadcast_spec);
 
