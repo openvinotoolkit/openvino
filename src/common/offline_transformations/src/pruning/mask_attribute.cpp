@@ -54,8 +54,8 @@ void setInitMask(Output<Node> output, const Mask::Ptr & mask) {
     auto &rtInfo = output.get_rt_info();
     auto copy_mask = std::make_shared<Mask>();
     std::copy(mask->begin(), mask->end(), std::back_inserter(*copy_mask));
-    auto new_name = std::string(g_init_suffix) + Mask::get_type_info_static().name;
-   rtInfo[Mask::get_type_info_static()] = mask;
+    auto init_mask_name = std::string(g_init_suffix) + Mask::get_type_info_static().name;
+    rtInfo[init_mask_name] = copy_mask;
 }
 
 std::ostream & operator<< (std::ostream & out, const Mask & mask) {
