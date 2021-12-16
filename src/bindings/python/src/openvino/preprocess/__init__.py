@@ -40,8 +40,8 @@ from openvino.pyopenvino.preprocess import InputInfo
 from openvino.pyopenvino.preprocess import OutputInfo
 from openvino.pyopenvino.preprocess import InputTensorInfo
 from openvino.pyopenvino.preprocess import OutputTensorInfo
-from openvino.pyopenvino.preprocess import InputNetworkInfo
-from openvino.pyopenvino.preprocess import OutputNetworkInfo
+from openvino.pyopenvino.preprocess import InputModelInfo
+from openvino.pyopenvino.preprocess import OutputModelInfo
 from openvino.pyopenvino.preprocess import PrePostProcessor
 from openvino.pyopenvino.preprocess import PreProcessSteps
 from openvino.pyopenvino.preprocess import PostProcessSteps

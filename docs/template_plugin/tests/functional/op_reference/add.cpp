@@ -56,14 +56,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
                                                     const PartialShape& input_shape2,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto add = std::make_shared<op::v1::Add>(in1, in2);
-        return std::make_shared<Function>(NodeVector{add}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(NodeVector{add}, ParameterVector{in1, in2});
     }
 };
 
@@ -87,7 +87,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
                                                     const PartialShape& input_shape2,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
@@ -97,7 +97,7 @@ private:
         add = std::make_shared<op::v1::Add>(add, add);
         add = std::make_shared<op::v1::Add>(add, add);
         add = std::make_shared<op::v1::Add>(add, add);
-        return std::make_shared<Function>(NodeVector{add}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(NodeVector{add}, ParameterVector{in1, in2});
     }
 };
 

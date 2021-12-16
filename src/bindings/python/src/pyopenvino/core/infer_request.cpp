@@ -65,11 +65,8 @@ void regclass_InferRequest(py::module m) {
             self._start_time = Time::now();
             self._request.infer();
             self._end_time = Time::now();
-            Containers::InferResults results;
-            for (auto& out : self._outputs) {
-                results.push_back(self._request.get_tensor(out));
-            }
-            return results;
+
+            return Common::outputs_to_dict(self._outputs, self._request);
         },
         py::arg("inputs"));
 
@@ -270,5 +267,9 @@ void regclass_InferRequest(py::module m) {
 
     cls.def_property_readonly("profiling_info", [](InferRequestWrapper& self) {
         return self._request.get_profiling_info();
+    });
+
+    cls.def_property_readonly("results", [](InferRequestWrapper& self) {
+        return Common::outputs_to_dict(self._outputs, self._request);
     });
 }

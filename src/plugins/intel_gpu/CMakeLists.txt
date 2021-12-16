@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "clDNNPlugin")
+set (TARGET_NAME "ov_intel_gpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-all)
@@ -16,27 +16,27 @@ if(ENABLE_GPU_DEBUG_CAPS)
   add_definitions(-DGPU_DEBUG_CONFIG=1)
 endif()
 
-file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.h)
+file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
-addVersionDefines(src/plugin/cldnn_engine.cpp CI_BUILD_NUMBER CLDNN_VERSION)
+addVersionDefines(src/plugin/plugin.cpp CI_BUILD_NUMBER)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
-              VERSION_DEFINES_FOR src/plugin/cldnn_engine.cpp)
+              VERSION_DEFINES_FOR src/plugin/plugin.cpp)
 
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
+target_link_libraries(${TARGET_NAME} PRIVATE ov_intel_gpu_graph
+                                             pugixml::static
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
                                              ngraph)
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/
-        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-        ${clDNN_SOURCE_DIR}/api)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/
+        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -47,9 +47,3 @@ endif()
 
 # Failed because of OpenCL
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-# install
-
-install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT gpu)

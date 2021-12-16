@@ -27,7 +27,7 @@ namespace ov {
 namespace runtime {
 
 class Core;
-class ExecutableNetwork;
+class CompiledModel;
 
 /**
  * @brief This class represents an abstraction
@@ -37,8 +37,8 @@ class ExecutableNetwork;
  */
 class OPENVINO_RUNTIME_API RemoteContext {
 protected:
-    std::shared_ptr<void> _so;                 //!< Reference to shared object that loaded implementation
-    std::shared_ptr<ie::RemoteContext> _impl;  //!< Pointer to remote context implementation
+    std::shared_ptr<void> _so;                              //!< Reference to shared object that loaded implementation
+    std::shared_ptr<InferenceEngine::RemoteContext> _impl;  //!< Pointer to remote context implementation
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr
@@ -46,9 +46,9 @@ protected:
      * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    RemoteContext(const std::shared_ptr<void>& so, const std::shared_ptr<ie::RemoteContext>& impl);
+    RemoteContext(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::RemoteContext>& impl);
     friend class ov::runtime::Core;
-    friend class ov::runtime::ExecutableNetwork;
+    friend class ov::runtime::CompiledModel;
 
 public:
     /**

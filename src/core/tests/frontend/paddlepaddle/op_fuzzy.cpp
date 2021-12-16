@@ -17,7 +17,6 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace ngraph;
 using namespace ov::frontend;
-using TestEngine = test::IE_CPU_Engine;
 
 using PDPDFuzzyOpTest = FrontEndFuzzyOpTest;
 
@@ -87,6 +86,27 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("elementwise_mul1"),
                                              std::string("elementwise_pow1"),
                                              std::string("elementwise_sub1"),
+                                             std::string("elementwise_add2"),
+                                             std::string("elementwise_div2"),
+                                             std::string("elementwise_max2"),
+                                             std::string("elementwise_min2"),
+                                             std::string("elementwise_mul2"),
+                                             std::string("elementwise_pow2"),
+                                             std::string("elementwise_sub2"),
+                                             std::string("elementwise_add3"),
+                                             std::string("elementwise_div3"),
+                                             std::string("elementwise_max3"),
+                                             std::string("elementwise_min3"),
+                                             std::string("elementwise_mul3"),
+                                             std::string("elementwise_pow3"),
+                                             std::string("elementwise_sub3"),
+                                             std::string("elementwise_add4"),
+                                             std::string("elementwise_div4"),
+                                             std::string("elementwise_max4"),
+                                             std::string("elementwise_min4"),
+                                             std::string("elementwise_mul4"),
+                                             std::string("elementwise_pow4"),
+                                             std::string("elementwise_sub4"),
                                              std::string("embedding_0"),
                                              std::string("embedding_sparse"),
                                              std::string("embedding_none_weight"),

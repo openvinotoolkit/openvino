@@ -9,9 +9,13 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
+// clang-format off
 #include <string>
 #include <vector>
+
+#include "inference_engine.hpp"
+#include "openvino/openvino.hpp"
+// clang-format on
 
 /**
  * @brief This function checks input args and existence of specified files in a given folder
@@ -38,4 +42,4 @@ void processLayout(InferenceEngine::CNNNetwork& network,
                    const std::string& iol);
 
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network);
-void printInputAndOutputsInfo(const ov::Function& network);
+void printInputAndOutputsInfo(const ov::Model& network);

@@ -9,6 +9,7 @@
 
 #include "ir_frontend/utility.hpp"
 #include "manager.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 
 namespace ov {
 namespace frontend {
@@ -23,7 +24,7 @@ public:
                  const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                  const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
 
-    std::shared_ptr<Function> convert();
+    std::shared_ptr<Model> convert();
 };
 
 }  // namespace frontend

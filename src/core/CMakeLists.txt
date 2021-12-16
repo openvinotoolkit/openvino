@@ -2,9 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions(-DIN_NGRAPH_LIBRARY)
+if(ENABLE_LTO)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
 
-set(NGRAPH_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_definitions(-DIN_OV_CORE_LIBRARY)
+
+set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
@@ -93,15 +97,16 @@ file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_
 file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/fix_rt_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/model.cpp" # for SmartReshape
                             ${smart_reshape_srcs} ${rt_info_srcs}
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
+target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
                                   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
@@ -122,18 +127,15 @@ export(TARGETS ngraph NAMESPACE openvino::
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
-ie_cpack_add_component(ngraph REQUIRED)
-ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
 install(TARGETS ngraph EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
         INCLUDES DESTINATION runtime/include)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION "runtime/include"
-        COMPONENT ngraph_dev
+        COMPONENT core_dev
         FILES_MATCHING
             PATTERN "*.hpp"
             PATTERN "*.h")
@@ -149,4 +151,4 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION "runtime/cmake"
-        COMPONENT ngraph_dev)
+        COMPONENT core_dev)
