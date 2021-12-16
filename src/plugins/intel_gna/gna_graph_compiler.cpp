@@ -2448,7 +2448,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // check for generic prev layer
     if (prevDnnLayer != nullptr) {
-        gnamem->bind_ptr(layer, ptr, &prevDnnLayer->ptr_outputs, offset);
+        gnamem->bind_ptr(layer, ptr, &prevDnnLayer->ptr_outputs, offset, num_data_bytes_in);
         return prevLayer;
     }
 
