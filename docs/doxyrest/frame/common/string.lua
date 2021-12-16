@@ -42,7 +42,8 @@ function getTitle(title, level)
 	-- escape trailing underscores
 	title = string.gsub(title, "(_+)(%s+)", "\\%1%2")
 	title = string.gsub(title, "(_+)$", "\\%1")
-
+	title = string.gsub(title, "\\:", ":")
+	
 	local underline = g_titleUnderlineCharMap[level]
 	if not underline then
 		underline = "^"
