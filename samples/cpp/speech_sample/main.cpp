@@ -87,14 +87,17 @@ int main(int argc, char* argv[]) {
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
 
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
-
+        CheckNumberOfInputs(model->inputs().size(), numInputFiles);
         const ov::Layout tensor_layout{"NC"};
 
         ov::preprocess::PrePostProcessor proc(model);
-        ov::preprocess::InputInfo& input_info = proc.input();
-        input_info.tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
-        proc.output().tensor().set_element_type(ov::element::f32);
+        for (int i = 0; i < model->inputs().size(); i++) {
+            proc.input(i).tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
+            proc.output(i).tensor().set_element_type(ov::element::f32);
+        }
+
         model = proc.build();
+
         // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {
             return FLAGS_d.find(xFeature) != std::string::npos;
@@ -107,8 +110,6 @@ int main(int argc, char* argv[]) {
 
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
         ov::set_batch(model, batchSize);
-        ov::Shape input_shape = model->input().get_shape();
-        input_shape[ov::layout::batch_idx(tensor_layout)] = batchSize;
 
         // -----------------------------------------------------------------------------------------------------
 
@@ -262,6 +263,31 @@ int main(int argc, char* argv[]) {
 
         // ---------------------------------------------------------------------------------------------------------
 
+        std::vector<ov::runtime::Tensor> ptrInputBlobs;
+        auto cInputInfo = executableNet.inputs();
+        CheckNumberOfInputs(cInputInfo.size(), numInputFiles);
+        if (!FLAGS_iname.empty()) {
+            std::vector<std::string> inputNameBlobs = ConvertStrToVector(FLAGS_iname);
+            if (inputNameBlobs.size() != cInputInfo.size()) {
+                std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
+                                       " ) is not equal to the number of inputs entered in the -iname argument ( " +
+                                       std::to_string(inputNameBlobs.size()) + " ).");
+                throw std::logic_error(errMessage);
+            }
+            for (const auto& input : inputNameBlobs) {
+                ov::runtime::Tensor blob = inferRequests.begin()->inferRequest.get_tensor(input);
+                if (!blob) {
+                    std::string errMessage("No blob with name : " + input);
+                    throw std::logic_error(errMessage);
+                }
+                ptrInputBlobs.push_back(blob);
+            }
+        } else {
+            for (const auto& input : cInputInfo) {
+                ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.get_tensor(input));
+            }
+        }
+
         std::vector<std::string> output_name_files;
         std::vector<std::string> reference_name_files;
         size_t count_file = 1;
@@ -337,6 +363,15 @@ int main(int argc, char* argv[]) {
                     ptrUtterances[i] = ptrUtterance;
 
                     numFrameElementsInput[i] = currentNumFrameElementsInput;
+                }
+
+                int i = 0;
+                for (auto& ptrInputBlob : ptrInputBlobs) {
+                    if (ptrInputBlob.get_size() != numFrameElementsInput[i++] * batchSize) {
+                        throw std::logic_error("network input size(" + std::to_string(ptrInputBlob.get_size()) +
+                                               ") mismatch to input file size (" +
+                                               std::to_string(numFrameElementsInput[i - 1] * batchSize) + ")");
+                    }
                 }
 
                 ptrScores.resize(numFrames * numScoresPerFrame * sizeof(float));
@@ -416,7 +451,10 @@ int main(int argc, char* argv[]) {
                                                   numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
 
                                     ov::runtime::Tensor outputBlob =
-                                        inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
+                                        inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
+                                    if (!FLAGS_oname.empty())
+                                        outputBlob =
+                                            inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
@@ -424,7 +462,10 @@ int main(int argc, char* argv[]) {
                                 if (!FLAGS_r.empty()) {
                                     /** Compare output data with reference scores **/
                                     ov::runtime::Tensor outputBlob =
-                                        inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
+                                        inferRequest.inferRequest.get_tensor(executableNet.outputs()[0]);
+                                    if (!FLAGS_oname.empty())
+                                        outputBlob =
+                                            inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
                                     CompareScores(
                                         outputBlob.data<float>(),
                                         &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
@@ -450,12 +491,13 @@ int main(int argc, char* argv[]) {
                         // -----------------------------------------------------------------------------------------------------
 
                         int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
-                        ov::runtime::Tensor input_tensor =
-                            ov::runtime::Tensor(ov::element::f32, input_shape, inputFrame[0]);
-                        inferRequest.inferRequest.set_input_tensor(input_tensor);
+                        for (int i = 0; i < model->inputs().size(); i++) {
+                            inferRequest.inferRequest.set_input_tensor(
+                                i,
+                                ov::runtime::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[0]));
+                        }
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();
-
                         inferRequest.frameIndex = index < 0 ? -2 : index;
                         inferRequest.numFramesThisBatch = numFramesThisBatch;
 
