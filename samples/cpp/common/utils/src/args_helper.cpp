@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "samples/args_helper.hpp"
-
-#include <gflags/gflags.h>
+// clang-format off
 #include <sys/stat.h>
 
 #include <iostream>
-#include <samples/slog.hpp>
 
 #ifdef _WIN32
-#    include <samples/os/windows/w_dirent.h>
+#    include "samples/os/windows/w_dirent.h"
 #else
 #    include <dirent.h>
 #endif
+
+#include "openvino/openvino.hpp"
+
+#include "gflags/gflags.h"
+#include "samples/args_helper.hpp"
+#include "samples/slog.hpp"
+// clang-format on
 
 /**
  * @brief Checks input file argument and add it to files vector
@@ -63,22 +67,30 @@ void readInputFilesArguments(std::vector<std::string>& files, const std::string&
  */
 void parseInputFilesArguments(std::vector<std::string>& files) {
     std::vector<std::string> args = gflags::GetArgvs();
+    auto args_it = begin(args);
     const auto is_image_arg = [](const std::string& s) {
         return s == "-i" || s == "--images";
     };
     const auto is_arg = [](const std::string& s) {
         return s.front() == '-';
     };
-    const auto img_start = std::find_if(begin(args), end(args), is_image_arg);
-    if (img_start == end(args)) {
-        return;
-    }
-    const auto img_begin = std::next(img_start);
-    const auto img_end = std::find_if(img_begin, end(args), is_arg);
-    for (auto img = img_begin; img != img_end; ++img) {
-        readInputFilesArguments(files, *img);
+
+    while (args_it != args.end()) {
+        const auto img_start = std::find_if(args_it, end(args), is_image_arg);
+        if (img_start == end(args)) {
+            break;
+        }
+        const auto img_begin = std::next(img_start);
+        const auto img_end = std::find_if(img_begin, end(args), is_arg);
+        for (auto img = img_begin; img != img_end; ++img) {
+            readInputFilesArguments(files, *img);
+        }
+        args_it = img_end;
     }
 
+    if (files.empty()) {
+        return;
+    }
     size_t max_files = 20;
     if (files.size() < max_files) {
         slog::info << "Files were added: " << files.size() << slog::endl;
@@ -116,12 +128,15 @@ std::map<std::string, std::string> parseArgMap(std::string argMap) {
 
     std::map<std::string, std::string> parsedMap;
     for (auto&& pair : pairs) {
-        const auto keyValue = splitStringList(pair, ':');
-        if (keyValue.size() != 2) {
+        const auto lastDelimPos = pair.find_last_of(':');
+        auto key = pair.substr(0, lastDelimPos);
+        auto value = pair.substr(lastDelimPos + 1);
+
+        if (lastDelimPos == std::string::npos || key.empty() || value.empty()) {
             throw std::invalid_argument("Invalid key/value pair " + pair + ". Expected <layer_name>:<value>");
         }
 
-        parsedMap[keyValue[0]] = keyValue[1];
+        parsedMap[std::move(key)] = std::move(value);
     }
 
     return parsedMap;
@@ -327,7 +342,7 @@ void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
     }
 }
 
-void printInputAndOutputsInfo(const ov::Function& network) {
+void printInputAndOutputsInfo(const ov::Model& network) {
     slog::info << "model name: " << network.get_friendly_name() << slog::endl;
 
     const std::vector<ov::Output<const ov::Node>> inputs = network.inputs();

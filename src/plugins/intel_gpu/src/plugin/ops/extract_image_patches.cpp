@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/extractimagepatches.hpp"
 
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static inline std::string PadToString(ngraph::op::PadType pad) {
     switch (pad) {
@@ -38,7 +40,7 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
                                                                 strides,
                                                                 rates,
                                                                 auto_pad,
-                                                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                                tensor_from_dims(op->get_output_shape(0)),
                                                                 op->get_friendly_name());
 
     p.AddPrimitive(extractImagePatchesPrim);
@@ -47,4 +49,6 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
 
 REGISTER_FACTORY_IMPL(v3, ExtractImagePatches);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

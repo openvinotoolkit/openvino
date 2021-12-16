@@ -36,10 +36,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
-ov_install_static_lib(${TARGET_NAME} ngraph)
+ov_install_static_lib(${TARGET_NAME} core)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY ${UTIL_INCLUDE_DIR})
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
