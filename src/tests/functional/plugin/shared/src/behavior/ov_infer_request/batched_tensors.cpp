@@ -93,13 +93,12 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase) {
     for (auto i = 0; i < batch; ++i) {
         auto *f = tensors[i].data<float>();
         for (auto j = 0; j < one_shape_size; ++j) {
-            f[j] = static_cast<float>(5);
+            f[j] = 5.f;
         }
     }
     req.infer(); // Adds '1' to each element
     for (auto j = 0; j < one_shape_size * batch; ++j) {
-        EXPECT_EQ(actual[j], 6) << "Expected=" << 6
-                                << ", actual=" << actual[j] << " for index " << j;
+        EXPECT_NEAR(actual[j], 6.f, 1e-5) << "Expected=6, actual=" << actual[j] << " for index " << j;
     }
 }
 
@@ -128,14 +127,13 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsAsync) {
     for (auto i = 0; i < batch; ++i) {
         auto *f = tensors[i].data<float>();
         for (auto j = 0; j < one_shape_size; ++j) {
-            f[j] = static_cast<float>(5);
+            f[j] = 5.f;
         }
     }
     req.start_async(); // Adds '1' to each element
     req.wait_for(std::chrono::milliseconds(1000));
     for (auto j = 0; j < one_shape_size * batch; ++j) {
-        EXPECT_EQ(actual[j], 6) << "Expected=" << 6
-                                << ", actual=" << actual[j] << " for index " << j;
+        EXPECT_NEAR(actual[j], 6.f, 1e-5) << "Expected=6, actual=" << actual[j] << " for index " << j;
     }
 }
 
@@ -165,14 +163,13 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_override_with_set) {
     for (auto i = 0; i < batch; ++i) {
         auto *f = tensors[i].data<float>();
         for (auto j = 0; j < one_shape_size; ++j) {
-            f[j] = static_cast<float>(5);
-            buffer2[j + i * one_shape_size] = static_cast<float>(55);
+            f[j] = 5.f;
+            buffer2[j + i * one_shape_size] = 55.f;
         }
     }
     req.infer(); // Adds '1' to each element
     for (auto j = 0; j < one_shape_size * batch; ++j) {
-        EXPECT_EQ(actual[j], 56) << "Expected=" << 56
-                                 << ", actual=" << actual[j] << " for index " << j;
+        EXPECT_NEAR(actual[j], 56.f, 1e-5) << "Expected=56, actual=" << actual[j] << " for index " << j;
     }
 }
 

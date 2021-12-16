@@ -254,7 +254,7 @@ void IInferRequestInternal::checkBatchedBlobs(const std::string& name, const std
         s << " ) }";
         return s.str();
     };
-    std::for_each(blobs.begin(), blobs.end(), [&batched_desc, &batch_idx, &desc_to_string](const Blob::Ptr& item) {
+    for (const auto& item : blobs) {
         auto item_desc = item->getTensorDesc();
         item_desc.getDims()[batch_idx] = batched_desc.getDims()[batch_idx];
         OPENVINO_ASSERT(item_desc.getDims() == batched_desc.getDims() &&
@@ -265,7 +265,7 @@ void IInferRequestInternal::checkBatchedBlobs(const std::string& name, const std
                         desc_to_string(item_desc),
                         " is not compatible with batched blob ",
                         desc_to_string(batched_desc));
-    });
+    }
 }
 
 void IInferRequestInternal::convertBatchedBlob(const std::string& name, const BatchedBlob::Ptr& batched_blob) {
