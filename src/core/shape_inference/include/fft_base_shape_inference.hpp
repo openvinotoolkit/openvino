@@ -56,20 +56,16 @@ void shape_infer(const ov::op::util::FFTBase* op,
                 }
             }
 
-            ov::AxisVector axes_vector;
             ov::AxisSet axes_set;
-
             for (const auto& axis : axes) {
-                axes_vector.push_back(static_cast<size_t>(axis));
                 axes_set.insert(static_cast<size_t>(axis));
             }
 
-            NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "FFT op axes must be unique. Got: ", axes_vector);
+            NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "FFT op axes must be unique.");
 
             NODE_VALIDATION_CHECK(op,
                                   std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),
-                                  "FFT op axes cannot contain the last axis. Got axes: ",
-                                  axes_vector);
+                                  "FFT op axes cannot contain the last axis.");
         }
     }
 
