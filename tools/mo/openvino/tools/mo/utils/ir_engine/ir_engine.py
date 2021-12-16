@@ -5,14 +5,14 @@ import hashlib
 import logging as log
 import os
 import sys
-
-from defusedxml import defuse_stdlib
-import defusedxml.ElementTree as ET
 from argparse import Namespace
+from collections import OrderedDict
 from collections import namedtuple, defaultdict
 from pathlib import Path
 
+import defusedxml.ElementTree as ET
 import numpy as np
+from defusedxml import defuse_stdlib
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from openvino.tools.mo.graph.graph import Node, Graph
@@ -462,6 +462,8 @@ class IREngine(object):
                 rt_info.info.update(self.__read_old_api_map_order(attr, layer.attrib['type']))
             if attr_name == 'old_api_map_element_type':
                 rt_info.info.update(self.__read_old_api_map_element_type(attr, layer.attrib['type']))
+            else:
+                rt_info.info.update((self.__read_old_api_map_common(attr)))
 
         layer_attrs.update({'rt_info': rt_info})
         return layer_attrs
@@ -487,3 +489,13 @@ class IREngine(object):
         old_api_map = OldAPIMapElementType(version=version)
         old_api_map.set_legacy_type(element_type)
         return {('old_api_map_element_type', version): old_api_map}
+
+    @staticmethod
+    def __read_old_api_map_common(attr):
+        attr_name = attr.attrib['name']
+        version = int(attr.attrib['version'])
+        old_api_map = OrderedDict()
+        for key in attr.attrib:
+            if key not in ('name', 'version'):
+                old_api_map[key] = attr.attrib[key]
+        return {(attr_name, version): old_api_map}

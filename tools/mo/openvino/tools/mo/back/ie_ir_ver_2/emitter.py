@@ -258,10 +258,7 @@ def serialize_runtime_info(node, parent_element: Element):
         attribute = SubElement(rt_info, 'attribute')
         attribute.set('name', name)
         attribute.set('version', str(version))
-        params = info_elem.serialize(node)
-        if len(params) == 0:
-            rt_info.remove(attribute)
-            continue
+        params = info_elem.serialize(node) if not isinstance(info_elem, dict) else info_elem
         for key, value in params.items():
             attribute.set(key, value)
     if len(rt_info.attrib) == 0 and len(list(rt_info)) == 0:

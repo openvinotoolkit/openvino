@@ -405,6 +405,9 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
                 'Const node {} not properly corrected to appropriate data node'.format(op.soft_get('name'))
             op.out_node(0)['correct_data_type'] = True
 
+            if op.has_and_set('rt_info'):
+                op.out_node(0)['save_rt_info'] = op.rt_info
+
         restore_tensor_names(op)
 
         # operations postprocessing with some special types
