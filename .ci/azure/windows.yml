@@ -109,8 +109,8 @@ jobs:
       python -m pip install --upgrade pip
       rem For running Python API tests
       python -m pip install -r $(REPO_DIR)\inference-engine\ie_bridges\python\src\requirements-dev.txt
-      rem For running PaddlePaddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddlepaddle\requirements_dev.txt
+      rem For running Paddle frontend unit tests
+      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddle\requirements_dev.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\core\tests\requirements_test_onnx.txt
       rem For MO unit tests
@@ -207,8 +207,8 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddlepaddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-PaddlePaddle.xml
-    displayName: 'PaddlePaddle Frontend UT'
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-PaddlePaddle.xml
+    displayName: 'Paddle Frontend UT'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
