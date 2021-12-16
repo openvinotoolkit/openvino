@@ -19,14 +19,9 @@ struct ProgressCounter {
 
     float advance(unsigned int steps = 1u);
 
-    ProgressCounter& operator++() {
-        advance();
-        return *this;
-    }
+    ProgressCounter& operator++();
 
-    ProgressCounter& operator++(int) {
-        return this->operator++();
-    }
+    ProgressCounter& operator++(int);
 
 private:
     unsigned int m_total_steps = 0u;

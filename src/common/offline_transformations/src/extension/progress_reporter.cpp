@@ -15,6 +15,15 @@ float ProgressCounter::advance(unsigned int steps) {
     return current_progress();
 }
 
+ProgressCounter& ProgressCounter::operator++() {
+    advance();
+    return *this;
+}
+
+ProgressCounter& ProgressCounter::operator++(int) {
+    return this->operator++();
+}
+
 float ProgressCounter::current_progress() const {
     return m_completed_steps / static_cast<float>(m_total_steps);
 }
