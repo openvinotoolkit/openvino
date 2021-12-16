@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/cum_sum.hpp"
+#include "intel_gpu/primitives/cum_sum.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t rank) {
     if (axis < 0)
@@ -18,7 +20,7 @@ static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t 
     if (axis < 0 || axis >= rank)
         IE_THROW() << "CumSum axis is not correspond to number of dimensions";
 
-    // Difference in dimension ordering between IE and clDNN,
+    // Difference in dimension ordering between IE and GPU plugin,
     // reverse spatial dimensions after batch and feature.
     uint32_t cldnn_axis = axis;
     if (axis >= 2) {
@@ -72,4 +74,6 @@ static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cum
 
 REGISTER_FACTORY_IMPL(v0, CumSum);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

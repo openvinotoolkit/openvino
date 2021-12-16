@@ -38,7 +38,7 @@ from openvino.runtime.opset3.ops import cum_sum as cumsum
 from openvino.runtime.opset8.ops import deformable_convolution
 from openvino.runtime.opset1.ops import deformable_psroi_pooling
 from openvino.runtime.opset1.ops import depth_to_space
-from openvino.runtime.opset1.ops import detection_output
+from openvino.runtime.opset8.ops import detection_output
 from openvino.runtime.opset7.ops import dft
 from openvino.runtime.opset1.ops import divide
 from openvino.runtime.opset7.ops import einsum
@@ -69,7 +69,10 @@ from openvino.runtime.opset1.ops import hard_sigmoid
 from openvino.runtime.opset5.ops import hsigmoid
 from openvino.runtime.opset4.ops import hswish
 from openvino.runtime.opset7.ops import idft
+from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset1.ops import interpolate
+from openvino.runtime.opset8.ops import i420_to_bgr
+from openvino.runtime.opset8.ops import i420_to_rgb
 from openvino.runtime.opset1.ops import less
 from openvino.runtime.opset1.ops import less_equal
 from openvino.runtime.opset1.ops import log
@@ -97,6 +100,8 @@ from openvino.runtime.opset5.ops import non_max_suppression
 from openvino.runtime.opset3.ops import non_zero
 from openvino.runtime.opset1.ops import normalize_l2
 from openvino.runtime.opset1.ops import not_equal
+from openvino.runtime.opset8.ops import nv12_to_bgr
+from openvino.runtime.opset8.ops import nv12_to_rgb
 from openvino.runtime.opset1.ops import one_hot
 from openvino.runtime.opset1.ops import pad
 from openvino.runtime.opset1.ops import parameter
@@ -141,7 +146,7 @@ from openvino.runtime.opset1.ops import sign
 from openvino.runtime.opset1.ops import sin
 from openvino.runtime.opset1.ops import sinh
 from openvino.runtime.opset8.ops import slice
-from openvino.runtime.opset1.ops import softmax
+from openvino.runtime.opset8.ops import softmax
 from openvino.runtime.opset4.ops import softplus
 from openvino.runtime.opset2.ops import space_to_batch
 from openvino.runtime.opset1.ops import space_to_depth

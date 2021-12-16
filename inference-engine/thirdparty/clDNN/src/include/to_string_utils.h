@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "cldnn/runtime/tensor.hpp"
-#include "cldnn/runtime/layout.hpp"
-#include "cldnn/runtime/device.hpp"
-#include "cldnn/primitives/primitive.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
 
 
 #include <string>
@@ -97,6 +97,8 @@ inline std::string fmt_to_str(format fmt) {
             return "bs_fs_yx_bsv4_fsv2";
         case format::bs_fs_yx_bsv4_fsv4:
             return "bs_fs_yx_bsv4_fsv4";
+        case format::bs_fs_yx_bsv8_fsv4:
+            return "bs_fs_yx_bsv8_fsv4";
         case format::bs_fs_yx_bsv32_fsv32:
             return "bs_fs_yx_bsv32_fsv32";
         case format::b_fs_zyx_fsv16:

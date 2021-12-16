@@ -5,7 +5,7 @@
 #pragma once
 
 #include "kernel_selector_params.h"
-#include "cldnn/runtime/kernel_args.hpp"
+#include "intel_gpu/runtime/kernel_args.hpp"
 
 #include <cfloat>
 #include <cstdint>

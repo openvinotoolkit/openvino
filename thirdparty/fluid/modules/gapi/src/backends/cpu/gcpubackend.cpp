@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -25,6 +25,8 @@
 #include "backends/cpu/gcpubackend.hpp"
 
 #include "api/gbackend_priv.hpp" // FIXME: Make it part of Backend SDK!
+
+#include "utils/itt.hpp"
 
 // FIXME: Is there a way to take a typed graph (our GModel),
 // and create a new typed graph _ATOP_ of that (by extending with a couple of
@@ -237,11 +239,11 @@ void cv::gimpl::GCPUExecutable::run(std::vector<InObj>  &&input_objs,
 
         // - Output parameters.
         // FIXME: pre-allocate internal Mats, etc, according to the known meta
-        for (const auto &out_it : ade::util::indexed(op.outs))
+        for (const auto out_it : ade::util::indexed(op.outs))
         {
             // FIXME: Can the same GArg type resolution mechanism be reused here?
-            const auto out_port  = ade::util::index(out_it);
-            const auto out_desc  = ade::util::value(out_it);
+            const auto  out_port  = ade::util::index(out_it);
+            const auto& out_desc  = ade::util::value(out_it);
             context.m_results[out_port] = magazine::getObjPtr(m_res, out_desc);
         }
 
@@ -251,18 +253,23 @@ void cv::gimpl::GCPUExecutable::run(std::vector<InObj>  &&input_objs,
             context.m_state = m_nodesToStates.at(op_info.nh);
         }
 
-        // Now trigger the executable unit
-        k.m_runF(context);
+        {
+            GAPI_ITT_DYNAMIC_LOCAL_HANDLE(op_hndl, op.k.name.c_str());
+            GAPI_ITT_AUTO_TRACE_GUARD(op_hndl);
+
+            // Now trigger the executable unit
+            k.m_runF(context);
+        }
 
         //As Kernels are forbidden to allocate memory for (Mat) outputs,
         //this code seems redundant, at least for Mats
         //FIXME: unify with cv::detail::ensure_out_mats_not_reallocated
         //FIXME: when it's done, remove can_describe(const GMetaArg&, const GRunArgP&)
         //and descr_of(const cv::GRunArgP &argp)
-        for (const auto &out_it : ade::util::indexed(op_info.expected_out_metas))
+        for (const auto out_it : ade::util::indexed(op_info.expected_out_metas))
         {
-            const auto out_index      = ade::util::index(out_it);
-            const auto expected_meta  = ade::util::value(out_it);
+            const auto  out_index      = ade::util::index(out_it);
+            const auto& expected_meta  = ade::util::value(out_it);
 
             if (!can_describe(expected_meta, context.m_results[out_index]))
             {

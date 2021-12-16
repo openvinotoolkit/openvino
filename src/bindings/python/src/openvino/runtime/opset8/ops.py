@@ -3,40 +3,28 @@
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
-from openvino.runtime.impl import Node, Shape
-from openvino.runtime.impl.op import Constant, Parameter
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.input_validation import (
-    assert_list_of_ints,
     check_valid_attributes,
     is_non_negative_value,
     is_positive_value,
 )
-from openvino.runtime.utils.node_factory import NodeFactory
 from openvino.runtime.utils.tensor_iterator_types import (
     GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
     TensorIteratorInvariantInputDesc,
     TensorIteratorBodyOutputDesc,
-    TensorIteratorConcatOutputDesc,
 )
 from openvino.runtime.utils.types import (
     NodeInput,
-    NumericData,
-    NumericType,
-    ScalarData,
     TensorShape,
     as_node,
     as_nodes,
-    get_dtype,
-    get_element_type,
-    get_element_type_str,
-    make_constant_node,
 )
 
 _get_node_factory_opset8 = partial(_get_node_factory, "opset8")
@@ -140,18 +128,18 @@ def adaptive_max_pool(
 
 @nameable_op
 def multiclass_nms(
-    boxes: NodeInput,
-    scores: NodeInput,
-    sort_result_type: str = "none",
-    sort_result_across_batch: bool = False,
-    output_type: str = "i64",
-    iou_threshold: float = 0.0,
-    score_threshold: float = 0.0,
-    nms_top_k: int = -1,
-    keep_top_k: int = -1,
-    background_class: int = -1,
-    nms_eta: float = 1.0,
-    normalized: bool = True
+        boxes: NodeInput,
+        scores: NodeInput,
+        sort_result_type: str = "none",
+        sort_result_across_batch: bool = False,
+        output_type: str = "i64",
+        iou_threshold: float = 0.0,
+        score_threshold: float = 0.0,
+        nms_top_k: int = -1,
+        keep_top_k: int = -1,
+        background_class: int = -1,
+        nms_eta: float = 1.0,
+        normalized: bool = True
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -196,19 +184,19 @@ def multiclass_nms(
 
 @nameable_op
 def matrix_nms(
-    boxes: NodeInput,
-    scores: NodeInput,
-    sort_result_type: str = "none",
-    sort_result_across_batch: bool = False,
-    output_type: str = "i64",
-    score_threshold: float = 0.0,
-    nms_top_k: int = -1,
-    keep_top_k: int = -1,
-    background_class: int = -1,
-    decay_function: str = "linear",
-    gaussian_sigma: float = 2.0,
-    post_threshold: float = 0.0,
-    normalized: bool = True
+        boxes: NodeInput,
+        scores: NodeInput,
+        sort_result_type: str = "none",
+        sort_result_across_batch: bool = False,
+        output_type: str = "i64",
+        score_threshold: float = 0.0,
+        nms_top_k: int = -1,
+        keep_top_k: int = -1,
+        background_class: int = -1,
+        decay_function: str = "linear",
+        gaussian_sigma: float = 2.0,
+        post_threshold: float = 0.0,
+        normalized: bool = True
 ) -> Node:
     """Return a node which performs MatrixNms.
 
@@ -280,17 +268,17 @@ def gather(
 
 @nameable_op
 def max_pool(
-    data: NodeInput,
-    strides: List[int],
-    dilations: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
-    kernel_shape: TensorShape,
-    rounding_type: str = "floor",
-    auto_pad: Optional[str] = None,
-    index_element_type: Optional[str] = "i64",
-    axis: Optional[int] = 0,
-    name: Optional[str] = None,
+        data: NodeInput,
+        strides: List[int],
+        dilations: List[int],
+        pads_begin: List[int],
+        pads_end: List[int],
+        kernel_shape: TensorShape,
+        rounding_type: str = "floor",
+        auto_pad: Optional[str] = None,
+        index_element_type: Optional[str] = "i64",
+        axis: Optional[int] = 0,
+        name: Optional[str] = None,
 ) -> Node:
     """Perform max pooling operation and return both values and indices of the selected elements.
 
@@ -370,6 +358,42 @@ def random_uniform(
 
 
 @nameable_op
+def if_op(
+        condition: NodeInput,
+        inputs: List[Node],
+        bodies: Tuple[GraphBody, GraphBody],
+        input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
+        output_desc: Tuple[List[TensorIteratorBodyOutputDesc], List[TensorIteratorBodyOutputDesc]],
+        name: Optional[str] = None,
+) -> Node:
+    """Execute one of the bodies depending on condtion value.
+
+    @param      condition:             A scalar or 1D tensor with 1 element specifying body will be executed.
+                                       If condition is True, then body will be executed, False - else_body.
+    @param      inputs:                The provided inputs to If operation.
+    @param      bodies:                Two graphs (then_body, else_body) which will be executed depending on
+                                       condition value.
+    @param      input_desc             Two lists (for then_body and else_body) which contain rules how If
+                                       inputs are connected with body parameters.
+    @param      output_desc:           Two lists (for then_body and else_body) which contain rules how If
+                                       outputs are connected with body results.
+    @param      name:                  The optional name for the created output node.
+
+    @return: The new node which performs If operation.
+    """
+    attributes = {
+        "then_body": bodies[0].serialize(),
+        "else_body": bodies[1].serialize(),
+        "then_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[0]]},
+        "else_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[1]]},
+        "then_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[0]]},
+        "else_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[1]]}
+    }
+    return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
+                                             attributes)
+
+
+@nameable_op
 def slice(
         data: NodeInput,
         start: NodeInput,
@@ -421,7 +445,7 @@ def gather_nd(
 
 @nameable_op
 def prior_box(
-    layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None
+        layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None
 ) -> Node:
     """Generate prior boxes of specified sizes and aspect ratios across all dimensions.
 
@@ -523,3 +547,247 @@ def prior_box(
     check_valid_attributes("PriorBox", attrs, requirements)
 
     return _get_node_factory_opset8().create("PriorBox", [layer_shape, as_node(image_shape)], attrs)
+
+
+@nameable_op
+def i420_to_bgr(
+        arg: NodeInput,
+        arg_u: Optional[NodeInput] = None,
+        arg_v: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs I420toBGR operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_u: The node providing U plane data. Required for separate planes.
+    @param  arg_v: The node providing V plane data. Required for separate planes.
+    @param  name: The optional name for the created output node.
+    @return The new node performing I420toBGR operation.
+    """
+    if arg_u is None and arg_v is None:
+        inputs = as_nodes(arg)
+    elif arg_u is not None and arg_v is not None:
+        inputs = as_nodes(arg, arg_u, arg_v)
+    else:
+        raise UserInputError(
+            "Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided."
+        )
+
+    return _get_node_factory_opset8().create("I420toBGR", inputs)
+
+
+@nameable_op
+def i420_to_rgb(
+        arg: NodeInput,
+        arg_u: Optional[NodeInput] = None,
+        arg_v: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs I420toRGB operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_u: The node providing U plane data. Required for separate planes.
+    @param  arg_v: The node providing V plane data. Required for separate planes.
+    @param  name: The optional name for the created output node.
+    @return The new node performing I420toRGB operation.
+    """
+    if arg_u is None and arg_v is None:
+        inputs = as_nodes(arg)
+    elif arg_u is not None and arg_v is not None:
+        inputs = as_nodes(arg, arg_u, arg_v)
+    else:
+        raise UserInputError(
+            "Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided."
+        )
+
+    return _get_node_factory_opset8().create("I420toRGB", inputs)
+
+
+@nameable_op
+def nv12_to_bgr(
+        arg: NodeInput,
+        arg_uv: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NV12toBGR operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_uv: The node providing UV plane data. Required for separate planes.
+    @param  name: The optional name for the created output node.
+    @return The new node performing NV12toBGR operation.
+    """
+    if arg_uv is None:
+        inputs = as_nodes(arg)
+    else:
+        inputs = as_nodes(arg, arg_uv)
+
+    return _get_node_factory_opset8().create("NV12toBGR", inputs)
+
+
+@nameable_op
+def nv12_to_rgb(
+        arg: NodeInput,
+        arg_uv: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NV12toRGB operation.
+
+    @param  arg: The node providing single or Y plane data.
+    @param  arg_uv: The node providing UV plane data. Required for separate planes.
+    @param  name: The optional name for the created output node.
+    @return The new node performing NV12toRGB operation.
+    """
+    if arg_uv is None:
+        inputs = as_nodes(arg)
+    else:
+        inputs = as_nodes(arg, arg_uv)
+
+    return _get_node_factory_opset8().create("NV12toRGB", inputs)
+
+
+@nameable_op
+def detection_output(
+        box_logits: NodeInput,
+        class_preds: NodeInput,
+        proposals: NodeInput,
+        attrs: dict,
+        aux_class_preds: Optional[NodeInput] = None,
+        aux_box_preds: Optional[NodeInput] = None,
+        name: Optional[str] = None,
+) -> Node:
+    """Generate the detection output using information on location and confidence predictions.
+
+    @param  box_logits:         The 2D input tensor with box logits.
+    @param  class_preds:        The 2D input tensor with class predictions.
+    @param  proposals:          The 3D input tensor with proposals.
+    @param  attrs:              The dictionary containing key, value pairs for attributes.
+    @param  aux_class_preds:    The 2D input tensor with additional class predictions information.
+    @param  aux_box_preds:      The 2D input tensor with additional box predictions information.
+    @param  name:               Optional name for the output node.
+    @return Node representing DetectionOutput operation.
+     Available attributes are:
+    * background_label_id   The background label id.
+                            Range of values: integer value
+                            Default value: 0
+                            Required: no
+    * top_k                 Maximum number of results to be kept per batch after NMS step.
+                            Range of values: integer value
+                            Default value: -1
+                            Required: no
+    * variance_encoded_in_target    The flag that denotes if variance is encoded in target.
+                                    Range of values: {False, True}
+                                    Default value: False
+                                    Required: no
+    * keep_top_k            Maximum number of bounding boxes per batch to be kept after NMS step.
+                            Range of values: integer values
+                            Default value: None
+                            Required: yes
+    * code_type             The type of coding method for bounding boxes.
+                            Range of values: {'caffe.PriorBoxParameter.CENTER_SIZE',
+                                             'caffe.PriorBoxParameter.CORNER'}
+                            Default value: 'caffe.PriorBoxParameter.CORNER'
+                            Required: no
+    * share_location        The flag that denotes if bounding boxes are shared among different
+                            classes.
+                            Range of values: {True, False}
+                            Default value: True
+                            Required: no
+    * nms_threshold         The threshold to be used in the NMS stage.
+                            Range of values: floating point value
+                            Default value: None
+                            Required: yes
+    * confidence_threshold  Specifies the minimum confidence threshold for detection boxes to be
+                            considered.
+                            Range of values: floating point value
+                            Default value: 0
+                            Required: no
+    * clip_after_nms        The flag that denotes whether to perform clip bounding boxes after
+                            non-maximum suppression or not.
+                            Range of values: {True, False}
+                            Default value: False
+                            Required: no
+    * clip_before_nms       The flag that denotes whether to perform clip bounding boxes before
+                            non-maximum suppression or not.
+                            Range of values: {True, False}
+                            Default value: False
+                            Required: no
+    * decrease_label_id     The flag that denotes how to perform NMS.
+                            Range of values: False - perform NMS like in Caffe*.
+                                             True  - perform NMS like in MxNet*.
+                            Default value: False
+                            Required: no
+    * normalized            The flag that denotes whether input tensors with boxes are normalized.
+                            Range of values: {True, False}
+                            Default value: False
+                            Required: no
+    * input_height          The input image height.
+                            Range of values: positive integer number
+                            Default value: 1
+                            Required: no
+    * input_width           The input image width.
+                            Range of values: positive integer number
+                            Default value: 1
+                            Required: no
+    * objectness_score      The threshold to sort out confidence predictions.
+                            Range of values: non-negative float number
+                            Default value: 0
+                            Required: no
+    Example of attribute dictionary:
+    @code{.py}
+        # just required ones
+        attrs = {
+            'keep_top_k': [1, 2, 3],
+            'nms_threshold': 0.645,
+        }
+        attrs = {
+            'keep_top_k': [1, 2, 3],
+            'nms_threshold': 0.645,
+            'normalized': True,
+            'clip_before_nms': True,
+            'input_height': [32],
+            'input_width': [32],
+        }
+    @endcode
+    Optional attributes which are absent from dictionary will be set with corresponding default.
+    """
+    requirements = [
+        ("background_label_id", False, np.integer, None),
+        ("top_k", False, np.integer, None),
+        ("variance_encoded_in_target", False, np.bool_, None),
+        ("keep_top_k", True, np.integer, None),
+        ("code_type", False, np.str_, None),
+        ("share_location", False, np.bool_, None),
+        ("nms_threshold", True, np.floating, None),
+        ("confidence_threshold", False, np.floating, None),
+        ("clip_after_nms", False, np.bool_, None),
+        ("clip_before_nms", False, np.bool_, None),
+        ("decrease_label_id", False, np.bool_, None),
+        ("normalized", False, np.bool_, None),
+        ("input_height", False, np.integer, is_positive_value),
+        ("input_width", False, np.integer, is_positive_value),
+        ("objectness_score", False, np.floating, is_non_negative_value),
+    ]
+
+    check_valid_attributes("DetectionOutput", attrs, requirements)
+
+    inputs = [box_logits, class_preds, proposals]
+    if aux_class_preds is not None:
+        inputs.append(aux_class_preds)
+    if aux_box_preds is not None:
+        inputs.append(aux_box_preds)
+    inputs = as_nodes(*inputs)
+
+    return _get_node_factory_opset8().create("DetectionOutput", inputs, attrs)
+
+
+@nameable_op
+def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
+    """
+    Apply softmax operation on each element of input tensor.
+
+    @param data: The tensor providing input data.
+    @param axis: An axis along which Softmax should be calculated. Can be positive or negative.
+    @param name: Optional name for the node.
+    @return The new node with softmax operation applied on each element.
+    """
+    return _get_node_factory_opset8().create("Softmax", [as_node(data)], {"axis": axis})

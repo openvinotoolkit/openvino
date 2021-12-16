@@ -63,32 +63,43 @@ inline bool has_decompression_converts(const std::shared_ptr<const ngraph::Funct
 }
 
 inline std::string create_ie_output_name(const ngraph::Output<const ngraph::Node>& output) {
-    const auto& prev_layer = output.get_node_shared_ptr();
-    std::string out_name = prev_layer->get_friendly_name();
-    if (prev_layer->get_output_size() != 1)
-        out_name += "." + std::to_string(output.get_index());
+    std::string out_name;
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    auto tensor_name = output.get_tensor().get_name();
+    NGRAPH_SUPPRESS_DEPRECATED_END
+    if (!tensor_name.empty()) {
+        out_name = std::move(tensor_name);
+    } else {
+        const auto& prev_layer = output.get_node_shared_ptr();
+        out_name = prev_layer->get_friendly_name();
+        if (prev_layer->get_output_size() != 1) {
+            out_name += "." + std::to_string(output.get_index());
+        }
+    }
     return out_name;
 }
+
 inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
     return create_ie_output_name(ov::Output<const ngraph::Node>(output.get_node(), output.get_index()));
 }
+
 inline std::string get_ie_output_name(const ngraph::Output<const ngraph::Node>& output) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    auto name = output.get_tensor().get_name();
-    NGRAPH_SUPPRESS_DEPRECATED_END
-    if (name.empty()) {
-        name = create_ie_output_name(output);
-    }
-    return name;
+    return create_ie_output_name(output);
 }
+
 inline std::string get_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
     return get_ie_output_name(ov::Output<const ngraph::Node>(output.get_node(), output.get_index()));
 }
 
 template <typename T>
-bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant,
+bool has_constant_value(const std::shared_ptr<Node>& node,
                         const T value,
                         T epsilon = std::numeric_limits<T>::epsilon()) {
+    if (!node) {
+        return false;
+    }
+
+    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
     if (!constant) {
         return false;
     }
@@ -115,6 +126,32 @@ bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constan
     }
 
     return true;
+}
+
+template <typename T>
+bool has_constant_value(const std::shared_ptr<Node>& node,
+                        const std::vector<T> values,
+                        T epsilon = std::numeric_limits<T>::epsilon()) {
+    if (!node) {
+        return false;
+    }
+
+    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
+    if (!constant) {
+        return false;
+    }
+
+    const auto const_values = constant->cast_vector<T>();
+
+    if (constant->get_element_type() == ngraph::element::f16 ||
+        constant->get_element_type() == ngraph::element::f32 ||
+        constant->get_element_type() == ngraph::element::f64 ||
+        constant->get_element_type() == ngraph::element::bf16) {
+        return std::equal(const_values.cbegin(), const_values.cend(), values.cbegin(),
+                          [&] (T lhs, T rhs) { return std::fabs(lhs - rhs) < epsilon; });
+    }
+
+    return const_values == values;
 }
 
 TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
