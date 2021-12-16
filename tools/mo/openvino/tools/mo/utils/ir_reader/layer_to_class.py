@@ -189,6 +189,14 @@ def groupconv_to_conv(op: Node):
         # We use add_destination method here to support case with multiple destinations of source port
         weights_node.in_port(0).get_source().get_connection().add_destination(op.in_port(1))
         weights_node.in_port(0).disconnect()
+    elif weights_node.type == 'Convert' and weights_node.destination_type == 'f32'\
+            and weights_node.in_port(0).get_source().node.type == 'Const':
+        # Support new FP16 IRs
+        const_node = weights_node.in_port(0).get_source().node
+        assert const_node.has_valid('value'), \
+            'Weights of GroupConv node {} have incorrect format'.format(op.name)
+        const_node.value = np.reshape(const_node.value, new_shape)
+
     else:
         assert op.in_port(1).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
