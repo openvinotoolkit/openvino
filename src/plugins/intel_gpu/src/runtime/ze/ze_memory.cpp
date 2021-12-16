@@ -290,7 +290,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     //throw std::runtime_error("[clDNN] gpu_usm::fill is not implemented for gpu_usm");
 
     auto& _ze_stream = downcast<const ze_stream>(stream);
-    auto ev = stream.create_user_event(true);
+    auto ev = stream.create_base_event();
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
     std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
     ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(), _buffer.get(), temp_buffer.data(), pattern, _bytes_count, ev_ze, 0, nullptr));
@@ -302,7 +302,8 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     // // TODO: Do we really need blocking call here? Non-blocking one causes accuracy issues right now, but hopefully it can be fixed in more performant way.
     // const bool blocking = true;
     // cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ze);
-
+    ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
+    _ze_stream.finish();
     return ev;
 }
 
@@ -327,7 +328,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
     auto dst_ptr = get_buffer().get();
     auto src_ptr = downcast<const gpu_usm>(other).get_buffer().get();
     //_ze_stream.get_usm_helper().enqueue_memcpy(_ze_stream.get_queue(),
-    auto ev = stream.create_user_event(true);
+    auto ev = stream.create_base_event();
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
     ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
                                                dst_ptr,
@@ -336,6 +337,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
                                                ev_ze,
                                                0,
                                                nullptr));
+    ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
     _ze_stream.finish();
     return ev;
 }
@@ -347,7 +349,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
     auto dst_ptr = get_buffer().get();
     auto src_ptr = host_ptr;//downcast<const gpu_usm>(other).get_buffer().get();
     //_ze_stream.get_usm_helper().enqueue_memcpy(_ze_stream.get_queue(),
-    auto ev = stream.create_user_event(true);
+    auto ev = stream.create_base_event();
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
     ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
                                                dst_ptr,
@@ -356,7 +358,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
                                                ev_ze,
                                                0,
                                                nullptr));
-    //ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
+    ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
     _ze_stream.finish();
     return ev;
 }

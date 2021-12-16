@@ -22,7 +22,7 @@ public:
         , _event(ev) {}
 
     ze_event_handle_t get() override { return _event; }
-    ze_event_pool_handle_t get_pool() { return _event_pool; }
+    ze_event_pool_handle_t get_pool() override { return _event_pool; }
 
 private:
     void wait_impl() override;
@@ -45,6 +45,7 @@ public:
     }
 
     ze_event_handle_t get() override { return _last_ze_event; }
+    ze_event_pool_handle_t get_pool() override { return _last_ze_pool; }
 
     void reset() override {
         event::reset();
@@ -66,6 +67,7 @@ private:
                         if ((_queue_stamp == 0) || (current_ev_queue_stamp > _queue_stamp)) {
                             _queue_stamp = current_ev_queue_stamp;
                             _last_ze_event = base_ev->get();
+                            _last_ze_pool = base_ev->get_pool();
                         }
                     }
                     _events.push_back(multiple_events->_events[j]);
@@ -76,6 +78,7 @@ private:
                     if ((_queue_stamp == 0) || (current_ev_queue_stamp > _queue_stamp)) {
                         _queue_stamp = current_ev_queue_stamp;
                         _last_ze_event = base_ev->get();
+                        _last_ze_pool = base_ev->get_pool();
                     }
                 }
                 _events.push_back(ev[i]);
@@ -86,6 +89,7 @@ private:
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
     ze_event_handle_t _last_ze_event;
+    ze_event_pool_handle_t _last_ze_pool;
     std::vector<event::ptr> _events;
 };
 

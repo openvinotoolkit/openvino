@@ -9,6 +9,7 @@
 #include "ze_common.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
+//#define SINGLE_EVENT_POOL
 
 #include <memory>
 #include <chrono>
@@ -90,18 +91,24 @@ private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
     const ze_engine& _engine;
-    ze_command_list_handle_t  _command_list = 0;
-    //ze_event_pool_handle_t _event_pool;
+    mutable ze_command_list_handle_t  _command_list = 0;
     mutable std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};
     ze_event_handle_t _last_barrier_ev;
+#ifndef SINGLE_EVENT_POOL
     ze_event_pool_handle_t _last_barrier_pool;
+    ze_event_pool_handle_t _event_pool;
+#endif
     uint32_t event_idx = 0;
     sync_methods sync_method;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
 #endif
+    //ze_event_pool_handle_t _event_pool;
+    //ze_fence_handle_t hFence;
+    //mutable ze_command_queue_handle_t hCommandQueue;
+    //mutable std::vector<ze_command_list_handle_t> vec_command_list;
 };
 
 }  // namespace ze

@@ -36,13 +36,14 @@ using namespace ze;
 void ze_event::wait_impl() {
     if (_event != nullptr) {
         //std::cout << "wait_impl " << _queue_stamp << std::endl;
-        if (!_queue_stamp)
-            ZE_CHECK(zeEventHostSignal(_event));
+        //if (!_queue_stamp)
+            //ZE_CHECK(zeEventHostSignal(_event));
         ZE_CHECK(zeEventHostSynchronize(_event, UINT32_MAX));
     }
 }
 
 void ze_event::set_impl() {
+    ZE_CHECK(zeEventHostSignal(_event));
     wait_impl();
 }
 

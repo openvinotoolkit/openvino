@@ -26,6 +26,7 @@ public:
     explicit ze_base_event(uint64_t queue_stamp = 0) : event(), _queue_stamp(queue_stamp) { }
     uint64_t get_queue_stamp() const { return _queue_stamp; }
     virtual ze_event_handle_t get() = 0;
+    virtual ze_event_pool_handle_t get_pool() = 0;
 
 protected:
     uint64_t _queue_stamp = 0;
