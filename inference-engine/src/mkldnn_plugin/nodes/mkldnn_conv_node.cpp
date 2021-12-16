@@ -979,7 +979,7 @@ void MKLDNNConvolutionNode::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = getBias();
     }
 
-    appendPostOpArgs(*pAttrLocal);
+    appendPostOpArgs(*pAttrLocal, primArgs, binaryPostOpsArgs);
 }
 
 void MKLDNNConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
