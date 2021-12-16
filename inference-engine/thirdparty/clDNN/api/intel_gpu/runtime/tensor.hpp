@@ -85,6 +85,7 @@ struct format {
         bs_fs_zyx_bsv16_fsv16,                  ///< format used for 3D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv4_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 4)
+        bs_fs_yx_bsv8_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 8 and 4)
         bs_fs_yx_bsv4_fsv2,                     ///< format used for 2D blocked convolution (batch blocked by 4, features blocked by 2)
         bs_fs_zyx_bsv4_fsv4,                    ///< format used for 3D blocked convolution (batch and features blocked by 4)
         bs_fs_zyx_bsv4_fsv2,                    ///< format used for 3D blocked convolution (batch blocked by 4, features blocked by 2)
@@ -255,6 +256,7 @@ struct format {
                 { bs_fs_zyx_bsv16_fsv16, { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}}},
                 { bs_fs_yx_bsv16_fsv16,  { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}}},
                 { bs_fs_yx_bsv4_fsv4,    { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 4 }, {1, 4}}}},
+                { bs_fs_yx_bsv8_fsv4,    { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 8 }, {1, 4}}}},
                 { bs_fs_yx_bsv4_fsv2,    { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 4 }, {1, 2}}}},
                 { bs_fs_zyx_bsv4_fsv4,   { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 4 }, {1, 4}}}},
                 { bs_fs_zyx_bsv4_fsv2,   { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 4 }, {1, 2}}}},
