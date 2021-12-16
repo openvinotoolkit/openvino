@@ -43,5 +43,5 @@ NGRAPH_TEST(op_eval, roi_pooling_invalid_roi_batch_id) {
     // ROI with invalid batch id, should throw exception
     test_case.add_input<float>(rois_shape, {-1, 1, 1, 2, 3});
     test_case.add_expected_output<float>(output_shape, {2.0f});
-    ASSERT_THROW(test_case.run(), ngraph::CheckFailure);
+    ASSERT_ANY_THROW(test_case.run());
 }
