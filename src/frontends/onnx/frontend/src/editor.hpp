@@ -286,7 +286,7 @@ public:
     ///
     /// \param output_edge Name of tensor for which element type will be returned.
     ///
-    element::Type_t get_input_type(const std::string& tensor_name);
+    element::Type_t get_input_type(const std::string& tensor_name) const;
 
 private:
     void update_mapper_if_needed() const;

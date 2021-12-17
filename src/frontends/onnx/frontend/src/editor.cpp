@@ -280,19 +280,19 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
     }
 }
 
-element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) {
+element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) const {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
     auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
 
     if (onnx_input != nullptr) {
-        auto* type_proto = onnx_input->mutable_type();
-        if (!type_proto->has_tensor_type()) {
+        const auto& type_proto = onnx_input->type();
+        if (!type_proto.has_tensor_type()) {
             throw ov::Exception("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
                                 "change the data type. Input name: " +
                                 onnx_input->name());
         }
-        auto* tensor_type = type_proto->mutable_tensor_type();
-        auto type = tensor_type->elem_type();
+        auto& tensor_type = type_proto.tensor_type();
+        auto type = tensor_type.elem_type();
         return ngraph::onnx_import::common::get_ngraph_element_type(type);
     } else {
         throw ov::Exception("The tensor: " + tensor_name + " was not found in the input graph.");
@@ -622,6 +622,6 @@ void onnx_editor::ONNXModelEditor::add_output(const OutputEdge& output_edge) con
     auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
     std::vector<onnx_editor::OutputEdge> onnx_output;
     onnx_output.push_back(output_edge);
-    SubgraphExtractor editor{*(onnx_graph)};
+    SubgraphExtractor editor{*onnx_graph};
     editor.add_new_outputs(onnx_output);
 }

@@ -365,7 +365,7 @@ void regclass_frontend_InputModel(py::module m) {
 
     im.def(
         "set_tensor_value",
-        [](ov::frontend::InputModel& self, ov::frontend::Place::Ptr& place, py::array& value) {
+        [](ov::frontend::InputModel& self, const ov::frontend::Place::Ptr& place, py::array& value) {
             // Convert to contiguous array if not already C-style.
             auto tensor = Common::tensor_from_numpy(value, false);
             self.set_tensor_value(place, (const void*)tensor.data());
