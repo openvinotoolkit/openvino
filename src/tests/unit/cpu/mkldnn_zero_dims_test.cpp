@@ -168,15 +168,15 @@ TEST_P(MemDescWithZeroDimsFmtTest, CreateDescWithFmt) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_static, MemDescWithZeroDimsFmtTest,
-                         ::testing::Combine(::testing::ValuesIn(fmts),
-                                            ::testing::ValuesIn(staticShapes)),
-                         MemDescWithZeroDimsFmtTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_static, MemDescWithZeroDimsFmtTest,
+//                          ::testing::Combine(::testing::ValuesIn(fmts),
+//                                             ::testing::ValuesIn(staticShapes)),
+//                          MemDescWithZeroDimsFmtTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_dynamic, MemDescWithZeroDimsFmtTest,
-                         ::testing::Combine(::testing::ValuesIn(fmts),
-                                            ::testing::ValuesIn(dynamicShapes)),
-                         MemDescWithZeroDimsFmtTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_dynamic, MemDescWithZeroDimsFmtTest,
+//                          ::testing::Combine(::testing::ValuesIn(fmts),
+//                                             ::testing::ValuesIn(dynamicShapes)),
+//                          MemDescWithZeroDimsFmtTest::getTestCaseName);
 
 class MemDescWithZeroDimsPlanarTest: public testing::WithParamInterface<Shape>,
                                      public MemDescWithZeroDimsBaseTest {
@@ -200,9 +200,9 @@ TEST_P(MemDescWithZeroDimsPlanarTest, CreateDescPlanar) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsPlanarTest, MemDescWithZeroDimsPlanarTest,
-                         ::testing::ValuesIn(staticShapes),
-                         MemDescWithZeroDimsPlanarTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsPlanarTest, MemDescWithZeroDimsPlanarTest,
+//                          ::testing::ValuesIn(staticShapes),
+//                          MemDescWithZeroDimsPlanarTest::getTestCaseName);
 
 using MemDescWithZeroDimsCloneNewDimsParams = std::tuple<dnnl::memory::format_tag, // memory format
                                               Shape,                               // dynamic shapes
@@ -251,8 +251,8 @@ const std::vector<Shape> srcDynShapes = {
     Shape(ngraph::PartialShape({{0, 16}, {0, 32}, {0, 48}, {0, 64}}))
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsCloneNewDimsTest, MemDescWithZeroDimsCloneNewDimsTest,
-                         ::testing::Combine(::testing::ValuesIn(fmts),
-                                            ::testing::ValuesIn(srcDynShapes),
-                                            ::testing::ValuesIn(staticShapes)),
-                         MemDescWithZeroDimsCloneNewDimsTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsCloneNewDimsTest, MemDescWithZeroDimsCloneNewDimsTest,
+//                          ::testing::Combine(::testing::ValuesIn(fmts),
+//                                             ::testing::ValuesIn(srcDynShapes),
+//                                             ::testing::ValuesIn(staticShapes)),
+//                          MemDescWithZeroDimsCloneNewDimsTest::getTestCaseName);
