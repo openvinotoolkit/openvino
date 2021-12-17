@@ -8,7 +8,7 @@ from openvino.tools.mo.ops.elementwise import Mul
 from openvino.tools.mo.ops.fakequantize import FakeQuantize
 from openvino.tools.mo.front.common.partial_infer.utils import float_array, int64_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
-from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.graph.graph import Graph, rename_nodes, Node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.reshape import Reshape
@@ -69,7 +69,9 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
         fake_quantize = create_op_with_const_inputs(graph, FakeQuantize, {3: float_array(output_low_value),
                                                                           4: float_array(output_high_value)},
                                                     {'levels': 256, 'name': node_name + '/FakeQuantize'})
+
         if set_stop_value_propagation:
+            fake_quantize['not_compress'] = True
             fake_quantize['stop_value_propagation'] = True
         quantize_node.in_port(0).get_connection().set_destination(fake_quantize.in_port(0))
 

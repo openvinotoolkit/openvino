@@ -79,7 +79,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         With that we can skip same calculations in the runtime and make loading of such sub-graphs to the plugin faster.
     """
 
-    enabled = False
+    enabled = True
     graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_weights_compression]
 
     force_clean_up = True
@@ -208,7 +208,8 @@ class CompressQuantizeWeights(BackReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         fake_quantize = match['fake_quantize']
-
+        if fake_quantize.has('not_compress') and fake_quantize['not_compress']:
+            return
         dst_type = match['const'].value.dtype
         if np.issubdtype(dst_type, np.floating):
             dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
