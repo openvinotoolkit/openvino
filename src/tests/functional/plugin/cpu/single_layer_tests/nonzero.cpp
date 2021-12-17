@@ -68,6 +68,8 @@ public:
         const auto dims = targetStaticShapes[inferNum].front();
         if (!((startFrom == 0 && range == 1) || std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } ))) {
             SubgraphBaseTest::compare(expected, actual);
+        } else {
+            ASSERT_EQ((ov::Shape{dims.size(), 0}), actual.front().get_shape());
         }
         inferNum++;
     }

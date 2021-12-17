@@ -112,8 +112,9 @@ bool CpuBlockedMemoryDesc::canComputeMemSizeZeroDims() const {
 }
 
 size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
-    int64_t e_size = getOffsetPadding() + 1;  // size in bytes (from begin of data to last element)
+    int64_t e_size = getOffsetPadding();  // size in bytes (from begin of data to last element)
     if (!getShape().hasZeroDims()) {
+        e_size += 1;
         for (int j = 0; j < getBlockDims().size(); j++)
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
     }

@@ -1419,8 +1419,9 @@ bool MKLDNNNode::needShapeInfer() const {
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
     std::vector<Shape> shapes;
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
+    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+        shapes.push_back(opToShapeInfer->get_input_partial_shape(i).rank().get_length() == 0 ? Shape{} :
+                         getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
     }
 
     auto newOutputShapes = shapeInferGeneric(shapes);
