@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/manager.hpp"
-
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include "ngraph/pass/constant_folding.hpp"
+#include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/validate.hpp"
 #include "pyngraph/passes/manager.hpp"
