@@ -23,7 +23,6 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::TokenizeSnippets, "Snippets::TokenizeSnippets", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::EnumerateNodes, "Snippets::EnumerateNodes", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::CreateSubgraph, "Snippets::CreateSubgraph", 0);
 
 namespace ngraph {
 namespace snippets {
@@ -104,7 +103,7 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
-    auto supported = [](descriptor::Tensor& t) -> bool{
+    auto supported = [](descriptor::Tensor& t) -> bool {
         return t.get_element_type() == ngraph::element::f32 &&
                t.get_partial_shape().is_static();
     };
@@ -205,8 +204,8 @@ bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
     }
     return true;
 }
-CreateSubgraph::CreateSubgraph() {
-    MATCHER_SCOPE(CreateSubgraph);
+TokenizeSnippets::TokenizeSnippets() {
+    MATCHER_SCOPE(TokenizeSnippets);
     enum continuation_strategy {
         reset,
         abort

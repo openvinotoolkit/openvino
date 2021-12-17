@@ -36,17 +36,6 @@ public:
 };
 
 /**
- * @interface AttachToSubgraph
- * @brief Matches loyout-oblivious operations with subgraph operation as an input to attech this node into it
- * @ingroup snippets
- */
-class CreateSubgraph: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    explicit CreateSubgraph();
-};
-
-/**
  * @interface TokenizeSnippets
  * @brief Splits model to subgraphs if possible using rules above
  * This pass tokenizes topology graph into subgraphs.
@@ -62,19 +51,16 @@ public:
  *       1. outputs are collected subgraph (outputs consumed by some other node & subgraph outputs consumed by the node to be merged)
  *       1. finally current node is replaced with the new subgraph. We cannot use replace_node because multiple nodes are replaced so
  *       make the replacement manually by redirecting ports
- * Input subgraph is prefented from visiting twice if more than one output of it consumed by currently considered node
  * New subgraph is introduced, if there is a loop introduced
  * New subgraph is introduced, if number of inputs and outputs exceeds 7 due to scheduling limitation
  * New subgraph is introduced, if multiple outputs of merged nodes are not broadcastable to each other (equality of all outputs is too much on the other hand)
  * Scalar constants are placed as is into subgraph due to optimization purpose
  * @ingroup snippets
  */
-class TokenizeSnippets: public ngraph::pass::GraphRewrite {
+class TokenizeSnippets: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    TokenizeSnippets() {
-        add_matcher<ngraph::snippets::pass::CreateSubgraph>();
-    }
+    explicit TokenizeSnippets();
 };
 
 }  // namespace pass
