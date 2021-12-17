@@ -591,7 +591,6 @@ public:
                 if (reqs != config_with_batch.end())
                     requests = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
                 if (requests) {
-                    std::cout << "!!!!!!!!!!!!!!!Detected reqs_limitation: " << requests << std::endl;
                     optimalBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
                 }
             }
@@ -610,8 +609,6 @@ public:
                     if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
                         (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
                         node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                        std::cout << "!!! AFF !!! type: " << node->get_type_info().name
-                                  << ", name: " << node->get_friendly_name() << std::endl;
                         bDetectionOutput = true;
                     } else {
                         node->get_rt_info()["affinity"] = "BATCH";
@@ -622,15 +619,13 @@ public:
                                        : deviceNameWithBatchSize;
                 if (bDetectionOutput) {
                     deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-                    std::cout << "HETERO code path!!!!" << std::endl;
                     config_with_batch[CONFIG_KEY(AUTO_BATCH)] = batchConfig;
                 } else {
                     deviceName = "BATCH:" + batchConfig;
                 }
             }
         } catch (std::exception& e) {
-            // TODO: remove debug printf
-            std::cout << "Auto-Batching doesn't apply: " << e.what() << std::endl;
+            // No Auto-Batching enabled
         }
     }
 
