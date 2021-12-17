@@ -886,8 +886,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 // LoadNetwork
 //
 
-TEST(IEClassNetworkTestToDefaultDevice, LoadNetworkWithoutDeviceNameNoThrow) {
-  SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
   InferenceEngine::CNNNetwork actualCnnNetwork;
   std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
   ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
