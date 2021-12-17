@@ -163,11 +163,6 @@ debug_configuration::debug_configuration()
         exit(0);
     }
 
-    if (dump_layers_path.length() > 0 && !disable_usm) {
-        disable_usm = 1;
-        GPU_DEBUG_COUT << "DisableUsm=1 because of DumpLayersPath" << std::endl;
-    }
-
     if (dump_layers.length() > 0)
         dump_layers = " " + dump_layers + " "; // Insert delimiter for easier parsing when used
 #endif
