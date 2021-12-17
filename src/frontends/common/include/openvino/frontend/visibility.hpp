@@ -11,11 +11,14 @@
 
 #if defined(USE_STATIC_FRONTEND_COMMON) || defined(OPENVINO_STATIC_LIBRARY)
 #    define FRONTEND_API
+#    define FRONTEND_C_API
 #else
 // Defined if cmake is building the frontend_common DLL (instead of using it)
 #    ifdef frontend_common_EXPORTS
-#        define FRONTEND_API OPENVINO_CORE_EXPORTS
+#        define FRONTEND_API   OPENVINO_CORE_EXPORTS
+#        define FRONTEND_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #    else
-#        define FRONTEND_API OPENVINO_CORE_IMPORTS
+#        define FRONTEND_API   OPENVINO_CORE_IMPORTS
+#        define FRONTEND_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
 #    endif  // frontend_common_EXPORTS
 #endif      // USE_STATIC_FRONTEND_COMMON || OPENVINO_STATIC_LIBRARY

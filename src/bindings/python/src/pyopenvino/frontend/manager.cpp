@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "frontend_manager.hpp"
+#include "openvino/frontend/manager.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "manager.hpp"
+#include "openvino/frontend/exception.hpp"
 
 namespace py = pybind11;
 

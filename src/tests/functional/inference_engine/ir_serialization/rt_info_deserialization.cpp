@@ -15,7 +15,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/rt_info/old_api_map_order_attribute.hpp>
 #include <transformations/rt_info/old_api_map_element_type_attribute.hpp>
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "graph_comparator.hpp"
 #include "ie_blob.h"
 #include "ie_precision.hpp"

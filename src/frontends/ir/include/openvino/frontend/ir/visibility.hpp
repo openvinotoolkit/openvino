@@ -18,13 +18,3 @@
 #        define IR_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
 #    endif  // ir_ov_frontend_EXPORTS
 #endif      // OPENVINO_STATIC_LIBRARY
-
-#define IR_ASSERT(ex, msg)                 \
-    {                                      \
-        if (!(ex))                         \
-            throw std::runtime_error(msg); \
-    }
-
-#define IR_THROW(msg) throw std::runtime_error(std::string("ERROR: ") + msg)
-
-#define NOT_IMPLEMENTED(msg) throw std::runtime_error(std::string(msg) + " is not implemented")

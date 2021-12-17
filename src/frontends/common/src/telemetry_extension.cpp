@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common/telemetry_extension.hpp"
+#include "openvino/frontend/telemetry_extension.hpp"
 
 using namespace ov::frontend;
 

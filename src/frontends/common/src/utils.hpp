@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "common/frontend_defs.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {

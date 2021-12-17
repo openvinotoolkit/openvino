@@ -8,12 +8,12 @@
 #include <string>
 #include <vector>
 
-#include "frontend_defs.hpp"
 #include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/op_extension.hpp"
+#include "visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -25,7 +25,7 @@ public:
 
     FrontEnd();
 
-    virtual ~FrontEnd();
+    virtual ~FrontEnd() = 0;
 
     /// \brief Validates if FrontEnd can recognize model with parameters specified.
     /// Same parameters should be used to load model.
@@ -55,34 +55,34 @@ public:
         return load_impl(vars);
     }
 
-    /// \brief Completely convert and normalize entire function, throws if it is not
+    /// \brief Completely convert and normalize entire Model, throws if it is not
     /// possible
     /// \param model Input model
-    /// \return fully converted nGraph function
+    /// \return fully converted OV Model
     virtual std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const;
 
-    /// \brief Completely convert the remaining, not converted part of a function.
-    /// \param partiallyConverted partially converted nGraph function
+    /// \brief Completely convert the remaining, not converted part of a Model.
+    /// \param partiallyConverted partially converted OV Model
     virtual void convert(std::shared_ptr<ov::Model> partially_converted) const;
 
     /// \brief Convert only those parts of the model that can be converted leaving others
     /// as-is. Converted parts are not normalized by additional transformations; normalize
-    /// function or another form of convert function should be called to finalize the
+    /// Model or another form of convert Model should be called to finalize the
     /// conversion process.
     /// \param model Input model
-    /// \return partially converted nGraph function
+    /// \return partially converted OV Model
     virtual std::shared_ptr<ov::Model> convert_partially(InputModel::Ptr model) const;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
-    /// Each decoding node is an nGraph node representing a single FW operation node with
+    /// Each decoding node is an OV node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
-    /// \return nGraph function after decoding
+    /// \return OV Model after decoding
     virtual std::shared_ptr<ov::Model> decode(InputModel::Ptr model) const;
 
-    /// \brief Runs normalization passes on function that was loaded with partial conversion
-    /// \param function partially converted nGraph function
-    virtual void normalize(std::shared_ptr<ov::Model> function) const;
+    /// \brief Runs normalization passes on Model that was loaded with partial conversion
+    /// \param Model partially converted OV Model
+    virtual void normalize(std::shared_ptr<ov::Model> model) const;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model

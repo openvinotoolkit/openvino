@@ -7,7 +7,6 @@
 #include <pugixml.hpp>
 
 #include "ie_ngraph_utils.hpp"
-#include "ir_frontend/model.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "rt_info_deserializer.hpp"

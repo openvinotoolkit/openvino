@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "common/frontend_exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {

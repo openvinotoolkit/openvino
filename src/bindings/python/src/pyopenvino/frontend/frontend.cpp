@@ -7,9 +7,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "common/telemetry_extension.hpp"
-#include "manager.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/frontend/telemetry_extension.hpp"
 #include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
