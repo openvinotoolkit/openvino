@@ -5,28 +5,22 @@ TensorFlow*, Caffe*, MXNet*, Kaldi* and ONNX* file format. The list of supported
 each of the supported frameworks. To see the operations supported by your framework, refer to
 [Supported Framework Layers](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 
-Custom operations are operations that are not included in the list of known operations. If your model contains any
-operation that is not in the list of known operations, the Model Optimizer is not able to generate an Intermediate
-Representation (IR) for this model.
+Custom operations, that is those not included in the list, are not recognized by Model Optimizer out-of-the-box. Therefore, creating Intermediate Representation (IR) for a model using them requires additional steps. This guide illustrates the workflow for running inference on topologies featuring custom operations, allowing you to plug in your own implementation for existing or completely new operations.
 
-This guide illustrates the workflow for running inference on topologies featuring custom operations, allowing you to
-plug in your own implementation for existing or completely new operation.
-
-> **NOTE**: *Layer* — The legacy term for an *operation* which came from Caffe\* framework. Currently it is not used.
+> **NOTE**: *Layer* is a legacy term for *operation* which came from Caffe\* framework. Currently it is not used.
 > Refer to the [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../MO_DG/IR_and_opsets.md)
 > for more information on the topic.
 
 ## Terms Used in This Guide
 
-- *Intermediate Representation (IR)* — Neural Network used only by the Inference Engine in OpenVINO abstracting the
-  different frameworks and describing the model topology, operations parameters and weights.
+- *Intermediate Representation (IR)* — OpenVINO's Neural Network format used by Inference Engine. It abstracts different frameworks and describs model topology, operations parameters, and weights.
 
-- *Operation* — The abstract concept of a math function that is selected for a specific purpose. Operations supported by
+- *Operation* — an abstract concept of a math function selected for a specific purpose. Operations supported by
   OpenVINO™ are listed in the supported operation set provided in the [Available Operations Sets](../ops/opset.md).
   Examples of the operations are: [ReLU](../ops/activation/ReLU_1.md), [Convolution](../ops/convolution/Convolution_1.md),
   [Add](../ops/arithmetic/Add_1.md), etc.
 
-- *Kernel* — The implementation of a operation function in the OpenVINO™ plugin, in this case, the math programmed (in
+- *Kernel* — The implementation of an operation function in the OpenVINO™ plugin, in this case, the math programmed (in
   C++ and OpenCL) to perform the operation for a target hardware (CPU or GPU).
 
 - *Inference Engine Extension* — Device-specific module implementing custom operations (a set of kernels).
@@ -56,7 +50,7 @@ Model Optimizer model conversion pipeline is described in detail in "Model Conve
 Model Optimizer provides an extensions mechanism to support new operations and implement custom model transformations to generate optimized IR. This mechanism is described in the "Model Optimizer Extensions" section of 
 [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 
-Two types of the Model Optimizer extensions should be implemented to support custom operations, at a minimum:
+Two types of Model Optimizer extensions should be implemented to support custom operations, at a minimum:
 1. Operation class for a new operation. This class stores information about the operation, its attributes, shape inference function, attributes to be saved to an IR and some others internally used attributes. Refer to the "Model Optimizer Operation" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for detailed instructions on how to implement it.
 2. Operation attributes extractor. The extractor is responsible for parsing framework-specific representation of the
 operation and uses corresponding operation class to update graph node attributes with necessary attributes of the
@@ -67,7 +61,7 @@ operation. Refer to the "Operation Extractor" section of
 
 ## Custom Operations Extensions for the Inference Engine
 
-Inference Engine provides extensions mechanism to support new operations. This mechanism is described in [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
+Inference Engine provides an extension mechanism to support new operations. This mechanism is described in [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
 
 Each device plugin includes a library of optimized implementations to execute known operations which must be extended to execute a custom operation. The custom operation extension is implemented according to the target device:
 
@@ -127,7 +121,7 @@ As a result the TensorFlow\* frozen model file "wnet_20.pb" is generated.
 
 ### Convert the Frozen TensorFlow\* Model to Intermediate Representation
 
-Firstly, open the model in the TensorBoard or other TensorFlow* model visualization tool. The model supports dynamic
+Firstly, open the model in TensorBoard or other TensorFlow* model visualization tool. The model supports dynamic
 batch dimension because the value for the batch dimension is not hardcoded in the model. Model Optimizer need to set all
 dynamic dimensions to some specific value to create the IR, therefore specify the command line parameter `-b 1` to set
 the batch dimension equal to 1. The actual batch size dimension can be changed at runtime using the Inference Engine API
