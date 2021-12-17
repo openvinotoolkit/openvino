@@ -16,7 +16,7 @@ def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index):
     inplace_stats_mapping = get_inplace_stats_mapping(stats_layout)
     if isinstance(value, list):
         value = parse_sequential_stats(value, stats_layout)
-
+    value = process_raw_output(value)
     for layer, stats in stats_layout.items():
         if layer not in accumulated_layer_stats:
             accumulated_layer_stats[layer] = {stat_name: [] for stat_name in stats_layout[layer]}
