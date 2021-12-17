@@ -11,14 +11,6 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-void MKLDNNEmbeddingSegmentsSumNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto embBagSegSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingSegmentsSum>(op);
@@ -127,6 +119,14 @@ void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex, const int*& indice
             indices = defaultIndices_;
         return;
     }
+}
+
+void MKLDNNEmbeddingSegmentsSumNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
+bool MKLDNNEmbeddingSegmentsSumNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::execute(mkldnn::stream strm) {

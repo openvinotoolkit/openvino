@@ -168,14 +168,8 @@ bool MKLDNNCTCGreedyDecoderSeqLenNode::created() const {
     return getType() == CTCGreedyDecoderSeqLen;
 }
 
-void MKLDNNCTCGreedyDecoderSeqLenNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
-}
-
-void MKLDNNCTCGreedyDecoderSeqLenNode::executeDynamicImpl(dnnl::stream strm) {
-    MKLDNNCTCGreedyDecoderSeqLenNode::execute(strm);
+void MKLDNNCTCGreedyDecoderSeqLenNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 bool MKLDNNCTCGreedyDecoderSeqLenNode::needPrepareParams() const {

@@ -319,8 +319,8 @@ size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::v0::Constant>& k_co
                           " elements).");
 
     NODE_VALIDATION_CHECK(this,
-                          k_const_contents[0] > 0,
-                          "The value of 'K' must be a positive number.",
+                          k_const_contents[0] >= 0,
+                          "The value of 'K' must be more or equal zero.",
                           " (got ",
                           k_const_contents[0],
                           ").");
