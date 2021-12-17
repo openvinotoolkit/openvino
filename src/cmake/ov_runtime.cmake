@@ -19,8 +19,6 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>
                                                  $<BUILD_INTERFACE:$<TARGET_PROPERTY:frontend_common,INTERFACE_INCLUDE_DIRECTORIES>>
                                                  $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>>
-                                                 # WA: frontends have incorrect install paths
-                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph_reference
