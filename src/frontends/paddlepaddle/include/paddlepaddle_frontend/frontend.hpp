@@ -21,11 +21,11 @@ public:
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted OV Model
     /// \return fully converted OV Model
-    std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override;
+    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override;
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted OV Model
-    void convert(std::shared_ptr<Model> partiallyConverted) const override;
+    void convert(const std::shared_ptr<Model>& partiallyConverted) const override;
 
     /// \brief Convert only those parts of the model that can be converted leaving others
     /// as-is. Converted parts are not normalized by additional transformations; normalize
@@ -33,14 +33,14 @@ public:
     /// conversion process.
     /// \param model Input model
     /// \return partially converted OV Model
-    std::shared_ptr<Model> convert_partially(InputModel::Ptr model) const override;
+    std::shared_ptr<Model> convert_partially(const InputModel::Ptr& model) const override;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
     /// Each decoding node is an OV node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
     /// \return OV Model after decoding
-    std::shared_ptr<Model> decode(InputModel::Ptr model) const override;
+    std::shared_ptr<Model> decode(const InputModel::Ptr&  model) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model
