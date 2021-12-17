@@ -14,7 +14,7 @@
 
 #include "ie_metric_helpers.hpp"
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <legacy/ie_util_internal.hpp>
+#include <ie_ngraph_utils.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_icore.hpp>
 #include <ie_performance_hints.hpp>
@@ -633,7 +633,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
     if (metaDevice.batchForDevice > 1) {
         try {
-            CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
+            CNNNetwork clonedNetwork(InferenceEngine::details::cloneNetwork(network));
             const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
             ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
             for (const InputsDataMap::value_type &item : inputInfo) {
