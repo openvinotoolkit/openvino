@@ -3,6 +3,7 @@
 //
 
 #include "preprocessing.hpp"
+#include <limits>
 
 int16_t GNAPluginNS::ConvertFloatToInt16(float src) {
     float rounding_value = (src > 0) ? 0.5f : -0.5f;
@@ -52,6 +53,24 @@ void GNAPluginNS::ConvertToFloat(float *ptr_dst,
         float *ptr_float_row = ptr_dst + i * num_columns;
         for (uint32_t j = 0; j < num_columns; j++) {
             ptr_float_row[j] = static_cast<float>(ptr_int_row[j]) / scale_factor;
+        }
+    }
+}
+
+void GNAPluginNS::ConvertToInt32(int32_t *ptr_dst,
+                                  int32_t *ptr_src,
+                                  const uint32_t num_rows,
+                                  const uint32_t num_columns,
+                                  const float scale_factor) {
+    if (!ptr_src || !ptr_dst) {
+        return;
+    }
+
+    for (uint32_t i = 0; i < num_rows; i++) {
+        int32_t *ptr_int_row = ptr_src + i * num_columns;
+        int32_t *ptr_float_row = ptr_dst + i * num_columns;
+        for (uint32_t j = 0; j < num_columns; j++) {
+            ptr_float_row[j] = static_cast<int32_t>(ptr_int_row[j]) / scale_factor;
         }
     }
 }

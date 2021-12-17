@@ -20,6 +20,12 @@ void ConvertToFloat(float *ptr_dst,
                     const uint32_t num_columns,
                     const float scale_factor);
 
+void ConvertToInt32(int32_t *ptr_dst,
+                     int32_t *ptr_src,
+                     const uint32_t num_rows,
+                     const uint32_t num_columns,
+                     const float scale_factor);
+
 int16_t ConvertFloatToInt16(float src);
 int8_t ConvertFloatToInt8(float src);
 }  // namespace GNAPluginNS

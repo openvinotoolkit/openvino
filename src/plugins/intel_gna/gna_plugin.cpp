@@ -70,7 +70,7 @@
 #include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
-#include "transformations/remove_input_convert.hpp"
+#include "transformations/remove_converts.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 #include "transformations/decompose_mvn.hpp"
@@ -326,7 +326,7 @@ void GNAPlugin::ImportFrames(
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-        } else if (input_precision.size() == 2) {
+        } else if (input_precision == Precision::I16) {
             auto src = reinterpret_cast<const int16_t *>(ptr_src);
             if (!gnaFlags->input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
@@ -335,7 +335,7 @@ void GNAPlugin::ImportFrames(
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-        } else if (input_precision.size() == 4) {
+        } else if (input_precision == Precision::FP32) {
             if (!gnadevice) {
                 auto dst = reinterpret_cast<float *>(ptr_dst);
                 auto src = reinterpret_cast<const float *>(ptr_src);
@@ -364,7 +364,7 @@ void GNAPlugin::ImportFrames(
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-        } else if (input_precision.size()== 2) {
+        } else if (input_precision == Precision::I16) {
             auto src = reinterpret_cast<const int16_t *>(ptr_src);
             if (!gnaFlags->input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
@@ -373,7 +373,7 @@ void GNAPlugin::ImportFrames(
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-        } else if (input_precision.size() == 4) {
+        } else if (input_precision.size() == Precision::FP32) {
             if (!gnadevice) {
                 auto dst = reinterpret_cast<float *>(ptr_dst);
                 auto src = reinterpret_cast<const float *>(ptr_src);
@@ -685,7 +685,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     bool isNgraphPassesUsed = false;
     bool fake_quantized = false;
-    if (_network.getFunction()) {
+    std::shared_ptr<ngraph::Function> model = _network.getFunction();
+    if (model) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
@@ -751,8 +752,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
-
         isNgraphPassesUsed = true;
+        // saving modified graph (it should be deprecated when migration to ngraph finished)
+        model = graph;
     }
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
@@ -762,9 +764,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
 
-    //  Check the input network
+
+    //  Check the network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
+    if (!GNAPluginNS::GNALimitations::ArePrecisionsSupported(model, error) ||
+        !GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -1437,8 +1441,8 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                         elementsPerBatch,
                         elementsPerBatch,
                         elementsPerBatch,
-                        outputDesc.num_bytes_per_element,
-                        sizeof(float));
+                        outputBlob->getTensorDesc().getPrecision().size(),
+                        outputDesc.num_bytes_per_element);
 
         if (gnadevice) {
 #ifdef PLOT
@@ -1462,11 +1466,28 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                 fprintf(f, "\n\n");
             }
 #endif
-            ConvertToFloat(outputBlob->buffer(),
-                outputBlob->buffer(),
-                elementsPerBatch,
-                batchSize,
-                outputDesc.scale_factor);
+            switch (outputBlob->getTensorDesc().getPrecision()) {
+            case InferenceEngine::Precision::FP32 :
+                ConvertToFloat(outputBlob->buffer(),
+                               outputBlob->buffer(),
+                               elementsPerBatch,
+                               batchSize,
+                               outputDesc.scale_factor);
+                break;
+
+            case InferenceEngine::Precision::I32 :
+                ConvertToInt32(outputBlob->buffer(),
+                               outputBlob->buffer(),
+                               elementsPerBatch,
+                               batchSize,
+                               outputDesc.scale_factor);
+                break;
+
+            default:
+                THROW_GNA_EXCEPTION << "Unsupported target precision: " << outputBlob->getTensorDesc().getPrecision() << std::endl;
+                break;
+            }
+
 #ifdef PLOT
             if (f) {
                 if (isScalar) {
