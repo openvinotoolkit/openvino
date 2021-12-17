@@ -120,7 +120,7 @@ def get_moc_frontends(argv: argparse.Namespace):
 
     # Set which frontend to use by default, values should be 'new' or 'legacy'
     frontend_defaults = {
-        'onnx': 'new',
+        'onnx': 'legacy',
         'tf': 'legacy'
     }
     # Disable MOC frontend if default is set to legacy and no user override
