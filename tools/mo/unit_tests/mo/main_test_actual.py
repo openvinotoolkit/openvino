@@ -22,7 +22,7 @@ ngraph_needed = pytest.mark.skipif(not ngraph_available,
 
 class TestMainErrors(unittest.TestCase):
     @patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace())
-    @patch('mo.main.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
+    @patch('openvino.tools.mo.main.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
     @ngraph_needed
     def test_FrameworkError(self, mock_argparse, mock_driver):
         with self.assertLogs() as logger:

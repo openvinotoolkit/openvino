@@ -3,8 +3,7 @@
 
 # ! [fft_ext:extractor]
 from ...ops.FFT import FFT
-from mo.front.extractor import FrontExtractorOp
-from mo.utils.error import Error
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class FFT2DFrontExtractor(FrontExtractorOp):
