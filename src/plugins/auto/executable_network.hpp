@@ -18,7 +18,6 @@
 #include <threading/ie_itask_executor.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "ie_icore.hpp"
-
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 # include <tbb/concurrent_queue.h>
 #endif
@@ -30,6 +29,11 @@
 #define MOCKTESTMACRO
 #endif
 
+namespace {
+    std::mutex                                                          recycleMutex;
+    std::condition_variable                                             recycleCond;
+    bool                                                                switchReady = {false};
+}
 namespace MultiDevicePlugin {
 
 class MultiDeviceInferencePlugin;
@@ -143,10 +147,22 @@ class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkTh
                                      public InferenceEngine::ITaskExecutor {
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
+    class HelperDeleter {
+    public:
+        using Ptr = std::shared_ptr<HelperDeleter>;
+        HelperDeleter() = default;
+
+        ~HelperDeleter() {
+            std::lock_guard<std::mutex> lock(recycleMutex);
+            recycleCond.notify_one();
+            switchReady = true;
+        }
+    };
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
+        HelperDeleter::Ptr                        _deleter = nullptr;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
@@ -217,9 +233,6 @@ private:
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
-    std::mutex                                                          _recycleMutex;
-    std::condition_variable                                             _recycleCond;
     bool                                                                _exitFlag = {false};
 };
-
 }  // namespace MultiDevicePlugin

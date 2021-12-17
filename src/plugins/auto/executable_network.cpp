@@ -99,6 +99,8 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     } else {
         realDeviceName = device;
     }
+    bool needRecycle = device.find("CPU_HELP") != std::string::npos && _loadContext[CPU].isEnabled &&
+         _loadContext[ACTUALDEVICE].isEnabled;
     auto itNumRequests = std::find_if(_devicePriorities.cbegin(), _devicePriorities.cend(),
                                       [&realDeviceName](const DeviceInformation& d){ return d.deviceName == realDeviceName;});
     unsigned int optimalNum = 0;
@@ -118,8 +120,11 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
+    std::shared_ptr<HelperDeleter> helperptr = std::make_shared<HelperDeleter>();
     for (auto&& workerRequest : workerRequests) {
         workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
+        if (needRecycle)
+            workerRequest._deleter = helperptr;
         auto* workerRequestPtr = &workerRequest;
         IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
         workerRequest._inferRequest->SetCallback(
@@ -130,6 +135,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                     auto capturedTask = std::move(workerRequestPtr->_task);
                     capturedTask();
                 }
+
                 // try to return the request to the idle list (fails if the overall object destruction has began)
                 if (idleGuard.Release()->try_push(workerRequestPtr)) {
                     // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
@@ -139,6 +145,14 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                         ScheduleToWorkerInferRequest(std::move(t));
                     else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
                         ScheduleToWorkerInferRequest(std::move(t), device);
+                }
+                // just prepare to recycle the helper, will not delete immediately
+                {
+                    if (device == "CPU_HELP") {
+                        if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
+                             workerRequestPtr->_deleter.reset();
+                        }
+                    }
                 }
             });
     }
@@ -239,8 +253,15 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                       std::call_once(_firstLoadOC, [this] () {
                               _firstLoadPromise.set_value();
                               });
-                      if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready)
-                          _recycleCond.notify_one();
+                      // if CPU/accelerator , any of them fail to load
+                      // notify release thread to exit directly
+                      // no need to recycle
+                      if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isEnabled
+                            && !contextPtr->isLoadSuccess) {
+                            _exitFlag = true;
+                            switchReady = true;
+                            recycleCond.notify_one();
+                        }
              };
          }
     }
@@ -267,20 +288,23 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _inferPipelineTasksDeviceSpecific["CPU_HELP"] = nullptr;
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
-        // create task for resource recyle
         auto recycleTask = [this]() mutable {
             size_t destroynum = 0;
-            std::unique_lock<std::mutex> lock(_recycleMutex);
-            while (!_exitFlag && !_loadContext[ACTUALDEVICE].isAlready)
-                _recycleCond.wait(lock);
-            while (!_exitFlag) {
+            if (!_exitFlag) {
                 // clean up helper heap
-                WorkerInferRequest *workerRequestPtr = nullptr;
-                if (_idleWorkerRequests[_loadContext[CPU].workName].try_pop(workerRequestPtr))
-                    destroynum++;
-                if (destroynum == _workerRequests[_loadContext[CPU].workName].size()) {
-                    _workerRequests[_loadContext[CPU].workName].clear();
-                    _exitFlag = true;
+                {
+                    std::unique_lock<std::mutex> lock(recycleMutex);
+                    recycleCond.wait(lock, [this]{ return switchReady; });
+                }
+                // for safety, check the workers from idle queue
+                while (!_exitFlag) {
+                    WorkerInferRequest *workerRequestPtr = nullptr;
+                    while (_idleWorkerRequests[_loadContext[CPU].workName].try_pop(workerRequestPtr))
+                        destroynum++;
+                    if (destroynum == _workerRequests[_loadContext[CPU].workName].size()) {
+                        _workerRequests[_loadContext[CPU].workName].clear();
+                        _exitFlag = true;
+                    }
                 }
             }
         };
@@ -289,7 +313,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
     }
-
     WaitFirstNetworkReady();
 }
 void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
@@ -495,9 +518,10 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // this is necessary to guarantee member destroyed after getting future
         if (_loadContext[CPU].isEnabled) {
             {
-                std::unique_lock<std::mutex> lock(_recycleMutex);
+                std::lock_guard<std::mutex> lock(recycleMutex);
                 _exitFlag = true;
-                _recycleCond.notify_one();
+                switchReady = true;
+                recycleCond.notify_one();
             }
             _loadContext[CPU].future.wait();
             WaitActualNetworkReady();
