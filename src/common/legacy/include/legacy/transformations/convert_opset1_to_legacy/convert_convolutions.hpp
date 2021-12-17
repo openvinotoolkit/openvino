@@ -7,19 +7,19 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertConvolutions;
+class ConvertConvolutions;
 
-class TRANSFORMATIONS_API ConvertConvolution;
-class TRANSFORMATIONS_API ConvertGroupConvolution;
-class TRANSFORMATIONS_API ConvertDeconvolution;
-class TRANSFORMATIONS_API ConvertGroupDeconvolution;
+class ConvertConvolution;
+class ConvertGroupConvolution;
+class ConvertDeconvolution;
+class ConvertGroupDeconvolution;
 
 }  // namespace pass
 }  // namespace ngraph
