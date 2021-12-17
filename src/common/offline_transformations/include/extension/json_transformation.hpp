@@ -8,8 +8,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include "common/extension/decoder_transformation.hpp"
-#include "common/frontend_defs.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"

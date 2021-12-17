@@ -9,7 +9,7 @@
 #include <pugixml.hpp>
 
 #include "ie_ngraph_utils.hpp"
-#include "ir_frontend/model.hpp"
+#include "input_model.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/op_extension.hpp"

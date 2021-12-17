@@ -7,9 +7,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/extension/decoder_transformation.hpp"
-#include "common/extension/telemetry.hpp"
-#include "common/frontend_exceptions.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "extension/json_config.hpp"
 #include "manager.hpp"
 #include "pyopenvino/graph/function.hpp"

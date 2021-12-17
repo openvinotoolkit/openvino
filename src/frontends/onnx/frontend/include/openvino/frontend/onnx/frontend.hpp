@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <common/extension/decoder_transformation.hpp>
-#include <common/extension/telemetry.hpp>
-#include <common/frontend.hpp>
+#include <openvino/frontend/frontend.hpp>
+#include "openvino/frontend/extension/telemetry.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define ONNX_FRONTEND_API
@@ -23,7 +22,9 @@
 
 namespace ov {
 namespace frontend {
-class ONNX_FRONTEND_API FrontEndONNX : public FrontEnd {
+namespace onnx {
+
+class ONNX_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override;
     void convert(std::shared_ptr<ov::Model> partially_converted) const override;
@@ -37,8 +38,8 @@ protected:
 
 private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
-    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
 };
 
+}  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

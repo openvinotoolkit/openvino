@@ -8,8 +8,8 @@
 #include <iostream>
 #include <type_traits>
 
-#include "common/extension/decoder_transformation.hpp"
-#include "common/frontend_defs.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {

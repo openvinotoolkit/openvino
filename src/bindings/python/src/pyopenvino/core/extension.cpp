@@ -7,8 +7,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "manager.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "openvino/frontend/manager.hpp"
 
 namespace py = pybind11;
 

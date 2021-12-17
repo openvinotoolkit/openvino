@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <extension/json_config.hpp>
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 class JsonConfigExtensionWrapper : public ov::frontend::JsonConfigExtension {
 public:

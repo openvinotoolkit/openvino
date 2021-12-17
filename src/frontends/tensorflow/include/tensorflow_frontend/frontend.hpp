@@ -7,12 +7,12 @@
 #include <functional>
 #include <map>
 
-#include "common/extension/decoder_transformation.hpp"
-#include "common/extension/telemetry.hpp"
-#include "common/frontend.hpp"
-#include "common/input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {

@@ -4,7 +4,7 @@
 
 #include "telemetry.hpp"
 
-#include <common/extension/telemetry.hpp>
+#include "openvino/frontend/extension/telemetry.hpp"
 
 #include "utils.hpp"
 

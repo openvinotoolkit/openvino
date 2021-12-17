@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <common/extension/telemetry.hpp>
 #include <istream>
 #include <map>
 #include <memory>
+#include "openvino/frontend/extension/telemetry.hpp"
 
 #include "editor_types.hpp"
 #include "ngraph/function.hpp"

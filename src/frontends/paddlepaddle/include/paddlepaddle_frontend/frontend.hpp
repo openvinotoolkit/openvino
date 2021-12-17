@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <common/extension/decoder_transformation.hpp>
-#include <common/extension/telemetry.hpp>
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
+#include <openvino/frontend/extension/telemetry.hpp>
+#include <openvino/frontend/extension/decoder_transformation.hpp>
 
 #include "exceptions.hpp"
 #include "model.hpp"

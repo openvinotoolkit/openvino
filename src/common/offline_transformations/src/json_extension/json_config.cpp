@@ -5,7 +5,7 @@
 #include "extension/json_config.hpp"
 
 #include "nlohmann/json-schema.hpp"
-#include "common/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "extension/json_transformation.hpp"
 #include "so_extension.hpp"
 
