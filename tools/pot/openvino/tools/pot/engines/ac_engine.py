@@ -22,6 +22,7 @@ from ..utils.utils import create_tmp_dir, convert_output_key
 logger = get_logger(__name__)
 
 
+# pylint: disable=R0912
 class ACEngine(Engine):
 
     def __init__(self, config):
