@@ -39,7 +39,7 @@ InputModel::InputModel(std::istream& model_stream,
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
-    std::vector<Place::Ptr> in_places;
+    std::vector<ov::frontend::Place::Ptr> in_places;
     in_places.reserve(inputs.size());
     for (const auto& input : inputs) {
         in_places.push_back(std::make_shared<PlaceTensor>(input, m_editor));
@@ -49,7 +49,7 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
     const auto& outputs = m_editor->model_outputs();
-    std::vector<Place::Ptr> out_places;
+    std::vector<ov::frontend::Place::Ptr> out_places;
     out_places.reserve(outputs.size());
     for (const auto& output : outputs) {
         out_places.push_back(std::make_shared<PlaceTensor>(output, m_editor));
@@ -90,13 +90,13 @@ ov::frontend::Place::Ptr InputModel::get_place_by_operation_name_and_output_port
     return nullptr;
 }
 
-void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& new_name) {
+void InputModel::set_name_for_tensor(ov::frontend::Place::Ptr tensor, const std::string& new_name) {
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     onnx_tensor->set_name(new_name);
 }
 
-void InputModel::set_name_for_operation(Place::Ptr operation, const std::string& new_name) {
+void InputModel::set_name_for_operation(ov::frontend::Place::Ptr operation, const std::string& new_name) {
     const auto onnx_operation = std::dynamic_pointer_cast<PlaceOp>(operation);
     FRONT_END_GENERAL_CHECK(onnx_operation, __FUNCTION__, " expects a pointer to place of ONNX operation type.");
     onnx_operation->set_name(new_name);
@@ -106,13 +106,15 @@ void InputModel::free_name_for_operation(const std::string& name) {
     m_editor->clear_nodes_name(name);
 }
 
-void InputModel::set_name_for_dimension(Place::Ptr tensor, size_t shape_dim_index, const std::string& dim_name) {
+void InputModel::set_name_for_dimension(ov::frontend::Place::Ptr tensor,
+                                        size_t shape_dim_index,
+                                        const std::string& dim_name) {
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
 }
 
-void InputModel::add_name_for_tensor(Place::Ptr, const std::string&) {
+void InputModel::add_name_for_tensor(ov::frontend::Place::Ptr, const std::string&) {
     FRONT_END_THROW("Method add_name_for_tensor is not applicable for ONNX model. ONNX tensor has just one name.");
 }
 
@@ -120,17 +122,17 @@ void InputModel::free_name_for_tensor(const std::string&) {
     FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }
 
-void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) {
+void InputModel::set_partial_shape(ov::frontend::Place::Ptr place, const ngraph::PartialShape& shape) {
     std::map<std::string, ngraph::PartialShape> m;
     m[place->get_names()[0]] = shape;
     m_editor->set_input_shapes(m);
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(Place::Ptr place) const {
+ngraph::PartialShape InputModel::get_partial_shape(ov::frontend::Place::Ptr place) const {
     return m_editor->get_tensor_shape(place->get_names().at(0));
 }
 
-void InputModel::set_element_type(Place::Ptr place, const ngraph::element::Type& type) {
+void InputModel::set_element_type(ov::frontend::Place::Ptr place, const ngraph::element::Type& type) {
     std::map<std::string, ngraph::element::Type_t> m;
     m[place->get_names()[0]] = type;
     m_editor->set_input_types(m);
@@ -145,19 +147,19 @@ std::shared_ptr<Model> InputModel::convert() {
 }
 
 // Editor features
-void InputModel::override_all_outputs(const std::vector<Place::Ptr>& outputs) {
+void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
     extract_subgraph({}, outputs);
     NGRAPH_CHECK(m_editor->model_outputs().size() == outputs.size(),
                  "Unexpected number of outputs after override_all_outputs");
     NGRAPH_CHECK(std::all_of(std::begin(outputs),
                              std::end(outputs),
-                             [](const Place::Ptr& place) {
+                             [](const ov::frontend::Place::Ptr& place) {
                                  return place->is_output();
                              }),
                  "Not all provided arguments of override_all_outputs are new outputs of the model");
 }
 
-void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
+void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
     const auto outputs_before_extraction = m_editor->model_outputs();
     extract_subgraph({inputs}, {});
     NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
@@ -169,7 +171,8 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
                  "Unexpected number of inputs after override_all_inputs");
 }
 
-void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) {
+void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                                  const std::vector<ov::frontend::Place::Ptr>& outputs) {
     std::vector<onnx_editor::InputEdge> onnx_inputs = convert_place_to_input_edge(inputs);
     std::vector<onnx_editor::OutputEdge> onnx_outputs = convert_place_to_output_edge(outputs);
 
@@ -207,9 +210,9 @@ ov::frontend::Place::Ptr InputModel::add_output(ov::frontend::Place::Ptr place) 
     return std::make_shared<PlaceTensor>(name, m_editor);
 }
 
-void InputModel::remove_output(Place::Ptr place) {
+void InputModel::remove_output(ov::frontend::Place::Ptr place) {
     std::string name = place->get_names().at(0);
-    std::vector<Place::Ptr> outputs = get_outputs();
+    std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
     const auto& output_names = m_editor->model_outputs();
 
     auto find_output = std::find(output_names.begin(), output_names.end(), name);
@@ -217,7 +220,7 @@ void InputModel::remove_output(Place::Ptr place) {
     if (find_output != output_names.end()) {
         outputs.erase(std::remove_if(outputs.begin(),
                                      outputs.end(),
-                                     [&place](Place::Ptr const& output) {
+                                     [&place](ov::frontend::Place::Ptr const& output) {
                                          return output->is_equal(place);
                                      }),
                       outputs.end());
@@ -226,9 +229,9 @@ void InputModel::remove_output(Place::Ptr place) {
     }
 }
 
-void InputModel::cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional) {
-    std::vector<Place::Ptr> inputs = get_inputs();
-    std::vector<Place::Ptr> outputs = get_outputs();
+void InputModel::cut_and_add_new_input(ov::frontend::Place::Ptr place, const std::string& new_name_optional) {
+    std::vector<ov::frontend::Place::Ptr> inputs = get_inputs();
+    std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
 
     if (place->is_input())
         return;
@@ -247,7 +250,7 @@ void InputModel::cut_and_add_new_input(Place::Ptr place, const std::string& new_
     }
 }
 
-void InputModel::set_tensor_value(Place::Ptr place, const void* value) {
+void InputModel::set_tensor_value(ov::frontend::Place::Ptr place, const void* value) {
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
 
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensor>(place)) {
@@ -264,7 +267,8 @@ void InputModel::set_tensor_value(Place::Ptr place, const void* value) {
     }
 }
 
-std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(const std::vector<Place::Ptr>& inputs) {
+std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
+    const std::vector<ov::frontend::Place::Ptr>& inputs) {
     std::vector<onnx_editor::InputEdge> onnx_inputs;
     onnx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
@@ -296,7 +300,8 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(cons
     return onnx_inputs;
 }
 
-std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(const std::vector<Place::Ptr>& outputs) {
+std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
+    const std::vector<ov::frontend::Place::Ptr>& outputs) {
     std::vector<onnx_editor::OutputEdge> onnx_outputs;
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {
