@@ -258,6 +258,10 @@ def arguments_post_parsing(argv: argparse.Namespace):
                 raise Error('Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
             argv.saved_model_tags = argv.saved_model_tags.split(',')
 
+    if argv.mean_values and (argv.scale or argv.scale_values):
+        log.error("Order of arguments mean and scale in command line does not affect on order of applying it to network. " +
+                  "Mean always applies first, then scale.", extra={'is_warning': True})
+
     argv.output = argv.output.split(',') if argv.output else None
 
     argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(argv.input, argv.input_shape,
