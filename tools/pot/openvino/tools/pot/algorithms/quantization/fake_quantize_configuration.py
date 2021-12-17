@@ -398,11 +398,11 @@ def _fake_quantize_to_types(model, hardware_config):
                 if not _is_quantizable(child):
                     queue.append(child)
                 elif child.type not in descendants:
-                    descendants.append((child.name,
+                    descendants.append((child.fullname,
                                         get_hardware_config_operation_type(child, available_types)))
                 if current.type == 'Split' \
                         and child.type == 'Concat' \
-                        and len({child_.name for child_ in children}) == 1:
+                        and len({child_.fullname for child_ in children}) == 1:
                     break
         return descendants
 
@@ -414,7 +414,7 @@ def _fake_quantize_to_types(model, hardware_config):
     available_types = [layer['type'] for layer in hardware_config]
     for fq in get_nodes_by_type(model, ['FakeQuantize']):
         node_input = get_node_input(fq, 0)
-        out[fq.name] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
+        out[fq.fullname] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
 
     return out
 
