@@ -13,7 +13,8 @@ namespace {
 void compare(const std::shared_ptr<ngraph::Node> node,
              const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expected,
              const std::vector<InferenceEngine::Blob::Ptr>& actual,
-             float threshold) {
+             float threshold,
+             std::vector<InferenceEngine::Blob::Ptr> inputs) {
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> types(expected.size());
     auto outputs = node->outputs();
     LayerTestsUtils::LayerTestsCommon::Compare(expected, actual, threshold);
@@ -22,7 +23,8 @@ void compare(const std::shared_ptr<ngraph::Node> node,
 void compare(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
              const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expected,
              const std::vector<InferenceEngine::Blob::Ptr>& actual,
-             float threshold) {
+             float threshold,
+             std::vector<InferenceEngine::Blob::Ptr> inputs) {
     if (expected.size() != actual.front()->byteSize()) {
         IE_THROW() << "expected.size(): " << expected.size() << " actual.front()->byteSize(): " << actual.front()->byteSize()
                    << " failed";
@@ -94,7 +96,8 @@ void Compare(const T *expected, const T *actual, std::size_t size,
 void compare(const std::shared_ptr<ngraph::op::v4::Proposal> node,
              const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
              const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs,
-             float threshold) {
+             float threshold,
+             std::vector<InferenceEngine::Blob::Ptr> inputs) {
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
@@ -170,7 +173,8 @@ void compare(const std::shared_ptr<ngraph::op::v4::Proposal> node,
 void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
              const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
              const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs,
-             float threshold) {
+             float threshold,
+             std::vector<InferenceEngine::Blob::Ptr> inputs) {
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
@@ -237,8 +241,9 @@ template<typename T>
 void compareResults(const std::shared_ptr<ngraph::Node> node,
              const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expected,
              const std::vector<InferenceEngine::Blob::Ptr>& actual,
-             float threshold) {
-    return compare(ngraph::as_type_ptr<T>(node), expected, actual, threshold);
+             float threshold,
+             std::vector<InferenceEngine::Blob::Ptr> inputs) {
+    return compare(ngraph::as_type_ptr<T>(node), expected, actual, threshold, inputs);
 }
 } // namespace
 
