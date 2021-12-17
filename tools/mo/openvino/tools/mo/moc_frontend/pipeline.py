@@ -50,18 +50,23 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         inputs_equal, outputs_equal))
 
     if not inputs_equal and not outputs_equal:
-        # Use ExtractSubgraph
+        log.debug('Using extract subgraph')
         new_input_places = [x['node'] for x in user_shapes]
         new_output_places = [x['node'] for x in outputs]
-        log.debug('Using extract subgraph')
+        for new_input in user_shapes:
+            input_model.add_name_for_tensor(new_input['node'], new_input['input_name'])
         input_model.extract_subgraph(new_input_places, new_output_places)
     elif not inputs_equal:
-        new_input_places = [x['node'] for x in user_shapes]
         log.debug('Using override_all_inputs')
+        for new_input in user_shapes:
+            input_model.add_name_for_tensor(new_input['node'], new_input['input_name'])
+        new_input_places = [x['node'] for x in user_shapes]
         input_model.override_all_inputs(new_input_places)
     elif not outputs_equal:
-        new_output_places = [x['node'] for x in outputs]
         log.debug('Using override_all_outputs')
+        for new_input in user_shapes:
+            input_model.add_name_for_tensor(new_input['node'], new_input['input_name'])
+        new_output_places = [x['node'] for x in outputs]
         input_model.override_all_outputs(new_output_places)
 
     if user_shapes:

@@ -114,8 +114,22 @@ void InputModel::set_name_for_dimension(const ov::frontend::Place::Ptr& tensor,
     onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
 }
 
-void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr&, const std::string&) {
-    FRONT_END_THROW("Method add_name_for_tensor is not applicable for ONNX model. ONNX tensor has just one name.");
+void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
+    ov::frontend::Place::Ptr tensor_place = tensor;
+    const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(tensor);
+    if (input_edge) {
+        tensor_place = input_edge->get_source_tensor();
+    }
+
+    const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor_place);
+    FRONT_END_GENERAL_CHECK(onnx_tensor != nullptr,
+                            "Incorrect Place passed to add_name_for_tensor. This method expects a PlaceTensor object "
+                            "pointing to the ONNX tensor.");
+    FRONT_END_GENERAL_CHECK(!onnx_tensor->get_names().empty(),
+                            "The current tensor name is empty. Can't add more names to it.");
+
+    auto& names_to_add = m_additional_tensor_names[onnx_tensor->get_names()[0]];
+    names_to_add.insert(new_name);
 }
 
 void InputModel::free_name_for_tensor(const std::string&) {
@@ -143,7 +157,9 @@ std::shared_ptr<Model> InputModel::decode() {
 }
 
 std::shared_ptr<Model> InputModel::convert() {
-    return m_editor->get_function();
+    auto converted_model = m_editor->get_function();
+    add_tensor_names(converted_model);
+    return converted_model;
 }
 
 // Editor features
@@ -225,4 +241,24 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
         }
     }
     m_editor->cut_graph_fragment(onnx_inputs, onnx_outputs);
+}
+
+void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
+    auto model_inputs = model->inputs();
+    const auto find_input_by_tensor_name = [&model_inputs](const std::string& name) {
+        return std::find_if(std::begin(model_inputs),
+                            std::end(model_inputs),
+                            [&name](const OutputVector::value_type& input) {
+                                return input.get_names().count(name) > 0;
+                            });
+    };
+
+    for (auto& tensor_names : m_additional_tensor_names) {
+        auto it = find_input_by_tensor_name(tensor_names.first);
+        // add names only to the tensors which still exist in the converted model
+        // multiple graph cuts might have removed some parts of the model which initially required additional names
+        if (it != model_inputs.end()) {
+            it->add_names(tensor_names.second);
+        }
+    }
 }
