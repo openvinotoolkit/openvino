@@ -9,7 +9,8 @@
 namespace GNAPluginNS {
 
 /**
- * @brief remove convert layers after inputs
+ * @brief remove convert layers after inputs and changing it's precision
+ * to support preprocessing conversions from user's precision to network presicion
  *
  * Searches for next pattern
  *     Any input layer
@@ -30,7 +31,8 @@ public:
 };
 
 /**
- * @brief remove convert layers after before outputs
+ * @brief remove convert layers after before outputs changing it's precision
+ * to support postprocessing conversions from network to user's precision
  *
  * Searches for next pattern
  *        Any layer

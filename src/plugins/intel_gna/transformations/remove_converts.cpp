@@ -4,11 +4,12 @@
 
 #include <openvino/cc/ngraph/itt.hpp>
 
-#include "transformations/remove_input_convert.hpp"
+#include "transformations/remove_converts.hpp"
 
 #include <memory>
 #include <vector>
 
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -27,12 +28,19 @@ namespace GNAPluginNS {
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto input_it = pattern_map.find(convert);
-            if (input_it == pattern_map.end())
+            auto node_it = pattern_map.find(convert);
+            if (node_it == pattern_map.end())
                 return false;
-            auto input_node = input_it->second.get_node_shared_ptr();
+            auto convert_node = node_it->second.get_node_shared_ptr();
+            auto input_node = convert_node->get_input_source_output(0).get_node_shared_ptr();
 
-            ngraph::replace_output_update_name(input_node->output(0), input_node->input_value(0));
+            // replace input precision with convert's one
+            if (auto param = ov::as_type_ptr<ngraph::opset8::Parameter>(input_node)) {
+                param->set_element_type(convert_node->output(0).get_tensor().get_element_type());
+                param->validate_and_infer_types();
+            }
+
+            ngraph::replace_output_update_name(convert_node->output(0), convert_node->input_value(0));
             return true;
         };
 
@@ -44,21 +52,23 @@ namespace GNAPluginNS {
     RemoveOutputConvert::RemoveOutputConvert() {
         MATCHER_SCOPE(RemoveOutputConvert);
 
-        const auto convert = ngraph::pattern::wrap_type<ngraph::opset8::Convert>();
-        const auto output = ngraph::pattern::wrap_type<ngraph::opset8::Result>({convert});
+        auto output = ngraph::pattern::any_input();
+        const auto convert = ngraph::pattern::wrap_type<ngraph::opset8::Convert>({output});
+        const auto result = ngraph::pattern::wrap_type<ngraph::opset8::Result>({convert});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto input_it = pattern_map.find(convert);
-            if (input_it == pattern_map.end())
+            auto convert_it = pattern_map.find(convert);
+            if (convert_it == pattern_map.end())
                 return false;
-            auto input_node = input_it->second.get_node_shared_ptr();
+            auto convert_node = convert_it->second.get_node_shared_ptr();
 
-            ngraph::replace_output_update_name(input_node->output(0), input_node->input_value(0));
+            // the result presicion will be changed automaically
+            ngraph::replace_output_update_name(convert_node->output(0), convert_node->input_value(0));
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(convert, matcher_name);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
         this->register_matcher(m, callback);
     }
 
