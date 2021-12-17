@@ -8,7 +8,8 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, Type
+from openvino.preprocess import PrePostProcessor
 
 from ..conftest import model_path, read_image
 
@@ -351,3 +352,84 @@ def test_results_async_infer(device):
 
     for i in range(num_request):
         np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
+
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
+                    reason="Device independent test")
+def test_infer_float16(device):
+    model = bytes(b"""<net name="add_model" version="10">
+    <layers>
+    <layer id="0" name="x" type="Parameter" version="opset1">
+        <data element_type="f16" shape="2,2,2"/>
+        <output>
+            <port id="0" precision="FP16">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="1" name="y" type="Parameter" version="opset1">
+        <data element_type="f16" shape="2,2,2"/>
+        <output>
+            <port id="0" precision="FP16">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="2" name="sum" type="Add" version="opset1">
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+            <port id="1">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </input>
+        <output>
+            <port id="2" precision="FP16">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="3" name="sum/sink_port_0" type="Result" version="opset1">
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </input>
+    </layer>
+    </layers>
+    <edges>
+    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+    <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+    <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
+</net>""")
+    core = Core()
+    func = core.read_model(model=model)
+    p = PrePostProcessor(func)
+    p.input(0).tensor().set_element_type(Type.f16)
+    p.input(0).preprocess().convert_element_type(Type.f16)
+    p.input(1).tensor().set_element_type(Type.f16)
+    p.input(1).preprocess().convert_element_type(Type.f16)
+    p.output(0).tensor().set_element_type(Type.f16)
+    p.output(0).postprocess().convert_element_type(Type.f16)
+
+    func = p.build()
+    exec_net = core.compile_model(func, device)
+    input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
+    request = exec_net.create_infer_request()
+    outputs = request.infer({0: input_data, 1: input_data})
+    assert np.allclose(list(outputs.values()), list(request.results.values()))
+    assert np.allclose(list(outputs.values()), input_data + input_data)
