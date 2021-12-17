@@ -14,12 +14,12 @@ BWDCMP_RTTI_DEFINITION(pattern::op::WrapType);
 bool pattern::op::WrapType::match_value(Matcher* matcher,
                                         const Output<Node>& pattern_value,
                                         const Output<Node>& graph_value) {
-    auto match_any_type = std::any_of(m_wrapped_types.begin(),
-                                        m_wrapped_types.end(),
-                                        [&](const NodeTypeInfo& type_info) {
-                                            return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
-                                        });
-    if (match_any_type && m_predicate(graph_value)) {
+    if (std::any_of(m_wrapped_types.begin(),
+                    m_wrapped_types.end(),
+                    [&](const NodeTypeInfo& type_info) {
+                        return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
+                    }) &&
+        m_predicate(graph_value)) {
         auto& pattern_map = matcher->get_pattern_value_map();
         pattern_map[shared_from_this()] = graph_value;
         matcher->add_node(graph_value);

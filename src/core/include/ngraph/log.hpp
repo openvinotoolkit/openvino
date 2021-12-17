@@ -147,13 +147,7 @@ inline NullLogger&& operator<<(
     return std::move(logger);
 }
 
-/*#    define NGRAPH_DEBUG \
-        ::ngraph::NullLogger {}*/
-#    define NGRAPH_DEBUG                                                      \
-        ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
-                          ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                           \
-                          ngraph::default_logger_handler_func)                \
-            .stream()
+#    define NGRAPH_DEBUG \
+        ::ngraph::NullLogger {}
 #endif
 }  // namespace ngraph

@@ -8,7 +8,6 @@
 #include <memory>
 #include <queue>
 
-#include "openvino/openvino.hpp"
 #include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
@@ -54,58 +53,6 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
     return std::make_shared<opset5::Constant>(element::f32, shape, values);
 }
 
-TEST_F(TransformationTestsF, MyFirstTest) {
-    //ov::runtime::Core core;
-    InferenceEngine::Core core;
-    //const std::string input_model = "/home/dlyakhov/model_export/13_10_21/ir/\
-    //                                       efficientnet_b0_pruning_20_no_transformations/efficientnet_bo_pruning_20_int8.xml";
-
-    const std::string input_model = "/home/dlyakhov/model_export/25_11_21/ir/efficientnet_with_bn/efficientnet_bo_pruning_test.xml";
-    //const std::string input_model = "/home/dlyakhov/model_export/19_11_21_yolo_v5_pruning/yolo_v5s_pruned.xml";
-        // -------- Step 2. Read a model --------
-    function = core.ReadNetwork(input_model).getFunction();
-    function_ref = ngraph::clone_function(*function);
-
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-
-    // VisualizeTree modifier helps to print Masks and mark nodes with masks
-    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
-        std::stringstream ss;
-        size_t index{0};
-        for (const auto & output : node.outputs()) {
-            if (const auto & mask = getMask(output)) {
-                if (!mask->all_dims_are_empty()) {
-                    attributes.emplace_back("color=green");
-                    attributes.emplace_back("penwidth=2");
-                }
-                ss << "Mask(" << index << ") : " << *mask << "\\n";
-            }
-            index++;
-        }
-        if (!ss.str().empty()) {
-            auto label = std::find_if(attributes.begin(), attributes.end(),
-                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
-            if (label != attributes.end()) {
-                label->pop_back();
-                *label += "\n" + ss.str() + "\"";
-            } else {
-                attributes.push_back("label=\"" + ss.str() + "\"");
-            }
-        }
-    };
-
-    // Uncomment modifier above and following line and change path to resulting svg file
-    m.register_pass<ngraph::pass::VisualizeTree>("/home/dlyakhov/model_export/22_11_21/efficientnet_with_masks.svg", modifier);
-    m.register_pass<pass::ShrinkWeights>();
-    //ngraph::pass::VisualizeTree("/home/dlyakhov/model_export/22_11_21/efficientnet.svg").run_on_function(f);
-    m.run_passes(function);
-
-    disable_rt_info_check();
-    disable_function_comparison();
-    enable_accuracy_check();
-}
 
 TEST(TransformationTests, InitMasksOI) {
     Shape weights_shape{6, 3, 3, 3};
@@ -114,6 +61,7 @@ TEST(TransformationTests, InitMasksOI) {
 
     compare_masks(*getMask(weights->output(0)), {{0, 1, 2, 3, 4, 5}, {0, 1, 2}, {}, {}});
 }
+
 
 TEST(TransformationTests, InitMasksOutputChannel) {
     Shape input_shape{1, 3, 64, 64};
@@ -132,6 +80,7 @@ TEST(TransformationTests, InitMasksOutputChannel) {
     compare_masks(*getMask(weights->output(0)), {{}, {1}, {}, {}});
 }
 
+
 // TODO: add test init masks with subgraph
 TEST(TransformationTests, TestInitMasks) {
     Shape weights_shape{6, 3, 3, 3};
@@ -149,6 +98,7 @@ TEST(TransformationTests, TestInitMasks) {
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), {{1, 2, 3}, {}, {}, {}});
 }
 
+
 TEST(TransformationTests, InitMasksNegative) {
     Shape weights_shape{6, 3, 3, 3};
     auto weights = opset5::Constant::create(element::f32, weights_shape, {0.5});
@@ -156,6 +106,7 @@ TEST(TransformationTests, InitMasksNegative) {
 
     compare_masks(*getMask(weights->output(0)), {{}, {}, {}, {}});
 }
+
 
 TEST(TransformationTests, PropagateMasksNegative) {
     Shape input_shape{1, 3, 64, 64};
@@ -174,6 +125,7 @@ TEST(TransformationTests, PropagateMasksNegative) {
     compare_masks(*getMask(weights->output(0)), {{}, {}, {}, {}});
     compare_masks(*getMask(conv->output(0)), {{}, {}, {}, {}});
 }
+
 
 TEST_F(TransformationTestsF, PropagateMasksBasic) {
     Shape input_shape{1, 3, 64, 64};
@@ -225,6 +177,7 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     enable_accuracy_check();
 }
 
+
 TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     PartialShape input_shape{Dimension::dynamic(), 3, 64, 64};
     Shape weights_shape{6, 3, 3, 3};
@@ -268,6 +221,7 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     enable_accuracy_check();
 }
 
+
 TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
     PartialShape input_shape{Dimension::dynamic(), 3, 64, 64};
     Shape weights_shape{3, 2, 1, 3, 3};
@@ -297,6 +251,7 @@ TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 }
+
 
 TEST(TransformationTests, PropagateMasksEmpty) {
     Shape input_shape{1, 3, 64, 64};
@@ -335,6 +290,7 @@ TEST(TransformationTests, PropagateMasksEmpty) {
     compare_masks(*getMask(weights2->output(0)), Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
 }
+
 
 TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     Shape input_shape{1, 3, 64, 64};
@@ -387,6 +343,7 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     disable_function_comparison();
     enable_accuracy_check();
 }
+
 
 TEST(TransformationTests, PropagateMasksHardDependencies) {
     Shape input_shape{1, 3, 3, 3};
@@ -464,6 +421,7 @@ TEST(TransformationTests, PropagateMasksHardDependencies) {
     //compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
 }
 
+
 TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{8, 3, 3, 3};
@@ -532,6 +490,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     disable_function_comparison();
     enable_accuracy_check();
 }
+
 
 TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     Shape input_shape{1, 3, 64, 64};
@@ -602,6 +561,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     disable_function_comparison();
     enable_accuracy_check();
 }
+
 
 TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     Shape input_shape{1, 3, 64, 64};
@@ -678,6 +638,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     disable_function_comparison();
     enable_accuracy_check();
 }
+
 
 TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
     Shape input_shape{1, 3, 64, 64};
