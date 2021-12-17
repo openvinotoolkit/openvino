@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "common/frontend_exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define TF_API

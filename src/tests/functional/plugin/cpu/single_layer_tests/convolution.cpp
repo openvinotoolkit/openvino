@@ -974,6 +974,43 @@ INSTANTIATE_TEST_SUITE_P(Conv_PlainToBlocked_2D_BF16_dilated, ConvolutionLayerCP
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
+/* ============= Reorder + Convolution ============= */
+const auto convParams_Reorder_2D = ::testing::Combine(
+        ::testing::Values(SizeVector{1, 1}),
+        ::testing::Values(SizeVector{2, 2}),
+        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
+        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
+        ::testing::Values(SizeVector{1, 1}),
+        ::testing::Values(64),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+std::vector<InputShape> inputShapes_Reorder_2D = {
+        {
+            // dynamic shape
+            { -1, 32, -1, -1 },
+            // target static shapes
+            {
+                { 1, 32, 39, 40 },
+                { 2, 32, 20, 20}
+            }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_reorder_Conv_2D, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_Reorder_2D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes_Reorder_2D),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
 /* ============= Convolution (3D) ============= */
 const auto convParams_ExplicitPadding_3D = ::testing::Combine(
         ::testing::ValuesIn(kernels3d),

@@ -475,7 +475,7 @@ void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Deconvolution node with name: " << getName() << ", because executor is not compiled";
     }
-    execPtr->exec(strm);
+    execPtr->exec(primArgs, strm);
 
     if (externOutShape) {
         lastOutputSpatialDims = readOutputSpatialDims();
@@ -519,12 +519,18 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
                     prepareMemory(itpd);
                 }
                 auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
-                execPtr = std::make_shared<DeconvExecutorInt8>(prim_desc, srcMemPtr, internalBlobMemory.front(), dstMemPtr, *attr,
-                                                               binaryPostOpsArgs, getEngine());
+                execPtr = std::make_shared<DeconvExecutorInt8>(prim_desc,
+                                                               srcMemPtr->GetPrimitive().get_desc(),
+                                                               internalBlobMemory.front()->GetPrimitive().get_desc(),
+                                                               dstMemPtr->GetPrimitive().get_desc(),
+                                                               getEngine());
             } else {
                 auto prim_desc = convolution_backward_data::primitive_desc(itpd.get());
-                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, *attr,
-                                                                  binaryPostOpsArgs, getEngine());
+                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc,
+                                                                  srcMemPtr->GetPrimitive().get_desc(),
+                                                                  wghMemPtr->GetPrimitive().get_desc(),
+                                                                  dstMemPtr->GetPrimitive().get_desc(),
+                                                                  getEngine());
             }
             return;
         }
@@ -544,8 +550,11 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
             auto anyDeconvItpd = anyDeconvDesc->createPrimitiveDescriptorIterator(getEngine(), *attr);
             if (static_cast<bool>(anyDeconvItpd)) {
                 auto prim_desc = convolution_backward_data::primitive_desc(anyDeconvItpd.get());
-                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc, srcMemPtr, wghMemPtr, dstMemPtr, *attr,
-                                                                  binaryPostOpsArgs, getEngine());
+                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc,
+                                                                  srcMemPtr->GetPrimitive().get_desc(),
+                                                                  wghMemPtr->GetPrimitive().get_desc(),
+                                                                  dstMemPtr->GetPrimitive().get_desc(),
+                                                                  getEngine());
                 return;
             }
         }
@@ -555,12 +564,15 @@ void MKLDNNDeconvolutionNode::createDeconvPrim(std::shared_ptr<MKLDNNDescriptor>
 
 void MKLDNNDeconvolutionNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+    auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
         IE_THROW() << "Input memory didn't allocate.";
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Weight memory didn't allocate.";
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
@@ -610,7 +622,18 @@ void MKLDNNDeconvolutionNode::prepareParams() {
                                              selected_pd->getImplementationType() == MKLDNNPlugin::impl_desc_type::jit_avx512_winograd);
     }
 
-    createDeconvPrim(desc, srcMemPtr, getParentEdgesAtPort(1)[0]->getMemoryPtr(), dstMemPtr, pAttrLocal, selected_pd->getImplementationType());
+    createDeconvPrim(desc, srcMemPtr, wghMemPtr, dstMemPtr, pAttrLocal, selected_pd->getImplementationType());
+
+    if (std::dynamic_pointer_cast<DeconvExecutorInt8>(execPtr)) {
+        primArgs = {{DNNL_ARG_SRC, srcMemPtr->GetPrimitive()},
+                    {DNNL_ARG_WEIGHTS, internalBlobMemory.front()->GetPrimitive()},
+                    {DNNL_ARG_DST, dstMemPtr->GetPrimitive()}};
+    } else {
+        primArgs = {{DNNL_ARG_DIFF_DST, srcMemPtr->GetPrimitive()},
+                    {DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive()},
+                    {DNNL_ARG_DIFF_SRC, dstMemPtr->GetPrimitive()}};
+    }
+    MKLDNNNode::appendPostOpArgs(attr, primArgs, binaryPostOpsArgs);
 }
 
 void MKLDNNDeconvolutionNode::createPrimitive() {
@@ -738,100 +761,44 @@ InferenceEngine::Precision MKLDNNDeconvolutionNode::getRuntimePrecision() const 
     return getMaxPrecision(inputPrecisions);
 }
 
-MKLDNNDeconvolutionNode::DeconvExecutor::IntermReorder::IntermReorder(MKLDNNMemoryPtr memFrom,
-                                                                      const mkldnn::memory::desc& descTo,
-                                                                      const mkldnn::engine& engine) : m_memFrom(memFrom) {
-    m_memTo = std::make_shared<MKLDNNMemory>(engine);
-    m_memTo->Create(MKLDNNExtensionUtils::makeDescriptor(descTo));
-    m_reorder = mkldnn::reorder(m_memFrom->GetPrimitive(), m_memTo->GetPrimitive());
-}
-
-MKLDNNDeconvolutionNode::DeconvExecutor::IntermReorder::IntermReorder(const mkldnn::memory::desc& descFrom,
-                                                                      MKLDNNMemoryPtr memTo,
-                                                                      const mkldnn::engine& engine) : m_memTo(memTo) {
-    m_memFrom = std::make_shared<MKLDNNMemory>(engine);
-    m_memFrom->Create(MKLDNNExtensionUtils::makeDescriptor(descFrom));
-    m_reorder = mkldnn::reorder(m_memFrom->GetPrimitive(), m_memTo->GetPrimitive());
-}
-
-void MKLDNNDeconvolutionNode::DeconvExecutor::IntermReorder::exec(mkldnn::stream strm) {
-    auto src = m_memFrom->GetPrimitive();
-    auto dst = m_memTo->GetPrimitive();
-    m_reorder.execute(strm, src, dst);
-}
-
-void MKLDNNDeconvolutionNode::DeconvExecutor::exec(mkldnn::stream strm) {
-    for (auto &inReorder : inputReorders) {
-        inReorder.exec(strm);
-    }
-    (*execPrim).execute(strm, primArgs);
-    for (auto &outReorder : outputReorders) {
-        outReorder.exec(strm);
-    }
-}
-
 MKLDNNDeconvolutionNode::DeconvExecutorDefault::DeconvExecutorDefault(const mkldnn::convolution_backward_data::primitive_desc& pd,
-                                                                      MKLDNNMemoryPtr inMem,
-                                                                      MKLDNNMemoryPtr weightMem,
-                                                                      MKLDNNMemoryPtr outMem,
-                                                                      const mkldnn::primitive_attr &attr,
-                                                                      const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
+                                                                      const mkldnn::memory::desc& inMemDesc,
+                                                                      const mkldnn::memory::desc& weightMemDesc,
+                                                                      const mkldnn::memory::desc& outMemDesc,
                                                                       const mkldnn::engine& engine) {
     execPrim.reset(new mkldnn::convolution_backward_data(pd));
 
-    if (inMem->GetPrimitive().get_desc() != pd.diff_dst_desc()) {
-        inputReorders.push_back(IntermReorder(inMem, pd.diff_dst_desc(), engine));
-        primArgs[DNNL_ARG_DIFF_DST] = inputReorders.back().getToMem()->GetPrimitive();
-    } else {
-        primArgs[DNNL_ARG_DIFF_DST] = inMem->GetPrimitive();
+    if (inMemDesc != pd.diff_dst_desc()) {
+        inputReorders.insert({DNNL_ARG_DIFF_DST, IntermReorder(inMemDesc, pd.diff_dst_desc(), engine)});
     }
 
-    if (weightMem->GetPrimitive().get_desc() != pd.weights_desc()) {
-        inputReorders.push_back(IntermReorder(weightMem, pd.weights_desc(), engine));
-        primArgs[DNNL_ARG_WEIGHTS] = inputReorders.back().getToMem()->GetPrimitive();
-    } else {
-        primArgs[DNNL_ARG_WEIGHTS] = weightMem->GetPrimitive();
+    if (weightMemDesc != pd.weights_desc()) {
+        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
     }
 
-    if (outMem->GetPrimitive().get_desc() != pd.diff_src_desc()) {
-        outputReorders.push_back(IntermReorder(pd.diff_src_desc(), outMem, engine));
-        primArgs[DNNL_ARG_DIFF_SRC] = outputReorders.back().getFromMem()->GetPrimitive();
-    } else {
-        primArgs[DNNL_ARG_DIFF_SRC] = outMem->GetPrimitive();
+    if (outMemDesc != pd.diff_src_desc()) {
+        outputReorders.insert({DNNL_ARG_DIFF_SRC, IntermReorder(pd.diff_src_desc(), outMemDesc, engine)});
     }
-    MKLDNNNode::appendPostOpArgs(attr, primArgs, binPostOpsArgs);
 }
 
 MKLDNNDeconvolutionNode::DeconvExecutorInt8::DeconvExecutorInt8(const mkldnn::deconvolution_forward::primitive_desc& pd,
-                                                                MKLDNNMemoryPtr inMem,
-                                                                MKLDNNMemoryPtr weightMem,
-                                                                MKLDNNMemoryPtr outMem,
-                                                                const mkldnn::primitive_attr &attr,
-                                                                const std::vector<MKLDNNMemoryPtr>& binPostOpsArgs,
+                                                                const mkldnn::memory::desc& inMemDesc,
+                                                                const mkldnn::memory::desc& weightMemDesc,
+                                                                const mkldnn::memory::desc& outMemDesc,
                                                                 const mkldnn::engine& engine) {
     execPrim.reset(new mkldnn::deconvolution_forward(pd));
 
-    if (inMem->GetPrimitive().get_desc() != pd.src_desc()) {
-        inputReorders.push_back(IntermReorder(inMem, pd.src_desc(), engine));
-        primArgs[DNNL_ARG_SRC] = inputReorders.back().getToMem()->GetPrimitive();
-    } else {
-        primArgs[DNNL_ARG_SRC] = inMem->GetPrimitive();
+    if (inMemDesc != pd.src_desc()) {
+        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});
     }
 
-    if (weightMem->GetPrimitive().get_desc() != pd.weights_desc()) {
-        inputReorders.push_back(IntermReorder(weightMem, pd.weights_desc(), engine));
-        primArgs[DNNL_ARG_WEIGHTS] = inputReorders.back().getToMem()->GetPrimitive();
-    } else {
-        primArgs[DNNL_ARG_WEIGHTS] = weightMem->GetPrimitive();
+    if (weightMemDesc != pd.weights_desc()) {
+        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
     }
 
-    if (outMem->GetPrimitive().get_desc() != pd.dst_desc()) {
-        outputReorders.push_back(IntermReorder(pd.dst_desc(), outMem, engine));
-        primArgs[DNNL_ARG_DST] = outputReorders.back().getFromMem()->GetPrimitive();
-    } else {
-        primArgs[DNNL_ARG_DST] = outMem->GetPrimitive();
+    if (outMemDesc != pd.dst_desc()) {
+        outputReorders.insert({DNNL_ARG_DST, IntermReorder(pd.dst_desc(), outMemDesc, engine)});
     }
-    MKLDNNNode::appendPostOpArgs(attr, primArgs, binPostOpsArgs);
 }
 
 std::vector<int32_t> MKLDNNDeconvolutionNode::readOutputSpatialDims() const {

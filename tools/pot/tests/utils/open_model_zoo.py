@@ -28,7 +28,7 @@ OMZ_DEFINITIONS_PATH = LIBS_ROOT/'open_model_zoo'/'data'/'dataset_definitions.ym
 sys.path.append(str(OMZ_DOWNLOADER_PATH / 'src'))
 # pylint: disable=E0611,C0413,C0411,E0401
 importlib.reload(openvino)
-from openvino.model_zoo._configuration import load_models
+from openvino.model_zoo._configuration import load_models, ModelLoadingMode
 from openvino.model_zoo._common import MODEL_ROOT
 is_platform_windows = sys.platform.startswith('win')
 
@@ -83,7 +83,7 @@ def convert(config):
 
 
 def get_models_list():
-    return load_models(MODEL_ROOT, Dict(config=None))
+    return load_models(MODEL_ROOT, Dict(config=None), mode=ModelLoadingMode.ignore_composite)
 
 
 def download_engine_config(model_name):
