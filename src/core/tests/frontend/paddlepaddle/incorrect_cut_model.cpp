@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <common/frontend_exceptions.hpp>
-#include <manager.hpp>
+#include <openvino/frontend/exception.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #include "paddle_utils.hpp"
 #include "utils.hpp"

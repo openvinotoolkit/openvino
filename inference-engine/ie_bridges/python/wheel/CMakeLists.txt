@@ -1,6 +1,7 @@
 ﻿# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+set(WHEEL_VERSION "${IE_VERSION}" CACHE STRING "Version of this release" FORCE)
 set(WHEEL_BUILD "${IE_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
@@ -41,8 +42,8 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-    COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${IE_VERSION}
-        OPENVINO_VERSION=${IE_VERSION}
+    COMMAND ${CMAKE_COMMAND} -E env WHEEL_VERSION=${WHEEL_VERSION}
+        WHEEL_BUILD=${WHEEL_BUILD}
         CMAKE_BUILD_DIR=${CMAKE_BINARY_DIR}
         OV_RUNTIME_LIBS_DIR=${IE_CPACK_RUNTIME_PATH}
         TBB_LIBS_DIR=${TBB_LIBS_DIR}
