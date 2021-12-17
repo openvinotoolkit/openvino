@@ -95,17 +95,17 @@ public:
     /// \brief Sets name for tensor. Overwrites existing names of this place
     /// \param tensor Tensor place
     /// \param new_name New name for this tensor
-    virtual void set_name_for_tensor(Place::Ptr tensor, const std::string& new_name);
+    virtual void set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name);
 
     /// \brief Adds new name for tensor
     /// \param tensor Tensor place
     /// \param new_name New name to be added to this place
-    virtual void add_name_for_tensor(Place::Ptr tensor, const std::string& new_name);
+    virtual void add_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name);
 
     /// \brief Sets name for operation. Overwrites existing names of this place
     /// \param operation Operation place
     /// \param new_name New name for this operation
-    virtual void set_name_for_operation(Place::Ptr operation, const std::string& new_name);
+    virtual void set_name_for_operation(const Place::Ptr& operation, const std::string& new_name);
 
     /// \brief Unassign specified name from tensor place(s)
     /// \param name Name of tensor
@@ -119,7 +119,7 @@ public:
     /// \param place Model's place
     /// \param shape_dim_index Dimension index
     /// \param dim_name Name to assign on this dimension
-    virtual void set_name_for_dimension(Place::Ptr place, size_t shape_dim_index, const std::string& dim_name);
+    virtual void set_name_for_dimension(const Place::Ptr& place, size_t shape_dim_index, const std::string& dim_name);
 
     ///// Topology Editing  /////
 
@@ -127,25 +127,25 @@ public:
     /// all nodes that don't contribute to any output.
     /// \param place New place to be assigned as input
     /// \param new_name_optional Optional new name assigned to this input place
-    virtual void cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional = "");
+    virtual void cut_and_add_new_input(const Place::Ptr& place, const std::string& new_name_optional = "");
 
     /// \brief Cut immediately after this place and assign this place as new output; prune
     /// all nodes that don't contribute to any output.
     /// \param place New place to be assigned as output
     /// \param new_name_optional Optional new name assigned to this output place
-    virtual void cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional = "");
+    virtual void cut_and_add_new_output(const Place::Ptr& place, const std::string& new_name_optional = "");
 
     /// \brief Assign this place as new output or add necessary nodes to represent a new
     /// output.
     ///
     /// \param place Anchor point to add an output
     /// \return new output place, may be the same as a given place
-    virtual Place::Ptr add_output(Place::Ptr place);
+    virtual Place::Ptr add_output(const Place::Ptr& place);
 
     /// \brief Removes any sinks directly attached to this place with all inbound data flow
     /// if it is not required by any other output.
     /// \param place Model place
-    virtual void remove_output(Place::Ptr place);
+    virtual void remove_output(const Place::Ptr& place);
 
     /// \brief Replaces all existing outputs with new ones removing all data flow that is
     /// not required for new outputs.
@@ -173,30 +173,30 @@ public:
     /// converted to OV.
     /// \param place Model place
     /// \param shape Partial shape for this place
-    virtual void set_partial_shape(Place::Ptr place, const ov::PartialShape& shape);
+    virtual void set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape);
 
     /// \brief Returns current partial shape used for this place
     /// \param place Model place
     /// \return Partial shape for this place
-    virtual ov::PartialShape get_partial_shape(Place::Ptr place) const;
+    virtual ov::PartialShape get_partial_shape(const Place::Ptr& place) const;
 
     /// \brief Sets new element type for a place
     /// \param place Model place
     /// \param type New element type
-    virtual void set_element_type(Place::Ptr place, const ov::element::Type& type);
+    virtual void set_element_type(const Place::Ptr& place, const ov::element::Type& type);
 
     /// \brief Freezes a tensor with statically defined value or replace existing value for
     /// already constant node or tensor
     /// \param place Tensor place
     /// \param value Value for tensor place representing a memory buffer
-    virtual void set_tensor_value(Place::Ptr place, const void* value);
+    virtual void set_tensor_value(const Place::Ptr& place, const void* value);
 
     /// \brief Defines partial value (lower bound and upper bound) for a tensor place
     /// TODO: more details for min_value and max_value format; who defines shape?
     /// \param place Tensor place
     /// \param min_value Lower bound of partial value for tensor place
     /// \param max_value Upper bound of partial value for tensor place
-    virtual void set_tensor_partial_value(Place::Ptr place, const void* min_value, const void* max_value);
+    virtual void set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value);
 };
 
 }  // namespace frontend
