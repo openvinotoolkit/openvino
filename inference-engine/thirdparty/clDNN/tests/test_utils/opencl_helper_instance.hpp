@@ -57,7 +57,7 @@ struct OpenCL {
                         _out_of_order_queue = out_of_order_queue;
 
                         auto extensions = _device.getInfo<CL_DEVICE_EXTENSIONS>();
-                        _supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;;
+                        _supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
 
                         _usm_helper = std::make_shared<cl::UsmHelper>(_context, _device, _supports_usm);
 

@@ -6,7 +6,7 @@
 #include "eltwise_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "convolution/convolution_kernel_selector.h"
@@ -81,12 +81,16 @@ public:
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(arg.trans().get_output_layout()));
             conv_params.deformable_mode = true;
+            if (primitive->input.size() == 3) {
+                conv_params.inputs.push_back(convert_data_tensor(arg.mask().get_output_layout()));
+                conv_params.deformable_mask_enabled = true;
+            }
+            conv_params.bilinear_interpolation_pad = arg.bilinear_interpolation_pad();
         }
 
         conv_params.transposed = transposed;
         conv_params.deformable_groups = deformable_groups;
 
-        conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
         conv_params.groups = groups;
 
@@ -154,38 +158,50 @@ namespace detail {
 
 attach_convolution_impl::attach_convolution_impl() {
     implementation_map<convolution>::add(impl_types::ocl, convolution_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::yxfb),
+        std::make_tuple(data_types::f16, format::yxfb),
+
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
+
         std::make_tuple(data_types::f32, format::winograd_2x3_s1_data),
         std::make_tuple(data_types::f16, format::winograd_2x3_s1_data),
+
+        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::byxf),
         std::make_tuple(data_types::i8, format::byxf),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
 

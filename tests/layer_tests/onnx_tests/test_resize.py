@@ -6,8 +6,8 @@ import pytest
 
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
-from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type
 from unit_tests.utils.graph import build_graph
 
 

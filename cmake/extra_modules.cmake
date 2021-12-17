@@ -6,14 +6,14 @@ function(ie_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
 
-    set(all_dev_targets gflags ie_libraries)
+    set(all_dev_targets gflags ov_runtime_libraries)
     foreach(component IN LISTS openvino_export_components)
         # export all targets with prefix and use them during extra modules build
         export(TARGETS ${${component}} NAMESPACE IE::
             APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
         list(APPEND all_dev_targets ${${component}})
     endforeach()
-    add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
+    add_custom_target(ie_dev_targets DEPENDS ${all_dev_targets})
 
     configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
                                   "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
@@ -32,8 +32,8 @@ endfunction()
 
 function(register_extra_modules)
     # post export
-    openvino_developer_export_targets(COMPONENT inference_engine TARGETS inference_engine)
-    openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph)
+    openvino_developer_export_targets(COMPONENT core TARGETS inference_engine)
+    openvino_developer_export_targets(COMPONENT core TARGETS ngraph)
 
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
 
@@ -93,16 +93,13 @@ endfunction()
 # Extra modules support
 #
 
-# for Template plugin
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
-
 # this InferenceEngineDeveloperPackageConfig.cmake is not used
 # during extra modules build since it's generated after modules
 # are configured
 ie_generate_dev_package_config()
 
 # extra modules must be registered after inference_engine library
-# and all other IE common libraries (ie_libraries) are creared
+# and all other IE common libraries (ov_runtime_libraries) are creared
 # because 'register_extra_modules' creates fake InferenceEngineDeveloperPackageConfig.cmake
 # with all imported developer targets
 register_extra_modules()
