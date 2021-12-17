@@ -174,22 +174,13 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
 
 @generator
 class CompressionDataTypeTest(unittest.TestCase):
-    @generate(*[
-        ('FP32', np.int64),
-        ('FP16', np.int64),
-        ('FP32', np.int32),
-        ('FP16', np.int32),
-        ('FP32', np.float64, np.float32),
-        ('FP16', np.float64, np.float16),
-        ('FP32', np.float32, np.float32),
-        ('FP16', np.float32, np.float16),
-        ('FP32', np.float16, np.float32),
-        ('FP16', np.float16, np.float16),
-    ])
-    def test_data_type(self, model_dtype, original, transformed=None):
-        if transformed is None:
-            transformed = original
-        nodes = nodes_dict(original, transformed)
+    @generate(*[np.int64,
+                np.int32,
+                np.float64,
+                np.float32,
+                np.float16])
+    def test_data_type(self, original):
+        nodes = nodes_dict(original)
 
         graph = build_graph(nodes, [
             *connect('weights:0', '0:FQ'),
@@ -198,7 +189,7 @@ class CompressionDataTypeTest(unittest.TestCase):
             *connect('ol:0', '3:FQ'),
             *connect('oh:0', '4:FQ'),
             *connect('FQ:0', 'output'),
-        ], nodes_with_edges_only=True, cli=Namespace(data_type=model_dtype, static_shape=True))
+        ], nodes_with_edges_only=True, cli=Namespace(static_shape=True))
 
         CompressQuantizeWeights().find_and_replace_pattern(graph)
         graph.clean_up()
