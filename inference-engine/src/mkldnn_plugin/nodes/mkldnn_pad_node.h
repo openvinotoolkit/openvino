@@ -23,6 +23,8 @@ public:
 
     void prepareParams() override;
 
+    bool isExecutable() const override;
+
 protected:
     void executeDynamicImpl(mkldnn::stream strm) override;
 
@@ -70,6 +72,8 @@ private:
                 ctx.executor->padConstantCommon<T>(ctx.srcMemPtr, ctx.dstMemPtr);
             }
         };
+
+        bool zeroInputDimsCase = false;
 
         struct {
             PadAttrs attrs;
