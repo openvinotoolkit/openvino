@@ -4,28 +4,30 @@
 
 #pragma once
 
-#include <common/input_model.hpp>
 #include <editor.hpp>
 #include <fstream>
+#include <openvino/frontend/input_model.hpp>
 
 namespace ov {
 namespace frontend {
-class InputModelONNX : public InputModel {
+namespace onnx {
+
+class InputModel : public ov::frontend::InputModel {
 public:
-    InputModelONNX(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModelONNX(const std::wstring& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(const std::wstring& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #endif
-    InputModelONNX(std::istream& model_stream, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(std::istream& model_stream, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
-    InputModelONNX(std::istream& model_stream,
-                   const std::string& path,
-                   const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(std::istream& model_stream,
+               const std::string& path,
+               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    InputModelONNX(std::istream& model_stream,
-                   const std::wstring& path,
-                   const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(std::istream& model_stream,
+               const std::wstring& path,
+               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #endif
 
     std::vector<Place::Ptr> get_inputs() const override;
@@ -62,5 +64,7 @@ public:
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
 };
+
+}  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

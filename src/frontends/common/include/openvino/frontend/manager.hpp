@@ -8,9 +8,9 @@
 #include <sstream>
 #include <string>
 
-#include "common/frontend.hpp"
-#include "common/frontend_defs.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -22,8 +22,7 @@ using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 /// frontends This is a main frontend entry point for client applications
 class FRONTEND_API FrontEndManager final {
 public:
-    /// \brief Default constructor. Searches and loads of available frontends
-    FrontEndManager();
+    /*/ \brief Default constructor. Searches and loads of available frontends*/ FrontEndManager();
 
     /// \brief Default move constructor
     FrontEndManager(FrontEndManager&&) noexcept;
