@@ -17,7 +17,6 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace ngraph;
 using namespace ov::frontend;
-using TestEngine = test::IE_CPU_Engine;
 
 using PDPDFuzzyOpTest = FrontEndFuzzyOpTest;
 

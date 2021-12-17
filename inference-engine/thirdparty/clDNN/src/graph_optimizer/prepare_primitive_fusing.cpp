@@ -185,7 +185,7 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 
 void prepare_primitive_fusing::fuse_activations(program &p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
-    std::map<primitive_id, std::vector<primitive_id>> fusing_history;
+    std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
     bool use_onednn_impls = false;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -457,7 +457,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
 void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     bool recalc_processing_order = false;
-    std::map<primitive_id, std::vector<primitive_id>> fusing_history;
+    std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
     const uint8_t supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
@@ -475,6 +475,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
+            if (_lo.get_optimization_attributes().use_onednn_impls == 1)
+                return true;
+
             // Since reorder inputs is called after this pass
             // we have to check that blocked formats can be used in the network and layer is optimized for it.
             if ((node.get_output_layout().format == format::b_fs_yx_fsv16 ||
@@ -631,13 +634,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return true;
         };
 
-        auto get_users_from_fusing_history = [&](primitive_id id) {
+        auto get_users_from_fusing_history = [&](const primitive_id& id) {
             std::vector<primitive_id> users;
-            for (auto deps_data : fusing_history) {
-                auto key = deps_data.first;
-                auto deps_vec = deps_data.second;
-                auto iter = std::find(deps_vec.begin(), deps_vec.end(), id);
-                if (iter != deps_vec.end()) {
+            for (auto fusing_info : fusing_history) {
+                auto key = fusing_info.first;
+                auto dep_info_vec = fusing_info.second;
+                auto iter = std::find_if(dep_info_vec.begin(), dep_info_vec.end(), [&](std::pair<primitive_id, size_t>& dep_info) {
+                    return (id == dep_info.first);
+                });
+                if (iter != dep_info_vec.end()) {
                     users.push_back(key);
                 }
             }
@@ -660,7 +665,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                             auto& fused_descs = input_data.get_fused_primitives();
                             auto origin_input_iter = std::find_if(fused_descs.begin(), fused_descs.end(),
                                                                     [&](cldnn::fused_primitive_desc& desc) {
-                                return (desc.node->id() == prim_id);
+                                return (desc.node->id() == prim_id.first);
                             });
                             if (origin_input_iter != fused_descs.end()) {
                                 auto users = get_users_from_fusing_history(origin_input_iter->node->id());
@@ -688,10 +693,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             if (!input_data_supports_fusings(input_data, activation_node.id()))
-                return;
-
-            if ((input_data.get_users().size() != 1 || activation_node.get_dependencies().size() != 1) &&
-                _lo.get_optimization_attributes().use_onednn_impls == 1)
                 return;
 
             bool should_fuse = input_data.is_type<binary_convolution>();
@@ -922,7 +923,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
             const std::vector<eltwise_mode> supported_modes = {
                 eltwise_mode::sum,
-                eltwise_mode::prod
+                eltwise_mode::prod,
+                eltwise_mode::sub,
+                eltwise_mode::div
             };
 
             if (node.is_output() || node.inputs_count() != 2 ||
@@ -937,7 +940,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i]->is_type<convolution>() && conv_supports_fusings(parents[i]->as<convolution>())) ||
-                                      (parents[i]->is_type<binary_convolution>() && bin_conv_supports_eltw_fusings(parents[i]->as<binary_convolution>())) ||
+                                      ((prim->mode == eltwise_mode::sum || prim->mode == eltwise_mode::prod) &&
+                                      ((parents[i]->is_type<binary_convolution>() && bin_conv_supports_eltw_fusings(parents[i]->as<binary_convolution>())) ||
                                       (parents[i]->is_type<mvn>() && mvn_supports_fusings(parents[i]->as<mvn>())) ||
                                       (parents[i]->is_type<deconvolution>()) ||
                                       (parents[i]->is_type<permute>()) ||
@@ -955,7 +959,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i]->is_type<scatter_elements_update>()) ||
                                       (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
-                                      (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()));
+                                      (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()))));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1096,11 +1100,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 } while (node_queue.size() > 1);
             } else {
                 merge_allowed = fused_node->get_users().size() == 1;
+                for (auto& parent : fused_node->get_dependencies())
+                    if (parent->id() == peer_node->id())
+                        merge_allowed = false;
             }
-
-            for (auto& parent : fused_node->get_dependencies())
-                if (parent->id() == peer_node->id())
-                    merge_allowed = false;
 
             if (!merge_allowed)
                 return;
@@ -1150,13 +1153,10 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
                 if (desc.node->id() == prim.node->id()) {
                     continue;
                 }
-
-                auto rm_iter = std::find_if(prim.fused_deps.begin(), prim.fused_deps.end(), [&](primitive_id& dep_id){
-                    return (desc.node->id() == dep_id);
-                });
+                auto rm_iter = prim.fused_deps.find(desc.node->id());
                 if (rm_iter != prim.fused_deps.end()) {
                     prim.fused_deps.erase(rm_iter);
-                    prim.fused_deps.insert(prim.fused_deps.end(), desc.fused_deps.begin(), desc.fused_deps.end());
+                    prim.fused_deps.insert(desc.fused_deps.begin(), desc.fused_deps.end());
                 }
             }
         };

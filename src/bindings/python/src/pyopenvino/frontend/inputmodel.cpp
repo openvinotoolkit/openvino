@@ -7,8 +7,9 @@
 #include <pybind11/stl_bind.h>
 
 #include "../core/common.hpp"
-#include "common/frontend_exceptions.hpp"
-#include "manager.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/manager.hpp"
+
 
 namespace py = pybind11;
 

@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(ENABLE_LTO)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
+
 add_definitions(-DIN_OV_CORE_LIBRARY)
 
 set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -97,7 +101,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/model.cpp" # for SmartReshape
                             ${smart_reshape_srcs} ${rt_info_srcs}
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 

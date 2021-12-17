@@ -12,7 +12,7 @@
 
 namespace ngraph {
 namespace op {
-class INFERENCE_ENGINE_API_CLASS(SwishIE) : public Op {
+class SwishIE : public Op {
 public:
     OPENVINO_OP("SwishIE", "legacy");
     BWDCMP_RTTI_DECLARATION;
