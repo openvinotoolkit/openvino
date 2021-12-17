@@ -122,7 +122,7 @@ void InputModel::free_name_for_tensor(const std::string&) {
     FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }
 
-void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) {
+void InputModel::set_partial_shape(ov::frontend::Place::Ptr place, const ngraph::PartialShape& shape) {
     std::string input_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     if (input_edge) {
@@ -139,7 +139,7 @@ void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape&
     m_editor->set_input_shapes({{input_name, shape}});
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(Place::Ptr place) const {
+ngraph::PartialShape InputModel::get_partial_shape(ov::frontend::Place::Ptr place) const {
     std::string tensor_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
