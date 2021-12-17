@@ -52,14 +52,19 @@ std::vector<std::string> disabledTestPatterns() {
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-        // TODO: CVS-65013
+        // TODO: Issue 69529
+        R"(.*Behavior.*OVExecGraphImportExportTest.*ieImport.*)",
+        R"(.*Behavior.*OVExecGraphImportExportTest.*ExportedIENetwork.*)",
+        // TODO: Issue 73501
+        R"(.*_Hetero_Behavior.*OVExecGraphImportExportTest.*)",
+        // TODO: Issue 65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
         R"(.*CoreThreadingTestsWithIterations.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
-        // TODO: Issue: CVS-69640
+        // TODO: Issue 69640
         R"(.*EltwiseLayerTest.*OpType=Prod.*)",
         R"(.*EltwiseLayerTest.*OpType=SqDiff.*PARAMETER.*SCALAR.*)",
         R"(.*EltwiseLayerTest.*TS=\(\(16\.16\.96\)_\(96\)_\).*OpType=SqDiff.*)",

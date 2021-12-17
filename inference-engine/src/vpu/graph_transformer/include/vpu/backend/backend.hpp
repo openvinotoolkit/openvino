@@ -54,6 +54,11 @@ private:
             const mv_blob_header& blobHdr,
             std::vector<char>& blob);
 
+    void serializeParamsAndResults(
+            const Model& model,
+            const mv_blob_header& blobHdr,
+            std::vector<char>& blob);
+
     ElfN_Ehdr createElfHeader();
 
     void getMetaData(

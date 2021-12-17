@@ -492,7 +492,14 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
     model->attrs().set<int>("index", g_counter.fetch_add(1));
     model->attrs().set<Resources>("resources", env.resources);
-
+    // Transmitting Information about the parameters/results of the network for
+    // the possibility of importing it
+    if (network.getFunction() != nullptr) {
+        model->attrs().set<ov::ParameterVector>(
+            "networkParameters", network.getFunction()->get_parameters());
+        model->attrs().set<ov::ResultVector>(
+            "networkResults", network.getFunction()->get_results());
+    }
     //
     // Update IE Network
     //

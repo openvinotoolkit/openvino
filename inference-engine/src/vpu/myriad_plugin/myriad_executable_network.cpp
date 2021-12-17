@@ -164,11 +164,20 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
 
     this->_networkInputs  = blobReader.getNetworkInputs();
     this->_networkOutputs = blobReader.getNetworkOutputs();
-    std::size_t numStages = blobReader.getStageCount();
-    auto blobHeader = blobReader.getHeader();
+    if (blobSize == blobReader.getFileSize()) {
+        _log->warning(
+            "Older version of blob. Unable to get information about network "
+            "parameters/results. Please recompile blob");
+    }
+    this->setInputs(blobReader.getNetworkParemeters());
+    this->setOutputs(blobReader.getNetworkResults());
 
     _inputInfo  = blobReader.getInputInfo();
     _outputInfo = blobReader.getOutputInfo();
+
+    std::size_t numStages = blobReader.getStageCount();
+    auto blobHeader = blobReader.getHeader();
+
     openDevice(devicePool);
     _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName, _actualNumExecutors);
     _graphMetaData.stagesMeta.resize(numStages);

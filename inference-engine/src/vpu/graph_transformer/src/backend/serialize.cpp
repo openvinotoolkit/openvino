@@ -15,6 +15,9 @@
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
+#include <ngraph/ops.hpp>
+#include <transformations/utils/utils.hpp>
+
 #include <climits>
 #include <cstring>
 #include <string>
@@ -161,6 +164,118 @@ void BackEnd::serializeConstShapes(const Model& model, const mv_blob_header& blo
     }
 }
 
+void BackEnd::serializeParamsAndResults(const Model& model, const mv_blob_header& blobHdr,
+                        std::vector<char>& blob) {
+    const auto networkParams = model->attrs().getOrDefault<ov::ParameterVector>("networkParameters");
+    const auto networkResults = model->attrs().getOrDefault<ov::ResultVector>("networkResults");
+
+    auto getNetworkParameterHeader = [](const std::shared_ptr<ov::Node>& node) {
+        network_params_header nph;
+        nph.element_type_bytesize = sizeof(node->get_element_type().operator ov::element::Type_t());
+        nph.name_lenght = node->get_friendly_name().size();
+        nph.shape_size = node->get_shape().size();
+        nph.output_tensor_names_size = node->get_output_tensor(0).get_names().size();
+        return nph;
+    };
+
+    uint32_t networkInfoOffset = blob.size();
+    auto serializeParameters = [&blob, &networkInfoOffset,
+                                &getNetworkParameterHeader](
+                                const std::shared_ptr<ov::Node>& node) {
+        BlobSerializer headerSerializer;
+        BlobSerializer shapeSerializer;
+        BlobSerializer elementTypeSerializer;
+        BlobSerializer tensorNamesSerializer;
+        BlobSerializer inputNameForResultSerializer;
+
+        const auto nph = getNetworkParameterHeader(node);
+        const bool isResult = ov::is_type<ov::op::v0::Result>(node);
+        int totalNetworkInfoOffset =
+            networkInfoOffset + sizeof(nph) + nph.name_lenght +
+            nph.element_type_bytesize +
+            sizeof(size_t) * (nph.output_tensor_names_size + nph.shape_size);
+
+        for (const auto& name : node->get_output_tensor(0).get_names()) {
+            totalNetworkInfoOffset += sizeof(size_t) + name.size();
+        }
+        if (isResult) {
+            totalNetworkInfoOffset +=
+                sizeof(size_t) +
+                ngraph::op::util::create_ie_output_name(node->input_value(0)).size();
+        }
+
+        blob.resize(totalNetworkInfoOffset);
+
+        headerSerializer.append(nph);
+        std::copy_n(headerSerializer.data(), sizeof(nph),
+                    blob.data() + networkInfoOffset);
+
+        networkInfoOffset += sizeof(nph);
+        const auto nodeName = node->get_friendly_name();
+        VPU_THROW_UNLESS(
+            node->get_output_partial_shape(0).rank().is_static(),
+            "Serialization of shapes with dynamic rank is not supported");
+        const auto nodeShape = node->get_output_partial_shape(0).get_shape();
+        const auto nodeElType =
+            node->get_element_type().operator ov::element::Type_t();
+
+        std::copy_n(nodeName.data(), nodeName.size(),
+                    blob.data() + networkInfoOffset);
+        networkInfoOffset += nph.name_lenght;
+
+        for (const auto shapeIdx : nodeShape) {
+            shapeSerializer.append(shapeIdx);
+        }
+        std::copy_n(shapeSerializer.data(),
+                    shapeSerializer.size(), blob.data() + networkInfoOffset);
+        networkInfoOffset += shapeSerializer.size();
+        elementTypeSerializer.append(nodeElType);
+        std::copy_n(elementTypeSerializer.data(), nph.element_type_bytesize,
+                    blob.data() + networkInfoOffset);
+        networkInfoOffset += nph.element_type_bytesize;
+
+        for (const auto& name : node->get_output_tensor(0).get_names()) {
+            tensorNamesSerializer.append(name.size());
+            for (const auto ch : name) {
+                tensorNamesSerializer.append(ch);
+            }
+        }
+        std::copy_n(tensorNamesSerializer.data(), tensorNamesSerializer.size(),
+                    blob.data() + networkInfoOffset);
+        networkInfoOffset += tensorNamesSerializer.size();
+
+        if (isResult) {
+            const auto inputNameForResult =
+                ngraph::op::util::create_ie_output_name(node->input_value(0));
+            inputNameForResultSerializer.append(inputNameForResult.size());
+            for (const auto ch : inputNameForResult) {
+                inputNameForResultSerializer.append(ch);
+            }
+            std::copy_n(inputNameForResultSerializer.data(),
+                        inputNameForResultSerializer.size(),
+                        blob.data() + networkInfoOffset);
+            networkInfoOffset += inputNameForResultSerializer.size();
+        }
+    };
+
+    BlobSerializer networkInfoSerializer;
+    network_info_header nih;
+    nih.parameters_size = networkParams.size();
+    nih.results_size = networkResults.size();
+    blob.resize(networkInfoOffset + sizeof(nih));
+    networkInfoSerializer.append(nih);
+    std::copy_n(networkInfoSerializer.data(), sizeof(nih), blob.data() + networkInfoOffset);
+    networkInfoOffset += sizeof(nih);
+
+    for (const auto& param : networkParams) {
+        serializeParameters(param);
+    }
+
+    for (const auto& result : networkResults) {
+        serializeParameters(result);
+    }
+}
+
 void BackEnd::serialize(
         const Model& model,
         std::vector<char>& blob,
@@ -271,6 +386,12 @@ void BackEnd::serialize(
 
     serializeConstData(model, blobHdr, blob);
     serializeConstShapes(model, blobHdr, blob);
+    const auto networkParams = model->attrs().getOrDefault<ov::ParameterVector>("networkParameters");
+    const auto networkResults = model->attrs().getOrDefault<ov::ResultVector>("networkResults");
+    // To avoid constant network case
+    if (!networkParams.empty() && !networkResults.empty()) {
+        serializeParamsAndResults(model, blobHdr, blob);
+    }
 
     blobHeader.first = blob.data();
     blobHeader.second = sizeof(ElfN_Ehdr) + sizeof(mv_blob_header);
