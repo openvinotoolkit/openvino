@@ -117,7 +117,12 @@ void ReadIRTest::Compare(const std::vector<std::pair<ngraph::element::Type, std:
 
 std::vector<InferenceEngine::Blob::Ptr> ReadIRTest::GetOutputs() {
     std::vector<InferenceEngine::Blob::Ptr> outputs;
-    for (const auto &result : function->get_results()) {
+    auto results = function->get_results();
+    sort(results.begin(), results.end(),
+         [](const std::shared_ptr<ov::op::v0::Result> & resultA, const std::shared_ptr<ov::op::v0::Result> & resultB) -> bool {
+             return resultA->get_friendly_name() < resultB->get_friendly_name();
+         });
+    for (const auto &result : results) {
         for (size_t inPort = 0; inPort < result->get_input_size(); ++inPort) {
             const auto &inputNode = result->get_input_node_shared_ptr(inPort);
             for (size_t outPort = 0; outPort < inputNode->get_output_size(); ++outPort) {
