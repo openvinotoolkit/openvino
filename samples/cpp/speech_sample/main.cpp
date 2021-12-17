@@ -1,9 +1,9 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// clang-format off
-#include <chrono>
 #include <time.h>
+
+#include <chrono>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -16,13 +16,17 @@
 #include <thread>
 #include <utility>
 #include <vector>
+
+// clang-format off
 #include <openvino/openvino.hpp>
 #include <gna/gna_config.hpp>
+
+#include <samples/args_helper.hpp>
+#include <samples/slog.hpp>
+
 #include "fileutils.hpp"
 #include "speech_sample.hpp"
 #include "utils.hpp"
-#include <samples/args_helper.hpp>
-#include <samples/slog.hpp>
 // clang-format on
 
 using namespace ov::preprocess;
@@ -41,13 +45,11 @@ int main(int argc, char* argv[]) {
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
-
         BaseFile* file;
         BaseFile* fileOutput;
         ArkFile arkFile;
         NumpyFile numpyFile;
         auto extInputFile = fileExt(FLAGS_i);
-
         if (extInputFile == "ark") {
             file = &arkFile;
         } else if (extInputFile == "npz") {
@@ -55,7 +57,6 @@ int main(int argc, char* argv[]) {
         } else {
             throw std::logic_error("Invalid input file");
         }
-
         std::vector<std::string> inputFiles;
         std::vector<uint32_t> numBytesThisUtterance;
         uint32_t numUtterances(0);
@@ -65,11 +66,8 @@ int main(int argc, char* argv[]) {
             uint32_t currentNumUtterances(0), currentNumBytesThisUtterance(0);
             while (getline(stream, outStr, ',')) {
                 std::string filename(fileNameNoExt(outStr) + "." + extInputFile);
-
                 inputFiles.push_back(filename);
-
                 file->GetFileInfo(filename.c_str(), 0, &currentNumUtterances, &currentNumBytesThisUtterance);
-
                 if (numUtterances == 0) {
                     numUtterances = currentNumUtterances;
                 } else if (currentNumUtterances != numUtterances) {
@@ -81,38 +79,29 @@ int main(int argc, char* argv[]) {
         }
         size_t numInputFiles(inputFiles.size());
 
-        // --------------------------- Initialize inference engine core and read model
+        // --------------------------- Step 1. Initialize inference engine core and read model
         // -------------------------------------
         ov::runtime::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
-
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
         CheckNumberOfInputs(model->inputs().size(), numInputFiles);
         const ov::Layout tensor_layout{"NC"};
-
         ov::preprocess::PrePostProcessor proc(model);
         for (int i = 0; i < model->inputs().size(); i++) {
             proc.input(i).tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
             proc.output(i).tensor().set_element_type(ov::element::f32);
         }
-
         model = proc.build();
-
         // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {
             return FLAGS_d.find(xFeature) != std::string::npos;
         };
-
         bool useGna = isFeature("GNA");
         bool useHetero = isFeature("HETERO");
-
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
-
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
         ov::set_batch(model, batchSize);
-
         // -----------------------------------------------------------------------------------------------------
-
         // --------------------------- Set parameters and scale factors -------------------------------------
         /** Setting parameter for per layer metrics **/
         std::map<std::string, std::string> gnaPluginConfig;
@@ -123,17 +112,14 @@ int main(int argc, char* argv[]) {
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE] =
                 gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
         }
-
         if (FLAGS_pc) {
             genericPluginConfig[InferenceEngine::PluginConfigParams::KEY_PERF_COUNT] =
                 InferenceEngine::PluginConfigParams::YES;
         }
-
         if (FLAGS_q.compare("user") == 0) {
             if (!FLAGS_rg.empty()) {
                 slog::warn << "Custom scale factor will be used for imported gna model: " << FLAGS_rg << slog::endl;
             }
-
             auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
             if (numInputFiles != scaleFactorInput.size()) {
                 std::string errMessage(
@@ -141,7 +127,6 @@ int main(int argc, char* argv[]) {
                     " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
                 throw std::logic_error(errMessage);
             }
-
             for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
                 slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
                 std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
@@ -176,13 +161,11 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-
         if (FLAGS_qb == 8) {
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION] = "I8";
         } else {
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION] = "I16";
         }
-
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
@@ -190,7 +173,6 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
         // -----------------------------------------------------------------------------------------------------
-
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
@@ -198,14 +180,12 @@ int main(int argc, char* argv[]) {
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE_GENERATION] = FLAGS_we_gen;
         }
         // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Loading model to the device ------------------------------------------
+        // --------------------------- Step 2. Loading model to the device ------------------------------------------
         if (useGna) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
         }
         auto t0 = Time::now();
         std::vector<std::string> outputs;
-
         if (!FLAGS_oname.empty()) {
             std::vector<std::string> output_names = ConvertStrToVector(FLAGS_oname);
             std::vector<size_t> ports;
@@ -228,12 +208,18 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::CompiledModel executableNet = core.compile_model(model, deviceStr, genericPluginConfig);
-
+        ov::runtime::CompiledModel executableNet;
+        if (!FLAGS_m.empty()) {
+            slog::info << "Loading model to the device" << slog::endl;
+            executableNet = core.compile_model(model, deviceStr, genericPluginConfig);
+        } else {
+            slog::info << "Importing model to the device" << slog::endl;
+            std::istringstream streamrq(FLAGS_rg);
+            executableNet = core.import_model(streamrq, deviceStr, genericPluginConfig);
+        }
         // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
             slog::info << "Writing GNA Model to file " << FLAGS_wg << slog::endl;
@@ -244,7 +230,6 @@ int main(int argc, char* argv[]) {
             slog::info << "Exporting time " << exportTime.count() << " ms" << slog::endl;
             return 0;
         }
-
         if (!FLAGS_we.empty()) {
             slog::info << "Exported GNA embedded model to file " << FLAGS_we << slog::endl;
             if (!FLAGS_we_gen.empty()) {
@@ -253,16 +238,14 @@ int main(int argc, char* argv[]) {
             return 0;
         }
         // ---------------------------------------------------------------------------------------------------------
-
-        // --------------------------- Create infer request --------------------------------------------------
+        // --------------------------- Step 3. Create infer request --------------------------------------------------
         std::vector<InferRequestStruct> inferRequests((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
 
         for (auto& inferRequest : inferRequests) {
             inferRequest = {executableNet.create_infer_request(), -1, batchSize};
         }
-
-        // ---------------------------------------------------------------------------------------------------------
-
+        // --------------------------- Step 4. Configure input & output
+        // --------------------------------------------------
         std::vector<ov::runtime::Tensor> ptrInputBlobs;
         auto cInputInfo = executableNet.inputs();
         CheckNumberOfInputs(cInputInfo.size(), numInputFiles);
@@ -287,7 +270,6 @@ int main(int argc, char* argv[]) {
                 ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.get_tensor(input));
             }
         }
-
         std::vector<std::string> output_name_files;
         std::vector<std::string> reference_name_files;
         size_t count_file = 1;
@@ -306,21 +288,17 @@ int main(int argc, char* argv[]) {
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
         }
         // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- Do inference --------------------------------------------------------
+        // --------------------------- Step 5. Do inference --------------------------------------------------------
         for (size_t next_output = 0; next_output < count_file; next_output++) {
             std::vector<std::vector<uint8_t>> ptrUtterances;
             std::vector<uint8_t> ptrScores;
             std::vector<uint8_t> ptrReferenceScores;
             score_error_t frameError, totalError;
-
             ptrUtterances.resize(inputFiles.size());
-
             // initialize memory state before starting
             for (auto&& state : inferRequests.begin()->inferRequest.query_state()) {
                 state.reset();
             }
-
             /** Work with each utterance **/
             for (uint32_t utteranceIndex = 0; utteranceIndex < numUtterances; ++utteranceIndex) {
                 std::map<std::string, ov::runtime::ProfilingInfo> utterancePerfMap;
@@ -328,15 +306,12 @@ int main(int argc, char* argv[]) {
                 std::string uttName;
                 uint32_t numFrames(0), n(0);
                 std::vector<uint32_t> numFrameElementsInput;
-
                 uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
                     numBytesReferenceScoreThisUtterance(0);
                 auto dims = executableNet.outputs()[0].get_shape();
                 const auto numScoresPerFrame =
                     std::accumulate(std::begin(dims), std::end(dims), size_t{1}, std::multiplies<size_t>());
-
                 slog::info << "Number scores per frame : " << numScoresPerFrame << slog::endl;
-
                 /** Get information from input file for current utterance **/
                 numFrameElementsInput.resize(numInputFiles);
                 for (size_t i = 0; i < inputFiles.size(); i++) {
@@ -359,12 +334,9 @@ int main(int argc, char* argv[]) {
                                                std::to_string(numFrames) + " and " + std::to_string(currentNumFrames));
                         throw std::logic_error(errMessage);
                     }
-
                     ptrUtterances[i] = ptrUtterance;
-
                     numFrameElementsInput[i] = currentNumFrameElementsInput;
                 }
-
                 int i = 0;
                 for (auto& ptrInputBlob : ptrInputBlobs) {
                     if (ptrInputBlob.get_size() != numFrameElementsInput[i++] * batchSize) {
@@ -373,7 +345,6 @@ int main(int argc, char* argv[]) {
                                                std::to_string(numFrameElementsInput[i - 1] * batchSize) + ")");
                     }
                 }
-
                 ptrScores.resize(numFrames * numScoresPerFrame * sizeof(float));
                 if (!FLAGS_r.empty()) {
                     /** Read file with reference scores **/
@@ -400,11 +371,8 @@ int main(int argc, char* argv[]) {
                                                   &numFrameElementsReference,
                                                   &numBytesPerElementReference);
                 }
-
                 double totalTime = 0.0;
-
                 std::cout << "Utterance " << utteranceIndex << ": " << std::endl;
-
                 ClearScoreError(&totalError);
                 totalError.threshold = frameError.threshold = MAX_SCORE_DIFFERENCE;
                 auto outputFrame = &ptrScores.front();
@@ -413,15 +381,12 @@ int main(int argc, char* argv[]) {
                     inputFrame.push_back(&ut.front());
                 }
                 std::map<std::string, ov::runtime::ProfilingInfo> callPerfMap;
-
                 size_t frameIndex = 0;
                 uint32_t numFramesFile = numFrames;
                 numFrames += FLAGS_cw_l + FLAGS_cw_r;
                 uint32_t numFramesThisBatch{batchSize};
-
                 auto t0 = Time::now();
                 auto t1 = t0;
-
                 while (frameIndex <= numFrames) {
                     if (frameIndex == numFrames) {
                         if (std::find_if(inferRequests.begin(), inferRequests.end(), [&](InferRequestStruct x) {
@@ -430,7 +395,6 @@ int main(int argc, char* argv[]) {
                             break;
                         }
                     }
-
                     bool inferRequestFetched = false;
                     /** Start inference loop **/
                     for (auto& inferRequest : inferRequests) {
@@ -489,7 +453,6 @@ int main(int argc, char* argv[]) {
                             continue;
                         }
                         // -----------------------------------------------------------------------------------------------------
-
                         int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
                         for (int i = 0; i < model->inputs().size(); i++) {
                             inferRequest.inferRequest.set_input_tensor(
@@ -500,7 +463,6 @@ int main(int argc, char* argv[]) {
                         inferRequest.inferRequest.start_async();
                         inferRequest.frameIndex = index < 0 ? -2 : index;
                         inferRequest.numFramesThisBatch = numFramesThisBatch;
-
                         frameIndex += numFramesThisBatch;
                         for (size_t j = 0; j < inputFiles.size(); j++) {
                             if (FLAGS_cw_l > 0 || FLAGS_cw_r > 0) {
@@ -527,18 +489,16 @@ int main(int argc, char* argv[]) {
                     }
                 }
                 t1 = Time::now();
-
                 fsec fs = t1 - t0;
                 ms d = std::chrono::duration_cast<ms>(fs);
                 totalTime += d.count();
-
                 // resetting state between utterances
                 for (auto&& state : inferRequests.begin()->inferRequest.query_state()) {
                     state.reset();
                 }
                 // -----------------------------------------------------------------------------------------------------
 
-                // --------------------------- Process output
+                // --------------------------- Step 6. Process output
                 // -------------------------------------------------------
 
                 if (!FLAGS_o.empty()) {
@@ -559,7 +519,6 @@ int main(int argc, char* argv[]) {
                                          numFramesFile,
                                          numScoresPerFrame);
                 }
-
                 /** Show performance results **/
                 std::cout << "Total time in Infer (HW and SW):\t" << totalTime << " ms" << std::endl;
                 std::cout << "Frames in utterance:\t\t\t" << numFrames << " frames" << std::endl;
@@ -590,8 +549,6 @@ int main(int argc, char* argv[]) {
         slog::err << "Unknown/internal exception happened" << slog::endl;
         return 1;
     }
-
     slog::info << "Execution successful" << slog::endl;
-
     return 0;
 }

@@ -54,6 +54,7 @@ void CheckNumberOfInputs(size_t numInputs, size_t numInputFiles) {
                                std::to_string(numInputFiles) + ")");
     }
 }
+
 /**
  * @brief Get scale factor for quantization
  * @param ptrFloatMemory pointer to float memory with speech feature vector
@@ -80,6 +81,7 @@ float ScaleFactorForQuantization(void* ptrFloatMemory, float targetMax, uint32_t
 
     return (scaleFactor);
 }
+
 /**
  * @brief Clean score error
  * @param error pointer to score error struct
@@ -97,6 +99,7 @@ void ClearScoreError(score_error_t* error) {
     error->sumRelError = 0.0;
     error->sumSquaredRelError = 0.0;
 }
+
 /**
  * @brief Update total score error
  * @param error pointer to score error struct
@@ -118,6 +121,7 @@ void UpdateScoreError(score_error_t* error, score_error_t* totalError) {
         totalError->maxRelError = error->maxRelError;
     }
 }
+
 /**
  * @brief Compare score errors, array should be the same length
  * @param ptrScoreArray - pointer to score error struct array
@@ -168,6 +172,7 @@ void CompareScores(float* ptrScoreArray,
     scoreError->numErrors = numErrors;
     // std::cout << "rmsError=" << scoreError->rmsError << "sumRmsError="<<scoreError->sumRmsError;
 }
+
 /**
  * @brief Get total stdev error
  * @param error pointer to score error struct
@@ -201,6 +206,7 @@ inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx
     __get_cpuid(level, eax, ebx, ecx, edx);
 #    endif
 }
+
 /**
  * @brief Get GNA module frequency
  * @return GNA module frequency in MHz
@@ -250,6 +256,7 @@ float getGnaFrequencyMHz() {
 }
 
 #endif  // if not ARM
+
 /**
  * @brief Print a report on the statistical score error
  * @param totalError reference to a total score error struct
@@ -264,6 +271,7 @@ void printReferenceCompareResults(score_error_t const& totalError, size_t frames
     stream << "       stdev error: " << StdDevError(totalError) << std::endl << std::endl;
     stream << std::endl;
 }
+
 /**
  * @brief Print a report on the performance counts
  * @param utterancePerfMap reference to a map to store performance counters
@@ -316,6 +324,7 @@ void printPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> 
     stream << std::endl;
 #endif
 }
+
 /**
  * @brief Get performance counts
  * @param request reference to infer request
@@ -349,6 +358,7 @@ void sumPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> co
     }
     totalRunsOnHw += runOnHw;
 }
+
 /**
  * @brief Parse scale factors
  * @param str reference to user-specified input scale factor for quantization, can be separated by comma
@@ -375,6 +385,7 @@ std::vector<std::string> ParseScaleFactors(const std::string& str) {
     }
     return scaleFactorInput;
 }
+
 /**
  * @brief Parse string of file names separated by comma to save it to vector of file names
  * @param str file names separated by comma
