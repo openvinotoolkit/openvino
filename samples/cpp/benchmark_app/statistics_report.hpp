@@ -11,15 +11,65 @@
 
 // clang-format off
 #include "inference_engine.hpp"
+
 #include "samples/common.hpp"
 #include "samples/csv_dumper.hpp"
 #include "samples/slog.hpp"
+
+#include "utils.hpp"
 // clang-format on
 
 // @brief statistics reports types
 static constexpr char noCntReport[] = "no_counters";
 static constexpr char averageCntReport[] = "average_counters";
 static constexpr char detailedCntReport[] = "detailed_counters";
+
+/// @brief Responsible for calculating different latency metrics
+class LatencyMetrics {
+public:
+    LatencyMetrics() = delete;
+
+    LatencyMetrics(const std::vector<double>& latencies) : latencies(latencies) {
+        if (latencies.empty()) {
+            throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
+        }
+        std::sort(this->latencies.begin(), this->latencies.end());
+    }
+
+    LatencyMetrics(std::vector<double>&& latencies) : latencies(latencies) {
+        if (latencies.empty()) {
+            throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
+        }
+        std::sort(this->latencies.begin(), this->latencies.end());
+    }
+
+    double min() {
+        return latencies[0];
+    }
+
+    double average() {
+        return std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
+    }
+
+    double percentile(std::size_t p) {
+        return latencies[size_t(latencies.size() / 100.0 * p)];
+    }
+
+    double max() {
+        return latencies.back();
+    }
+
+    void logTotal(size_t p) {
+        std::string percentileStr = (p == 50) ? "\tMedian:  " : "\t" + std::to_string(p) + " percentile:    ";
+        slog::info << percentileStr << double_to_string(percentile(p)) << " ms" << slog::endl;
+        slog::info << "\tAvg:    " << double_to_string(average()) << " ms" << slog::endl;
+        slog::info << "\tMin:    " << double_to_string(min()) << " ms" << slog::endl;
+        slog::info << "\tMax:    " << double_to_string(max()) << " ms" << slog::endl;
+    }
+
+private:
+    std::vector<double> latencies;
+};
 
 /// @brief Responsible for collecting of statistics and dumping to .csv file
 class StatisticsReport {
