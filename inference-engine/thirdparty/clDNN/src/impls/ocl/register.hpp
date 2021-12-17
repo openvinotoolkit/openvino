@@ -53,6 +53,7 @@
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/slice.hpp"
 #include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
@@ -73,7 +74,7 @@ void register_implementations();
 
 namespace detail {
 
-#define REGISTER_OCL(prim)              \
+#define REGISTER_OCL(prim)               \
     struct attach_##prim##_impl {        \
         attach_##prim##_impl();          \
     }
@@ -130,6 +131,7 @@ REGISTER_OCL(scatter_elements_update);
 REGISTER_OCL(scatter_nd_update);
 REGISTER_OCL(select);
 REGISTER_OCL(shuffle_channels);
+REGISTER_OCL(slice);
 REGISTER_OCL(softmax);
 REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);

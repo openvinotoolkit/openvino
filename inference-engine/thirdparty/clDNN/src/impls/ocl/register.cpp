@@ -65,6 +65,7 @@ void register_implementations() {
     REGISTER_OCL(softmax);
     REGISTER_OCL(space_to_batch);
     REGISTER_OCL(space_to_depth);
+    REGISTER_OCL(slice);
     REGISTER_OCL(strided_slice);
     REGISTER_OCL(tile);
     REGISTER_OCL(lstm_dynamic_input);
