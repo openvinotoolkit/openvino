@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
-#include "paddlepaddle_frontend/exceptions.hpp"
+#include "exceptions.hpp"
 
 namespace paddle {
 namespace framework {
