@@ -541,7 +541,7 @@ TEST(cloneWithParamsChange, UndefinedAndDefaultParams) {
     }
 }
 
-TEST(makeDummyDesc, LowerBoundMoreThenDummyValie) {
+TEST(makeDummyDesc, LowerBoundMoreThanDummyValue) {
     Shape shape(ngraph::PartialShape{1, 3, 85, {144, 1444}});
     auto desc = std::make_shared<DnnlBlockedMemoryDesc>(shape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nchw);
     ASSERT_FALSE(desc->isDefined());
