@@ -163,9 +163,6 @@ ie = IECore()
 ie.get_metric(device_name="GPU", metric_name="SUPPORTED_METRICS")
 ```
 
-> **NOTE**: All metrics have a specific type, which is set during the metric instantiation. The list of common device-agnostic metrics can be found in ie_plugin_config.hpp. Device specific metrics (for example, for HDDL, MYRIAD devices) can be found in corresponding plugin folders.
-
-
 #### Get Configuration
 
 The code below uses the [IECore.get_config](api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_config) method and demonstrates how to understand whether the HETERO device dumps .dot files with split graphs during the split stage:
