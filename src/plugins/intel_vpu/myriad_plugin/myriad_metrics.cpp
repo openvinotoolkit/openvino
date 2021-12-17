@@ -110,8 +110,8 @@ const std::unordered_set<std::string>& MyriadMetrics::OptimizationCapabilities()
 }
 
 std::string MyriadMetrics::DeviceArchitecture(const std::map<std::string, InferenceEngine::Parameter> & options) const {
-    // Since all supported devices can use the same cashe
-    // this function returns the same value for evrything
+    // Since all supported devices can use the same cache
+    // this function returns the same value for everything
     return "MYRIAD";
 }
 

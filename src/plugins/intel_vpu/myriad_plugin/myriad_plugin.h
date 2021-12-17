@@ -22,10 +22,6 @@ class Engine : public ie::IInferencePlugin {
 public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
-    ~Engine() {
-        MyriadExecutor::closeDevices(_devicePool, _mvnc);
-    }
-
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
     ie::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
@@ -52,9 +48,23 @@ public:
 
 private:
     PluginConfiguration _parsedConfig;
-    std::vector<DevicePtr> _devicePool;
+    std::shared_ptr<std::vector<DevicePtr>> _devicePool;
     std::shared_ptr<IMvnc> _mvnc;
     std::shared_ptr<MyriadMetrics> _metrics;
+
+    class _EngineDevicePool {
+        public:
+            static std::shared_ptr<_EngineDevicePool> GetInstance(std::shared_ptr<IMvnc> mvnc);
+            std::shared_ptr<std::vector<DevicePtr>> GetPool() {
+                return _devicePool;
+            }
+            ~_EngineDevicePool();
+
+        private:
+            std::shared_ptr<std::vector<DevicePtr>> _devicePool;
+            std::shared_ptr<IMvnc> _mvnc;
+            _EngineDevicePool();
+    };
 };
 
 }  // namespace MyriadPlugin

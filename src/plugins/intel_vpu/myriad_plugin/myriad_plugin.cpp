@@ -87,7 +87,7 @@ IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     executableNetworkConfiguration.from(config);
     executableNetworkConfiguration.validate();
 
-    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
+    return std::make_shared<ExecutableNetwork>(network, _mvnc, *_devicePool.get(), executableNetworkConfiguration, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -198,6 +198,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     VPU_THROW_UNLESS(_mvnc, "mvnc is null");
 
     _pluginName = "MYRIAD";
+    _devicePool = _EngineDevicePool::GetInstance(_mvnc)->GetPool();
 
     _parsedConfig.registerOption<LogLevelOption>();
     _parsedConfig.registerOption<CopyOptimizationOption>();
@@ -270,7 +271,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     executableNetworkConfiguration.fromAtRuntime(config);
     executableNetworkConfiguration.validate();
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(model, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(model, _mvnc, *_devicePool.get(), executableNetworkConfiguration, GetCore());
     executableNetwork->SetPointerToPlugin(shared_from_this());
     return executableNetwork;
 }
@@ -279,7 +280,7 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
                                      const std::map<std::string, InferenceEngine::Parameter> & options) const {
     const auto mvnc = _mvnc;
     const auto metrics = _metrics;
-    const auto devicePool = _devicePool;
+    const auto devicePool = *_devicePool.get();
     const auto getSpecifiedDeviceName = [&mvnc, &metrics, &devicePool, &options]() {
         if (options.count(KEY_DEVICE_ID)) {
             return options.at(KEY_DEVICE_ID).as<std::string>();
@@ -303,7 +304,7 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
     };
 
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->AvailableDevicesNames(_mvnc, _devicePool));
+        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->AvailableDevicesNames(_mvnc, *_devicePool.get()));
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics->FullName(getSpecifiedDeviceName()));
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -334,3 +335,19 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
     }
     IE_THROW(NotImplemented);
 }
+
+std::shared_ptr<Engine::_EngineDevicePool> Engine::_EngineDevicePool::GetInstance(std::shared_ptr<IMvnc> mvnc) {
+    static std::shared_ptr<_EngineDevicePool> instance(new _EngineDevicePool);
+    if (instance->_mvnc.get() == nullptr) {
+        instance->_mvnc = mvnc;
+    }
+    return instance;
+}
+
+Engine::_EngineDevicePool::~_EngineDevicePool() {
+    MyriadExecutor::closeDevices(*_devicePool.get(), _mvnc);
+}
+
+Engine::_EngineDevicePool::_EngineDevicePool() :
+_devicePool(std::make_shared<std::vector<DevicePtr>>()),
+_mvnc(nullptr) {}
