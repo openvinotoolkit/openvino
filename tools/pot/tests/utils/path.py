@@ -8,7 +8,7 @@ from openvino.tools.mo import mo
 
 TEST_ROOT = Path(__file__).parent.parent.absolute()
 LIBS_ROOT = Path(__file__).resolve().parents[4] / 'thirdparty'
-MO_PATH = Path(mo.__file__).parent.parent
+MO_PATH = Path(mo.__file__).parent
 
 MODELS_PATH = TEST_ROOT / 'data' / 'models'
 REFERENCE_MODELS_PATH = TEST_ROOT / 'data' / 'reference_models'
