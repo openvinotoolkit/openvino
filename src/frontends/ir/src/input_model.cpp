@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ir_frontend/model.hpp"
+#include "input_model.hpp"
 
 #include <xml_parse_utils.h>
 
@@ -186,7 +186,9 @@ void ParsePreProcess(pugi::xml_node& root,
 
 namespace ov {
 namespace frontend {
-class InputModelIR::InputModelIRImpl {
+namespace ir {
+
+class InputModel::InputModelIRImpl {
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_weights;
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
     std::unordered_map<std::string, ngraph::OpSet> m_opsets;
@@ -217,17 +219,17 @@ public:
     std::shared_ptr<Function> convert();
 };
 
-InputModelIR::InputModelIR(std::istream& stream,
-                           const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
-                           const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
+InputModel::InputModel(std::istream& stream,
+                       const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
     _impl = std::make_shared<InputModelIRImpl>(stream, weights, extensions);
 }
 
-std::shared_ptr<Function> InputModelIR::convert() {
+std::shared_ptr<Function> InputModel::convert() {
     return _impl->convert();
 }
 
-std::shared_ptr<Function> InputModelIR::InputModelIRImpl::convert() {
+std::shared_ptr<Function> InputModel::InputModelIRImpl::convert() {
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
 
     // Load default opsets
@@ -240,5 +242,7 @@ std::shared_ptr<Function> InputModelIR::InputModelIRImpl::convert() {
 
     return function;
 }
+
+}  // namespace ir
 }  // namespace frontend
 }  // namespace ov

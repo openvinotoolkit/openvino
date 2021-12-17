@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "frontend_defs.hpp"
+#include "visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -61,7 +61,7 @@ class FRONTEND_API Place {
 public:
     typedef std::shared_ptr<Place> Ptr;
 
-    virtual ~Place() = default;
+    virtual ~Place() = 0;
 
     /// \brief All associated names (synonyms) that identify this place in the graph in a
     /// framework specific way

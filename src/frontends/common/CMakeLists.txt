@@ -13,7 +13,7 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 # Add include path to so_extension.hpp
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_manager.cpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
 
 set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -45,7 +45,7 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util)
 
 set_property(SOURCE
             ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_manager.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/manager.cpp
         APPEND PROPERTY COMPILE_DEFINITIONS
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
@@ -77,15 +77,9 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
 
-install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/common
+install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT core_dev
-        FILES_MATCHING PATTERN "*.hpp")
-
-install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/
-        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT core_dev
-        FILES_MATCHING PATTERN "manager.hpp")
+        COMPONENT core_dev)
 
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

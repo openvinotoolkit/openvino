@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
+set(FRONTEND_INSTALL_INCLUDE "runtime/include/")
 set(FRONTEND_NAME_SUFFIX "_ov_frontend")
 
 set(FRONTEND_NAMES "" CACHE INTERNAL "")
@@ -225,7 +225,7 @@ macro(ov_add_frontend)
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install -dev part
-            install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/${OV_FRONTEND_NAME}_frontend
+            install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
                     COMPONENT core_dev
                     FILES_MATCHING PATTERN "*.hpp")
