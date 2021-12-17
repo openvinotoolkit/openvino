@@ -176,7 +176,7 @@ void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs, const s
     m_editor->cut_graph_fragment(onnx_inputs, onnx_outputs);
 }
 
-Place::Ptr InputModel::add_output(Place::Ptr place) {
+ov::frontend::Place::Ptr InputModel::add_output(ov::frontend::Place::Ptr place) {
     std::string name = place->get_names().at(0);
 
     const auto& outputs = m_editor->model_outputs();
@@ -193,11 +193,11 @@ Place::Ptr InputModel::add_output(Place::Ptr place) {
 
     if (find_output != outputs.end()) {
         return place;
-    } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
+    } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(place)) {
         auto tensor_name = tensor->get_names()[0];
         auto output_edge = m_editor->find_output_edge(tensor_name);
         m_editor->add_output(output_edge);
-    } else if (const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(output_port)) {
+    } else if (const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(output_port)) {
         NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
         m_editor->add_output(onnx_output_edge->get_output_edge());
     } else {
@@ -250,7 +250,7 @@ void InputModel::cut_and_add_new_input(Place::Ptr place, const std::string& new_
 void InputModel::set_tensor_value(Place::Ptr place, const void* value) {
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
 
-    if (const auto var_place = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
+    if (const auto var_place = std::dynamic_pointer_cast<PlaceTensor>(place)) {
         auto name = place->get_names().at(0);
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_input_type(name);
@@ -296,8 +296,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(cons
     return onnx_inputs;
 }
 
-std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
-    const std::vector<Place::Ptr>& outputs) {
+std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(const std::vector<Place::Ptr>& outputs) {
     std::vector<onnx_editor::OutputEdge> onnx_outputs;
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {
