@@ -250,7 +250,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise1_use_shapes_true) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::MOCTransformations>(false, true);
+        manager.register_pass<pass::MOCTransformations>(true, false);
     }
 
     {
