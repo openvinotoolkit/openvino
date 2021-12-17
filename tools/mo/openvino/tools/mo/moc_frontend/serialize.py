@@ -29,7 +29,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
     from openvino.offline_transformations_pybind import serialize # pylint: disable=import-error,no-name-in-module
-    serialize(ngraph_function, (orig_model_name + ".xml").encode('utf-8'), (orig_model_name + ".bin").encode('utf-8'), version="IR_V11")
+    serialize(ngraph_function, (orig_model_name + ".xml").encode('utf-8'), (orig_model_name + ".bin").encode('utf-8'))
 
     del argv.feManager
 
