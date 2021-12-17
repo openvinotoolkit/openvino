@@ -669,27 +669,6 @@ public:
                         any_input_with_masks = true;
                     }
                 }
-            /*{
-                auto _ = getMask(m_output);
-                auto __ = getMask(node);
-                auto x = node->input_values();
-                Mask::Ptr ___;
-                if (x.size())
-                    ___ = getMask(x[0]);
-
-                NGRAPH_DEBUG << _;
-                NGRAPH_DEBUG << __;
-                NGRAPH_DEBUG << ___;
-
-
-                auto res_rt_info = m_output.get_rt_info();
-                if (x.size()) {
-                    auto conv_rt_info = x[0].get_rt_info();
-                    auto a = 6;
-                    NGRAPH_DEBUG << a;
-                }
-                //NGRAPH_DEBUG << res_rt_info << conv_rt_info;
-            }*/
             if (any_input_with_masks) {
                 // TODO: find out if any other operation except Result
                 // share output tesnors with previous operation

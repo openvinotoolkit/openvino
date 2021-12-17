@@ -16,6 +16,7 @@
 #include <set>
 
 #include <ngraph/node.hpp>
+#include <ngraph/log.hpp>
 
 namespace ngraph {
 

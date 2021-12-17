@@ -22,6 +22,9 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#define VISUALIZE_TESTS_TREE false
+#define VISUALIZE_TREE_ROOT "/tmp/"
+
 using namespace testing;
 using namespace ngraph;
 
@@ -95,7 +98,7 @@ TEST(TransformationTests, MyFirstTest) {
     // Uncomment modifier above and following line and change path to resulting svg file
     m.register_pass<ngraph::pass::VisualizeTree>("/home/dlyakhov/model_export/22_11_21/efficientnet_with_masks.svg", modifier);
     m.register_pass<pass::ShrinkWeights>();
-    //ngraph::pass::VisualizeTree("/home/dlyakhov/model_export/22_11_21/efficientnet.png").run_on_function(f);
+    //ngraph::pass::VisualizeTree("/home/dlyakhov/model_export/22_11_21/efficientnet.svg").run_on_function(f);
     m.run_passes(f);
 }
 
@@ -191,7 +194,9 @@ TEST(TransformationTests, PropagateMasksBasic) {
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
-    //ngraph::pass::VisualizeTree("/tmp/out_basic.png").run_on_function(f);
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBasic.svg").run_on_function(f);
+
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
@@ -231,6 +236,9 @@ TEST(TransformationTests, PropagateMasksDynamicConvolution) {
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicConvolution.svg").run_on_function(f);
+
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
@@ -266,6 +274,9 @@ TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
                                                             CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicGroupConvolution.svg").run_on_function(f);
+
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
@@ -292,6 +303,9 @@ TEST(TransformationTests, PropagateMasksEmpty) {
     auto conv2 = std::make_shared<opset5::Convolution>(add, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksEmpty.svg").run_on_function(f);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -338,6 +352,9 @@ TEST(TransformationTests, PropagateMaskPassThrough) {
     auto conv2 = std::make_shared<opset5::Convolution>(max_pool, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg").run_on_function(f);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -467,6 +484,9 @@ TEST(TransformationTests, PropagateMasksQuantizedGroupConvolution) {
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolution.svg").run_on_function(f);
+
     pass::Manager m;
     m.register_pass<pass::Pruning>();
     m.run_passes(f);
@@ -527,6 +547,9 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor) {
     auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor.svg").run_on_function(f);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -590,6 +613,9 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerChannel) {
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerChannel.svg").run_on_function(f);
+
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
@@ -646,6 +672,9 @@ TEST(TransformationTests, TestConcatMaskPropagation) {
 
     auto f = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagation.svg").run_on_function(f);
+
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
@@ -695,6 +724,9 @@ TEST(TransformationTests, TestConcatMaskPropagationUp) {
                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
 
     auto f = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUp.svg").run_on_function(f);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -746,6 +778,9 @@ TEST(TransformationTests, TestConcatMaskPropagationUpEmpty) {
 
     auto f = std::make_shared<Function>(NodeVector{add}, ParameterVector{input});
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUpEmpty.svg").run_on_function(f);
+
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
@@ -794,10 +829,12 @@ TEST_F(TransformationTestsF, PruneConstAddMulwBranchingTest) {
     // function which is processed by Pruning transformation
     function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ConstAddMullBranching");
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConstAddMulwBranchingTest.svg").run_on_function(function);
+
     // reference function to get reference accuracy results
     function_ref = ngraph::clone_function(*function);
 
-    ngraph::pass::VisualizeTree("/tmp/out_basic.svg").run_on_function(function);
     pass::Manager m;
     m.register_pass<pass::Pruning>();
     m.run_passes(function);
@@ -855,6 +892,9 @@ TEST(TransformationTests, PruneMultiplyBranchingTest) {
 
     auto function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ReshapeMulBranching");
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneMultiplyBranchingTest.svg").run_on_function(function);
+
     //ngraph::pass::VisualizeTree("/tmp/out_basic.svg").run_on_function(function);
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -902,6 +942,9 @@ TEST_F(TransformationTestsF, PruneAvgPoolReducelayerTest) {
 
     // function which is processed by Pruning transformation
     function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ReduceMeanBranching");
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneAvgPoolReducelayerTest.svg").run_on_function(function);
 
     // reference function to get reference accuracy results
     function_ref = ngraph::clone_function(*function);
@@ -954,6 +997,9 @@ TEST(TransformationTests, PruneStopReducelayerTest) {
                                                                                  Strides(2, 1));
 
     auto function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "RestrictedReduceMeanBranching");
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopReducelayerTest.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
