@@ -178,7 +178,6 @@ void AutoBatchInferRequest::CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, In
         else
             memcpy(ptrDst, ptrSrc + offset, szDst);
     }
-    // std::cout << "!!! COPY !!!" << std::endl;
 }
 
 void AutoBatchInferRequest::CopyOutputsIfNeeded() {
@@ -270,7 +269,6 @@ unsigned int AutoBatchExecutableNetwork::ParseTimeoutValue(const std::string& s)
     auto val = std::stoi(s);
     if (val < 0)
         IE_THROW(ParameterMismatch) << "Value for the " << CONFIG_KEY(AUTO_BATCH_TIMEOUT) << " should be unsigned int";
-    std::cout << "AutoBatching timeout is set to " << s << " ms" << std::endl;
     return val;
 }
 
@@ -320,10 +318,8 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                 t.first->_inferRequest->CopyInputsIfNeeded();
                             }
                             workerRequestPtr->_inferRequestBatched->StartAsync();
-                            // std::cout << "BATCH" << std::endl;
                         } else if ((status == std::cv_status::timeout) && sz) {
                             // timeout to collect the batch is over, have to execute the requests in the batch1 mode
-                            auto start = std::chrono::high_resolution_clock::now();
                             std::pair<AutoBatchAsyncInferRequest *, InferenceEngine::Task> t;
                             // popping all tasks collected by the moment of the time-out and execute each with batch1
                             std::atomic<int> arrived = {0};
@@ -342,13 +338,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                 t.first->_inferRequest->SetBlobsToAnotherRequest(t.first->_inferRequestWithoutBatch);
                                 t.first->_inferRequestWithoutBatch->StartAsync();
                             }
-                            auto exec = std::chrono::high_resolution_clock::now();
                             all_completed_future.get();
-                            auto execTime = std::chrono::duration_cast<std::chrono::microseconds>(exec - start).count();
-                            auto waitTime = std::chrono::duration_cast<std::chrono::milliseconds>
-                                    (std::chrono::high_resolution_clock::now() - exec).count();
-                            std::cout << "thread::timeout exec " << execTime << " micros"
-                                    << ", wait  " << waitTime << " ms, tasks:  " << sz << std::endl;
                             // now when all the tasks for this batch are completed, start waiting for the timeout again
                         }
                     }
@@ -503,7 +493,6 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
     auto val = it->second;
     auto metaDevice = ParseMetaDevice(val, {{}});
     cfg.erase(it);
-    std::cout << "AutoBatchInferencePlugin::CreateContext" << std::endl;
     return GetCore()->CreateContext(metaDevice.deviceName, cfg);
 }
 
@@ -621,12 +610,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                     || layout == InferenceEngine::Layout::NDHWC) {
                     assert(1 == shapes[item.first][0]); // do not reshape/re-batch originally batched networks
                     shapes[item.first][0] = metaDevice.batchForDevice;
-                    std::cout << "  reshaping the input " << item.first << " (layout " << layout << ")"
-                              << " by the batch"
-                              << std::endl;
                 }
             }
-            std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
             clonedNetwork.reshape(shapes);
             executableNetworkWithBatch = ctx
                                          ? GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, ctx, deviceConfig)
@@ -639,7 +624,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     if (!executableNetworkWithBatch) {
         executableNetworkWithBatch = executableNetworkWithoutBatch;
         metaDevice.batchForDevice = 1;
-        std::cout << "FALLBACK to using batch1 network!!!" << std::endl;
     }
 
     return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkWithBatch,
@@ -653,7 +637,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadE
             const InferenceEngine::CNNNetwork& network,
             const std::shared_ptr<InferenceEngine::RemoteContext>& context,
             const std::map<std::string, std::string>& config) {
-    std::cout << "AutoBatchInferencePlugin::LoadExeNetworkImpl with context for " << context-> getDeviceName() << std::endl;
     return LoadNetworkImpl(network, context, config);
 }
 
