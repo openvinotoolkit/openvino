@@ -1217,6 +1217,41 @@ def test_add_name_for_tensor():
     assert "extra_name" in add_input_tensor_names
 
 
+def test_add_two_names_for_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensorName="in2")
+    model.add_name_for_tensor(tensor, "extra_name1")
+    model.add_name_for_tensor(tensor, "extra_name2")
+
+    ov_model = fe.convert(model)
+
+    add_input = ov_model.input(1)
+    add_input_tensor_names = add_input.get_names()
+    assert len(add_input_tensor_names) == 3
+    assert "extra_name1" in add_input_tensor_names
+    assert "extra_name2" in add_input_tensor_names
+
+
+def test_add_the_same_name_to_tensor_twice():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensorName="in2")
+    model.add_name_for_tensor(tensor, "extra_name")
+    model.add_name_for_tensor(tensor, "extra_name")
+
+    ov_model = fe.convert(model)
+
+    add_input = ov_model.input(1)
+    add_input_tensor_names = add_input.get_names()
+    assert len(add_input_tensor_names) == 2
+    assert "extra_name" in add_input_tensor_names
+
+
 def test_add_name_for_tensor_and_cut_it_off():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
