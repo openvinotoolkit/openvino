@@ -62,4 +62,16 @@ VPU_PACKED(mv_stage_header {
     uint32_t numShaves;
 };)
 
+VPU_PACKED(network_info_header {
+    uint32_t parameters_size;
+    uint32_t results_size;
+};)
+
+VPU_PACKED(network_params_header {
+    uint32_t name_lenght;
+    uint32_t shape_size;
+    uint32_t element_type_bytesize;
+    uint32_t output_tensor_names_size;
+};)
+
 }  //  namespace vpu

@@ -21,7 +21,6 @@ from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from setuptools.command.install import install
-from decouple import config
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join('openvino', 'libs')
 WHEEL_LIBS_PACKAGE = 'openvino.libs'
@@ -41,10 +40,11 @@ elif machine == 'aarch64':
     ARCH = 'arm64'
 
 # The following variables can be defined in environment or .env file
-CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', '.')
-OV_RUNTIME_LIBS_DIR = config('OV_RUNTIME_LIBS_DIR', f'runtime/{LIBS_DIR}/{ARCH}/{CONFIG}')
-TBB_LIBS_DIR = config('TBB_LIBS_DIR', f'runtime/3rdparty/tbb/{LIBS_DIR}')
-PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', f'python/{PYTHON_VERSION}')
+SCRIPT_DIR = Path(__file__).resolve().parents[0]
+CMAKE_BUILD_DIR = os.getenv('CMAKE_BUILD_DIR', '.')
+OV_RUNTIME_LIBS_DIR = os.getenv('OV_RUNTIME_LIBS_DIR', f'runtime/{LIBS_DIR}/{ARCH}/{CONFIG}')
+TBB_LIBS_DIR = os.getenv('TBB_LIBS_DIR', f'runtime/3rdparty/tbb/{LIBS_DIR}')
+PY_PACKAGES_DIR = os.getenv('PY_PACKAGES_DIR', f'python/{PYTHON_VERSION}')
 LIBS_RPATH = '$ORIGIN' if sys.platform == 'linux' else '@loader_path'
 
 LIB_INSTALL_CFG = {
@@ -428,28 +428,28 @@ if not any(pl in sys.platform for pl in platforms):
     sys.exit(f'Unsupported platform: {sys.platform}, expected: linux, win32, darwin')
 
 # copy license file into the build directory
-package_license = config('WHEEL_LICENSE', '')
+package_license = os.getenv('WHEEL_LICENSE', SCRIPT_DIR.parents[3] / 'LICENSE')
 if os.path.exists(package_license):
     copyfile(package_license, 'LICENSE')
 
 packages = find_namespace_packages(get_package_dir(PY_INSTALL_CFG))
 package_data: typing.Dict[str, list] = {}
-pkg_name = config('WHEEL_PACKAGE_NAME', 'openvino')
+pkg_name = os.getenv('WHEEL_PACKAGE_NAME', 'openvino')
 ext_modules = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)) if pkg_name == 'openvino' else []
 
 setup(
-    version=config('WHEEL_VERSION', '0.0.0'),
-    build=config('WHEEL_BUILD', '000'),
-    author_email=config('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
+    version=os.getenv('WHEEL_VERSION', '0.0.0'),
+    build=os.getenv('WHEEL_BUILD', '000'),
+    author_email=os.getenv('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
     name=pkg_name,
-    license=config('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),
-    author=config('WHEEL_AUTHOR', 'Intel Corporation'),
-    description=config('WHEEL_DESC', 'Inference Engine Python* API'),
-    install_requires=get_dependencies(config('WHEEL_REQUIREMENTS', 'meta/openvino.requirements.txt')),
-    long_description=get_description(config('WHEEL_OVERVIEW', 'meta/pypi_overview.md')),
+    license=os.getenv('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),
+    author=os.getenv('WHEEL_AUTHOR', 'Intel(R) Corporation'),
+    description=os.getenv('WHEEL_DESC', 'OpenVINO(TM) Runtime'),
+    install_requires=get_dependencies(os.getenv('WHEEL_REQUIREMENTS', SCRIPT_DIR.parents[0] / 'requirements.txt')),
+    long_description=get_description(os.getenv('WHEEL_OVERVIEW', SCRIPT_DIR.parents[3] / 'docs/install_guides/pypi-openvino-rt.md')),
     long_description_content_type='text/markdown',
-    download_url=config('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
-    url=config('WHEEL_URL', 'https://docs.openvinotoolkit.org/latest/index.html'),
+    download_url=os.getenv('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
+    url=os.getenv('WHEEL_URL', 'https://docs.openvinotoolkit.org/latest/index.html'),
     cmdclass={
         'build': CustomBuild,
         'install': CustomInstall,
