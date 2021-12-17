@@ -1387,13 +1387,6 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
     }
 }
 
-void MKLDNNFakeQuantizeNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNFakeQuantizeNode::executeReference() {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
@@ -1650,6 +1643,10 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
             (*pKernel)(&arg);
         });
     }
+}
+
+void MKLDNNFakeQuantizeNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
